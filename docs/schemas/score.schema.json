@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "score.schema.json",
+  "title": "Score (Supabase row) and submission payload",
+  "type": "object",
+  "required": ["name", "trackId", "mode", "timeMs", "racerId", "inputLog", "clientVersion"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 16, "pattern": "^[A-Za-z0-9 _-]+$" },
+    "trackId": { "type": "string" },
+    "mode": { "type": "string", "enum": ["timeTrial", "daily"] },
+    "dailySeed": { "type": "integer" },
+    "timeMs": { "type": "integer", "minimum": 30000 },
+    "racerId": { "type": "string" },
+    "inputLog": { "type": "string", "description": "Compressed input log; server re-simulates to verify timeMs" },
+    "clientVersion": { "type": "string" },
+    "turnstileToken": { "type": "string" },
+    "verified": { "type": "boolean", "description": "Set by the Edge Function only" },
+    "ipHash": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

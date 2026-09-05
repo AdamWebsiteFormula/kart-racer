@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "race-state.schema.json",
+  "title": "RaceState",
+  "description": "The whole simulation state at one fixed-timestep tick. Deterministic given inputs and seed. Serialisable for ghosts and verification.",
+  "type": "object",
+  "required": ["mode", "trackId", "seed", "tick", "phase", "lapsTotal", "karts"],
+  "properties": {
+    "mode": { "type": "string", "enum": ["quick", "grandPrix", "knockout", "timeTrial", "daily"] },
+    "trackId": { "type": "string" },
+    "seed": { "type": "integer" },
+    "tick": { "type": "integer", "description": "Fixed 120 Hz sim ticks since race start" },
+    "phase": { "type": "string", "enum": ["countdown", "racing", "finalLap", "finished"] },
+    "lapsTotal": { "type": "integer" },
+    "finalLapShiftFired": { "type": "boolean" },
+    "knockout": { "type": "object", "properties": { "segment": { "type": "integer" }, "cutLineAt": { "type": "integer" }, "eliminated": { "type": "array", "items": { "type": "string" } } } },
+    "karts": {
+      "type": "array", "minItems": 1, "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["racerId", "isPlayer", "position", "heading", "speed", "lateralVelocity", "verticalVelocity", "t", "lap", "checkpointsHit", "drift", "boost", "item", "coins", "rank"],
+        "properties": {
+          "racerId": { "type": "string" }, "isPlayer": { "type": "boolean" },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "heading": { "type": "number" }, "speed": { "type": "number" }, "lateralVelocity": { "type": "number" }, "verticalVelocity": { "type": "number" },
+          "grounded": { "type": "boolean" }, "surface": { "type": "string" },
+          "t": { "type": "number" }, "lap": { "type": "integer" }, "checkpointsHit": { "type": "integer" }, "distanceAlong": { "type": "number" },
+          "wrongWaySeconds": { "type": "number" }, "stuckSeconds": { "type": "number" },
+          "drift": { "type": "object", "properties": { "active": { "type": "boolean" }, "direction": { "type": "integer" }, "charge": { "type": "number" }, "tier": { "type": "integer" } } },
+          "boost": { "type": "object", "properties": { "source": { "type": "string", "enum": ["none", "drift", "trick", "pad", "item", "slipstream", "start"] }, "remaining": { "type": "number" }, "multiplier": { "type": "number" } } },
+          "item": { "type": "object", "properties": { "held": { "type": "string" }, "charges": { "type": "integer" }, "rouletteRemaining": { "type": "number" } } },
+          "status": { "type": "object", "properties": { "spinRemaining": { "type": "number" }, "shield": { "type": "boolean" }, "slowedTo": { "type": "number" }, "slowRemaining": { "type": "number" }, "intangibleRemaining": { "type": "number" } } },
+          "coins": { "type": "integer" }, "rank": { "type": "integer" },
+          "finishTick": { "type": "integer" },
+          "ai": { "type": "object", "properties": { "difficulty": { "type": "string", "enum": ["easy", "normal", "hard"] }, "rubberBand": { "type": "number" } } }
+        }
+      }
+    },
+    "projectiles": { "type": "array", "items": { "type": "object", "properties": { "itemId": { "type": "string" }, "ownerId": { "type": "string" }, "position": { "type": "array", "items": { "type": "number" } }, "velocity": { "type": "array", "items": { "type": "number" } }, "bouncesLeft": { "type": "integer" }, "targetId": { "type": "string" }, "ttl": { "type": "number" } } } },
+    "groundItems": { "type": "array", "items": { "type": "object", "properties": { "itemId": { "type": "string" }, "position": { "type": "array", "items": { "type": "number" } }, "ttl": { "type": "number" } } } },
+    "inputLog": { "type": "array", "description": "Player input per tick, stored for ghosts and server re-simulation", "items": { "type": "object", "properties": { "steer": { "type": "number" }, "throttle": { "type": "number" }, "brake": { "type": "number" }, "drift": { "type": "boolean" }, "item": { "type": "boolean" }, "lookBack": { "type": "boolean" } } } }
+  }
+}

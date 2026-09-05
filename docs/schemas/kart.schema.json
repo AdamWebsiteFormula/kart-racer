@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "kart.schema.json",
+  "title": "KartArchetype and Racer",
+  "description": "Base handling constants, the three archetype multipliers, and the eight racers.",
+  "type": "object",
+  "required": ["base", "archetypes", "racers"],
+  "properties": {
+    "base": {
+      "type": "object",
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripIce"],
+      "properties": {
+        "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
+        "accel": { "type": "number", "default": 12 },
+        "brake": { "type": "number", "default": 20 },
+        "steerRate": { "type": "number", "description": "rad/s at low speed", "default": 2.4 },
+        "driftSteerMin": { "type": "number", "default": 0.35 },
+        "driftSteerMax": { "type": "number", "default": 0.8 },
+        "hopSeconds": { "type": "number", "default": 0.25 },
+        "chargeFull": { "type": "number", "default": 5 },
+        "chargeNeutral": { "type": "number", "default": 2 },
+        "driftTiers": { "type": "array", "items": { "type": "number" }, "default": [250, 550, 850] },
+        "boostMultiplier": { "type": "number", "default": 1.2 },
+        "boostSeconds": { "type": "array", "items": { "type": "number" }, "default": [0.6, 1.5, 2.5] },
+        "trickMultiplier": { "type": "number", "default": 1.3 }, "trickSeconds": { "type": "number", "default": 0.7 },
+        "padMultiplier": { "type": "number", "default": 1.3 }, "padSeconds": { "type": "number", "default": 1.0 },
+        "itemSpeedMultiplier": { "type": "number", "default": 1.4 }, "itemSpeedSeconds": { "type": "number", "default": 1.5 },
+        "slipstreamSeconds": { "type": "number", "default": 2.0 }, "slipstreamMultiplier": { "type": "number", "default": 1.12 },
+        "coinBonusEach": { "type": "number", "default": 0.0066 }, "coinCap": { "type": "integer", "default": 10 },
+        "gripRoad": { "type": "number", "default": 8 }, "gripOffroad": { "type": "number", "default": 4 }, "gripIce": { "type": "number", "default": 2.5 }
+      }
+    },
+    "archetypes": {
+      "type": "object",
+      "required": ["light", "medium", "heavy"],
+      "additionalProperties": {
+        "type": "object", "required": ["speed", "accel", "handling", "weight", "hook"],
+        "properties": {
+          "speed": { "type": "number" }, "accel": { "type": "number" }, "handling": { "type": "number" }, "weight": { "type": "number" },
+          "hook": { "type": "string", "enum": ["fastCharge", "keepCoins", "hardBump"] }
+        }
+      }
+    },
+    "racers": {
+      "type": "array", "minItems": 8, "maxItems": 8,
+      "items": {
+        "type": "object", "required": ["id", "name", "archetype", "accent", "secondary", "kartAsset", "headAsset", "horn"],
+        "properties": {
+          "id": { "type": "string" }, "name": { "type": "string" },
+          "archetype": { "type": "string", "enum": ["light", "medium", "heavy"] },
+          "accent": { "type": "string" }, "secondary": { "type": "string" },
+          "kartAsset": { "type": "string" }, "headAsset": { "type": "string" }, "propAsset": { "type": "string" },
+          "horn": { "type": "string" }, "hitYelp": { "type": "string" },
+          "aiPersonality": { "type": "object", "properties": { "lateralBias": { "type": "number" }, "aggression": { "type": "number" }, "driftUse": { "type": "number" } } },
+          "unlock": { "type": "string", "description": "Empty = available from start" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "track.schema.json",
+  "title": "TrackDefinition",
+  "description": "One track. The closed spline drives road mesh, checkpoints, AI line, positions, wrong-way, respawn and minimap.",
+  "type": "object",
+  "required": ["id", "name", "biome", "cup", "laps", "controlPoints", "checkpointCount", "startGrid", "finalLapShift"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string" },
+    "biome": { "type": "string", "enum": ["harbour", "meadow", "canyon", "frost", "boardwalk", "skyline", "temple", "foundry"] },
+    "cup": { "type": "string", "enum": ["sunrise", "summit"] },
+    "orderInCup": { "type": "integer", "minimum": 1 },
+    "laps": { "type": "integer", "minimum": 1, "default": 3 },
+    "targetLapSeconds": { "type": "number", "minimum": 30, "maximum": 90 },
+    "controlPoints": {
+      "description": "Closed Catmull-Rom control points in world metres. halfWidth and surface apply from this point to the next.",
+      "type": "array", "minItems": 8,
+      "items": {
+        "type": "object", "required": ["x", "y", "z", "halfWidth"],
+        "properties": {
+          "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" },
+          "halfWidth": { "type": "number", "minimum": 3 },
+          "bank": { "type": "number", "description": "Roll in degrees, positive banks into a right turn", "default": 0 },
+          "surface": { "type": "string", "enum": ["road", "dirt", "ice", "boost", "rail"], "default": "road" }
+        }
+      }
+    },
+    "checkpointCount": { "type": "integer", "minimum": 4 },
+    "startGrid": {
+      "type": "object", "required": ["t", "rows", "columns", "spacing"],
+      "properties": {
+        "t": { "type": "number", "minimum": 0, "maximum": 1, "description": "Spline fraction of the start line" },
+        "rows": { "type": "integer" }, "columns": { "type": "integer" }, "spacing": { "type": "number" }
+      }
+    },
+    "shortcuts": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "entryT", "exitT", "controlPoints", "risk"],
+        "properties": {
+          "id": { "type": "string" }, "entryT": { "type": "number" }, "exitT": { "type": "number" },
+          "controlPoints": { "$ref": "#/properties/controlPoints" },
+          "risk": { "type": "string", "enum": ["jump", "narrow", "hazard"] },
+          "openOnLaps": { "type": "array", "items": { "type": "integer" }, "description": "Empty = always open" }
+        }
+      }
+    },
+    "hazards": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["type", "t"],
+        "properties": {
+          "type": { "type": "string", "enum": ["rolling", "crossing", "falling", "static", "gust"] },
+          "t": { "type": "number" }, "lateral": { "type": "number", "default": 0 },
+          "period": { "type": "number", "description": "Seconds between activations" },
+          "asset": { "type": "string" }
+        }
+      }
+    },
+    "pickups": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" } } } },
+    "coins": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" } } } },
+    "boostPads": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "width": { "type": "number" } } } },
+    "finalLapShift": {
+      "description": "Exactly one readable change on the last lap.",
+      "type": "object", "required": ["kind", "label"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["flood", "storm", "collapse", "blizzard", "fireworks", "sunset", "rise", "reverse"] },
+        "label": { "type": "string", "description": "Banner text, e.g. 'THE TIDE IS IN'" },
+        "closesShortcuts": { "type": "array", "items": { "type": "string" } },
+        "opensShortcuts": { "type": "array", "items": { "type": "string" } },
+        "surfaceOverrides": { "type": "array", "items": { "type": "object", "properties": { "fromT": { "type": "number" }, "toT": { "type": "number" }, "surface": { "type": "string" } } } },
+        "sky": { "type": "string", "description": "Sky preset id" },
+        "lut": { "type": "string" },
+        "fogDensity": { "type": "number" },
+        "musicVariant": { "type": "string" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "sky": { "type": "string" }, "lut": { "type": "string" }, "fogColor": { "type": "string" }, "fogDensity": { "type": "number" },
+        "sunDirection": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+        "palette": { "type": "object", "properties": { "background": { "type": "string" }, "accent": { "type": "string" } } },
+        "decor": { "type": "array", "items": { "type": "object", "properties": { "asset": { "type": "string" }, "instances": { "type": "integer" }, "band": { "type": "string", "enum": ["roadside", "far", "sky"] } } } }
+      }
+    },
+    "music": { "type": "string" },
+    "landmark": { "type": "string", "description": "The thing visible from the start line" }
+  }
+}

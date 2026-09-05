@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "item.schema.json",
+  "title": "ItemDefinition and distribution table",
+  "type": "object",
+  "required": ["items", "table", "lockoutSeconds", "finalLapLockoutSeconds"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "role", "behaviour", "icon", "sfx"],
+        "properties": {
+          "id": { "type": "string" }, "name": { "type": "string" },
+          "role": { "type": "string", "enum": ["forward", "homing", "rearDrop", "deception", "defenceArea", "defenceHeld", "speed", "equaliser", "chaos"] },
+          "behaviour": {
+            "type": "object",
+            "properties": {
+              "projectileSpeed": { "type": "number" }, "bounces": { "type": "integer" }, "homing": { "type": "boolean" },
+              "lifetimeSeconds": { "type": "number" }, "radius": { "type": "number" },
+              "speedMultiplier": { "type": "number" }, "durationSeconds": { "type": "number" }, "charges": { "type": "integer" },
+              "affects": { "type": "string", "enum": ["target", "self", "ahead", "adjacent", "all"] },
+              "slowTo": { "type": "number" }, "stripsItem": { "type": "boolean" }, "minPosition": { "type": "integer" }
+            }
+          },
+          "icon": { "type": "string" }, "sfx": { "type": "string" }, "asset": { "type": "string" },
+          "silhouetteChecked": { "type": "boolean", "description": "Passed the 32 px silhouette test" }
+        }
+      }
+    },
+    "table": {
+      "description": "Weights per position (1-based index into the array). Missing items weigh 0.",
+      "type": "array", "minItems": 8, "maxItems": 8,
+      "items": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } }
+    },
+    "lockoutSeconds": { "type": "number", "default": 15 },
+    "finalLapLockoutSeconds": { "type": "number", "default": 8 },
+    "lockedDuringLockout": { "type": "array", "items": { "type": "string" } },
+    "knockoutPoolByRacers": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } }, "description": "Racers remaining → item ids allowed" }
+  }
+}
