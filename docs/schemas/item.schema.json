@@ -3,8 +3,9 @@
   "$id": "item.schema.json",
   "title": "ItemDefinition and distribution table",
   "type": "object",
-  "required": ["items", "table", "lockoutSeconds", "finalLapLockoutSeconds"],
+  "required": ["items", "table", "lockoutSeconds", "finalLapLockoutSeconds", "rouletteSeconds"],
   "properties": {
+    "rouletteSeconds": { "type": "number", "default": 1.5, "description": "HUD balloon roulette length after a pickup" },
     "items": {
       "type": "array",
       "items": {
@@ -20,7 +21,18 @@
               "lifetimeSeconds": { "type": "number" }, "radius": { "type": "number" },
               "speedMultiplier": { "type": "number" }, "durationSeconds": { "type": "number" }, "charges": { "type": "integer" },
               "affects": { "type": "string", "enum": ["target", "self", "ahead", "adjacent", "all"] },
-              "slowTo": { "type": "number" }, "stripsItem": { "type": "boolean" }, "minPosition": { "type": "integer" }
+              "slowTo": { "type": "number" }, "stripsItem": { "type": "boolean" }, "minPosition": { "type": "integer" },
+              "chargeMultiplier": { "type": "number", "description": "Rocket Lolly: drift charge rate scale while active" },
+              "chargeSeconds": { "type": "number" },
+              "weightBonus": { "type": "number", "description": "Bubble: added to weight while held" }
+            }
+          },
+          "hitEffect": {
+            "description": "What landing this item does to the victim. Omit for items that never hit.",
+            "type": "object",
+            "properties": {
+              "spinSeconds": { "type": "number" }, "coinsLost": { "type": "integer" },
+              "slowTo": { "type": "number" }, "slowSeconds": { "type": "number" }, "dropsItem": { "type": "boolean" }
             }
           },
           "icon": { "type": "string" }, "sfx": { "type": "string" }, "asset": { "type": "string" },

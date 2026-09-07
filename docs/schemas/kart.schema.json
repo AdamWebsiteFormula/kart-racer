@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "kart.schema.json",
   "title": "KartArchetype and Racer",
-  "description": "Base handling constants, the three archetype multipliers, and the eight racers.",
+  "description": "Base handling constants, the three archetype multipliers, the eight racers, and the shared kart bodies. Bodies and skins are cosmetic only; the racer owns the class.",
   "type": "object",
-  "required": ["base", "archetypes", "racers"],
+  "required": ["base", "archetypes", "racers", "bodies"],
   "properties": {
     "base": {
       "type": "object",
-      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripIce"],
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses"],
       "properties": {
         "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
         "accel": { "type": "number", "default": 12 },
@@ -27,7 +27,16 @@
         "itemSpeedMultiplier": { "type": "number", "default": 1.4 }, "itemSpeedSeconds": { "type": "number", "default": 1.5 },
         "slipstreamSeconds": { "type": "number", "default": 2.0 }, "slipstreamMultiplier": { "type": "number", "default": 1.12 },
         "coinBonusEach": { "type": "number", "default": 0.0066 }, "coinCap": { "type": "integer", "default": 10 },
-        "gripRoad": { "type": "number", "default": 8 }, "gripOffroad": { "type": "number", "default": 4 }, "gripIce": { "type": "number", "default": 2.5 }
+        "gripRoad": { "type": "number", "default": 8 }, "gripOffroad": { "type": "number", "default": 4 }, "gripMud": { "type": "number", "default": 3 }, "gripIce": { "type": "number", "default": 2.5 },
+        "startBoostWindowSeconds": { "type": "number", "default": 0.3 }, "startBoostMultiplier": { "type": "number", "default": 1.2 }, "startBoostSeconds": { "type": "number", "default": 1.0 },
+        "bumpForce": { "type": "number", "description": "Lateral m/s given to the lighter kart on contact, scaled by weight difference", "default": 6 },
+        "hitSpinSeconds": { "type": "number", "description": "Default stun when an item or hazard lands", "default": 1.0 },
+        "hitCoinsLost": { "type": "integer", "default": 3 },
+        "speedClasses": {
+          "description": "Top-speed scale per cc class",
+          "type": "object", "required": ["50", "100", "150"],
+          "properties": { "50": { "type": "number", "default": 0.7 }, "100": { "type": "number", "default": 0.85 }, "150": { "type": "number", "default": 1.0 } }
+        }
       }
     },
     "archetypes": {
@@ -37,7 +46,7 @@
         "type": "object", "required": ["speed", "accel", "handling", "weight", "hook"],
         "properties": {
           "speed": { "type": "number" }, "accel": { "type": "number" }, "handling": { "type": "number" }, "weight": { "type": "number" },
-          "hook": { "type": "string", "enum": ["fastCharge", "keepCoins", "hardBump"] }
+          "hook": { "type": "string", "enum": ["fastCharge", "keepCoins", "hardBump"], "description": "Only keepCoins (medium) is in design §4. fastCharge and hardBump need a bible line before use." }
         }
       }
     },
@@ -52,7 +61,31 @@
           "kartAsset": { "type": "string" }, "headAsset": { "type": "string" }, "propAsset": { "type": "string" },
           "horn": { "type": "string" }, "hitYelp": { "type": "string" },
           "aiPersonality": { "type": "object", "properties": { "lateralBias": { "type": "number" }, "aggression": { "type": "number" }, "driftUse": { "type": "number" } } },
-          "unlock": { "type": "string", "description": "Empty = available from start" }
+          "skins": {
+            "description": "Alt palettes. All racers are available from the start; only skins unlock (design §10).",
+            "type": "array",
+            "items": { "$ref": "#/$defs/unlockable" }
+          }
+        }
+      }
+    },
+    "bodies": {
+      "description": "Shared kart body styles. Cosmetic only: no stat change, so leaderboard times stay comparable.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/unlockable" }
+    }
+  },
+  "$defs": {
+    "unlockable": {
+      "type": "object", "required": ["id", "name", "asset", "unlock"],
+      "properties": {
+        "id": { "type": "string" }, "name": { "type": "string" }, "asset": { "type": "string" },
+        "unlock": {
+          "type": "object", "required": ["kind"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["start", "goldOnCup", "goldOnAllTracks", "winKnockout", "finishGrandPrix", "finishKnockout", "ultraTurbos"] },
+            "cup": { "type": "string" }, "count": { "type": "integer" }
+          }
         }
       }
     }

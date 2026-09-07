@@ -4,7 +4,7 @@
   "title": "TrackDefinition",
   "description": "One track. The closed spline drives road mesh, checkpoints, AI line, positions, wrong-way, respawn and minimap.",
   "type": "object",
-  "required": ["id", "name", "biome", "cup", "laps", "controlPoints", "checkpointCount", "startGrid", "finalLapShift"],
+  "required": ["id", "name", "biome", "cup", "laps", "controlPoints", "checkpointCount", "startGrid", "finalLapShift", "medalTimesMs", "voidY"],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
     "name": { "type": "string" },
@@ -13,6 +13,12 @@
     "orderInCup": { "type": "integer", "minimum": 1 },
     "laps": { "type": "integer", "minimum": 1, "default": 3 },
     "targetLapSeconds": { "type": "number", "minimum": 30, "maximum": 90 },
+    "medalTimesMs": {
+      "description": "Time Trial thresholds at 150cc. Gold on every track in a cup drives unlocks (design §10).",
+      "type": "object", "required": ["gold", "silver", "bronze"],
+      "properties": { "gold": { "type": "integer" }, "silver": { "type": "integer" }, "bronze": { "type": "integer" } }
+    },
+    "voidY": { "type": "number", "description": "World Y below which a kart respawns at its last checkpoint" },
     "controlPoints": {
       "description": "Closed Catmull-Rom control points in world metres. halfWidth and surface apply from this point to the next.",
       "type": "array", "minItems": 8,
@@ -22,7 +28,7 @@
           "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" },
           "halfWidth": { "type": "number", "minimum": 3 },
           "bank": { "type": "number", "description": "Roll in degrees, positive banks into a right turn", "default": 0 },
-          "surface": { "type": "string", "enum": ["road", "dirt", "ice", "boost", "rail"], "default": "road" }
+          "surface": { "type": "string", "enum": ["road", "dirt", "mud", "ice", "boost", "rail"], "default": "road" }
         }
       }
     },
@@ -51,10 +57,24 @@
       "items": {
         "type": "object", "required": ["type", "t"],
         "properties": {
+          "id": { "type": "string" },
           "type": { "type": "string", "enum": ["rolling", "crossing", "falling", "static", "gust"] },
           "t": { "type": "number" }, "lateral": { "type": "number", "default": 0 },
           "period": { "type": "number", "description": "Seconds between activations" },
+          "speed": { "type": "number", "description": "m/s for rolling/crossing/falling; gust push strength" },
+          "hit": { "type": "string", "enum": ["spin", "slow", "bump"], "default": "spin" },
           "asset": { "type": "string" }
+        }
+      }
+    },
+    "jumps": {
+      "description": "Trick ramps. Leaving a jump airborne with the hop button pressed awards a trick boost.",
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "t", "launch"],
+        "properties": {
+          "id": { "type": "string" }, "t": { "type": "number" }, "lateral": { "type": "number", "default": 0 },
+          "width": { "type": "number" }, "launch": { "type": "number", "description": "Vertical launch speed m/s" }
         }
       }
     },
@@ -62,14 +82,26 @@
     "coins": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" } } } },
     "boostPads": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "width": { "type": "number" } } } },
     "finalLapShift": {
-      "description": "Exactly one readable change on the last lap.",
+      "description": "Exactly one readable change on the last lap. Fires once, globally, when the race leader starts the final lap.",
       "type": "object", "required": ["kind", "label"],
       "properties": {
         "kind": { "type": "string", "enum": ["flood", "storm", "collapse", "blizzard", "fireworks", "sunset", "rise", "reverse"] },
         "label": { "type": "string", "description": "Banner text, e.g. 'THE TIDE IS IN'" },
         "closesShortcuts": { "type": "array", "items": { "type": "string" } },
         "opensShortcuts": { "type": "array", "items": { "type": "string" } },
+        "routeOverrides": {
+          "description": "Replace a t-range of the main spline (bridges retract, rail becomes mandatory). The LUT is rebuilt once when the shift fires.",
+          "type": "array",
+          "items": {
+            "type": "object", "required": ["fromT", "toT", "controlPoints"],
+            "properties": { "fromT": { "type": "number" }, "toT": { "type": "number" }, "controlPoints": { "$ref": "#/properties/controlPoints" } }
+          }
+        },
         "surfaceOverrides": { "type": "array", "items": { "type": "object", "properties": { "fromT": { "type": "number" }, "toT": { "type": "number" }, "surface": { "type": "string" } } } },
+        "gripMultiplier": { "type": "number", "default": 1, "description": "Global grip scale, e.g. 0.8 for wet grass" },
+        "addsJumps": { "$ref": "#/properties/jumps" },
+        "enablesHazards": { "type": "array", "items": { "type": "string" } },
+        "disablesHazards": { "type": "array", "items": { "type": "string" } },
         "sky": { "type": "string", "description": "Sky preset id" },
         "lut": { "type": "string" },
         "fogDensity": { "type": "number" },

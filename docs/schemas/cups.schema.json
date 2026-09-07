@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cups.schema.json",
+  "title": "Cups, Knockout sets and Grand Prix scoring",
+  "description": "Mode configuration. Which tracks make a cup, which three tracks link into a Knockout, and how points and stars are awarded.",
+  "type": "object",
+  "required": ["cups", "knockoutSets", "gpPointsByRank", "starThresholds"],
+  "properties": {
+    "cups": {
+      "type": "array", "minItems": 2,
+      "items": {
+        "type": "object", "required": ["id", "name", "trackIds"],
+        "properties": {
+          "id": { "type": "string", "enum": ["sunrise", "summit"] },
+          "name": { "type": "string" },
+          "trackIds": { "type": "array", "minItems": 3, "maxItems": 4, "items": { "type": "string" } },
+          "musicFinaleVariant": { "type": "string" }
+        }
+      }
+    },
+    "knockoutSets": {
+      "description": "Three linked tracks. Cut lines are the racer count kept after each segment: 8 → 6 → 4 → 2 → winner.",
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["id", "name", "trackIds", "cutLines"],
+        "properties": {
+          "id": { "type": "string" }, "name": { "type": "string" },
+          "trackIds": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "string" } },
+          "cutLines": { "type": "array", "items": { "type": "integer" }, "default": [6, 4, 2] },
+          "lapsPerSegment": { "type": "integer", "default": 2 }
+        }
+      }
+    },
+    "gpPointsByRank": { "type": "array", "minItems": 8, "maxItems": 8, "items": { "type": "integer" }, "default": [15, 12, 10, 8, 7, 6, 5, 4] },
+    "starThresholds": {
+      "description": "Cup total points needed for 1, 2 and 3 stars",
+      "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "integer" }
+    }
+  }
+}

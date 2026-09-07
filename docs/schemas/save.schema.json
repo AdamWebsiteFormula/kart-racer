@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "save.schema.json",
+  "title": "Save (local profile)",
+  "description": "Stored in localStorage. Every unlock in design §10 must be computable from these counters and results. Deterministic and visible: no random unlocks.",
+  "type": "object",
+  "required": ["version", "playerName", "stats", "timeTrial", "grandPrix", "knockout", "unlocked", "settings"],
+  "properties": {
+    "version": { "type": "integer" },
+    "playerName": { "type": "string", "maxLength": 16 },
+    "stats": {
+      "type": "object", "required": ["ultraTurbos", "racesFinished"],
+      "properties": {
+        "ultraTurbos": { "type": "integer", "description": "Tier-3 drift boosts fired, all modes" },
+        "racesFinished": { "type": "integer" },
+        "itemsHit": { "type": "integer" }
+      }
+    },
+    "timeTrial": {
+      "description": "Keyed by trackId. Best time at 150cc, its medal, and the ghost input log.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["bestMs", "medal"],
+        "properties": {
+          "bestMs": { "type": "integer" },
+          "medal": { "type": "string", "enum": ["none", "bronze", "silver", "gold"] },
+          "racerId": { "type": "string" },
+          "ghostInputLog": { "type": "string", "description": "Compressed, same format as score.inputLog" },
+          "submittedToLeaderboard": { "type": "boolean" }
+        }
+      }
+    },
+    "grandPrix": {
+      "description": "Keyed by cupId, then speedClass",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object", "required": ["finished", "stars"],
+          "properties": { "finished": { "type": "boolean" }, "stars": { "type": "integer", "minimum": 0, "maximum": 3 }, "bestPoints": { "type": "integer" } }
+        }
+      }
+    },
+    "knockout": {
+      "description": "Keyed by knockout setId",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["finished", "won"],
+        "properties": { "finished": { "type": "boolean" }, "won": { "type": "boolean" }, "bestPlacing": { "type": "integer" } }
+      }
+    },
+    "unlocked": {
+      "description": "Cache of unlockable ids already granted, so the reveal fires once",
+      "type": "object",
+      "properties": {
+        "skins": { "type": "array", "items": { "type": "string" } },
+        "bodies": { "type": "array", "items": { "type": "string" } },
+        "mirror": { "type": "boolean" }
+      }
+    },
+    "daily": {
+      "type": "object",
+      "properties": { "lastSeed": { "type": "integer" }, "lastTimeMs": { "type": "integer" } }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "quality": { "type": "string", "enum": ["low", "high", "auto"], "default": "auto" },
+        "musicVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sfxVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "selectedRacerId": { "type": "string" }, "selectedBodyId": { "type": "string" }, "selectedSkinId": { "type": "string" }
+      }
+    }
+  }
+}
