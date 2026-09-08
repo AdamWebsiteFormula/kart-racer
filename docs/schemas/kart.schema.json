@@ -8,7 +8,7 @@
   "properties": {
     "base": {
       "type": "object",
-      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses"],
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield"],
       "properties": {
         "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
         "accel": { "type": "number", "default": 12 },
@@ -27,11 +27,56 @@
         "itemSpeedMultiplier": { "type": "number", "default": 1.4 }, "itemSpeedSeconds": { "type": "number", "default": 1.5 },
         "slipstreamSeconds": { "type": "number", "default": 2.0 }, "slipstreamMultiplier": { "type": "number", "default": 1.12 },
         "coinBonusEach": { "type": "number", "default": 0.0066 }, "coinCap": { "type": "integer", "default": 10 },
-        "gripRoad": { "type": "number", "default": 8 }, "gripOffroad": { "type": "number", "default": 4 }, "gripMud": { "type": "number", "default": 3 }, "gripIce": { "type": "number", "default": 2.5 },
+        "gripRoad": { "type": "number", "description": "Lateral velocity damping per second. Mario Kart does NOT reduce grip off-road; the off-road penalty is the speed cap in surfaceSpeed. Only slippery surfaces (ice) cut grip. See docs/sops/kart-controller.md Approach.", "default": 8 },
+        "gripOffroad": { "type": "number", "description": "Dirt. Equal to gripRoad on purpose (MK8DX BrakeRt only caps speed off-road).", "default": 8 },
+        "gripMud": { "type": "number", "description": "Equal to gripRoad on purpose; mud is punished by surfaceSpeed, not by grip.", "default": 8 },
+        "gripIce": { "type": "number", "description": "The one surface that really slides (MK8DX SlipRt applies to ice and sand).", "default": 2.5 },
+        "surfaceSpeed": {
+          "description": "Top-speed cap per surface, as a fraction of the kart's on-road top speed. This is how Mario Kart models off-road: a hard speed cap, not drag and not grip. MK8DX datamined BrakeRt for dirt terrain has three tiers, 0.7 light / 0.5 medium / 0.3 heavy (deep sand). We map dirt to the light tier and mud to the medium tier; 0.3 stays free for a future deep-mud surface. Ice takes the slippery-terrain value (~0.9) and pays the rest in grip. The cap is ignored while a boost is live and while airborne (both are real MK rules, and they are what makes the hop-over-off-road line worth learning).",
+          "type": "object", "required": ["road", "dirt", "mud", "ice", "boost", "rail"],
+          "properties": {
+            "road": { "type": "number", "default": 1.0 },
+            "dirt": { "type": "number", "default": 0.7 },
+            "mud": { "type": "number", "default": 0.5 },
+            "ice": { "type": "number", "default": 0.9 },
+            "boost": { "type": "number", "default": 1.0 },
+            "rail": { "type": "number", "default": 1.0 }
+          }
+        },
+        "boostIgnoresSurfaceCap": { "type": "boolean", "description": "MK Wii: a dash-panel boost carries off-road immunity. We apply it to every boost source for one readable rule.", "default": true },
+        "airborneIgnoresSurfaceCap": { "type": "boolean", "description": "No ground contact, no surface cap. This is what makes hopping over a mud patch work.", "default": true },
+        "gravity": { "type": "number", "description": "m/s². No Mario Kart datamine exists for this; tuned so hopSeconds lands.", "default": 26 },
+        "hopVelocity": { "type": "number", "description": "m/s. gravity × hopSeconds / 2 so a flat hop lasts exactly hopSeconds.", "default": 3.25 },
+        "coastDecel": { "type": "number", "default": 4.5 },
+        "overSpeedDecel": { "type": "number", "description": "m/s². How fast speed falls back to the cap when a boost ends or a surface cap bites.", "default": 10 },
+        "reverseFraction": { "type": "number", "description": "Reverse top speed as a fraction of forward top speed.", "default": 0.35 },
+        "steerFalloff": { "type": "number", "description": "Turn rate shrinks with speed by this fraction at top speed, giving ~30 m radius (SuperTuxKart).", "default": 0.65 },
+        "driftMinSpeed": { "type": "number", "description": "Fraction of top speed needed to start a drift.", "default": 0.45 },
+        "driftKeepSpeed": { "type": "number", "description": "Drift cancels with no boost below this fraction.", "default": 0.3 },
+        "driftAirCancelSeconds": { "type": "number", "default": 0.9 },
+        "kartRadius": { "type": "number", "description": "metres; collision circle", "default": 0.85 },
+        "groundStick": { "type": "number", "description": "metres; stay glued to the ground within this height so crests do not launch the kart", "default": 0.12 },
+        "groundLaunchVy": { "type": "number", "default": 1.0 },
+        "wallRestitution": { "type": "number", "default": 0.3 },
+        "wallScrub": { "type": "number", "description": "Fraction of forward speed lost on a hard wall hit.", "default": 0.15 },
+        "slipstreamLength": { "type": "number", "description": "metres behind the kart ahead", "default": 8 },
+        "slipstreamHalfWidth": { "type": "number", "default": 2 },
+        "tSearchWindow": { "type": "number", "description": "Spline fraction searched around the previous t. Never search globally.", "default": 0.02 },
+        "driftVisualSlip": { "type": "number", "description": "rad; render-only body yaw offset at full drift", "default": 0.49 },
+        "dashMassBonus": { "type": "number", "description": "Added to collision mass while any boost is live. MK8DX has a separate 'dash mass' for exactly this, so a boosting light kart can still win a bump.", "default": 0.35 },
+        "coinShield": {
+          "description": "Mario Kart's real coin rule: coins are a hit buffer. With coins in hand a hit costs coins and speed but no full spin-out; at zero coins the same hit spins you.",
+          "type": "object", "required": ["enabled", "slowedTo", "slowSeconds"],
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "slowedTo": { "type": "number", "description": "Speed multiplier applied instead of a spin when the kart has at least one coin.", "default": 0.75 },
+            "slowSeconds": { "type": "number", "default": 0.6 }
+          }
+        },
         "startBoostWindowSeconds": { "type": "number", "default": 0.3 }, "startBoostMultiplier": { "type": "number", "default": 1.2 }, "startBoostSeconds": { "type": "number", "default": 1.0 },
         "bumpForce": { "type": "number", "description": "Lateral m/s given to the lighter kart on contact, scaled by weight difference", "default": 6 },
         "hitSpinSeconds": { "type": "number", "description": "Default stun when an item or hazard lands", "default": 1.0 },
-        "hitCoinsLost": { "type": "integer", "default": 3 },
+        "hitCoinsLost": { "type": "integer", "description": "Mario Kart World lowered this from 3 to 2 for every racer.", "default": 2 },
         "speedClasses": {
           "description": "Top-speed scale per cc class",
           "type": "object", "required": ["50", "100", "150"],
@@ -46,7 +91,7 @@
         "type": "object", "required": ["speed", "accel", "handling", "weight", "hook"],
         "properties": {
           "speed": { "type": "number" }, "accel": { "type": "number" }, "handling": { "type": "number" }, "weight": { "type": "number" },
-          "hook": { "type": "string", "enum": ["fastCharge", "keepCoins", "hardBump"], "description": "Only keepCoins (medium) is in design §4. fastCharge and hardBump need a bible line before use." }
+          "hook": { "type": "string", "enum": ["none", "fastCharge", "keepCoins", "hardBump"], "description": "Researched 8 Sept 2026 against Mario Kart World. hardBump = heavy: every Mario Kart decides a bump by collision mass, and MKW's own Weight tooltip says it 'affects collision between vehicles', so heavy gets it. fastCharge = light: NOT used. MK8DX's hidden Mini-Turbo stat is per character and kart part and does not track weight (Bowser is max, Wario is min), so tying charge rate to a light class has no series precedent. keepCoins = medium: invented, no precedent; superseded by base.coinShield, which gives the coin buffer to everyone the way Mario Kart does. Leaving it here until design.md §4 is updated." }
         }
       }
     },
