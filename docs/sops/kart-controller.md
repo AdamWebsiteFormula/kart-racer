@@ -77,19 +77,21 @@ Two existing defaults changed at the same time: `gripOffroad` 4 → 8 and `gripM
 ### What Mario Kart World actually does (researched 8 Sept 2026)
 Sources: [Off-Road](https://www.mariowiki.com/Off-Road) and [MK8DX in-game statistics](https://www.mariowiki.com/Mario_Kart_8_Deluxe_in-game_statistics) on Super Mario Wiki, [MKWii boost data](https://wiki.mkwtas.com/wiki/Boost_information), [Vike's drifting guide](https://vikemk.com/drifting-guide), [Game8 MKW stats](https://game8.co/games/Mario-Kart-World/archives/523474), [VULKK on MKW stats](https://vulkk.com/2025/08/10/how-stats-work-in-mario-kart-world/). Mario Kart World itself is barely datamined as of Sept 2026, so the numbers below are MK8DX and MK Wii, and I say so where it matters.
 
-- **Off-road is a speed cap, not grip.** The datamined `BrakeRt` for dirt is a flat fraction of top speed, in three tiers: 0.7 light, 0.5 medium, 0.3 heavy (deep sand). Steering, grip, drifting and mini-turbo charging are all *unaffected* by dirt. Our original grip-based off-road was wrong, hence the `gripOffroad` and `gripMud` change. We map dirt → 0.7 and mud → 0.5, and leave 0.3 free for a deep-mud surface later.
+- **Off-road is a speed cap, not grip.** The datamined `BrakeRt` for dirt is a flat fraction of top speed, in three tiers: 0.7 light, 0.5 medium, 0.3 heavy (deep sand). Steering, grip, drifting and mini-turbo charging are all *unaffected* by dirt. Our original grip-based off-road was wrong, hence the `gripOffroad` and `gripMud` change. We map dirt → 0.7 and mud → **0.6**, a softened medium tier (Adam, 8 Sept 2026), and leave 0.5 and 0.3 free for deeper surfaces later.
 - **Only slippery ground cuts grip.** MK8DX handles ice and sand with a separate slip value near 0.9 of top speed plus real sliding. So ice keeps a modest speed cap (0.9) and pays in grip (2.5). That matches Frostbite Pass in the bible.
 - **Boosts and air ignore the cap.** A dash panel in MK Wii carries explicit off-road immunity, and an airborne kart never touches the ground surface at all. This is why "hop over the mud" is a real Mario Kart line. We apply it to every boost source, one rule, easy to read.
 - **Mini-turbo charge rate is not a weight thing.** MK8DX's hidden Mini-Turbo stat changes boost duration and strength, is set per character and kart part, and does not track weight at all: Bowser is at the top of the range and Wario is at the bottom, and both are heavy. So a "light karts charge faster" hook has no Mario Kart precedent. **Not added.**
 - **Bump-by-weight is universal.** Every Mario Kart resolves a kart-to-kart bump with a collision mass, and Mario Kart World's own Weight tooltip says it "affects collision between vehicles". MK8DX also carries a separate larger mass while boosting. **Added**, as `dashMassBonus` plus mass-proportional separation.
-- **Coins are a hit buffer, for everyone.** In Mario Kart a hit at zero coins spins you out; holding coins turns the same hit into a coin loss and a speed dip. Mario Kart World also cut coin loss from 3 to 2. **Added** as `base.coinShield` and `hitCoinsLost` 2. This is a better version of the invented "medium keeps coins" hook, and it applies to all eight racers.
+- **Coins are a hit buffer, for everyone.** In Mario Kart a hit at zero coins spins you out; holding coins turns the same hit into a coin loss and a speed dip. Mario Kart World also cut coin loss from 3 to 2. **Added** as `base.coinShield` and `hitCoinsLost` 2. It replaces the invented "medium keeps coins" hook, which Adam removed from design §4 on 8 Sept 2026. Medium now has no hook, exactly as in Mario Kart World.
 - **A class needs a verb, not a stat bar.** Mario Kart World removed inward drift and bikes stopped being interesting. The lesson for us: heavy has the bump, and that has to be genuinely felt.
 
-Two numbers in the bible now look off against the sources, and I have **not** changed them because `docs/design.md` is the source of truth:
-| Ours (design §7) | Mario Kart Wii datamine | Note |
+Two boost numbers were off against the sources. Adam approved the change on 8 Sept 2026, so `docs/design.md` §7 and the schema now read:
+| Was | Now | Source |
 |---|---|---|
-| drift boost +20% | mini-turbo +30%, standstill mini-turbo +20% | plan §4.1 seems to have read the standstill row |
-| boost pad +30% for 1.0 s | dash panel +40% for 1.0 s (60 frames) | duration matches, strength does not |
+| drift boost +20% | **+30%** | MK Wii mini-turbo is +30%; the +20% row is its standstill mini-turbo, which plan §4.1 appears to have read by mistake |
+| boost pad +30% for 1.0 s | **+40%** for 1.0 s | MK Wii dash panel, 60 frames |
+
+Item speed is also +40%, so trick 1.3 < pad 1.4 = item 1.4 and the "boost never exceeds 1.4 × V" test still holds.
 
 ### Tests (headless, vitest, all deterministic)
 1. Per-module tests in the table above.
@@ -98,7 +100,7 @@ Two numbers in the bible now look off against the sources, and I have **not** ch
 4. **Boost cap**: over any log, `boost.multiplier ≤ 1.4` and `speed ≤ 1.4 × V_eff` where `V_eff` includes cc, archetype, surface and coins.
 5. **Lap time**: scripted log on the flat oval stub finishes within ±2% of its recorded time. The Harbour Loop version of this test is added when track-builder lands and becomes the gate from then on.
 6. **Archetype fairness**: the same log on light / medium / heavy finishes within 3% of each other on the oval (equal totals in practice, not just on paper).
-7. **Surface cap**: driving onto mud at top speed settles at `0.5 × V` and takes about 0.5 s to bleed there, not one tick. Dirt settles at `0.7 × V`. Grip on dirt and mud is identical to road; only ice slides further.
+7. **Surface cap**: driving onto mud at top speed settles at `0.6 × V` and takes about 0.4 s to bleed there, not one tick. Dirt settles at `0.7 × V`. Grip on dirt and mud is identical to road; only ice slides further.
 8. **Cap bypass**: the same mud run with a live boost, and again with a hop over the patch, both keep full speed.
 9. **Bump**: heavy into light moves the light kart further than light into heavy, and a boosting light kart wins the bump against a coasting heavy.
 10. **Coin shield**: a hit with coins in hand slows and drops 2 coins with no spin; the same hit at zero coins spins for `hitSpinSeconds`.
@@ -114,14 +116,11 @@ Device remapping UI, Smart Steer, auto-accelerate, camera, particles, audio, res
 - 2026-09-07: Reverse exists (0.35 × V) so nobody gets stuck on a wall. It is not in the bible; delete if it causes trouble.
 - 2026-09-08: Off-road is a top-speed cap, not a grip cut, matching MK8DX `BrakeRt`. Added `base.surfaceSpeed` (dirt 0.7, mud 0.5, ice 0.9) and set `gripOffroad` and `gripMud` equal to `gripRoad`. Ice keeps the low grip.
 - 2026-09-08: A live boost and being airborne both ignore the surface cap (MK Wii dash-panel off-road immunity; airborne karts touch no surface). This makes hopping over mud a real line.
-- 2026-09-08: Light does **not** get faster drift charge. MK8DX's Mini-Turbo stat is per character and part and does not track weight, so there is no Mario Kart precedent. `fastCharge` stays in the schema enum, unused.
+- 2026-09-08: Light does **not** get faster drift charge. MK8DX's Mini-Turbo stat is per character and part and does not track weight, so there is no Mario Kart precedent. Dropped from the schema `hook` enum entirely.
 - 2026-09-08: Heavy **does** get the harder bump, via mass-proportional separation plus `dashMassBonus` 0.35 while boosting, matching MK8DX collision mass and dash mass. Mario Kart World's Weight tooltip says weight affects vehicle collision.
-- 2026-09-08: "Medium keeps coins on hit" is invented and has no Mario Kart precedent. Replaced by `base.coinShield`, the real Mario Kart rule, for all eight racers, and `hitCoinsLost` 3 → 2 to match Mario Kart World. **design.md §4 still says medium keeps coins and needs Adam's edit.**
-
-## Open questions for Adam
-1. `docs/design.md` §4 gives medium the "keeps coins on hit" hook. Research found no Mario Kart precedent, and `coinShield` now gives every racer the real rule. May I edit the bible to drop that line? Medium would then have no hook, which is what Mario Kart World does.
-2. Design §7 says the drift boost is +20% and the pad is +30%. The Mario Kart Wii datamine says mini-turbo +30% and dash panel +40%. Keep the bible numbers, or move to the Mario Kart ones? I would move: a boost that reads as "meh" is the most common arcade-kart complaint.
-3. Mud at 0.5 of top speed is 12.5 m/s from 25. That is a real punishment on Meadow Run. Fine, or soften to 0.6?
+- 2026-09-08: "Medium keeps coins on hit" is invented and has no Mario Kart precedent. Replaced by `base.coinShield`, the real Mario Kart rule, for all eight racers, and `hitCoinsLost` 3 → 2 to match Mario Kart World. Adam approved; design §4 now reads "Medium: all 0, no hook" and the archetype `hook` enum is `none | hardBump`.
+- 2026-09-08: Adam approved the Mario Kart boost strengths. Drift mini-turbo +20% → **+30%**, boost pad +30% → **+40%**. design §7 and the schema both updated. Ceiling is unchanged at 1.4 × V.
+- 2026-09-08: Adam softened mud from the MK8DX medium tier 0.5 to **0.6**. Dirt stays at the sourced 0.7, ice at 0.9.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
