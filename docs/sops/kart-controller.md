@@ -121,6 +121,14 @@ Device remapping UI, Smart Steer, auto-accelerate, camera, particles, audio, res
 - 2026-09-08: "Medium keeps coins on hit" is invented and has no Mario Kart precedent. Replaced by `base.coinShield`, the real Mario Kart rule, for all eight racers, and `hitCoinsLost` 3 → 2 to match Mario Kart World. Adam approved; design §4 now reads "Medium: all 0, no hook" and the archetype `hook` enum is `none | hardBump`.
 - 2026-09-08: Adam approved the Mario Kart boost strengths. Drift mini-turbo +20% → **+30%**, boost pad +30% → **+40%**. design §7 and the schema both updated. Ceiling is unchanged at 1.4 × V.
 - 2026-09-08: Adam softened mud from the MK8DX medium tier 0.5 to **0.6**. Dirt stays at the sourced 0.7, ice at 0.9.
+- 2026-09-14: Archetype numbers live in `src/kart-controller/constants.ts` (`ARCHETYPES`), sourced from design §4. The schema has no defaults for them. Adam chose this over adding schema defaults.
+- 2026-09-14: The "archetype totals stay equal" paper test is dropped (design §4 sums to +1 / 0 / +6, not equal). Fairness is tested on the track instead. Adam approved.
+- 2026-09-14: Fairness is track-shaped, not a single number. Measured on the flat oval: heavy +10% speed wins long straights (L120 R30: heavy 2012, medium 2160, light 2310 ticks), light wins tight corners (L40 R12: light 944, medium 987, heavy 1055). The test asserts both directions plus ≤5% spread on a balanced oval (L50 R14: 1043–1079). The SOP's flat 3% claim only holds per track; revisit when Harbour Loop lands.
+- 2026-09-14: Added `base.slipstreamBoostSeconds` 1.5 to the schema. design §7 gives the slipstream boost length but the schema had no field for it.
+- 2026-09-14: Lap record on the default oval (L120 R30, medium 150cc, scripted look-ahead driver) is 2160 ticks = 18.0 s. The ±2% gate compares against it until the Harbour Loop test replaces it.
+- 2026-09-14: `npm run verify` now exists as `tsc && vitest run`. Perf, bundle size and a11y get added by later systems.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
+- 2026-09-14: Drift-tier timing test found no tiers → the test kart held full lock on the 16 m wide oval, hit the wall every tick, `wallScrub` bled it under `driftKeepSpeed` and the drift cancelled → run full-lock drift tests on a wide stub (`halfWidth: 60`) → rule: a test that holds a steady drift needs room for the circle; the sim was right.
+- 2026-09-14: Hop landed at 0.20 s, not `hopSeconds` 0.25 → `groundStick` 0.12 m catches the kart on the way down (peak height is only 0.2 m) → test accepts 0.7×–1.0× hopSeconds → rule: `groundStick` shortens every hop; the landing window for locking a drift is 2 × hopSeconds so this never costs a drift.
