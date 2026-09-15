@@ -3,8 +3,6 @@ import { requestBoost } from './boost.ts';
 import type { KartConstants } from './constants.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState } from './types.ts';
 
-const SAME_WAY_DOT = 0.7;
-
 /** Is `s` inside `lead`'s wake? */
 export function inWake(s: KartState, lead: KartState, c: KartConstants): boolean {
   if (lead === s || lead.isGhost || s.isGhost) return false;
@@ -16,7 +14,7 @@ export function inWake(s: KartState, lead: KartState, c: KartConstants): boolean
   if (along >= 0 || along < -c.slipstreamLength) return false;
   if (Math.abs(side) > c.slipstreamHalfWidth) return false;
   const mine = forwardOf(s.heading);
-  if (mine[0] * f[0] + mine[2] * f[2] < SAME_WAY_DOT) return false;
+  if (mine[0] * f[0] + mine[2] * f[2] < c.slipstreamSameWayDot) return false;
   return lead.speed > 0 && s.speed > 0;
 }
 

@@ -38,7 +38,7 @@ Commits are save states. If a step breaks things, `git checkout -- .` and re-pro
 ## 4. Critique loop (nothing merges without it)
 ```
 Create a critique agent. Review your own implementation of <SYSTEM> against docs/sops/<system>.md: constraints, tests, determinism, performance budget. List critical / high / medium / low findings. Fix critical and high, then tag in Codex with a fresh perspective:
-codex review --focus "docs/sops/<system>.md constraints and tests" src/<system>
+codex review "Review src/<system> against docs/sops/<system>.md: constraints, tests, determinism, performance budget. Do not run npm; tests already pass. List critical / high / medium / low findings."
 Apply anything Codex finds that you agree with; explain what you rejected and why.
 ```
 For anything visual (art-pipeline, vfx-juice, ui-hud): screenshot and run the Design Loop skill with `docs/bar.md` built from research plan §7.

@@ -73,6 +73,17 @@ describe('ground', () => {
     expect(s.boost.source).toBe('pad');
   });
 
+  it('landing straight onto a boost surface still grants the pad boost', () => {
+    const track = makeOval({ surfaceAt: (t) => (t > 0.05 ? 'boost' : 'road') });
+    const s = kartAt(track, 0.049, 25);
+    s.verticalVelocity = c.hopVelocity; s.grounded = false;
+    const ev: KartEvent[] = [];
+    for (let i = 0; i < 60; i++) stepGround(s, track, c, DT, ev);
+    expect(s.grounded).toBe(true);
+    expect(s.surface).toBe('boost');
+    expect(ev.filter((e) => e.type === 'boostStart')).toHaveLength(1);
+  });
+
   it('falling below voidY emits respawn', () => {
     const track = makeOval({ heightAt: (t) => (t > 0.06 ? -100 : 0), voidY: -20 });
     const s = kartAt(track, 0.05, 25);

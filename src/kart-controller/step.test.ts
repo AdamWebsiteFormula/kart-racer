@@ -61,6 +61,21 @@ describe('stepKart', () => {
     expect(s.speed).toBeLessThan(20);
     expect(s.heading).toBe(h0);
     expect(s.drift.phase).toBe('idle');
+    for (let i = 0; i < 61; i++) stepKart(s, { ...NEUTRAL_INPUT, throttle: 1 }, track, c, DT);
+    expect(s.status.spinRemaining).toBe(0);
+    expect(s.speed).toBeLessThan(0.5); // reached ~0 at the end of the spin, then throttle picks up
+  });
+
+  it('track gripScale scales the slide', () => {
+    const slide = (gripScale: number) => {
+      const track = makeOval({ gripScale });
+      const { p, tan } = track.centre(0.05);
+      const s = createKartState({ racerId: 'x', position: [p[0], 0, p[2]], heading: headingOf(tan), t: 0.05 });
+      s.speed = 25;
+      for (let i = 0; i < 60; i++) stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer: 1 }, track, c, DT);
+      return Math.abs(s.lateralVelocity);
+    };
+    expect(slide(0.5)).toBeGreaterThan(slide(1) * 1.5);
   });
 
   it('start boost only inside the window', () => {

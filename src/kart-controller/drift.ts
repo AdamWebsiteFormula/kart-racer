@@ -5,9 +5,6 @@ import type { KartConstants } from './constants.ts';
 import { stickToward } from './steer.ts';
 import type { InputState, KartEvent, KartState, StepOptions } from './types.ts';
 
-/** Generous landing window: a flat hop lasts exactly hopSeconds, so allow twice that. */
-const HOP_LAND_WINDOW = 2;
-
 export function tierFor(charge: number, tiers: readonly number[], max = Infinity): number {
   let tier = 0;
   for (const threshold of tiers) if (charge >= threshold) tier++;
@@ -59,7 +56,7 @@ export function stepDrift(
     case 'hopping': {
       d.hopSeconds += dt;
       if (!s.grounded) {
-        if (d.hopSeconds > c.hopSeconds * HOP_LAND_WINDOW) cancelDrift(s);
+        if (d.hopSeconds > c.hopSeconds * c.hopLandWindow) cancelDrift(s);
         return;
       }
       // landed: lock the drift if the button and the stick are held

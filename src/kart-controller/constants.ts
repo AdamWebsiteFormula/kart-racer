@@ -23,6 +23,8 @@ export interface KartBase {
   wallRestitution: number; wallScrub: number; slipstreamLength: number; slipstreamHalfWidth: number;
   tSearchWindow: number; driftVisualSlip: number; dashMassBonus: number;
   coinShield: { enabled: boolean; slowedTo: number; slowSeconds: number };
+  wallCooldownSeconds: number; bumpCooldownSeconds: number; hardWallFraction: number;
+  slipstreamSameWayDot: number; hopLandWindow: number;
   startBoostWindowSeconds: number; startBoostMultiplier: number; startBoostSeconds: number;
   bumpForce: number; hitSpinSeconds: number; hitCoinsLost: number;
   speedClasses: Record<'50' | '100' | '150', number>;

@@ -3,11 +3,6 @@ import { boostLive } from './boost.ts';
 import type { KartConstants } from './constants.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type Vec3 } from './types.ts';
 
-const WALL_COOLDOWN = 0.2;
-const BUMP_COOLDOWN = 0.25;
-/** A wall hit is "hard" when the outward speed is over this fraction of total speed. */
-const HARD_WALL_FRACTION = 0.3;
-
 export function collisionMass(s: KartState, c: KartConstants): number {
   return c.mass + (boostLive(s) ? c.dashMassBonus : 0) + (s.status.shield ? c.dashMassBonus : 0);
 }
@@ -41,10 +36,10 @@ export function stepWalls(
   w[0] -= n[0] * out * (1 + c.wallRestitution);
   w[2] -= n[2] * out * (1 + c.wallRestitution);
   setWorldVelocity(s, w);
-  if (total > 0 && out / total > HARD_WALL_FRACTION) s.speed *= 1 - c.wallScrub;
+  if (total > 0 && out / total > c.hardWallFraction) s.speed *= 1 - c.wallScrub;
   if (s.wallCooldown <= 0) {
     events.push({ type: 'wall' });
-    s.wallCooldown = WALL_COOLDOWN;
+    s.wallCooldown = c.wallCooldownSeconds;
   }
 }
 
@@ -79,7 +74,7 @@ export function collideKarts(
   wa[0] -= nx * ka; wa[2] -= nz * ka;
   wb[0] += nx * kb; wb[2] += nz * kb;
   setWorldVelocity(a, wa); setWorldVelocity(b, wb);
-  a.bumpCooldown = BUMP_COOLDOWN; b.bumpCooldown = BUMP_COOLDOWN;
+  a.bumpCooldown = c.bumpCooldownSeconds; b.bumpCooldown = c.bumpCooldownSeconds;
   eventsA.push({ type: 'bump', otherId: b.racerId });
   eventsB.push({ type: 'bump', otherId: a.racerId });
   return true;

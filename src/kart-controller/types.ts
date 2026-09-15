@@ -73,6 +73,7 @@ export interface KartState {
   prevDrift: boolean; // last tick's drift button, for edge detection
   wallCooldown: number;
   bumpCooldown: number;
+  gripScale: number; // from the last track sample; the steer step runs before ground
 }
 
 export interface KartInit {
@@ -112,6 +113,7 @@ export function createKartState(init: KartInit): KartState {
     prevDrift: false,
     wallCooldown: 0,
     bumpCooldown: 0,
+    gripScale: 1,
   };
 }
 

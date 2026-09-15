@@ -43,13 +43,15 @@ export function stepKart(
   const inp = spinning ? NEUTRAL_INPUT : input;
   if (spinning) {
     s.prevDrift = input.drift;
-    s.speed = Math.max(0, s.speed - c.brake * dt);
+    // linear decay that reaches exactly 0 when the spin ends
+    const rem = s.status.spinRemaining;
+    s.speed *= rem / (rem + dt);
   } else {
     // 3. speed
     const targets = targetSpeed(s, c);
     stepSpeed(s, inp, targets.target, c, dt);
     // 4–5. steer and slide
-    const grip = gripFor(c, s.surface) * (s.grounded ? 1 : 0.5);
+    const grip = gripFor(c, s.surface) * s.gripScale * (s.grounded ? 1 : 0.5);
     stepSteer(s, inp, c, targets.base, grip, dt);
     // 6. hop / drift
     stepDrift(s, inp, c, targets.base, dt, events, opts);

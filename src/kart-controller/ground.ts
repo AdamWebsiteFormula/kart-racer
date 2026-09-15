@@ -63,10 +63,8 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
         break;
       }
     }
-    if (sample.surface === 'boost' && s.surface !== 'boost') {
-      requestBoost(s, 'pad', c.padMultiplier, c.padSeconds, events);
-    }
   }
+  const prevSurface = s.surface;
 
   // 8. gravity and ground
   s.verticalVelocity -= c.gravity * dt;
@@ -89,6 +87,11 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
 
   if (s.grounded) {
     s.surface = sample.surface;
+    s.gripScale = sample.gripScale;
+    // boost surface: fires on entry, including landing straight onto it
+    if (sample.surface === 'boost' && (prevSurface !== 'boost' || !wasGrounded)) {
+      requestBoost(s, 'pad', c.padMultiplier, c.padSeconds, events);
+    }
     if (!wasGrounded) {
       const trick = s.airborne.trickQueued;
       events.push({ type: 'landed', fromJumpId: s.airborne.fromJumpId, trick });
