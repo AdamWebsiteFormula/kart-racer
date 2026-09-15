@@ -61,9 +61,9 @@ describe('stepKart', () => {
     expect(s.speed).toBeLessThan(20);
     expect(s.heading).toBe(h0);
     expect(s.drift.phase).toBe('idle');
-    for (let i = 0; i < 61; i++) stepKart(s, { ...NEUTRAL_INPUT, throttle: 1 }, track, c, DT);
+    for (let i = 0; i < 60; i++) stepKart(s, { ...NEUTRAL_INPUT, throttle: 1 }, track, c, DT);
     expect(s.status.spinRemaining).toBe(0);
-    expect(s.speed).toBeLessThan(0.5); // reached ~0 at the end of the spin, then throttle picks up
+    expect(s.speed).toBe(0); // exactly 0 on the tick the spin ends
   });
 
   it('track gripScale scales the slide', () => {

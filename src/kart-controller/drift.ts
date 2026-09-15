@@ -73,9 +73,10 @@ export function stepDrift(
       return;
     }
     case 'drifting': {
-      if (!input.drift) { releaseDrift(s, c, events); return; }
+      // cancel cases win over release: no boost from a dead drift
       if (s.speed < c.driftKeepSpeed * V) { cancelDrift(s); return; }
       if (!s.grounded && s.airborne.seconds > c.driftAirCancelSeconds) { cancelDrift(s); return; }
+      if (!input.drift) { releaseDrift(s, c, events); return; }
       const rate = stickToward(input, d.direction) >= 0.5 ? c.chargeFull : c.chargeNeutral;
       const mult = d.chargeMultiplierRemaining > 0 ? d.chargeMultiplier : 1;
       d.charge += rate * dt * 60 * mult;

@@ -14,8 +14,11 @@ import { NEUTRAL_INPUT, type HitKind, type InputState, type KartEvent, type Kart
 export const SIM_HZ = 120;
 export const SIM_DT = 1 / SIM_HZ;
 
+/** Timer epsilon: 1 s of 120 Hz ticks does not sum to exactly 1 in floats. */
+const TIMER_EPS = 1e-9;
 function countDown(x: number, dt: number): number {
-  return x > 0 ? Math.max(0, x - dt) : 0;
+  const next = x - dt;
+  return next > TIMER_EPS ? next : 0;
 }
 
 /** Step 1: every timer counts down by dt. */
@@ -36,16 +39,15 @@ export function stepKart(
   s: KartState, input: InputState, track: TrackQuery, c: KartConstants, dt: number, opts: StepOptions = {},
 ): KartEvent[] {
   const events: KartEvent[] = [];
-  tickTimers(s, dt);
-
-  // 2. status gate: spinning karts ignore input and bleed speed
+  // 2. status gate: a kart that was spinning at the start of this tick ignores
+  // input and bleeds speed linearly, hitting exactly 0 on the tick the spin ends
   const spinning = s.status.spinRemaining > 0;
+  tickTimers(s, dt);
   const inp = spinning ? NEUTRAL_INPUT : input;
   if (spinning) {
     s.prevDrift = input.drift;
-    // linear decay that reaches exactly 0 when the spin ends
-    const rem = s.status.spinRemaining;
-    s.speed *= rem / (rem + dt);
+    const rem = s.status.spinRemaining; // already counted down
+    s.speed = rem > 0 ? s.speed * (rem / (rem + dt)) : 0;
   } else {
     // 3. speed
     const targets = targetSpeed(s, c);

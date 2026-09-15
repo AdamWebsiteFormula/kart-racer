@@ -12,10 +12,18 @@ export function lateralOffset(track: TrackQuery, t: number, pos: Vec3): { latera
   return { lateral: dx * right[0] + dz * right[2], right };
 }
 
-/** Did the fraction x get crossed going from a to b (wrap-aware)? */
+const wrap01 = (t: number) => ((t % 1) + 1) % 1;
+
+/**
+ * Did the fraction x get crossed going forward from a to b (wrap-aware)?
+ * A move of more than half a lap in one tick is reverse travel, not a wrap,
+ * and reverse never triggers anything.
+ */
 export function crossed(a: number, b: number, x: number): boolean {
-  if (b >= a) return a < x && x <= b;
-  return x > a || x <= b;
+  const d = wrap01(b - a);
+  if (d === 0 || d > 0.5) return false;
+  const dx = wrap01(x - a);
+  return dx > 0 && dx <= d;
 }
 
 export interface GroundResult {

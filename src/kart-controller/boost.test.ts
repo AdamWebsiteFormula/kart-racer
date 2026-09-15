@@ -41,6 +41,12 @@ describe('boost arbitration', () => {
     expect(s.boost.multiplier).toBe(1.4);
   });
 
+  it('clamps any multiplier to the schema ceiling', () => {
+    const s = fresh();
+    requestBoost(s, 'item', 2.0, 1, []);
+    expect(s.boost.multiplier).toBe(1.4);
+  });
+
   it('ticks down and clears', () => {
     const s = fresh(); const ev: KartEvent[] = [];
     requestBoost(s, 'pad', 1.4, 0.02, ev);

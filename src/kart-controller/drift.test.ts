@@ -119,6 +119,15 @@ describe('drift', () => {
     expect(s.boost.source).toBe('none');
   });
 
+  it('release on the same tick as a cancel condition grants no boost', () => {
+    const s = drifting();
+    ticksToTier(s, hold, 2);
+    s.speed = 5; // below driftKeepSpeed × V
+    stepDrift(s, { ...hold, drift: false }, c, V, DT, []);
+    expect(s.drift.phase).toBe('idle');
+    expect(s.boost.source).toBe('none');
+  });
+
   it('cancels when airborne too long', () => {
     const s = drifting();
     s.grounded = false;

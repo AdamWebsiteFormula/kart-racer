@@ -1,5 +1,6 @@
 // Step 7: one live boost. Priorities trick 5 > item 4 > pad 3 > drift 2 >
 // slipstream 1 = start 1. Boosts never add.
+import { BASE } from './constants.ts';
 import type { BoostSource, KartEvent, KartState } from './types.ts';
 
 export const BOOST_PRIORITY: Readonly<Record<BoostSource, number>> = Object.freeze({
@@ -12,12 +13,14 @@ export function boostLive(s: KartState): boolean {
 
 /**
  * Ask for a boost. Replaces the live one only if priority is >= the live
- * priority; equal priority keeps the longer remaining time.
+ * priority; equal priority keeps the longer remaining time. The multiplier
+ * is clamped to the schema ceiling so no caller can exceed 1.4 × V.
  */
 export function requestBoost(
   s: KartState, source: BoostSource, multiplier: number, seconds: number, events: KartEvent[],
 ): boolean {
   if (source === 'none' || seconds <= 0) return false;
+  multiplier = Math.min(multiplier, BASE.maxBoostMultiplier);
   if (boostLive(s)) {
     const p = BOOST_PRIORITY[source];
     const q = BOOST_PRIORITY[s.boost.source];

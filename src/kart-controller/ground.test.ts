@@ -20,6 +20,10 @@ describe('ground', () => {
     expect(crossed(0.1, 0.2, 0.25)).toBe(false);
     expect(crossed(0.98, 0.02, 0.0)).toBe(true);
     expect(crossed(0.98, 0.02, 0.5)).toBe(false);
+    // reversing a little is not a lap wrap: nothing is crossed
+    expect(crossed(0.5, 0.49, 0.6)).toBe(false);
+    expect(crossed(0.5, 0.49, 0.495)).toBe(false);
+    expect(crossed(0.5, 0.5, 0.5)).toBe(false);
   });
 
   it('stays snapped on a slope and t advances', () => {
