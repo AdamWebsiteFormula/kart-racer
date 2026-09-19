@@ -112,6 +112,11 @@
       "type": "object",
       "properties": {
         "sky": { "type": "string" }, "lut": { "type": "string" }, "fogColor": { "type": "string" }, "fogDensity": { "type": "number" },
+        "ground": {
+          "description": "One flat plane under the whole track. 'none' for sky tracks; the void is below voidY.",
+          "type": "object", "required": ["kind"],
+          "properties": { "kind": { "type": "string", "enum": ["plane", "water", "none"], "default": "plane" }, "y": { "type": "number", "default": 0 } }
+        },
         "sunDirection": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
         "palette": { "type": "object", "properties": { "background": { "type": "string" }, "accent": { "type": "string" } } },
         "decor": { "type": "array", "items": { "type": "object", "properties": { "asset": { "type": "string" }, "instances": { "type": "integer" }, "band": { "type": "string", "enum": ["roadside", "far", "sky"] } } } }

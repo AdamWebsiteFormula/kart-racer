@@ -31,7 +31,7 @@
           "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
           "heading": { "type": "number" }, "speed": { "type": "number" }, "lateralVelocity": { "type": "number" }, "verticalVelocity": { "type": "number" },
           "grounded": { "type": "boolean" }, "surface": { "type": "string" },
-          "t": { "type": "number" }, "lap": { "type": "integer" }, "checkpointsHit": { "type": "integer" }, "distanceAlong": { "type": "number" },
+          "t": { "type": "number" }, "branch": { "type": "integer", "minimum": 0, "default": 0, "description": "Track branch the kart is on: 0 = main spline, i = shortcuts[i-1]. t is always main-equivalent progress." }, "lap": { "type": "integer" }, "checkpointsHit": { "type": "integer" }, "distanceAlong": { "type": "number" },
           "wrongWaySeconds": { "type": "number" }, "stuckSeconds": { "type": "number" },
           "drift": { "type": "object", "properties": { "active": { "type": "boolean" }, "direction": { "type": "integer" }, "charge": { "type": "number" }, "tier": { "type": "integer" }, "chargeMultiplier": { "type": "number" }, "chargeMultiplierRemaining": { "type": "number" } } },
           "airborne": { "type": "object", "properties": { "fromJumpId": { "type": "string" }, "trickQueued": { "type": "boolean" } } },
