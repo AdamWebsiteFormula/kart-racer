@@ -70,6 +70,10 @@ export class Branch {
     return this.lut.sample(this.toLocal(t), lateral);
   }
 
+  sampleInto(t: number, lateral: number, out: TrackSample): TrackSample {
+    return this.lut.sampleInto(this.toLocal(t), lateral, out);
+  }
+
   /** Does [hintT ± window] touch this branch's t range? */
   overlaps(hintT: number, window: number): boolean {
     if (this.isMain) return true;
@@ -129,21 +133,33 @@ export class Branches {
    * it is about to rejoin instead of the clamped end point.
    */
   sample(t: number, lateral: number, branch = 0): TrackSample {
+    return this.resolve(t, branch).sample(t, lateral);
+  }
+
+  /** Allocation-free sample(): fills `out`. */
+  sampleInto(t: number, lateral: number, branch: number, out: TrackSample): TrackSample {
+    return this.resolve(t, branch).sampleInto(t, lateral, out);
+  }
+
+  /** The branch that owns main-equivalent t on `branch`: itself inside its range, else main. */
+  private resolve(t: number, branch: number): Branch {
     const b = this.list[branch] ?? this.main;
     if (!b.isMain) {
       const d = signedOffset(t, b.entryT);
-      if (d < 0 || d > b.span) return this.main.sample(t, lateral);
+      if (d < 0 || d > b.span) return this.main;
     }
-    return b.sample(t, lateral);
+    return b;
   }
 
   /**
-   * Current branch first (even if it has closed: a kart rides it to the exit),
-   * then every other open branch overlapping the window. Switch only when the
-   * other is closer by more than branchHysteresis metres in 3D.
+   * Current branch first (even if it has closed: a kart mid-branch rides it to the
+   * exit), then every other open branch overlapping the window. Switch only when
+   * the other is closer by more than branchHysteresis metres in 3D. A closed hint
+   * branch whose range does not contain hint.t is stale and counts as main.
    */
   nearest(position: Vec3, hint: TrackHint, window: number): TrackHint {
-    const cur = this.list[hint.branch] ?? this.main;
+    let cur = this.list[hint.branch] ?? this.main;
+    if (!cur.open && !cur.overlaps(hint.t, 0)) cur = this.main;
     const best = cur.nearestLocal(position, hint.t, window);
     let bestBranch = cur.index;
     let bestDist = Math.sqrt(best.d2);

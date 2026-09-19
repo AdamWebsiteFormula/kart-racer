@@ -72,6 +72,19 @@ describe('branches', () => {
     }
   });
 
+  it('a stale hint on a closed shortcut, outside its range, is treated as main', () => {
+    beach.forcedOpen = false;
+    try {
+      // hint says "on the beach" but its t is a quarter lap before the entry
+      const t = wrap01(beach.entryT - 0.25);
+      const h = track.nearest(track.sample(t, 0).position, { t, branch: beach.index }, T_SEARCH_WINDOW);
+      expect(h.branch).toBe(0);
+      expect(Math.abs(h.t - t)).toBeLessThan(1e-6);
+    } finally {
+      beach.forcedOpen = undefined;
+    }
+  });
+
   it('openOnLaps: a lap-gated shortcut opens only on those laps', () => {
     const def = cloneDef(HARBOUR_LOOP);
     def.shortcuts![1].openOnLaps = [3];

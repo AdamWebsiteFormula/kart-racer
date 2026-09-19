@@ -56,6 +56,10 @@ export class Track implements TrackQuery {
   sample(t: number, lateral: number, branch = 0): TrackSample {
     return this.branches.sample(t, lateral, branch);
   }
+  /** Allocation-free sample(): fills and returns `out`. Hot paths (kart, AI) should use this. */
+  sampleInto(t: number, lateral: number, branch: number, out: TrackSample): TrackSample {
+    return this.branches.sampleInto(t, lateral, branch, out);
+  }
   nearestT(position: Vec3, hintT: number, window: number): number {
     return this.branches.main.lut.nearestT(position, hintT, window);
   }

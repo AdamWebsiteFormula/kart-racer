@@ -64,6 +64,18 @@ describe('Lut', () => {
     expect(Math.abs(got - 0.1)).toBeLessThanOrEqual(T_SEARCH_WINDOW + 1 / lut.n + 1e-9);
   });
 
+  it('sampleInto fills the given object with exactly what sample returns, reusing its arrays', () => {
+    const lut = buildLut(HARBOURISH);
+    const out = lut.sample(0, 0);
+    const pos = out.position, tan = out.tangent, nrm = out.normal;
+    for (const t of [0.13, 0.5, 0.77]) {
+      const got = lut.sampleInto(t, 2.5, out);
+      expect(got).toBe(out);
+      expect(out.position).toBe(pos); expect(out.tangent).toBe(tan); expect(out.normal).toBe(nrm);
+      expect(JSON.stringify(out)).toBe(JSON.stringify(lut.sample(t, 2.5)));
+    }
+  });
+
   it('lateral: +3 m moves 3 m perpendicular to the tangent, on the kart-controller right', () => {
     const lut = buildLut(SQUARE);
     for (let k = 0; k < 50; k++) {

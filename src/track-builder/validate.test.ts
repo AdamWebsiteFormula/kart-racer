@@ -35,6 +35,13 @@ describe('validate', () => {
     expect(bad((d) => { d.controlPoints[4].y = NaN; }).some((e) => e.includes('NaN'))).toBe(true);
   });
 
+  it('rejects a bad start grid: zero columns, fractional rows, non-positive spacing', () => {
+    expect(bad((d) => { d.startGrid.columns = 0; }).some((e) => e.includes('startGrid.columns'))).toBe(true);
+    expect(bad((d) => { d.startGrid.rows = 2.5; }).some((e) => e.includes('startGrid.rows'))).toBe(true);
+    expect(bad((d) => { d.startGrid.spacing = 0; }).some((e) => e.includes('startGrid.spacing'))).toBe(true);
+    expect(bad((d) => { d.startGrid.spacing = NaN; }).some((e) => e.includes('startGrid.spacing'))).toBe(true);
+  });
+
   it('rejects a loop that repeats its first point', () => {
     expect(bad((d) => { d.controlPoints.push({ ...d.controlPoints[0] }); }).some((e) => e.includes('repeats the first'))).toBe(true);
   });

@@ -1,7 +1,8 @@
 // Arc-length lookup table over a Spline. Closed (main line): sample i sits at
 // t = i / n and everything wraps. Open (shortcut branch): sample i sits at
 // u = i / (n - 1) and everything clamps. Flat typed arrays; hot paths are
-// allocation-free except sample(), which returns a fresh TrackSample like the stub does.
+// allocation-free. sample() allocates a fresh TrackSample like the stub does;
+// sampleInto() fills a caller-owned one.
 import type { TrackSample } from '../kart-controller/types.ts';
 import { BUILDER } from './constants.ts';
 import { ClosedSpline, OpenSpline, type Spline } from './spline.ts';
@@ -125,8 +126,16 @@ export class Lut {
     return this.closed ? wrap01(t) : clamp01(t);
   }
 
-  /** Blend the two neighbouring samples at t, then move `lateral` metres to the right. */
+  /** Blend the two neighbouring samples at t, then move `lateral` metres to the right. Allocates. */
   sample(t: number, lateral: number): TrackSample {
+    return this.sampleInto(t, lateral, {
+      position: [0, 0, 0], tangent: [0, 0, 0], normal: [0, 0, 0],
+      groundY: 0, halfWidth: 0, surface: 'road', gripScale: 1,
+    });
+  }
+
+  /** Same as sample() but writes into `out` and returns it. Allocation-free; use on hot paths. */
+  sampleInto(t: number, lateral: number, out: TrackSample): TrackSample {
     const f = this.norm(t) * this.step;
     const fi = Math.floor(f);
     const i0 = this.idx(fi);
@@ -156,15 +165,15 @@ export class Lut {
     const nl = Math.hypot(nx, ny, nz) || 1;
     nx /= nl; ny /= nl; nz /= nl;
 
-    return {
-      position: [x, y, z],
-      tangent: [tx, ty, tz],
-      normal: [nx, ny, nz],
-      groundY: y,
-      halfWidth: this.hw[i0] * b + this.hw[i1] * a,
-      surface: SURFACES[this.surface[i0]],
-      gripScale: this.grip[i0] * b + this.grip[i1] * a,
-    };
+    const p = out.position, tg = out.tangent, nm = out.normal;
+    p[0] = x; p[1] = y; p[2] = z;
+    tg[0] = tx; tg[1] = ty; tg[2] = tz;
+    nm[0] = nx; nm[1] = ny; nm[2] = nz;
+    out.groundY = y;
+    out.halfWidth = this.hw[i0] * b + this.hw[i1] * a;
+    out.surface = SURFACES[this.surface[i0]];
+    out.gripScale = this.grip[i0] * b + this.grip[i1] * a;
+    return out;
   }
 
   /** Squared XZ distance from a point to sample i. */

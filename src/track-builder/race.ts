@@ -1,5 +1,6 @@
 // Checkpoints, spawn grid and distance helpers. All from the main-line LUT.
 import { headingOf } from '../kart-controller/types.ts';
+import { KART_RADIUS } from './constants.ts';
 import type { Lut } from './lut.ts';
 import { wrap01 } from './lut.ts';
 import type { Checkpoint, SpawnSlot, TrackDefinition } from './types.ts';
@@ -17,8 +18,10 @@ export function buildCheckpoints(lut: Lut, startT: number, count: number): Check
 
 /**
  * rows × columns slots walking backwards from the start line by `spacing` metres per
- * row. Columns spread across ±0.5 × halfWidth; odd rows shift half a column so no kart
- * sits directly behind another. Heading = tangent.
+ * row. Column centres span ±0.5 × halfWidth (never past halfWidth − kartRadius); odd
+ * rows pull in symmetrically by a quarter column step so the edge columns never sit
+ * directly behind another kart and the row keeps no left/right bias (with an odd
+ * column count the centre column repeats). Heading = tangent.
  */
 export function buildSpawnGrid(lut: Lut, startT: number, grid: TrackDefinition['startGrid']): SpawnSlot[] {
   const out: SpawnSlot[] = [];
@@ -26,10 +29,13 @@ export function buildSpawnGrid(lut: Lut, startT: number, grid: TrackDefinition['
   for (let r = 0; r < rows; r++) {
     const t = wrap01(startT - ((r + 1) * spacing) / lut.length);
     const hw = lut.sample(t, 0).halfWidth;
-    const step = hw / columns; // band is hw wide, i.e. ±0.5 × hw
-    const shift = r % 2 === 1 ? step / 2 : 0;
+    const half = Math.max(0, Math.min(0.5 * hw, hw - KART_RADIUS));
+    const step = columns > 1 ? (2 * half) / (columns - 1) : 0;
+    const inset = r % 2 === 1 ? step / 4 : 0; // odd rows sit a quarter step inside each edge column
     for (let c = 0; c < columns; c++) {
-      const lateral = (c + 0.5 - columns / 2) * step + shift;
+      const lateral = columns > 1
+        ? -half + inset + c * (2 * (half - inset)) / (columns - 1)
+        : (r % 2 === 1 ? half / 2 : -half / 2);
       const s = lut.sample(t, lateral);
       out.push({ index: r * columns + c, t, lateral, position: s.position, heading: headingOf(s.tangent) });
     }

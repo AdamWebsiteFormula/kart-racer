@@ -50,6 +50,11 @@ export function validateTrack(def: TrackDefinition): Validation {
     if (f.x === l.x && f.y === l.y && f.z === l.z) errors.push('controlPoints: last point repeats the first; the loop closes itself, drop it');
   }
   if (def.checkpointCount < 4) errors.push(`checkpointCount ${def.checkpointCount} < 4`);
+  const g = def.startGrid;
+  if (!Number.isFinite(g.t)) errors.push(`startGrid.t ${g.t} is not finite`);
+  if (!Number.isInteger(g.rows) || g.rows < 1) errors.push(`startGrid.rows ${g.rows} must be an integer ≥ 1`);
+  if (!Number.isInteger(g.columns) || g.columns < 1) errors.push(`startGrid.columns ${g.columns} must be an integer ≥ 1`);
+  if (!Number.isFinite(g.spacing) || g.spacing <= 0) errors.push(`startGrid.spacing ${g.spacing} must be > 0`);
   if (errors.length) return { ok: false, errors, warnings };
 
   const lut = buildLut(pts);

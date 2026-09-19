@@ -51,6 +51,26 @@ describe('spawn grid', () => {
     // no two slots share the same lateral in adjacent rows (half-column offset)
     expect(slots[0].lateral).not.toBe(slots[2].lateral);
   });
+
+  it('columns span ±0.5 × halfWidth and every row is left/right symmetric', () => {
+    const grid = { t: 0.02, rows: 4, columns: 2, spacing: 3.5 };
+    const slots = buildSpawnGrid(lut, grid.t, grid);
+    for (let r = 0; r < grid.rows; r++) {
+      const row = slots.slice(r * grid.columns, (r + 1) * grid.columns);
+      const hw = lut.sample(row[0].t, 0).halfWidth;
+      expect(row[0].lateral + row[1].lateral).toBeCloseTo(0, 9);
+      if (r % 2 === 0) expect(Math.abs(row[0].lateral)).toBeCloseTo(0.5 * hw, 9);
+      else expect(Math.abs(row[0].lateral)).toBeCloseTo(0.25 * hw, 9);
+    }
+  });
+
+  it('one column alternates sides so no kart sits directly behind another', () => {
+    const slots = buildSpawnGrid(lut, 0.02, { t: 0.02, rows: 4, columns: 1, spacing: 3.5 });
+    expect(slots).toHaveLength(4);
+    expect(slots[0].lateral).toBeLessThan(0);
+    expect(slots[1].lateral).toBeGreaterThan(0);
+    expect(slots[0].lateral + slots[1].lateral).toBeCloseTo(0, 9);
+  });
 });
 
 describe('distance helpers', () => {
