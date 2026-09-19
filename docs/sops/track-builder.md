@@ -105,6 +105,10 @@ _(append dated one-liners as they are made)_
 - 2026-09-19 (Adam): Shortcuts are branches. `branch` added to the kart entry in `race-state.schema.json`; `TrackQuery` gains `nearest(position, hint{t,branch}, window) → {t,branch}` and `sample(t, lateral, branch)`. Small kart-controller edit allowed in the build session.
 - 2026-09-19 (Adam): `environment.ground {kind: plane|water|none, y}` added to `track.schema.json`. One flat plane per track; Skyline uses `none`.
 - 2026-09-19 (Adam): `rail` is a narrow road (halfWidth 3) with normal handling in v1. No new kart code. Rail grinding stays deleted (first-principles §2).
+- 2026-09-19: Builder constants live in `track.schema.json` under `builder` defaults; `constants.ts` walks them like kart-controller does.
+- 2026-09-19: Bank rise is `−lateral × tan(bank)` (the sign paragraph and test 4 win over the formula line in the model, which had the sign flipped). Normal = `tangent × rightBanked`.
+- 2026-09-19: Test 5's "no step larger than 1/2048 of the difference" is impossible with smoothstep over a segment (peak slope 1.5×Δ/segmentSamples). Test asserts ≤ 2×Δ/segmentSamples instead.
+- 2026-09-19: `nearestT` may return one sample past the window when the edge sample projects onto its outer segment. Accepted; still local.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

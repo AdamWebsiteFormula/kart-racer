@@ -123,6 +123,46 @@
       }
     },
     "music": { "type": "string" },
-    "landmark": { "type": "string", "description": "The thing visible from the start line" }
+    "landmark": { "type": "string", "description": "The thing visible from the start line" },
+    "builder": {
+      "description": "Track-builder constants. Never set per track; the defaults are the only values. Code reads them from here (docs/sops/track-builder.md Constants).",
+      "type": "object",
+      "properties": {
+        "lutSamples": { "type": "integer", "default": 2048, "description": "Arc-length samples per branch LUT" },
+        "arcDivisions": { "type": "integer", "default": 4096, "description": "Fine steps used to walk the curve before resampling" },
+        "globalSearchStep": { "type": "integer", "default": 8, "description": "Coarse stride for nearestTGlobal" },
+        "branchHysteresis": { "type": "number", "default": 1.0, "description": "metres; another branch must be closer by this much to win" },
+        "maxBankDeg": { "type": "number", "default": 20 },
+        "minTurnRadiusFactor": { "type": "number", "default": 1.5, "description": "turn radius must be >= factor × halfWidth (hairpin guard)" },
+        "minStartHalfWidth": { "type": "number", "default": 4 },
+        "kerbWidth": { "type": "number", "default": 1.0 },
+        "kerbHeight": { "type": "number", "default": 0.1 },
+        "shoulderWidth": { "type": "number", "default": 6.0 },
+        "shoulderDrop": { "type": "number", "default": 0.4 },
+        "barrierSpacing": { "type": "number", "default": 2.0 },
+        "roadTileLength": { "type": "number", "default": 10, "description": "metres of road per UV v unit" },
+        "chunkCount": { "type": "integer", "default": 8 },
+        "minimapSamples": { "type": "integer", "default": 200 },
+        "minimapPadding": { "type": "number", "default": 0.06 },
+        "boostPadHalfLength": { "type": "number", "default": 1.75 },
+        "boostPadWidth": { "type": "number", "default": 3.0 },
+        "balloonHeight": { "type": "number", "default": 1.2 },
+        "balloonRadius": { "type": "number", "default": 0.9 },
+        "coinRadius": { "type": "number", "default": 0.5 },
+        "hazardRadius": { "type": "number", "default": 1.2 },
+        "fallingActiveSeconds": { "type": "number", "default": 0.5 },
+        "gustWindow": { "type": "number", "default": 6, "description": "metres along the road a gust acts over" },
+        "decorBands": {
+          "type": "object",
+          "properties": {
+            "roadside": { "type": "array", "items": { "type": "number" }, "default": [8, 14] },
+            "far": { "type": "array", "items": { "type": "number" }, "default": [30, 120] },
+            "sky": { "type": "array", "items": { "type": "number" }, "default": [25, 60] }
+          }
+        },
+        "lapTimeWarn": { "type": "array", "items": { "type": "number" }, "default": [40, 65], "description": "seconds; estimated lap outside this warns" },
+        "trackDrawCallBudget": { "type": "integer", "default": 40 }
+      }
+    }
   }
 }
