@@ -74,13 +74,14 @@
         "type": "object", "required": ["id", "t", "launch"],
         "properties": {
           "id": { "type": "string" }, "t": { "type": "number" }, "lateral": { "type": "number", "default": 0 },
-          "width": { "type": "number" }, "launch": { "type": "number", "description": "Vertical launch speed m/s" }
+          "width": { "type": "number" }, "launch": { "type": "number", "description": "Vertical launch speed m/s" },
+          "shortcut": { "type": "string", "description": "Shortcut id this jump sits on; t stays main-equivalent" }
         }
       }
     },
-    "pickups": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" } } } },
-    "coins": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" } } } },
-    "boostPads": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "width": { "type": "number" } } } },
+    "pickups": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "shortcut": { "type": "string" } } } },
+    "coins": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "shortcut": { "type": "string" } } } },
+    "boostPads": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "width": { "type": "number" }, "shortcut": { "type": "string" } } } },
     "finalLapShift": {
       "description": "Exactly one readable change on the last lap. Fires once, globally, when the race leader starts the final lap.",
       "type": "object", "required": ["kind", "label"],

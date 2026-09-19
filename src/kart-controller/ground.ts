@@ -5,8 +5,8 @@ import type { KartConstants } from './constants.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
 
 /** Signed lateral offset of `pos` from the centreline at `t` (positive = track right). */
-export function lateralOffset(track: TrackQuery, t: number, pos: Vec3): { lateral: number; right: Vec3 } {
-  const c = track.sample(t, 0);
+export function lateralOffset(track: TrackQuery, t: number, pos: Vec3, branch = 0): { lateral: number; right: Vec3 } {
+  const c = track.sample(t, 0, branch);
   const right: Vec3 = [c.tangent[2], 0, -c.tangent[0]];
   const dx = pos[0] - c.position[0], dz = pos[2] - c.position[2];
   return { lateral: dx * right[0] + dz * right[2], right };
@@ -42,17 +42,19 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   s.position[2] += vz * dt;
 
   const prevT = s.t;
-  s.t = track.nearestT(s.position, s.t, c.tSearchWindow);
+  const near = track.nearest(s.position, { t: s.t, branch: s.branch }, c.tSearchWindow);
+  s.t = near.t;
+  s.branch = near.branch;
   s.distanceAlong = s.t * track.length;
 
-  const { lateral, right } = lateralOffset(track, s.t, s.position);
-  const sample = track.sample(s.t, lateral);
+  const { lateral, right } = lateralOffset(track, s.t, s.position, s.branch);
+  const sample = track.sample(s.t, lateral, s.branch);
   const wasGrounded = s.grounded;
 
   // ramps: leaving one sets the launch velocity
   if (s.grounded) {
     for (const j of track.jumps) {
-      if (crossed(prevT, s.t, j.t)) {
+      if ((j.branch ?? 0) === s.branch && crossed(prevT, s.t, j.t)) {
         s.verticalVelocity = j.launch;
         s.grounded = false;
         s.airborne.fromJumpId = j.id;
@@ -66,7 +68,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   // boost pads: crossing one while grounded
   if (s.grounded) {
     for (const p of track.boostPads) {
-      if (crossed(prevT, s.t, p.t) && Math.abs(lateral - p.lateral) <= p.halfWidth) {
+      if ((p.branch ?? 0) === s.branch && crossed(prevT, s.t, p.t) && Math.abs(lateral - p.lateral) <= p.halfWidth) {
         requestBoost(s, 'pad', c.padMultiplier, c.padSeconds, events);
         break;
       }

@@ -1,0 +1,104 @@
+{
+  "id": "harbour-loop",
+  "name": "Harbour Loop",
+  "biome": "harbour",
+  "cup": "sunrise",
+  "orderInCup": 1,
+  "laps": 3,
+  "targetLapSeconds": 50,
+  "medalTimesMs": { "gold": 150000, "silver": 165000, "bronze": 180000 },
+  "voidY": -12,
+  "landmark": "lighthouse",
+  "music": "harbour",
+  "controlPoints": [
+    { "x": -80, "y": 0, "z": -110, "halfWidth": 8, "surface": "road" },
+    { "x": 20, "y": 0, "z": -112, "halfWidth": 8, "surface": "road" },
+    { "x": 110, "y": 0, "z": -105, "halfWidth": 8, "surface": "road" },
+    { "x": 160, "y": 0, "z": -60, "halfWidth": 8, "bank": 8, "surface": "road" },
+    { "x": 170, "y": 1, "z": 20, "halfWidth": 7, "surface": "road" },
+    { "x": 150, "y": 4, "z": 90, "halfWidth": 7, "bank": 10, "surface": "road" },
+    { "x": 80, "y": 8, "z": 130, "halfWidth": 7, "surface": "road" },
+    { "x": 0, "y": 8, "z": 140, "halfWidth": 7, "surface": "road" },
+    { "x": -80, "y": 5, "z": 120, "halfWidth": 7, "bank": -10, "surface": "road" },
+    { "x": -150, "y": 2, "z": 75, "halfWidth": 8, "surface": "road" },
+    { "x": -190, "y": 0, "z": 0, "halfWidth": 8, "surface": "road" },
+    { "x": -165, "y": 0, "z": -70, "halfWidth": 8, "surface": "road" },
+    { "x": -120, "y": 0, "z": -102, "halfWidth": 8, "surface": "road" }
+  ],
+  "checkpointCount": 12,
+  "startGrid": { "t": 0.02, "rows": 4, "columns": 2, "spacing": 3.5 },
+  "shortcuts": [
+    {
+      "id": "beach",
+      "entryT": 0.6754,
+      "exitT": 0.9439,
+      "risk": "narrow",
+      "controlPoints": [
+        { "x": -95.44, "y": 4.37, "z": 112.92, "halfWidth": 3.5, "surface": "dirt" },
+        { "x": -108, "y": 3, "z": 60, "halfWidth": 3.5, "surface": "dirt" },
+        { "x": -115, "y": 1, "z": 0, "halfWidth": 3.5, "surface": "dirt" },
+        { "x": -125, "y": 0, "z": -55, "halfWidth": 3.5, "surface": "dirt" },
+        { "x": -133.8, "y": 0, "z": -95.3, "halfWidth": 3.5, "surface": "dirt" }
+      ]
+    },
+    {
+      "id": "pier",
+      "entryT": 0.2793,
+      "exitT": 0.3498,
+      "risk": "jump",
+      "controlPoints": [
+        { "x": 166.93, "y": 0.14, "z": -40.45, "halfWidth": 3, "surface": "road" },
+        { "x": 185, "y": 0.5, "z": -25, "halfWidth": 3, "surface": "road" },
+        { "x": 192, "y": 0.5, "z": 0, "halfWidth": 3, "surface": "road" },
+        { "x": 186, "y": 1, "z": 22, "halfWidth": 3, "surface": "road" },
+        { "x": 169.12, "y": 1.29, "z": 29.9, "halfWidth": 3, "surface": "road" }
+      ]
+    }
+  ],
+  "jumps": [
+    { "id": "pier-ramp", "t": 0.335, "shortcut": "pier", "launch": 5, "width": 6 }
+  ],
+  "boostPads": [
+    { "t": 0.222, "lateral": -4, "width": 3 },
+    { "t": 0.38, "lateral": 0, "width": 3 }
+  ],
+  "pickups": [
+    { "t": 0.05, "lateral": -4 }, { "t": 0.05, "lateral": 0 }, { "t": 0.05, "lateral": 4 },
+    { "t": 0.38, "lateral": -3 }, { "t": 0.38, "lateral": 3 },
+    { "t": 0.5356, "lateral": -4 }, { "t": 0.5356, "lateral": 0 }, { "t": 0.5356, "lateral": 4 },
+    { "t": 0.8, "lateral": -3 }, { "t": 0.8, "lateral": 3 }
+  ],
+  "coins": [
+    { "t": 0.1, "lateral": -2 }, { "t": 0.1, "lateral": 2 },
+    { "t": 0.222, "lateral": -4 },
+    { "t": 0.45, "lateral": 0 }, { "t": 0.47, "lateral": 0 },
+    { "t": 0.62, "lateral": -2 }, { "t": 0.62, "lateral": 2 },
+    { "t": 0.8, "shortcut": "beach", "lateral": 0 },
+    { "t": 0.9, "lateral": 0 }
+  ],
+  "hazards": [
+    { "id": "barrels", "type": "rolling", "t": 0.36, "lateral": 3, "period": 8, "speed": 6, "hit": "spin", "asset": "barrel" }
+  ],
+  "finalLapShift": {
+    "kind": "flood",
+    "label": "THE TIDE IS IN",
+    "closesShortcuts": ["beach"],
+    "sky": "harbour-tide",
+    "fogDensity": 0.004,
+    "musicVariant": "tide"
+  },
+  "environment": {
+    "sky": "harbour-day",
+    "fogColor": "#dff3ff",
+    "fogDensity": 0.002,
+    "ground": { "kind": "water", "y": -1.5 },
+    "sunDirection": [0.4, 0.8, 0.3],
+    "palette": { "background": "#f3e5c8", "accent": "#ff6f61" },
+    "decor": [
+      { "asset": "palm", "instances": 60, "band": "roadside" },
+      { "asset": "house", "instances": 40, "band": "roadside" },
+      { "asset": "boat", "instances": 20, "band": "far" },
+      { "asset": "gull", "instances": 30, "band": "sky" }
+    ]
+  }
+}

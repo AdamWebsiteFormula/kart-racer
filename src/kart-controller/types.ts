@@ -37,7 +37,8 @@ export interface KartState {
   verticalVelocity: number; // m/s up
   grounded: boolean;
   surface: Surface;
-  t: number; // spline fraction 0..1
+  t: number; // spline fraction 0..1, always main-equivalent progress
+  branch: number; // 0 = main spline, i = shortcuts[i-1]
   lap: number;
   checkpointsHit: number;
   distanceAlong: number;
@@ -99,6 +100,7 @@ export function createKartState(init: KartInit): KartState {
     grounded: true,
     surface: 'road',
     t: init.t ?? 0,
+    branch: 0,
     lap: 0,
     checkpointsHit: 0,
     distanceAlong: 0,
@@ -128,18 +130,24 @@ export interface TrackSample {
   gripScale: number;
 }
 
-export interface TrackJump { id: string; t: number; launch: number /* m/s up */ }
-export interface TrackBoostPad { t: number; lateral: number; halfWidth: number }
+/** t is main-equivalent; branch 0 unless the feature sits on a shortcut. */
+export interface TrackJump { id: string; t: number; launch: number /* m/s up */; branch?: number }
+export interface TrackBoostPad { t: number; lateral: number; halfWidth: number; branch?: number }
 
-/** Implemented by track-builder later. Tests use the flat oval stub. */
+export interface TrackHint { t: number; branch: number }
+
+/** Implemented by track-builder. Tests use the flat oval stub. */
 export interface TrackQuery {
   readonly length: number; // metres
   readonly jumps: readonly TrackJump[];
   readonly boostPads: readonly TrackBoostPad[];
   readonly voidY: number;
-  sample(t: number, lateral: number): TrackSample;
-  /** Local search only: nearest t within ±window of hintT. */
+  /** Ground at main-equivalent t on `branch` (default 0), `lateral` metres to the right. */
+  sample(t: number, lateral: number, branch?: number): TrackSample;
+  /** Local search only: nearest t within ±window of hintT on the main line. */
   nearestT(position: Vec3, hintT: number, window: number): number;
+  /** Local search across the current branch and any open branch in the window. */
+  nearest(position: Vec3, hint: TrackHint, window: number): TrackHint;
 }
 
 export type HitKind = 'item' | 'hazard' | 'projectile';

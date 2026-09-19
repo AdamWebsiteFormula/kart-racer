@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CatmullRomCurve3, Vector3 } from 'three';
-import { ClosedSpline, wrapU } from './spline.ts';
+import { ClosedSpline, OpenSpline, wrapU } from './spline.ts';
 import { HARBOURISH, SQUARE, figureEight } from './__tests__/fixtures.ts';
 
 const SHAPES = { square: SQUARE, harbourish: HARBOURISH, figureEight: figureEight() };
@@ -65,5 +65,25 @@ describe('ClosedSpline', () => {
     expect(wrapU(1)).toBe(0);
     expect(wrapU(-0.25)).toBeCloseTo(0.75);
     expect(wrapU(2.5)).toBeCloseTo(0.5);
+  });
+});
+
+describe('OpenSpline', () => {
+  it('matches three.js CatmullRomCurve3 centripetal open on the harbour points ± 1e-6', () => {
+    const pts = HARBOURISH.slice(0, 6);
+    const ours = new OpenSpline(pts);
+    const ref = new CatmullRomCurve3(pts.map((p) => new Vector3(p.x, p.y, p.z)), false, 'centripetal');
+    const v = new Vector3();
+    for (let k = 0; k <= 2000; k++) {
+      const u = k / 2000;
+      const p = ours.pointAt(u);
+      ref.getPoint(u, v);
+      expect(Math.abs(p[0] - v.x)).toBeLessThan(1e-6);
+      expect(Math.abs(p[1] - v.y)).toBeLessThan(1e-6);
+      expect(Math.abs(p[2] - v.z)).toBeLessThan(1e-6);
+    }
+    expect(ours.pointAt(0)).toEqual([pts[0].x, pts[0].y, pts[0].z]);
+    expect(ours.pointAt(1)[0]).toBeCloseTo(pts[5].x, 9);
+    expect(ours.pointAt(1.5)).toEqual(ours.pointAt(1));
   });
 });

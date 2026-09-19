@@ -1,27 +1,34 @@
-// Arc-length lookup table over a ClosedSpline. Sample i sits at t = i / n where t is
-// distance along the track over total length. Flat typed arrays; hot paths are
+// Arc-length lookup table over a Spline. Closed (main line): sample i sits at
+// t = i / n and everything wraps. Open (shortcut branch): sample i sits at
+// u = i / (n - 1) and everything clamps. Flat typed arrays; hot paths are
 // allocation-free except sample(), which returns a fresh TrackSample like the stub does.
 import type { TrackSample } from '../kart-controller/types.ts';
 import { BUILDER } from './constants.ts';
-import { ClosedSpline } from './spline.ts';
+import { ClosedSpline, OpenSpline, type Spline } from './spline.ts';
 import { SURFACES, surfaceId, type ControlPoint, type Vec3 } from './types.ts';
 
 export const wrap01 = (t: number): number => {
   const w = t % 1;
   return w < 0 ? w + 1 : w;
 };
+export const clamp01 = (t: number): number => (t < 0 ? 0 : t > 1 ? 1 : t);
 
 const DEG = Math.PI / 180;
 
 export interface LutOptions {
   samples?: number;
   divisions?: number;
+  /** false builds an open branch LUT. Default true. */
+  closed?: boolean;
 }
 
 export class Lut {
   readonly n: number;
+  readonly closed: boolean;
+  /** Samples per unit t: n when closed, n − 1 when open. */
+  readonly step: number;
   readonly length: number;
-  readonly spline: ClosedSpline;
+  readonly spline: Spline;
   // position
   readonly px: Float64Array; readonly py: Float64Array; readonly pz: Float64Array;
   // unit tangent (3D)
@@ -43,9 +50,12 @@ export class Lut {
   constructor(points: readonly ControlPoint[], opts: LutOptions = {}) {
     const n = opts.samples ?? BUILDER.lutSamples;
     const divisions = opts.divisions ?? BUILDER.arcDivisions;
-    const spline = new ClosedSpline(points);
+    const closed = opts.closed ?? true;
+    const spline: Spline = closed ? new ClosedSpline(points) : new OpenSpline(points);
     this.spline = spline;
     this.n = n;
+    this.closed = closed;
+    this.step = closed ? n : n - 1;
     this.px = new Float64Array(n); this.py = new Float64Array(n); this.pz = new Float64Array(n);
     this.tx = new Float64Array(n); this.ty = new Float64Array(n); this.tz = new Float64Array(n);
     this.rx = new Float64Array(n); this.rz = new Float64Array(n);
@@ -64,7 +74,7 @@ export class Lut {
     let minY = Infinity, maxY = -Infinity;
     const cp = points.length;
     for (let i = 0; i < n; i++) {
-      const s = (i / n) * length;
+      const s = (i / this.step) * length;
       while (k < divisions - 1 && arc[k + 1] < s) k++;
       const span = arc[k + 1] - arc[k];
       const f = span > 0 ? (s - arc[k]) / span : 0;
@@ -88,9 +98,9 @@ export class Lut {
     this.minY = minY;
     this.maxY = maxY;
 
-    // 3. tangents from central differences of the uniform samples; right is horizontal
+    // 3. tangents from central differences (one-sided at open ends); right is horizontal
     for (let i = 0; i < n; i++) {
-      const ip = (i + 1) % n, im = (i - 1 + n) % n;
+      const ip = this.idx(i + 1), im = this.idx(i - 1);
       let dx = this.px[ip] - this.px[im];
       let dy = this.py[ip] - this.py[im];
       let dz = this.pz[ip] - this.pz[im];
@@ -103,13 +113,25 @@ export class Lut {
     }
   }
 
+  /** Sample index wrapped (closed) or clamped (open). */
+  idx(i: number): number {
+    const n = this.n;
+    if (this.closed) return ((i % n) + n) % n;
+    return i < 0 ? 0 : i >= n ? n - 1 : i;
+  }
+
+  /** t wrapped (closed) or clamped (open). */
+  norm(t: number): number {
+    return this.closed ? wrap01(t) : clamp01(t);
+  }
+
   /** Blend the two neighbouring samples at t, then move `lateral` metres to the right. */
   sample(t: number, lateral: number): TrackSample {
-    const n = this.n;
-    const f = wrap01(t) * n;
-    const i0 = Math.floor(f) % n;
-    const i1 = (i0 + 1) % n;
-    const a = f - Math.floor(f);
+    const f = this.norm(t) * this.step;
+    const fi = Math.floor(f);
+    const i0 = this.idx(fi);
+    const i1 = this.idx(fi + 1);
+    const a = f - fi;
     const b = 1 - a;
 
     let tx = this.tx[i0] * b + this.tx[i1] * a;
@@ -161,14 +183,15 @@ export class Lut {
    * onto the two LUT segments next to the best sample. Never searches globally.
    */
   nearestT(position: Vec3, hintT: number, window: number): number {
-    const n = this.n;
-    const c = Math.round(wrap01(hintT) * n);
-    const W = Math.max(1, Math.round(window * n));
+    const c = Math.round(this.norm(hintT) * this.step);
+    const W = Math.max(1, Math.round(window * this.step));
     const x = position[0], z = position[2];
-    let best = c % n;
+    let best = this.idx(c);
     let bestD = Infinity;
-    for (let k = -W; k <= W; k++) {
-      const i = (((c + k) % n) + n) % n;
+    const lo = this.closed ? -W : Math.max(-W, -c);
+    const hi = this.closed ? W : Math.min(W, this.n - 1 - c);
+    for (let k = lo; k <= hi; k++) {
+      const i = this.idx(c + k);
       const d = this.dist2XZ(i, x, z);
       if (d < bestD) { bestD = d; best = i; }
     }
@@ -186,9 +209,13 @@ export class Lut {
       const d = this.dist2XYZ(i, x, y, z);
       if (d < bestD) { bestD = d; best = i; }
     }
+    if (!this.closed) { // the last sample is never on the stride
+      const d = this.dist2XYZ(n - 1, x, y, z);
+      if (d < bestD) { bestD = d; best = n - 1; }
+    }
     const c = best;
     for (let k = -step; k <= step; k++) {
-      const i = (((c + k) % n) + n) % n;
+      const i = this.idx(c + k);
       const d = this.dist2XYZ(i, x, y, z);
       if (d < bestD) { bestD = d; best = i; }
     }
@@ -197,12 +224,12 @@ export class Lut {
 
   /** Project onto segments (best-1 → best) and (best → best+1); pick the closer. */
   private refine(best: number, bestD: number, x: number, y: number, z: number, use3d: boolean): number {
-    const n = this.n;
-    let bestT = best / n;
+    let bestT = best / this.step;
     let bestSeg = bestD;
     for (let side = -1; side <= 0; side++) {
-      const ia = (best + side + n) % n;
-      const ib = (ia + 1) % n;
+      const ia = this.idx(best + side);
+      const ib = this.idx(ia + 1);
+      if (ia === ib) continue; // clamped open end
       const ax = this.px[ia], ay = this.py[ia], az = this.pz[ia];
       const abx = this.px[ib] - ax, aby = use3d ? this.py[ib] - ay : 0, abz = this.pz[ib] - az;
       const ab2 = abx * abx + aby * aby + abz * abz;
@@ -214,9 +241,21 @@ export class Lut {
       const qy = use3d ? ay + aby * s - y : 0;
       const qz = az + abz * s - z;
       const d = qx * qx + qy * qy + qz * qz;
-      if (d < bestSeg) { bestSeg = d; bestT = (ia + s) / n; }
+      if (d < bestSeg) { bestSeg = d; bestT = (ia + s) / this.step; }
     }
-    return wrap01(bestT);
+    return this.norm(bestT);
+  }
+
+  /** Squared 3D distance from `position` to the centreline point at t. Allocation-free. */
+  dist2At(t: number, position: Vec3): number {
+    const f = this.norm(t) * this.step;
+    const fi = Math.floor(f);
+    const i0 = this.idx(fi), i1 = this.idx(fi + 1);
+    const a = f - fi, b = 1 - a;
+    const dx = this.px[i0] * b + this.px[i1] * a - position[0];
+    const dy = this.py[i0] * b + this.py[i1] * a - position[1];
+    const dz = this.pz[i0] * b + this.pz[i1] * a - position[2];
+    return dx * dx + dy * dy + dz * dz;
   }
 }
 

@@ -46,3 +46,13 @@ export function figureEight(points = 24, a = 160): ControlPoint[] {
 
 /** Flat oval with a constant 10° bank everywhere. */
 export const BANKED: ControlPoint[] = SQUARE.map((p) => ({ ...p, bank: 10 }));
+
+/** Harbour Loop as shipped. */
+import harbourLoopJson from '../tracks/harbour-loop.json';
+import type { TrackDefinition } from '../types.ts';
+export const HARBOUR_LOOP = harbourLoopJson as TrackDefinition;
+
+/** Deep copy so a test can mutate a definition. */
+export function cloneDef(def: TrackDefinition): TrackDefinition {
+  return JSON.parse(JSON.stringify(def)) as TrackDefinition;
+}

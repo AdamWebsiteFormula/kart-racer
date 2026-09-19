@@ -93,6 +93,7 @@ export function makeOval(o: OvalOptions = {}): TrackQuery & { centre(t: number):
     voidY: o.voidY ?? -20,
     sample,
     nearestT,
+    nearest: (position, hint, window) => ({ t: nearestT(position, hint.t, window), branch: 0 }),
     centre,
   };
 }

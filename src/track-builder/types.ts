@@ -44,9 +44,10 @@ export interface HazardDef {
   asset?: string;
 }
 
-export interface JumpDef { id: string; t: number; lateral?: number; width?: number; launch: number }
-export interface PickupDef { t: number; lateral?: number }
-export interface BoostPadDef { t: number; lateral?: number; width?: number }
+/** `shortcut` names the branch a feature sits on; t stays main-equivalent. */
+export interface JumpDef { id: string; t: number; lateral?: number; width?: number; launch: number; shortcut?: string }
+export interface PickupDef { t: number; lateral?: number; shortcut?: string }
+export interface BoostPadDef { t: number; lateral?: number; width?: number; shortcut?: string }
 
 export interface RouteOverride { fromT: number; toT: number; controlPoints: ControlPoint[] }
 export interface SurfaceOverride { fromT: number; toT: number; surface: Surface }
@@ -102,6 +103,49 @@ export interface TrackDefinition {
   environment?: EnvironmentDef;
   music?: string;
   landmark?: string;
+}
+
+// ---- built objects (sim layer) ----
+
+export interface Checkpoint { index: number; t: number; position: Vec3; tangent: Vec3; halfWidth: number }
+export interface SpawnSlot { index: number; t: number; lateral: number; position: Vec3; heading: number }
+
+export type FeatureKind = 'pickup' | 'coin' | 'boostPad' | 'jump';
+/** Authored in t + lateral, stored in world. t is re-derived from `position` after a rebuild. */
+export interface BakedFeature {
+  id: string;
+  kind: FeatureKind;
+  branch: number;
+  t: number;
+  lateral: number;
+  position: Vec3;
+  /** full width across the road, metres (pads, jumps) */
+  width: number;
+  /** vertical launch m/s (jumps) */
+  launch: number;
+}
+
+export interface ActiveHazard {
+  id: string;
+  type: HazardKind;
+  position: Vec3;
+  radius: number;
+  hit: HazardHit;
+  /** m/s² sideways, gusts only */
+  push?: Vec3;
+}
+
+/** Fired once by applyFinalLapShift for art, audio, HUD and the scene layer. */
+export interface TrackChanged {
+  kind: ShiftKind;
+  label: string;
+  sky?: string;
+  lut?: string;
+  fogDensity?: number;
+  musicVariant?: string;
+  length: number;
+  /** main-line t ranges whose geometry or surface changed */
+  changedRanges: [number, number][];
 }
 
 /** Surface ids stored in the LUT; index into this list. */
