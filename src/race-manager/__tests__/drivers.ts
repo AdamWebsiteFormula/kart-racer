@@ -12,21 +12,25 @@ function steerToward(s: KartState, target: readonly number[], gain = 3): number 
   return Math.max(-1, Math.min(1, err * gain));
 }
 
-/** Follows the current branch a little ahead at `throttle`. */
-export function lookAheadDriver(throttle = 1, lookAhead = 0.02): Driver {
+/**
+ * Follows the current branch a little ahead. Throttle only scales acceleration in
+ * the controller, so `maxSpeed` (m/s) is a governor: coast above it, throttle below.
+ */
+export function lookAheadDriver(maxSpeed = Infinity, lane = 0, lookAhead = 0.02): Driver {
   return (s, track) => {
-    const ahead = track.sample(s.t + lookAhead, 0, s.branch).position;
-    return { ...NEUTRAL_INPUT, throttle, steer: steerToward(s, ahead) };
+    const ahead = track.sample(s.t + lookAhead, lane, s.branch).position;
+    return { ...NEUTRAL_INPUT, throttle: s.speed < maxSpeed ? 1 : 0, steer: steerToward(s, ahead) };
   };
 }
 
-/** Holds brake so the kart reverses down the track, steering to stay on the line behind it. */
-export function reverseDriver(lookBehind = 0.02): Driver {
-  return (s, track) => {
-    const behind = track.sample(s.t - lookBehind, 0, s.branch).position;
-    // reverse flips steer in the controller; aim the nose away from the target so the tail goes toward it
-    return { ...NEUTRAL_INPUT, brake: 1, steer: -steerToward(s, behind) };
-  };
+/** Lanes for a field: spread across ±1.5 m so faster karts can pass on every road. */
+export function laneFor(i: number): number {
+  return (i % 4) - 1.5;
+}
+
+/** Holds brake so the kart reverses straight down the track. */
+export function reverseDriver(): Driver {
+  return () => ({ ...NEUTRAL_INPUT, brake: 1 });
 }
 
 /** Does nothing. */

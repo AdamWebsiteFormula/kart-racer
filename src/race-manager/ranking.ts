@@ -7,7 +7,13 @@ import type { KartTracker, RaceEvent } from './types.ts';
 function compare(karts: KartState[], trackers: KartTracker[], i: number, j: number): number {
   const a = karts[i], b = karts[j];
   const af = a.finishTick !== undefined, bf = b.finishTick !== undefined;
-  if (af && bf) return (a.finishTick as number) - (b.finishTick as number) || trackers[i].gridSlot - trackers[j].gridSlot;
+  if (af && bf) {
+    const d = (a.finishTick as number) - (b.finishTick as number);
+    if (d !== 0) return d;
+    // same tick: a real photo finish or the grace cut-off; progress decides, then the grid
+    if (a.distanceAlong !== b.distanceAlong) return b.distanceAlong - a.distanceAlong;
+    return trackers[i].gridSlot - trackers[j].gridSlot;
+  }
   if (af !== bf) return af ? -1 : 1;
   if (a.distanceAlong !== b.distanceAlong) return b.distanceAlong - a.distanceAlong;
   return trackers[i].gridSlot - trackers[j].gridSlot;
