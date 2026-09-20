@@ -9,7 +9,7 @@ export interface RaceConstants {
   stuckSeconds: number; stuckSpeed: number; stuckInputMin: number;
   respawnFreezeSeconds: number; respawnLift: number;
   rankDebounceSeconds: number; finishGraceSeconds: number;
-  checkpointResyncSectors: number; teleportGuardFraction: number;
+  checkpointResyncSectors: number; teleportGuardSectors: number;
   hazardSlowTo: number; hazardSlowSeconds: number; hazardBumpLateral: number; hazardCooldownSeconds: number;
   pickupRespawnSeconds: number; coinRespawnSeconds: number;
 }

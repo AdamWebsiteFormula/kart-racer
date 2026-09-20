@@ -65,7 +65,7 @@
         "rankDebounceSeconds": { "type": "number", "default": 0.3, "description": "a new rank must hold this long before positionChange fires" },
         "finishGraceSeconds": { "type": "number", "default": 12, "description": "after the player finishes, stragglers are force-finished" },
         "checkpointResyncSectors": { "type": "number", "default": 0.5, "description": "after a Final Lap Shift, a next checkpoint this far behind the kart counts as hit" },
-        "teleportGuardFraction": { "type": "number", "default": 0.5, "description": "a t jump of more than this fraction of a lap in one tick counts nothing" },
+        "teleportGuardSectors": { "type": "number", "default": 1.0, "description": "a forward t jump of more than this many checkpoint sectors in one tick counts nothing" },
         "hazardSlowTo": { "type": "number", "default": 0.6 },
         "hazardSlowSeconds": { "type": "number", "default": 1.0 },
         "hazardBumpLateral": { "type": "number", "default": 4, "description": "m/s added away from the hazard centre" },

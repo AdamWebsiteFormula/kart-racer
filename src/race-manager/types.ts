@@ -53,8 +53,12 @@ export interface KartTracker {
   /** seconds the current raw rank has held */
   rankHeldSeconds: number;
   wrongWayOn: boolean;
+  wrongWaySeconds: number;
+  stuckSeconds: number;
   freezeRemaining: number;
   respawnCount: number;
+  /** force-finished at the grace cut-off */
+  dnf: boolean;
 }
 
 export interface FeatureTimer { respawnRemaining: number }
