@@ -131,10 +131,33 @@ describe('decor and barriers', () => {
     expect(Array.from(b)).toEqual(Array.from(a));
   });
 
-  it('barriers: two per BARRIER_SPACING on every branch', () => {
+  it('barriers: two per BARRIER_SPACING on every branch, minus the few posts that would fence a shortcut mouth', () => {
     let expected = 0;
     for (const b of track.branches.list) expected += 2 * Math.max(1, Math.floor(b.lut.length / BUILDER.barrierSpacing));
-    expect(scene.instancers.get('barriers')!.count).toBe(expected);
+    const count = scene.instancers.get('barriers')!.count;
+    expect(count).toBeLessThan(expected);
+    expect(count).toBeGreaterThan(expected * 0.9);
+    // no surviving post stands on another branch's road
+    const a = scene.instancers.get('barriers')!.instanceMatrix.array;
+    for (let i = 0; i < count; i++) {
+      const x = a[i * 16 + 12], z = a[i * 16 + 14];
+      let onRoads = 0;
+      for (const b of track.branches.list) {
+        const one = { list: [b], main: track.branches.main } as unknown as typeof track.branches;
+        if (insideRoadEnvelope(one, x, z, -1, BUILDER.kerbWidth + 0.5)) onRoads++;
+      }
+      expect(onRoads).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('a closed shortcut has no posts and its chunks are hidden after the shift', () => {
+    const t = buildTrack(HARBOUR_LOOP); // the tide closes the beach
+    const s = buildTrackScene(t);
+    const before = s.instancers.get('barriers')!.count;
+    t.applyFinalLapShift();
+    const beach = t.branches.byId('beach')!;
+    expect(s.instancers.get('barriers')!.count).toBeLessThan(before - 100);
+    for (const c of s.chunks) expect(c.mesh.visible).toBe(c.branch !== beach.index);
   });
 });
 

@@ -62,10 +62,13 @@ function nearestXZ(lut: Lut, x: number, z: number): { d2: number; hw: number } {
   return { d2: bestD, hw: lut.hw[best] };
 }
 
-/** Inside any branch's road envelope (road + kerb + shoulder + 1 m air)? */
-export function insideRoadEnvelope(branches: Branches, x: number, z: number): boolean {
-  const pad = BUILDER.kerbWidth + BUILDER.shoulderWidth + 1;
+/** Full envelope past the road edge: kerb + shoulder + 1 m air. */
+export const ENVELOPE_PAD = BUILDER.kerbWidth + BUILDER.shoulderWidth + 1;
+
+/** Is (x, z) within `pad` metres past any branch's road edge? `except` skips one branch index. */
+export function insideRoadEnvelope(branches: Branches, x: number, z: number, except = -1, pad = ENVELOPE_PAD): boolean {
   for (const b of branches.list) {
+    if (b.index === except) continue;
     const { d2, hw } = nearestXZ(b.lut, x, z);
     const r = hw + pad;
     if (d2 < r * r) return true;
@@ -119,10 +122,15 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
   return { asset: entry.asset, band: entry.band, matrices: Float32Array.from(out), count: placed };
 }
 
-/** Barrier posts every BARRIER_SPACING metres on both edges of every branch, at halfWidth + KERB_WIDTH, facing along the road. */
+/**
+ * Barrier posts every BARRIER_SPACING metres on both edges of every OPEN branch, at
+ * halfWidth + KERB_WIDTH, facing along the road. A post inside another branch's road
+ * envelope is skipped so shortcut mouths stay open.
+ */
 export function placeBarriers(branches: Branches): Float32Array {
   const out: number[] = [];
   for (const b of branches.list) {
+    if (!b.open) continue;
     const lut = b.lut;
     const count = Math.max(1, Math.floor(lut.length / BUILDER.barrierSpacing));
     const last = lut.closed ? count : count - 1;
@@ -132,6 +140,7 @@ export function placeBarriers(branches: Branches): Float32Array {
       const yaw = headingOf(c.tangent);
       for (const side of [-1, 1]) {
         const p = lut.sample(u, side * (c.halfWidth + BUILDER.kerbWidth)).position;
+        if (branches.list.length > 1 && insideRoadEnvelope(branches, p[0], p[2], b.index, BUILDER.kerbWidth + 0.5)) continue;
         pushTransform(out, p, yaw);
       }
     }

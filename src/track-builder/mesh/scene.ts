@@ -3,16 +3,18 @@
 // count is the draw-call count. Placeholder geometries stand in until art-pipeline
 // supplies real ones through `assets`.
 import {
-  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Group,
-  InstancedMesh, InstancedBufferAttribute, Mesh, MeshToonMaterial, PlaneGeometry, SphereGeometry, Matrix4,
+  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DynamicDrawUsage, Group,
+  InstancedMesh, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry, SphereGeometry, Matrix4,
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
 import type { Track } from '../track.ts';
-import type { BakedFeature, TrackChanged } from '../types.ts';
+import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
-import { paletteFor, type Rgb, type TrackPalette } from './palette.ts';
+import { hexToRgb, paletteFor, type Rgb, type TrackPalette } from './palette.ts';
+
+const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 export interface TrackAssets {
   /** keyed by decor asset, barrier asset, `balloon`, `coin`, `boostPad`, `ramp`, hazard asset, landmark id */
@@ -28,8 +30,8 @@ export interface TrackScene {
   instancers: Map<string, InstancedMesh>;
   fog: { color: Rgb; density: number };
   sky: string | undefined;
-  /** move hazards to their position at race time `time` (seconds) */
-  update(time: number): void;
+  /** move hazards to their position at race time `time`; pass race-manager's activeHazards list to avoid computing it twice */
+  update(time: number, active?: readonly ActiveHazard[]): void;
   /** Mesh + InstancedMesh objects in the group (draw-call proxy) */
   drawables(): number;
   dispose(): void;
@@ -55,25 +57,33 @@ function placeholder(name: string): BufferGeometry {
 }
 
 function geometryFor(assets: TrackAssets, name: string, fallback = name): BufferGeometry {
-  return assets.geometries?.[name] ?? placeholder(fallback);
+  const own = assets.geometries?.[name];
+  if (own) return own;
+  const g = placeholder(fallback);
+  OWNED.add(g);
+  return g;
 }
+
+/** Placeholder geometries the scene made itself; caller-owned `assets` geometries are never disposed. */
+const OWNED = new WeakSet<BufferGeometry>();
 
 function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices: Float32Array, capacity = matrices.length / 16): InstancedMesh {
   const mat = new MeshToonMaterial({ color: toColor(colour) });
   const m = new InstancedMesh(geometry, mat, Math.max(1, capacity));
   m.name = name;
   m.count = matrices.length / 16;
-  m.instanceMatrix = new InstancedBufferAttribute(padTo(matrices, Math.max(1, capacity) * 16), 16);
+  (m.instanceMatrix.array as Float32Array).set(matrices.subarray(0, Math.min(matrices.length, m.instanceMatrix.array.length)));
   m.instanceMatrix.needsUpdate = true;
   m.castShadow = true;
   return m;
 }
 
-function padTo(a: Float32Array, length: number): Float32Array {
-  if (a.length === length) return a;
-  const out = new Float32Array(length);
-  out.set(a.subarray(0, Math.min(a.length, length)));
-  return out;
+/** Free everything a mesh owns: its material, its geometry if the scene made it, its instance buffer. */
+function retire(m: Mesh): void {
+  m.removeFromParent();
+  (m.material as MeshToonMaterial).dispose();
+  if (OWNED.has(m.geometry)) m.geometry.dispose();
+  if ((m as InstancedMesh).isInstancedMesh) (m as InstancedMesh).dispose();
 }
 
 function featureMatrices(track: Track, kind: BakedFeature['kind']): Float32Array {
@@ -105,9 +115,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);
 
-  // barriers
+  // barriers (open branches only, so a closed shortcut loses its posts with its road)
   const addBarriers = () => {
-    instancers.get('barriers')?.removeFromParent();
+    const old = instancers.get('barriers');
+    if (old) retire(old);
     const m = instancer('barriers', geometryFor(assets, `${def.biome}-barrier`, 'barrier'), palette.barrier, placeBarriers(branches));
     instancers.set('barriers', m);
     group.add(m);
@@ -135,7 +146,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   ];
   const addFeatures = () => {
     for (const [name, kind, geo, colour] of featureNames) {
-      instancers.get(name)?.removeFromParent();
+      const old = instancers.get(name);
+      if (old) retire(old);
       const mats = featureMatrices(track, kind);
       if (mats.length === 0) { instancers.delete(name); continue; }
       const m = instancer(name, geometryFor(assets, geo), colour, mats);
@@ -153,31 +165,40 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     hazardAsset.set(h.id ?? `hazard-${i}`, asset);
     hazardCapacity.set(asset, (hazardCapacity.get(asset) ?? 0) + 1);
   });
+  // hazards move every frame: dynamic buffer, never frustum-culled (the lazy bounding
+  // sphere would freeze on frame one), hazard id → instancer resolved once
+  const hazardMeshes: InstancedMesh[] = [];
+  const hazardMeshByAsset = new Map<string, number>();
   for (const [asset, cap] of hazardCapacity) {
     const m = instancer(`hazard:${asset}`, geometryFor(assets, asset, 'hazard'), palette.accent, new Float32Array(0), cap);
+    m.frustumCulled = false;
+    m.instanceMatrix.setUsage(DynamicDrawUsage);
+    hazardMeshByAsset.set(asset, hazardMeshes.length);
+    hazardMeshes.push(m);
     instancers.set(m.name, m);
     group.add(m);
   }
+  const hazardMeshById = new Map<string, InstancedMesh>();
+  for (const [id, asset] of hazardAsset) hazardMeshById.set(id, hazardMeshes[hazardMeshByAsset.get(asset)!]);
+  const hazardCounts = new Int32Array(hazardMeshes.length);
   const scratch = new Matrix4();
-  const update = (time: number) => {
-    const counts = new Map<string, number>();
-    for (const m of instancers.values()) if (m.name.startsWith('hazard:')) counts.set(m.name, 0);
-    for (const h of track.activeHazards(time)) {
+  const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time)) => {
+    hazardCounts.fill(0);
+    for (const h of active) {
       if (h.type === 'gust') continue;
-      const name = `hazard:${hazardAsset.get(h.id) ?? h.type}`;
-      const m = instancers.get(name);
+      const m = hazardMeshById.get(h.id);
       if (!m) continue;
-      const i = counts.get(name) ?? 0;
+      const k = hazardMeshByAsset.get(hazardAsset.get(h.id)!)!;
+      const i = hazardCounts[k];
       if (i * 16 >= m.instanceMatrix.array.length) continue;
       scratch.makeTranslation(h.position[0], h.position[1] + h.radius, h.position[2]);
       m.setMatrixAt(i, scratch);
-      counts.set(name, i + 1);
+      hazardCounts[k] = i + 1;
     }
-    for (const [name, n] of counts) {
-      const m = instancers.get(name)!;
-      m.count = n;
+    hazardMeshes.forEach((m, k) => {
+      m.count = hazardCounts[k];
       m.instanceMatrix.needsUpdate = true;
-    }
+    });
   };
   update(0);
 
@@ -203,7 +224,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   }
 
   // sky: one dome
-  const sky = new Mesh(new SphereGeometry(SKY_RADIUS, 24, 12), new MeshToonMaterial({ color: toColor(palette.background), side: BackSide, fog: false }));
+  // unlit: a toon sky would shade darker away from the sun
+  const sky = new Mesh(new SphereGeometry(SKY_RADIUS, 24, 12), new MeshBasicMaterial({ color: toColor(palette.background), side: BackSide, fog: false }));
   sky.name = 'sky';
   group.add(sky);
 
@@ -224,7 +246,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
 
   const scene: TrackScene = {
     group, palette, chunks, decor, instancers,
-    fog: { color: env.fogColor ? hexOrDefault(env.fogColor, palette.background) : palette.background, density: env.fogDensity ?? 0 },
+    fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,
     drawables: () => {
@@ -234,37 +256,34 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     },
     dispose: () => {
       unsubscribe();
-      group.traverse((o) => {
-        const m = o as Mesh;
-        if (!m.isMesh) return;
-        m.geometry.dispose();
-        (m.material as MeshToonMaterial).dispose();
-      });
+      const all: Mesh[] = [];
+      group.traverse((o) => { if ((o as Mesh).isMesh) all.push(o as Mesh); });
+      for (const m of all) retire(m);
+      for (const c of chunks) c.mesh.geometry.dispose();
+      roadMaterial.dispose();
       group.clear();
     },
   };
 
   // Final Lap Shift: instant swap of what changed
-  let lastLength = track.length;
+  let lastLut = branches.main.lut;
   const unsubscribe = track.onChanged((e: TrackChanged) => {
-    const routeMoved = Math.abs(e.length - lastLength) > 1e-9;
-    lastLength = e.length;
+    // a route override replaces the main LUT object; that identity is the signal
+    const routeMoved = branches.main.lut !== lastLut;
+    lastLut = branches.main.lut;
     // only the main LUT ever changes (route or baked surface); branch LUTs are visually fixed
     for (const c of chunks) {
-      if (c.branch !== 0) continue;
-      const b = branches.main;
-      if (routeMoved || chunkTouched(c, b, e.changedRanges)) rebuildChunk(c, b, palette);
+      if (c.branch !== 0) {
+        c.mesh.visible = branches.list[c.branch].open;
+        continue;
+      }
+      if (routeMoved || chunkTouched(c, branches.main, e.changedRanges)) rebuildChunk(c, branches.main, palette);
     }
-    if (routeMoved) addBarriers();
+    addBarriers();
     addFeatures();
     if (e.fogDensity !== undefined) scene.fog.density = e.fogDensity;
     if (e.sky !== undefined) scene.sky = e.sky;
   });
 
   return scene;
-}
-
-function hexOrDefault(hex: string, fallback: Rgb): Rgb {
-  const c = new Color(hex);
-  return Number.isFinite(c.r) ? [c.r, c.g, c.b] : fallback;
 }

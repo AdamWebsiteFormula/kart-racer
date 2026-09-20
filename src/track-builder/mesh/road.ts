@@ -56,9 +56,9 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
     for (let i = i0; i <= i1; i++) {
       const j = lut.idx(i);
       const hw = lut.hw[j];
-      const s = (i / lut.step) * lut.length;
+      const s = (i / lut.step) * lut.length; // unwrapped so uv v stays continuous across the seam
       const tanB = Math.tan(lut.bank[j]);
-      const c = strip.colour(j, s);
+      const c = strip.colour(j, (j / lut.step) * lut.length); // wrapped so the seam vertex gets one stripe colour
       for (const side of [0, 1] as const) {
         const l = side === 0 ? strip.a(hw) : strip.b(hw);
         const h = side === 0 ? strip.ah : strip.bh;
