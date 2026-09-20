@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import * as stepModule from '../kart-controller/step.ts';
 import { SIM_HZ } from '../kart-controller/step.ts';
 import type { InputState } from '../kart-controller/types.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
@@ -11,24 +10,6 @@ import { HARBOUR_LOOP, OVAL, cloneDef } from './__tests__/fixtures.ts';
 import type { RaceConfig, RaceEvent, RacerConfig } from './types.ts';
 
 const MAX_TICKS = SIM_HZ * 300;
-
-/**
- * The kart-controller's own void check is unreachable today (the ground step snaps
- * any y below the ground before it tests voidY), so the respawn test injects the
- * kart event the controller is specified to raise.
- */
-const forceRespawn = { kart: -1 };
-vi.mock('../kart-controller/step.ts', async (importOriginal) => {
-  const mod = await importOriginal<typeof stepModule>();
-  return {
-    ...mod,
-    stepKarts: (...args: Parameters<typeof mod.stepKarts>) => {
-      const out = mod.stepKarts(...args);
-      if (forceRespawn.kart >= 0) { out[forceRespawn.kart].push({ type: 'respawn' }); forceRespawn.kart = -1; }
-      return out;
-    },
-  };
-});
 
 function racers(n: number, playerAt = 0): RacerConfig[] {
   return Array.from({ length: n }, (_, i) => ({ racerId: `r${i}`, archetype: 'medium' as const, isPlayer: i === playerAt }));
@@ -127,7 +108,8 @@ describe('RaceManager', () => {
     const freezeTicks = Math.round(RACE.respawnFreezeSeconds * SIM_HZ);
     let speedInFreeze = -1, speedAfter = -1;
     const log = run(rm, [lookAheadDriver(20)], (t) => {
-      if (dropped < 0 && rm.state.trackers[0].nextCheckpoint === 3) { forceRespawn.kart = 0; dropped = t; }
+      // drop the kart well under the road, airborne: the controller must raise its own respawn event
+      if (dropped < 0 && rm.state.trackers[0].nextCheckpoint === 3) { s.position[1] = track.voidY - 1; s.grounded = false; dropped = t; }
       if (dropped > 0 && t === dropped + freezeTicks - 2) speedInFreeze = s.speed;
       if (dropped > 0 && t === dropped + freezeTicks + 60) speedAfter = s.speed;
       if (dropped > 0 && t > dropped + SIM_HZ * 3) rm.state.phase = 'finished';

@@ -96,6 +96,24 @@ describe('ground', () => {
     expect(ev.some((e) => e.type === 'respawn')).toBe(true);
   });
 
+  it('an airborne kart already under the road keeps falling to the void; a grounded kart under a slope snaps up', () => {
+    const track = makeOval({ voidY: -20 });
+    const under = kartAt(track, 0.05, 25);
+    under.position[1] = -5;
+    under.grounded = false;
+    const ev: KartEvent[] = [];
+    stepGround(under, track, c, DT, ev);
+    expect(under.grounded).toBe(false);
+    expect(under.position[1]).toBeLessThan(-5);
+    for (let i = 0; i < 300; i++) stepGround(under, track, c, DT, ev);
+    expect(ev.some((e) => e.type === 'respawn')).toBe(true);
+    const slope = kartAt(track, 0.05, 25);
+    slope.position[1] = -0.5; // the road rose under a grounded kart
+    stepGround(slope, track, c, DT, []);
+    expect(slope.grounded).toBe(true);
+    expect(slope.position[1]).toBe(0);
+  });
+
   it('surface updates from the track while grounded', () => {
     const track = makeOval({ surfaceAt: () => 'mud' });
     const s = kartAt(track, 0.05, 25);
