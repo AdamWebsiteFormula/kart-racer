@@ -8,7 +8,7 @@ import { chunkCountFor } from './chunks.ts';
 import { insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
-import { buildTrackScene } from './scene.ts';
+import { buildTrackScene, isDrawn } from './scene.ts';
 
 function collapseDef(): TrackDefinition {
   const d = cloneDef(HARBOUR_LOOP);
@@ -23,7 +23,7 @@ function collapseDef(): TrackDefinition {
 
 function meshes(scene: ReturnType<typeof buildTrackScene>): Mesh[] {
   const out: Mesh[] = [];
-  scene.group.traverse((o) => { if ((o as Mesh).isMesh) out.push(o as Mesh); });
+  scene.group.traverse((o) => { if (isDrawn(o as Mesh)) out.push(o as Mesh); });
   return out;
 }
 
@@ -84,6 +84,23 @@ describe('ribbon geometry', () => {
       expect(nrm[a * 3 + 1]).toBeGreaterThan(0.9);
       expect(nrm[b * 3 + 1]).toBeGreaterThan(0.9);
     }
+  });
+
+  it('on a banked span the road normal matches the sim normal (tilted, not up)', () => {
+    // Harbour control point 5 banks 10°; find the most banked sample and build a chunk around it
+    let best = 0;
+    for (let i = 0; i < lut.n; i++) if (Math.abs(lut.bank[i]) > Math.abs(lut.bank[best])) best = i;
+    expect(Math.abs(lut.bank[best])).toBeGreaterThan(0.1);
+    const u0 = Math.max(0, (best - 4) / lut.step), u1 = Math.min(1, (best + 4) / lut.step);
+    const g = buildRibbon(lut, u0, u1, palette);
+    const nrm = g.getAttribute('normal').array as Float32Array;
+    const count = Math.ceil(u1 * lut.step) - Math.floor(u0 * lut.step) + 1;
+    const k = best - Math.floor(u0 * lut.step);
+    const a = 4 * count * 2 + k * 2; // road strip, left vertex at the banked sample
+    const sim = lut.sample(best / lut.step, -lut.hw[best]).normal;
+    const dot = nrm[a * 3] * sim[0] + nrm[a * 3 + 1] * sim[1] + nrm[a * 3 + 2] * sim[2];
+    expect(dot).toBeGreaterThan(0.995);
+    expect(Math.abs(sim[0]) + Math.abs(sim[2])).toBeGreaterThan(0.1);
   });
 
   it('uv v advances by 1 every ROAD_TILE_LENGTH metres', () => {
@@ -199,6 +216,23 @@ describe('Final Lap Shift swap and hazards', () => {
     scene.update(2);
     expect(m.count).toBe(1);
     expect(m.instanceMatrix.array[12]).not.toBe(x0);
+  });
+
+  it('lap gating: a shortcut closed on lap 1 starts hidden, with no coins or posts, and appears when its lap comes', () => {
+    const d = cloneDef(HARBOUR_LOOP);
+    d.shortcuts![0].openOnLaps = [2];
+    const t = buildTrack(d);
+    const s = buildTrackScene(t);
+    const beach = t.branches.byId('beach')!;
+    for (const c of s.chunks) if (c.branch === beach.index) expect(c.mesh.visible).toBe(false);
+    const coinsClosed = s.instancers.get('coins')!.count;
+    const postsClosed = s.instancers.get('barriers')!.count;
+    expect(coinsClosed).toBe(HARBOUR_LOOP.coins!.length - 1); // the beach coin
+    t.setLap(2);
+    s.update(0);
+    for (const c of s.chunks) if (c.branch === beach.index) expect(c.mesh.visible).toBe(true);
+    expect(s.instancers.get('coins')!.count).toBe(coinsClosed + 1);
+    expect(s.instancers.get('barriers')!.count).toBeGreaterThan(postsClosed + 100);
   });
 
   it('dispose unsubscribes: a later shift does not touch the group', () => {

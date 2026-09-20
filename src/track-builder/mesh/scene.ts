@@ -78,6 +78,13 @@ function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices
   return m;
 }
 
+/** Would the renderer issue a draw call for this object? Visible, and for instancers at least one instance. */
+export function isDrawn(m: Mesh): boolean {
+  if (!m.isMesh || !m.visible) return false;
+  const im = m as InstancedMesh;
+  return !im.isInstancedMesh || im.count > 0;
+}
+
 /** Free everything a mesh owns: its material, its geometry if the scene made it, its instance buffer. */
 function retire(m: Mesh): void {
   m.removeFromParent();
@@ -90,6 +97,7 @@ function featureMatrices(track: Track, kind: BakedFeature['kind']): Float32Array
   const out: number[] = [];
   for (const f of track.features) {
     if (f.kind !== kind) continue;
+    if (f.branch !== 0 && !track.branches.list[f.branch]?.open) continue; // a closed shortcut hides its balloons and coins
     const c = track.sample(f.t, 0, f.branch);
     const yaw = headingOf(c.tangent);
     if (kind === 'pickup') pushTransform(out, [f.position[0], f.position[1] + BUILDER.balloonHeight, f.position[2]], yaw);
@@ -114,6 +122,13 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);
+  /** bitmask of open branches; when it changes (lap gating or a shift) visibility, barriers and features follow */
+  const openMask = () => branches.list.reduce((m, b, i) => (b.open ? m | (1 << i) : m), 0);
+  let lastOpen = openMask();
+  const syncOpen = () => {
+    for (const c of chunks) if (c.branch !== 0) c.mesh.visible = branches.list[c.branch].open;
+  };
+  syncOpen();
 
   // barriers (open branches only, so a closed shortcut loses its posts with its road)
   const addBarriers = () => {
@@ -183,6 +198,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const hazardCounts = new Int32Array(hazardMeshes.length);
   const scratch = new Matrix4();
   const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time)) => {
+    const open = openMask();
+    if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); }
     hazardCounts.fill(0);
     for (const h of active) {
       if (h.type === 'gust') continue;
@@ -251,16 +268,17 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     update,
     drawables: () => {
       let n = 0;
-      group.traverse((o) => { if ((o as Mesh).isMesh) n++; });
+      group.traverse((o) => { if (isDrawn(o as Mesh)) n++; });
       return n;
     },
     dispose: () => {
       unsubscribe();
-      const all: Mesh[] = [];
-      group.traverse((o) => { if ((o as Mesh).isMesh) all.push(o as Mesh); });
-      for (const m of all) retire(m);
+      const chunkMeshes = new Set(chunks.map((c) => c.mesh));
+      const others: Mesh[] = [];
+      group.traverse((o) => { if ((o as Mesh).isMesh && !chunkMeshes.has(o as Mesh)) others.push(o as Mesh); });
+      for (const m of others) retire(m);
       for (const c of chunks) c.mesh.geometry.dispose();
-      roadMaterial.dispose();
+      roadMaterial.dispose(); // shared by every chunk: once
       group.clear();
     },
   };
@@ -273,12 +291,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     lastLut = branches.main.lut;
     // only the main LUT ever changes (route or baked surface); branch LUTs are visually fixed
     for (const c of chunks) {
-      if (c.branch !== 0) {
-        c.mesh.visible = branches.list[c.branch].open;
-        continue;
-      }
+      if (c.branch !== 0) continue;
       if (routeMoved || chunkTouched(c, branches.main, e.changedRanges)) rebuildChunk(c, branches.main, palette);
     }
+    lastOpen = openMask();
+    syncOpen();
     addBarriers();
     addFeatures();
     if (e.fogDensity !== undefined) scene.fog.density = e.fogDensity;
