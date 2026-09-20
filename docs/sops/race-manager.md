@@ -18,8 +18,94 @@ Simulated race with scripted logs yields correct ranks and lap counts; a kart dr
 ## References
 turbo-kart-rush RaceManager.ts; research plan §4.3, §4.8.
 
+## Approach
+_Synthesised 19 Sept 2026 from turbo-kart-rush `src/game/RaceManager.ts` (+ `Game.ts`, `track/Track.ts`, `core/constants.ts`), Starter-Kit-Racing `js/LapTimer.js`, Mario-Kart-3.js (no race code), research plan §4.3, §4.4, §4.8, §5, §6.4 and appendix §3, §4, §9, design §2, §6, §9, the three schemas (race-state, cups, score) and the track-builder and kart-controller surfaces already in `src/`._
+
+### What we take from the references
+- **turbo-kart-rush** is the model, again. Four phases (`grid → countdown → racing → complete`), one `Tracker` per kart, `nextCheckpoint` index, progress unwrapped from the last checkpoint so reversing over the line never jumps the rank, monotonic progress clamp, finished karts sorted by finish order ahead of everyone else, place-change debounce (0.3 s) so the HUD does not flicker, wrong-way from `velocity · tangent < −1` held 1.2 s, three respawn triggers (below void, on void surface, stuck 6 s), respawn at the last checkpoint with a 0.6 s freeze, and a 12 s grace after the player finishes before the stragglers are force-finished. We copy the *shape*. We do not copy: its 1.9-sector checkpoint window (our `t` is exact, so a checkpoint is a crossing, not a zone), the jump-start spin-out penalty (not in the bible), tie-break by kart id (we tie-break by grid slot), physics still ticking in `complete`, the void-*surface* trigger (we have no void surface; the ground is a plane or nothing), and the synthesised checkpoint fallback (track-builder always gives us checkpoints).
+- **Starter-Kit-Racing** has a single-kart lap timer. Two ideas survive: the *teleport guard* (a lap or checkpoint never counts if `t` moved more than half a lap in one tick) and "every checkpoint must be visited before the line counts". Its set-membership check is not order-aware; ours is.
+- **Mario-Kart-3.js** has no race code at all. Nothing taken.
+- **Nobody** has Final Lap Shift, Knockout cut lines, a series layer, or a deterministic tick-driven clock. Those we design here.
+
+### The model
+`RaceManager` owns one race. It is pure TypeScript, no Three.js, and everything it does is a function of `(RaceConfig, tick, inputs[])`. Every timer is derived from `tick` or stored in `RaceState`, never in a closure, so the state is serialisable and a replayed input log reproduces the race byte for byte.
+
+**Inputs per tick.** `step(inputs: InputState[])`, one entry per kart in `karts[]` order. The player's input source and (later) ai-driver fill the array; race-manager copies the player entry into `inputLog`. Ghost karts (`isGhost`) replay their own log and are skipped by ranking, checkpoints, hazards and pickups.
+
+**Phases** (`race-state.schema.json`): `countdown → racing → finalLap → finished`.
+- `countdown`: karts sit on `track.spawnGrid` (player in `playerGridSlot`, AI in the rest, in racer order). Inputs are replaced by `NEUTRAL_INPUT`. The go tick is `countdownSteps × countdownStepSeconds × SIM_HZ`; a `countdown {stepsLeft}` event fires at each step boundary and `go` fires on the go tick. For each kart the race-manager records the tick its throttle first went above `stuckInputMin`; on the go tick `tryStartBoost(s, c, secondsBeforeGo, events)` decides the start boost from the kart schema's 0.3 s window. Holding throttle too early simply earns nothing (no spin-out penalty; the bible has none).
+- `racing`: the full tick below. `time = (tick − goTick) / SIM_HZ`.
+- `finalLap`: same tick, entered once when the **leader** starts lap `lapsTotal`. That transition is the one place `track.applyFinalLapShift(karts)` is called (`finalLapShiftFired` guards it and the track is idempotent anyway). The returned `TrackChanged` is re-emitted as a `trackChanged` race event for HUD, audio and vfx. After the shift every kart is **re-synced**: if its next checkpoint now sits within `checkpointResyncSectors` (0.5 of a sector) *behind* it, that checkpoint is counted as hit, so a remap can never strand a kart waiting for a line it already passed.
+- `finished`: entered when every non-ghost kart has a `finishTick`, or `finishGraceSeconds` after the player's finish, whichever is first. Karts still racing at the grace cut-off are force-finished in current rank order with `finishTick = the cut-off tick` and `dnf = true` in the results. In `finished` the sim keeps stepping so the results camera has something to look at, but no race rule runs.
+
+**Checkpoints and laps.** `track.checkpoints[i]` at `t = wrap(startT + i/N)`, checkpoint 0 is the start line. Per kart: `nextCheckpoint` and `lastCheckpoint` indices. A checkpoint is hit when `crossed(prevT, t, cp.t)` is true (the kart-controller's forward-only, wrap-aware crossing test) **and** `i === nextCheckpoint` **and** the teleport guard holds (`wrap01(t − prevT) < 0.5`). Shortcuts need nothing special: a branch kart's `t` is main-equivalent and monotonic, so it crosses the same checkpoints. Crossing checkpoint 0 with `nextCheckpoint === 0` counts a lap (`lap` is the **1-based current lap**, 1 on the grid); `checkpointsHit` resets to 0 and `lapTicks[]` records the tick. Reversing back over a checkpoint does not un-hit it (turbo-kart-rush rule); the in-order requirement already stops the double count. Crossing the line on lap `lapsTotal` sets `finishTick`, `lap` stays at `lapsTotal`, and a `finish {racerId, rank, tick}` event fires. Whenever the leader's lap changes, `track.setLap(leaderLap)` runs so `openOnLaps` shortcuts follow the leader (one track state for one scene).
+
+**Progress and rank.** `distanceAlong = (lap − 1) × length + (wrap01(cp[last].t − startT) + signedOffset(t, cp[last].t)) × length`. Anchoring on the last hit checkpoint keeps the number continuous when a kart reverses across the line and clamps its abuse: a kart cannot be more than half a sector ahead of its last checkpoint without hitting the next one. `distanceAlong` is monotonic-clamped except on respawn, when it is recomputed from the checkpoint the kart lands on. Rank order every tick: finished karts by `finishTick`, then unfinished by `distanceAlong` descending, tie by grid slot. `kart.rank` is the raw rank; a `positionChange` event only fires after the new rank has held for `rankDebounceSeconds`. `raceProgress()` in track-builder stays for tests and the minimap; the race uses the anchored form.
+
+**Wrong-way.** `along = (forward × speed + right × lateralVelocity) · tangent` at the kart's sample. Below `wrongWaySpeed` (−1 m/s) `wrongWaySeconds` accumulates; at `wrongWayHoldSeconds` (1.2) a `wrongWay {racerId, on: true}` event fires; above `wrongWayClearSpeed` (0.5 m/s) it resets and fires `on: false`. Warning only; it never respawns.
+
+**Respawn.** Triggers: the kart-controller's `respawn` event (below `track.voidY`), or stuck: `|speed| < stuckSpeed` while wanting to move (player throttle or brake > `stuckInputMin`; AI always) and not spinning, for `stuckSeconds`. Placement: `cp[lastCheckpoint]` position lifted by `respawnLift`, `heading = headingOf(cp.tangent)`, `t = cp.t`, `branch = 0`, speed / lateral / vertical zero, drift cancelled, boost cleared, item and coins kept, `status.intangibleRemaining = respawnFreezeSeconds`, and inputs are neutral for the same freeze. A `respawn {racerId, checkpoint}` event fires; the kart-controller's own `respawn` event is swallowed.
+
+**Hazards.** Once per tick `active = track.activeHazards(time)` and the list is kept on the manager as `lastActiveHazards` for the game loop to hand to `TrackScene.update(time, active)`. For each racing kart with `hazardCooldownRemaining === 0` and no intangibility, a 3D distance test against `radius + kartRadius`: `spin` → `applyHit(s, c, 'hazard', events)` (coin shield applies); `slow` → `status.slowedTo = hazardSlowTo` for `hazardSlowSeconds`; `bump` → `lateralVelocity += hazardBumpLateral` away from the hazard centre; `gust` → `lateralVelocity += push · right × dt` every tick inside the window, no cooldown. Any hit sets `hazardCooldownRemaining = hazardCooldownSeconds`.
+
+**Balloons and coins.** Race-manager owns `pickupStates[]` and `coinStates[]` (the schema puts them in `RaceState`, and their timers must tick deterministically somewhere). A kart within `balloonRadius`/`coinRadius` of a live feature on its own branch pops it: coins add 1 up to the kart schema `coinCap` and fire `coin`; balloons fire `pickup {racerId, index}` and the items system decides the roulette. Both respawn after `pickupRespawnSeconds` / `coinRespawnSeconds`. In Knockout the items system reads `knockout.eliminated` to shrink the pool; race-manager only reports the racer count.
+
+**Series layer** (`series.ts`), above single races, pure and stateless between calls: `nextRace(seriesState, results) → RaceConfig | done`.
+- *Grand Prix*: cup `trackIds` in order, 3 laps each, points from `gpPointsByRank`, tie-break on total by best single finish then latest race. Stars from `starThresholds`. Emits the final table and the star count.
+- *Knockout*: `knockoutSets[id]`, `lapsPerSegment` laps per track, cut lines `[6, 4, 2]` applied at the end of segments 1, 2 and 3; the two survivors of segment 3 are placed 1 and 2 by that race's finish. Eliminated racers are appended to `knockout.eliminated` and do not spawn in the next segment (`racerCount` shrinks 8 → 6 → 4). An `eliminated {racerIds, segment}` event fires at each cut. Each segment is a normal race (its own countdown, its own Final Lap Shift on lap 2); a seamless track-to-track drive is not in v1. See open question 1.
+- *Quick / Time Trial / Daily*: one race; Time Trial has one kart plus an optional ghost and no items; Daily seeds from the date (backend-leaderboard defines the seed).
+
+**Results payload.** `{ mode, trackId, speedClass, seed, ranks: [{racerId, rank, finishTick, timeMs, lapTimesMs, dnf}], points?, eliminated? }`. `timeMs = round(finishTick − goTick) × 1000 / SIM_HZ`. For Time Trial and Daily the backend system wraps this and the compressed `inputLog` into `score.schema.json`; race-manager never talks to the network.
+
+### Module boundaries (`src/race-manager/`)
+| File | Owns | Test |
+|---|---|---|
+| `types.ts` | `RaceConfig`, `RaceState` (mirrors `race-state.schema.json`), `RaceEvent` union, `RaceResults`, `SeriesState` | — |
+| `constants.ts` | The race constants below, read from `race-state.schema.json` `constants` defaults (added before code, like the kart and track schemas) | values match the schema |
+| `checkpoints.ts` | Per-kart tracker: crossing test, in-order rule, teleport guard, lap count, finish, post-shift resync, anchored `distanceAlong` | in order only; reverse does not double count; teleport ignored; resync |
+| `ranking.ts` | Sort, `rank`, tie-break, debounce | finished first; progress order; stable ties; debounce timing |
+| `wrongway.ts` | `along`, hold and clear timers | fires at 1.2 s; clears at +0.5 |
+| `respawn.ts` | Stuck detection, placement, freeze | void → last checkpoint; stuck → 6 s; freeze swallows input |
+| `hazards.ts` | Kart-vs-hazard test and the four hit kinds, cooldown | each kind once; cooldown; gust every tick |
+| `pickups.ts` | Balloon and coin states, pop and respawn timers | pop once; respawn at T; coins cap |
+| `countdown.ts` | Step events, go tick, start-boost window from held-since ticks | 3-2-1-go on the right ticks; boost only inside 0.3 s |
+| `race.ts` | `RaceManager`: `constructor(track, config, consts)`, `step(inputs) → RaceEvent[]`, `state`, `lastActiveHazards`, `results()` | full scripted race; phase order; shift once; determinism |
+| `series.ts` | Grand Prix points and stars, Knockout cuts and eliminations, `nextRace()` | points table; ties; 8→6→4→2; eliminated list |
+| `__tests__/drivers.ts` | Scripted look-ahead drivers with per-kart throttle scale, reverse driver, off-track driver | — |
+| `index.ts` | Public exports | — |
+
+Nothing here imports Three.js. The game loop (later, `main.ts`) does: accumulate → `manager.step(inputs)` at 120 Hz with the max-steps clamp from plan §6.4 → `scene.update(manager.state.time, manager.lastActiveHazards)` → render with interpolation. Pause on `visibilitychange` is the loop's job, not the manager's.
+
+### Constants
+To add to `race-state.schema.json` under `constants` defaults (schemas first): `countdownSteps` 3, `countdownStepSeconds` 1.0, `playerGridSlot` 7 (back row, MK habit; turbo-kart-rush does the same), `wrongWaySpeed` −1.0 m/s, `wrongWayHoldSeconds` 1.2, `wrongWayClearSpeed` 0.5, `stuckSeconds` 6, `stuckSpeed` 0.5 m/s, `stuckInputMin` 0.3, `respawnFreezeSeconds` 0.6, `respawnLift` 0.35 m, `rankDebounceSeconds` 0.3, `finishGraceSeconds` 12, `checkpointResyncSectors` 0.5, `teleportGuardFraction` 0.5, `hazardSlowTo` 0.6, `hazardSlowSeconds` 1.0, `hazardBumpLateral` 4 m/s, `hazardCooldownSeconds` 1.0, `pickupRespawnSeconds` 3.0, `coinRespawnSeconds` 5.0.
+Read from elsewhere, never redefined: `SIM_HZ` 120 and `startBoostWindowSeconds` 0.3, `kartRadius` 0.85, `coinCap` 10, `hitSpinSeconds` from the kart schema; `laps`, `voidY`, `checkpointCount`, `balloonRadius` 0.9, `coinRadius` 0.5, `hazardRadius` 1.2 from the track schema; `gpPointsByRank` [15, 12, 10, 8, 7, 6, 5, 4], `cutLines` [6, 4, 2], `lapsPerSegment` 2, `starThresholds` from the cups schema; `lockoutSeconds` 15 and `finalLapLockoutSeconds` 8 are the items system's.
+
+### Tests (headless, vitest, deterministic)
+1. **Scripted race** (SOP gate): 8 karts on Harbour Loop, look-ahead drivers with throttle scales 1.00 … 0.93, 3 laps. Finish order equals the throttle order, every finished kart has `lap === 3` and `checkpointsHit` cycled 12 times per lap, `lapTimesMs` sums to `timeMs` ± 1 tick.
+2. **Determinism**: the same race twice → identical `JSON.stringify(state)` and identical event list; stepping in two chunk sizes → identical.
+3. **Countdown**: `countdown` events on ticks 0, 120, 240 and `go` on 360; inputs are ignored before `go`; throttle held from 0.2 s before go earns a `start` boost, from 0.5 s before earns none.
+4. **In-order checkpoints**: a kart teleported from checkpoint 3 to just past checkpoint 9 keeps `nextCheckpoint === 4` and its lap never counts; driving on from 9 still does not count until 4–8 are hit.
+5. **Reverse over the line**: a kart that crosses, reverses back and crosses again gets one lap; `distanceAlong` never jumps by more than one tick's travel.
+6. **Wrong-way** (SOP gate): a reverse driver fires `wrongWay on` at 1.2 s ± 1 tick; turning round clears it once `along > 0.5`.
+7. **Respawn** (SOP gate): a kart steered off Skyline-style `ground: none` (fixture) drops below `voidY` and reappears at its last checkpoint, facing the tangent, `branch 0`, speed 0; inputs are dead for 0.6 s; a kart held against a wall at throttle for 6 s respawns; a spinning kart does not count as stuck.
+8. **Final Lap Shift**: fires exactly once, on the tick the *leader* starts lap 3, even if a trailing kart starts lap 3 later; `phase === 'finalLap'`; every kart's `distanceAlong` order is unchanged across the shift; a kart whose remapped `t` lands 0.3 sectors past its next checkpoint gets it credited; `trackChanged` event re-emitted once.
+9. **Leader lap gating**: `track.setLap` is called with the leader's lap only when it changes.
+10. **Finish and grace**: the player finishes 4th; the race ends when the last kart crosses; with three karts parked, the race ends `finishGraceSeconds` after the player's finish with those karts `dnf` in rank order.
+11. **Ranking**: finished karts always rank above unfinished; two karts with equal progress rank by grid slot; `positionChange` fires only after 0.3 s of the same rank.
+12. **Hazards**: a rolling barrel spins a coinless kart once per cooldown and only slows a kart with coins; `activeHazards` is called exactly once per tick (spy); `lastActiveHazards` is the list the scene receives.
+13. **Pickups**: balloon pops once, `pickup` event once, respawns after 3 s; coins cap at 10.
+14. **Ghost**: a ghost kart never appears in ranks, never pops a balloon, never triggers the shift.
+15. **Grand Prix**: three race results → the points table; a tie on total breaks by best single finish; stars from thresholds.
+16. **Knockout**: 8 → 6 → 4 → 2 across three segments, `eliminated` grows by 2 each cut, the next `RaceConfig` spawns only survivors, and segment 3's finish gives the winner.
+17. **Schema**: `constants.ts` values equal the schema defaults; a sample `RaceState` validates against `race-state.schema.json`.
+
+### Out of scope here (other SOPs)
+AI input, rubber-banding and the finished-kart autopilot (ai-driver); roulette, projectiles and lockouts (items); HUD debounce display, banners and the results screen (ui-hud); score submission, Daily seed and input-log compression (backend-leaderboard); camera, music sting and flash on the shift (audio, vfx-juice); Mirror and split-screen (stretch).
+
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-19: Approach synthesised. Open questions for Adam before code: Knockout structure (three separate races with a banner between vs seamless), the third cut line (end of segment 3 → top 2, or mid-segment), `starThresholds` values, pickup/coin respawn seconds, and whether a fallen kart loses coins.
+- 2026-09-19 (Adam delegated the five calls): Knockout is three separate races with an elimination banner between them, not a seamless drive. The third cut (→ 2) is the end of segment 3, so the final race's rank 1 is the Knockout winner. `starThresholds` default to 60 / 80 / 100 % of the cup's maximum points (3 tracks: 27 / 36 / 45). Balloons respawn in 3 s, coins in 5 s. A fallen kart keeps its coins and its item.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
