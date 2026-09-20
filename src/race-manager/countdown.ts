@@ -28,7 +28,7 @@ export function stepCountdown(
   }
   for (let i = 0; i < karts.length; i++) {
     const held = trackers[i].throttleHeldSinceTick;
-    if (held >= 0 && !karts[i].isGhost) tryStartBoost(karts[i], consts[i], (GO_TICK - held) / SIM_HZ, kartEvents[i]);
+    if (held >= 0) tryStartBoost(karts[i], consts[i], (GO_TICK - held) / SIM_HZ, kartEvents[i]);
   }
   events.push({ type: 'go' });
   return true;

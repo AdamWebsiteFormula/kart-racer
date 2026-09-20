@@ -71,13 +71,38 @@ describe('checkpoints', () => {
     const events: RaceEvent[] = [];
     driveTo(s, tr, track.checkpoints[3].t + 0.01, events);
     expect(tr.nextCheckpoint).toBe(4);
+    const before = distanceAlong(s, tr, track);
     s.t = wrap01(track.checkpoints[7].t + 0.01); // jump 4 sectors
     expect(stepCheckpoints(s, tr, track, LAPS, 0, events)).toBe('none');
     expect(tr.nextCheckpoint).toBe(4);
+    // the cut earns no progress: four sectors ahead of the last checkpoint reads as behind it
+    expect(distanceAlong(s, tr, track)).toBeLessThan(before);
     // drive on across the line: no lap, still waiting for 4
     driveTo(s, tr, track.startT + 0.01, events);
     expect(s.lap).toBe(1);
     expect(tr.nextCheckpoint).toBe(4);
+    // a second loop collects 4..7 and then the line counts
+    driveBy(s, tr, 1, events);
+    expect(s.lap).toBe(2);
+    expect(events.filter((e) => e.type === 'lap').length).toBe(1);
+  });
+
+  it('reversing up to (1 - 1.5/N) of a lap keeps losing progress instead of wrapping ahead', () => {
+    const { s, tr } = spawnKart(track, 0);
+    const events: RaceEvent[] = [];
+    driveTo(s, tr, track.startT + 0.01, events);
+    driveBy(s, tr, 1, events); // lap 2, just past the line
+    let prev = distanceAlong(s, tr, track);
+    const bound = 1 - 1.5 / N; // one anchor cannot tell "further behind" from "ahead" past this
+    const steps = 300;
+    for (let i = 0; i < steps; i++) {
+      s.t = wrap01(s.t - (0.95 * bound) / steps);
+      stepCheckpoints(s, tr, track, LAPS, 0, events);
+      const d = distanceAlong(s, tr, track);
+      expect(d).toBeLessThanOrEqual(prev + 1e-6);
+      prev = d;
+    }
+    expect(s.lap).toBe(2);
   });
 
   it('reversing back over the line does not double count and keeps progress continuous', () => {

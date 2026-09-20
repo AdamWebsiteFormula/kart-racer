@@ -31,7 +31,8 @@ export class RaceManager {
   private readonly fi: FeatureIndex;
   private readonly effective: InputState[];
   private readonly kartEvents: KartEvent[][];
-  private lastLeaderLap = 1;
+  /** karts that crossed the finish this tick; reused, never reallocated */
+  private readonly finishedNow: number[] = [];
 
   constructor(track: Track, config: RaceConfig) {
     this.track = track;
@@ -74,7 +75,7 @@ export class RaceManager {
         ? { setId: config.knockout.setId, segment: config.knockout.segment, cutLineAt: lapsTotal, eliminated: [...config.knockout.eliminated] }
         : undefined,
       pickupStates: timers.pickupStates, coinStates: timers.coinStates,
-      karts, trackers, inputLog: [], playerFinishTick: -1,
+      karts, trackers, inputLog: [], playerFinishTick: -1, leaderLap: 1,
     };
     this.effective = karts.map(() => NEUTRAL_INPUT);
     this.kartEvents = karts.map(() => []);
@@ -109,11 +110,16 @@ export class RaceManager {
         this.effective[i] = !s.isGhost && (s.finishTick !== undefined || tr.freezeRemaining > 0) ? NEUTRAL_INPUT : inputs[i];
       }
     }
-    if (this.playerIndex >= 0 && tick >= st.goTick) st.inputLog.push({ ...inputs[this.playerIndex] });
+    // the log starts at tick 0: the countdown throttle decides the start boost, so a
+    // replay needs it too
+    if (this.playerIndex >= 0) st.inputLog.push({ ...inputs[this.playerIndex] });
 
     // 2. karts
     const stepped = stepKarts(karts, this.effective, track, this.consts, dt);
-    for (let i = 0; i < karts.length; i++) kartEvents[i].push(...stepped[i]);
+    for (let i = 0; i < karts.length; i++) {
+      const src = stepped[i], dst = kartEvents[i];
+      for (let k = 0; k < src.length; k++) dst.push(src[k]);
+    }
 
     if (go) {
       st.phase = 'racing';
@@ -123,7 +129,8 @@ export class RaceManager {
 
     // 3. race rules
     if (st.phase === 'racing' || st.phase === 'finalLap') {
-      const finishedNow: number[] = [];
+      const finishedNow = this.finishedNow;
+      finishedNow.length = 0;
       for (let i = 0; i < karts.length; i++) {
         const s = karts[i], tr = trackers[i], c = this.consts[i];
         tr.freezeRemaining = countDown(tr.freezeRemaining, dt);
@@ -133,13 +140,13 @@ export class RaceManager {
           if (s.isPlayer) st.playerFinishTick = tick;
         }
         stepWrongWay(s, tr, track, dt, events);
-        if (!s.isGhost) {
-          let respawn = false;
-          const ke = kartEvents[i];
-          for (let k = ke.length - 1; k >= 0; k--) if (ke[k].type === 'respawn') { respawn = true; ke.splice(k, 1); }
-          if (!respawn && s.finishTick === undefined && stepStuck(s, tr, inputs[i], dt)) respawn = true;
-          if (respawn) respawnKart(s, tr, track, events);
-        }
+        // the controller's void event is swallowed for every kart, ghosts included, so a
+        // ghost under the road does not fall for ever; only real karts can be stuck
+        let respawn = false;
+        const ke = kartEvents[i];
+        for (let k = ke.length - 1; k >= 0; k--) if (ke[k].type === 'respawn') { respawn = true; ke.splice(k, 1); }
+        if (!respawn && !s.isGhost && s.finishTick === undefined && stepStuck(s, tr, inputs[i], dt)) respawn = true;
+        if (respawn) respawnKart(s, tr, track, events);
         stepHazards(s, tr, c, this.lastActiveHazards, dt, events, kartEvents[i]);
       }
       stepPickups(this.fi, st.pickupStates, st.coinStates, track, karts, this.consts, dt, events);
@@ -152,8 +159,8 @@ export class RaceManager {
 
       // 5. leader lap: shortcut gating and the Final Lap Shift
       const leader = this.order.length ? karts[this.order[0]] : undefined;
-      if (leader && leader.lap !== this.lastLeaderLap) {
-        this.lastLeaderLap = leader.lap;
+      if (leader && leader.lap !== st.leaderLap) {
+        st.leaderLap = leader.lap;
         track.setLap(leader.lap);
         if (leader.lap === st.lapsTotal) this.fireShift(tick, events);
       }
@@ -181,7 +188,7 @@ export class RaceManager {
     st.tick = tick + 1;
     const out: RaceEvent[] = [];
     for (let i = 0; i < karts.length; i++) for (const e of kartEvents[i]) out.push({ type: 'kart', racerId: karts[i].racerId, event: e });
-    out.push(...events);
+    for (let k = 0; k < events.length; k++) out.push(events[k]);
     return out;
   }
 

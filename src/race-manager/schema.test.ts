@@ -34,7 +34,7 @@ describe('RaceState against the schema', () => {
     expect(karts.length).toBeGreaterThanOrEqual(1);
     for (const k of karts) for (const key of schema.properties.karts.items.required) expect(k, key).toHaveProperty(key);
     expect(st.knockout).toEqual({ setId: 'k1', segment: 0, cutLineAt: 3, eliminated: [] });
-    expect((st.inputLog as unknown[]).length).toBe(1200 - rm.state.goTick);
+    expect((st.inputLog as unknown[]).length).toBe(1200);
     expect(Object.keys(rm.state.karts[0].item)).toEqual(['held', 'charges', 'rouletteRemaining']);
   });
 });

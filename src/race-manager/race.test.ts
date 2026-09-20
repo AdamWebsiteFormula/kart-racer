@@ -85,7 +85,7 @@ describe('RaceManager', () => {
     expect(rm.state.time).toBe(0);
     // throttle was held the whole countdown: no start boost
     expect(rm.state.karts[0].boost.source).toBe('none');
-    expect(rm.state.inputLog.length).toBe(1);
+    expect(rm.state.inputLog.length).toBe(GO_TICK + 1); // countdown ticks are logged too
   });
 
   it('wrong-way fires at 1.2 s for a kart driven backwards', () => {

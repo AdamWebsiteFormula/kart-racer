@@ -43,7 +43,7 @@ describe('pickups', () => {
     expect(events).toEqual([{ type: 'coin', racerId: 'k0', coins: a.c.coinCap }]);
   });
 
-  it('a kart on another branch or a ghost does not pop', () => {
+  it('a kart on another branch, a ghost or a finished kart does not pop', () => {
     const k = spawnKart(track, 0);
     const { pickupStates, coinStates } = initTimers(fi);
     k.s.position = [...track.features[fi.pickups[0]].position];
@@ -51,6 +51,8 @@ describe('pickups', () => {
     const events: RaceEvent[] = [];
     stepPickups(fi, pickupStates, coinStates, track, [k.s], [k.c], SIM_DT, events);
     k.s.branch = 0; k.s.isGhost = true;
+    stepPickups(fi, pickupStates, coinStates, track, [k.s], [k.c], SIM_DT, events);
+    k.s.isGhost = false; k.s.finishTick = 100;
     stepPickups(fi, pickupStates, coinStates, track, [k.s], [k.c], SIM_DT, events);
     expect(events).toEqual([]);
   });

@@ -73,9 +73,18 @@ export function resyncAfterShift(s: KartState, tr: KartTracker, track: Track, la
   return 'none';
 }
 
-/** Metres of race progress, anchored on the last hit checkpoint so it is continuous across the line. */
+/** A kart can honestly sit this many sectors past its last checkpoint: one to the next line, plus the post-shift resync slack. */
+const MAX_AHEAD_SECTORS = 1.5;
+
+/**
+ * Metres of race progress, anchored on the last hit checkpoint so it is continuous
+ * across the line. The offset from that checkpoint is at most MAX_AHEAD_SECTORS ahead;
+ * anything further reads as behind, so a cut or a long reverse never gains a lap.
+ */
 export function distanceAlong(s: KartState, tr: KartTracker, track: Track): number {
   const cp = track.checkpoints[tr.lastCheckpoint];
   const L = track.length;
-  return (s.lap - 1) * L + (wrap01(cp.t - track.startT) + signedOffset(s.t, cp.t)) * L;
+  const ahead = wrap01(s.t - cp.t);
+  const off = ahead > MAX_AHEAD_SECTORS / track.checkpoints.length ? ahead - 1 : ahead;
+  return (s.lap - 1) * L + (wrap01(cp.t - track.startT) + off) * L;
 }

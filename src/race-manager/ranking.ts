@@ -10,7 +10,9 @@ function compare(karts: KartState[], trackers: KartTracker[], i: number, j: numb
   if (af && bf) {
     const d = (a.finishTick as number) - (b.finishTick as number);
     if (d !== 0) return d;
-    // same tick: a real photo finish or the grace cut-off; progress decides, then the grid
+    // same tick: a real photo finish or the grace cut-off; a real crossing beats a
+    // force-finish, then progress decides, then the grid
+    if (trackers[i].dnf !== trackers[j].dnf) return trackers[i].dnf ? 1 : -1;
     if (a.distanceAlong !== b.distanceAlong) return b.distanceAlong - a.distanceAlong;
     return trackers[i].gridSlot - trackers[j].gridSlot;
   }

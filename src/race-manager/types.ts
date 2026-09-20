@@ -86,6 +86,8 @@ export interface RaceState {
   inputLog: InputState[];
   /** tick the player finished, or -1 */
   playerFinishTick: number;
+  /** the leader lap last handed to track.setLap; in state so a restored race does not re-fire it */
+  leaderLap: number;
 }
 
 export type RaceEvent =

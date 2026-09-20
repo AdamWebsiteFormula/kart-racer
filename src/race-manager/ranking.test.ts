@@ -27,6 +27,13 @@ describe('ranking', () => {
     expect(order).toEqual([4, 3, 1, 2, 0]);
   });
 
+  it('on the same finish tick a real crossing beats a force-finish, whatever the progress', () => {
+    const { karts, trackers } = field(2);
+    karts[0].distanceAlong = 800; karts[0].finishTick = 5000; // crossed the line on the grace tick
+    karts[1].distanceAlong = 1150; karts[1].finishTick = 5000; trackers[1].dnf = true; // cut off at checkpoint 7
+    expect(sortOrder(karts, trackers, [])).toEqual([0, 1]);
+  });
+
   it('ghosts are left out', () => {
     const { karts, trackers } = field(3);
     karts[1].isGhost = true;

@@ -38,7 +38,7 @@ function stepKind(
     const radius = f.width / 2;
     for (let i = 0; i < karts.length; i++) {
       const s = karts[i];
-      if (s.isGhost || s.branch !== f.branch) continue;
+      if (s.isGhost || s.finishTick !== undefined || s.branch !== f.branch) continue;
       if (distXZ(s.position, f.position) > radius + consts[i].kartRadius) continue;
       if (kind === 'coin') {
         st.respawnRemaining = RACE.coinRespawnSeconds;

@@ -26,6 +26,14 @@ describe('hazards', () => {
     expect(active.map((h) => h.id).sort()).toEqual(['bumper', 'gust', 'slower', 'spinner']);
   });
 
+  it('a finished kart coasting through a hazard is left alone', () => {
+    const k = onHazard('spinner');
+    k.s.finishTick = 100;
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect(k.s.status.spinRemaining).toBe(0);
+    expect(k.events).toEqual([]);
+  });
+
   it('spin hits a coinless kart once per cooldown, and only slows a kart with coins', () => {
     const k = onHazard('spinner');
     stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);

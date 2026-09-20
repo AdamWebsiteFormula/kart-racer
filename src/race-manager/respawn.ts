@@ -3,6 +3,7 @@
 import { clearBoost } from '../kart-controller/boost.ts';
 import { cancelDrift } from '../kart-controller/drift.ts';
 import { headingOf, type InputState, type KartState } from '../kart-controller/types.ts';
+import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
 import { RACE } from './constants.ts';
 import type { KartTracker, RaceEvent } from './types.ts';
@@ -32,7 +33,10 @@ export function respawnKart(s: KartState, tr: KartTracker, track: Track, events:
   cancelDrift(s);
   clearBoost(s);
   s.status.intangibleRemaining = Math.max(s.status.intangibleRemaining, RACE.respawnFreezeSeconds);
-  tr.prevT = cp.t;
+  // A hair behind the checkpoint, so a kart that has never crossed the line (next ===
+  // last === 0) can still "cross" the line it now sits on. Any other next checkpoint is
+  // a sector ahead, so the nudge changes nothing for it.
+  tr.prevT = wrap01(cp.t - 1e-7);
   tr.freezeRemaining = RACE.respawnFreezeSeconds;
   tr.stuckSeconds = 0;
   tr.respawnCount++;

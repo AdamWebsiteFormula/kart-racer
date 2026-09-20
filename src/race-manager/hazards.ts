@@ -2,7 +2,7 @@
 // race-manager owns the kart side. Gusts push every tick; the rest hit once per cooldown.
 import type { KartConstants } from '../kart-controller/constants.ts';
 import { applyHit } from '../kart-controller/step.ts';
-import { forwardOf, rightOf, type KartEvent, type KartState } from '../kart-controller/types.ts';
+import { forwardOf, rightOf, type KartEvent, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
 import { RACE } from './constants.ts';
 import type { KartTracker, RaceEvent } from './types.ts';
@@ -13,10 +13,11 @@ export function stepHazards(
   events: RaceEvent[], kartEvents: KartEvent[],
 ): void {
   tr.hazardCooldownRemaining = countDown(tr.hazardCooldownRemaining, dt);
-  if (s.isGhost) return;
-  const f = forwardOf(s.heading), r = rightOf(s.heading);
+  if (s.isGhost || s.finishTick !== undefined) return;
+  let f: Vec3 | undefined, r: Vec3 | undefined;
   for (const h of active) {
     if (dist3(s.position, h.position) > h.radius + c.kartRadius) continue;
+    if (!f || !r) { f = forwardOf(s.heading); r = rightOf(s.heading); } // only when something is in range
     if (h.type === 'gust') {
       const p = h.push ?? [0, 0, 0];
       s.speed += (p[0] * f[0] + p[2] * f[2]) * dt;
