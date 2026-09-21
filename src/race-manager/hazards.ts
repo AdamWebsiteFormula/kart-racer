@@ -17,6 +17,7 @@ export function stepHazards(
   let f: Vec3 | undefined, r: Vec3 | undefined;
   for (const h of active) {
     if (dist3(s.position, h.position) > h.radius + c.kartRadius) continue;
+    if (s.status.intangibleRemaining > 0) continue; // the respawn freeze and item shields ignore every hazard, gusts too
     if (!f || !r) { f = forwardOf(s.heading); r = rightOf(s.heading); } // only when something is in range
     if (h.type === 'gust') {
       const p = h.push ?? [0, 0, 0];
@@ -24,7 +25,7 @@ export function stepHazards(
       s.lateralVelocity += (p[0] * r[0] + p[2] * r[2]) * dt;
       continue;
     }
-    if (tr.hazardCooldownRemaining > 0 || s.status.intangibleRemaining > 0) continue;
+    if (tr.hazardCooldownRemaining > 0) continue;
     switch (h.hit) {
       case 'spin':
         applyHit(s, c, 'hazard', kartEvents);

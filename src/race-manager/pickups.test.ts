@@ -3,7 +3,7 @@ import { SIM_DT } from '../kart-controller/step.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { RACE } from './constants.ts';
 import { indexFeatures, initTimers, stepPickups } from './pickups.ts';
-import { OVAL, spawnKart } from './__tests__/fixtures.ts';
+import { HARBOUR_LOOP, OVAL, spawnKart } from './__tests__/fixtures.ts';
 import type { RaceEvent } from './types.ts';
 
 const track = buildTrack(OVAL);
@@ -41,6 +41,26 @@ describe('pickups', () => {
     expect(a.s.coins).toBe(a.c.coinCap);
     expect(b.s.coins).toBe(0);
     expect(events).toEqual([{ type: 'coin', racerId: 'k0', coins: a.c.coinCap }]);
+  });
+
+  it('a balloon on a closed shortcut cannot be popped by a kart still on that branch', () => {
+    const hl = buildTrack(HARBOUR_LOOP);
+    const hfi = indexFeatures(hl);
+    const idx = [...hfi.pickups, ...hfi.coins].find((i) => hl.features[i].branch > 0)!;
+    expect(idx).toBeDefined();
+    const f = hl.features[idx];
+    const k = spawnKart(hl, 0);
+    k.s.position = [...f.position];
+    k.s.branch = f.branch;
+    const { pickupStates, coinStates } = initTimers(hfi);
+    const events: RaceEvent[] = [];
+    const branch = hl.branches.list[f.branch];
+    branch.forcedOpen = false;
+    stepPickups(hfi, pickupStates, coinStates, hl, [k.s], [k.c], SIM_DT, events);
+    expect(events).toEqual([]);
+    branch.forcedOpen = true;
+    stepPickups(hfi, pickupStates, coinStates, hl, [k.s], [k.c], SIM_DT, events);
+    expect(events.length).toBe(1);
   });
 
   it('a kart on another branch, a ghost or a finished kart does not pop', () => {

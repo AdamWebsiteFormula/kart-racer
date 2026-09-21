@@ -134,17 +134,21 @@ export class RaceManager {
       for (let i = 0; i < karts.length; i++) {
         const s = karts[i], tr = trackers[i], c = this.consts[i];
         tr.freezeRemaining = countDown(tr.freezeRemaining, dt);
-        const res = stepCheckpoints(s, tr, track, st.lapsTotal, tick, events);
-        if (res === 'finish') {
-          finishedNow.push(i);
-          if (s.isPlayer) st.playerFinishTick = tick;
-        }
-        stepWrongWay(s, tr, track, dt, events);
-        // the controller's void event is swallowed for every kart, ghosts included, so a
-        // ghost under the road does not fall for ever; only real karts can be stuck
+        // the controller's void event is read first, so a kart that fell below voidY on
+        // this tick counts no checkpoint on the way down. It is swallowed for every kart,
+        // ghosts included, so a ghost under the road does not fall for ever.
         let respawn = false;
         const ke = kartEvents[i];
         for (let k = ke.length - 1; k >= 0; k--) if (ke[k].type === 'respawn') { respawn = true; ke.splice(k, 1); }
+        if (!respawn) {
+          const res = stepCheckpoints(s, tr, track, st.lapsTotal, tick, events);
+          if (res === 'finish') {
+            finishedNow.push(i);
+            if (s.isPlayer) st.playerFinishTick = tick;
+          }
+        }
+        stepWrongWay(s, tr, track, dt, events);
+        // only real karts can be stuck
         if (!respawn && !s.isGhost && s.finishTick === undefined && stepStuck(s, tr, inputs[i], dt)) respawn = true;
         if (respawn) respawnKart(s, tr, track, events);
         stepHazards(s, tr, c, this.lastActiveHazards, dt, events, kartEvents[i]);

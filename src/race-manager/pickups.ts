@@ -35,6 +35,7 @@ function stepKind(
     st.respawnRemaining = countDown(st.respawnRemaining, dt);
     if (st.respawnRemaining > 0) continue;
     const f = track.features[indices[j]];
+    if (!track.branches.list[f.branch].open) continue; // a closed shortcut hides its balloons and coins
     const radius = f.width / 2;
     for (let i = 0; i < karts.length; i++) {
       const s = karts[i];

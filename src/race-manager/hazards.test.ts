@@ -26,6 +26,16 @@ describe('hazards', () => {
     expect(active.map((h) => h.id).sort()).toEqual(['bumper', 'gust', 'slower', 'spinner']);
   });
 
+  it('an intangible kart is not pushed by a gust', () => {
+    const k = onHazard('gust');
+    k.s.status.intangibleRemaining = 0.5;
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect([k.s.speed, k.s.lateralVelocity]).toEqual([0, 0]);
+    k.s.status.intangibleRemaining = 0;
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect(Math.abs(k.s.speed) + Math.abs(k.s.lateralVelocity)).toBeGreaterThan(0);
+  });
+
   it('a finished kart coasting through a hazard is left alone', () => {
     const k = onHazard('spinner');
     k.s.finishTick = 100;
