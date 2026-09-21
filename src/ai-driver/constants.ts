@@ -9,13 +9,13 @@ export interface AiConstants {
     lookAheadGain: number; lookAheadMin: number; lookAheadMax: number;
     turnNearSeconds: number; turnFarSeconds: number;
     insideGain: number; insideBiasMax: number; lateralMaxFraction: number; laneHalfFraction: number;
-    edgeMargin: number; aimClampMargin: number;
+    edgeMargin: number; aimClampMargin: number; narrowRoad: number; narrowLookAhead: number; narrowMargin: number; declineFraction: number;
     wanderAmpMin: number; wanderAmpMax: number; wanderPeriodMin: number; wanderPeriodMax: number;
   };
   steer: { kP: number; kD: number; dErrMax: number; offroadGain: number; noiseSmoothing: number };
   avoid: {
     hazardLookAhead: number; hazardLateral: number; dodgeClearance: number; avoidLookAhead: number; slowKartSpeed: number;
-    passDistance: number; passClosing: number; seekDistance: number; seekLateral: number; padSkill: number;
+    passDistance: number; passClosing: number; touchDistance: number; seekDistance: number; seekLateral: number; padSkill: number;
   };
   drift: {
     maxHold: number; cooldown: number; abortCooldown: number; hopCommit: number;

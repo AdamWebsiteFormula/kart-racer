@@ -140,6 +140,10 @@
           "laneHalfFraction": { "type": "number", "description": "personality lateralBias spans ± this × halfWidth", "default": 0.45 },
           "edgeMargin": { "type": "number", "description": "metres kept from the road edge", "default": 1.4 },
           "aimClampMargin": { "type": "number", "default": 0.5 },
+          "narrowRoad": { "type": "number", "description": "halfWidth below this is narrow: centre line, no passing, no drifting, short look-ahead", "default": 5 },
+          "narrowLookAhead": { "type": "number", "description": "look-ahead scale on a narrow road or near a branch entry/exit (floor lookAheadMin)", "default": 0.5 },
+          "narrowMargin": { "type": "number", "description": "corner-speed margin multiplier on a narrow road, where a slide has nowhere to go", "default": 0.75 },
+          "declineFraction": { "type": "number", "description": "after declining a shortcut, keep at least this × halfWidth on the far side of the fork", "default": 0.35 },
           "wanderAmpMin": { "type": "number", "default": 0.08 }, "wanderAmpMax": { "type": "number", "default": 0.2 },
           "wanderPeriodMin": { "type": "number", "default": 3.3 }, "wanderPeriodMax": { "type": "number", "default": 8.3 }
         } },
@@ -155,6 +159,7 @@
           "avoidLookAhead": { "type": "number", "description": "metres ahead a slow or stopped kart is treated as a hazard", "default": 25 },
           "slowKartSpeed": { "type": "number", "description": "m/s; a kart slower than this ahead is an obstacle", "default": 4 },
           "passDistance": { "type": "number", "default": 10 }, "passClosing": { "type": "number", "description": "m/s closing speed that starts a pass", "default": 1 },
+          "touchDistance": { "type": "number", "description": "metres behind a kart at which the AI pulls out instead of drafting into it", "default": 3.5 },
           "seekDistance": { "type": "number", "default": 40 }, "seekLateral": { "type": "number", "description": "max metres off the line a pad, balloon or coin pulls the kart", "default": 2.5 },
           "padSkill": { "type": "number", "description": "min skill to aim for boost pads", "default": 0.3 }
         } },
@@ -192,21 +197,21 @@
           "easy": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.35 }, "power": { "type": "number", "default": 0.94 }, "noise": { "type": "number", "default": 0.09 },
             "reactionMin": { "type": "number", "default": 0.8 }, "reactionMax": { "type": "number", "default": 1.6 },
-            "driftThreshold": { "type": "number", "default": 0.45 }, "easeThrottle": { "type": "number", "default": 0.6 },
-            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.35 },
+            "driftThreshold": { "type": "number", "default": 0.45 }, "brakeAbove": { "type": "number", "default": 1.0 },
+            "startPressMean": { "type": "number", "default": 0.3 }, "startPressSpread": { "type": "number", "default": 0.45 },
             "shortcutSkill": { "type": "number", "default": 1.1 }, "trickChance": { "type": "number", "default": 0.2 }
           } },
           "normal": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.65 }, "power": { "type": "number", "default": 0.98 }, "noise": { "type": "number", "default": 0.045 },
             "reactionMin": { "type": "number", "default": 0.4 }, "reactionMax": { "type": "number", "default": 0.9 },
-            "driftThreshold": { "type": "number", "default": 0.35 }, "easeThrottle": { "type": "number", "default": 0.65 },
-            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.2 },
+            "driftThreshold": { "type": "number", "default": 0.35 }, "brakeAbove": { "type": "number", "default": 2.0 },
+            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.25 },
             "shortcutSkill": { "type": "number", "default": 0.6 }, "trickChance": { "type": "number", "default": 0.5 }
           } },
           "hard": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.95 }, "power": { "type": "number", "default": 1.0 }, "noise": { "type": "number", "default": 0.015 },
             "reactionMin": { "type": "number", "default": 0.15 }, "reactionMax": { "type": "number", "default": 0.4 },
-            "driftThreshold": { "type": "number", "default": 0.3 }, "easeThrottle": { "type": "number", "default": 0.75 },
+            "driftThreshold": { "type": "number", "default": 0.3 }, "brakeAbove": { "type": "number", "default": 3.0 },
             "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.08 },
             "shortcutSkill": { "type": "number", "default": 0.3 }, "trickChance": { "type": "number", "default": 0.95 }
           } }
@@ -221,8 +226,8 @@
       "properties": { "lateralBias": { "type": "number", "minimum": -1, "maximum": 1 }, "aggression": { "type": "number", "minimum": 0, "maximum": 1 }, "driftUse": { "type": "number", "minimum": 0, "maximum": 1 } }
     },
     "aiProfile": {
-      "type": "object", "required": ["skill", "power", "noise", "reactionMin", "reactionMax", "driftThreshold", "easeThrottle", "startPressMean", "startPressSpread", "shortcutSkill", "trickChance"],
-      "description": "skill 0..1 drives line, drift tier and reactions; power ≤ 1 is the top-speed cap as a fraction of the player-legal speed; noise is steer noise amplitude; reaction is seconds before an item is used; startPress is seconds before go the throttle goes down, mean ± spread."
+      "type": "object", "required": ["skill", "power", "noise", "reactionMin", "reactionMax", "driftThreshold", "brakeAbove", "startPressMean", "startPressSpread", "shortcutSkill", "trickChance"],
+      "description": "skill 0..1 drives line, drift tier and reactions; power ≤ 1 is the top-speed cap as a fraction of the player-legal speed; noise is steer noise amplitude; brakeAbove is m/s over the corner speed before the brake comes on; reaction is seconds before an item is used; startPress is seconds before go the throttle goes down, mean ± spread."
     },
     "unlockable": {
       "type": "object", "required": ["id", "name", "asset", "unlock"],

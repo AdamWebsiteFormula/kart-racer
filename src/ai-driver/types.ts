@@ -13,7 +13,8 @@ export interface AiProfile {
   reactionMin: number;
   reactionMax: number;
   driftThreshold: number;
-  easeThrottle: number;
+  /** m/s over the corner speed before the brake comes on */
+  brakeAbove: number;
   startPressMean: number;
   startPressSpread: number;
   shortcutSkill: number;
@@ -56,6 +57,8 @@ export interface AiMemory {
   driftCooldown: number;
   /** −1 | 0 | 1 while drifting */
   driftDir: number;
+  /** the trick roll for the current jump has been made */
+  trickRolled: boolean;
   trickDone: boolean;
   recovery: RecoveryPhase;
   recoverTimer: number;
@@ -77,6 +80,34 @@ export interface Scratch {
   near: TrackSample;
   far: TrackSample;
   here: TrackSample;
+  short: TrackSample;
+  tmp: TrackSample;
+}
+
+/** What readLine() learns about the road ahead this tick. Reused, never reallocated. */
+export interface LineInfo {
+  /** look-ahead metres */
+  L: number;
+  /** signed heading change (rad, positive = right) over turnNearSeconds / turnFarSeconds of travel */
+  turnNear: number;
+  turnFar: number;
+  /** metres ahead the near probe was taken, so turnNear / probeNear is a curvature */
+  probeNear: number;
+  /** peak curvature ahead (rad/m): the larger of the short and the near probe */
+  kappa: number;
+  halfWidth: number;
+  /** branch the look-ahead samples on: the chosen shortcut or the kart's own */
+  branch: number;
+  /** the kart's own signed lateral, metres right of its centreline */
+  myLat: number;
+  /** on a shortcut, heading into one, or within L of a branch entry or exit */
+  nearBranch: boolean;
+  /** halfWidth below narrowRoad: no passing, no drifting, short look-ahead */
+  narrow: boolean;
+  /** open branch whose entry is within L ahead on the main line, 0 none */
+  branchAhead: number;
+  /** which side of the main line that branch peels off to: −1 left, 1 right */
+  branchSide: number;
 }
 
 export function emptySample(): TrackSample {
@@ -84,5 +115,12 @@ export function emptySample(): TrackSample {
 }
 
 export function makeScratch(): Scratch {
-  return { ahead: emptySample(), near: emptySample(), far: emptySample(), here: emptySample() };
+  return { ahead: emptySample(), near: emptySample(), far: emptySample(), here: emptySample(), short: emptySample(), tmp: emptySample() };
 }
+
+export function emptyLine(): LineInfo {
+  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, halfWidth: 1, branch: 0, myLat: 0, nearBranch: false, narrow: false, branchAhead: 0, branchSide: 0 };
+}
+
+/** Item roles from item.schema.json; the items session supplies the id → role map. */
+export type ItemRole = 'forward' | 'homing' | 'rearDrop' | 'deception' | 'defenceArea' | 'defenceHeld' | 'speed' | 'equaliser' | 'chaos';
