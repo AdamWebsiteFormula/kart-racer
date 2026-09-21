@@ -70,7 +70,7 @@ describe('integration on the flat oval', () => {
   });
 
   it('lap time on the oval is within ±2% of the recorded time', () => {
-    const RECORDED_TICKS = 2160; // recorded 14 Sept 2026, medium 150cc, 18.0 s
+    const RECORDED_TICKS = 2242; // re-recorded 21 Sept 2026 after the drift rework (was 2160 on 14 Sept), medium 150cc, 18.7 s
     const { ticks } = driveLap(spawn(track, 0.01), track, c);
     expect(Math.abs(ticks - RECORDED_TICKS) / RECORDED_TICKS).toBeLessThan(0.02);
   });

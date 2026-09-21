@@ -3,7 +3,7 @@ import { SIM_DT } from '../kart-controller/step.ts';
 import { NEUTRAL_INPUT } from '../kart-controller/types.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { AI, PROFILES } from './constants.ts';
-import { reachableTier, stepDriftDecision, stepTrick } from './drift.ts';
+import { driftWorthy, reachableTier, stepDriftDecision, stepTrick } from './drift.ts';
 import { OVAL } from './__tests__/fixtures.ts';
 import { MEDIUM_150, fakeLine, kartAt, memory } from './__tests__/units.ts';
 
@@ -94,8 +94,10 @@ describe('drift decision', () => {
 
   it('reachable tier: a gentle bend is worth nothing, a tight one a tier or more, and the drift lets go at the planned tier', () => {
     const s = kartAt(track, 0.2, 0, 24);
-    const gentle = { ...fakeLine(0.02, 0.03), probeNear: 29 }; // near-straight: even the minimum drift yaw swings past it too fast to pay
-    expect(reachableTier(s, c, gentle)).toBe(0);
+    // a near-straight: the charge model alone would call a 2.4 s neutral swing a tier, but the bend
+    // gate (driftThreshold) never lets a drift start there
+    const gentle = { ...fakeLine(0.02, 0.03), probeNear: 29 };
+    expect(driftWorthy(s, c, PROFILES.hard, gentle)).toBe(false);
     expect(reachableTier(s, c, bend)).toBeGreaterThanOrEqual(1);
     const m = memory(PROFILES.hard, { driftUse: 1 });
     const out = { ...NEUTRAL_INPUT };
