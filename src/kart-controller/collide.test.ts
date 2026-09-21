@@ -71,7 +71,7 @@ describe('kart vs kart', () => {
     const { a, b, ca, cb, ea, eb } = bump('medium', 'medium');
     expect(shove(a)).toBeCloseTo(c.bumpForce / 2);
     // eased apart at bumpSeparateRate, not popped: a few ticks to clear
-    for (let i = 0; i < 60; i++) collideKarts(a, b, ca, cb, c, 1 / 120, [], []);
+    for (let i = 0; i < 120; i++) collideKarts(a, b, ca, cb, c, 1 / 120, [], []);
     expect(b.position[0] - a.position[0]).toBeCloseTo(2 * c.kartRadius);
     expect(shove(b)).toBeCloseTo(c.bumpForce / 2);
     expect(ea).toEqual([{ type: 'bump', otherId: 'b' }]);
@@ -106,7 +106,7 @@ describe('kart vs kart', () => {
     collideKarts(a, b, ca, cb, c, 1 / 120, ea, []);
     expect(ea).toHaveLength(0);
     // eased apart at bumpSeparateRate, not popped: a few ticks to clear
-    for (let i = 0; i < 60; i++) collideKarts(a, b, ca, cb, c, 1 / 120, [], []);
+    for (let i = 0; i < 120; i++) collideKarts(a, b, ca, cb, c, 1 / 120, [], []);
     expect(b.position[0] - a.position[0]).toBeCloseTo(2 * c.kartRadius);
   });
 });

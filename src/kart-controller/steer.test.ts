@@ -53,6 +53,14 @@ describe('steer', () => {
     expect(slideAfterTurn('mud')).toBe(road);
   });
 
+  it('airborne, the wheel barely turns the kart (the hop goes straight; the stick at landing sets the drift)', () => {
+    const s = createKartState({ racerId: 'x' });
+    s.speed = 20;
+    const onGround = yawRate(s, right, c, 25);
+    s.grounded = false;
+    expect(yawRate(s, right, c, 25)).toBeCloseTo(onGround * c.airSteer);
+  });
+
   it('drift yaw is outward only and scales with the lagged stick (drift.yawK)', () => {
     const s = createKartState({ racerId: 'x' });
     s.speed = 20; s.drift.phase = 'drifting'; s.drift.direction = 1;

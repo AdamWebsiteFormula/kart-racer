@@ -51,8 +51,9 @@ describe('chase camera', () => {
   });
 
   it('the camera yaw chases the direction of travel slowly, and follows the nose at a standstill', () => {
-    expect(travelYaw(0.5, 0, 3)).toBeCloseTo(0.5); // stopped: the nose
-    const sliding = travelYaw(0, 20, 5); // moving with a rightward slide: travel is right of the nose
+    expect(travelYaw(0.5, 0, 3, true)).toBeCloseTo(0.5); // stopped: the nose
+    expect(travelYaw(0.5, 20, 5, false)).toBeCloseTo(0.5); // a bump's slide is ignored
+    const sliding = travelYaw(0, 20, 5, true); // drifting with a rightward slide: travel is right of the nose
     expect(sliding).toBeGreaterThan(0.2);
     expect(sliding).toBeLessThan(0.3);
     let yaw = 0;

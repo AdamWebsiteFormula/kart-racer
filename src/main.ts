@@ -157,7 +157,7 @@ function frame(now: number) {
   const root = views[PLAYER].root.position;
   // the camera swings behind the direction of travel slowly; the kart turns inside the frame
   const lookBack = inputs[PLAYER].lookBack;
-  const want = travelYaw(views[PLAYER].root.rotation.y, player.speed, player.lateralVelocity);
+  const want = travelYaw(views[PLAYER].root.rotation.y, player.speed, player.lateralVelocity, player.drift.active);
   camYaw = chaseYaw(camYaw, want, lookBack ? CAM.flipLag : CAM.yawLag, frameDt);
   const pose = idealPose([root.x, root.y, root.z], camYaw, player.speed, lookBack);
   const lag = lookBack ? CAM.flipLag : CAM.lag;

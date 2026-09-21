@@ -24,7 +24,9 @@ export function yawRate(s: KartState, input: InputState, c: KartConstants, V: nu
   const v = Math.abs(s.speed);
   if (v <= 0 || V <= 0) return 0;
   const f = Math.min(1, v / (0.15 * V)) * (1 - c.steerFalloff * Math.min(1, v / V));
-  const yaw = input.steer * c.steerRate * f;
+  // in the air (the hop included) the wheels have nothing to push on
+  const air = s.grounded ? 1 : c.airSteer;
+  const yaw = input.steer * c.steerRate * f * air;
   return s.speed < 0 ? -yaw : yaw;
 }
 

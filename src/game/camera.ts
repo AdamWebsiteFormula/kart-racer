@@ -41,7 +41,9 @@ export function wrapAngle(a: number): number {
  * The yaw the camera wants to sit behind: the kart's direction of travel once it is
  * moving (so a drift reads as the kart sideways in frame), the nose when it is not.
  */
-export function travelYaw(heading: number, speed: number, lateralVelocity: number): number {
+export function travelYaw(heading: number, speed: number, lateralVelocity: number, drifting: boolean): number {
+  // only a drift's slide counts: a bump also adds sideways velocity, and the camera must not flinch at it
+  if (!drifting) return heading;
   const w = Math.min(1, Math.max(0, Math.abs(speed)) / CAM.travelBlendSpeed);
   const slip = Math.atan2(lateralVelocity, Math.max(Math.abs(speed), 1e-3)) * Math.sign(speed || 1);
   return heading + slip * w;
