@@ -20,14 +20,14 @@ describe('buildTrack', () => {
     expect(JSON.stringify(a.spawnGrid)).toBe(JSON.stringify(b.spawnGrid));
   });
 
-  it('Harbour Loop: lap about 50 s, 12 checkpoints, 8 spawn slots, 2 branches, lighthouse', () => {
+  it('Harbour Loop: lap about 50 s, 12 checkpoints, 8 spawn slots, 1 shortcut, lighthouse', () => {
     const t = buildTrack(HARBOUR_LOOP);
     expect(t.id).toBe('harbour-loop');
     expect(t.length / 20).toBeGreaterThan(45);
     expect(t.length / 20).toBeLessThan(60);
     expect(t.checkpoints).toHaveLength(12);
     expect(t.spawnGrid).toHaveLength(8);
-    expect(t.branches.list).toHaveLength(3);
+    expect(t.branches.list).toHaveLength(2); // main + beach; the pier jetty went on 21 Sept 2026 (design §6)
     expect(t.def.landmark).toBe('lighthouse');
     expect(t.voidY).toBe(-12);
   });

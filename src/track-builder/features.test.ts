@@ -3,7 +3,7 @@ import { BUILDER } from './constants.ts';
 import { rederive } from './features.ts';
 import { buildLut } from './lut.ts';
 import { buildTrack } from './track.ts';
-import { HARBOUR_LOOP } from './__tests__/fixtures.ts';
+import { HARBOUR_WITH_PIER as HARBOUR_LOOP } from './__tests__/fixtures.ts';
 
 describe('features', () => {
   const track = buildTrack(HARBOUR_LOOP);

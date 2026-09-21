@@ -56,3 +56,24 @@ export const HARBOUR_LOOP = harbourLoopJson as TrackDefinition;
 export function cloneDef(def: TrackDefinition): TrackDefinition {
   return JSON.parse(JSON.stringify(def)) as TrackDefinition;
 }
+
+/**
+ * Harbour Loop plus the pier jetty it shipped with until 21 Sept 2026, kept here as the
+ * two-branch example for branch, feature and shift tests. The real track dropped it:
+ * a jetty beside a 16 m road cannot be faster than the road (design §6).
+ */
+export const HARBOUR_WITH_PIER: TrackDefinition = (() => {
+  const d = cloneDef(HARBOUR_LOOP);
+  d.shortcuts = [...(d.shortcuts ?? []), {
+    id: 'pier', entryT: 0.2896, exitT: 0.3588, risk: 'jump',
+    controlPoints: [
+      { x: 163.54, y: 0.55, z: -39.99, halfWidth: 5.5, surface: 'road' },
+      { x: 169, y: 0.3, z: -30, halfWidth: 5.5, surface: 'road' },
+      { x: 176, y: 0.6, z: -10, halfWidth: 5.5, surface: 'road' },
+      { x: 175, y: 0.8, z: 10, halfWidth: 5.5, surface: 'road' },
+      { x: 169.05, y: 1.28, z: 29.88, halfWidth: 5.5, surface: 'road' },
+    ],
+  }];
+  d.jumps = [{ id: 'pier-ramp', t: 0.3492, shortcut: 'pier', launch: 5, width: 6 }];
+  return d;
+})();

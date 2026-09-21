@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createKartState } from '../kart-controller/types.ts';
 import { spliceRoute } from './shift.ts';
 import { buildTrack } from './track.ts';
-import { HARBOUR_LOOP, cloneDef } from './__tests__/fixtures.ts';
+import { HARBOUR_WITH_PIER as HARBOUR_LOOP, cloneDef } from './__tests__/fixtures.ts';
 import type { TrackChanged, TrackDefinition } from './types.ts';
 
 /** Harbour Loop with a bridge that collapses: the shift reroutes t 0.45–0.55 over a longer detour. */

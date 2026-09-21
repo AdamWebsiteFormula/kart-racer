@@ -43,7 +43,7 @@ Lap target 45–60 s at 150cc-equivalent; width ≥ 4 karts at the start; one sh
 ### Sunrise Cup (teaches the game)
 | Track | Biome | Palette (bg / accent) | Teaches | Hazards | Final Lap Shift |
 |---|---|---|---|---|---|
-| **Harbour Loop** | Seaside town, piers, lighthouse | Cream sand, sea blue / coral | Steering, boost pads, first drift (turn 1 is a wide 90° with the pad on the inside line) | Seagull flock (visual), rolling barrels off the pier | Tide comes in: the beach shortcut floods, the pier ramp becomes the fast line |
+| **Harbour Loop** | Seaside town, piers, lighthouse | Cream sand, sea blue / coral | Steering, boost pads, first drift (turn 1 is a wide 90° with the pad on the inside line) | Seagull flock (visual), rolling barrels off the pier | Tide comes in: the beach boardwalk floods; the pier ramp on the harbour side is the one jump left |
 | **Meadow Run** | Rolling farmland, windmills, hay bales | Grass green, sky / sunflower yellow | Hairpin drifting, slipstream on a long straight | Runaway hay bales, mud patch off-road | Storm rolls in: rain darkens the sky, wet grass grip drops, lightning strikes a tree that falls across the shortcut |
 | **Canyon Rush** | Red-rock desert, rope bridges, mine carts | Terracotta, dusty orange / turquoise | Jumps and tricks, risky shortcut through the mine | Mine carts crossing, falling rocks | The rope bridge collapses; the only route is the mine tunnel, now lit |
 

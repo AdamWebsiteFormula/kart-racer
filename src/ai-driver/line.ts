@@ -6,7 +6,7 @@ import { signedOffset } from '../track-builder/branches.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
 import { AI } from './constants.ts';
-import { driftWorthy } from './drift.ts';
+import { driftNeedsRoom } from './drift.ts';
 import { next } from './rng.ts';
 import type { AiMemory, AiProfile, LineInfo, Scratch } from './types.ts';
 
@@ -91,7 +91,7 @@ export function lateralTarget(s: KartState, c: KartConstants, m: AiMemory, profi
   const hw = line.halfWidth;
   const lane = m.personality.lateralBias * l.laneHalfFraction * hw;
   // a drift-worthy bend coming and this racer drifts: set up wide so the drift has room
-  if (m.driftDir === 0 && m.personality.driftUse > 0 && driftWorthy(s, c, profile, line)) {
+  if (m.driftDir === 0 && m.personality.driftUse > 0 && driftNeedsRoom(s, c, profile, line)) {
     return -Math.sign(line.turnFar) * l.outsideFraction * hw;
   }
   // positive turn = right turn = inside on the right = positive lateral

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { T_SEARCH_WINDOW } from './constants.ts';
 import { wrap01 } from './lut.ts';
 import { buildTrack } from './track.ts';
-import { HARBOUR_LOOP, cloneDef } from './__tests__/fixtures.ts';
+import { HARBOUR_WITH_PIER as HARBOUR_LOOP, cloneDef } from './__tests__/fixtures.ts';
 
 const track = buildTrack(HARBOUR_LOOP);
 const beach = track.branches.byId('beach')!;

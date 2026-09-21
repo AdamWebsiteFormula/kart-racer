@@ -47,12 +47,32 @@ export function reachableTier(s: KartState, c: KartConstants, line: LineInfo): n
   return tierFor(Math.max(chargeHalf, chargeMin), c.driftTiers);
 }
 
-/** A bend worth setting up for: the drift would reach tier 1 at the current speed. */
+/** A bend worth drifting: the drift would reach tier 1 at the current speed. */
 export function driftWorthy(s: KartState, c: KartConstants, profile: AiProfile, line: LineInfo): boolean {
   const near = line.turnNear, far = line.turnFar;
   if (Math.abs(far) <= profile.driftThreshold || Math.abs(near) <= profile.driftThreshold * 0.5) return false;
   if (Math.sign(near) !== Math.sign(far)) return false;
   return reachableTier(s, c, line) >= 1;
+}
+
+/**
+ * Will the hop rule fire on this bend? The plan must not promise a drift the hop then
+ * refuses: the peak curvature ahead has to ask for the same share of a half-stick drift
+ * the start rule asks of the road under the nose.
+ */
+export function driftWillFire(s: KartState, c: KartConstants, profile: AiProfile, line: LineInfo): boolean {
+  return driftWorthy(s, c, profile, line) && line.kappa * Math.abs(s.speed) >= AI.drift.startYawFraction * driftYaw(c, 0.5);
+}
+
+/**
+ * A bend worth setting up wide for: the drift will swing past the road (the road asks
+ * for less yaw than a half-stick drift gives), so it needs room on the inside. A bend
+ * that asks for more than that is driven from the ordinary line.
+ */
+export function driftNeedsRoom(s: KartState, c: KartConstants, profile: AiProfile, line: LineInfo): boolean {
+  if (!driftWorthy(s, c, profile, line)) return false;
+  const needed = Math.abs(line.turnNear) / AI.line.turnNearSeconds;
+  return needed < driftYaw(c, 0.5);
 }
 
 /**

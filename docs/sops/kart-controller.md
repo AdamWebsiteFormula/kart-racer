@@ -109,6 +109,7 @@ Item speed is also +40%, so trick 1.3 < pad 1.4 = item 1.4 and the "boost never 
 Device remapping UI, Smart Steer, auto-accelerate, camera, particles, audio, respawn placement, checkpoints, positions, item effects beyond the status fields the controller already honours.
 
 ## Decisions
+- 2026-09-21 (Adam, test drive): the skid turned too tight. `driftSteerMin` 0.35 → 0.2 and `driftSteerMax` 0.8 → 0.7: minimum drift yaw 0.48 rad/s (a 52 m circle at 25 m/s, was 30 m), full stick 1.68 rad/s. The AI's `reachableTier` reads these, so gentler bends became drift-worthy for it too.
 - 2026-09-21 (Adam, test drive): `wallDeflectRate` 5 rad/s caps the nose swing per tick (the wall no longer jerks); `groundCatch` 1 m: an airborne kart found under the road by less than that landed on it (a drift hop across the 8° bank at turn 1 put a kart under the road and into the water); start boost is a 1.0 s window centred 2.0 s before GO (`startBoostCentreSeconds`), the moment the 2 appears.
 - 2026-09-21 (Adam, test drive): keyboard steer ramps (`rampSteer`: full lock in 0.14 s, back to centre in 0.08 s) inside `InputSource.sample(dt)`; the sim sees only the ramped value, so logs replay exactly. A standard-mapping stick bypasses the ramp. The right key gives −1 (the sim's + is screen left).
 - 2026-09-07: Charge values in the schema are per 60 fps frame; the 120 Hz sim multiplies by `dt × 60`. Tiers stay 250/550/850.
