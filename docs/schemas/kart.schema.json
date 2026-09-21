@@ -140,9 +140,11 @@
           "laneHalfFraction": { "type": "number", "description": "personality lateralBias spans ± this × halfWidth", "default": 0.45 },
           "edgeMargin": { "type": "number", "description": "metres kept from the road edge", "default": 1.4 },
           "aimClampMargin": { "type": "number", "default": 0.5 },
+          "laneRate": { "type": "number", "description": "m/s the lateral target may move per second (smooths flickering nudges; fast enough to dodge)", "default": 10 },
           "narrowRoad": { "type": "number", "description": "halfWidth below this is narrow: centre line, no passing, no drifting, short look-ahead", "default": 5 },
           "narrowLookAhead": { "type": "number", "description": "look-ahead scale on a narrow road or near a branch entry/exit (floor lookAheadMin)", "default": 0.5 },
           "narrowMargin": { "type": "number", "description": "corner-speed margin multiplier on a narrow road, where a slide has nowhere to go", "default": 0.75 },
+          "outsideFraction": { "type": "number", "description": "before a drift-worthy bend, set up on the outside at this × halfWidth so the drift has room", "default": 0.5 },
           "declineFraction": { "type": "number", "description": "after declining a shortcut, keep at least this × halfWidth on the far side of the fork", "default": 0.35 },
           "wanderAmpMin": { "type": "number", "default": 0.08 }, "wanderAmpMax": { "type": "number", "default": 0.2 },
           "wanderPeriodMin": { "type": "number", "default": 3.3 }, "wanderPeriodMax": { "type": "number", "default": 8.3 }
@@ -151,25 +153,36 @@
           "kP": { "type": "number", "default": 2.2 }, "kD": { "type": "number", "default": 0.15 },
           "dErrMax": { "type": "number", "description": "rad/s clamp on the derivative term", "default": 6 },
           "offroadGain": { "type": "number", "description": "steer gain multiplier while off the road surface", "default": 1.3 },
-          "noiseSmoothing": { "type": "number", "description": "low-pass factor per tick on the seeded steering noise", "default": 0.05 }
+          "noiseSmoothing": { "type": "number", "description": "low-pass factor per tick on the seeded steering noise", "default": 0.05 },
+          "kLat": { "type": "number", "description": "steer per metre of lateral error to the lane target; pure pursuit alone changes lanes too slowly to dodge", "default": 0.15 },
+          "kLatMax": { "type": "number", "description": "clamp on the lateral term", "default": 0.6 }
         } },
         "avoid": { "type": "object", "properties": {
-          "hazardLookAhead": { "type": "number", "default": 25 }, "hazardLateral": { "type": "number", "default": 2.2 },
+          "hazardLookAhead": { "type": "number", "default": 25 }, "rollingLookAhead": { "type": "number", "description": "metres; a rolling hazard comes at you, so look further", "default": 45 }, "hazardLateral": { "type": "number", "default": 2.2 },
           "dodgeClearance": { "type": "number", "default": 2.6 },
-          "avoidLookAhead": { "type": "number", "description": "metres ahead a slow or stopped kart is treated as a hazard", "default": 25 },
+          "avoidLookAhead": { "type": "number", "description": "metres ahead another moving kart matters for passing and drafting", "default": 25 },
+          "stoppedLookAhead": { "type": "number", "description": "metres ahead a slow, spinning or stopped kart is treated as a hazard", "default": 40 },
           "slowKartSpeed": { "type": "number", "description": "m/s; a kart slower than this ahead is an obstacle", "default": 4 },
+          "stoppedClearance": { "type": "number", "description": "metres of lateral clearance kept from a stopped or spinning kart", "default": 3.0 },
           "passDistance": { "type": "number", "default": 10 }, "passClosing": { "type": "number", "description": "m/s closing speed that starts a pass", "default": 1 },
           "touchDistance": { "type": "number", "description": "metres behind a kart at which the AI pulls out instead of drafting into it", "default": 3.5 },
+          "spawnBehind": { "type": "number", "description": "metres past the spawn spot of a rolling or falling hazard the berth is still kept", "default": 5 },
           "seekDistance": { "type": "number", "default": 40 }, "seekLateral": { "type": "number", "description": "max metres off the line a pad, balloon or coin pulls the kart", "default": 2.5 },
           "padSkill": { "type": "number", "description": "min skill to aim for boost pads", "default": 0.3 }
         } },
         "drift": { "type": "object", "properties": {
           "maxHold": { "type": "number", "default": 3.2 }, "cooldown": { "type": "number", "default": 0.6 }, "abortCooldown": { "type": "number", "default": 1.6 },
           "hopCommit": { "type": "number", "description": "seconds after the hop the drift side is held no matter what", "default": 0.3 },
-          "overRotate": { "type": "number", "description": "rad of error against the drift side that releases", "default": 0.12 },
+          "hopCommitStick": { "type": "number", "description": "stick toward the drift side through the hop: enough to lock the drift and keep the full charge, not the full swing", "default": 0.5 },
+          "chargeSnap": { "type": "number", "description": "stick this close under a half is pushed to a half so the charge runs at the full rate", "default": 0.2 },
+          "chargeSecondsAhead": { "type": "number", "description": "with the next tier this many seconds of full charge away, hold a half stick through the exit and take the swing", "default": 0.6 },
+          "startYawFraction": { "type": "number", "description": "hop only when the road under the nose already asks for this fraction of a half-stick drift yaw", "default": 0.7 },
+          "exitYawFraction": { "type": "number", "description": "with a tier banked, let go once the road under the nose asks for less than this fraction of the minimum drift yaw", "default": 0.5 },
+          "overRotate": { "type": "number", "description": "rad of heading swung past the aim point before a drift lets go. The drift yaw is tighter than most bends, so a drift is a swing in and a straighten out; reachableTier() plans the tier from this.", "default": 0.6 },
           "aligned": { "type": "number", "description": "rad; release when the error and turnNear are both this small", "default": 0.08 },
           "alignedTurn": { "type": "number", "default": 0.15 },
-          "edgeMargin": { "type": "number", "description": "metres from the inside edge that releases", "default": 1.6 },
+          "edgeMargin": { "type": "number", "description": "metres from the inside edge that releases", "default": 1.2 },
+          "aimGain": { "type": "number", "description": "rad/s of drift yaw asked per rad of heading error toward the aim point", "default": 1.0 },
           "tierBySkill": { "type": "array", "items": { "type": "number" }, "description": "skill below [0] → tier 1, below [1] → tier 2, else 3", "default": [0.5, 0.8] }
         } },
         "recover": { "type": "object", "properties": {
@@ -182,6 +195,7 @@
           "scale": { "type": "number", "description": "metres; tanh scale beyond the dead zone", "default": 150 },
           "powerFrom": { "type": "number", "description": "rb below this cuts power (top-speed cap); above it only skill moves", "default": 0.8 },
           "skillGain": { "type": "number", "description": "skill += (rb − 1) × gain", "default": 1.25 },
+          "shortcutRb": { "type": "number", "description": "rubber band at or above which a narrow shortcut is taken as a catch-up", "default": 1.15 },
           "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.05 }
         } },
         "items": { "type": "object", "properties": {

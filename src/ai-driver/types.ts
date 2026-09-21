@@ -32,6 +32,7 @@ export interface AiPersonality {
 }
 
 export type RecoveryPhase = 'none' | 'reverse' | 'cooldown';
+export type DriftEndReason = 'none' | 'tier' | 'over' | 'aligned' | 'edge' | 'hold' | 'abort';
 
 export interface AiMemory {
   /** mulberry32 state, uint32 */
@@ -57,6 +58,10 @@ export interface AiMemory {
   driftCooldown: number;
   /** −1 | 0 | 1 while drifting */
   driftDir: number;
+  /** tier this drift lets go at: the target for the skill, capped by what the bend allows */
+  driftTier: number;
+  /** why the last drift ended (tests and tuning) */
+  driftEndReason: DriftEndReason;
   /** the trick roll for the current jump has been made */
   trickRolled: boolean;
   trickDone: boolean;
@@ -95,6 +100,10 @@ export interface LineInfo {
   probeNear: number;
   /** peak curvature ahead (rad/m): the larger of the short and the near probe */
   kappa: number;
+  /** curvature right under the nose (rad/m), from the lookAheadMin probe */
+  kappaShort: number;
+  /** heading error to the road direction lookAheadMin ahead (rad, positive = road bends right of the nose) */
+  roadErr: number;
   halfWidth: number;
   /** branch the look-ahead samples on: the chosen shortcut or the kart's own */
   branch: number;
@@ -119,7 +128,7 @@ export function makeScratch(): Scratch {
 }
 
 export function emptyLine(): LineInfo {
-  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, halfWidth: 1, branch: 0, myLat: 0, nearBranch: false, narrow: false, branchAhead: 0, branchSide: 0 };
+  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, kappaShort: 0, roadErr: 0, halfWidth: 1, branch: 0, myLat: 0, nearBranch: false, narrow: false, branchAhead: 0, branchSide: 0 };
 }
 
 /** Item roles from item.schema.json; the items session supplies the id → role map. */

@@ -32,7 +32,7 @@ export interface AiDriverOptions {
 
 const AUTOPILOT: AiProfile = Object.freeze({ ...PROFILES.normal, skill: AI.autopilot.skill, power: AI.autopilot.power });
 
-function newMemory(seed: number, slot: number, racerId: string, profile: AiProfile, fieldPace: number, override?: AiPersonality): AiMemory {
+export function createMemory(seed: number, slot: number, racerId: string, profile: AiProfile, fieldPace: number, override?: AiPersonality): AiMemory {
   const m: AiMemory = {
     rng: seedFor(seed, slot),
     personality: { lateralBias: 0, aggression: 0, driftUse: 0 },
@@ -41,7 +41,7 @@ function newMemory(seed: number, slot: number, racerId: string, profile: AiProfi
     wanderAmp: 0, wanderPeriod: 1, wanderPhase: 0,
     prevErr: 0, noise: 0,
     rb: 1, skill: profile.skill, powerCap: profile.power,
-    driftHold: 0, driftCooldown: 0, driftDir: 0, trickRolled: false, trickDone: false,
+    driftHold: 0, driftCooldown: 0, driftDir: 0, driftTier: 0, driftEndReason: 'none', trickRolled: false, trickDone: false,
     recovery: 'none', recoverTimer: 0, stuckSeconds: 0,
     reactionRemaining: 0, lastItem: 'none', itemHold: 0,
     branchChoice: 0, lateral: 0,
@@ -85,7 +85,7 @@ export class AiDriver {
     for (let k = paces.length - 1; k > 0; k--) { const j = Math.floor(next(shuffle) * (k + 1)); [paces[k], paces[j]] = [paces[j], paces[k]]; }
     const paceOf = new Map(ai.map((i, k) => [i, paces[k]]));
 
-    this.memory = karts.map((k, i) => newMemory(state.seed, state.trackers[i]?.gridSlot ?? i, k.racerId, this.profile, paceOf.get(i) ?? 1, opts.personalities?.[k.racerId]));
+    this.memory = karts.map((k, i) => createMemory(state.seed, state.trackers[i]?.gridSlot ?? i, k.racerId, this.profile, paceOf.get(i) ?? 1, opts.personalities?.[k.racerId]));
 
     const pickupOf: number[] = [], coinOf: number[] = [];
     let p = 0, c = 0;
@@ -133,7 +133,7 @@ export class AiDriver {
       out.throttle = state.time >= -m.startPress ? 1 : 0;
       return;
     }
-    if (s.status.spinRemaining > 0) { out.throttle = 1; return; }
+    if (s.status.spinRemaining > 0) return; // spinning: the controller ignores us and the race-manager does not count it as stuck
 
     // 2. rubber band
     const gap = player && !finished ? player.distanceAlong - s.distanceAlong : 0;
@@ -144,19 +144,19 @@ export class AiDriver {
     // 3. line
     const line = readLine(s, this.track, m, this.sc, this.line);
     chooseBranch(s, this.track, m, profile, line);
-    let lat = lateralTarget(s, m, line, state.tick / SIM_HZ);
+    let lat = lateralTarget(s, c, m, profile, line, state.tick / SIM_HZ);
 
     // 4. avoid and seek
-    lat = applyAvoid(s, this.avoidCtx, line, m.skill, lat);
+    lat = applyAvoid(s, this.avoidCtx, line, m.skill, m.branchChoice, lat);
     // smooth the target so a nudge that flickers does not saw the wheel
-    const maxStep = 6 * dt;
+    const maxStep = AI.line.laneRate * dt;
     const dl = lat - m.lateral;
     m.lateral += dl > maxStep ? maxStep : dl < -maxStep ? -maxStep : dl;
     const aim = this.track.sampleInto(wrap01(s.t + line.L / this.track.length), m.lateral, line.branch, this.sc.ahead).position;
 
     // 5. steer
     const offroad = s.surface === 'dirt' || s.surface === 'mud';
-    out.steer = steerTo(s, aim, m, profile.noise * (1 - m.skill), offroad ? AI.steer.offroadGain : 1, dt);
+    out.steer = steerTo(s, aim, m, profile.noise * (1 - m.skill), offroad ? AI.steer.offroadGain : 1, m.lateral - line.myLat, dt);
 
     // 6. throttle
     const sp = decideSpeed(s, c, m, line, this.speed);

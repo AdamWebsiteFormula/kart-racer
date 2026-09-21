@@ -1,11 +1,12 @@
 // Nudges to the lateral target, lowest priority applied first so the higher one wins:
-// coin → balloon → boost pad → pass → slow or stopped kart → hazard.
+// coin → balloon → boost pad → pass → slow or stopped kart → declined fork → hazard → hazard spawn spot.
 // Everything is measured in the track frame: metres ahead along the spline and
 // metres right of the centreline.
 import { BASE } from '../kart-controller/constants.ts';
 import type { KartState } from '../kart-controller/types.ts';
 import type { FeatureTimer } from '../race-manager/types.ts';
 import { signedOffset } from '../track-builder/branches.ts';
+import { BUILDER } from '../track-builder/constants.ts';
 import type { Track } from '../track-builder/track.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
 import { AI } from './constants.ts';
@@ -44,7 +45,7 @@ function dodge(lat: number, obsLat: number, clear: number, myLat: number): numbe
   return obsLat + awayFrom(obsLat, myLat) * clear;
 }
 
-export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skill: number, lat: number): number {
+export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skill: number, branchChoice: number, lat: number): number {
   const a = AI.avoid;
   const { track, karts } = ctx;
   const len = track.length;
@@ -52,7 +53,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
   const kartR = BASE.kartRadius;
   // the most a dodge can move off an obstacle and still fit on this road
   const fit = Math.max(0.5, hw - kartR - 0.2);
-  const kartClear = Math.min(2 * kartR + 0.4, fit);
+  const kartClear = Math.min(a.stoppedClearance, fit);
   const passClear = Math.min(2 * kartR + 0.3, fit);
 
   // --- seek: coins, balloons, boost pads (lowest priority) ---
@@ -88,34 +89,56 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
   for (let i = 0; i < karts.length; i++) {
     const o = karts[i];
     if (o === s || o.isGhost) continue;
-    const d = o.distanceAlong - s.distanceAlong;
-    if (d <= 0 || d > a.avoidLookAhead) continue;
+    // along the track, wrap-aware: a kart that never crossed the line is still ahead of you
+    const d = signedOffset(o.t, s.t) * len;
+    if (d <= 0 || d > a.stoppedLookAhead) continue;
     if (o.branch !== s.branch) continue;
-    const oLat = lateralAt(ctx, o.t, o.branch, o.position);
     const slow = o.speed < a.slowKartSpeed || o.status.spinRemaining > 0 || o.status.intangibleRemaining > 0 || o.finishTick !== undefined;
     if (slow) {
-      lat = dodge(lat, oLat, kartClear, line.myLat);
+      lat = dodge(lat, lateralAt(ctx, o.t, o.branch, o.position), kartClear, line.myLat);
       continue;
     }
+    if (d > a.avoidLookAhead) continue;
+    const oLat = lateralAt(ctx, o.t, o.branch, o.position);
     if (line.narrow || line.nearBranch || d > a.passDistance) continue;
     const closing = s.speed - o.speed;
     if (closing > a.passClosing || d < a.touchDistance) lat = dodge(lat, oLat, passClear, line.myLat);
     else if (d <= BASE.slipstreamLength && Math.abs(lat - oLat) < BASE.slipstreamHalfWidth) lat = oLat; // sit in the wake
   }
 
+  // --- a declined fork ahead: keep to the far side so the controller does not switch us onto it ---
+  if (branchChoice < 0 && line.branchAhead === -branchChoice && line.branchSide !== 0) {
+    const keep = AI.line.declineFraction * hw;
+    if (lat * -line.branchSide < keep) lat = -line.branchSide * keep;
+  }
+
   // --- hazards (highest priority) ---
   const hz = ctx.hazards;
   if (hz.length) {
-    const window = a.hazardLookAhead / len + 0.02;
+    const window = a.rollingLookAhead / len + 0.02;
     for (let i = 0; i < hz.length; i++) {
       const h = hz[i];
       if (h.type === 'gust') continue;
+      const reach = h.type === 'rolling' ? a.rollingLookAhead : a.hazardLookAhead;
       const ht = track.nearestT(h.position, s.t, window);
       const d = signedOffset(ht, s.t) * len;
-      if (d <= 0 || d > a.hazardLookAhead) continue;
+      if (d <= 0 || d > reach) continue;
       const hLat = lateralAt(ctx, ht, 0, h.position);
       if (Math.abs(hLat) > hw + h.radius) continue; // off the road
       lat = dodge(lat, hLat, Math.min(a.dodgeClearance + h.radius, fit), line.myLat);
+    }
+  }
+
+  // where rolling and falling hazards (re)appear: give the spot a berth even when empty,
+  // because one can land right in front of the kart
+  const defs = track.def.hazards;
+  if (defs) {
+    for (let i = 0; i < defs.length; i++) {
+      const h = defs[i];
+      if (h.type !== 'rolling' && h.type !== 'falling') continue;
+      const d = signedOffset(h.t, s.t) * len;
+      if (d < -a.spawnBehind || d > a.hazardLookAhead) continue;
+      lat = dodge(lat, h.lateral ?? 0, Math.min(a.dodgeClearance + BUILDER.hazardRadius, fit), line.myLat);
     }
   }
 

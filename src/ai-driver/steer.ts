@@ -12,10 +12,11 @@ export function headingError(s: KartState, aim: Vec3): number {
 }
 
 /**
- * steer = (kP × err + kD × dErr) × gain + noise, clamped ±1. Leaves err in m.prevErr
+ * steer = (kP × err + kD × dErr + kLat × latErr) × gain + noise, clamped ±1. `latErr` is
+ * metres the lane target sits to the right of the kart. Leaves err in m.prevErr
  * for the drift logic. `noiseAmp` is profile.noise × (1 − skill).
  */
-export function steerTo(s: KartState, aim: Vec3, m: AiMemory, noiseAmp: number, gain: number, dt: number): number {
+export function steerTo(s: KartState, aim: Vec3, m: AiMemory, noiseAmp: number, gain: number, latErr: number, dt: number): number {
   const c = AI.steer;
   const err = headingError(s, aim);
   const dErr = clamp((err - m.prevErr) / dt, -c.dErrMax, c.dErrMax);
@@ -23,5 +24,7 @@ export function steerTo(s: KartState, aim: Vec3, m: AiMemory, noiseAmp: number, 
   m.noise += (range(m, -noiseAmp, noiseAmp) - m.noise) * c.noiseSmoothing;
   // airborne off a jump (not a hop) the wheel does nothing; keep it centred
   if (!s.grounded && s.drift.phase !== 'hopping' && m.driftDir === 0) return 0;
-  return clamp((c.kP * err + c.kD * dErr) * gain + m.noise, -1, 1);
+  // a lateral term on top of pure pursuit: lane changes and dodges happen now, not in 2L
+  const lat = clamp(c.kLat * latErr, -c.kLatMax, c.kLatMax);
+  return clamp((c.kP * err + c.kD * dErr + lat) * gain + m.noise, -1, 1);
 }
