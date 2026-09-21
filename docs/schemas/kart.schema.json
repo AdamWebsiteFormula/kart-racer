@@ -111,7 +111,7 @@
           "accent": { "type": "string" }, "secondary": { "type": "string" },
           "kartAsset": { "type": "string" }, "headAsset": { "type": "string" }, "propAsset": { "type": "string" },
           "horn": { "type": "string" }, "hitYelp": { "type": "string" },
-          "aiPersonality": { "type": "object", "properties": { "lateralBias": { "type": "number" }, "aggression": { "type": "number" }, "driftUse": { "type": "number" } } },
+          "aiPersonality": { "$ref": "#/$defs/aiPersonality" },
           "skins": {
             "description": "Alt palettes. All racers are available from the start; only skins unlock (design §10).",
             "type": "array",
@@ -124,9 +124,106 @@
       "description": "Shared kart body styles. Cosmetic only: no stat change, so leaderboard times stay comparable.",
       "type": "array",
       "items": { "$ref": "#/$defs/unlockable" }
+    },
+    "ai": {
+      "description": "AI driver constants (docs/sops/ai-driver.md Approach). Never set per race; the defaults are the only values. src/ai-driver/constants.ts reads them. Seconds, metres, radians; fractions are of top speed or half-width as named.",
+      "type": "object",
+      "properties": {
+        "line": { "type": "object", "properties": {
+          "lookAheadGain": { "type": "number", "description": "look-ahead L = clamp(speed × gain, min, max) metres (turbo-kart-rush)", "default": 0.9 },
+          "lookAheadMin": { "type": "number", "default": 8 }, "lookAheadMax": { "type": "number", "default": 30 },
+          "turnNearSeconds": { "type": "number", "description": "heading change measured this far ahead in seconds of travel", "default": 1.2 },
+          "turnFarSeconds": { "type": "number", "default": 2.4 },
+          "insideGain": { "type": "number", "description": "inside-corner bias = clamp(−sign(turn) × |turnNear| × gain, ±insideBiasMax) × halfWidth", "default": 0.5 },
+          "insideBiasMax": { "type": "number", "default": 0.4 },
+          "lateralMaxFraction": { "type": "number", "description": "lateral target clamp as a fraction of halfWidth", "default": 0.6 },
+          "laneHalfFraction": { "type": "number", "description": "personality lateralBias spans ± this × halfWidth", "default": 0.45 },
+          "edgeMargin": { "type": "number", "description": "metres kept from the road edge", "default": 1.4 },
+          "aimClampMargin": { "type": "number", "default": 0.5 },
+          "wanderAmpMin": { "type": "number", "default": 0.08 }, "wanderAmpMax": { "type": "number", "default": 0.2 },
+          "wanderPeriodMin": { "type": "number", "default": 3.3 }, "wanderPeriodMax": { "type": "number", "default": 8.3 }
+        } },
+        "steer": { "type": "object", "properties": {
+          "kP": { "type": "number", "default": 2.2 }, "kD": { "type": "number", "default": 0.15 },
+          "dErrMax": { "type": "number", "description": "rad/s clamp on the derivative term", "default": 6 },
+          "offroadGain": { "type": "number", "description": "steer gain multiplier while off the road surface", "default": 1.3 },
+          "noiseSmoothing": { "type": "number", "description": "low-pass factor per tick on the seeded steering noise", "default": 0.05 }
+        } },
+        "avoid": { "type": "object", "properties": {
+          "hazardLookAhead": { "type": "number", "default": 25 }, "hazardLateral": { "type": "number", "default": 2.2 },
+          "dodgeClearance": { "type": "number", "default": 2.6 },
+          "avoidLookAhead": { "type": "number", "description": "metres ahead a slow or stopped kart is treated as a hazard", "default": 25 },
+          "slowKartSpeed": { "type": "number", "description": "m/s; a kart slower than this ahead is an obstacle", "default": 4 },
+          "passDistance": { "type": "number", "default": 10 }, "passClosing": { "type": "number", "description": "m/s closing speed that starts a pass", "default": 1 },
+          "seekDistance": { "type": "number", "default": 40 }, "seekLateral": { "type": "number", "description": "max metres off the line a pad, balloon or coin pulls the kart", "default": 2.5 },
+          "padSkill": { "type": "number", "description": "min skill to aim for boost pads", "default": 0.3 }
+        } },
+        "drift": { "type": "object", "properties": {
+          "maxHold": { "type": "number", "default": 3.2 }, "cooldown": { "type": "number", "default": 0.6 }, "abortCooldown": { "type": "number", "default": 1.6 },
+          "hopCommit": { "type": "number", "description": "seconds after the hop the drift side is held no matter what", "default": 0.3 },
+          "overRotate": { "type": "number", "description": "rad of error against the drift side that releases", "default": 0.12 },
+          "aligned": { "type": "number", "description": "rad; release when the error and turnNear are both this small", "default": 0.08 },
+          "alignedTurn": { "type": "number", "default": 0.15 },
+          "edgeMargin": { "type": "number", "description": "metres from the inside edge that releases", "default": 1.6 },
+          "tierBySkill": { "type": "array", "items": { "type": "number" }, "description": "skill below [0] → tier 1, below [1] → tier 2, else 3", "default": [0.5, 0.8] }
+        } },
+        "recover": { "type": "object", "properties": {
+          "stuckSeconds": { "type": "number", "description": "the AI's own stuck timer; the race-manager 6 s respawn is the backstop", "default": 1.5 },
+          "reverseSeconds": { "type": "number", "default": 0.8 }, "cooldownSeconds": { "type": "number", "default": 2.5 }
+        } },
+        "rubber": { "type": "object", "properties": {
+          "min": { "type": "number", "default": 0.6 }, "max": { "type": "number", "default": 1.4 },
+          "deadZone": { "type": "number", "description": "metres of gap with no effect", "default": 30 },
+          "scale": { "type": "number", "description": "metres; tanh scale beyond the dead zone", "default": 150 },
+          "powerFrom": { "type": "number", "description": "rb below this cuts power (top-speed cap); above it only skill moves", "default": 0.8 },
+          "skillGain": { "type": "number", "description": "skill += (rb − 1) × gain", "default": 1.25 },
+          "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.05 }
+        } },
+        "items": { "type": "object", "properties": {
+          "forwardRange": { "type": "number", "default": 45 }, "forwardCone": { "type": "number", "description": "rad", "default": 0.2 },
+          "homingRange": { "type": "number", "default": 90 }, "rearRange": { "type": "number", "default": 15 },
+          "defenceRadius": { "type": "number", "default": 6 }, "holdMax": { "type": "number", "default": 8 },
+          "speedItemGap": { "type": "number", "default": 80 }, "straightTurn": { "type": "number", "description": "rad; |turnFar| below this is a straight", "default": 0.15 }
+        } },
+        "autopilot": { "type": "object", "description": "a finished kart keeps rolling out of the way", "properties": {
+          "skill": { "type": "number", "default": 0.5 }, "power": { "type": "number", "default": 0.6 }
+        } },
+        "profiles": { "type": "object", "description": "Difficulty comes from the speed class: 50 easy, 100 normal, 150 hard (ai-driver Decisions 2026-09-21).", "properties": {
+          "easy": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
+            "skill": { "type": "number", "default": 0.35 }, "power": { "type": "number", "default": 0.94 }, "noise": { "type": "number", "default": 0.09 },
+            "reactionMin": { "type": "number", "default": 0.8 }, "reactionMax": { "type": "number", "default": 1.6 },
+            "driftThreshold": { "type": "number", "default": 0.45 }, "easeThrottle": { "type": "number", "default": 0.6 },
+            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.35 },
+            "shortcutSkill": { "type": "number", "default": 1.1 }, "trickChance": { "type": "number", "default": 0.2 }
+          } },
+          "normal": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
+            "skill": { "type": "number", "default": 0.65 }, "power": { "type": "number", "default": 0.98 }, "noise": { "type": "number", "default": 0.045 },
+            "reactionMin": { "type": "number", "default": 0.4 }, "reactionMax": { "type": "number", "default": 0.9 },
+            "driftThreshold": { "type": "number", "default": 0.35 }, "easeThrottle": { "type": "number", "default": 0.65 },
+            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.2 },
+            "shortcutSkill": { "type": "number", "default": 0.6 }, "trickChance": { "type": "number", "default": 0.5 }
+          } },
+          "hard": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
+            "skill": { "type": "number", "default": 0.95 }, "power": { "type": "number", "default": 1.0 }, "noise": { "type": "number", "default": 0.015 },
+            "reactionMin": { "type": "number", "default": 0.15 }, "reactionMax": { "type": "number", "default": 0.4 },
+            "driftThreshold": { "type": "number", "default": 0.3 }, "easeThrottle": { "type": "number", "default": 0.75 },
+            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.08 },
+            "shortcutSkill": { "type": "number", "default": 0.3 }, "trickChance": { "type": "number", "default": 0.95 }
+          } }
+        } }
+      }
     }
   },
   "$defs": {
+    "aiPersonality": {
+      "description": "Per-racer AI flavour (design §4). lateralBias −1..1 as a fraction of laneHalf; aggression and driftUse 0..1 are seeded roll thresholds.",
+      "type": "object", "required": ["lateralBias", "aggression", "driftUse"],
+      "properties": { "lateralBias": { "type": "number", "minimum": -1, "maximum": 1 }, "aggression": { "type": "number", "minimum": 0, "maximum": 1 }, "driftUse": { "type": "number", "minimum": 0, "maximum": 1 } }
+    },
+    "aiProfile": {
+      "type": "object", "required": ["skill", "power", "noise", "reactionMin", "reactionMax", "driftThreshold", "easeThrottle", "startPressMean", "startPressSpread", "shortcutSkill", "trickChance"],
+      "description": "skill 0..1 drives line, drift tier and reactions; power ≤ 1 is the top-speed cap as a fraction of the player-legal speed; noise is steer noise amplitude; reaction is seconds before an item is used; startPress is seconds before go the throttle goes down, mean ± spread."
+    },
     "unlockable": {
       "type": "object", "required": ["id", "name", "asset", "unlock"],
       "properties": {
