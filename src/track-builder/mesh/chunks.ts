@@ -8,7 +8,7 @@ import type { Branch } from '../branches.ts';
 import { BUILDER } from '../constants.ts';
 import { tInRange } from '../shift.ts';
 import type { TrackPalette } from './palette.ts';
-import { buildRibbon } from './road.ts';
+import { buildRibbon, type RibbonOptions } from './road.ts';
 
 export interface Chunk {
   branch: number;
@@ -24,12 +24,18 @@ export function chunkCountFor(branch: Branch, main: Branch): number {
   return Math.max(1, Math.round((BUILDER.chunkCount * branch.lut.length) / main.lut.length));
 }
 
+/** A shortcut ribbon blends into the main road at both ends; the main line never does. */
+export function ribbonOptions(branch: Branch): RibbonOptions {
+  if (branch.isMain) return {};
+  return { blend: Math.min(0.45, BUILDER.branchBlendMetres / branch.lut.length) };
+}
+
 export function buildBranchChunks(branch: Branch, main: Branch, palette: TrackPalette, material: Material): Chunk[] {
   const n = chunkCountFor(branch, main);
   const out: Chunk[] = [];
   for (let i = 0; i < n; i++) {
     const u0 = i / n, u1 = (i + 1) / n;
-    const mesh = new Mesh(buildRibbon(branch.lut, u0, u1, palette), material);
+    const mesh = new Mesh(buildRibbon(branch.lut, u0, u1, palette, ribbonOptions(branch)), material);
     mesh.name = `track-chunk-${branch.id}-${i}`;
     mesh.receiveShadow = true;
     out.push({ branch: branch.index, index: i, u0, u1, mesh });
@@ -39,7 +45,7 @@ export function buildBranchChunks(branch: Branch, main: Branch, palette: TrackPa
 
 export function rebuildChunk(chunk: Chunk, branch: Branch, palette: TrackPalette): void {
   chunk.mesh.geometry.dispose();
-  chunk.mesh.geometry = buildRibbon(branch.lut, chunk.u0, chunk.u1, palette);
+  chunk.mesh.geometry = buildRibbon(branch.lut, chunk.u0, chunk.u1, palette, ribbonOptions(branch));
 }
 
 /** Do two wrap-aware t ranges overlap? */

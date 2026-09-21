@@ -23,12 +23,22 @@ export function sampleRange(lut: Lut, u0: number, u1: number): { i0: number; i1:
   return { i0: Math.floor(u0 * lut.step), i1: Math.ceil(u1 * lut.step) };
 }
 
-export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPalette): BufferGeometry {
+export interface RibbonOptions {
+  /** local-u length at each end where kerbs and shoulders vanish and the ribbon sinks under the main road (branches) */
+  blend?: number;
+}
+
+const BLEND_SINK = 0.03;
+
+export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPalette, opts: RibbonOptions = {}): BufferGeometry {
   const { kerbWidth: kw, kerbHeight: kh, shoulderWidth: sw, shoulderDrop: drop, roadTileLength: tile } = BUILDER;
+  const blend = opts.blend ?? 0;
+  const blended = (i: number) => { const u = i / lut.step; return blend > 0 && (u < blend || u > 1 - blend); };
   const stripe = (s: number): Rgb => (Math.floor(s / (tile / 4)) % 2 === 0 ? palette.kerbA : palette.kerbB);
-  const kerb = (_: number, s: number) => stripe(s);
-  const road = (i: number) => palette.surfaces[SURFACES[lut.surface[i]]];
-  const shoulder = () => palette.shoulder;
+  const roadColour = (i: number) => palette.surfaces[SURFACES[lut.surface[i]]];
+  const kerb = (i: number, s: number) => (blended(i) ? roadColour(i) : stripe(s));
+  const road = (i: number) => roadColour(i);
+  const shoulder = (i: number) => (blended(i) ? roadColour(i) : palette.shoulder);
   const strips: Strip[] = [
     { a: (hw) => -(hw + kw + sw), ah: -drop, b: (hw) => -(hw + kw), bh: 0, colour: shoulder },
     { a: (hw) => -(hw + kw), ah: 0, b: (hw) => -(hw + kw), bh: kh, colour: kerb },
@@ -59,9 +69,11 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
       const s = (i / lut.step) * lut.length; // unwrapped so uv v stays continuous across the seam
       const tanB = Math.tan(lut.bank[j]);
       const c = strip.colour(j, (j / lut.step) * lut.length); // wrapped so the seam vertex gets one stripe colour
+      const inBlend = blended(i);
       for (const side of [0, 1] as const) {
         const l = side === 0 ? strip.a(hw) : strip.b(hw);
-        const h = side === 0 ? strip.ah : strip.bh;
+        // in the blend the kerb and shoulder lie flat and the whole ribbon sinks so the main road draws on top
+        const h = (inBlend ? 0 : side === 0 ? strip.ah : strip.bh) - (inBlend ? BLEND_SINK : 0);
         pos[v * 3] = lut.px[j] + lut.rx[j] * l;
         pos[v * 3 + 1] = lut.py[j] - l * tanB + h;
         pos[v * 3 + 2] = lut.pz[j] + lut.rz[j] * l;

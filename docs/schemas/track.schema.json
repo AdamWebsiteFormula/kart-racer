@@ -136,6 +136,7 @@
         "maxBankDeg": { "type": "number", "default": 20 },
         "minTurnRadiusFactor": { "type": "number", "default": 1.5, "description": "turn radius must be >= factor × halfWidth (hairpin guard)" },
         "minStartHalfWidth": { "type": "number", "default": 4 },
+        "branchBlendMetres": { "type": "number", "default": 14, "description": "a shortcut ribbon loses its kerbs and sinks 3 cm for this long at each end, where it overlaps the main road" },
         "kerbWidth": { "type": "number", "default": 1.0 },
         "kerbHeight": { "type": "number", "default": 0.1 },
         "shoulderWidth": { "type": "number", "default": 6.0 },

@@ -6,7 +6,7 @@ import kartSchema from '../../docs/schemas/kart.schema.json';
 export interface BuilderConstants {
   lutSamples: number; arcDivisions: number; globalSearchStep: number; branchHysteresis: number;
   maxBankDeg: number; minTurnRadiusFactor: number; minStartHalfWidth: number;
-  kerbWidth: number; kerbHeight: number; shoulderWidth: number; shoulderDrop: number;
+  branchBlendMetres: number; kerbWidth: number; kerbHeight: number; shoulderWidth: number; shoulderDrop: number;
   barrierSpacing: number; roadTileLength: number; chunkCount: number;
   minimapSamples: number; minimapPadding: number;
   boostPadHalfLength: number; boostPadWidth: number;
