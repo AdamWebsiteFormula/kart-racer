@@ -61,7 +61,9 @@ export class KartView {
     this.root.rotation.set(0, p.heading + dh * alpha, 0);
 
     // cosmetic lean
-    const slip = s.drift.active ? -s.drift.direction * this.c.driftVisualSlip : 0;
+    // the sim's +yaw is screen-left, so a drift toward direction d yaws the body by +d, not −d
+    // (the tail swings out, the nose points into the bend; 2026-09-21 it pointed out of it)
+    const slip = s.drift.active ? s.drift.direction * this.c.driftVisualSlip : 0;
     const k = 1 - Math.exp(-LEAN.yawLag * frameDt);
     this.chassisYaw += (slip - this.chassisYaw) * k;
     const kr = 1 - Math.exp(-LEAN.rollLag * frameDt);
