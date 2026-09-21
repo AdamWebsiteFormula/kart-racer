@@ -19,6 +19,8 @@ export const CAM = Object.freeze({
   travelBlendSpeed: 6,
   /** while look-back is held */
   flipLag: 14,
+  /** 1/s, how fast the speed the camera reads (for distance and field of view) follows the real speed: a bump must not pump the view */
+  speedLag: 2,
   topSpeed: 25,
   /** vertical field of view at a standstill and the extra at top speed: speed you can see */
   fov: 66,
@@ -50,6 +52,12 @@ export function travelYaw(heading: number, speed: number, lateralVelocity: numbe
 }
 
 /** One frame of the camera's own yaw chasing `want`, frame-rate independent. */
+/** The speed the camera believes, eased so a bump or a wall does not pump the distance and the field of view. */
+export function easedSpeed(camSpeed: number, speed: number, frameDt: number): number {
+  const k = 1 - Math.exp(-CAM.speedLag * frameDt);
+  return camSpeed + (Math.abs(speed) - camSpeed) * k;
+}
+
 export function chaseYaw(camYaw: number, want: number, lag: number, frameDt: number): number {
   const k = 1 - Math.exp(-lag * frameDt);
   return camYaw + wrapAngle(want - camYaw) * k;

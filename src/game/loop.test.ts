@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ } from '../kart-controller/step.ts';
 import { Accumulator, MAX_STEPS } from './loop.ts';
 import { formatTime, hudNumbers } from './hud.ts';
-import { CAM, chaseYaw, fovFor, idealPose, smoothTo, travelYaw } from './camera.ts';
+import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './camera.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { RaceManager } from '../race-manager/race.ts';
 import { HARBOUR_LOOP } from '../race-manager/__tests__/fixtures.ts';
@@ -61,6 +61,14 @@ describe('chase camera', () => {
     expect(yaw).toBeCloseTo(1 - Math.exp(-CAM.yawLag), 2); // one second: 92 % of the way
     // wraps: chasing across ±π takes the short way
     expect(chaseYaw(3.0, -3.0, 100, 1)).toBeCloseTo(3.0 + wrapTo(-6.0), 1);
+  });
+
+  it('the speed the camera reads is eased, so a bump does not pump the view', () => {
+    let v = 20;
+    v = easedSpeed(v, 15, 1 / 60); // a 5 m/s drop in one frame
+    expect(20 - v).toBeLessThan(0.2);
+    for (let i = 0; i < 240; i++) v = easedSpeed(v, 15, 1 / 60);
+    expect(v).toBeCloseTo(15, 1);
   });
 
   it('field of view widens with speed and caps at top speed', () => {

@@ -94,7 +94,7 @@ describe('drift decision', () => {
 
   it('reachable tier: a gentle bend is worth nothing, a tight one a tier or more, and the drift lets go at the planned tier', () => {
     const s = kartAt(track, 0.2, 0, 24);
-    const gentle = { ...fakeLine(0.1, 0.15), probeNear: 29 }; // asks for 0.08 rad/s: even the minimum drift yaw swings past it fast
+    const gentle = { ...fakeLine(0.02, 0.03), probeNear: 29 }; // near-straight: even the minimum drift yaw swings past it too fast to pay
     expect(reachableTier(s, c, gentle)).toBe(0);
     expect(reachableTier(s, c, bend)).toBeGreaterThanOrEqual(1);
     const m = memory(PROFILES.hard, { driftUse: 1 });

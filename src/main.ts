@@ -18,7 +18,7 @@ import { buildTrackScene } from './track-builder/mesh/index.ts';
 import { buildTrack } from './track-builder/track.ts';
 import harbourLoop from './track-builder/tracks/harbour-loop.json';
 import type { TrackDefinition } from './track-builder/types.ts';
-import { CAM, chaseYaw, fovFor, idealPose, smoothTo, travelYaw } from './game/camera.ts';
+import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './game/camera.ts';
 import { hudNumbers } from './game/hud.ts';
 import { buildKartMesh } from './game/kartMesh.ts';
 import { Accumulator } from './game/loop.ts';
@@ -65,6 +65,7 @@ const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
 const camPos: Vec3 = [...manager.state.karts[PLAYER].position];
 const camLook: Vec3 = [...camPos];
 let camYaw = manager.state.karts[PLAYER].heading;
+let camSpeed = 0;
 
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); // plan §6.4
@@ -159,11 +160,12 @@ function frame(now: number) {
   const lookBack = inputs[PLAYER].lookBack;
   const want = travelYaw(views[PLAYER].root.rotation.y, player.speed, player.lateralVelocity, player.drift.active);
   camYaw = chaseYaw(camYaw, want, lookBack ? CAM.flipLag : CAM.yawLag, frameDt);
-  const pose = idealPose([root.x, root.y, root.z], camYaw, player.speed, lookBack);
+  camSpeed = easedSpeed(camSpeed, player.speed, frameDt);
+  const pose = idealPose([root.x, root.y, root.z], camYaw, camSpeed, lookBack);
   const lag = lookBack ? CAM.flipLag : CAM.lag;
   smoothTo(camPos, pose.position, lag, frameDt);
   smoothTo(camLook, pose.target, lag, frameDt);
-  camera.fov = fovFor(player.speed);
+  camera.fov = fovFor(camSpeed);
   camera.updateProjectionMatrix();
   camera.position.set(camPos[0], camPos[1], camPos[2]);
   camera.lookAt(new Vector3(camLook[0], camLook[1], camLook[2]));

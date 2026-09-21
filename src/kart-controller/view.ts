@@ -13,6 +13,8 @@ const LEAN = Object.freeze({
   rollLag: 8, // 1/s, the roll eases in and out instead of snapping with the key
   pitchPerAccel: 0.02, // rad per m/s²
   pitchLag: 6,
+  accelClamp: 12, // m/s²; a bump or a wall changes speed in one tick and must not read as a nose-dive
+  pitchMax: 0.12, // rad
 });
 
 export class KartView {
@@ -43,7 +45,7 @@ export class KartView {
   onTick(s: KartState, dt: number): void {
     this.prev = this.curr;
     this.curr = KartView.pose(s);
-    this.lastAccel = (s.speed - this.lastSpeed) / dt;
+    this.lastAccel = MathUtils.clamp((s.speed - this.lastSpeed) / dt, -LEAN.accelClamp, LEAN.accelClamp);
     this.lastSpeed = s.speed;
   }
 
@@ -65,7 +67,7 @@ export class KartView {
     const kr = 1 - Math.exp(-LEAN.rollLag * frameDt);
     this.roll += (-steer * s.speed * LEAN.rollPerSteerSpeed - this.roll) * kr;
     const kp = 1 - Math.exp(-LEAN.pitchLag * frameDt);
-    this.pitch += (-this.lastAccel * LEAN.pitchPerAccel - this.pitch) * kp;
+    this.pitch += (MathUtils.clamp(-this.lastAccel * LEAN.pitchPerAccel, -LEAN.pitchMax, LEAN.pitchMax) - this.pitch) * kp;
     this.chassis.rotation.set(this.pitch, this.chassisYaw, this.roll);
   }
 }

@@ -45,7 +45,7 @@ describe('line', () => {
     expect(lat({ lateralBias: 1 })).toBe(0);
     s.branch = 0;
     // a tight bend at 20 m/s: the drift reaches a tier, so a drifter sets up wide
-    const tight = { ...fakeLine(0.9, 1.2), probeNear: 20 };
+    const tight = { ...fakeLine(0.6, 0.8), probeNear: 20 }; // asks for 0.5 rad/s: less than a half-stick drift gives, so the drift will swing and needs room
     expect(lat({ lateralBias: 1, driftUse: 1 }, tight)).toBeCloseTo(-AI.line.outsideFraction * wide.halfWidth);
     // a bend that asks for more yaw than a half-stick drift gives needs no room: the ordinary lane, inside bias and all
     expect(lat({ lateralBias: 0, driftUse: 1 }, { ...fakeLine(1.6, 1.8), probeNear: 20, kappaShort: 0.08 })).toBeGreaterThan(0);
