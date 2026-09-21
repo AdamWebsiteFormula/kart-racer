@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { BASE } from '../kart-controller/constants.ts';
 import { SIM_DT } from '../kart-controller/step.ts';
 import { NEUTRAL_INPUT, headingOf } from '../kart-controller/types.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { stepCheckpoints } from './checkpoints.ts';
 import { RACE } from './constants.ts';
-import { respawnKart, stepStuck } from './respawn.ts';
+import { respawnKart, respawnLateral, stepStuck } from './respawn.ts';
 import { OVAL, placeAt, spawnKart } from './__tests__/fixtures.ts';
 import type { RaceEvent } from './types.ts';
 
@@ -59,7 +60,11 @@ describe('respawn', () => {
     const events: RaceEvent[] = [];
     respawnKart(s, tr, track, events);
     const cp = track.checkpoints[3];
-    expect(s.position).toEqual([cp.position[0], cp.position[1] + RACE.respawnLift, cp.position[2]]);
+    // its own lateral (3 m), not the centreline
+    const at = track.sample(cp.t, 3, 0).position;
+    expect(s.position[0]).toBeCloseTo(at[0], 6);
+    expect(s.position[1]).toBeCloseTo(at[1] + RACE.respawnLift, 6);
+    expect(s.position[2]).toBeCloseTo(at[2], 6);
     expect(s.heading).toBe(headingOf(cp.tangent));
     expect(s.t).toBe(cp.t);
     expect(s.branch).toBe(0);
@@ -79,6 +84,23 @@ describe('respawn', () => {
       { type: 'wrongWay', racerId: 'k0', on: false },
       { type: 'respawn', racerId: 'k0', checkpoint: 3 },
     ]);
+  });
+
+  it('keeps the lateral it fell at and clamps it inside the road by a kart radius', () => {
+    const cp = track.checkpoints[2];
+    const hw = cp.halfWidth;
+    for (const [fellAt, lands] of [[0, 0], [-3, -3], [20, hw - BASE.kartRadius], [-20, -(hw - BASE.kartRadius)]]) {
+      const { s, tr } = spawnKart(track, 0);
+      tr.lastCheckpoint = 2; tr.nextCheckpoint = 3;
+      placeAt(track, s, 0.3, fellAt);
+      s.position[1] = -40;
+      expect(respawnLateral(s, track, hw)).toBeCloseTo(lands, 6);
+      respawnKart(s, tr, track, []);
+      const want = track.sample(cp.t, lands, 0).position;
+      expect(s.position[0]).toBeCloseTo(want[0], 6);
+      expect(s.position[2]).toBeCloseTo(want[2], 6);
+      expect(s.heading).toBe(headingOf(cp.tangent));
+    }
   });
 
   it('a kart respawned before its first line crossing still crosses the line and laps normally', () => {
