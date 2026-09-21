@@ -109,6 +109,7 @@ Item speed is also +40%, so trick 1.3 < pad 1.4 = item 1.4 and the "boost never 
 Device remapping UI, Smart Steer, auto-accelerate, camera, particles, audio, respawn placement, checkpoints, positions, item effects beyond the status fields the controller already honours.
 
 ## Decisions
+- 2026-09-21 (Adam, final by feel): `driftSteerMax` 0.4 (0.96 rad/s). Settled between 1.08 (too tight) and 0.84 (too loose).
 - 2026-09-21 (Adam: still too tight): `driftSteerMax` 0.45 → 0.35 (0.84 rad/s at full stick, equal to the grip turn at top speed), `driftSteerMin` 0.1 (0.24 rad/s).
 - 2026-09-21 (Adam: rear-ending jumps the screen; the skid radius is still too tight): the view clamped the pitch lean (a 1.75 m/s bump speed change read as 210 m/s² and dived the nose); the test-drive camera eases the speed it reads for distance and field of view; `driftSteerMax` 0.6 → 0.45 (1.08 rad/s: a full MK8DX drift takes ~1.5 s through a 90° bend), `driftSteerMin` 0.12, `driftYawLag` 0.35.
 - 2026-09-21 (Adam: the skid still bites too early; bumps jump the screen): `airSteer` 0.15, so the hop goes straight and the stick at landing sets the drift, as in Mario Kart (delay drift); `bumpSeparateRate` 6 → 2.5 m/s. The test-drive camera counts only a drift's slide as direction of travel, never a bump's.
