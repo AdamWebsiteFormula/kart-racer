@@ -18,13 +18,13 @@ import { buildTrackScene } from './track-builder/mesh/index.ts';
 import { buildTrack } from './track-builder/track.ts';
 import harbourLoop from './track-builder/tracks/harbour-loop.json';
 import type { TrackDefinition } from './track-builder/types.ts';
-import { CAM, idealPose, smoothTo } from './game/camera.ts';
+import { CAM, fovFor, idealPose, smoothTo } from './game/camera.ts';
 import { hudNumbers } from './game/hud.ts';
 import { buildKartMesh } from './game/kartMesh.ts';
 import { Accumulator } from './game/loop.ts';
 import { ROSTER } from './game/racers.ts';
 
-const SPEED_CLASS = 150; // 150cc = Hard AI (ai-driver Decisions 2026-09-21)
+const SPEED_CLASS = 100; // 100cc = Normal AI (ai-driver Decisions 2026-09-21); 150 is Hard
 const PLAYER = 0; // index into ROSTER: you drive Pip
 
 // ---- race ----
@@ -61,7 +61,7 @@ const views = manager.state.karts.map((s, i) => {
   return view;
 });
 
-const camera = new PerspectiveCamera(62, 1, 0.3, 1400);
+const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
 const camPos: Vec3 = [...manager.state.karts[PLAYER].position];
 const camLook: Vec3 = [...camPos];
 
@@ -136,7 +136,7 @@ function frame(now: number) {
   const steps = acc.steps(frameDt);
   for (let i = 0; i < steps; i++) {
     ai.fill(manager.state, manager.lastActiveHazards, inputs);
-    inputs[PLAYER] = player.finishTick === undefined ? input.sample() : inputs[PLAYER];
+    inputs[PLAYER] = player.finishTick === undefined ? input.sample(SIM_DT) : inputs[PLAYER];
     manager.step(inputs);
     for (let k = 0; k < views.length; k++) views[k].onTick(manager.state.karts[k], SIM_DT);
   }
@@ -151,6 +151,8 @@ function frame(now: number) {
   const lag = inputs[PLAYER].lookBack ? CAM.flipLag : CAM.lag;
   smoothTo(camPos, pose.position, lag, frameDt);
   smoothTo(camLook, pose.target, lag, frameDt);
+  camera.fov = fovFor(player.speed);
+  camera.updateProjectionMatrix();
   camera.position.set(camPos[0], camPos[1], camPos[2]);
   camera.lookAt(new Vector3(camLook[0], camLook[1], camLook[2]));
   sun.target.position.copy(views[PLAYER].root.position);

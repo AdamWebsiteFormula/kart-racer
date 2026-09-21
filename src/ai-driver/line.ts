@@ -111,7 +111,11 @@ export function chooseBranch(s: KartState, track: Track, m: AiMemory, profile: A
   const len = track.length;
   if (m.branchChoice !== 0) {
     const b = list[Math.abs(m.branchChoice)];
-    if (!b || !b.open || signedOffset(b.entryT, s.t) * len < 0) m.branchChoice = 0;
+    if (!b || !b.open) { m.branchChoice = 0; return; }
+    const d = signedOffset(b.entryT, s.t) * len;
+    // a taken fork stays taken past the entry: the two roads overlap there and the
+    // controller only moves the kart onto the branch once it has left the main road
+    if (m.branchChoice > 0 ? d < -AI.line.branchCommitMetres : d < 0) m.branchChoice = 0;
     return;
   }
   for (let i = 1; i < list.length; i++) {

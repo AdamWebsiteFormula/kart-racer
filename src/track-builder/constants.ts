@@ -4,7 +4,7 @@ import trackSchema from '../../docs/schemas/track.schema.json';
 import kartSchema from '../../docs/schemas/kart.schema.json';
 
 export interface BuilderConstants {
-  lutSamples: number; arcDivisions: number; globalSearchStep: number; branchHysteresis: number;
+  lutSamples: number; arcDivisions: number; globalSearchStep: number; branchHysteresis: number; branchLeaveMargin: number;
   maxBankDeg: number; minTurnRadiusFactor: number; minStartHalfWidth: number;
   branchBlendMetres: number; kerbWidth: number; kerbHeight: number; shoulderWidth: number; shoulderDrop: number;
   barrierSpacing: number; roadTileLength: number; chunkCount: number;

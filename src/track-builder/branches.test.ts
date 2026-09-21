@@ -43,6 +43,21 @@ describe('branches', () => {
     expect(track.sample(h.t, 0, h.branch).position[0]).toBeCloseTo(mid[0], 3);
   });
 
+  it('a kart still on the main road is not taken by a fork it drives past; off the road it is', () => {
+    // just past the beach entry the beach line runs a few metres left of the main line
+    const t = wrap01(beach.entryT + beach.span * 0.05);
+    const main = track.sample(t, 0, 0);
+    const beachLine = beach.lut.sample(0.05, 0).position;
+    const side = Math.sign((beachLine[0] - main.position[0]) * main.tangent[2] - (beachLine[2] - main.position[2]) * main.tangent[0]);
+    const hw = main.halfWidth;
+    // on the main road, well over to the fork side: stays on main
+    const onRoad = track.sample(t, side * (hw - 2.0), 0).position;
+    expect(track.nearest(onRoad, { t, branch: 0 }, T_SEARCH_WINDOW).branch).toBe(0);
+    // beyond the main road's edge, where only the beach is under the wheels: the beach
+    const off = track.sample(t, side * (hw + 1.5), 0).position;
+    expect(track.nearest(off, { t, branch: 0 }, T_SEARCH_WINDOW).branch).toBe(beach.index);
+  });
+
   it('a closed shortcut is never selected', () => {
     beach.forcedOpen = false;
     try {

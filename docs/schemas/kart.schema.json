@@ -146,6 +146,7 @@
           "narrowLookAhead": { "type": "number", "description": "look-ahead scale on a narrow road or near a branch entry/exit (floor lookAheadMin)", "default": 0.5 },
           "narrowMargin": { "type": "number", "description": "corner-speed margin multiplier on a narrow road, where a slide has nowhere to go", "default": 0.75 },
           "outsideFraction": { "type": "number", "description": "before a drift-worthy bend, set up on the outside at this × halfWidth so the drift has room", "default": 0.5 },
+          "branchCommitMetres": { "type": "number", "description": "a taken shortcut stays the aim this far past its entry; the kart is only moved onto the branch once it has left the main road", "default": 40 },
           "declineFraction": { "type": "number", "description": "after declining a shortcut, keep at least this × halfWidth on the far side of the fork", "default": 0.35 },
           "wanderAmpMin": { "type": "number", "default": 0.08 }, "wanderAmpMax": { "type": "number", "default": 0.2 },
           "wanderPeriodMin": { "type": "number", "default": 3.3 }, "wanderPeriodMax": { "type": "number", "default": 8.3 }
@@ -193,8 +194,8 @@
         "rubber": { "type": "object", "properties": {
           "min": { "type": "number", "default": 0.6 }, "max": { "type": "number", "default": 1.4 },
           "deadZone": { "type": "number", "description": "metres of gap with no effect", "default": 30 },
-          "scale": { "type": "number", "description": "metres; tanh scale beyond the dead zone", "default": 150 },
-          "powerFrom": { "type": "number", "description": "rb below this cuts power (top-speed cap); above it only skill moves", "default": 0.8 },
+          "scale": { "type": "number", "description": "metres; tanh scale beyond the dead zone. 100: a leader 100 m up the road is at rb 0.75 and has lost 12 % power (test drive, 2026-09-21)", "default": 100 },
+          "powerFrom": { "type": "number", "description": "rb below this cuts power (top-speed cap); above it only skill moves", "default": 0.85 },
           "skillGain": { "type": "number", "description": "skill += (rb − 1) × gain", "default": 1.25 },
           "shortcutRb": { "type": "number", "description": "rubber band at or above which a narrow shortcut is taken as a catch-up", "default": 1.15 },
           "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.05 }

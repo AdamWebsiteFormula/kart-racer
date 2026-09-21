@@ -9,7 +9,7 @@ export interface AiConstants {
     lookAheadGain: number; lookAheadMin: number; lookAheadMax: number;
     turnNearSeconds: number; turnFarSeconds: number;
     insideGain: number; insideBiasMax: number; lateralMaxFraction: number; laneHalfFraction: number;
-    edgeMargin: number; aimClampMargin: number; laneRate: number; narrowRoad: number; narrowLookAhead: number; narrowMargin: number; outsideFraction: number; declineFraction: number;
+    edgeMargin: number; aimClampMargin: number; laneRate: number; narrowRoad: number; narrowLookAhead: number; narrowMargin: number; outsideFraction: number; declineFraction: number; branchCommitMetres: number;
     wanderAmpMin: number; wanderAmpMax: number; wanderPeriodMin: number; wanderPeriodMax: number;
   };
   steer: { kP: number; kD: number; dErrMax: number; offroadGain: number; noiseSmoothing: number; kLat: number; kLatMax: number };

@@ -16,7 +16,14 @@ export const CAM = Object.freeze({
   /** while look-back is held */
   flipLag: 14,
   topSpeed: 25,
+  /** vertical field of view at a standstill and the extra at top speed: speed you can see */
+  fov: 66,
+  fovAtSpeed: 12,
 });
+
+export function fovFor(speed: number): number {
+  return CAM.fov + CAM.fovAtSpeed * Math.min(1, Math.abs(speed) / CAM.topSpeed);
+}
 
 export interface CamPose { position: Vec3; target: Vec3 }
 

@@ -109,6 +109,7 @@ Item speed is also +40%, so trick 1.3 < pad 1.4 = item 1.4 and the "boost never 
 Device remapping UI, Smart Steer, auto-accelerate, camera, particles, audio, respawn placement, checkpoints, positions, item effects beyond the status fields the controller already honours.
 
 ## Decisions
+- 2026-09-21 (Adam, test drive): keyboard steer ramps (`rampSteer`: full lock in 0.14 s, back to centre in 0.08 s) inside `InputSource.sample(dt)`; the sim sees only the ramped value, so logs replay exactly. A standard-mapping stick bypasses the ramp. The right key gives −1 (the sim's + is screen left).
 - 2026-09-07: Charge values in the schema are per 60 fps frame; the 120 Hz sim multiplies by `dt × 60`. Tiers stay 250/550/850.
 - 2026-09-07: Boost priority is trick 5 > item 4 > pad 3 > drift 2 > slipstream 1 = start 1. Pad sits between item and drift because the bible only orders the other three.
 - 2026-09-07: Coins scale base speed; boosts multiply that. So the test cap is `1.4 × V_eff`, not `1.4 × topSpeed`.

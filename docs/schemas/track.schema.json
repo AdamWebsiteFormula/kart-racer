@@ -133,6 +133,7 @@
         "arcDivisions": { "type": "integer", "default": 4096, "description": "Fine steps used to walk the curve before resampling" },
         "globalSearchStep": { "type": "integer", "default": 8, "description": "Coarse stride for nearestTGlobal" },
         "branchHysteresis": { "type": "number", "default": 1.0, "description": "metres; another branch must be closer by this much to win" },
+        "branchLeaveMargin": { "type": "number", "default": 1.35, "description": "metres inside a road edge a kart still counts as on that road; another branch can only take it once it is past this. Must exceed kartRadius (0.85): the wall holds a kart exactly one radius inside the edge, so at 0.85 nobody could ever leave" },
         "maxBankDeg": { "type": "number", "default": 20 },
         "minTurnRadiusFactor": { "type": "number", "default": 1.5, "description": "turn radius must be >= factor × halfWidth (hairpin guard)" },
         "minStartHalfWidth": { "type": "number", "default": 4 },

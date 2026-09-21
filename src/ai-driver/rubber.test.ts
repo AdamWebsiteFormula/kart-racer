@@ -22,6 +22,6 @@ describe('rubber band', () => {
     expect(powerCapFor(p, 1.4)).toBe(p.power);
     expect(powerCapFor(p, 1)).toBe(p.power);
     expect(powerCapFor(p, AI.rubber.powerFrom)).toBe(p.power);
-    expect(powerCapFor(p, 0.6)).toBeCloseTo(p.power * 0.75, 6);
+    expect(powerCapFor(p, 0.6)).toBeCloseTo(p.power * (0.6 / AI.rubber.powerFrom), 6);
   });
 });

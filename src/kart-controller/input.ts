@@ -49,11 +49,27 @@ export function mapInput(held: ReadonlySet<string>, pad: Gamepad | null, keys: K
   return { ...NEUTRAL_INPUT, steer, throttle, brake, drift, item, lookBack, horn };
 }
 
+/**
+ * Keyboard steer is on/off; the wheel is not. Ramp toward the key over STEER_RAMP.to
+ * seconds and back to centre over STEER_RAMP.back. The sim only ever sees the ramped
+ * value, so a replayed log reproduces it and the race stays deterministic.
+ */
+export const STEER_RAMP = Object.freeze({ to: 0.14, back: 0.08 });
+
+export function rampSteer(prev: number, target: number, dt: number): number {
+  const towardCentre = Math.abs(target) < Math.abs(prev) || Math.sign(target) !== Math.sign(prev);
+  const rate = 1 / (towardCentre ? STEER_RAMP.back : STEER_RAMP.to);
+  const step = rate * dt;
+  const d = target - prev;
+  return Math.abs(d) <= step ? target : prev + Math.sign(d) * step;
+}
+
 /** Listens to the window; call sample() once per sim tick. */
 export class InputSource {
   private held = new Set<string>();
   private target: Window;
   private keys: KeyMap;
+  private steer = 0;
   constructor(target: Window = window, keys: KeyMap = DEFAULT_KEYS) {
     this.target = target;
     this.keys = keys;
@@ -64,10 +80,15 @@ export class InputSource {
   private onDown = (e: KeyboardEvent) => { this.held.add(e.code); };
   private onUp = (e: KeyboardEvent) => { this.held.delete(e.code); };
   private onBlur = () => { this.held.clear(); };
-  sample(): InputState {
+  /** `dt` is the sim tick the sample is for; the steer ramp runs on it. */
+  sample(dt = 1 / 120): InputState {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = pads.find((p): p is Gamepad => !!p && p.mapping === 'standard') ?? null;
-    return mapInput(this.held, pad, this.keys);
+    const raw = mapInput(this.held, pad, this.keys);
+    // an analogue stick already is a ramp; keys get one
+    const analogue = pad !== null && Math.abs(pad.axes[GAMEPAD.steerAxis] ?? 0) > GAMEPAD.deadZone;
+    this.steer = analogue ? raw.steer : rampSteer(this.steer, raw.steer, dt);
+    return { ...raw, steer: this.steer };
   }
   dispose(): void {
     this.target.removeEventListener('keydown', this.onDown);

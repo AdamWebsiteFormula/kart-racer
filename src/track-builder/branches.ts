@@ -91,6 +91,12 @@ export class Branch {
     return { t: this.toMain(u), d2: this.lut.dist2At(u, position) };
   }
 
+  /** Road half-width at main-equivalent t. */
+  halfWidthAt(t: number): number {
+    const u = this.toLocal(t);
+    return this.lut.hw[this.lut.idx(Math.round(u * this.lut.step))];
+  }
+
   /** Global 3D nearest on this branch: main-equivalent t and squared distance. */
   nearestGlobal(position: Vec3): { t: number; d2: number } {
     const u = this.lut.nearestTGlobal(position);
@@ -153,8 +159,9 @@ export class Branches {
 
   /**
    * Current branch first (even if it has closed: a kart mid-branch rides it to the
-   * exit), then every other open branch overlapping the window. Switch only when
-   * the other is closer by more than branchHysteresis metres in 3D. A closed hint
+   * exit). While the kart is still inside that road (its edge less branchLeaveMargin)
+   * it stays there. Off it, every other open branch overlapping the window competes,
+   * and one wins only when it is closer by more than branchHysteresis metres in 3D. A closed hint
    * branch whose range does not contain hint.t is stale and counts as main.
    */
   nearest(position: Vec3, hint: TrackHint, window: number): TrackHint {
@@ -164,6 +171,9 @@ export class Branches {
     let bestBranch = cur.index;
     let bestDist = Math.sqrt(best.d2);
     let bestT = best.t;
+    // still on the road you are on? Then you are on it, however close another line runs.
+    // Two roads overlap for metres at a fork; the nearer centreline is not the one you chose.
+    if (bestDist <= cur.halfWidthAt(bestT) - BUILDER.branchLeaveMargin) return { t: bestT, branch: cur.index };
     const hyst = BUILDER.branchHysteresis;
     for (const b of this.list) {
       if (b === cur || !b.open || !b.overlaps(hint.t, window)) continue;

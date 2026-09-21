@@ -101,6 +101,7 @@ Read from elsewhere, never redefined: `kartRadius` 0.85 and `tSearchWindow` 0.02
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-21 (Adam, test drive): `nearest()` no longer hands a kart to a shortcut whose centreline happens to be nearer while the kart is still on its own road; it must be past that road's edge less `branchLeaveMargin` (0.85 m) first. Players were being pulled onto the beach by driving near the fork.
 - 2026-09-21 (Adam, test drive): a shortcut ribbon drew its kerb stripes across the main road at the fork. Now a branch ribbon loses kerbs and shoulders and sinks 3 cm for `branchBlendMetres` (14) at each end, so the main road draws on top where they overlap (`RibbonOptions.blend`).
 - 2026-09-21 (Adam, from the ai-driver session): Harbour Loop turn 1 is now a ~18 m-radius 90° (four control points replace (160, −60)); the kart-controller drift needs a bend at least as tight as `steerRate × driftSteerMin` = 0.84 rad/s, and the old 60–90 m sweepers gave nobody a mini-turbo (ai-driver Lessons). Feature and shortcut `t` values were re-derived from world positions; the file was rewritten by script and validates.
 - 2026-09-19: Approach synthesised. Three open questions for Adam before code: shortcut branches need `branch` on the kart state and in `TrackQuery`; the schema has no ground/terrain field; what the `rail` surface does in the kart.

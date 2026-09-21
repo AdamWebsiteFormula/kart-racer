@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ } from '../kart-controller/step.ts';
 import { Accumulator, MAX_STEPS } from './loop.ts';
 import { formatTime, hudNumbers } from './hud.ts';
-import { CAM, idealPose, smoothTo } from './camera.ts';
+import { CAM, fovFor, idealPose, smoothTo } from './camera.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { RaceManager } from '../race-manager/race.ts';
 import { HARBOUR_LOOP } from '../race-manager/__tests__/fixtures.ts';
@@ -46,6 +46,12 @@ describe('chase camera', () => {
     const back = idealPose([0, 0, 0], 0, 0, true);
     expect(back.position[2]).toBeCloseTo(CAM.back);
     expect(back.target[2]).toBeCloseTo(-CAM.aheadLook);
+  });
+
+  it('field of view widens with speed and caps at top speed', () => {
+    expect(fovFor(0)).toBe(CAM.fov);
+    expect(fovFor(CAM.topSpeed / 2)).toBeCloseTo(CAM.fov + CAM.fovAtSpeed / 2);
+    expect(fovFor(CAM.topSpeed * 3)).toBe(CAM.fov + CAM.fovAtSpeed);
   });
 
   it('backs off with speed and smoothing converges', () => {
