@@ -190,6 +190,29 @@ describe('RaceManager', () => {
     expect(dnfFinish.map((x) => (x.e as { racerId: string }).racerId)).toEqual(['r3']);
   });
 
+  it('a finished kart keeps taking its input and rolls on past the line', () => {
+    const track = buildTrack(OVAL);
+    const rm = new RaceManager(track, config(track, racers(2, 1)));
+    const drivers = [lookAheadDriver(22, -2), lookAheadDriver(8, 2)];
+    let finishTick = -1;
+    const posAtFinish: number[] = [];
+    let speedAfter5 = -1, tAfter5 = -1;
+    run(rm, drivers, (tick) => {
+      const s = rm.state.karts[0];
+      if (finishTick < 0 && s.finishTick !== undefined) { finishTick = s.finishTick; posAtFinish.push(...s.position); }
+      if (finishTick >= 0 && tick === finishTick + 5 * SIM_HZ) { speedAfter5 = s.speed; tAfter5 = s.t; }
+    });
+    expect(finishTick).toBeGreaterThan(0);
+    expect(speedAfter5).toBeGreaterThan(10);
+    const s = rm.state.karts[0];
+    const moved = Math.hypot(s.position[0] - posAtFinish[0], s.position[2] - posAtFinish[2]);
+    expect(moved).toBeGreaterThan(30);
+    expect(tAfter5).not.toBe(-1);
+    // the rules still leave it alone
+    expect(s.lap).toBe(3);
+    expect(rm.results().ranks[0]).toMatchObject({ racerId: 'r0', dnf: false, finishTick });
+  });
+
   it('ranking: finished above unfinished, ties by grid, positionChange debounced', () => {
     const track = buildTrack(OVAL);
     const rm = new RaceManager(track, config(track, racers(3)));

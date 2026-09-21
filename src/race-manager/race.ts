@@ -107,7 +107,9 @@ export class RaceManager {
     } else {
       for (let i = 0; i < karts.length; i++) {
         const s = karts[i], tr = trackers[i];
-        this.effective[i] = !s.isGhost && (s.finishTick !== undefined || tr.freezeRemaining > 0) ? NEUTRAL_INPUT : inputs[i];
+        // a finished kart keeps its input: the driver (ai-driver autopilot) rolls it out
+        // of the way instead of parking it on the line (ai-driver Decisions 2026-09-21)
+        this.effective[i] = !s.isGhost && tr.freezeRemaining > 0 ? NEUTRAL_INPUT : inputs[i];
       }
     }
     // the log starts at tick 0: the countdown throttle decides the start boost, so a
