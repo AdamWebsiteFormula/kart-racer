@@ -12,7 +12,11 @@ export const CAM = Object.freeze({
   aheadLook: 8,
   lookHeight: 1.0,
   /** 1/s, how fast the camera position chases its ideal spot */
-  lag: 6,
+  lag: 10,
+  /** 1/s, how fast the camera's own yaw swings round behind the kart: slow, so the kart turns inside the frame */
+  yawLag: 2.5,
+  /** below this speed the camera follows the nose; above it, the direction of travel (a drift shows as the kart sideways in frame) */
+  travelBlendSpeed: 6,
   /** while look-back is held */
   flipLag: 14,
   topSpeed: 25,
@@ -27,7 +31,29 @@ export function fovFor(speed: number): number {
 
 export interface CamPose { position: Vec3; target: Vec3 }
 
-/** Where the camera wants to be for this kart pose, right now. */
+export function wrapAngle(a: number): number {
+  while (a > Math.PI) a -= 2 * Math.PI;
+  while (a < -Math.PI) a += 2 * Math.PI;
+  return a;
+}
+
+/**
+ * The yaw the camera wants to sit behind: the kart's direction of travel once it is
+ * moving (so a drift reads as the kart sideways in frame), the nose when it is not.
+ */
+export function travelYaw(heading: number, speed: number, lateralVelocity: number): number {
+  const w = Math.min(1, Math.max(0, Math.abs(speed)) / CAM.travelBlendSpeed);
+  const slip = Math.atan2(lateralVelocity, Math.max(Math.abs(speed), 1e-3)) * Math.sign(speed || 1);
+  return heading + slip * w;
+}
+
+/** One frame of the camera's own yaw chasing `want`, frame-rate independent. */
+export function chaseYaw(camYaw: number, want: number, lag: number, frameDt: number): number {
+  const k = 1 - Math.exp(-lag * frameDt);
+  return camYaw + wrapAngle(want - camYaw) * k;
+}
+
+/** Where the camera wants to be for this kart pose, given the camera's own (lagged) yaw. */
 export function idealPose(position: Vec3, heading: number, speed: number, lookBack: boolean): CamPose {
   const f = forwardOf(heading);
   const dir = lookBack ? -1 : 1;

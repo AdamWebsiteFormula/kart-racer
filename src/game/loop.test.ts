@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ } from '../kart-controller/step.ts';
 import { Accumulator, MAX_STEPS } from './loop.ts';
 import { formatTime, hudNumbers } from './hud.ts';
-import { CAM, fovFor, idealPose, smoothTo } from './camera.ts';
+import { CAM, chaseYaw, fovFor, idealPose, smoothTo, travelYaw } from './camera.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { RaceManager } from '../race-manager/race.ts';
 import { HARBOUR_LOOP } from '../race-manager/__tests__/fixtures.ts';
 import type { Vec3 } from '../kart-controller/types.ts';
+
+const wrapTo = (a: number) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 
 describe('accumulator', () => {
   it('runs one step per tick of frame time and keeps the remainder as alpha', () => {
@@ -46,6 +48,18 @@ describe('chase camera', () => {
     const back = idealPose([0, 0, 0], 0, 0, true);
     expect(back.position[2]).toBeCloseTo(CAM.back);
     expect(back.target[2]).toBeCloseTo(-CAM.aheadLook);
+  });
+
+  it('the camera yaw chases the direction of travel slowly, and follows the nose at a standstill', () => {
+    expect(travelYaw(0.5, 0, 3)).toBeCloseTo(0.5); // stopped: the nose
+    const sliding = travelYaw(0, 20, 5); // moving with a rightward slide: travel is right of the nose
+    expect(sliding).toBeGreaterThan(0.2);
+    expect(sliding).toBeLessThan(0.3);
+    let yaw = 0;
+    for (let i = 0; i < 60; i++) yaw = chaseYaw(yaw, 1, CAM.yawLag, 1 / 60);
+    expect(yaw).toBeCloseTo(1 - Math.exp(-CAM.yawLag), 2); // one second: 92 % of the way
+    // wraps: chasing across ±π takes the short way
+    expect(chaseYaw(3.0, -3.0, 100, 1)).toBeCloseTo(3.0 + wrapTo(-6.0), 1);
   });
 
   it('field of view widens with speed and caps at top speed', () => {

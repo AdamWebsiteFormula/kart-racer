@@ -10,6 +10,7 @@ interface Pose { x: number; y: number; z: number; heading: number }
 const LEAN = Object.freeze({
   yawLag: 8, // 1/s, chassis yaw chases the logical heading
   rollPerSteerSpeed: 0.012, // rad per (steer × m/s)
+  rollLag: 8, // 1/s, the roll eases in and out instead of snapping with the key
   pitchPerAccel: 0.02, // rad per m/s²
   pitchLag: 6,
 });
@@ -20,6 +21,7 @@ export class KartView {
   private prev: Pose;
   private curr: Pose;
   private chassisYaw = 0;
+  private roll = 0;
   private pitch = 0;
   private lastSpeed = 0;
   private lastAccel = 0;
@@ -60,9 +62,10 @@ export class KartView {
     const slip = s.drift.active ? -s.drift.direction * this.c.driftVisualSlip : 0;
     const k = 1 - Math.exp(-LEAN.yawLag * frameDt);
     this.chassisYaw += (slip - this.chassisYaw) * k;
-    const roll = -steer * s.speed * LEAN.rollPerSteerSpeed;
+    const kr = 1 - Math.exp(-LEAN.rollLag * frameDt);
+    this.roll += (-steer * s.speed * LEAN.rollPerSteerSpeed - this.roll) * kr;
     const kp = 1 - Math.exp(-LEAN.pitchLag * frameDt);
     this.pitch += (-this.lastAccel * LEAN.pitchPerAccel - this.pitch) * kp;
-    this.chassis.rotation.set(this.pitch, this.chassisYaw, roll);
+    this.chassis.rotation.set(this.pitch, this.chassisYaw, this.roll);
   }
 }
