@@ -27,12 +27,16 @@ describe('speed', () => {
     const m = memory(PROFILES.hard);
     m.powerCap = 0.9; m.fieldPace = 0.95;
     const out: SpeedDecision = { legal: 0, target: 0, corner: 0 };
-    decideSpeed(s, c, m, fakeLine(0), out);
+    decideSpeed(s, c, m, fakeLine(0), false, out);
     expect(out.legal).toBeCloseTo(targetSpeed(s, c).target);
     expect(out.target).toBeCloseTo(0.9 * 0.95 * out.legal);
-    decideSpeed(s, c, m, fakeLine(1.4), out);
+    decideSpeed(s, c, m, fakeLine(1.4), false, out);
     expect(out.target).toBeLessThan(0.9 * 0.95 * out.legal);
     expect(out.target).toBeGreaterThanOrEqual(4);
+    // a planned drift turns tighter than grip, so the same bend allows more speed
+    const gripTarget = out.target;
+    decideSpeed(s, c, m, fakeLine(1.4), true, out);
+    expect(out.target).toBeGreaterThan(gripTarget);
   });
 
   it('throttle: full below target, coast above, brake well above, never idle at a standstill', () => {

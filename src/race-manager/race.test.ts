@@ -32,7 +32,9 @@ function run(rm: RaceManager, drivers: Driver[], onTick?: (tick: number) => void
   return log;
 }
 
-const speeds = [24, 22.5, 21, 19.5, 18, 16.5, 15, 13.5];
+// Harbour turn 1 is a ~20 m corner since 2026-09-21 (ai-driver Decisions): a no-brake
+// driver above ~19 m/s scrapes it, so the scripted field tops out at 19 with 1.2 m/s steps
+const speeds = [19, 17.8, 16.6, 15.4, 14.2, 13, 11.8, 10.6];
 const field = (n: number) => speeds.slice(0, n).map((v, i) => lookAheadDriver(v, laneFor(i)));
 
 describe('RaceManager', () => {

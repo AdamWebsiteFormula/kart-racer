@@ -10,7 +10,7 @@ import type { Track } from '../track-builder/track.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
 import { applyAvoid, type AvoidContext } from './avoid.ts';
 import { AI, PROFILES, difficultyFor } from './constants.ts';
-import { stepDriftDecision, stepTrick } from './drift.ts';
+import { driftWorthy, stepDriftDecision, stepTrick } from './drift.ts';
 import { decideItem, type ItemContext } from './items.ts';
 import { chooseBranch, lateralTarget, readLine } from './line.ts';
 import { personalityFor } from './personalities.ts';
@@ -159,7 +159,9 @@ export class AiDriver {
     out.steer = steerTo(s, aim, m, profile.noise * (1 - m.skill), offroad ? AI.steer.offroadGain : 1, m.lateral - line.myLat, dt);
 
     // 6. throttle
-    const sp = decideSpeed(s, c, m, line, this.speed);
+    const willDrift = !finished && m.driftDir === 0 && m.driftCooldown === 0 && m.personality.driftUse > 0 && !line.narrow && !line.nearBranch
+      && driftWorthy(s, c, profile, line);
+    const sp = decideSpeed(s, c, m, line, willDrift, this.speed);
     applyThrottle(s, sp, profile, out);
 
     // 7–8. drift and trick (not on the autopilot)

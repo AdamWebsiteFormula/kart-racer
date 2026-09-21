@@ -211,6 +211,14 @@ describe('AiDriver gates', () => {
         if (next) expect(next.tick - end.tick).toBeGreaterThanOrEqual(Math.round(AI.drift.abortCooldown * SIM_HZ) - 1);
       }
     }
+    // Harbour Loop turn 1 was tightened to ~15 m so the first drift can pay there (Decisions 2026-09-21):
+    // Hard banks a tier on Harbour too
+    const harbour = buildTrack(HARBOUR_LOOP);
+    const hh = runRace(harbour, config(harbour, racers(8), 150));
+    const bestH = new Map<string, number>();
+    for (const e of kartEvents(hh.log, 'driftEnd')) bestH.set(e.racerId, Math.max(bestH.get(e.racerId) ?? 0, (e.event as { tier: number }).tier));
+    expect([...bestH.values()].filter((t) => t >= 1).length, `harbour hard tiers ${[...bestH.values()]}`).toBeGreaterThanOrEqual(6);
+    expect(count(hh.log, 'respawn')).toBe(0);
     const track = buildTrack(HARBOUR_LOOP);
     const shy = Object.fromEntries(racers(8).map((r) => [r.racerId, { lateralBias: 0, aggression: 0.5, driftUse: 0 }]));
     const { log } = runRace(track, config(track, racers(8), 150), { personalities: shy });

@@ -23,9 +23,13 @@ export function lookAheadDriver(maxSpeed = Infinity, lane = 0, lookAhead = 0.02)
   };
 }
 
-/** Lanes for a field: spread across ±1.5 m so faster karts can pass on every road. */
+/**
+ * Lanes for a field: spread over 3 m so faster karts can pass on every road, kept off
+ * lateral +3 (Harbour's rolling barrels, which a no-brake scripted driver cannot dodge)
+ * and off the far left (where its shortcuts peel away).
+ */
 export function laneFor(i: number): number {
-  return (i % 4) - 1.5;
+  return [0.5, -0.5, -1.5, -2.5][i % 4];
 }
 
 /** Holds brake so the kart reverses straight down the track. */

@@ -34,11 +34,12 @@ export function cornerSpeed(kappa: number, V: number, c: KartConstants, margin: 
 
 export interface SpeedDecision { legal: number; target: number; corner: number }
 
-export function decideSpeed(s: KartState, c: KartConstants, m: AiMemory, line: LineInfo, out: SpeedDecision): SpeedDecision {
+/** `willDrift`: a drift is live or planned for this bend, so the drift yaw is the limit, not grip. */
+export function decideSpeed(s: KartState, c: KartConstants, m: AiMemory, line: LineInfo, willDrift: boolean, out: SpeedDecision): SpeedDecision {
   const ts = targetSpeed(s, c);
   const legal = ts.target;
   const margin = cornerMargin(m.skill) * (line.narrow ? AI.line.narrowMargin : 1);
-  const corner = cornerSpeed(line.kappa, ts.base, c, margin, s.drift.phase === 'drifting');
+  const corner = cornerSpeed(line.kappa, ts.base, c, margin, s.drift.phase === 'drifting' || willDrift);
   out.legal = legal;
   out.corner = corner;
   out.target = Math.min(m.powerCap * m.fieldPace * legal, Math.max(corner, MIN_CORNER_SPEED));
