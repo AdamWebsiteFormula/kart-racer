@@ -11,10 +11,10 @@ npm run dev       # Vite dev server
 npm run build     # tsc typecheck, then vite build
 npm run preview   # serve the built dist/
 ```
-`npm run verify` (typecheck + unit tests + headless perf run + bundle size + a11y) is the merge gate named in the SOPs but **does not exist yet**. Add it when the first system lands; do not claim it passed before then.
+`npm run verify` is `tsc && vitest run` (typecheck + unit tests). The headless perf run, bundle size and a11y stages named in the SOPs are **not in it yet**; do not claim they passed.
 
 ## Current state
-Blueprint phase only. `src/` is still the untouched Vite vanilla-ts template (`main.ts`, `counter.ts`). No game code exists yet, by design. Build order from docs/build-ritual.md: kart-controller → track-builder → race-manager → ai-driver → items → ui-hud → audio → art-pipeline → vfx-juice → backend-leaderboard → performance → deploy. One system per session; each lives in `src/<system>` with headless tests.
+Built and green: kart-controller, track-builder (Harbour Loop only), race-manager, ai-driver. `npm run dev` runs a **test drive** (`src/main.ts` + `src/game/`): Harbour Loop, you as Pip plus 7 Hard AI, placeholder box karts and cube decor, a chase camera, the fixed 120 Hz loop with render interpolation, and a bare HUD. It exists to feel the handling; it is not the game and has no art. `src/game/` holds only the loop, camera and HUD numbers (all headless-tested); the real ui-hud, art-pipeline and menus replace it. In dev, `kart` on the browser console exposes the live manager, AI, renderer and `kart.stats()`. Build order from docs/build-ritual.md: kart-controller → track-builder → race-manager → ai-driver → items → ui-hud → audio → art-pipeline → vfx-juice → backend-leaderboard → performance → deploy. One system per session; each lives in `src/<system>` with headless tests.
 
 ## Where the truth lives
 - `docs/design.md` — design bible (world, cast, tracks, handling numbers, items, the Final Lap Shift twist). Anything not in it is not in the game.
