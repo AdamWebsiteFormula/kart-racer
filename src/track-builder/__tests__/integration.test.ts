@@ -86,7 +86,7 @@ describe('integration on Harbour Loop', () => {
       while (err > Math.PI) err -= 2 * Math.PI;
       while (err < -Math.PI) err += 2 * Math.PI;
       stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer: Math.max(-1, Math.min(1, err * 3)) }, track, c, DT);
-      if (s.branch === beach.index) { onBeach++; expect(s.surface).toBe('dirt'); }
+      if (s.branch === beach.index) { onBeach++; expect(s.surface).toBe('road'); /* boardwalk */ }
       const d = wrap01(s.t - prevT);
       if (d > 0.5) maxBack = Math.max(maxBack, 1 - d);
       prevT = s.t;

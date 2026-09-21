@@ -105,7 +105,7 @@ export function lateralTarget(s: KartState, c: KartConstants, m: AiMemory, profi
  * Decide once per approach whether to take an open shortcut whose entry is within
  * 2L ahead. branchChoice > 0 = taking it, < 0 = declined it, 0 = nothing pending.
  */
-export function chooseBranch(s: KartState, track: Track, m: AiMemory, profile: AiProfile, line: LineInfo): void {
+export function chooseBranch(s: KartState, track: Track, m: AiMemory, profile: AiProfile, line: LineInfo, onlyShortcut?: string): void {
   if (s.branch !== 0) { m.branchChoice = 0; return; }
   const list = track.branches.list;
   const len = track.length;
@@ -126,7 +126,9 @@ export function chooseBranch(s: KartState, track: Track, m: AiMemory, profile: A
     // a narrow shortcut is slower for the AI (it centres and brakes): only as a catch-up
     const narrow = b.lut.sample(0.5, 0).halfWidth < AI.line.narrowRoad;
     const able = m.skill >= profile.shortcutSkill;
-    const take = able && (m.rb >= AI.rubber.shortcutRb || (!narrow && next(m) < m.personality.aggression));
+    const take = onlyShortcut !== undefined
+      ? b.id === onlyShortcut
+      : able && (m.rb >= AI.rubber.shortcutRb || (!narrow && next(m) < m.personality.aggression));
     m.branchChoice = take ? i : -i;
     return;
   }

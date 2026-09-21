@@ -127,6 +127,7 @@ Item behaviours, projectiles and the roulette (items); rubber-band HUD cue and t
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-21 (Adam, test drive): catch-up. Rubber band `deadZone` 30 → 20 m and `scale` 100 → 60 m: a leader 100 m up the road sits at rb 0.67 and has lost ~21 % power, so a player closes 100 m in about 25 s. `AiDriverOptions.onlyShortcut` forces one shortcut (gate 16, side paths help).
 - 2026-09-21: with track-builder's `branchLeaveMargin`, a kart reaches a fork still on the main road, so a taken shortcut now stays the aim for `branchCommitMetres` (40) past its entry instead of clearing at the entry.
 - 2026-09-21: kart-controller `wallDeflect` reshuffled two gates: gate 7 runs to 300 s (a parked player rubber-bands the field to 0.75 power, ~200 s) and gate 9 asks for tier 2 on ≥ 3 of 8 Hard karts plus tier ≥ 1 on all, because pack contact on a 10 m road moves the count between 3 and 6 whenever a physics constant changes.
 - 2026-09-21: Approach synthesised. Open questions for Adam before code: (1) where difficulty comes from (speed class or a separate setting); (2) whether this session may make two small race-manager changes: respawn at the kart's own lateral clamped inside the road, and let finished karts take the AI's autopilot input instead of forced neutral (today they coast to a stop on the line). The eight personality values are Claude's proposal from design §4.

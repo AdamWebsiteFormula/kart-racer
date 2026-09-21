@@ -28,6 +28,8 @@ export interface AiDriverOptions {
   profile?: AiProfile;
   /** per-racer personality overrides (tests) */
   personalities?: Readonly<Record<string, AiPersonality>>;
+  /** take every open shortcut with this id, decline the others (the shortcut-helps gate) */
+  onlyShortcut?: string;
 }
 
 const AUTOPILOT: AiProfile = Object.freeze({ ...PROFILES.normal, skill: AI.autopilot.skill, power: AI.autopilot.power });
@@ -57,6 +59,7 @@ export function createMemory(seed: number, slot: number, racerId: string, profil
 export class AiDriver {
   readonly track: Track;
   readonly profile: AiProfile;
+  private readonly onlyShortcut: string | undefined;
   /** per kart, index-aligned with state.karts; serialisable */
   memory: AiMemory[];
   private readonly consts: KartConstants[];
@@ -71,6 +74,7 @@ export class AiDriver {
   constructor(track: Track, config: RaceConfig, state: RaceState, opts: AiDriverOptions = {}) {
     this.track = track;
     this.profile = opts.profile ?? PROFILES[difficultyFor(config.speedClass)];
+    this.onlyShortcut = opts.onlyShortcut;
     const byId = new Map(config.racers.map((r) => [r.racerId, r]));
     const karts = state.karts;
     this.consts = karts.map((k) => makeConstants(byId.get(k.racerId)?.archetype ?? 'medium', config.speedClass));
@@ -143,7 +147,7 @@ export class AiDriver {
 
     // 3. line
     const line = readLine(s, this.track, m, this.sc, this.line);
-    chooseBranch(s, this.track, m, profile, line);
+    chooseBranch(s, this.track, m, profile, line, this.onlyShortcut);
     let lat = lateralTarget(s, c, m, profile, line, state.tick / SIM_HZ);
 
     // 4. avoid and seek

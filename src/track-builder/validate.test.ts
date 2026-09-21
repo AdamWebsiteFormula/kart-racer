@@ -74,6 +74,7 @@ describe('validate', () => {
     d.finalLapShift.closesShortcuts = [];
     d.jumps = [];
     d.coins = d.coins!.filter((c) => !c.shortcut);
+    d.boostPads = d.boostPads!.filter((c) => !c.shortcut);
     const v = validateTrack(d);
     expect(v.ok).toBe(true);
     expect(v.warnings.some((w) => w.includes('estimated lap'))).toBe(true);

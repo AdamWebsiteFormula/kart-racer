@@ -340,6 +340,18 @@ describe('AiDriver gates', () => {
     expect(Math.abs(left + want), `left lane ${left.toFixed(2)} wanted ${(-want).toFixed(2)}`).toBeLessThan(0.6);
   });
 
+  it('16: side paths help, never hinder (design §6): a solo Hard AI forced onto each shortcut is at least as fast as on the main road', () => {
+    for (const def of TRACKS) {
+      const base = buildTrack(def);
+      const none = finishes(runRace(base, config(base, racers(1), 150), { onlyShortcut: 'none' }).log)[0].tick;
+      for (const sc of def.shortcuts ?? []) {
+        const track = buildTrack(def);
+        const forced = finishes(runRace(track, config(track, racers(1), 150), { onlyShortcut: sc.id }).log)[0].tick;
+        expect(forced, `${def.id} ${sc.id}: ${(forced / SIM_HZ).toFixed(1)} s via the shortcut vs ${(none / SIM_HZ).toFixed(1)} s on the road`).toBeLessThanOrEqual(none);
+      }
+    }
+  });
+
   it('15: budget: 7 AI × a full race stays far under 0.05 ms per AI per tick', () => {
     const track = buildTrack(HARBOUR_LOOP);
     const cfg = config(track, racers(8, 7), 100);

@@ -39,7 +39,7 @@ describe('branches', () => {
     const mid = beach.lut.sample(0.5, 0).position;
     const h = track.nearest(mid, { t: beach.toMain(0.5), branch: beach.index }, T_SEARCH_WINDOW);
     expect(h.branch).toBe(beach.index);
-    expect(track.sample(h.t, 0, h.branch).surface).toBe('dirt');
+    expect(track.sample(h.t, 0, h.branch).surface).toBe('road'); // the beach is a boardwalk since 2026-09-21; the point is that the sample comes from the branch
     expect(track.sample(h.t, 0, h.branch).position[0]).toBeCloseTo(mid[0], 3);
   });
 

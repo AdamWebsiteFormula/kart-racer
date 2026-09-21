@@ -38,6 +38,8 @@ Each racer has one signature kart (above) plus two shared body styles unlockable
 ## 6. Biomes and tracks (2 cups × 3 tracks, stretch to 4 each)
 Lap target 45–60 s at 150cc-equivalent; width ≥ 4 karts at the start; one shortcut ≤ 2 s gain with risk; one verticality moment; one landmark visible from the start line.
 
+**Side paths help, never hinder** (Adam, 21 Sept 2026). A shortcut taken cleanly must be at least as fast as the road it bypasses, for a Hard AI and therefore for a good player; the risk is in the taking (narrow, a jump, a hazard), not in the time. Gate: ai-driver test 16 forces a solo Hard AI onto each shortcut and compares its race to the main road.
+
 ### Sunrise Cup (teaches the game)
 | Track | Biome | Palette (bg / accent) | Teaches | Hazards | Final Lap Shift |
 |---|---|---|---|---|---|
