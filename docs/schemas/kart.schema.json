@@ -8,7 +8,7 @@
   "properties": {
     "base": {
       "type": "object",
-      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier"],
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier"],
       "properties": {
         "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
         "accel": { "type": "number", "default": 12 },
@@ -59,6 +59,7 @@
         "groundLaunchVy": { "type": "number", "default": 1.0 },
         "wallRestitution": { "type": "number", "default": 0.3 },
         "wallScrub": { "type": "number", "description": "Fraction of forward speed lost on a hard wall hit.", "default": 0.15 },
+        "wallDeflect": { "type": "number", "description": "On a hard wall hit the nose swings this fraction of the way from its heading to the wall line, so the kart slides along the wall instead of sticking to it nose-first (Mario Kart bounces you off; it never parks you).", "default": 0.7 },
         "slipstreamLength": { "type": "number", "description": "metres behind the kart ahead", "default": 8 },
         "slipstreamHalfWidth": { "type": "number", "default": 2 },
         "tSearchWindow": { "type": "number", "description": "Spline fraction searched around the previous t. Never search globally.", "default": 0.02 },

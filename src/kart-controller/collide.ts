@@ -36,7 +36,27 @@ export function stepWalls(
   w[0] -= n[0] * out * (1 + c.wallRestitution);
   w[2] -= n[2] * out * (1 + c.wallRestitution);
   setWorldVelocity(s, w);
-  if (total > 0 && out / total > c.hardWallFraction) s.speed *= 1 - c.wallScrub;
+  if (total > 0 && out / total > c.hardWallFraction) {
+    s.speed *= 1 - c.wallScrub;
+    // swing the nose toward the wall line so the kart slides on instead of parking nose-first
+    const f = forwardOf(s.heading);
+    const into = f[0] * n[0] + f[2] * n[2]; // how much the nose points into the wall
+    if (into > 0) {
+      const tangent: Vec3 = [f[0] - n[0] * into, 0, f[2] - n[2] * into];
+      const len = Math.hypot(tangent[0], tangent[2]);
+      if (len > 1e-6) {
+        const target = Math.atan2(tangent[0] / len, tangent[2] / len);
+        let d = target - s.heading;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        const keep = Math.hypot(s.speed, s.lateralVelocity);
+        s.heading += d * c.wallDeflect;
+        // the speed that was left points along the new nose
+        s.speed = keep;
+        s.lateralVelocity = 0;
+      }
+    }
+  }
   if (s.wallCooldown <= 0) {
     events.push({ type: 'wall' });
     s.wallCooldown = c.wallCooldownSeconds;

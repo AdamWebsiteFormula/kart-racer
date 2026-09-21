@@ -29,6 +29,17 @@ describe('walls', () => {
     expect(ev).toHaveLength(1);
   });
 
+  it('a nose-first hit swings the nose along the wall and keeps the kart moving', () => {
+    const s = createKartState({ racerId: 'x', heading: Math.PI / 4 }); // 45° into the +X wall
+    s.speed = 20;
+    const ev: KartEvent[] = [];
+    stepWalls(s, 9, [1, 0, 0], 8, c, ev);
+    expect(Math.abs(s.heading)).toBeLessThan(Math.PI / 4); // closer to the wall line (heading 0)
+    expect(Math.abs(s.heading)).toBeCloseTo((Math.PI / 4) * (1 - c.wallDeflect), 5);
+    expect(s.speed).toBeGreaterThan(5); // it slides on, it does not park
+    expect(s.lateralVelocity).toBe(0);
+  });
+
   it('does nothing inside the track', () => {
     const s = createKartState({ racerId: 'x' });
     s.speed = 20;
