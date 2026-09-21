@@ -66,6 +66,7 @@ export function stepDrift(
         d.direction = Math.sign(input.steer);
         d.charge = 0;
         d.tier = 0;
+        d.yawK = 0; // loose at first, tightens over driftYawLag
         events.push({ type: 'driftStart', direction: d.direction });
       } else {
         cancelDrift(s);

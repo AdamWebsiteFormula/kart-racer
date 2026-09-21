@@ -219,7 +219,8 @@ describe('RaceManager', () => {
     const track = buildTrack(OVAL);
     const rm = new RaceManager(track, config(track, racers(3)));
     // the player starts on the back row and is the fastest: it must overtake both
-    const log = run(rm, [lookAheadDriver(22, -2), lookAheadDriver(18, 0), lookAheadDriver(20, 2)], (t) => { if (t > GO_TICK + SIM_HZ * 20) rm.state.phase = 'finished'; });
+    // lanes 3 m apart: two karts are 1.7 m wide together, and since bumps ease apart (2026-09-21) a rubbing pass costs the passer
+    const log = run(rm, [lookAheadDriver(22, -3), lookAheadDriver(18, 0), lookAheadDriver(20, 3)], (t) => { if (t > GO_TICK + SIM_HZ * 20) rm.state.phase = 'finished'; });
     const pcs = log.filter((x) => x.e.type === 'positionChange');
     expect(pcs.length).toBeGreaterThan(0);
     expect(pcs.length).toBeLessThan(20);

@@ -70,7 +70,7 @@ function skipsContact(s: KartState): boolean {
 
 /** Step 11 for one pair. Returns true on contact. */
 export function collideKarts(
-  a: KartState, b: KartState, ca: KartConstants, cb: KartConstants, c: KartConstants,
+  a: KartState, b: KartState, ca: KartConstants, cb: KartConstants, c: KartConstants, dt: number,
   eventsA: KartEvent[], eventsB: KartEvent[],
 ): boolean {
   if (skipsContact(a) || skipsContact(b)) return false;
@@ -83,8 +83,8 @@ export function collideKarts(
   const ma = collisionMass(a, ca);
   const mb = collisionMass(b, cb);
   const sum = ma + mb;
-  const overlap = minDist - dist;
-  // separate in proportion to inverse mass
+  // ease apart over a few ticks, in proportion to inverse mass; an instant pop is the jarring part
+  const overlap = Math.min(minDist - dist, c.bumpSeparateRate * dt);
   a.position[0] -= nx * overlap * (mb / sum); a.position[2] -= nz * overlap * (mb / sum);
   b.position[0] += nx * overlap * (ma / sum); b.position[2] += nz * overlap * (ma / sum);
 

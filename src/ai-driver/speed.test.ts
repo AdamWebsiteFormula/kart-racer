@@ -17,7 +17,8 @@ describe('speed', () => {
     const gentle = cornerSpeed(1 / 60, 25, c, 1, false);
     const tight = cornerSpeed(1 / 15, 25, c, 1, false);
     expect(gentle).toBeGreaterThan(tight);
-    expect(cornerSpeed(1 / 15, 25, c, 1, true)).toBeGreaterThan(tight);
+    // a drift turns at steerRate × driftSteerMax whatever the speed
+    expect(cornerSpeed(1 / 15, 25, c, 1, true)).toBeCloseTo(c.steerRate * c.driftSteerMax * 15, 6);
     // at the corner speed, full lock yaw equals curvature × speed
     expect(reachableYaw(tight, 25, c)).toBeCloseTo(tight / 15, 3);
   });
@@ -33,10 +34,10 @@ describe('speed', () => {
     decideSpeed(s, c, m, fakeLine(1.4), false, out);
     expect(out.target).toBeLessThan(0.9 * 0.95 * out.legal);
     expect(out.target).toBeGreaterThanOrEqual(4);
-    // a planned drift turns tighter than grip, so the same bend allows more speed
-    const gripTarget = out.target;
+    // a planned drift is judged by the drift yaw, not grip
     decideSpeed(s, c, m, fakeLine(1.4), true, out);
-    expect(out.target).toBeGreaterThan(gripTarget);
+    const kappa = 1.4 / 24;
+    expect(out.target).toBeCloseTo(Math.min(0.9 * 0.95 * out.legal, (c.steerRate * c.driftSteerMax * (0.55 + 0.35 * m.skill)) / kappa), 6);
   });
 
   it('throttle: full below target, coast above, brake well above, never idle at a standstill', () => {

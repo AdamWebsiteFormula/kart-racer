@@ -18,7 +18,7 @@ export function stickToward(input: InputState, direction: number): number {
 /** Yaw rate in rad/s (positive = right). V is the target speed. */
 export function yawRate(s: KartState, input: InputState, c: KartConstants, V: number): number {
   if (s.drift.phase === 'drifting') {
-    const k = lerp(c.driftSteerMin, c.driftSteerMax, stickToward(input, s.drift.direction));
+    const k = lerp(c.driftSteerMin, c.driftSteerMax, s.drift.yawK);
     return s.drift.direction * c.steerRate * k;
   }
   const v = Math.abs(s.speed);
@@ -46,6 +46,11 @@ export function dampLateral(s: KartState, grip: number, dt: number): void {
 
 /** Steps 4 and 5 together. Returns the yaw applied this tick. */
 export function stepSteer(s: KartState, input: InputState, c: KartConstants, V: number, grip: number, dt: number): number {
+  // the drift turn value chases the stick; it starts at 0 on the lock, so a drift begins loose and tightens
+  if (s.drift.phase === 'drifting') {
+    const k = 1 - Math.exp(-dt / c.driftYawLag);
+    s.drift.yawK += (stickToward(input, s.drift.direction) - s.drift.yawK) * k;
+  }
   const dTheta = yawRate(s, input, c, V) * dt;
   applyYaw(s, dTheta);
   dampLateral(s, grip, dt);

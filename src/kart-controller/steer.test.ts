@@ -53,12 +53,20 @@ describe('steer', () => {
     expect(slideAfterTurn('mud')).toBe(road);
   });
 
-  it('drift yaw is outward only and scales with the stick', () => {
+  it('drift yaw is outward only and scales with the lagged stick (drift.yawK)', () => {
     const s = createKartState({ racerId: 'x' });
     s.speed = 20; s.drift.phase = 'drifting'; s.drift.direction = 1;
-    const away = yawRate(s, { ...right, steer: -1 }, c, 25);
-    const into = yawRate(s, right, c, 25);
-    expect(away).toBeCloseTo(c.steerRate * c.driftSteerMin);
-    expect(into).toBeCloseTo(c.steerRate * c.driftSteerMax);
+    s.drift.yawK = 0;
+    expect(yawRate(s, { ...right, steer: -1 }, c, 25)).toBeCloseTo(c.steerRate * c.driftSteerMin);
+    s.drift.yawK = 1;
+    expect(yawRate(s, right, c, 25)).toBeCloseTo(c.steerRate * c.driftSteerMax);
+    // the drift begins loose and tightens: yawK chases the inward stick over driftYawLag
+    s.drift.yawK = 0;
+    const dt = 1 / 120;
+    for (let i = 0; i < Math.round(c.driftYawLag / dt); i++) stepSteer(s, right, c, 25, c.gripRoad, dt);
+    expect(s.drift.yawK).toBeCloseTo(1 - Math.exp(-1), 2);
+    // and lets go again on counter-steer
+    for (let i = 0; i < 240; i++) stepSteer(s, { ...right, steer: -1 }, c, 25, c.gripRoad, dt);
+    expect(s.drift.yawK).toBeLessThan(0.01);
   });
 });

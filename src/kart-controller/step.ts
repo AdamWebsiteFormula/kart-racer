@@ -53,7 +53,9 @@ export function stepKart(
     const targets = targetSpeed(s, c);
     stepSpeed(s, inp, targets.target, c, dt);
     // 4–5. steer and slide
-    const grip = gripFor(c, s.surface) * s.gripScale * (s.grounded ? 1 : 0.5);
+    // a drift slides: the lateral part of the velocity lives longer than on grip
+    const surfaceGrip = gripFor(c, s.surface);
+    const grip = (s.drift.phase === 'drifting' ? Math.min(surfaceGrip, c.gripDrift) : surfaceGrip) * s.gripScale * (s.grounded ? 1 : 0.5);
     stepSteer(s, inp, c, targets.base, grip, dt);
     // 6. hop / drift
     stepDrift(s, inp, c, targets.base, dt, events, opts);
@@ -75,7 +77,7 @@ export function stepKarts(
   // 11. kart vs kart, every pair once
   for (let i = 0; i < karts.length; i++) {
     for (let j = i + 1; j < karts.length; j++) {
-      collideKarts(karts[i], karts[j], consts[i], consts[j], consts[i], events[i], events[j]);
+      collideKarts(karts[i], karts[j], consts[i], consts[j], consts[i], dt, events[i], events[j]);
     }
   }
   // 12. slipstream

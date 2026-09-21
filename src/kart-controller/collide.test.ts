@@ -60,17 +60,19 @@ function bump(aType: Archetype, bType: Archetype, boostA = false) {
   const { a, b, ca, cb } = pair(aType, bType);
   if (boostA) requestBoost(a, 'drift', 1.3, 2, []);
   const ea: KartEvent[] = [], eb: KartEvent[] = [];
-  collideKarts(a, b, ca, cb, c, ea, eb);
-  return { a, b, ea, eb };
+  collideKarts(a, b, ca, cb, c, 1 / 120, ea, eb);
+  return { a, b, ca, cb, ea, eb };
 }
 /** Lateral shove magnitude on a kart heading +X: the world X velocity. */
 const shove = (s: KartState) => Math.abs(s.speed); // heading π/2 → forward is +X
 
 describe('kart vs kart', () => {
   it('separates and shoves both, events on both', () => {
-    const { a, b, ea, eb } = bump('medium', 'medium');
-    expect(b.position[0] - a.position[0]).toBeCloseTo(2 * c.kartRadius);
+    const { a, b, ca, cb, ea, eb } = bump('medium', 'medium');
     expect(shove(a)).toBeCloseTo(c.bumpForce / 2);
+    // eased apart at bumpSeparateRate, not popped: a few ticks to clear
+    for (let i = 0; i < 60; i++) collideKarts(a, b, ca, cb, c, 1 / 120, [], []);
+    expect(b.position[0] - a.position[0]).toBeCloseTo(2 * c.kartRadius);
     expect(shove(b)).toBeCloseTo(c.bumpForce / 2);
     expect(ea).toEqual([{ type: 'bump', otherId: 'b' }]);
     expect(eb).toEqual([{ type: 'bump', otherId: 'a' }]);
@@ -91,18 +93,20 @@ describe('kart vs kart', () => {
   it('ghosts and intangible karts skip contact', () => {
     const { a, b, ca, cb } = pair('medium', 'medium');
     a.isGhost = true;
-    expect(collideKarts(a, b, ca, cb, c, [], [])).toBe(false);
+    expect(collideKarts(a, b, ca, cb, c, 1 / 120, [], [])).toBe(false);
     a.isGhost = false; b.status.intangibleRemaining = 1;
-    expect(collideKarts(a, b, ca, cb, c, [], [])).toBe(false);
+    expect(collideKarts(a, b, ca, cb, c, 1 / 120, [], [])).toBe(false);
   });
 
   it('cooldown stops a second shove but still separates', () => {
     const { a, b, ca, cb } = pair('medium', 'medium');
-    collideKarts(a, b, ca, cb, c, [], []);
+    collideKarts(a, b, ca, cb, c, 1 / 120, [], []);
     b.position[0] = a.position[0] + 1;
     const ea: KartEvent[] = [];
-    collideKarts(a, b, ca, cb, c, ea, []);
+    collideKarts(a, b, ca, cb, c, 1 / 120, ea, []);
     expect(ea).toHaveLength(0);
+    // eased apart at bumpSeparateRate, not popped: a few ticks to clear
+    for (let i = 0; i < 60; i++) collideKarts(a, b, ca, cb, c, 1 / 120, [], []);
     expect(b.position[0] - a.position[0]).toBeCloseTo(2 * c.kartRadius);
   });
 });

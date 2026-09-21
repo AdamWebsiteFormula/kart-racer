@@ -6,7 +6,7 @@ import type { Archetype, SpeedClass, Surface } from './types.ts';
 
 export interface KartBase {
   topSpeed: number; accel: number; brake: number; steerRate: number;
-  driftSteerMin: number; driftSteerMax: number; hopSeconds: number;
+  driftSteerMin: number; driftSteerMax: number; driftYawLag: number; gripDrift: number; bumpSeparateRate: number; hopSeconds: number;
   chargeFull: number; chargeNeutral: number; driftTiers: number[];
   boostMultiplier: number; boostSeconds: number[];
   trickMultiplier: number; trickSeconds: number;

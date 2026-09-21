@@ -8,14 +8,17 @@
   "properties": {
     "base": {
       "type": "object",
-      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "wallDeflectRate", "groundCatch", "startBoostCentreSeconds", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier"],
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "driftYawLag", "gripDrift", "bumpSeparateRate", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "wallDeflectRate", "groundCatch", "startBoostCentreSeconds", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier"],
       "properties": {
         "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
         "accel": { "type": "number", "default": 12 },
         "brake": { "type": "number", "default": 20 },
         "steerRate": { "type": "number", "description": "rad/s at low speed", "default": 2.4 },
-        "driftSteerMin": { "type": "number", "description": "Drift yaw = steerRate × lerp(driftSteerMin, driftSteerMax, stick toward the drift side). 0.35 made every skid a 30 m circle at top speed, too tight to hold on a sweeper (Adam, 21 Sept 2026); 0.2 lets a counter-steered drift run a 50 m bend.", "default": 0.2 },
-        "driftSteerMax": { "type": "number", "default": 0.7 },
+        "driftSteerMin": { "type": "number", "description": "Drift yaw = steerRate × lerp(driftSteerMin, driftSteerMax, drift.yawK), where yawK chases the stick toward the drift side over driftYawLag and starts at 0 on the lock. Mario Kart Wii datamine: drift tightness sits in the same range as normal handling and the turn value lerps toward the stick each frame (reactivity), it never snaps. 0.35/0.8 was a 30 m circle on rails (Adam, 21 Sept 2026).", "default": 0.15 },
+        "driftSteerMax": { "type": "number", "description": "Full inward stick: 1.44 rad/s, about 1.7× the grip turn at top speed and the same as grip at 15 m/s, so the drift is still the way round a tight bend (the slide widens the path).", "default": 0.6 },
+        "driftYawLag": { "type": "number", "description": "Seconds for the drift turn value to close most of the gap to the stick (MKW drift reactivity). The drift begins loose and tightens.", "default": 0.25 },
+        "gripDrift": { "type": "number", "description": "Lateral damping per second while drifting. Lower than the road grip, so the kart carries outward on the drift lock and slides through the bend (MKW outside drift, target angle).", "default": 4.5 },
+        "bumpSeparateRate": { "type": "number", "description": "m/s at which overlapping karts are eased apart; the old instant pop was the jarring part of a bump.", "default": 6 },
         "hopSeconds": { "type": "number", "default": 0.25 },
         "chargeFull": { "type": "number", "default": 5 },
         "chargeNeutral": { "type": "number", "default": 2 },
@@ -84,7 +87,7 @@
         "maxBoostMultiplier": { "type": "number", "description": "Hard ceiling on any boost multiplier (design §7: pad and item are +40%). requestBoost clamps to it.", "default": 1.4 },
         "startBoostCentreSeconds": { "type": "number", "description": "Seconds before GO the throttle should go down: the moment the 2 appears, like Mario Kart (Adam, 21 Sept 2026).", "default": 2.0 },
         "startBoostWindowSeconds": { "type": "number", "description": "Full width of the window around the centre.", "default": 1.0 }, "startBoostMultiplier": { "type": "number", "default": 1.2 }, "startBoostSeconds": { "type": "number", "default": 1.0 },
-        "bumpForce": { "type": "number", "description": "Lateral m/s given to the lighter kart on contact, scaled by weight difference", "default": 6 },
+        "bumpForce": { "type": "number", "description": "Lateral m/s given to the lighter kart on contact, scaled by weight difference. 6 threw the kart a lane in one tick (Adam, 21 Sept 2026).", "default": 3.5 },
         "hitSpinSeconds": { "type": "number", "description": "Default stun when an item or hazard lands", "default": 1.0 },
         "hitCoinsLost": { "type": "integer", "description": "Mario Kart World lowered this from 3 to 2 for every racer.", "default": 2 },
         "speedClasses": {
@@ -201,7 +204,7 @@
           "powerFrom": { "type": "number", "description": "rb below this cuts power (top-speed cap); above it only skill moves", "default": 0.85 },
           "skillGain": { "type": "number", "description": "skill += (rb − 1) × gain", "default": 1.25 },
           "shortcutRb": { "type": "number", "description": "rubber band at or above which a narrow shortcut is taken as a catch-up", "default": 1.15 },
-          "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.05 }
+          "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.065 }
         } },
         "items": { "type": "object", "properties": {
           "forwardRange": { "type": "number", "default": 45 }, "forwardCone": { "type": "number", "description": "rad", "default": 0.2 },

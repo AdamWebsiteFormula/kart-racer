@@ -50,6 +50,8 @@ export interface KartState {
     charge: number;
     tier: number;
     hopSeconds: number; // time since the hop started
+    /** 0..1 lagged stick toward the drift side: the drift's current turn value (MKW reactivity) */
+    yawK: number;
     chargeMultiplier: number;
     chargeMultiplierRemaining: number;
   };
@@ -105,7 +107,7 @@ export function createKartState(init: KartInit): KartState {
     checkpointsHit: 0,
     distanceAlong: 0,
     slipstreamSeconds: 0,
-    drift: { active: false, phase: 'idle', direction: 0, charge: 0, tier: 0, hopSeconds: 0, chargeMultiplier: 1, chargeMultiplierRemaining: 0 },
+    drift: { active: false, phase: 'idle', direction: 0, charge: 0, tier: 0, hopSeconds: 0, yawK: 0, chargeMultiplier: 1, chargeMultiplierRemaining: 0 },
     airborne: { trickQueued: false, seconds: 0 },
     boost: { source: 'none', remaining: 0, multiplier: 1 },
     item: { held: 'none', charges: 0, rouletteRemaining: 0 },

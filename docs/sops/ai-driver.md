@@ -127,6 +127,7 @@ Item behaviours, projectiles and the roulette (items); rubber-band HUD cue and t
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-21: kart-controller drift rework (yawK lag, gripDrift, driftSteerMax 0.6, eased bumps) moved the Normal field spread on Harbour to 5.6 s; `fieldPaceSpread` 0.05 → 0.065 puts it back inside 8–20 s.
 - 2026-09-21: kart-controller `driftSteerMin` 0.35 → 0.2 / `driftSteerMax` 0.8 → 0.7 (Adam: the skid turned too tight). `driftNeedsRoom` sets up wide only when the drift will swing past the road; `driftWillFire` makes the corner-speed plan use the same test as the hop rule, so the AI no longer enters a bend fast for a drift it then refuses.
 - 2026-09-21: start press means moved to 2.0 s before GO (the 2), spreads 0.25 / 0.8 / 1.6 for hard / normal / easy, so the start-boost odds stay ~100 / 62 / 31 %.
 - 2026-09-21 (Adam, test drive): catch-up. Rubber band `deadZone` 30 → 20 m and `scale` 100 → 60 m: a leader 100 m up the road sits at rb 0.67 and has lost ~21 % power, so a player closes 100 m in about 25 s. `AiDriverOptions.onlyShortcut` forces one shortcut (gate 16, side paths help).
