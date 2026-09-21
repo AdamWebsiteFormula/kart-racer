@@ -21,10 +21,15 @@ export const DEFAULT_KEYS: Readonly<KeyMap> = Object.freeze({
 /** Standard-mapping gamepad: left stick X, RT throttle, LT brake, A drift, X item, B look back, Y horn. */
 export const GAMEPAD = Object.freeze({ steerAxis: 0, throttleButton: 7, brakeButton: 6, drift: 0, item: 2, lookBack: 1, horn: 3, deadZone: 0.15 });
 
-/** Pure: keys held + optional gamepad snapshot → InputState. Testable without a DOM. */
+/**
+ * Pure: keys held + optional gamepad snapshot → InputState. Testable without a DOM.
+ * Sign: the sim's positive steer turns toward `rightOf(heading)` = up × forward, which in
+ * Three's right-handed Y-up frame is the *screen left*. So the right key gives −1 here and
+ * the whole sim stays as it is (kart-controller Lessons 2026-09-21).
+ */
 export function mapInput(held: ReadonlySet<string>, pad: Gamepad | null, keys: KeyMap = DEFAULT_KEYS): InputState {
   const any = (list: string[]) => list.some((k) => held.has(k));
-  let steer = (any(keys.right) ? 1 : 0) - (any(keys.left) ? 1 : 0);
+  let steer = (any(keys.left) ? 1 : 0) - (any(keys.right) ? 1 : 0);
   let throttle = any(keys.throttle) ? 1 : 0;
   let brake = any(keys.brake) ? 1 : 0;
   let drift = any(keys.drift);
@@ -33,7 +38,7 @@ export function mapInput(held: ReadonlySet<string>, pad: Gamepad | null, keys: K
   let horn = any(keys.horn);
   if (pad) {
     const x = pad.axes[GAMEPAD.steerAxis] ?? 0;
-    if (Math.abs(x) > GAMEPAD.deadZone && steer === 0) steer = Math.sign(x) * (Math.abs(x) - GAMEPAD.deadZone) / (1 - GAMEPAD.deadZone);
+    if (Math.abs(x) > GAMEPAD.deadZone && steer === 0) steer = -Math.sign(x) * (Math.abs(x) - GAMEPAD.deadZone) / (1 - GAMEPAD.deadZone);
     throttle = Math.max(throttle, pad.buttons[GAMEPAD.throttleButton]?.value ?? 0);
     brake = Math.max(brake, pad.buttons[GAMEPAD.brakeButton]?.value ?? 0);
     drift ||= pad.buttons[GAMEPAD.drift]?.pressed ?? false;

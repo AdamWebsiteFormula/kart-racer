@@ -5,7 +5,7 @@ describe('input mapping', () => {
   it('maps keys', () => {
     const i = mapInput(new Set(['ArrowUp', 'KeyA', 'Space']), null);
     expect(i.throttle).toBe(1);
-    expect(i.steer).toBe(-1);
+    expect(i.steer).toBe(1); // the sim's + is screen left; the left key turns the kart left on screen
     expect(i.drift).toBe(true);
     expect(i.brake).toBe(0);
   });
@@ -18,7 +18,7 @@ describe('input mapping', () => {
     const pad = { axes: [0.1], buttons: [] } as unknown as Gamepad;
     expect(mapInput(new Set(), pad).steer).toBe(0);
     const pad2 = { axes: [1], buttons: [] } as unknown as Gamepad;
-    expect(mapInput(new Set(), pad2).steer).toBeCloseTo(1);
-    expect(mapInput(new Set(['KeyA']), pad2).steer).toBe(-1);
+    expect(mapInput(new Set(), pad2).steer).toBeCloseTo(-1); // stick right = screen right = sim −
+    expect(mapInput(new Set(['KeyA']), pad2).steer).toBe(1);
   });
 });
