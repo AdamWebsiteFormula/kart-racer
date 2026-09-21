@@ -32,14 +32,16 @@ describe('countdown', () => {
     expect(goAt).toEqual([GO_TICK]);
   });
 
-  it('throttle held from 0.2 s before go earns the start boost; from 0.5 s earns none; a release resets', () => {
+  it('throttle pressed as the 2 shows (2.0 s before go) earns the start boost; at 0.2 s or from the start it earns none; a release resets', () => {
+    const onTwo = run((t) => (t >= GO_TICK - 240 ? { ...NEUTRAL_INPUT, throttle: 1 } : NEUTRAL_INPUT));
+    expect(onTwo.k.s.boost.source).toBe('start');
+    expect(onTwo.kartEvents).toEqual([{ type: 'boostStart', source: 'start', multiplier: onTwo.k.c.startBoostMultiplier, seconds: onTwo.k.c.startBoostSeconds }]);
     const late = run((t) => (t >= GO_TICK - 24 ? { ...NEUTRAL_INPUT, throttle: 1 } : NEUTRAL_INPUT));
-    expect(late.k.s.boost.source).toBe('start');
-    expect(late.kartEvents).toEqual([{ type: 'boostStart', source: 'start', multiplier: late.k.c.startBoostMultiplier, seconds: late.k.c.startBoostSeconds }]);
-    const early = run((t) => (t >= GO_TICK - 60 ? { ...NEUTRAL_INPUT, throttle: 1 } : NEUTRAL_INPUT));
+    expect(late.k.s.boost.source).toBe('none');
+    const early = run(() => ({ ...NEUTRAL_INPUT, throttle: 1 }));
     expect(early.k.s.boost.source).toBe('none');
-    // held early, released, pressed again inside the window
-    const tap = run((t) => (t < GO_TICK - 100 || t >= GO_TICK - 24 ? { ...NEUTRAL_INPUT, throttle: 1 } : NEUTRAL_INPUT));
+    // held from the start, released, pressed again on the 2
+    const tap = run((t) => (t < GO_TICK - 330 || t >= GO_TICK - 230 ? { ...NEUTRAL_INPUT, throttle: 1 } : NEUTRAL_INPUT));
     expect(tap.k.s.boost.source).toBe('start');
   });
 });

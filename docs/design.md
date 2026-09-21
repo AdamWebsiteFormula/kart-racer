@@ -57,7 +57,7 @@ Lap target 45–60 s at 150cc-equivalent; width ≥ 4 karts at the start; one sh
 Stretch tracks if ahead of schedule: **Overgrown Temple** (jungle ruins, vines swing, water rises on the final lap) and **Foundry Sprint** (industrial, conveyor belts reverse on the final lap).
 
 ## 7. Handling (from research plan §4.1)
-Hop 0.25 s → drift; charge +5/frame full stick, +2 neutral; tiers 250 / 550 / 850; drift boosts +30% for 0.6 / 1.5 / 2.5 s; trick +30% 0.7 s; pad +40% 1.0 s; speed item +40% 1.5 s; non-stacking, Trick > Item > Drift; slipstream 2 s → +12% 1.5 s; coins +0.66% each, cap 10; start boost 0.3 s window. Camera and juice per plan §4.7 and §7.2.
+Hop 0.25 s → drift; charge +5/frame full stick, +2 neutral; tiers 250 / 550 / 850; drift boosts +30% for 0.6 / 1.5 / 2.5 s; trick +30% 0.7 s; pad +40% 1.0 s; speed item +40% 1.5 s; non-stacking, Trick > Item > Drift; slipstream 2 s → +12% 1.5 s; coins +0.66% each, cap 10; start boost: throttle down as the **2** appears (2.0 s before GO, ±0.5 s), like Mario Kart; too early or too late earns nothing, never a spin-out. Camera and juice per plan §4.7 and §7.2.
 
 Surfaces cap top speed rather than cutting grip: dirt 0.7, mud 0.6, ice 0.9 plus real sliding. A live boost or being airborne ignores the cap, so hopping a mud patch is a real line.
 

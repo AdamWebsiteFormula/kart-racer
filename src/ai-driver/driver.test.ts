@@ -1,6 +1,6 @@
 // The SOP gates (docs/sops/ai-driver.md Tests). Headless, deterministic, one race per gate.
 import { describe, expect, it, vi } from 'vitest';
-import { makeConstants } from '../kart-controller/constants.ts';
+import { BASE, makeConstants } from '../kart-controller/constants.ts';
 import { targetSpeed } from '../kart-controller/speed.ts';
 import { SIM_HZ } from '../kart-controller/step.ts';
 import { NEUTRAL_INPUT, type InputState, type KartState } from '../kart-controller/types.ts';
@@ -294,7 +294,7 @@ describe('AiDriver gates', () => {
     expect(entriesAfter, entriesAfter.join('; ')).toEqual([]);
   });
 
-  it('12: start boost: Hard presses inside the window almost always, Normal about two thirds, Easy a third at most', () => {
+  it('12: start boost: Hard presses as the 2 shows almost always, Normal about two thirds of the time, Easy a third at most', () => {
     const inWindow = (profile: typeof PROFILES.hard) => {
       let ok = 0, n = 0;
       const track = buildTrack(OVAL);
@@ -302,7 +302,8 @@ describe('AiDriver gates', () => {
         const cfg = config(track, racers(8), 150, seed);
         const rm = new RaceManager(track, cfg);
         const ai = new AiDriver(track, cfg, rm.state, { profile });
-        for (const m of ai.memory) { n++; if (m.startPress > 0 && m.startPress <= 0.3) ok++; }
+        const c = BASE.startBoostCentreSeconds, w = BASE.startBoostWindowSeconds / 2;
+        for (const m of ai.memory) { n++; if (Math.abs(m.startPress - c) <= w) ok++; }
       }
       return ok / n;
     };

@@ -19,7 +19,7 @@ function setWorldVelocity(s: KartState, w: Vec3): void {
 
 /** Step 10. `lateral` and `right` come from the ground step. */
 export function stepWalls(
-  s: KartState, lateral: number, right: Vec3, halfWidth: number, c: KartConstants, events: KartEvent[],
+  s: KartState, lateral: number, right: Vec3, halfWidth: number, c: KartConstants, dt: number, events: KartEvent[],
 ): void {
   const limit = halfWidth - c.kartRadius;
   if (Math.abs(lateral) <= limit) return;
@@ -50,7 +50,8 @@ export function stepWalls(
         while (d > Math.PI) d -= 2 * Math.PI;
         while (d < -Math.PI) d += 2 * Math.PI;
         const keep = Math.hypot(s.speed, s.lateralVelocity);
-        s.heading += d * c.wallDeflect;
+        const swing = Math.sign(d) * Math.min(Math.abs(d) * c.wallDeflect, c.wallDeflectRate * dt);
+        s.heading += swing;
         // the speed that was left points along the new nose
         s.speed = keep;
         s.lateralVelocity = 0;

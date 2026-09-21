@@ -89,7 +89,7 @@ hud.innerHTML = `
   <div class="corner tl"><span class="lap"></span><span class="time"></span></div>
   <div class="corner bl"><span class="place"></span></div>
   <div class="corner br"><span class="speed"></span><span class="drift"></span><span class="boost"></span></div>
-  <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · Q look back · R restart</div>`;
+  <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · Q look back · P pause · R restart</div>`;
 document.body.appendChild(hud);
 const el = {
   banner: hud.querySelector('.banner') as HTMLElement,
@@ -113,7 +113,14 @@ addEventListener('visibilitychange', () => {
   paused = document.hidden;
   if (!paused) { last = performance.now(); acc.reset(); }
 });
-addEventListener('keydown', (e) => { if (e.code === 'KeyR') location.reload(); });
+addEventListener('keydown', (e) => {
+  if (e.code === 'KeyR') location.reload();
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    paused = !paused;
+    if (paused) el.banner.textContent = 'PAUSED';
+    else { last = performance.now(); acc.reset(); }
+  }
+});
 
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {

@@ -62,7 +62,7 @@ export function stepKart(
   // 8–9. gravity, ground, integrate
   const g = stepGround(s, track, c, dt, events);
   // 10. walls
-  stepWalls(s, g.lateral, g.right, g.sample.halfWidth, c, events);
+  stepWalls(s, g.lateral, g.right, g.sample.halfWidth, c, dt, events);
   return events;
 }
 
@@ -103,8 +103,9 @@ export function applyHit(s: KartState, c: KartConstants, kind: HitKind, events: 
 }
 
 /** Start-line boost: press throttle inside the window before the green light. */
+/** The throttle went down `secondsBeforeGo` before GO. Inside the window around the "2": boost. */
 export function tryStartBoost(s: KartState, c: KartConstants, secondsBeforeGo: number, events: KartEvent[]): boolean {
-  if (secondsBeforeGo < 0 || secondsBeforeGo > c.startBoostWindowSeconds) return false;
+  if (Math.abs(secondsBeforeGo - c.startBoostCentreSeconds) > c.startBoostWindowSeconds / 2) return false;
   s.boost.source = 'start';
   s.boost.multiplier = c.startBoostMultiplier;
   s.boost.remaining = c.startBoostSeconds;

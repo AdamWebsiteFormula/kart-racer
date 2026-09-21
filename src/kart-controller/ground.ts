@@ -84,9 +84,10 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   const groundY = sample.groundY;
   const canSnap = s.verticalVelocity <= c.groundLaunchVy;
   // Below the road: a slope rising under a grounded kart, or a landing that crossed
-  // the surface this tick, snaps up. An airborne kart any deeper than one tick of
-  // fall is under the road for real and keeps falling toward voidY.
-  const fell = !wasGrounded && y < groundY - Math.abs(s.verticalVelocity) * dt - c.groundStick;
+  // the surface this tick, snaps up. An airborne kart within groundCatch of the surface
+  // landed on it (a hop across a banked road moves the surface under the kart); any
+  // deeper it is under the road for real and keeps falling toward voidY.
+  const fell = !wasGrounded && y < groundY - Math.max(Math.abs(s.verticalVelocity) * dt + c.groundStick, c.groundCatch);
   if (y < groundY && !fell) {
     s.position[1] = groundY;
     if (canSnap) s.verticalVelocity = 0;

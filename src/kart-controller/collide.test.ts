@@ -12,7 +12,7 @@ describe('walls', () => {
     // heading 0 → forward +Z, right +X. Track right is also +X here.
     s.speed = 20; s.lateralVelocity = 5; // sliding right into the wall
     const ev: KartEvent[] = [];
-    stepWalls(s, 8, [1, 0, 0], 8, c, ev);
+    stepWalls(s, 8, [1, 0, 0], 8, c, 1 / 120, ev);
     expect(s.position[0]).toBeCloseTo(-c.kartRadius);
     expect(s.lateralVelocity).toBeCloseTo(-5 * c.wallRestitution);
     expect(s.speed).toBeCloseTo(20); // 5/20.6 is a soft hit, no scrub
@@ -23,9 +23,9 @@ describe('walls', () => {
     const s = createKartState({ racerId: 'x', heading: 0 });
     s.speed = 10; s.lateralVelocity = 10;
     const ev: KartEvent[] = [];
-    stepWalls(s, 9, [1, 0, 0], 8, c, ev);
+    stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev);
     expect(s.speed).toBeCloseTo(10 * (1 - c.wallScrub));
-    stepWalls(s, 9, [1, 0, 0], 8, c, ev);
+    stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev);
     expect(ev).toHaveLength(1);
   });
 
@@ -33,17 +33,20 @@ describe('walls', () => {
     const s = createKartState({ racerId: 'x', heading: Math.PI / 4 }); // 45° into the +X wall
     s.speed = 20;
     const ev: KartEvent[] = [];
-    stepWalls(s, 9, [1, 0, 0], 8, c, ev);
-    expect(Math.abs(s.heading)).toBeLessThan(Math.PI / 4); // closer to the wall line (heading 0)
-    expect(Math.abs(s.heading)).toBeCloseTo((Math.PI / 4) * (1 - c.wallDeflect), 5);
+    stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev);
+    // one tick swings the nose by at most wallDeflectRate × dt: no snap
+    expect(Math.abs(s.heading)).toBeCloseTo(Math.PI / 4 - c.wallDeflectRate / 120, 5);
     expect(s.speed).toBeGreaterThan(5); // it slides on, it does not park
     expect(s.lateralVelocity).toBe(0);
+    // pressing on for half a second brings the nose along the wall
+    for (let i = 0; i < 60; i++) { s.lateralVelocity = 4; stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev); }
+    expect(Math.abs(s.heading)).toBeLessThan(0.05);
   });
 
   it('does nothing inside the track', () => {
     const s = createKartState({ racerId: 'x' });
     s.speed = 20;
-    stepWalls(s, 2, [1, 0, 0], 8, c, []);
+    stepWalls(s, 2, [1, 0, 0], 8, c, 1 / 120, []);
     expect(s.speed).toBe(20);
   });
 });

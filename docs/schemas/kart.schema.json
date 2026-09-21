@@ -8,7 +8,7 @@
   "properties": {
     "base": {
       "type": "object",
-      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier"],
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "wallDeflectRate", "groundCatch", "startBoostCentreSeconds", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier"],
       "properties": {
         "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
         "accel": { "type": "number", "default": 12 },
@@ -60,6 +60,8 @@
         "wallRestitution": { "type": "number", "default": 0.3 },
         "wallScrub": { "type": "number", "description": "Fraction of forward speed lost on a hard wall hit.", "default": 0.15 },
         "wallDeflect": { "type": "number", "description": "On a hard wall hit the nose swings this fraction of the way from its heading to the wall line, so the kart slides along the wall instead of sticking to it nose-first (Mario Kart bounces you off; it never parks you).", "default": 0.7 },
+        "wallDeflectRate": { "type": "number", "description": "rad/s cap on that swing, so the nose turns along the wall over a few frames instead of snapping.", "default": 5.0 },
+        "groundCatch": { "type": "number", "description": "metres. An airborne kart found under the road by less than this lands on it (a hop across a banked or sloping road); deeper, it is really under and keeps falling.", "default": 1.0 },
         "slipstreamLength": { "type": "number", "description": "metres behind the kart ahead", "default": 8 },
         "slipstreamHalfWidth": { "type": "number", "default": 2 },
         "tSearchWindow": { "type": "number", "description": "Spline fraction searched around the previous t. Never search globally.", "default": 0.02 },
@@ -80,7 +82,8 @@
         "slipstreamSameWayDot": { "type": "number", "description": "Min dot of both forward vectors to count as drafting", "default": 0.7 },
         "hopLandWindow": { "type": "number", "description": "Multiple of hopSeconds inside which landing with stick held locks a drift", "default": 2 },
         "maxBoostMultiplier": { "type": "number", "description": "Hard ceiling on any boost multiplier (design §7: pad and item are +40%). requestBoost clamps to it.", "default": 1.4 },
-        "startBoostWindowSeconds": { "type": "number", "default": 0.3 }, "startBoostMultiplier": { "type": "number", "default": 1.2 }, "startBoostSeconds": { "type": "number", "default": 1.0 },
+        "startBoostCentreSeconds": { "type": "number", "description": "Seconds before GO the throttle should go down: the moment the 2 appears, like Mario Kart (Adam, 21 Sept 2026).", "default": 2.0 },
+        "startBoostWindowSeconds": { "type": "number", "description": "Full width of the window around the centre.", "default": 1.0 }, "startBoostMultiplier": { "type": "number", "default": 1.2 }, "startBoostSeconds": { "type": "number", "default": 1.0 },
         "bumpForce": { "type": "number", "description": "Lateral m/s given to the lighter kart on contact, scaled by weight difference", "default": 6 },
         "hitSpinSeconds": { "type": "number", "description": "Default stun when an item or hazard lands", "default": 1.0 },
         "hitCoinsLost": { "type": "integer", "description": "Mario Kart World lowered this from 3 to 2 for every racer.", "default": 2 },
@@ -214,21 +217,21 @@
             "skill": { "type": "number", "default": 0.35 }, "power": { "type": "number", "default": 0.94 }, "noise": { "type": "number", "default": 0.09 },
             "reactionMin": { "type": "number", "default": 0.8 }, "reactionMax": { "type": "number", "default": 1.6 },
             "driftThreshold": { "type": "number", "default": 0.45 }, "brakeAbove": { "type": "number", "default": 1.0 },
-            "startPressMean": { "type": "number", "default": 0.3 }, "startPressSpread": { "type": "number", "default": 0.45 },
+            "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 1.6 },
             "shortcutSkill": { "type": "number", "default": 1.1 }, "trickChance": { "type": "number", "default": 0.2 }
           } },
           "normal": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.65 }, "power": { "type": "number", "default": 0.98 }, "noise": { "type": "number", "default": 0.045 },
             "reactionMin": { "type": "number", "default": 0.4 }, "reactionMax": { "type": "number", "default": 0.9 },
             "driftThreshold": { "type": "number", "default": 0.35 }, "brakeAbove": { "type": "number", "default": 2.0 },
-            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.25 },
+            "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 0.8 },
             "shortcutSkill": { "type": "number", "default": 0.6 }, "trickChance": { "type": "number", "default": 0.5 }
           } },
           "hard": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.95 }, "power": { "type": "number", "default": 1.0 }, "noise": { "type": "number", "default": 0.015 },
             "reactionMin": { "type": "number", "default": 0.15 }, "reactionMax": { "type": "number", "default": 0.4 },
             "driftThreshold": { "type": "number", "default": 0.3 }, "brakeAbove": { "type": "number", "default": 3.0 },
-            "startPressMean": { "type": "number", "default": 0.15 }, "startPressSpread": { "type": "number", "default": 0.08 },
+            "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 0.25 },
             "shortcutSkill": { "type": "number", "default": 0.3 }, "trickChance": { "type": "number", "default": 0.95 }
           } }
         } }

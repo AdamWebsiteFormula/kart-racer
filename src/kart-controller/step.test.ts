@@ -78,10 +78,12 @@ describe('stepKart', () => {
     expect(slide(0.5)).toBeGreaterThan(slide(1) * 1.5);
   });
 
-  it('start boost only inside the window', () => {
+  it('start boost only inside the window around the 2', () => {
     const s = createKartState({ racerId: 'x' });
-    expect(tryStartBoost(s, c, 0.5, [])).toBe(false);
-    expect(tryStartBoost(s, c, 0.2, [])).toBe(true);
+    const half = c.startBoostWindowSeconds / 2;
+    expect(tryStartBoost(s, c, 0.2, [])).toBe(false); // on the GO: too late
+    expect(tryStartBoost(s, c, c.startBoostCentreSeconds + half + 0.05, [])).toBe(false); // too early
+    expect(tryStartBoost(s, c, c.startBoostCentreSeconds, [])).toBe(true);
     expect(s.boost.source).toBe('start');
   });
 });

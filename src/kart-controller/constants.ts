@@ -20,7 +20,7 @@ export interface KartBase {
   gravity: number; hopVelocity: number; coastDecel: number; overSpeedDecel: number;
   reverseFraction: number; steerFalloff: number; driftMinSpeed: number; driftKeepSpeed: number;
   driftAirCancelSeconds: number; kartRadius: number; groundStick: number; groundLaunchVy: number;
-  wallRestitution: number; wallScrub: number; wallDeflect: number; slipstreamLength: number; slipstreamHalfWidth: number;
+  wallRestitution: number; wallScrub: number; wallDeflect: number; wallDeflectRate: number; groundCatch: number; startBoostCentreSeconds: number; slipstreamLength: number; slipstreamHalfWidth: number;
   tSearchWindow: number; driftVisualSlip: number; dashMassBonus: number;
   coinShield: { enabled: boolean; slowedTo: number; slowSeconds: number };
   wallCooldownSeconds: number; bumpCooldownSeconds: number; hardWallFraction: number;

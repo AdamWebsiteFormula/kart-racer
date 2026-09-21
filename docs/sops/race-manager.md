@@ -104,6 +104,7 @@ AI input, rubber-banding and the finished-kart autopilot (ai-driver); roulette, 
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-21 (Adam): the start boost window is the kart schema's `startBoostCentreSeconds` ± `startBoostWindowSeconds / 2` (2.0 ± 0.5 s before GO); the countdown text above that says 0.3 s is superseded.
 - 2026-09-21 (Adam, from the ai-driver session): the scripted SOP field is 19 → 10.6 m/s in 1.2 m/s steps on lanes 0.5 / −0.5 / −1.5 / −2.5, because Harbour turn 1 is now an 18 m corner a no-brake driver scrapes above ~19 m/s, the rolling barrels run at +3, and the far-left lane gets captured by a shortcut entry.
 - 2026-09-19: Approach synthesised. Open questions for Adam before code: Knockout structure (three separate races with a banner between vs seamless), the third cut line (end of segment 3 → top 2, or mid-segment), `starThresholds` values, pickup/coin respawn seconds, and whether a fallen kart loses coins.
 - 2026-09-19 (Adam delegated the five calls): Knockout is three separate races with an elimination banner between them, not a seamless drive. The third cut (→ 2) is the end of segment 3, so the final race's rank 1 is the Knockout winner. `starThresholds` default to 60 / 80 / 100 % of the cup's maximum points (3 tracks: 27 / 36 / 45). Balloons respawn in 3 s, coins in 5 s. A fallen kart keeps its coins and its item.
