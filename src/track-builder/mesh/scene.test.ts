@@ -52,6 +52,20 @@ describe('draw-call budget (SOP test 14)', () => {
     expect(mats.size).toBe(1);
   });
 
+  it('a popped balloon or taken coin is hidden (zero scale) until its timer runs out', () => {
+    const balloons = scene.instancers.get('balloons')!;
+    const n = HARBOUR_LOOP.pickups!.length;
+    const timers = Array.from({ length: n }, () => ({ respawnRemaining: 0 }));
+    timers[1].respawnRemaining = 2;
+    scene.update(0, [], { pickups: timers });
+    const a = balloons.instanceMatrix.array as Float32Array;
+    expect(a[16 * 1 + 0]).toBe(0); // scale x of slot 1
+    expect(a[16 * 0 + 0]).not.toBe(0);
+    timers[1].respawnRemaining = 0;
+    scene.update(0, [], { pickups: timers });
+    expect(a[16 * 1 + 0]).not.toBe(0);
+  });
+
   it('every expected instancer exists and is an InstancedMesh', () => {
     for (const name of ['barriers', 'balloons', 'coins', 'boostPads', 'ramps', 'hazard:barrel', 'decor:palm', 'decor:boat']) {
       expect(scene.instancers.get(name), name).toBeInstanceOf(InstancedMesh);

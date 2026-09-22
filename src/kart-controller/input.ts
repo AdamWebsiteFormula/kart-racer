@@ -13,7 +13,7 @@ export const DEFAULT_KEYS: Readonly<KeyMap> = Object.freeze({
   throttle: ['ArrowUp', 'KeyW'],
   brake: ['ArrowDown', 'KeyS'],
   drift: ['ShiftLeft', 'ShiftRight', 'Space'],
-  item: ['KeyE', 'ControlLeft'],
+  item: ['KeyE', 'KeyX', 'ControlLeft'],
   lookBack: ['KeyQ'],
   horn: ['KeyH'],
 });

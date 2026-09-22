@@ -20,7 +20,7 @@ import { buildTrack } from './track-builder/track.ts';
 import harbourLoop from './track-builder/tracks/harbour-loop.json';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './game/camera.ts';
-import { hudNumbers } from './game/hud.ts';
+import { hudNumbers, itemSlot } from './game/hud.ts';
 import { ItemsView } from './game/itemsView.ts';
 import { buildKartMesh } from './game/kartMesh.ts';
 import { Accumulator } from './game/loop.ts';
@@ -94,10 +94,10 @@ const hud = document.createElement('div');
 hud.id = 'hud';
 hud.innerHTML = `
   <div class="banner"></div>
-  <div class="corner tl"><span class="lap"></span><span class="time"></span></div>
-  <div class="corner bl"><span class="place"></span><span class="item"></span></div>
+  <div class="corner tl"><span class="lap"></span><span class="time"></span><div class="slot"><span class="item"></span><span class="charges"></span></div><span class="coins"></span></div>
+  <div class="corner bl"><span class="place"></span></div>
   <div class="corner br"><span class="speed"></span><span class="drift"></span><span class="boost"></span></div>
-  <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · E item · Q look back · P pause · R restart</div>`;
+  <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · E / X item · Q look back · P pause · R restart</div>`;
 document.body.appendChild(hud);
 const el = {
   banner: hud.querySelector('.banner') as HTMLElement,
@@ -107,7 +107,10 @@ const el = {
   speed: hud.querySelector('.speed') as HTMLElement,
   drift: hud.querySelector('.drift') as HTMLElement,
   boost: hud.querySelector('.boost') as HTMLElement,
+  slot: hud.querySelector('.slot') as HTMLElement,
   item: hud.querySelector('.item') as HTMLElement,
+  charges: hud.querySelector('.charges') as HTMLElement,
+  coins: hud.querySelector('.coins') as HTMLElement,
 };
 
 // ---- loop ----
@@ -161,7 +164,7 @@ function frame(now: number) {
 
   const alpha = acc.alpha;
   for (let k = 0; k < views.length; k++) views[k].onFrame(alpha, manager.state.karts[k], inputs[k].steer, frameDt);
-  trackScene.update(manager.state.time, manager.lastActiveHazards);
+  trackScene.update(manager.state.time, manager.lastActiveHazards, { pickups: manager.state.pickupStates, coins: manager.state.coinStates });
   itemsView.onFrame(items, manager.state.karts, views.map((v) => v.root), alpha, manager.state.time);
 
   // chase camera on the player's interpolated pose
@@ -189,7 +192,11 @@ function frame(now: number) {
   el.speed.textContent = h.speed;
   el.drift.textContent = h.drift;
   el.boost.textContent = h.boost;
-  el.item.textContent = player.item.rouletteRemaining > 0 ? 'ITEM ???' : player.item.held === 'none' ? '' : `ITEM ${player.item.held}${player.item.charges > 1 ? ' ×' + player.item.charges : ''}`;
+  const slot = itemSlot(player, items.cfg.items, now);
+  el.slot.dataset.state = slot.state;
+  el.item.textContent = slot.label;
+  el.charges.textContent = slot.charges;
+  el.coins.textContent = `● ${player.coins}`;
 
   renderer.render(scene, camera);
 }

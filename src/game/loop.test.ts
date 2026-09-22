@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ } from '../kart-controller/step.ts';
 import { Accumulator, MAX_STEPS } from './loop.ts';
-import { formatTime, hudNumbers } from './hud.ts';
+import { formatTime, hudNumbers, itemSlot, ROULETTE_FLICKER_MS } from './hud.ts';
 import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './camera.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { RaceManager } from '../race-manager/race.ts';
@@ -116,5 +116,18 @@ describe('hud', () => {
     expect(formatTime(-1)).toBe('0:00.00');
     expect(formatTime(9.5)).toBe('0:09.50');
     expect(formatTime(75.25)).toBe('1:15.25');
+  });
+});
+
+describe('item slot', () => {
+  const defs = [{ id: 'a', name: 'Alpha' }, { id: 'b', name: 'Beta' }];
+  const kart = (held: string, roulette: number, charges = 1) => ({ item: { held, charges, rouletteRemaining: roulette } }) as unknown as import('../kart-controller/types.ts').KartState;
+  it('is empty with no item, flickers through names while rolling, and names the item with its charges when ready', () => {
+    expect(itemSlot(kart('none', 0), defs, 0)).toEqual({ state: 'empty', label: '', charges: '' });
+    expect(itemSlot(kart('a', 1), defs, 0).state).toBe('rolling');
+    expect(itemSlot(kart('a', 1), defs, 0).label).toBe('Alpha');
+    expect(itemSlot(kart('a', 1), defs, ROULETTE_FLICKER_MS).label).toBe('Beta');
+    expect(itemSlot(kart('b', 0, 3), defs, 0)).toEqual({ state: 'ready', label: 'Beta', charges: '×3' });
+    expect(itemSlot(kart('a', 0, 1), defs, 0).charges).toBe('');
   });
 });

@@ -31,11 +31,14 @@ export interface TrackScene {
   fog: { color: Rgb; density: number };
   sky: string | undefined;
   /** move hazards to their position at race time `time`; pass race-manager's activeHazards list to avoid computing it twice */
-  update(time: number, active?: readonly ActiveHazard[]): void;
+  update(time: number, active?: readonly ActiveHazard[], live?: LiveFeatures): void;
   /** Mesh + InstancedMesh objects in the group (draw-call proxy) */
   drawables(): number;
   dispose(): void;
 }
+
+/** Race-manager timers, by feature index within its kind; a feature with respawnRemaining > 0 is hidden. */
+export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[]; coins?: readonly { respawnRemaining: number }[] }
 
 const SKY_RADIUS = 900;
 const GROUND_SIZE = 2400;
@@ -93,11 +96,15 @@ function retire(m: Mesh): void {
   if ((m as InstancedMesh).isInstancedMesh) (m as InstancedMesh).dispose();
 }
 
-function featureMatrices(track: Track, kind: BakedFeature['kind']): Float32Array {
+/** slots[k] = index of the k-th drawn feature among every feature of its kind (closed shortcuts leave gaps) */
+function featureMatrices(track: Track, kind: BakedFeature['kind'], slots?: number[]): Float32Array {
   const out: number[] = [];
+  let j = -1;
   for (const f of track.features) {
     if (f.kind !== kind) continue;
+    j++;
     if (f.branch !== 0 && !track.branches.list[f.branch]?.open) continue; // a closed shortcut hides its balloons and coins
+    slots?.push(j);
     const c = track.sample(f.t, 0, f.branch);
     const yaw = headingOf(c.tangent);
     if (kind === 'pickup') pushTransform(out, [f.position[0], f.position[1] + BUILDER.balloonHeight, f.position[2]], yaw);
@@ -159,11 +166,14 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     ['boostPads', 'boostPad', 'boostPad', palette.surfaces.boost],
     ['ramps', 'jump', 'ramp', palette.surfaces.road],
   ];
+  const featureSlots = new Map<string, { slots: number[]; mats: Float32Array }>();
   const addFeatures = () => {
     for (const [name, kind, geo, colour] of featureNames) {
       const old = instancers.get(name);
       if (old) retire(old);
-      const mats = featureMatrices(track, kind);
+      const slots: number[] = [];
+      const mats = featureMatrices(track, kind, slots);
+      featureSlots.set(name, { slots, mats });
       if (mats.length === 0) { instancers.delete(name); continue; }
       const m = instancer(name, geometryFor(assets, geo), colour, mats);
       instancers.set(name, m);
@@ -197,9 +207,22 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   for (const [id, asset] of hazardAsset) hazardMeshById.set(id, hazardMeshes[hazardMeshByAsset.get(asset)!]);
   const hazardCounts = new Int32Array(hazardMeshes.length);
   const scratch = new Matrix4();
-  const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time)) => {
+  const hidden = new Matrix4().makeScale(0, 0, 0);
+  // popped balloons and taken coins vanish until their timer runs out
+  const syncLive = (name: string, timers: readonly { respawnRemaining: number }[] | undefined) => {
+    const m = instancers.get(name), fs = featureSlots.get(name);
+    if (!m || !fs || !timers) return;
+    for (let k = 0; k < fs.slots.length; k++) {
+      const gone = (timers[fs.slots[k]]?.respawnRemaining ?? 0) > 0;
+      if (gone) m.setMatrixAt(k, hidden);
+      else { scratch.fromArray(fs.mats, k * 16); m.setMatrixAt(k, scratch); }
+    }
+    m.instanceMatrix.needsUpdate = true;
+  };
+  const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time), live?: LiveFeatures) => {
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); }
+    if (live) { syncLive('balloons', live.pickups); syncLive('coins', live.coins); }
     hazardCounts.fill(0);
     for (const h of active) {
       if (h.type === 'gust') continue;
