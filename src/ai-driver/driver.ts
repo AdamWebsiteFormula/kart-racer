@@ -70,6 +70,8 @@ export class AiDriver {
   private readonly speed: SpeedDecision = { legal: 0, target: 0, corner: Infinity };
   private readonly avoidCtx: AvoidContext;
   private readonly itemCtx: ItemContext;
+  /** per kart, true while a homing projectile targets it; the items system writes it each tick */
+  readonly threatened: boolean[] = [];
 
   constructor(track: Track, config: RaceConfig, state: RaceState, opts: AiDriverOptions = {}) {
     this.track = track;
@@ -177,6 +179,7 @@ export class AiDriver {
     // 9. items
     if (!finished) {
       this.itemCtx.gap = gap;
+      this.itemCtx.threatened = this.threatened[i] === true;
       out.item = decideItem(s, m, profile, line, this.itemCtx, dt);
     }
 

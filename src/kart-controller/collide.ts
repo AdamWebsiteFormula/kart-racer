@@ -4,7 +4,7 @@ import type { KartConstants } from './constants.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type Vec3 } from './types.ts';
 
 export function collisionMass(s: KartState, c: KartConstants): number {
-  return c.mass + (boostLive(s) ? c.dashMassBonus : 0) + (s.status.shield ? c.dashMassBonus : 0);
+  return c.mass + (boostLive(s) ? c.dashMassBonus : 0) + (s.status.shield ? c.shieldMassBonus : 0);
 }
 
 function worldVelocity(s: KartState): Vec3 {

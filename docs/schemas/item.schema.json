@@ -46,6 +46,14 @@
       "items": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } }
     },
     "lockoutSeconds": { "type": "number", "default": 15 },
+    "ownerGraceSeconds": { "type": "number", "default": 0.35, "description": "A kart cannot be hit by its own projectile or drop for this long after firing (turbo-kart-rush OWNER_GRACE)" },
+    "spawnAheadMetres": { "type": "number", "default": 1.5, "description": "Projectiles spawn this far ahead (or behind) of the kart" },
+    "dropBehindMetres": { "type": "number", "default": 2.5, "description": "Ground items land this far behind the kart; past kartRadius + the widest ground radius (0.85 + 1.2) so a parked kart never sits on its own drop" },
+    "projectileHeight": { "type": "number", "default": 0.35, "description": "Metres above the road a projectile flies" },
+    "homingSnapDistance": { "type": "number", "default": 12, "description": "Metres from its target at which the Homing Kite leaves the centreline for the target's lateral" },
+    "homingLateralRate": { "type": "number", "default": 8, "description": "m/s the Kite can move sideways while snapping" },
+    "maxProjectilesPerOwner": { "type": "integer", "default": 1 },
+    "maxGroundPerOwner": { "type": "integer", "default": 2, "description": "A further drop pops the owner's oldest ground item" },
     "finalLapLockoutSeconds": { "type": "number", "default": 8 },
     "lockedDuringLockout": { "type": "array", "items": { "type": "string" } },
     "knockoutPoolByRacers": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } }, "description": "Racers remaining → item ids allowed" }

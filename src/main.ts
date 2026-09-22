@@ -1,6 +1,6 @@
 // Test drive: Harbour Loop, you plus 7 AI, placeholder karts. Not the game — the
-// smallest thing that lets the handling be felt. No items, no menus, no real art.
-// Order per tick is the one the SOPs assume: AI fills inputs → manager.step → scene.
+// smallest thing that lets the handling be felt. Placeholder items, no menus, no real art.
+// Order per tick is the one the SOPs assume: AI fills inputs → manager.step → items.step → scene.
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, PCFSoftShadowMap,
   PerspectiveCamera, Scene, Vector3, WebGLRenderer,
@@ -12,6 +12,7 @@ import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
 import { NEUTRAL_INPUT, type InputState, type Vec3 } from './kart-controller/types.ts';
 import { KartView } from './kart-controller/view.ts';
+import { Items } from './items/items.ts';
 import { RaceManager } from './race-manager/index.ts';
 import type { RaceConfig } from './race-manager/types.ts';
 import { buildTrackScene } from './track-builder/mesh/index.ts';
@@ -20,6 +21,7 @@ import harbourLoop from './track-builder/tracks/harbour-loop.json';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './game/camera.ts';
 import { hudNumbers } from './game/hud.ts';
+import { ItemsView } from './game/itemsView.ts';
 import { buildKartMesh } from './game/kartMesh.ts';
 import { Accumulator } from './game/loop.ts';
 import { ROSTER } from './game/racers.ts';
@@ -34,7 +36,8 @@ const config: RaceConfig = {
   racers: ROSTER.map((r, i) => ({ racerId: r.id, archetype: r.archetype, isPlayer: i === PLAYER })),
 };
 const manager = new RaceManager(track, config);
-const ai = new AiDriver(track, config, manager.state, {});
+const items = new Items(track, manager);
+const ai = new AiDriver(track, config, manager.state, { itemRoles: items.roles });
 const input = new InputSource();
 const inputs: InputState[] = manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
 
@@ -53,6 +56,9 @@ const cam = sun.shadow.camera;
 cam.left = -60; cam.right = 60; cam.top = 60; cam.bottom = -60; cam.far = 400;
 scene.add(sun, sun.target);
 scene.add(new AmbientLight(0xbcd8ff, 1.1));
+
+const itemsView = new ItemsView();
+scene.add(itemsView.root);
 
 const views = manager.state.karts.map((s, i) => {
   const r = ROSTER[i];
@@ -89,9 +95,9 @@ hud.id = 'hud';
 hud.innerHTML = `
   <div class="banner"></div>
   <div class="corner tl"><span class="lap"></span><span class="time"></span></div>
-  <div class="corner bl"><span class="place"></span></div>
+  <div class="corner bl"><span class="place"></span><span class="item"></span></div>
   <div class="corner br"><span class="speed"></span><span class="drift"></span><span class="boost"></span></div>
-  <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · Q look back · P pause · R restart</div>`;
+  <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · E item · Q look back · P pause · R restart</div>`;
 document.body.appendChild(hud);
 const el = {
   banner: hud.querySelector('.banner') as HTMLElement,
@@ -101,6 +107,7 @@ const el = {
   speed: hud.querySelector('.speed') as HTMLElement,
   drift: hud.querySelector('.drift') as HTMLElement,
   boost: hud.querySelector('.boost') as HTMLElement,
+  item: hud.querySelector('.item') as HTMLElement,
 };
 
 // ---- loop ----
@@ -127,7 +134,7 @@ addEventListener('keydown', (e) => {
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
-    manager, ai, track, trackScene, views, renderer, camera, acc, scene, inputs,
+    manager, ai, items, track, trackScene, views, renderer, camera, acc, scene, inputs,
     /** sim ticks and rendered frames since the page loaded */
     stats: () => ({ tick: manager.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: trackScene.drawables() }),
   };
@@ -146,13 +153,16 @@ function frame(now: number) {
   for (let i = 0; i < steps; i++) {
     ai.fill(manager.state, manager.lastActiveHazards, inputs);
     inputs[PLAYER] = player.finishTick === undefined ? input.sample(SIM_DT) : inputs[PLAYER];
-    manager.step(inputs);
+    const raceEvents = manager.step(inputs);
+    items.step(inputs, raceEvents, SIM_DT);
+    for (let k = 0; k < views.length; k++) ai.threatened[k] = items.threatened[k];
     for (let k = 0; k < views.length; k++) views[k].onTick(manager.state.karts[k], SIM_DT);
   }
 
   const alpha = acc.alpha;
   for (let k = 0; k < views.length; k++) views[k].onFrame(alpha, manager.state.karts[k], inputs[k].steer, frameDt);
   trackScene.update(manager.state.time, manager.lastActiveHazards);
+  itemsView.onFrame(items, manager.state.karts, views.map((v) => v.root), alpha, manager.state.time);
 
   // chase camera on the player's interpolated pose
   const root = views[PLAYER].root.position;
@@ -179,6 +189,7 @@ function frame(now: number) {
   el.speed.textContent = h.speed;
   el.drift.textContent = h.drift;
   el.boost.textContent = h.boost;
+  el.item.textContent = player.item.rouletteRemaining > 0 ? 'ITEM ???' : player.item.held === 'none' ? '' : `ITEM ${player.item.held}${player.item.charges > 1 ? ' ×' + player.item.charges : ''}`;
 
   renderer.render(scene, camera);
 }
