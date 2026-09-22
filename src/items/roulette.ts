@@ -49,21 +49,46 @@ export function onPickup(
 ): boolean {
   const s = st.karts[i];
   if (s.isGhost || s.finishTick !== undefined) return false;
-  if (s.item.held !== 'none' || s.item.rouletteRemaining > 0) return false;
+  // two slots: the first free one takes the roll
+  const heldFree = s.item.held === 'none' && s.item.rouletteRemaining <= 0;
+  const nextFree = s.item.next === 'none' && s.item.nextRouletteRemaining <= 0;
+  if (!heldFree && !nextFree) return false;
   const id = weightedPick(weightsFor(cfg, st, consts, track, s.rank), next(m));
   if (!id) return false;
   const def = cfg.items.find((d) => d.id === id);
-  s.item.held = id;
-  s.item.charges = def?.behaviour.charges ?? 1;
-  s.item.rouletteRemaining = cfg.rouletteSeconds;
-  events.push({ type: 'roulette', racerId: s.racerId, itemId: id, seconds: cfg.rouletteSeconds });
+  const charges = def?.behaviour.charges ?? 1;
+  const slot: 0 | 1 = heldFree ? 0 : 1;
+  if (slot === 0) { s.item.held = id; s.item.charges = charges; s.item.rouletteRemaining = cfg.rouletteSeconds; }
+  else { s.item.next = id; s.item.nextCharges = charges; s.item.nextRouletteRemaining = cfg.rouletteSeconds; }
+  events.push({ type: 'roulette', racerId: s.racerId, itemId: id, seconds: cfg.rouletteSeconds, slot });
   return true;
 }
 
-/** Ticks the roulette; fires itemReady when it lands. */
+function tickDown(x: number, dt: number): number {
+  const n = x - dt;
+  return n > 1e-9 ? n : 0;
+}
+
+/** Ticks both roulettes; fires itemReady when one lands. */
 export function stepRoulette(s: KartState, dt: number, events: ItemEvent[]): void {
-  if (s.item.rouletteRemaining <= 0) return;
-  const nextR = s.item.rouletteRemaining - dt;
-  s.item.rouletteRemaining = nextR > 1e-9 ? nextR : 0;
-  if (s.item.rouletteRemaining === 0 && s.item.held !== 'none') events.push({ type: 'itemReady', racerId: s.racerId, itemId: s.item.held });
+  if (s.item.rouletteRemaining > 0) {
+    s.item.rouletteRemaining = tickDown(s.item.rouletteRemaining, dt);
+    if (s.item.rouletteRemaining === 0 && s.item.held !== 'none') events.push({ type: 'itemReady', racerId: s.racerId, itemId: s.item.held, slot: 0 });
+  }
+  if (s.item.nextRouletteRemaining > 0) {
+    s.item.nextRouletteRemaining = tickDown(s.item.nextRouletteRemaining, dt);
+    if (s.item.nextRouletteRemaining === 0 && s.item.next !== 'none') events.push({ type: 'itemReady', racerId: s.racerId, itemId: s.item.next, slot: 1 });
+  }
+}
+
+/** Empty both slots and cancel both roulettes (Fog Bank). */
+export function clearSlots(s: KartState): void {
+  s.item.held = 'none'; s.item.charges = 0; s.item.rouletteRemaining = 0;
+  s.item.next = 'none'; s.item.nextCharges = 0; s.item.nextRouletteRemaining = 0;
+}
+
+/** The next item moves up into the held slot (still rolling if it was). */
+export function promoteNext(s: KartState): void {
+  s.item.held = s.item.next; s.item.charges = s.item.nextCharges; s.item.rouletteRemaining = s.item.nextRouletteRemaining;
+  s.item.next = 'none'; s.item.nextCharges = 0; s.item.nextRouletteRemaining = 0;
 }

@@ -20,7 +20,7 @@ import { buildTrack } from './track-builder/track.ts';
 import harbourLoop from './track-builder/tracks/harbour-loop.json';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './game/camera.ts';
-import { hudNumbers, itemSlot } from './game/hud.ts';
+import { hudNumbers, itemSlots } from './game/hud.ts';
 import { ItemsView } from './game/itemsView.ts';
 import { buildKartMesh } from './game/kartMesh.ts';
 import { Accumulator } from './game/loop.ts';
@@ -94,7 +94,7 @@ const hud = document.createElement('div');
 hud.id = 'hud';
 hud.innerHTML = `
   <div class="banner"></div>
-  <div class="corner tl"><span class="lap"></span><span class="time"></span><div class="slot"><span class="item"></span><span class="charges"></span></div><span class="coins"></span></div>
+  <div class="corner tl"><span class="lap"></span><span class="time"></span><div class="slot"><span class="item"></span><span class="charges"></span></div><div class="slot next"><span class="tag">NEXT</span><span class="item"></span><span class="charges"></span></div><span class="coins"></span></div>
   <div class="corner bl"><span class="place"></span></div>
   <div class="corner br"><span class="speed"></span><span class="drift"></span><span class="boost"></span></div>
   <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · E / X item · Q look back · P pause · R restart</div>`;
@@ -107,9 +107,12 @@ const el = {
   speed: hud.querySelector('.speed') as HTMLElement,
   drift: hud.querySelector('.drift') as HTMLElement,
   boost: hud.querySelector('.boost') as HTMLElement,
-  slot: hud.querySelector('.slot') as HTMLElement,
-  item: hud.querySelector('.item') as HTMLElement,
-  charges: hud.querySelector('.charges') as HTMLElement,
+  slot: hud.querySelector('.slot:not(.next)') as HTMLElement,
+  item: hud.querySelector('.slot:not(.next) .item') as HTMLElement,
+  charges: hud.querySelector('.slot:not(.next) .charges') as HTMLElement,
+  nextSlot: hud.querySelector('.slot.next') as HTMLElement,
+  nextItem: hud.querySelector('.slot.next .item') as HTMLElement,
+  nextCharges: hud.querySelector('.slot.next .charges') as HTMLElement,
   coins: hud.querySelector('.coins') as HTMLElement,
 };
 
@@ -192,10 +195,13 @@ function frame(now: number) {
   el.speed.textContent = h.speed;
   el.drift.textContent = h.drift;
   el.boost.textContent = h.boost;
-  const slot = itemSlot(player, items.cfg.items, now);
-  el.slot.dataset.state = slot.state;
-  el.item.textContent = slot.label;
-  el.charges.textContent = slot.charges;
+  const slots = itemSlots(player, items.cfg.items, now);
+  el.slot.dataset.state = slots.held.state;
+  el.item.textContent = slots.held.label;
+  el.charges.textContent = slots.held.charges;
+  el.nextSlot.dataset.state = slots.next.state;
+  el.nextItem.textContent = slots.next.label;
+  el.nextCharges.textContent = slots.next.charges;
   el.coins.textContent = `● ${player.coins}`;
 
   renderer.render(scene, camera);

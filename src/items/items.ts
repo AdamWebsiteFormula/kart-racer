@@ -133,7 +133,7 @@ export class Items {
     this.threatened.fill(false);
     for (const p of m.projectiles) if (p.target >= 0) this.threatened[p.target] = true;
     let fogHolder = '';
-    for (const s of karts) if (s.item.held !== 'none' && this.defs.get(s.item.held)?.role === 'equaliser') { fogHolder = s.racerId; break; }
+    for (const s of karts) if (this.defs.get(s.item.held)?.role === 'equaliser' || this.defs.get(s.item.next)?.role === 'equaliser') { fogHolder = s.racerId; break; }
     if (fogHolder !== m.fogHeldBy) {
       if (m.fogHeldBy) events.push({ type: 'equaliserHeld', racerId: m.fogHeldBy, on: false });
       if (fogHolder) events.push({ type: 'equaliserHeld', racerId: fogHolder, on: true });

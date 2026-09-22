@@ -32,7 +32,7 @@ Deleted: 24 racers, open world, intermissions, Free Roam, online multiplayer, 30
 Expected re-adds (the 10%): rewind (if trivial), one trick surface on the finale track, touch controls.
 
 ## Step 3 — Simplify what survived
-- One kart controller, one spline system, one item slot, one HUD layout, one art style, one audio bus graph.
+- One kart controller, one spline system, one item system (two slots: held + next, design §8), one HUD layout, one art style, one audio bus graph.
 - 8 tracks becomes **6 tracks in 2 cups of 3** if day 13 is behind; Knockout recombines them so it still feels like a full game.
 - 3 archetypes × ~3 skins = 8 racers with **one** rig style (blobby body, 2–3 bones).
 

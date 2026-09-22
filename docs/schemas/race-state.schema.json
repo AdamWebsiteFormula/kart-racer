@@ -36,7 +36,7 @@
           "drift": { "type": "object", "properties": { "active": { "type": "boolean" }, "direction": { "type": "integer" }, "charge": { "type": "number" }, "tier": { "type": "integer" }, "chargeMultiplier": { "type": "number" }, "chargeMultiplierRemaining": { "type": "number" } } },
           "airborne": { "type": "object", "properties": { "fromJumpId": { "type": "string" }, "trickQueued": { "type": "boolean" } } },
           "boost": { "type": "object", "properties": { "source": { "type": "string", "enum": ["none", "drift", "trick", "pad", "item", "slipstream", "start"] }, "remaining": { "type": "number" }, "multiplier": { "type": "number" } } },
-          "item": { "type": "object", "properties": { "held": { "type": "string" }, "charges": { "type": "integer" }, "rouletteRemaining": { "type": "number" } } },
+          "item": { "type": "object", "description": "Two slots (design §8): the held item is used first; next moves up when it runs out. Each slot rolls on its own timer.", "properties": { "held": { "type": "string" }, "charges": { "type": "integer" }, "rouletteRemaining": { "type": "number" }, "next": { "type": "string" }, "nextCharges": { "type": "integer" }, "nextRouletteRemaining": { "type": "number" } } },
           "status": { "type": "object", "properties": { "spinRemaining": { "type": "number" }, "shield": { "type": "boolean" }, "slowedTo": { "type": "number" }, "slowRemaining": { "type": "number" }, "intangibleRemaining": { "type": "number" } } },
           "coins": { "type": "integer" }, "rank": { "type": "integer" },
           "finishTick": { "type": "integer" },

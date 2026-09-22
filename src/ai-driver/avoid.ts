@@ -69,7 +69,9 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
       if (j < 0 || ctx.coinStates[j].respawnRemaining > 0) continue;
       kind = 1;
     } else if (f.kind === 'pickup') {
-      if (s.item.held !== 'none' || s.item.rouletteRemaining > 0) continue;
+      const heldFull = s.item.held !== 'none' || s.item.rouletteRemaining > 0;
+      const nextFull = s.item.next !== 'none' || s.item.nextRouletteRemaining > 0;
+      if (heldFull && nextFull) continue; // two slots: seek while either is free
       const j = i < ctx.pickupOf.length ? ctx.pickupOf[i] : -1;
       if (j < 0 || ctx.pickupStates[j].respawnRemaining > 0) continue;
       kind = 2;

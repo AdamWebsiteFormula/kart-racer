@@ -58,11 +58,11 @@ export function go(h: H): void {
 
 export function seconds(s: number): number { return Math.round(s / SIM_DT); }
 
-export function give(h: H, i: number, id: string): void {
+export function give(h: H, i: number, id: string, slot: 0 | 1 = 0): void {
   const s = h.rm.state.karts[i];
-  s.item.held = id;
-  s.item.charges = itemById(h.items.cfg, id)?.behaviour.charges ?? 1;
-  s.item.rouletteRemaining = 0;
+  const charges = itemById(h.items.cfg, id)?.behaviour.charges ?? 1;
+  if (slot === 0) { s.item.held = id; s.item.charges = charges; s.item.rouletteRemaining = 0; }
+  else { s.item.next = id; s.item.nextCharges = charges; s.item.nextRouletteRemaining = 0; }
 }
 
 /** Press the item button on kart i for one tick, then release it for one tick. Returns the press tick's events. */

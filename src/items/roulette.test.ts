@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ITEMS_CONFIG, ITEM_TABLE } from './data.ts';
 import { next, seedFor, weightedPick } from './rng.ts';
 import { weightsFor } from './roulette.ts';
-import { give, go, kart, press, seconds, setup, tick, toFeature } from './__tests__/harness.ts';
+import { give, go, kart, placeAt, press, seconds, setup, tick, toFeature } from './__tests__/harness.ts';
 
 describe('roll', () => {
   it('10,000 draws per rank match the table within 2 %', () => {
@@ -64,7 +64,7 @@ describe('roll', () => {
     expect(weightsFor(ITEMS_CONFIG, eight.rm.state, eight.rm.consts, eight.track, 8).fogBank).toBe(25);
   });
 
-  it('a balloon rolls an item, hides it for rouletteSeconds, and gives nothing while holding', () => {
+  it('a balloon rolls into the first free slot; a third balloon gives nothing; the next moves up on use', () => {
     const h = setup({ n: 2 });
     go(h);
     const s = kart(h, 0);
@@ -78,11 +78,44 @@ describe('roll', () => {
     const evs = tick(h, seconds(ITEMS_CONFIG.rouletteSeconds) + 1);
     expect(h.log.some((e) => e.type === 'itemReady' && e.itemId === held)).toBe(true);
     expect(evs.length).toBe(0);
-    // a second balloon while holding gives nothing
+    // a second balloon fills the next slot, rolling on its own timer
     toFeature(h, 0, 'pickup', 1);
     tick(h);
     expect(s.item.held).toBe(held);
-    expect(h.log.filter((e) => e.type === 'roulette').length).toBe(1);
+    expect(s.item.next).not.toBe('none');
+    expect(s.item.nextRouletteRemaining).toBeGreaterThan(0);
+    const nextId = s.item.next;
+    expect(h.log.filter((e) => e.type === 'roulette').map((e) => (e as { slot: number }).slot)).toEqual([0, 1]);
+    // a third balloon while both slots are taken gives nothing
+    placeAt(h.track, s, 0.02, 0);
+    tick(h, seconds(ITEMS_CONFIG.rouletteSeconds) + 1);
+    toFeature(h, 0, 'pickup', 0);
+    tick(h);
+    expect(h.log.filter((e) => e.type === 'roulette').length).toBe(2);
+    // using the held item promotes the next one
+    s.item.charges = 1;
+    placeAt(h.track, s, 0.02, 0);
+    press(h, 0);
+    expect(s.item.held).toBe(nextId);
+    expect(s.item.next).toBe('none');
+  });
+
+  it('a rolling next slot never blocks the held item, and a promoted item keeps rolling', () => {
+    const h = setup({ n: 1 });
+    go(h);
+    const s = kart(h, 0);
+    placeAt(h.track, s, 0.1, 0);
+    give(h, 0, 'beachBall');
+    s.item.next = 'bubble'; s.item.nextCharges = 1; s.item.nextRouletteRemaining = 1.0;
+    const ev = press(h, 0);
+    expect(ev.some((e) => e.type === 'itemUsed')).toBe(true);
+    expect(s.item.held).toBe('bubble');
+    expect(s.item.rouletteRemaining).toBeGreaterThan(0.9);
+    expect(press(h, 0).some((e) => e.type === 'itemRefused' && e.reason === 'roulette')).toBe(true);
+    tick(h, seconds(1));
+    expect(s.item.rouletteRemaining).toBe(0);
+    expect(press(h, 0).some((e) => e.type === 'itemUsed')).toBe(true);
+    expect(s.status.shield).toBe(true);
   });
 
   it('Time Trial and ghosts never roll or step', () => {

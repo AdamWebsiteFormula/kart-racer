@@ -73,7 +73,7 @@ Surfaces cap top speed rather than cutting grip: dirt 0.7, mud 0.6, ice 0.9 plus
 | 7 | Rocket Lolly | Triple speed charges; each doubles drift charge 2 s | Ice lolly with a fuse |
 | 8 | Fog Bank | Global equaliser: everyone ahead slows to 60% 3 s, loses item; last-4 only | Rolling grey cloud with a warning icon for leaders |
 v2 candidates: Grapple Anchor (tether), Swap Whistle, Ghost Cloak, Gravity Flip.
-Pickups: floating **balloons** on strings that pop on touch; roulette on the HUD.
+Pickups: floating **balloons** on strings that pop on touch; roulette on the HUD. **Two item slots** like Mario Kart World: the held item and the next one behind it. A balloon fills the first empty slot; you use the held item first and the next moves up; a Fog Bank strips both. (Adam, 22 Sept 2026; replaces the one-slot rule.) **Two item slots** like Mario Kart World: the held item and the next one behind it. A balloon fills the first empty slot; you use the held item first and the next moves up; a Fog Bank strips both. (Adam, 22 Sept 2026; replaces the one-slot rule.)
 
 ## 9. Modes (build order)
 Quick Race → Grand Prix (2 cups, 50/100/150cc, stars) → **Knockout** (8 racers, 3 linked tracks, cut lines 6/4/2, item pool shrinks) → Time Trial (ghost + medals) → Daily Challenge (seeded) → stretch: Mirror, split-screen.

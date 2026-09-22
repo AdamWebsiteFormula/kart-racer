@@ -61,7 +61,8 @@ export interface KartState {
     seconds: number;
   };
   boost: { source: BoostSource; remaining: number; multiplier: number };
-  item: { held: string; charges: number; rouletteRemaining: number };
+  /** two slots (design §8): held is used first; next moves up when held runs out */
+  item: { held: string; charges: number; rouletteRemaining: number; next: string; nextCharges: number; nextRouletteRemaining: number };
   status: {
     spinRemaining: number;
     shield: boolean;
@@ -110,7 +111,7 @@ export function createKartState(init: KartInit): KartState {
     drift: { active: false, phase: 'idle', direction: 0, charge: 0, tier: 0, hopSeconds: 0, yawK: 0, chargeMultiplier: 1, chargeMultiplierRemaining: 0 },
     airborne: { trickQueued: false, seconds: 0 },
     boost: { source: 'none', remaining: 0, multiplier: 1 },
-    item: { held: 'none', charges: 0, rouletteRemaining: 0 },
+    item: { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 },
     status: { spinRemaining: 0, shield: false, slowedTo: 1, slowRemaining: 0, intangibleRemaining: 0 },
     coins: init.coins ?? 0,
     rank: 0,

@@ -7,6 +7,7 @@ import type { Track } from '../track-builder/track.ts';
 import { placeGround, popGround } from './ground.ts';
 import { applyFog, distXZ, landHit } from './hits.ts';
 import { inFlightFor, popProjectile, spawnProjectile } from './projectiles.ts';
+import { promoteNext } from './roulette.ts';
 import type { ItemDefinition, ItemEvent, ItemsConfig, ItemsState, RefuseReason } from './types.ts';
 
 function refuse(events: ItemEvent[], s: KartState, reason: RefuseReason): false {
@@ -17,7 +18,7 @@ function refuse(events: ItemEvent[], s: KartState, reason: RefuseReason): false 
 function spend(s: KartState, events: ItemEvent[]): void {
   s.item.charges = Math.max(0, s.item.charges - 1);
   events.push({ type: 'itemUsed', racerId: s.racerId, itemId: s.item.held, chargesLeft: s.item.charges });
-  if (s.item.charges === 0) s.item.held = 'none';
+  if (s.item.charges === 0) promoteNext(s);
 }
 
 /** A press on kart i. Returns true when the item was used (one charge spent). */

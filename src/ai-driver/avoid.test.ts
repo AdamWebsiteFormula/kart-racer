@@ -54,9 +54,11 @@ describe('avoid and seek', () => {
     const b = kartAt(track, 0.28);
     const bl = lineFor(track, b, memory());
     expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3)).toBeCloseTo(4); // balloon at lateral 4 is within 2.5 m
-    b.item.held = 'ball';
+    b.item.held = 'ball'; // one slot full: still seeks (two slots since items 2026-09-22)
+    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3)).toBeCloseTo(4);
+    b.item.next = 'ball'; // both full: stops seeking
     expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3)).toBeCloseTo(3);
-    b.item.held = 'none';
+    b.item.held = 'none'; b.item.next = 'none';
     const cx = ctx([b], []);
     cx.pickupStates[1].respawnRemaining = 2; // popped: not there
     expect(applyAvoid(b, cx, bl, 1, 0, 3)).toBeCloseTo(3);

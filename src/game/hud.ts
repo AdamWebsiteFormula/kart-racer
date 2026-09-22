@@ -49,13 +49,21 @@ export interface ItemSlot { state: 'empty' | 'rolling' | 'ready'; label: string;
 /** ROULETTE_FLICKER_MS: the rolling slot changes name this often; wall time drives it (cosmetic only). */
 export const ROULETTE_FLICKER_MS = 90;
 
-/** What the HUD item slot shows. `names` come from the items config in order; the flicker walks them. */
-export function itemSlot(player: KartState, defs: readonly { id: string; name: string }[], nowMs: number): ItemSlot {
-  if (player.item.rouletteRemaining > 0) {
+function slotFor(id: string, charges: number, roulette: number, defs: readonly { id: string; name: string }[], nowMs: number): ItemSlot {
+  if (roulette > 0) {
     const d = defs[Math.floor(nowMs / ROULETTE_FLICKER_MS) % Math.max(1, defs.length)];
     return { state: 'rolling', label: d?.name ?? '?', charges: '' };
   }
-  if (player.item.held === 'none') return { state: 'empty', label: '', charges: '' };
-  const d = defs.find((x) => x.id === player.item.held);
-  return { state: 'ready', label: d?.name ?? player.item.held, charges: player.item.charges > 1 ? `×${player.item.charges}` : '' };
+  if (id === 'none') return { state: 'empty', label: '', charges: '' };
+  const d = defs.find((x) => x.id === id);
+  return { state: 'ready', label: d?.name ?? id, charges: charges > 1 ? `×${charges}` : '' };
+}
+
+/** What the two HUD item slots show. `defs` come from the items config in order; the flicker walks them. */
+export function itemSlots(player: KartState, defs: readonly { id: string; name: string }[], nowMs: number): { held: ItemSlot; next: ItemSlot } {
+  const it = player.item;
+  return {
+    held: slotFor(it.held, it.charges, it.rouletteRemaining, defs, nowMs),
+    next: slotFor(it.next, it.nextCharges, it.nextRouletteRemaining, defs, nowMs + ROULETTE_FLICKER_MS * 3),
+  };
 }

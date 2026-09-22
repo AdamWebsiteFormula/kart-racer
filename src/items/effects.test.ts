@@ -149,7 +149,7 @@ describe('Fog Bank', () => {
     for (let i = 0; i < 6; i++) placeAt(h.track, kart(h, i), 0.03 + (5 - i) * 0.012, 0); // k0 leads … k5 last, all inside the first sector
     tick(h, 3);
     expect(kart(h, 4).rank).toBe(5);
-    give(h, 0, 'beachBall'); give(h, 1, 'bubble'); give(h, 5, 'oilCan');
+    give(h, 0, 'beachBall'); give(h, 0, 'bubble', 1); give(h, 1, 'bubble'); give(h, 5, 'oilCan');
     kart(h, 2).item.held = 'oilCan'; kart(h, 2).item.rouletteRemaining = 1; // mid-roulette
     give(h, 4, 'fogBank');
     const ev = press(h, 4);
@@ -159,9 +159,10 @@ describe('Fog Bank', () => {
       expect(kart(h, i).status.slowedTo).toBe(0.6);
       expect(kart(h, i).status.slowRemaining).toBeCloseTo(3, 1);
       expect(kart(h, i).item.held).toBe('none');
+      expect(kart(h, i).item.next).toBe('none');
       expect(kart(h, i).item.rouletteRemaining).toBe(0);
     }
-    expect(count(ev, 'itemLost')).toBe(3);
+    expect(count(ev, 'itemLost')).toBe(4); // k0 loses both slots
     expect(kart(h, 4).status.slowRemaining).toBe(0);
     expect(kart(h, 5).status.slowRemaining).toBe(0);
     expect(kart(h, 5).item.held).toBe('oilCan');
