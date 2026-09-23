@@ -118,6 +118,12 @@ export class UiRoot {
     this.root.id = 'ui';
     parent.appendChild(this.root);
     this.touch = new TouchControls(this.root);
+    // a phone held upright: the race needs it sideways (shown by CSS only, portrait + touch)
+    const rotate = document.createElement('div');
+    rotate.className = 'rotate-hint';
+    rotate.setAttribute('role', 'status');
+    rotate.innerHTML = '<div class="phone" aria-hidden="true"></div><p>Turn your phone sideways to race</p>';
+    this.root.appendChild(rotate);
     // the item roulette flicks through every painted item: have them all in the cache first
     for (const id of Object.keys(ITEM_ICONS)) new Image().src = itemArt(id);
     const r = this.root;
