@@ -1,4 +1,4 @@
-// SOP tests 7–11, 13: Oil, Decoy, Air Horn, Bubble, Rocket Lolly, Fog Bank, no boost stacking.
+// SOP tests 7–11, 13: Oil, Decoy, Air Horn, Bubble, Triple Fizz, Fog Bank, no boost stacking.
 import { describe, expect, it } from 'vitest';
 import { collisionMass } from '../kart-controller/collide.ts';
 import { ITEMS_CONFIG } from './data.ts';
@@ -115,13 +115,13 @@ describe('Bubble', () => {
   });
 });
 
-describe('Rocket Lolly', () => {
+describe('Triple Fizz', () => {
   it('3 charges; each boosts 1.4 × for 1.5 s and doubles the drift charge for 2 s; a Trick wins', () => {
     const h = setup({ n: 1 });
     go(h);
     const s = kart(h, 0);
     const c = h.rm.consts[0];
-    give(h, 0, 'rocketLolly');
+    give(h, 0, 'tripleFizz');
     expect(s.item.charges).toBe(3);
     press(h, 0);
     expect(s.boost.source).toBe('item');
@@ -130,7 +130,7 @@ describe('Rocket Lolly', () => {
     expect(s.drift.chargeMultiplier).toBe(2);
     expect(s.drift.chargeMultiplierRemaining).toBeCloseTo(2, 1);
     expect(s.item.charges).toBe(2);
-    expect(s.item.held).toBe('rocketLolly');
+    expect(s.item.held).toBe('tripleFizz');
     s.boost.source = 'trick'; s.boost.multiplier = c.trickMultiplier; s.boost.remaining = 0.7;
     press(h, 0);
     expect(s.boost.source).toBe('trick');

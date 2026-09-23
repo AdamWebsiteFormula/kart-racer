@@ -2,7 +2,9 @@
 // and the projectiles / groundItems entries of race-state.schema.json. No Three.js.
 import type { Vec3 } from '../kart-controller/types.ts';
 
-export type ItemRole = 'forward' | 'homing' | 'rearDrop' | 'deception' | 'defenceArea' | 'defenceHeld' | 'speed' | 'equaliser' | 'chaos';
+export type ItemRole =
+  | 'forward' | 'homing' | 'rearDrop' | 'deception' | 'defenceArea' | 'defenceHeld' | 'speed' | 'equaliser' | 'chaos'
+  | 'ride' | 'jump' | 'tether' | 'runner';
 
 export interface ItemBehaviour {
   /** m/s at the 100 cc base; scaled by the kart schema speed class factor */
@@ -21,6 +23,27 @@ export interface ItemBehaviour {
   chargeMultiplier?: number;
   chargeSeconds?: number;
   weightBonus?: number;
+  /** hold the button to trail it behind the kart as a rear shield; let go to use it */
+  trailable?: boolean;
+  /** Wind-Up Mouse: karts it can bump before it runs down */
+  hits?: number;
+  /** Wind-Up Mouse: weave amplitude as a fraction of the free road half width, and its period */
+  weave?: number;
+  weaveSeconds?: number;
+  /** Grapple Anchor: metres ahead along the road it can reach */
+  range?: number;
+  /** Grapple Anchor: the pull lets go this close (metres), then slingshots */
+  releaseMetres?: number;
+  slingshotSeconds?: number;
+  /** Grapple Anchor: the hooked kart's tug when you fly past */
+  tugSlowTo?: number;
+  tugSeconds?: number;
+  /** Strike Ball: the closing STRIKE burst spins karts within this radius */
+  burstRadius?: number;
+  /** Pogo Spring: the slam's shock ring radius */
+  slamRadius?: number;
+  /** Strike Ball: m/s up given to a kart it knocks, so it flies like a pin */
+  popSpeed?: number;
 }
 
 export interface HitEffect {
@@ -60,6 +83,10 @@ export interface ItemsConfig {
   homingLateralRate: number;
   maxProjectilesPerOwner: number;
   maxGroundPerOwner: number;
+  /** metres behind the kart a trailed item rides */
+  trailBehindMetres: number;
+  /** a kart more than this high above a projectile or ground item passes over it (a Pogo Spring jump) */
+  hitHeight: number;
 }
 
 export interface Projectile {
@@ -83,6 +110,13 @@ export interface Projectile {
   ttl: number;
   graceRemaining: number;
   radius: number;
+  /** karts it may still hit (the Wind-Up Mouse passes through; everything else pops on the first) */
+  hitsLeft: number;
+  /** seconds since it was fired (the Mouse's weave) */
+  age: number;
+  /** Mouse weave amplitude (fraction of the free half width); 0 for everything else */
+  weave: number;
+  weaveSeconds: number;
 }
 
 export interface GroundItem {
@@ -108,9 +142,17 @@ export interface ItemsState {
   fogHeldBy: string;
   projectiles: Projectile[];
   groundItems: GroundItem[];
+  /** per kart: the held item is trailing behind (button held) */
+  trailing: boolean[];
+  /** per kart: the power running from the first slot ('strikeBall') or '' */
+  power: string[];
+  /** per kart: Pogo Spring phase: 0 none, 1 in the air (slam ready), 2 slamming */
+  pogo: number[];
+  /** per kart: a Grapple Anchor pull was live last tick */
+  towing: boolean[];
 }
 
-export type RefuseReason = 'roulette' | 'spinning' | 'intangible' | 'notRacing' | 'noItem' | 'inFlight' | 'position';
+export type RefuseReason = 'roulette' | 'spinning' | 'intangible' | 'notRacing' | 'noItem' | 'inFlight' | 'position' | 'inUse' | 'noTarget';
 
 export type ItemEvent =
   | { type: 'roulette'; racerId: string; itemId: string; seconds: number; slot: 0 | 1 }
@@ -129,4 +171,13 @@ export type ItemEvent =
   | { type: 'shieldEnd'; racerId: string }
   | { type: 'horn'; racerId: string; position: Vec3; radius: number }
   | { type: 'fog'; racerId: string; victims: string[] }
-  | { type: 'equaliserHeld'; racerId: string; on: boolean };
+  | { type: 'equaliserHeld'; racerId: string; on: boolean }
+  | { type: 'trailStart'; racerId: string; itemId: string }
+  | { type: 'trailBlock'; racerId: string; itemId: string; position: Vec3 }
+  | { type: 'powerStart'; racerId: string; itemId: string; seconds: number }
+  | { type: 'powerEnd'; racerId: string; itemId: string }
+  | { type: 'burst'; racerId: string; position: Vec3; radius: number }
+  | { type: 'springLaunch'; racerId: string }
+  | { type: 'springSlam'; racerId: string; position: Vec3; radius: number }
+  | { type: 'tetherStart'; racerId: string; targetId: string }
+  | { type: 'tetherEnd'; racerId: string; targetId: string; slingshot: boolean };

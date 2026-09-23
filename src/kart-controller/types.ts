@@ -69,6 +69,11 @@ export interface KartState {
     slowedTo: number;
     slowRemaining: number;
     intangibleRemaining: number;
+    /** Strike Ball: seconds left rolling on autopilot */
+    rideRemaining: number;
+    /** Grapple Anchor: seconds left reeling toward karts[towTarget] (-1 = none) */
+    towRemaining: number;
+    towTarget: number;
   };
   coins: number;
   rank: number;
@@ -112,7 +117,10 @@ export function createKartState(init: KartInit): KartState {
     airborne: { trickQueued: false, seconds: 0 },
     boost: { source: 'none', remaining: 0, multiplier: 1 },
     item: { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 },
-    status: { spinRemaining: 0, shield: false, slowedTo: 1, slowRemaining: 0, intangibleRemaining: 0 },
+    status: {
+      spinRemaining: 0, shield: false, slowedTo: 1, slowRemaining: 0, intangibleRemaining: 0,
+      rideRemaining: 0, towRemaining: 0, towTarget: -1,
+    },
     coins: init.coins ?? 0,
     rank: 0,
     prevDrift: false,

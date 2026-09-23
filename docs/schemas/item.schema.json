@@ -13,7 +13,7 @@
         "required": ["id", "name", "role", "behaviour", "icon", "sfx"],
         "properties": {
           "id": { "type": "string" }, "name": { "type": "string" },
-          "role": { "type": "string", "enum": ["forward", "homing", "rearDrop", "deception", "defenceArea", "defenceHeld", "speed", "equaliser", "chaos"] },
+          "role": { "type": "string", "enum": ["forward", "homing", "rearDrop", "deception", "defenceArea", "defenceHeld", "speed", "equaliser", "chaos", "ride", "jump", "tether", "runner"] },
           "behaviour": {
             "type": "object",
             "properties": {
@@ -22,9 +22,20 @@
               "speedMultiplier": { "type": "number" }, "durationSeconds": { "type": "number" }, "charges": { "type": "integer" },
               "affects": { "type": "string", "enum": ["target", "self", "ahead", "adjacent", "all"] },
               "slowTo": { "type": "number" }, "stripsItem": { "type": "boolean" }, "minPosition": { "type": "integer" },
-              "chargeMultiplier": { "type": "number", "description": "Rocket Lolly: drift charge rate scale while active" },
+              "chargeMultiplier": { "type": "number", "description": "Triple Fizz: drift charge rate scale while active" },
               "chargeSeconds": { "type": "number" },
-              "weightBonus": { "type": "number", "description": "Bubble: added to weight while held" }
+              "weightBonus": { "type": "number", "description": "Bubble: added to weight while held" },
+              "trailable": { "type": "boolean", "description": "Hold the button to trail it behind as a rear shield; let go to use it (MKW drag)" },
+              "hits": { "type": "integer", "description": "Wind-Up Mouse: karts it can bump before it runs down" },
+              "weave": { "type": "number", "description": "Wind-Up Mouse: weave amplitude, fraction of the free road half width" },
+              "weaveSeconds": { "type": "number", "description": "Wind-Up Mouse: one full weave" },
+              "range": { "type": "number", "description": "Grapple Anchor: metres ahead along the road it can hook" },
+              "releaseMetres": { "type": "number", "description": "Grapple Anchor: the pull lets go this close and slingshots" },
+              "slingshotSeconds": { "type": "number", "description": "Grapple Anchor: item boost on release" },
+              "tugSlowTo": { "type": "number" }, "tugSeconds": { "type": "number" },
+              "burstRadius": { "type": "number", "description": "Strike Ball: the closing STRIKE burst spins karts inside it" },
+              "slamRadius": { "type": "number", "description": "Pogo Spring: the slam's shock ring" },
+              "popSpeed": { "type": "number", "description": "Strike Ball: m/s up given to a kart it knocks, so it flies like a pin" }
             }
           },
           "hitEffect": {
@@ -54,6 +65,8 @@
     "homingLateralRate": { "type": "number", "default": 8, "description": "m/s the Kite can move sideways while snapping" },
     "maxProjectilesPerOwner": { "type": "integer", "default": 1 },
     "maxGroundPerOwner": { "type": "integer", "default": 2, "description": "A further drop pops the owner's oldest ground item" },
+    "trailBehindMetres": { "type": "number", "default": 1.9, "description": "A trailed item rides this far behind the kart centre (past kartRadius + the item radius)" },
+    "hitHeight": { "type": "number", "default": 1.4, "description": "A kart whose ground clearance is more than this passes over projectiles and ground items (Pogo Spring)" },
     "finalLapLockoutSeconds": { "type": "number", "default": 8 },
     "lockedDuringLockout": { "type": "array", "items": { "type": "string" } },
     "knockoutPoolByRacers": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } }, "description": "Racers remaining → item ids allowed" }

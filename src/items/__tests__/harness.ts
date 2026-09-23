@@ -6,6 +6,7 @@ import { RaceManager } from '../../race-manager/race.ts';
 import type { RaceEvent, RaceMode } from '../../race-manager/types.ts';
 import { OVAL, placeAt } from '../../race-manager/__tests__/fixtures.ts';
 import { buildTrack, type Track } from '../../track-builder/track.ts';
+import type { TrackDefinition } from '../../track-builder/types.ts';
 import { ITEMS_CONFIG, itemById } from '../data.ts';
 import { Items } from '../items.ts';
 import type { ItemEvent, ItemsConfig } from '../types.ts';
@@ -23,11 +24,11 @@ export interface H {
   race: RaceEvent[];
 }
 
-export interface SetupOptions { n?: number; mode?: RaceMode; cc?: 50 | 100 | 150; seed?: number; cfg?: ItemsConfig; laps?: number; knockoutEliminated?: string[] }
+export interface SetupOptions { n?: number; mode?: RaceMode; cc?: 50 | 100 | 150; seed?: number; cfg?: ItemsConfig; laps?: number; knockoutEliminated?: string[]; def?: TrackDefinition }
 
 export function setup(o: SetupOptions = {}): H {
   const n = o.n ?? 2;
-  const track = buildTrack(OVAL);
+  const track = buildTrack(o.def ?? OVAL);
   const racers = Array.from({ length: n }, (_, i) => ({ racerId: `k${i}`, archetype: 'medium' as const, isPlayer: i === 0 }));
   const rm = new RaceManager(track, {
     mode: o.mode ?? 'quick', trackId: 'oval', speedClass: o.cc ?? 150, seed: o.seed ?? 1, racers, laps: o.laps,
@@ -65,12 +66,32 @@ export function give(h: H, i: number, id: string, slot: 0 | 1 = 0): void {
   else { s.item.next = id; s.item.nextCharges = charges; s.item.nextRouletteRemaining = 0; }
 }
 
-/** Press the item button on kart i for one tick, then release it for one tick. Returns the press tick's events. */
+/**
+ * Tap the item button on kart i: one tick down, one tick up, holding look-back through both like
+ * a thumb would (a trailable item is used on the up tick). Returns both ticks' events.
+ */
 export function press(h: H, i: number, lookBack = false): ItemEvent[] {
   h.inputs[i] = { ...h.inputs[i], item: true, lookBack };
+  const down = tick(h);
+  h.inputs[i] = { ...h.inputs[i], item: false, lookBack };
+  const up = tick(h);
+  h.inputs[i] = { ...h.inputs[i], lookBack: false };
+  return [...down, ...up];
+}
+
+/** Hold the item button on kart i for `n` ticks (a trailable item trails); release with `let go`. */
+export function hold(h: H, i: number, n: number): ItemEvent[] {
+  h.inputs[i] = { ...h.inputs[i], item: true };
+  const out: ItemEvent[] = [];
+  for (let k = 0; k < n; k++) out.push(...tick(h));
+  return out;
+}
+
+/** Let go of a held item button on kart i (one tick). */
+export function letGo(h: H, i: number, lookBack = false): ItemEvent[] {
+  h.inputs[i] = { ...h.inputs[i], item: false, lookBack };
   const ev = tick(h);
-  h.inputs[i] = { ...h.inputs[i], item: false, lookBack: false };
-  tick(h);
+  h.inputs[i] = { ...h.inputs[i], lookBack: false };
   return ev;
 }
 

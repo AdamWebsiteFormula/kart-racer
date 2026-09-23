@@ -1,10 +1,12 @@
 // Steps 10–11: walls and kart-vs-kart circles. Mass decides the bump.
 import { boostLive } from './boost.ts';
 import type { KartConstants } from './constants.ts';
+import { isRiding, radiusOf } from './powers.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type Vec3 } from './types.ts';
 
 export function collisionMass(s: KartState, c: KartConstants): number {
-  return c.mass + (boostLive(s) ? c.dashMassBonus : 0) + (s.status.shield ? c.shieldMassBonus : 0);
+  return c.mass + (boostLive(s) ? c.dashMassBonus : 0) + (s.status.shield ? c.shieldMassBonus : 0)
+    + (isRiding(s) ? c.rideMassBonus : 0);
 }
 
 function worldVelocity(s: KartState): Vec3 {
@@ -21,7 +23,7 @@ function setWorldVelocity(s: KartState, w: Vec3): void {
 export function stepWalls(
   s: KartState, lateral: number, right: Vec3, halfWidth: number, c: KartConstants, dt: number, events: KartEvent[],
 ): void {
-  const limit = halfWidth - c.kartRadius;
+  const limit = halfWidth - radiusOf(s, c);
   if (Math.abs(lateral) <= limit) return;
   const side = Math.sign(lateral);
   const overshoot = Math.abs(lateral) - limit;
@@ -77,7 +79,7 @@ export function collideKarts(
   const dx = b.position[0] - a.position[0];
   const dz = b.position[2] - a.position[2];
   const dist = Math.hypot(dx, dz);
-  const minDist = 2 * c.kartRadius;
+  const minDist = radiusOf(a, ca) + radiusOf(b, cb);
   if (dist >= minDist || dist === 0) return false;
   const nx = dx / dist, nz = dz / dist; // from a toward b
   const ma = collisionMass(a, ca);

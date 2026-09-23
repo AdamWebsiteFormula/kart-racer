@@ -46,7 +46,7 @@ export interface HazardDef {
 
 /** `shortcut` names the branch a feature sits on; t stays main-equivalent. */
 export interface JumpDef { id: string; t: number; lateral?: number; width?: number; launch: number; shortcut?: string }
-export interface PickupDef { t: number; lateral?: number; shortcut?: string }
+export interface PickupDef { t: number; lateral?: number; shortcut?: string; /** a gold double balloon: both item slots at once */ double?: boolean }
 export interface BoostPadDef { t: number; lateral?: number; width?: number; shortcut?: string }
 
 export interface RouteOverride { fromT: number; toT: number; controlPoints: ControlPoint[] }
@@ -123,6 +123,8 @@ export interface BakedFeature {
   width: number;
   /** vertical launch m/s (jumps) */
   launch: number;
+  /** a gold double balloon (pickups) */
+  double?: boolean;
 }
 
 export interface ActiveHazard {

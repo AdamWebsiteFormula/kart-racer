@@ -4,6 +4,7 @@ export type SfxId =
   | 'count' | 'go' | 'lap' | 'finalLap' | 'finish' | 'finishLow'
   | 'balloon' | 'coin' | 'rouletteTick' | 'itemReady'
   | 'throw' | 'kite' | 'drop' | 'shieldUp' | 'shieldPop' | 'airHorn' | 'fog' | 'rocket'
+  | 'fizz' | 'strikeRoll' | 'strike' | 'boing' | 'slam' | 'anchor' | 'slingshot' | 'mouse' | 'blocked' | 'denied' | 'trail'
   | 'hit' | 'spin' | 'boost1' | 'boost2' | 'boost3' | 'boostPad' | 'boostTrick' | 'boostStart'
   | 'tierUp' | 'hop' | 'land' | 'wall' | 'bump' | 'wrongWay' | 'gainPlace' | 'losePlace'
   | 'respawn' | 'uiMove' | 'uiConfirm' | 'uiBack'

@@ -6,10 +6,11 @@ import type { KartConstants } from './constants.ts';
 import { gripFor } from './constants.ts';
 import { cancelDrift, stepDrift } from './drift.ts';
 import { stepGround } from './ground.ts';
+import { isRiding, isTowed, rideAim, stepPilot } from './powers.ts';
 import { stepSlipstream } from './slipstream.ts';
 import { stepSpeed, targetSpeed } from './speed.ts';
 import { stepSteer } from './steer.ts';
-import { NEUTRAL_INPUT, type HitKind, type InputState, type KartEvent, type KartState, type StepOptions, type TrackQuery } from './types.ts';
+import { NEUTRAL_INPUT, type HitKind, type InputState, type KartEvent, type KartState, type StepOptions, type TrackQuery, type Vec3 } from './types.ts';
 
 export const SIM_HZ = 120;
 export const SIM_DT = 1 / SIM_HZ;
@@ -32,11 +33,19 @@ export function tickTimers(s: KartState, dt: number): void {
   if (s.drift.chargeMultiplierRemaining === 0) s.drift.chargeMultiplier = 1;
   s.wallCooldown = countDown(s.wallCooldown, dt);
   s.bumpCooldown = countDown(s.bumpCooldown, dt);
+  s.status.rideRemaining = countDown(s.status.rideRemaining, dt);
+  s.status.towRemaining = countDown(s.status.towRemaining, dt);
+  if (s.status.towRemaining === 0) s.status.towTarget = -1;
 }
 
-/** Steps 1–10 for one kart. Returns the events it raised. */
+const scratchAim: Vec3 = [0, 0, 0];
+
+/**
+ * Steps 1–10 for one kart. Returns the events it raised. `towAim` is where a Grapple Anchor
+ * pulls this kart (the hooked kart's position); stepKarts passes it.
+ */
 export function stepKart(
-  s: KartState, input: InputState, track: TrackQuery, c: KartConstants, dt: number, opts: StepOptions = {},
+  s: KartState, input: InputState, track: TrackQuery, c: KartConstants, dt: number, opts: StepOptions = {}, towAim?: Vec3,
 ): KartEvent[] {
   const events: KartEvent[] = [];
   // 2. status gate: a kart that was spinning at the start of this tick ignores
@@ -48,6 +57,13 @@ export function stepKart(
     s.prevDrift = input.drift;
     const rem = s.status.spinRemaining; // already counted down
     s.speed = rem > 0 ? s.speed * (rem / (rem + dt)) : 0;
+  } else if (isRiding(s) || (isTowed(s) && towAim)) {
+    // autopilot: the Strike Ball rolls down the centreline, the Grapple Anchor reels toward its kart
+    s.prevDrift = input.drift;
+    const base = targetSpeed(s, c).base;
+    if (isRiding(s)) stepPilot(s, rideAim(s, track, c, scratchAim), base * c.rideSpeedMultiplier, c, dt);
+    else stepPilot(s, towAim as Vec3, base * c.towSpeedMultiplier, c, dt);
+    cancelDrift(s);
   } else {
     // 3. speed
     const targets = targetSpeed(s, c);
@@ -73,7 +89,10 @@ export function stepKarts(
   karts: KartState[], inputs: readonly InputState[], track: TrackQuery, consts: readonly KartConstants[],
   dt: number, opts: StepOptions = {},
 ): KartEvent[][] {
-  const events = karts.map((k, i) => stepKart(k, inputs[i], track, consts[i], dt, opts));
+  const events = karts.map((k, i) => {
+    const to = k.status.towTarget;
+    return stepKart(k, inputs[i], track, consts[i], dt, opts, isTowed(k) && to < karts.length ? karts[to].position : undefined);
+  });
   // 11. kart vs kart, every pair once
   for (let i = 0; i < karts.length; i++) {
     for (let j = i + 1; j < karts.length; j++) {
@@ -101,6 +120,9 @@ export function applyHit(s: KartState, c: KartConstants, kind: HitKind, events: 
   }
   cancelDrift(s);
   clearBoost(s);
+  // a hit breaks a Grapple Anchor's pull
+  s.status.towRemaining = 0;
+  s.status.towTarget = -1;
   events.push({ type: 'hit', kind, spun, coinsLost });
 }
 

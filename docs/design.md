@@ -73,19 +73,32 @@ Hop 0.25 s → drift (lands loose, tightens over 0.25 s, slides outward first, l
 
 Surfaces cap top speed rather than cutting grip: dirt 0.7, mud 0.6, ice 0.9 plus real sliding. A live boost or being airborne ignores the cap, so hopping a mud patch is a real line.
 
-## 8. Items (8 in v1; roles from plan §5, skinned to the world)
-| # | Name | Role | Look |
-|---|---|---|---|
-| 1 | Beach Ball | Forward, bounces ×3 | Striped rubber ball |
-| 2 | Homing Kite | Homing forward | Paper kite with a visible string |
-| 3 | Oil Can | Rear drop | Tipped can, rainbow slick |
-| 4 | Decoy Balloon | Rear deception | Looks like a pickup balloon, pops you |
-| 5 | Air Horn | Radial defence / clears | Big red horn, visible shockwave ring |
-| 6 | Bubble | Held shield, +bump weight | Soap bubble around the kart |
-| 7 | Rocket Lolly | Triple speed charges; each doubles drift charge 2 s | Ice lolly with a fuse |
-| 8 | Fog Bank | Global equaliser: everyone ahead slows to 60% 3 s, loses item; last-4 only | Rolling grey cloud with a warning icon for leaders |
-v2 candidates: Grapple Anchor (tether), Swap Whistle, Ghost Cloak, Gravity Flip.
-Pickups: floating **balloons** on strings that pop on touch; roulette on the HUD. **Two item slots** like Mario Kart World: the held item and the next one behind it. A balloon fills the first empty slot; you use the held item first and the next moves up; a Fog Bank strips both. (Adam, 22 Sept 2026; replaces the one-slot rule.)
+## 8. Items (13; roles from plan §5, skinned to the world; Adam, 23 Sept 2026: "works like Mario Kart World")
+How holding works (Mario Kart World feel):
+- **Two slots.** Pop a balloon: the item roulette spins in the first empty slot (1.5 s of flicking item art with ticks, slowing, then a chime). A second balloon spins the second slot while you can still use the first. You always use the first slot; the second moves up. Both full: the balloon gives nothing.
+- **Double balloons.** A gold pair of balloons fills both slots at once. One or two per track, in the middle of a balloon row.
+- **Hold to trail.** Hold the item button with a Beach Ball, Oil Can, Decoy Balloon or Wind-Up Mouse: it trails behind your kart and blocks one projectile from behind (both pop). Let go to throw or drop it. A tap uses it at once. Look back while you let go throws a Ball or Mouse backward.
+- **A big power stays in the slot.** While a Strike Ball rolls, it stays in the first slot and you cannot use the second. It leaves when the power ends.
+- **Our own versions, never copies** (Adam, 23 Sept 2026): no giant-growth power, no literal rocket or bullet. Each power works in its own way and has its own look.
+
+| # | Name | Role | What it does | Look |
+|---|---|---|---|---|
+| 1 | Beach Ball | forward | Fires ahead, bounces off the road edge 3 times, spins who it hits | Striped rubber ball |
+| 2 | Homing Kite | homing | Chases the kart ahead | Paper kite with a visible string |
+| 3 | Oil Can | rearDrop | Slick behind you: 50% speed 1 s | Tipped can, rainbow slick |
+| 4 | Decoy Balloon | deception | Looks like a pickup balloon; pops you | A pickup balloon with a sneaky grin |
+| 5 | Air Horn | defenceArea | Blast ring 6 m: clears items, spins karts | Big red horn, visible shockwave ring |
+| 6 | Bubble | defenceHeld | Absorbs one hit for 8 s, +bump weight | Soap bubble around the kart |
+| 7 | **Fizz Pop** | speed | One +40% boost for 1.5 s; blasts through grass and sand | Shaken soda bottle, cap pops, foam jet |
+| 8 | **Triple Fizz** | speed | Three Fizz Pops; each also doubles drift charge for 2 s (sugar rush) | Three bottles orbit the kart (replaces Rocket Lolly) |
+| 9 | Fog Bank | equaliser | Everyone ahead slows to 60% for 3 s and loses items; 5th place and back only | Rolling gray cloud with a warning icon for leaders |
+| 10 | **Strike Ball** | ride | You become a giant bowling ball for 5 s: roll down the road on autopilot at 1.5 × top speed, items and hazards bounce off, karts you hit fly up and spin like pins; it ends in a STRIKE burst that spins karts near you | Glossy bowling ball in your racer's colors; pins and confetti on the burst |
+| 11 | **Pogo Spring** | jump | Boing 4 m up: dodge anything, hop hazards, trick for a boost; press again in the air to slam down and send a shock ring | Chrome spring with a red pad |
+| 12 | **Grapple Anchor** | tether | Hooks the kart ahead (up to 50 m), reels you in fast, then slingshots you past with a boost; they wobble | Brass anchor on a chain |
+| 13 | **Wind-Up Mouse** | runner | Scurries ahead along the road, weaving, and bumps up to 3 karts into a spin | Tin clockwork mouse with a gold key |
+
+Who gets what (MKW shape, weights per place in docs/sops/items.md): leaders get balls, oil, decoys, a Bubble, Fizz Pop and the Mouse; the middle gets the Kite, springs, anchors and Triple Fizz; the back gets the Strike Ball, Triple Fizz and the Fog Bank. The Strike Ball and Fog Bank cannot roll in the first 15 s or the last 8 s. v2 candidates: Swap Whistle, Ghost Cloak, Gravity Flip.
+Pickups: floating **balloons** on strings that pop on touch. (Two slots: Adam, 22 Sept 2026.)
 
 ## 9. Modes (build order)
 Quick Race → Grand Prix (2 cups, 50/100/150cc, stars) → **Knockout** (8 racers, 3 linked tracks, cut lines 6/4/2, item pool shrinks) → Time Trial (ghost + medals) → Daily Challenge (seeded) → stretch: Mirror, split-screen.

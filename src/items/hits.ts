@@ -1,6 +1,7 @@
 // One path for every hit. Immunity, the Bubble, and the two hit shapes (spin via
 // the controller's applyHit, or a plain slow) all live here so no item has a private rule.
 import type { KartConstants } from '../kart-controller/constants.ts';
+import { isRiding } from '../kart-controller/powers.ts';
 import { applyHit } from '../kart-controller/step.ts';
 import type { HitKind, KartEvent, KartState, Vec3 } from '../kart-controller/types.ts';
 import { clearSlots } from './roulette.ts';
@@ -10,9 +11,9 @@ export function distXZ(a: Vec3, b: Vec3): number {
   return Math.hypot(a[0] - b[0], a[2] - b[2]);
 }
 
-/** Can this kart be hit at all right now? */
+/** Can this kart be hit at all right now? (A rolling Strike Ball shrugs everything off.) */
 export function hittable(s: KartState): boolean {
-  return !s.isGhost && s.finishTick === undefined && s.status.intangibleRemaining <= 0 && s.status.spinRemaining <= 0;
+  return !s.isGhost && s.finishTick === undefined && s.status.intangibleRemaining <= 0 && s.status.spinRemaining <= 0 && !isRiding(s);
 }
 
 /**
@@ -58,7 +59,7 @@ export function applyFog(karts: readonly KartState[], owner: number, def: ItemDe
   const victims: string[] = [];
   for (let i = 0; i < karts.length; i++) {
     const s = karts[i];
-    if (i === owner || s.isGhost || s.finishTick !== undefined || s.rank >= me.rank) continue;
+    if (i === owner || s.isGhost || s.finishTick !== undefined || s.rank >= me.rank || isRiding(s)) continue;
     s.status.slowedTo = Math.min(s.status.slowRemaining > 0 ? s.status.slowedTo : 1, slowTo);
     s.status.slowRemaining = Math.max(s.status.slowRemaining, seconds);
     if (def.behaviour.stripsItem) {

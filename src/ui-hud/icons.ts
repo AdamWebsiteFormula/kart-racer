@@ -1,5 +1,6 @@
-// Item icons: shape first, Okabe-Ito colour second, so they read without colour (appendix C§10).
-// 24×24 viewBox paths. Real art replaces the fill later; the shapes stay the accessibility layer.
+// Item icons. The HUD shows painted art (AI-made, public/art/items/<id>.webp); under it sits the
+// accessibility layer: a shape, an Okabe-Ito colour and a one-letter glyph for the colourblind
+// labels setting (appendix C§10), and the shape is what shows if the art cannot load.
 
 /** Okabe-Ito, the colourblind-safe eight. */
 export const OKABE_ITO = Object.freeze({
@@ -22,7 +23,7 @@ export const SHAPE_PATHS: Readonly<Record<IconShape, string>> = Object.freeze({
 
 export interface ItemIcon { shape: IconShape; colour: string; glyph: string }
 
-/** One entry per v1 item (design §8). The glyph is a one-letter label for the colourblind-labels setting. */
+/** One entry per item (design §8). The glyph is a one-letter label for the colourblind-labels setting. */
 export const ITEM_ICONS: Readonly<Record<string, ItemIcon>> = Object.freeze({
   beachBall: { shape: 'circle', colour: OKABE_ITO.vermillion, glyph: 'B' },
   homingKite: { shape: 'diamond', colour: OKABE_ITO.sky, glyph: 'K' },
@@ -30,9 +31,26 @@ export const ITEM_ICONS: Readonly<Record<string, ItemIcon>> = Object.freeze({
   decoyBalloon: { shape: 'triangle', colour: OKABE_ITO.purple, glyph: 'D' },
   airHorn: { shape: 'star', colour: OKABE_ITO.orange, glyph: 'H' },
   bubble: { shape: 'hexagon', colour: OKABE_ITO.blue, glyph: 'S' },
-  rocketLolly: { shape: 'chevron', colour: OKABE_ITO.green, glyph: 'R' },
+  fizzPop: { shape: 'chevron', colour: OKABE_ITO.green, glyph: 'P' },
+  tripleFizz: { shape: 'chevron', colour: OKABE_ITO.blue, glyph: 'T' },
   fogBank: { shape: 'square', colour: OKABE_ITO.yellow, glyph: 'F' },
+  strikeBall: { shape: 'circle', colour: OKABE_ITO.purple, glyph: 'X' },
+  pogoSpring: { shape: 'triangle', colour: OKABE_ITO.orange, glyph: 'J' },
+  grappleAnchor: { shape: 'diamond', colour: OKABE_ITO.yellow, glyph: 'A' },
+  windUpMouse: { shape: 'teardrop', colour: OKABE_ITO.sky, glyph: 'M' },
 });
+
+/** The painted art for an item, or '' for an unknown id. */
+export function itemArt(itemId: string): string {
+  return ITEM_ICONS[itemId] ? `${import.meta.env?.BASE_URL ?? '/'}art/items/${itemId}.webp` : '';
+}
+
+/** Icon markup for a slot: the painted art over its shape (the shape shows while it loads, or if it fails). */
+export function iconMarkup(itemId: string, size = 48): string {
+  const art = itemArt(itemId);
+  if (!art) return '';
+  return `<span class="shape">${iconSvg(itemId, size)}</span><img class="art" src="${art}" width="${size}" height="${size}" alt="" draggable="false" onerror="this.remove()">`;
+}
 
 export function iconFor(itemId: string): ItemIcon | null {
   return ITEM_ICONS[itemId] ?? null;

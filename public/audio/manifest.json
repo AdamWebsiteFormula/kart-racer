@@ -54,6 +54,39 @@
   "rocket": {
    "url": "audio/sfx/rocket.mp3"
   },
+  "fizz": {
+   "url": "audio/sfx/fizz.mp3"
+  },
+  "strikeRoll": {
+   "url": "audio/sfx/strikeRoll.mp3"
+  },
+  "strike": {
+   "url": "audio/sfx/strike.mp3"
+  },
+  "boing": {
+   "url": "audio/sfx/boing.mp3"
+  },
+  "slam": {
+   "url": "audio/sfx/slam.mp3"
+  },
+  "anchor": {
+   "url": "audio/sfx/anchor.mp3"
+  },
+  "slingshot": {
+   "url": "audio/sfx/slingshot.mp3"
+  },
+  "mouse": {
+   "url": "audio/sfx/mouse.mp3"
+  },
+  "blocked": {
+   "url": "audio/sfx/blocked.mp3"
+  },
+  "denied": {
+   "url": "audio/sfx/denied.mp3"
+  },
+  "trail": {
+   "url": "audio/sfx/trail.mp3"
+  },
   "hit": {
    "url": "audio/sfx/hit.mp3"
   },

@@ -2,7 +2,7 @@
 import type { Minimap } from '../../track-builder/minimap.ts';
 import { UI } from '../constants.ts';
 import type { HudVM, ItemSlotVM } from '../hudModel.ts';
-import { iconFor, iconSvg } from '../icons.ts';
+import { iconFor, iconMarkup } from '../icons.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
 import { Attr, Flag, h, Markup, replay, TextField } from './dom.ts';
 
@@ -27,7 +27,7 @@ class SlotView {
   }
   render(s: ItemSlotVM): void {
     this.state.set(s.state);
-    this.icon.set(s.itemId ? iconSvg(s.itemId, this.size) : '');
+    this.icon.set(s.itemId ? iconMarkup(s.itemId, this.size) : '');
     this.glyph.set(iconFor(s.itemId)?.glyph ?? '');
     this.charges.set(s.charges);
     this.label.set(s.state === 'ready' ? `Item: ${s.label} ${s.charges}`.trim() : s.state === 'rolling' ? 'Item: rolling' : 'Item: empty');

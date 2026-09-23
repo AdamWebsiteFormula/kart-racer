@@ -39,6 +39,18 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'airHorn', seconds: 1.2, prompt: 'A loud comedic stadium air horn: one long cartoon honk blast. No voice.' },
   { id: 'fog', seconds: 1.5, prompt: `A thick cloud of smoke puffing out: soft rushing whoosh and a hissing puff. ${CARTOON}` },
   { id: 'rocket', seconds: 1.3, prompt: `A firework rocket launching: fizzing sparkly whoosh, then a small crackle. ${CARTOON}` },
+  // the new items (design §8, 23 Sept 2026)
+  { id: 'fizz', seconds: 1.2, prompt: `A shaken soda bottle cap popping off, then a strong fizzy foam blast spraying out: a pop, then a rushing carbonated fizz whoosh. ${CARTOON}` },
+  { id: 'strikeRoll', seconds: 2, prompt: `A giant heavy bowling ball starting to roll fast down a wooden lane: a deep rumbling thunder that builds and speeds up. ${CARTOON}` },
+  { id: 'strike', seconds: 1.8, prompt: `A bowling strike: a heavy ball crashing into wooden pins, a loud clattering scatter of pins, then a short sparkly celebration chime. ${CARTOON}` },
+  { id: 'boing', seconds: 1, prompt: `A big cartoon spring launching something high into the air: one long exaggerated wobbly boing. ${CARTOON}` },
+  { id: 'slam', seconds: 1.1, prompt: `A heavy cartoon ground pound: a quick falling whoosh, then a deep booming thud with a short rumble. ${CARTOON}` },
+  { id: 'anchor', seconds: 1.1, prompt: `A heavy ship anchor thrown forward on a chain: a metal chain rattling out fast, then a solid clank as it hooks on. ${CARTOON}` },
+  { id: 'slingshot', seconds: 0.8, prompt: `A stretchy rubber slingshot release: a twangy snap and a fast whoosh past. ${CARTOON}` },
+  { id: 'mouse', seconds: 1.2, prompt: `A wind-up clockwork toy mouse let go: a few quick winding key clicks, a tiny squeak, then fast scurrying tin feet. ${CARTOON}` },
+  { id: 'blocked', seconds: 0.6, prompt: `A thrown toy bouncing off a shield: a quick hollow plastic clonk with a small ricochet ping. ${CARTOON}` },
+  { id: 'denied', seconds: 0.5, influence: 0.6, prompt: 'A short soft negative arcade sound: one low muted two-note bloop going down, friendly, not harsh. No voice.' },
+  { id: 'trail', seconds: 0.5, influence: 0.6, prompt: 'A small toy being grabbed and held behind a go-kart: one quick plastic click and a tiny rattle. No music, no voice.' },
   { id: 'hit', seconds: 0.8, prompt: `A go-kart getting bonked by a thrown toy: bouncy boing with a small plastic crash. ${CARTOON}` },
   { id: 'spin', seconds: 1.3, prompt: `A go-kart spinning out: a descending slide whistle over a short tyre squeal. ${CARTOON}` },
   // boosts: the drift tiers grow

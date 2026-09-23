@@ -149,8 +149,8 @@ describe('director', () => {
     const near: Vec3 = [5, 0, 0], mid: Vec3 = [30, 0, 0], far: Vec3 = [100, 0, 0];
     const l = listener({ n: near, m: mid, f: far });
     const hit = (id: string) => ({ type: 'hit' as const, racerId: id, byRacerId: 'x', itemId: 'beachBall', spun: true, coinsLost: 0 });
-    const { cues, music } = direct([], [hit('p'), hit('n'), hit('m'), hit('f'), { type: 'itemUsed', racerId: 'p', itemId: 'rocketLolly', chargesLeft: 2 }], l);
-    expect(cues.map((c) => c.sfx)).toEqual(['spin', 'spin', 'spin', 'rocket']);
+    const { cues, music } = direct([], [hit('p'), hit('n'), hit('m'), hit('f'), { type: 'itemUsed', racerId: 'p', itemId: 'tripleFizz', chargesLeft: 2 }], l);
+    expect(cues.map((c) => c.sfx)).toEqual(['spin', 'spin', 'spin', 'fizz']);
     expect(cues[0].gain).toBe(1); // the player's own hit
     expect(cues[1].gain).toBe(AUDIO.otherGain); // a near opponent: quieter than the player
     expect(cues[2].gain).toBeLessThan(AUDIO.farGain);

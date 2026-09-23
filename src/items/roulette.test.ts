@@ -37,9 +37,11 @@ describe('roll', () => {
     const rank8 = () => weightsFor(ITEMS_CONFIG, h.rm.state, h.rm.consts, h.track, 8);
     expect(h.rm.state.time).toBeLessThan(ITEMS_CONFIG.lockoutSeconds);
     expect(rank8().fogBank).toBe(0);
+    expect(rank8().strikeBall).toBe(0);
     tick(h, seconds(ITEMS_CONFIG.lockoutSeconds + 0.5));
     expect(h.rm.state.phase).toBe('finalLap'); // a 1-lap race is on its final lap from GO
-    expect(rank8().fogBank).toBe(25);
+    expect(rank8().fogBank).toBe(ITEM_TABLE[7].fogBank);
+    expect(rank8().strikeBall).toBe(ITEM_TABLE[7].strikeBall);
     // a leader within 8 s of the line at its top speed (a state copy: teleporting past checkpoints is not allowed)
     const st = h.rm.state;
     const li = st.karts.findIndex((k) => k.rank === 1);
@@ -47,7 +49,7 @@ describe('roll', () => {
       ...st, karts: st.karts.map((k, i) => (i === li ? { ...k, distanceAlong: st.lapsTotal * h.track.length - h.rm.consts[li].topSpeed * secs } : k)),
     });
     expect(weightsFor(ITEMS_CONFIG, near(ITEMS_CONFIG.finalLapLockoutSeconds - 1), h.rm.consts, h.track, 8).fogBank).toBe(0);
-    expect(weightsFor(ITEMS_CONFIG, near(ITEMS_CONFIG.finalLapLockoutSeconds + 1), h.rm.consts, h.track, 8).fogBank).toBe(25);
+    expect(weightsFor(ITEMS_CONFIG, near(ITEMS_CONFIG.finalLapLockoutSeconds + 1), h.rm.consts, h.track, 8).fogBank).toBe(ITEM_TABLE[7].fogBank);
   });
 
   it('the Knockout pool shrinks with the racers left', () => {
@@ -61,7 +63,7 @@ describe('roll', () => {
     expect(weightsFor(ITEMS_CONFIG, two.rm.state, two.rm.consts, two.track, 1).decoyBalloon).toBe(0);
     const eight = setup({ n: 8, mode: 'knockout' });
     go(eight); tick(eight, seconds(16));
-    expect(weightsFor(ITEMS_CONFIG, eight.rm.state, eight.rm.consts, eight.track, 8).fogBank).toBe(25);
+    expect(weightsFor(ITEMS_CONFIG, eight.rm.state, eight.rm.consts, eight.track, 8).fogBank).toBe(ITEM_TABLE[7].fogBank);
   });
 
   it('a balloon rolls into the first free slot; a third balloon gives nothing; the next moves up on use', () => {

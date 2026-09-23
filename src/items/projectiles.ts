@@ -1,6 +1,7 @@
 // Projectiles: the Beach Ball (straight in world space, ground-snapped to the spline,
-// reflected off the road edge, 3 bounces) and the Homing Kite (rides the spline at
-// speed, eases to its target's lateral inside homingSnapDistance).
+// reflected off the road edge, 3 bounces), the Homing Kite (rides the spline at
+// speed, eases to its target's lateral inside homingSnapDistance) and the Wind-Up Mouse
+// (rides the spline either way, weaving across the road, and bumps up to 3 karts).
 import { BASE } from '../kart-controller/constants.ts';
 import { forwardOf, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import { wrap01 } from '../track-builder/lut.ts';
@@ -59,16 +60,24 @@ export function spawnProjectile(
   const smp = track.sample(near.t, 0, near.branch);
   pos[1] = smp.groundY + cfg.projectileHeight;
   const homing = def.behaviour.homing === true;
+  const runner = def.role === 'runner';
   const p: Projectile = {
     id: m.nextId++, itemId: def.id, owner, ownerId: s.racerId, t: near.t, branch: near.branch,
     lateral: lateralOf(track, near.t, near.branch, pos),
     velocity: [f[0] * speed * dir, 0, f[2] * speed * dir],
-    speed: homing ? speed : 0,
+    speed: homing ? speed : runner ? speed * dir : 0,
     position: pos, prevPosition: [...pos],
-    bouncesLeft: homing ? 0 : (def.behaviour.bounces ?? 0),
+    bouncesLeft: homing || runner ? 0 : (def.behaviour.bounces ?? 0),
     target: homing ? pickTarget(karts, owner) : -1,
     ttl: def.behaviour.lifetimeSeconds ?? 8, graceRemaining: cfg.ownerGraceSeconds, radius: def.behaviour.radius ?? 0.5,
+    hitsLeft: def.behaviour.hits ?? 1, age: 0,
+    weave: runner ? (def.behaviour.weave ?? 0) : 0, weaveSeconds: def.behaviour.weaveSeconds ?? 1,
   };
+  // the Mouse starts its weave from where it was let go
+  if (runner && p.weave > 0) {
+    const room = Math.max(1e-6, smp.halfWidth - p.radius);
+    p.age = (Math.asin(Math.max(-1, Math.min(1, p.lateral / (room * p.weave)))) / (2 * Math.PI)) * p.weaveSeconds;
+  }
   m.projectiles.push(p);
   events.push({ type: 'projectileSpawn', id: p.id, itemId: p.itemId, racerId: s.racerId, position: [...pos] });
   return p;
@@ -93,10 +102,11 @@ export function stepProjectiles(
     p.prevPosition[0] = p.position[0]; p.prevPosition[1] = p.position[1]; p.prevPosition[2] = p.position[2];
     p.graceRemaining = Math.max(0, p.graceRemaining - dt);
     p.ttl -= dt;
+    p.age += dt;
     if (p.ttl <= 1e-9 || !track.branches.list[p.branch].open) { popProjectile(m, p, events); continue; }
 
-    if (p.speed > 0) {
-      // Homing Kite: ride the spline
+    if (p.speed !== 0) {
+      // Homing Kite and Wind-Up Mouse: ride the spline (the Mouse either way)
       const tgt = p.target >= 0 ? karts[p.target] : undefined;
       if (tgt && (tgt.finishTick !== undefined || tgt.isGhost || tgt.status.intangibleRemaining > 0 || tgt.branch !== p.branch)) p.target = -1;
       p.t = wrap01(p.t + (p.speed * dt) / L);
@@ -106,9 +116,14 @@ export function stepProjectiles(
         const ahead = wrap01(o.t - p.t) * L;
         if (ahead <= cfg.homingSnapDistance) want = lateralOf(track, o.t, o.branch, o.position);
       }
-      const step = cfg.homingLateralRate * dt;
-      p.lateral += Math.max(-step, Math.min(step, want - p.lateral));
       const smp = track.sample(p.t, 0, p.branch);
+      if (p.weave > 0) {
+        // the Mouse weaves from kerb to kerb
+        p.lateral = Math.sin((2 * Math.PI * p.age) / p.weaveSeconds) * p.weave * (smp.halfWidth - p.radius);
+      } else {
+        const step = cfg.homingLateralRate * dt;
+        p.lateral += Math.max(-step, Math.min(step, want - p.lateral));
+      }
       p.lateral = Math.max(-smp.halfWidth + p.radius, Math.min(smp.halfWidth - p.radius, p.lateral));
       const at = track.sample(p.t, p.lateral, p.branch);
       p.position[0] = at.position[0]; p.position[1] = at.groundY + cfg.projectileHeight; p.position[2] = at.position[2];

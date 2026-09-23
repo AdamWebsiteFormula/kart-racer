@@ -73,6 +73,10 @@ export interface AiMemory {
   lastItem: string;
   /** seconds the current item has been held */
   itemHold: number;
+  /** the item button was down last tick (a tap is one tick down, one tick up) */
+  itemPressed: boolean;
+  /** holding a trailable item behind on purpose, as a shield */
+  itemTrailing: boolean;
   /** branch index chosen for the next shortcut entry, 0 = none */
   branchChoice: number;
   /** lateral target from last tick, for smoothing */
@@ -132,4 +136,6 @@ export function emptyLine(): LineInfo {
 }
 
 /** Item roles from item.schema.json; the items session supplies the id → role map. */
-export type ItemRole = 'forward' | 'homing' | 'rearDrop' | 'deception' | 'defenceArea' | 'defenceHeld' | 'speed' | 'equaliser' | 'chaos';
+export type ItemRole =
+  | 'forward' | 'homing' | 'rearDrop' | 'deception' | 'defenceArea' | 'defenceHeld' | 'speed' | 'equaliser' | 'chaos'
+  | 'ride' | 'jump' | 'tether' | 'runner';

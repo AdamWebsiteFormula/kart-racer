@@ -37,7 +37,9 @@ function spatial(l: Listener, racerId: string): { gain: number; pan: number } {
 
 const ITEM_USE: Readonly<Record<string, SfxId>> = Object.freeze({
   beachBall: 'throw', homingKite: 'kite', oilCan: 'drop', decoyBalloon: 'drop',
-  airHorn: 'airHorn', bubble: 'shieldUp', rocketLolly: 'rocket', fogBank: 'fog',
+  airHorn: 'airHorn', bubble: 'shieldUp', fizzPop: 'fizz', tripleFizz: 'fizz', fogBank: 'fog',
+  strikeBall: 'strikeRoll', grappleAnchor: 'anchor', windUpMouse: 'mouse',
+  // pogoSpring: its boing and slam come from springLaunch and springSlam
 });
 
 function kartCue(e: KartEvent): SfxId | null {
@@ -108,6 +110,13 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         if (e.racerId === me) music.push({ type: 'duck' });
         break;
       case 'shieldPop': push('shieldPop', e.racerId); break;
+      case 'springLaunch': push('boing', e.racerId); break;
+      case 'springSlam': push('slam', e.racerId); break;
+      case 'burst': push('strike', e.racerId); break;
+      case 'tetherEnd': if (e.slingshot) push('slingshot', e.racerId); break;
+      case 'trailBlock': push('blocked', e.racerId); break;
+      case 'trailStart': if (e.racerId === me) push('trail', null); break;
+      case 'itemRefused': if (e.racerId === me && (e.reason === 'noTarget' || e.reason === 'inFlight')) push('denied', null); break;
       case 'projectilePop': case 'groundPop': break;
       case 'fog': if (e.victims.includes(me ?? '')) push('fog', null); break;
       default: break;

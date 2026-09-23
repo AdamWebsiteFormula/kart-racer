@@ -1,6 +1,7 @@
 // Kart-vs-hazard test and the four hit kinds. Track-builder gives the active list;
 // race-manager owns the kart side. Gusts push every tick; the rest hit once per cooldown.
 import type { KartConstants } from '../kart-controller/constants.ts';
+import { isRiding } from '../kart-controller/powers.ts';
 import { applyHit } from '../kart-controller/step.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
@@ -17,7 +18,7 @@ export function stepHazards(
   let f: Vec3 | undefined, r: Vec3 | undefined;
   for (const h of active) {
     if (dist3(s.position, h.position) > h.radius + c.kartRadius) continue;
-    if (s.status.intangibleRemaining > 0) continue; // the respawn freeze and item shields ignore every hazard, gusts too
+    if (s.status.intangibleRemaining > 0 || isRiding(s)) continue; // the respawn freeze, item shields and a rolling Strike Ball ignore every hazard, gusts too
     if (!f || !r) { f = forwardOf(s.heading); r = rightOf(s.heading); } // only when something is in range
     if (h.type === 'gust') {
       const p = h.push ?? [0, 0, 0];

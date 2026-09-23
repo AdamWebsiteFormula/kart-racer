@@ -79,7 +79,7 @@
         }
       }
     },
-    "pickups": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "shortcut": { "type": "string" } } } },
+    "pickups": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "shortcut": { "type": "string" }, "double": { "type": "boolean", "description": "A gold double balloon: fills both item slots at once (design §8)" } } } },
     "coins": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "shortcut": { "type": "string" } } } },
     "boostPads": { "type": "array", "items": { "type": "object", "required": ["t"], "properties": { "t": { "type": "number" }, "lateral": { "type": "number" }, "width": { "type": "number" }, "shortcut": { "type": "string" } } } },
     "finalLapShift": {

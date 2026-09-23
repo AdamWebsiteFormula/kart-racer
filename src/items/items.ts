@@ -2,17 +2,19 @@
 // reads the pickup events it returned. Writes to karts only through the
 // kart-controller surface (item, status, drift charge multiplier, applyHit, requestBoost).
 import type { KartConstants } from '../kart-controller/constants.ts';
-import type { InputState, KartEvent } from '../kart-controller/types.ts';
+import { isRiding } from '../kart-controller/powers.ts';
+import { forwardOf, type InputState, type KartEvent, type KartState } from '../kart-controller/types.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import type { Track } from '../track-builder/track.ts';
 import { ITEMS_CONFIG, ITEM_ROLES } from './data.ts';
 import { popGround, stepGround } from './ground.ts';
 import { distXZ, hittable, landHit } from './hits.ts';
+import { stepPowers } from './powers.ts';
 import { popProjectile, stepProjectiles } from './projectiles.ts';
 import { seedFor } from './rng.ts';
 import { onPickup, stepRoulette } from './roulette.ts';
-import type { ItemDefinition, ItemEvent, ItemRole, ItemsConfig, ItemsState } from './types.ts';
-import { useItem } from './use.ts';
+import type { ItemDefinition, ItemEvent, ItemRole, ItemsConfig, ItemsState, Projectile } from './types.ts';
+import { refusal, spend, useItem } from './use.ts';
 
 export interface ItemsHost {
   readonly state: RaceState;
@@ -31,6 +33,8 @@ export class Items {
   private readonly defs = new Map<string, ItemDefinition>();
   private readonly scratch: KartEvent[] = [];
   private readonly inert: boolean;
+  /** per balloon (race-manager pickup index): a gold double balloon */
+  private readonly doubles: readonly boolean[];
 
   constructor(track: Track, host: ItemsHost, cfg: ItemsConfig = ITEMS_CONFIG) {
     this.cfg = cfg;
@@ -44,8 +48,17 @@ export class Items {
       rng: seedFor(host.state.seed), nextId: 1,
       prevItem: new Array(n).fill(false), shieldRemaining: new Array(n).fill(0),
       fogHeldBy: '', projectiles: [], groundItems: [],
+      trailing: new Array(n).fill(false), power: new Array(n).fill(''), pogo: new Array(n).fill(0), towing: new Array(n).fill(false),
     };
     this.inert = host.state.mode === 'timeTrial';
+    this.doubles = track.features.filter((f) => f.kind === 'pickup').map((f) => f.double === true);
+  }
+
+  /** The held item trails behind kart i (hold to trail, design §8). */
+  isTrailing(i: number): boolean { return this.state.trailing[i]; }
+
+  private trailable(s: KartState): boolean {
+    return this.defs.get(s.item.held)?.behaviour.trailable === true;
   }
 
   snapshot(): ItemsState { return structuredClone(this.state); }
@@ -68,18 +81,37 @@ export class Items {
       }
     }
 
-    // 2. pickups
+    // 2. pickups (a gold double balloon rolls both slots)
     for (const e of raceEvents) {
       if (e.type !== 'pickup') continue;
       const i = karts.findIndex((k) => k.racerId === e.racerId);
-      if (i >= 0) onPickup(cfg, m, st, consts, track, i, events);
+      if (i < 0) continue;
+      onPickup(cfg, m, st, consts, track, i, events);
+      if (this.doubles[e.index]) onPickup(cfg, m, st, consts, track, i, events);
     }
 
-    // 3. presses (edge)
+    // 3. presses: a tap uses the item; a trailable one trails while held and is used on release
     for (let i = 0; i < karts.length; i++) {
-      const down = inputs[i]?.item === true;
-      if (down && !m.prevItem[i]) useItem(cfg, m, st, consts, track, i, inputs[i], events, this.scratch);
+      const s = karts[i];
+      const down = inputs[i]?.item === true, was = m.prevItem[i];
       m.prevItem[i] = down;
+      if (m.trailing[i] && (!this.trailable(s) || s.item.charges <= 0)) m.trailing[i] = false;
+      if (m.trailing[i] && s.status.spinRemaining > 0) {
+        // hit while trailing: the trailed item is lost
+        m.trailing[i] = false;
+        events.push({ type: 'itemLost', racerId: s.racerId, itemId: s.item.held });
+        spend(s, events);
+        continue;
+      }
+      if (down && !was) {
+        if (this.trailable(s) && refusal(st, s) === null) {
+          m.trailing[i] = true;
+          events.push({ type: 'trailStart', racerId: s.racerId, itemId: s.item.held });
+        } else useItem(cfg, m, st, consts, track, i, inputs[i], events, this.scratch);
+      } else if (!down && was && m.trailing[i]) {
+        m.trailing[i] = false;
+        useItem(cfg, m, st, consts, track, i, inputs[i], events, this.scratch);
+      }
     }
 
     // 4. motion and timers
@@ -107,12 +139,24 @@ export class Items {
       if (gone) continue;
       for (let i = 0; i < karts.length && !gone; i++) {
         const s = karts[i];
-        if (s.branch !== p.branch || !hittable(s)) continue;
+        if (s.branch !== p.branch) continue;
         if (i === p.owner && p.graceRemaining > 0) continue;
         if (distXZ(p.position, s.position) > p.radius + consts[i].kartRadius) continue;
+        if (s.position[1] - (p.position[1] - cfg.projectileHeight) > cfg.hitHeight) continue; // sprung over it
+        if (isRiding(s)) { popProjectile(m, p, events); gone = true; continue; } // it smashes on the Strike Ball
+        if (!hittable(s)) continue;
+        if (m.trailing[i] && this.fromBehind(p, s)) {
+          // the trailed item takes it
+          events.push({ type: 'trailBlock', racerId: s.racerId, itemId: s.item.held, position: [...p.position] });
+          m.trailing[i] = false;
+          spend(s, events);
+          popProjectile(m, p, events); gone = true;
+          continue;
+        }
         const def = this.defs.get(p.itemId) as ItemDefinition;
         landHit(karts, consts, m, i, p.ownerId, def, 'projectile', events, this.scratch);
-        popProjectile(m, p, events); gone = true;
+        // the Mouse runs on through the pack until it has bumped its last kart
+        if (--p.hitsLeft <= 0) { popProjectile(m, p, events); gone = true; }
       }
     }
     for (let b = gs.length - 1; b >= 0; b--) {
@@ -122,6 +166,7 @@ export class Items {
         if (s.branch !== g.branch || !hittable(s)) continue;
         if (i === g.owner && g.graceRemaining > 0) continue;
         if (distXZ(g.position, s.position) > g.radius + consts[i].kartRadius) continue;
+        if (s.position[1] - g.position[1] > cfg.hitHeight) continue; // sprung over it
         const def = this.defs.get(g.itemId) as ItemDefinition;
         landHit(karts, consts, m, i, g.ownerId, def, 'item', events, this.scratch);
         popGround(m, g, events);
@@ -129,7 +174,10 @@ export class Items {
       }
     }
 
-    // 6. AI threat flags and the leader warning
+    // 6. powers that outlive the press: Strike Ball, Pogo Spring landings, Grapple Anchor
+    stepPowers(m, karts, consts, this.defs, events, this.scratch);
+
+    // 7. AI threat flags and the leader warning
     this.threatened.fill(false);
     for (const p of m.projectiles) if (p.target >= 0) this.threatened[p.target] = true;
     let fogHolder = '';
@@ -140,5 +188,11 @@ export class Items {
       m.fogHeldBy = fogHolder;
     }
     return events;
+  }
+
+  /** A projectile reaching kart s from behind (it would hit the trailed item first). */
+  private fromBehind(p: Projectile, s: KartState): boolean {
+    const f = forwardOf(s.heading);
+    return (p.position[0] - s.position[0]) * f[0] + (p.position[2] - s.position[2]) * f[2] < 0;
   }
 }

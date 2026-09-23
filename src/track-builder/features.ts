@@ -23,7 +23,7 @@ function bakeOne(branches: Branches, kind: BakedFeature['kind'], id: string, def
 
 export function bakeFeatures(def: TrackDefinition, branches: Branches): BakedFeature[] {
   const out: BakedFeature[] = [];
-  (def.pickups ?? []).forEach((p, i) => out.push(bakeOne(branches, 'pickup', `pickup-${i}`, p, BUILDER.balloonRadius * 2, 0)));
+  (def.pickups ?? []).forEach((p, i) => out.push({ ...bakeOne(branches, 'pickup', `pickup-${i}`, p, BUILDER.balloonRadius * 2, 0), ...(p.double ? { double: true } : {}) }));
   (def.coins ?? []).forEach((p, i) => out.push(bakeOne(branches, 'coin', `coin-${i}`, p, BUILDER.coinRadius * 2, 0)));
   (def.boostPads ?? []).forEach((p, i) => out.push(bakeOne(branches, 'boostPad', `pad-${i}`, p, p.width ?? BUILDER.boostPadWidth, 0)));
   (def.jumps ?? []).forEach((j) => out.push(bakeJump(branches, j)));

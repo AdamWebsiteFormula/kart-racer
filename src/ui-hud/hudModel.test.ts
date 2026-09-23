@@ -67,9 +67,9 @@ describe('hud model', () => {
 
   it('item slots: held and next, flicker with the clock, charges only above one, empty after a Fog', () => {
     const k = kart();
-    k.item = { held: 'rocketLolly', charges: 3, rouletteRemaining: 0, next: 'x', nextCharges: 1, nextRouletteRemaining: 1 };
+    k.item = { held: 'tripleFizz', charges: 3, rouletteRemaining: 0, next: 'x', nextCharges: 1, nextRouletteRemaining: 1 };
     const a = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
-    expect([a.held.state, a.held.label, a.held.charges]).toEqual(['ready', 'Rocket Lolly', '×3']);
+    expect([a.held.state, a.held.label, a.held.charges]).toEqual(['ready', 'Triple Fizz', '×3']);
     expect(a.next.state).toBe('rolling');
     const b = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, UI.rouletteFlickerMs);
     expect(b.next.label).not.toBe(a.next.label);

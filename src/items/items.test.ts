@@ -50,10 +50,21 @@ describe('Items', () => {
     expect(press(h, 0).some((e) => e.type === 'itemRefused' && e.reason === 'intangible')).toBe(true);
     s.status.intangibleRemaining = 0;
     expect(s.item.held).toBe('beachBall');
-    // a held button is one press, not one per tick
+    // holding a trailable item trails it: nothing is used until the button comes up, then once
     h.inputs[0] = { ...h.inputs[0], item: true };
     tick(h, seconds(1));
+    expect(count(h.log, 'itemUsed')).toBe(0);
+    expect(h.items.isTrailing(0)).toBe(true);
+    h.inputs[0] = { ...h.inputs[0], item: false };
+    tick(h);
     expect(count(h.log, 'itemUsed')).toBe(1);
+    expect(h.items.isTrailing(0)).toBe(false);
+    // any other item: a held button is one press, not one per tick
+    give(h, 0, 'tripleFizz');
+    h.inputs[0] = { ...h.inputs[0], item: true };
+    tick(h, seconds(1));
+    expect(count(h.log, 'itemUsed')).toBe(2);
+    h.inputs[0] = { ...h.inputs[0], item: false };
     // a finished kart keeps its item and cannot use it
     const f = setup({ n: 2 });
     go(f);

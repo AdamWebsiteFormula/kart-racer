@@ -15,8 +15,8 @@ describe('item data against the schema', () => {
       for (const k of req) expect(d, `${d.id}.${k}`).toHaveProperty(k);
       expect(roles).toContain(d.role);
     }
-    expect(ITEM_DEFINITIONS.length).toBe(8);
-    expect(new Set(ITEM_DEFINITIONS.map((d) => d.id)).size).toBe(8);
+    expect(ITEM_DEFINITIONS.length).toBe(13);
+    expect(new Set(ITEM_DEFINITIONS.map((d) => d.id)).size).toBe(13);
   });
 
   it('the table has 8 rows, each summing to 100 over known ids', () => {
@@ -35,10 +35,11 @@ describe('item data against the schema', () => {
     }
   });
 
-  it('locked and Knockout ids exist; the equaliser is the locked one', () => {
-    for (const id of ITEMS_CONFIG.lockedDuringLockout) expect(ITEM_ROLES[id]).toBe('equaliser');
+  it('locked and Knockout ids exist; the equaliser and the Strike Ball are the locked ones', () => {
+    expect([...ITEMS_CONFIG.lockedDuringLockout].map((id) => ITEM_ROLES[id]).sort()).toEqual(['equaliser', 'ride']);
     for (const ids of Object.values(ITEMS_CONFIG.knockoutPoolByRacers)) for (const id of ids) expect(ITEM_ROLES[id]).toBeDefined();
     expect(ITEMS_CONFIG.knockoutPoolByRacers['4']).not.toContain('fogBank');
+    expect(ITEMS_CONFIG.knockoutPoolByRacers['4']).not.toContain('strikeBall');
     expect(ITEMS_CONFIG.knockoutPoolByRacers['2']).not.toContain('decoyBalloon');
   });
 });

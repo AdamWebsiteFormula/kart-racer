@@ -10,6 +10,7 @@ import { accentOf } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
+import { ITEM_ICONS, itemArt } from './icons.ts';
 import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
@@ -109,6 +110,8 @@ export class UiRoot {
     this.root = document.createElement('div');
     this.root.id = 'ui';
     parent.appendChild(this.root);
+    // the item roulette flicks through every painted item: have them all in the cache first
+    for (const id of Object.keys(ITEM_ICONS)) new Image().src = itemArt(id);
     const r = this.root;
     this.views = {
       boot: new BootView(r), title: new TitleView(r), modes: new ListView(r, 'mode-screen', 'Pick a mode'),
