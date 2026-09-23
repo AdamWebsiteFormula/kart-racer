@@ -5,7 +5,7 @@ import { Group, MathUtils, Object3D } from 'three';
 import type { KartConstants } from './constants.ts';
 import type { KartState } from './types.ts';
 
-interface Pose { x: number; y: number; z: number; heading: number }
+interface Pose { x: number; y: number; z: number; heading: number; angle: number }
 
 const LEAN = Object.freeze({
   yawLag: 8, // 1/s, chassis yaw chases the logical heading
@@ -38,7 +38,7 @@ export class KartView {
   }
 
   private static pose(s: KartState): Pose {
-    return { x: s.position[0], y: s.position[1], z: s.position[2], heading: s.heading };
+    return { x: s.position[0], y: s.position[1], z: s.position[2], heading: s.heading, angle: s.status.loopAngle };
   }
 
   /** Call once per sim tick, after stepKart. */
@@ -58,7 +58,11 @@ export class KartView {
     this.root.position.set(
       MathUtils.lerp(p.x, q.x, alpha), MathUtils.lerp(p.y, q.y, alpha), MathUtils.lerp(p.z, q.z, alpha),
     );
-    this.root.rotation.set(0, p.heading + dh * alpha, 0);
+    // round a loop-the-loop the kart pitches with the ring: nose up, upside down at the top
+    let da = q.angle - p.angle;
+    if (da < -Math.PI) da += 2 * Math.PI;
+    const angle = p.angle + da * alpha;
+    this.root.rotation.set(-angle, p.heading + dh * alpha, 0, 'YXZ');
 
     // cosmetic lean
     // the sim's +yaw is screen-left, so a drift toward direction d yaws the body by +d, not −d

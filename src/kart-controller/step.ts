@@ -6,6 +6,7 @@ import type { KartConstants } from './constants.ts';
 import { gripFor } from './constants.ts';
 import { cancelDrift, stepDrift } from './drift.ts';
 import { stepGround } from './ground.ts';
+import { inLoop, stepLoop } from './loop.ts';
 import { isRiding, isTowed, rideAim, stepPilot, towAim } from './powers.ts';
 import { stepSlipstream } from './slipstream.ts';
 import { stepSpeed, targetSpeed } from './speed.ts';
@@ -53,6 +54,8 @@ export function stepKart(
   // input and bleeds speed linearly, hitting exactly 0 on the tick the spin ends
   const spinning = s.status.spinRemaining > 0;
   tickTimers(s, dt);
+  // on a loop-the-loop: the ride has the kart, nothing else moves it
+  if (inLoop(s)) { s.prevDrift = input.drift; stepLoop(s, track, c, dt, events); return events; }
   const inp = spinning ? NEUTRAL_INPUT : input;
   if (spinning) {
     s.prevDrift = input.drift;
@@ -99,11 +102,12 @@ export function stepKarts(
   // 11. kart vs kart, every pair once
   for (let i = 0; i < karts.length; i++) {
     for (let j = i + 1; j < karts.length; j++) {
+      if (inLoop(karts[i]) || inLoop(karts[j])) continue;
       collideKarts(karts[i], karts[j], consts[i], consts[j], consts[i], dt, events[i], events[j]);
     }
   }
   // 12. slipstream
-  for (let i = 0; i < karts.length; i++) stepSlipstream(karts[i], karts, consts[i], dt, events[i]);
+  for (let i = 0; i < karts.length; i++) if (!inLoop(karts[i])) stepSlipstream(karts[i], karts, consts[i], dt, events[i]);
   return events;
 }
 

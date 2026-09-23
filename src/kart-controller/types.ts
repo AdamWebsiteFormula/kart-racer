@@ -78,6 +78,12 @@ export interface KartState {
     falling: boolean;
     /** the road height it fell from */
     fallFromY: number;
+    /** riding track.loops[loopIndex] (-1 = not): metres along the ride, the lateral it was caught at, its speed, its angle round the ring */
+    loopIndex: number;
+    loopS: number;
+    loopLat0: number;
+    loopSpeed: number;
+    loopAngle: number;
   };
   coins: number;
   rank: number;
@@ -124,6 +130,7 @@ export function createKartState(init: KartInit): KartState {
     status: {
       spinRemaining: 0, shield: false, slowedTo: 1, slowRemaining: 0, intangibleRemaining: 0,
       rideRemaining: 0, towRemaining: 0, towTarget: -1, falling: false, fallFromY: 0,
+      loopIndex: -1, loopS: 0, loopLat0: 0, loopSpeed: 0, loopAngle: 0,
     },
     coins: init.coins ?? 0,
     rank: 0,
@@ -150,6 +157,18 @@ export interface TrackSample {
 }
 
 /** t is main-equivalent; branch 0 unless the feature sits on a shortcut. */
+/** A loop-the-loop: its foot at main-line t; caught `approach` m before, set down `exit` m after. */
+export interface TrackLoop {
+  id: string; t: number; radius: number;
+  /** metres the ring moves right as it turns (way in left of centre, way out right) */
+  shift: number;
+  /** metres either side of its lane a kart rides, by where it came from */
+  spread: number;
+  approach: number; exit: number;
+  /** width of the ring's track, metres */
+  width: number;
+}
+
 export interface TrackJump {
   id: string; t: number; launch: number /* m/s up */; branch?: number;
   /** ramp: a wedge rising `rise` m over `run` m to its lip at t; hump: a mound `run` m long whose crest (`rise` m) is at t. No rise = a flat launch line. */
@@ -165,6 +184,8 @@ export interface TrackHint { t: number; branch: number }
 export interface TrackQuery {
   readonly length: number; // metres
   readonly jumps: readonly TrackJump[];
+  /** loop-the-loops on the main line (absent = none) */
+  readonly loops?: readonly TrackLoop[];
   readonly boostPads: readonly TrackBoostPad[];
   readonly voidY: number;
   /** Ground at main-equivalent t on `branch` (default 0), `lateral` metres to the right. */
@@ -188,7 +209,8 @@ export type KartEvent =
   | { type: 'wall' }
   | { type: 'bump'; otherId: string }
   | { type: 'hit'; kind: HitKind; spun: boolean; coinsLost: number }
-  | { type: 'respawn' };
+  | { type: 'respawn' }
+  | { type: 'loop'; phase: 'start' | 'end' };
 
 export interface StepOptions {
   /** Caps the drift tier (Smart Steer later). */

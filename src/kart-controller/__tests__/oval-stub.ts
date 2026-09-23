@@ -1,7 +1,7 @@
 // Flat stadium oval TrackQuery for headless tests. Two straights of length L
 // joined by two semicircles of radius R, parameterised by arc length.
 // Track-builder replaces this with the real spline later.
-import type { Surface, TrackBoostPad, TrackJump, TrackQuery, TrackSample, Vec3 } from '../types.ts';
+import type { Surface, TrackBoostPad, TrackJump, TrackLoop, TrackQuery, TrackSample, Vec3 } from '../types.ts';
 
 export interface OvalOptions {
   straight?: number; // L, metres
@@ -13,6 +13,7 @@ export interface OvalOptions {
   gripScale?: number;
   jumps?: TrackJump[];
   boostPads?: TrackBoostPad[];
+  loops?: TrackLoop[];
   voidY?: number;
 }
 
@@ -90,6 +91,7 @@ export function makeOval(o: OvalOptions = {}): TrackQuery & { centre(t: number):
     length,
     jumps: o.jumps ?? [],
     boostPads: o.boostPads ?? [],
+    loops: o.loops ?? [],
     voidY: o.voidY ?? -20,
     sample,
     nearestT,

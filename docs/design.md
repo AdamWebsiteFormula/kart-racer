@@ -73,10 +73,10 @@ Built 23 Sept 2026 (track-builder/creatures.ts, one per track, `type: "creature"
 Research: `docs/research/track-thrills.md`. What we take from it, in our own form:
 - **Open edges and the claw.** Some stretches have no wall (the Canyon mesa, the Frostbite ledge, the Skyline islands, the Boardwalk pier). Drive off and you fall; a claw on a cable drops, grabs the kart, carries it back over the road and sets it down well inside the lane (2.4 s). MK8 catches you at once and says a fall "loses a lot of time"; ours costs about the same and is fun to watch. *Built.*
 - **Boost pads, 5 to 6 a lap.** A chain of 3 leads into each big ramp (Mario Kart Stadium has 3 panels into its last ramp). One sits on every shortcut. The rest sit on the outside line of straights, so the fast line is a choice. Chevrons scroll forward and glow, so a pad reads at speed and at night.
-- **Real ramps.** A striped wedge across the road that you drive up, with a bright lip. Leave it and you fly; hop at the lip for a trick boost.
+- **Real ramps.** A striped wedge across the road that you drive up, with a bright lip. Leave it and you fly; hop at the lip for a trick boost. *Built, with the pads and bumps below.*
 - **Trick bumps.** Rows of humps across the road (dunes on Canyon Rush, moguls on Frostbite Pass, hay humps on Meadow Run). Each crest is a small jump: hop off it for a trick boost, then hop the next one (MKW tricks off bumps and waves and lets you chain them).
 - **Launch vents.** Geysers on Canyon Rush and steam vents on Frostbite Pass. A vent glows and bubbles for 1 s, then erupts for 1.5 s; a kart over it is thrown high, and a trick up there is a boost (MKW's Dino Dino Jungle geysers). Timed, so skill beats luck.
-- **The loop-the-loop.** On Boardwalk Nights the road runs through a neon coaster loop. Every kart rides up and round it at speed (a scripted ride, no steering) and comes out with a small boost.
+- **The loop-the-loop.** On Boardwalk Nights the road runs through a neon coaster loop. Every kart rides up and round it at speed (a scripted ride, no steering) and comes out with a small boost. *Built:* candy-striped ring with neon rails on two gantries; the camera swings out to the side so you watch your kart go upside down; its own ElevenLabs whoosh.
 - Skipped on purpose: gliding, wall riding, charge jumps and grind rails everywhere (first-principles: one trick surface at most; Skyline keeps its one rail), traffic, rewind.
 
 ## 7. Handling (from research plan §4.1)

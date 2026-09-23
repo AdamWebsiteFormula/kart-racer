@@ -68,6 +68,14 @@
         }
       }
     },
+    "loops": {
+      "description": "Loop-the-loops on the main line (design.md Track thrills). Every kart on the ground is caught before the foot at t, rides up and round the ring and is set down after it with a boost. Put one on a straight at least approach + exit metres long.",
+      "type": "array",
+      "items": { "type": "object", "required": ["id", "t"], "properties": {
+        "id": { "type": "string" }, "t": { "type": "number", "description": "main-line t of the ring's foot" },
+        "radius": { "type": "number", "description": "metres (default builder loopRadius)" }
+      } }
+    },
     "openEdges": {
       "description": "Stretches of the main line with no wall on one or both sides (left = negative lateral). Past the shoulder there is no ground: a kart falls and the claw brings it back.",
       "type": "array",
@@ -163,6 +171,12 @@
         "rampRise": { "type": "number", "default": 0.8, "description": "height of a ramp's lip above the road, metres" },
         "humpRun": { "type": "number", "default": 8, "description": "metres along the road a trick bump spans" },
         "humpRise": { "type": "number", "default": 1.0, "description": "height of a trick bump's crest, metres" },
+        "loopRadius": { "type": "number", "default": 9, "description": "a loop-the-loop's radius, metres" },
+        "loopShift": { "type": "number", "default": 7, "description": "metres the ring moves right in one turn: the way in (left of centre) never meets the way out (right)" },
+        "loopSpread": { "type": "number", "default": 1.2, "description": "metres either side of its lane a kart rides round, by where it came in (karts side by side stay side by side)" },
+        "loopApproach": { "type": "number", "default": 14, "description": "metres before the foot a kart is caught and eased into the entry lane" },
+        "loopExit": { "type": "number", "default": 6, "description": "metres after the foot a kart is set down in the exit lane" },
+        "loopWidth": { "type": "number", "default": 6, "description": "width of the ring's track, metres" },
         "humpEdge": { "type": "number", "default": 1.6, "description": "metres over which a trick bump rounds off to the road at each kerb" },
         "balloonHeight": { "type": "number", "default": 1.2 },
         "balloonRadius": { "type": "number", "default": 0.9 },

@@ -15,6 +15,7 @@ import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chu
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
+import { buildLoopMeshes } from './loop.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
@@ -291,6 +292,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     for (const m of jumpMeshes) group.add(m);
   };
   addFeatures();
+  // loop-the-loops: the ring, its neon rails, its gantries
+  for (const m of buildLoopMeshes(track, GRADIENT ?? null)) group.add(m);
 
   // hazards: one instancer per asset, capacity = authored count, moved by update(time)
   const hazardAsset = new Map<string, string>();

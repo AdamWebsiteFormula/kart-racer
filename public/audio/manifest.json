@@ -120,6 +120,9 @@
   "claw": {
    "url": "audio/sfx/claw.mp3"
   },
+  "loop": {
+   "url": "audio/sfx/loop.mp3"
+  },
   "clawDrop": {
    "url": "audio/sfx/clawDrop.mp3"
   },

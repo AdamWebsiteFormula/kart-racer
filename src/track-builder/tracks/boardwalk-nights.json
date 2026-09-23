@@ -94,6 +94,9 @@
     { "id": "teacup-1", "type": "static", "t": 0.67, "lateral": -4, "hit": "spin", "asset": "teacup" },
     { "id": "teacup-2", "type": "static", "t": 0.87, "lateral": 4, "hit": "spin", "asset": "teacup" }
   ],
+  "loops": [
+    { "id": "neon-loop", "t": 0.49 }
+  ],
   "openEdges": [{"fromT": 0.12, "toT": 0.22, "side": "right"}],
   "finalLapShift": {
     "kind": "fireworks",

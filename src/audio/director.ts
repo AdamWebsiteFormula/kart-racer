@@ -66,6 +66,7 @@ function kartCue(e: KartEvent): SfxId | null {
         default: return null;
       }
     case 'landed': return 'land';
+    case 'loop': return e.phase === 'start' ? 'loop' : null;
     case 'wall': return 'wall';
     case 'bump': return 'bump';
     case 'hit': return e.spun ? 'spin' : 'hit';

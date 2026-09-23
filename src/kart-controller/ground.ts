@@ -1,5 +1,6 @@
 // Steps 8–9: integrate, find t, query the track, gravity, ground snap, ramps,
 // landing (fires a queued trick), void.
+import { startLoop } from './loop.ts';
 import { requestBoost } from './boost.ts';
 import type { KartConstants } from './constants.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
@@ -86,6 +87,14 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   const { lateral, right } = lateralOffset(track, s.t, s.position, s.branch);
   const sample = track.sample(s.t, lateral, s.branch);
   const wasGrounded = s.grounded;
+
+  // a loop-the-loop's catch line: the ride takes over from the next tick
+  if (s.grounded && s.branch === 0 && track.loops) {
+    for (let k = 0; k < track.loops.length; k++) {
+      const l = track.loops[k];
+      if (crossed(prevT, s.t, (((l.t - l.approach / track.length) % 1) + 1) % 1)) { startLoop(s, k, l, lateral, c, events); break; }
+    }
+  }
 
   // ramps: leaving one sets the launch velocity
   if (s.grounded) {

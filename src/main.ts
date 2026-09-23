@@ -22,7 +22,7 @@ import { makeConstants } from './kart-controller/constants.ts';
 import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from './race-manager/series.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
-import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './game/camera.ts';
+import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { CAST, UiRoot, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
@@ -271,6 +271,17 @@ function chaseCamera(frameDt: number): void {
   const k = s.state.karts[i];
   const root = s.views[i].root.position;
   const lookBack = s.inputs[i]?.lookBack ?? false;
+  // on a loop-the-loop: stand back and watch the whole ring
+  const loop = k.status.loopIndex >= 0 ? s.track.loops[k.status.loopIndex] : undefined;
+  if (loop) {
+    const lp = loopCamPose(s.track, loop);
+    smoothTo(camPos, lp.position, CAM.loopLag, frameDt);
+    smoothTo(camLook, lp.target, CAM.loopLag * 1.5, frameDt);
+    camYaw = k.heading;
+    camSpeed = easedSpeed(camSpeed, k.speed, frameDt);
+    camera.fov = fovFor(camSpeed);
+    return;
+  }
   const want = travelYaw(s.views[i].root.rotation.y, k.speed, k.lateralVelocity, k.drift.active);
   camYaw = chaseYaw(camYaw, want, lookBack ? CAM.flipLag : CAM.yawLag, frameDt);
   camSpeed = easedSpeed(camSpeed, k.speed, frameDt);

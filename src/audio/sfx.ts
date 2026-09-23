@@ -73,6 +73,7 @@ export const PATCHES: Readonly<Record<SfxId, Patch>> = Object.freeze({
   tailSlap: P({ wave: 'noise', f0: 1, attack: 0.05, decay: 0.9, gain: 0.5, filter: { type: 'lowpass', f0: 900, f1: 200 } }),
   claw: P({ wave: 'sawtooth', f0: 180, f1: 420, glide: 0.8, attack: 0.02, hold: 0.4, decay: 0.3, gain: 0.3, vibrato: [30, 8], filter: { type: 'lowpass', f0: 1400 } }),
   clawDrop: P({ wave: 'square', f0: 520, f1: 260, glide: 0.1, attack: 0.002, decay: 0.2, gain: 0.3, filter: { type: 'lowpass', f0: 1800 } }),
+  loop: P({ wave: 'sawtooth', f0: 220, f1: 880, glide: 1.2, attack: 0.05, hold: 0.6, decay: 0.6, gain: 0.3, vibrato: [6, 12], filter: { type: 'lowpass', f0: 2400 } }),
   hit: P({ wave: 'square', f0: 220, f1: 110, glide: 0.2, attack: 0.002, decay: 0.25, gain: 0.4, filter: { type: 'lowpass', f0: 1200 } }),
   spin: P({ wave: 'square', f0: 700, f1: 120, glide: 0.6, attack: 0.002, decay: 0.65, gain: 0.35, vibrato: [300, 14], filter: { type: 'lowpass', f0: 1800 } }),
   // boosts: the drift tiers rise in pitch and length

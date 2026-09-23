@@ -1,8 +1,12 @@
 // Chase camera placement. Pure vector maths: the caller copies the result onto a
 // Three.js camera, so this is testable headless.
+import { loopFrame } from '../kart-controller/loop.ts';
+import type { TrackLoop, TrackQuery } from '../kart-controller/types.ts';
 import { forwardOf, type Vec3 } from '../kart-controller/types.ts';
 
 export const CAM = Object.freeze({
+  /** loop-the-loop side view: out to the left by this many ring radii, back by this many, up by this many; its lag, 1/s */
+  loopSide: 2.4, loopBack: 0.3, loopHeight: 1.1, loopLag: 2.2,
   /** metres behind the kart at a standstill */
   back: 7.5,
   /** extra metres of back-off at top speed */
@@ -26,6 +30,16 @@ export const CAM = Object.freeze({
   fov: 66,
   fovAtSpeed: 12,
 });
+
+/** A loop-the-loop seen side on, from left of the road: far enough out to hold the whole ring, a little behind its foot. */
+export function loopCamPose(track: TrackQuery, l: TrackLoop): CamPose {
+  const f = loopFrame(track, l);
+  const o = f.origin, R = l.radius, side = -R * CAM.loopSide, back = R * CAM.loopBack;
+  return {
+    position: [o[0] + f.right[0] * side - f.forward[0] * back, o[1] + R * CAM.loopHeight, o[2] + f.right[2] * side - f.forward[2] * back],
+    target: [o[0], o[1] + R, o[2]],
+  };
+}
 
 export function fovFor(speed: number): number {
   return CAM.fov + CAM.fovAtSpeed * Math.min(1, Math.abs(speed) / CAM.topSpeed);

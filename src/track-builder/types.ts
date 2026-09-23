@@ -115,6 +115,8 @@ export interface TrackDefinition {
   coins?: PickupDef[];
   boostPads?: BoostPadDef[];
   finalLapShift: FinalLapShiftDef;
+  /** loop-the-loops on the main line: every kart rides up and round (design.md Track thrills) */
+  loops?: { id: string; t: number; radius?: number }[];
   /** stretches of the main line with no wall on one or both sides: drive off and fall (the claw brings you back) */
   openEdges?: { fromT: number; toT: number; side: 'left' | 'right' | 'both' }[];
   environment?: EnvironmentDef;

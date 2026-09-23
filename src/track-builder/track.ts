@@ -1,6 +1,7 @@
 // buildTrack(def) → Track. The sim-layer object every race system reads.
 // Implements the kart-controller's TrackQuery. No Three.js in here.
-import type { TrackBoostPad, TrackHint, TrackJump, TrackQuery, TrackSample } from '../kart-controller/types.ts';
+import { BUILDER } from './constants.ts';
+import type { TrackBoostPad, TrackHint, TrackJump, TrackLoop, TrackQuery, TrackSample } from '../kart-controller/types.ts';
 import { Branch, Branches, buildBranch } from './branches.ts';
 import { bakeFeatures, boostPadView, jumpView } from './features.ts';
 import { Hazards } from './hazards.ts';
@@ -28,6 +29,7 @@ export class Track implements TrackQuery {
   spawnGrid: SpawnSlot[] = [];
   minimap!: Minimap;
   jumps: readonly TrackJump[] = [];
+  loops: readonly TrackLoop[] = [];
   boostPads: readonly TrackBoostPad[] = [];
   shifted = false;
   private readonly listeners: TrackListener[] = [];
@@ -117,6 +119,10 @@ export class Track implements TrackQuery {
     this.minimap = buildMinimap(this.branches);
     this.jumps = jumpView(this.features);
     this.boostPads = boostPadView(this.features);
+    this.loops = (this.def.loops ?? []).map((l) => ({
+      id: l.id, t: l.t, radius: l.radius ?? BUILDER.loopRadius, shift: BUILDER.loopShift, spread: BUILDER.loopSpread,
+      approach: BUILDER.loopApproach, exit: BUILDER.loopExit, width: BUILDER.loopWidth,
+    }));
   }
 }
 
