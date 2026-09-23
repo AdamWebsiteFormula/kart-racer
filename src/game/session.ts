@@ -1,7 +1,7 @@
 // One race, from its config to its disposal: track, scene objects, race manager, items, AI
 // and kart views. The game builds a fresh session for every race, restart and attract loop.
 // Tick order is the one every SOP assumes: AI fills inputs → manager.step → items.step → views.
-import { Group, type Object3D, type Scene } from 'three';
+import { type Color, Group, type Object3D, type Scene } from 'three';
 import { AiDriver } from '../ai-driver/index.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { SIM_DT } from '../kart-controller/step.ts';
@@ -14,7 +14,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, isShared } from '../art-pipeline/index.ts';
+import { buildRacerMesh, isShared, paintSky, trackAssets } from '../art-pipeline/index.ts';
 import { ItemsView } from './itemsView.ts';
 import { buildKartMesh } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
@@ -32,6 +32,8 @@ export class RaceSession {
   /** index into karts[] of the player, or -1 (attract mode) */
   readonly playerIndex: number;
   readonly inputs: InputState[];
+  /** the painted sky's horizon colour; the fog matches it so the far road melts into the sky */
+  horizon: Color;
   /** seconds since the phase became `finished` */
   finishedFor = 0;
   private readonly group = new Group();
@@ -42,7 +44,8 @@ export class RaceSession {
     this.def = def;
     this.config = config;
     this.track = buildTrack(def);
-    this.trackScene = buildTrackScene(this.track);
+    this.trackScene = buildTrackScene(this.track, trackAssets());
+    this.horizon = paintSky(this.trackScene.group, this.trackScene.sky);
     this.manager = new RaceManager(this.track, config);
     this.items = new Items(this.track, this.manager);
     this.ai = new AiDriver(this.track, config, this.manager.state, { itemRoles: this.items.roles });
@@ -71,6 +74,7 @@ export class RaceSession {
     const p = this.playerIndex;
     if (p >= 0 && playerInput && manager.state.karts[p].finishTick === undefined) inputs[p] = playerInput;
     const race = manager.step(inputs);
+    for (const e of race) if (e.type === 'trackChanged' && e.event.sky) this.horizon = paintSky(this.trackScene.group, e.event.sky);
     const itemEvents = items.step(inputs, race, SIM_DT);
     for (let k = 0; k < views.length; k++) ai.threatened[k] = items.threatened[k];
     for (let k = 0; k < views.length; k++) views[k].onTick(manager.state.karts[k], SIM_DT);

@@ -105,8 +105,8 @@ function load(config: RaceConfig, isAttract: boolean): void {
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
   if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id));
-  scene.background = new Color(...session.trackScene.palette.background);
-  scene.fog = new Fog(new Color(...session.trackScene.fog.color), 120, 800);
+  scene.background = session.horizon.clone();
+  scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
   const k = session.player ?? session.state.karts[0];
   camYaw = k.heading;
@@ -264,6 +264,7 @@ function frame(now: number): void {
 
   const cur = session!;
   cur.frame(acc.alpha, frameDt);
+  if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
   camera.updateProjectionMatrix();
   camera.position.set(camPos[0], camPos[1], camPos[2]);

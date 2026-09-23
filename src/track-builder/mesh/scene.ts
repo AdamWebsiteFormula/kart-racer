@@ -4,7 +4,7 @@
 // supplies real ones through `assets`.
 import {
   BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DynamicDrawUsage, Group,
-  InstancedMesh, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry, SphereGeometry, Matrix4,
+  InstancedMesh, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry, SphereGeometry, Matrix4, type Material, type Texture,
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
@@ -19,6 +19,12 @@ const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 export interface TrackAssets {
   /** keyed by decor asset, barrier asset, `balloon`, `coin`, `boostPad`, `ramp`, hazard asset, landmark id */
   geometries?: Record<string, BufferGeometry>;
+  /** ink hulls for static models (decor, barriers, landmark), same keys; drawn with `ink` */
+  hulls?: Record<string, BufferGeometry>;
+  /** shared outline material for the hulls; never disposed by the scene */
+  ink?: Material;
+  /** toon light ramp for every toon material the scene makes */
+  gradientMap?: Texture;
 }
 
 export interface TrackScene {
@@ -70,8 +76,16 @@ function geometryFor(assets: TrackAssets, name: string, fallback = name): Buffer
 /** Placeholder geometries the scene made itself; caller-owned `assets` geometries are never disposed. */
 const OWNED = new WeakSet<BufferGeometry>();
 
+/** Toon material for a geometry: its own vertex colours when it carries them, else the palette colour. */
+function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | undefined): MeshToonMaterial {
+  const vc = geometry.hasAttribute('color');
+  return new MeshToonMaterial({ color: vc ? 0xffffff : toColor(colour), vertexColors: vc, gradientMap: gradientMap ?? null });
+}
+
+let GRADIENT: Texture | undefined; // set per buildTrackScene call from assets.gradientMap
+
 function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices: Float32Array, capacity = matrices.length / 16): InstancedMesh {
-  const mat = new MeshToonMaterial({ color: toColor(colour) });
+  const mat = toon(geometry, colour, GRADIENT);
   const m = new InstancedMesh(geometry, mat, Math.max(1, capacity));
   m.name = name;
   m.count = matrices.length / 16;
@@ -91,7 +105,9 @@ export function isDrawn(m: Mesh): boolean {
 /** Free everything a mesh owns: its material, its geometry if the scene made it, its instance buffer. */
 function retire(m: Mesh): void {
   m.removeFromParent();
-  (m.material as MeshToonMaterial).dispose();
+  if (!m.userData.sharedMaterial) (m.material as MeshToonMaterial).dispose();
+  const hull = m.userData.hull as Mesh | undefined;
+  if (hull) { hull.parent?.remove(hull); retire(hull); }
   if (OWNED.has(m.geometry)) m.geometry.dispose();
   if ((m as InstancedMesh).isInstancedMesh) (m as InstancedMesh).dispose();
 }
@@ -124,8 +140,32 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const instancers = new Map<string, InstancedMesh>();
   const branches = track.branches;
 
+  GRADIENT = assets.gradientMap;
+  /** an ink hull that shares the model's instance matrices, so it follows it for free */
+  const withHull = <T extends Mesh>(src: T, key: string): T => {
+    const hg = assets.hulls?.[key];
+    if (!hg || !assets.ink) return src;
+    let hull: Mesh;
+    if ((src as unknown as InstancedMesh).isInstancedMesh) {
+      const im = src as unknown as InstancedMesh;
+      const h = new InstancedMesh(hg, assets.ink, im.instanceMatrix.count);
+      h.instanceMatrix = im.instanceMatrix;
+      h.count = im.count;
+      hull = h;
+    } else {
+      hull = new Mesh(hg, assets.ink);
+      hull.position.copy(src.position);
+      hull.rotation.copy(src.rotation);
+    }
+    hull.name = `${src.name}:ink`;
+    hull.userData.sharedMaterial = true;
+    src.userData.hull = hull;
+    (src.parent ?? group).add(hull);
+    return src;
+  };
+
   // road chunks: one shared toon material, vertex colours
-  const roadMaterial = new MeshToonMaterial({ vertexColors: true });
+  const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);
@@ -144,6 +184,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const m = instancer('barriers', geometryFor(assets, `${def.biome}-barrier`, 'barrier'), palette.barrier, placeBarriers(branches));
     instancers.set('barriers', m);
     group.add(m);
+    withHull(m, `${def.biome}-barrier`);
   };
   addBarriers();
 
@@ -157,6 +198,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const m = instancer(`decor:${entry.asset}`, geometryFor(assets, entry.asset, 'decor'), palette.decor, p.matrices);
     instancers.set(m.name, m);
     group.add(m);
+    withHull(m, entry.asset);
   }
 
   // features: balloons, coins, boost pads, ramps
@@ -256,7 +298,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // ground: one plane (or water), none for sky tracks
   const groundKind = env.ground?.kind ?? 'plane';
   if (groundKind !== 'none') {
-    const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), new MeshToonMaterial({ color: toColor(palette.ground) }));
+    const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
     ground.name = `ground-${groundKind}`;
     ground.position.y = groundY;
     ground.receiveShadow = true;
@@ -277,11 +319,13 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       if (lut.px[i] < minX) minX = lut.px[i]; if (lut.px[i] > maxX) maxX = lut.px[i];
       if (lut.pz[i] < minZ) minZ = lut.pz[i]; if (lut.pz[i] > maxZ) maxZ = lut.pz[i];
     }
-    const landmark = new Mesh(geometryFor(assets, def.landmark, 'landmark'), new MeshToonMaterial({ color: toColor(palette.accent) }));
+    const lg = geometryFor(assets, def.landmark, 'landmark');
+    const landmark = new Mesh(lg, toon(lg, palette.accent, GRADIENT));
     landmark.name = `landmark-${def.landmark}`;
     landmark.position.set((minX + maxX) / 2, groundKind === 'none' ? lut.minY : groundY, (minZ + maxZ) / 2);
     landmark.castShadow = true;
     group.add(landmark);
+    withHull(landmark, def.landmark);
   }
 
   const scene: TrackScene = {

@@ -57,7 +57,7 @@ export class ModelBuilder {
   }
   /** A sphere of radius 1 scaled to `radii` (an ellipsoid). */
   ball(radii: V3, colour: string | number, pos: V3, rot?: V3, detail = 14, outline = true): this {
-    return this.push(new SphereGeometry(1, detail, Math.max(6, detail * 0.66 | 0)), colour, pos, rot, radii, outline);
+    return this.push(new SphereGeometry(1, detail, Math.max(4, detail * 0.66 | 0)), colour, pos, rot, radii, outline);
   }
   cyl(rTop: number, rBottom: number, h: number, colour: string | number, pos: V3, rot?: V3, seg = 12, outline = true): this {
     return this.push(new CylinderGeometry(rTop, rBottom, h, seg), colour, pos, rot, [1, 1, 1], outline);
