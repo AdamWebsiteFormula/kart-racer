@@ -130,3 +130,28 @@ describe('outline colours', () => {
     expect(lightness(new Color('#2a2630'))).toBeLessThan(INK_SKIP_LIGHTNESS); // tyres: no outline
   });
 });
+
+describe('racer model files', () => {
+  it('fit into the kart footprint: nose to tail, centred, wheels on the ground, one uniform scale', async () => {
+    const { fitToKart, KART_FIT } = await import('./glb.ts');
+    // a model 4 m long, 2 m wide, 1.5 m tall, sitting off-centre and below the origin
+    const { scale, offset } = fitToKart([1, -0.5, 3], [3, 1, 7]);
+    expect(scale).toBeCloseTo(KART_FIT.length / 4, 6);
+    const min = [1 * scale + offset[0], -0.5 * scale + offset[1], 3 * scale + offset[2]];
+    const max = [3 * scale + offset[0], 1 * scale + offset[1], 7 * scale + offset[2]];
+    expect(min[1]).toBeCloseTo(0, 6); // on the ground
+    expect(min[0] + max[0]).toBeCloseTo(0, 6); // centred side to side
+    expect(min[2] + max[2]).toBeCloseTo(0, 6); // centred nose to tail
+    expect(max[0] - min[0]).toBeLessThanOrEqual(KART_FIT.width + 1e-9);
+    // a tall model is limited by its height instead
+    expect(fitToKart([0, 0, 0], [1, 5, 1]).scale).toBeCloseTo(KART_FIT.height / 5, 6);
+  });
+
+  it('with no manifest every racer keeps its code-built kart', async () => {
+    const { RacerModels } = await import('./glb.ts');
+    const models = new RacerModels('/', (async () => ({ ok: false })) as unknown as typeof fetch);
+    await models.load();
+    expect(models.has('pip')).toBe(false);
+    expect(models.make('pip')).toBeNull();
+  });
+});

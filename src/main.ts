@@ -11,6 +11,7 @@ import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from '
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
+import { RACER_MODELS } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
@@ -171,6 +172,8 @@ const host: UiHost = {
   nextRace() {
     const next = series ? nextRace(series) : undefined;
     if (next) load(next, false); else startAttract();
+// racer model files, when there are any: the next race uses them (fails soft to code-built karts)
+void RACER_MODELS.load();
   },
   restartRace() {
     if (session) load(session.config, false);

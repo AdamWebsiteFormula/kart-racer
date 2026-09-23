@@ -34,5 +34,5 @@ export function flameMaterial(): MeshBasicMaterial {
 
 /** Is this one of the shared materials (never disposed per session)? */
 export function isShared(m: Material): boolean {
-  return m === vcToon || m === flame;
+  return m === vcToon || m === flame || m.userData.shared === true;
 }

@@ -4,6 +4,7 @@ import { trackAssetsFor } from './decor.ts';
 import { toonRamp } from './toon.ts';
 
 export { buildRacerMesh, racerGeometry } from './kart.ts';
+export { fitToKart, KART_FIT, RACER_MODELS, RacerModels, type ModelManifest } from './glb.ts';
 export { EXHAUST, portDir, RACER_IDS, racerModel, type Exhaust } from './racers.ts';
 export { flameColour, flameGeometry } from './flames.ts';
 export { ModelBuilder } from './model.ts';
