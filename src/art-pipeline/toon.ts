@@ -27,9 +27,9 @@ export function vertexToon(): MeshToonMaterial {
 }
 
 let ink: MeshBasicMaterial | null = null;
-/** The one shared outline material: unlit ink on back faces. */
+/** The one shared outline material: unlit back faces in each part's own deep shade (hull vertex colours). */
 export function inkMaterial(): MeshBasicMaterial {
-  if (!ink) ink = new MeshBasicMaterial({ color: INK, side: BackSide });
+  if (!ink) ink = new MeshBasicMaterial({ color: 0xffffff, vertexColors: true, side: BackSide });
   return ink;
 }
 

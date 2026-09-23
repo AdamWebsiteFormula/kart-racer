@@ -4,6 +4,7 @@ import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
 import { BASE } from '../kart-controller/constants.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
+import { INK_LUMINANCE } from './model.ts';
 import { RACER_IDS, racerModel } from './racers.ts';
 
 const SIZE = 32;
@@ -72,7 +73,16 @@ describe('racer models', () => {
       expect(body.index!.count / 3, id).toBeLessThan(9000);
       expect(body.hasAttribute('color'), id).toBe(true);
       expect(hull.index!.count, id).toBeGreaterThan(0);
-      expect(hull.hasAttribute('color'), id).toBe(false);
+      // soft coloured ink: every hull vertex is a deep shade (darker than a lit body), and not all one black
+      expect(hull.hasAttribute('color'), id).toBe(true);
+      const hc = hull.getAttribute('color').array as Float32Array;
+      let brightest = 0, colourful = 0;
+      for (let v = 0; v < hc.length; v += 3) {
+        brightest = Math.max(brightest, 0.2126 * hc[v] + 0.7152 * hc[v + 1] + 0.0722 * hc[v + 2]); // linear luminance
+        if (Math.max(hc[v], hc[v + 1], hc[v + 2]) - Math.min(hc[v], hc[v + 1], hc[v + 2]) > 0.01) colourful++;
+      }
+      expect(brightest, id).toBeLessThanOrEqual(INK_LUMINANCE + 1e-6); // a deep shade, as deep for yellow as for blue
+      expect(colourful, id).toBeGreaterThan(0);
     }
   });
 

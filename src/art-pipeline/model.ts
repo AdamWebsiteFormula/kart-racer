@@ -1,9 +1,10 @@
 // Model builder: add coloured primitives, get back one merged vertex-coloured geometry and a
 // matching outline hull. Every part is inflated by an absolute ink width along its own axes,
-// so boxes and spheres both get an even outline with no cracks at the corners.
+// so boxes and spheres both get an even outline with no cracks at the corners. Each part's ink
+// is a deep shade of its own colour (a soft coloured edge, not a black line).
 import {
   BoxGeometry, BufferAttribute, BufferGeometry, Color, ConeGeometry, CylinderGeometry, Euler, IcosahedronGeometry,
-  Matrix4, Quaternion, SphereGeometry, TorusGeometry, Vector3,
+  Matrix4, Quaternion, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
@@ -12,6 +13,22 @@ export type V3 = [number, number, number];
 export type Paint = string | number | readonly [number, number, number];
 
 const toColor = (c: Paint): Color => (typeof c === 'object' ? new Color().setRGB(c[0], c[1], c[2]) : new Color(c));
+
+const hsl = { h: 0, s: 0, l: 0 };
+/** the brightest an outline may be (linear luminance) */
+export const INK_LUMINANCE = 0.1;
+/**
+ * The outline colour for a part: its own hue, a little richer, much darker (in sRGB, so it
+ * looks even): dark red around red, dark teal around teal, a soft slate around white.
+ */
+export function inkFor(c: Color): Color {
+  const clamped = new Color(Math.min(1, c.r), Math.min(1, c.g), Math.min(1, c.b));
+  clamped.getHSL(hsl, SRGBColorSpace);
+  const ink = new Color().setHSL(hsl.h, Math.min(1, hsl.s * 1.1 + 0.08), Math.min(0.3, Math.max(0.1, hsl.l * 0.4)), SRGBColorSpace);
+  // yellows and greens come out lighter at the same HSL lightness: cap the luminance so every ink is equally deep
+  const lum = 0.2126 * ink.r + 0.7152 * ink.g + 0.0722 * ink.b;
+  return lum > INK_LUMINANCE ? ink.multiplyScalar(INK_LUMINANCE / lum) : ink;
+}
 
 interface PartSpec { geo: BufferGeometry; colour: Color; pos: V3; rot: V3; scale: V3; outline: boolean }
 
@@ -90,7 +107,7 @@ export class ModelBuilder {
     return out;
   }
 
-  /** The ink hull: every outlined part inflated by `ink` metres on each side. One draw call. */
+  /** The ink hull: every outlined part inflated by `ink` metres on each side, in its own deep shade. One draw call. */
   outline(): BufferGeometry {
     const gs: BufferGeometry[] = [];
     for (const p of this.parts) {
@@ -102,10 +119,9 @@ export class ModelBuilder {
       // inflate in the part's own frame so the ink is even whatever the part's scale
       const k = (i: number, size: number) => (size * p.scale[i] + 2 * this.ink) / Math.max(1e-4, size * p.scale[i]);
       const scale: V3 = [p.scale[0] * k(0, s.x), p.scale[1] * k(1, s.y), p.scale[2] * k(2, s.z)];
-      gs.push(normalise(paint(place(g, p.pos, p.rot, scale), new Color(0, 0, 0))));
+      gs.push(normalise(paint(place(g, p.pos, p.rot, scale), inkFor(p.colour))));
     }
     const out = mergeGeometries(gs, false)!;
-    out.deleteAttribute('color');
     out.computeBoundingSphere();
     return out;
   }

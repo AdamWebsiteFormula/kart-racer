@@ -38,6 +38,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Summit Cup decor modelled (Frostbite, Skyline, Boardwalk). Hazard models are built centred with their base 1.2 m down, because the scene lifts a hazard's centre by its radius.
 - 2026-09-23: The sky dome follows the camera, so the horizon sits at eye level on any track height. On tracks with no ground, the hemisphere light's lower colour is the sky's lower band, not earth brown.
 - 2026-09-23: Every kart has exhaust pipes (racers.ts EXHAUST: ports, direction, flame color). Side pipes splay 0.35 outward so the chase camera sees the flames as a V, not two dots. Nova's thruster and Boulder's truck stacks are their exhausts. Flame color is the racer's accent, or their second color where the accent is too dark to burn (Momo, Boulder).
+- 2026-09-23: Outlines are soft and colored, not black (the user's call): each hull part is a deep shade of its own color (same hue, richer, sRGB lightness × 0.4, capped at linear luminance 0.1 so yellow is as deep as blue), drawn with one shared vertex-colored back-face material. The racers' ink is thinner (0.028 m) than the scenery's.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

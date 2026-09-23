@@ -262,7 +262,7 @@ export const RACER_IDS = Object.freeze(Object.keys(KARTS));
 export function racerModel(id: string): ModelBuilder | null {
   const k = KARTS[id], d = DRIVERS[id];
   if (!k || !d) return null;
-  const m = new ModelBuilder(0.04);
+  const m = new ModelBuilder(0.028); // thinner ink than the scenery: the cast reads soft up close
   k(m);
   d(m);
   return m;
