@@ -4,7 +4,7 @@ import { GAME_TAGLINE, GAME_TITLE, UI } from '../constants.ts';
 import { SHAPE_PATHS } from '../icons.ts';
 import type { CreditSection } from '../screens/credits.ts';
 import type { CupVM, MenuVM, RosterVM, SettingRow } from '../screens/menus.ts';
-import type { CutVM, GpVM, ResultsVM } from '../screens/results.ts';
+import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
 import { button, clear, h } from './dom.ts';
 
 export interface ScreenView {
@@ -307,7 +307,64 @@ export class ResultsView implements ScreenView {
     this.buttons.set('continue', b);
   }
 
-  renderResults(vm: ResultsVM, next: string): void {
+  private board: { list: HTMLElement; sub: HTMLElement; btn: HTMLElement; status: HTMLElement; input: HTMLInputElement } | null = null;
+
+  /** What the player typed in the name box ('' when there is no board on screen). */
+  get nameValue(): string { return this.board?.input.value ?? ''; }
+
+  /** Only the board's contents change: the name box and its caret are never rebuilt. */
+  updateBoard(vm: BoardVM): void {
+    const b = this.board;
+    if (!b) return;
+    b.sub.textContent = vm.sub;
+    clear(b.list);
+    if (vm.state !== 'rows') h('div', 'board-empty', b.list, vm.state === 'loading' ? 'Loading the best times…' : vm.state === 'offline' ? 'Leaderboard offline' : 'No times yet. Be the first!');
+    for (const r of vm.rows) {
+      const e = h('div', `board-row${r.me ? ' me' : ''}`, b.list);
+      e.setAttribute('role', 'row');
+      e.style.setProperty('--accent', r.accent);
+      h('span', 'rk', e, r.rank);
+      h('span', 'sw', e);
+      h('span', 'nm', e, r.name);
+      h('span', 'rc', e, r.racer);
+      h('span', 'tm', e, r.time);
+    }
+    (b.btn.querySelector('.label') as HTMLElement).textContent = vm.button;
+    b.btn.setAttribute('aria-disabled', vm.buttonDisabled ? 'true' : 'false');
+    b.status.textContent = vm.status;
+    b.status.dataset.kind = vm.statusKind;
+  }
+
+  private buildBoard(box: HTMLElement, name: string): void {
+    const sec = h('section', 'board', box);
+    sec.setAttribute('aria-label', 'Leaderboard');
+    h('h3', '', sec, 'Leaderboard');
+    const sub = h('div', 'board-sub', sec);
+    const list = h('div', 'board-list', sec);
+    list.setAttribute('role', 'table');
+    const form = h('div', 'board-form', sec);
+    const input = h('input', 'name-input', form);
+    input.type = 'text';
+    input.maxLength = 16;
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = 'Your name';
+    input.value = name;
+    input.dataset.id = 'name';
+    input.tabIndex = -1;
+    input.setAttribute('aria-label', 'Your name for the leaderboard, 1 to 16 letters, digits, spaces, underscores or dashes');
+    const btn = button(form, 'post');
+    h('span', 'label', btn, 'Post my time');
+    const status = h('div', 'board-status', sec);
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    this.buttons.set('name', input);
+    this.buttons.set('post', btn);
+    this.board = { list, sub, btn, status, input };
+  }
+
+  renderResults(vm: ResultsVM, next: string, board?: { name: string }): void {
+    this.board = null;
     const { box, rows } = this.frame(vm.headline, vm.sub);
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.dnf ? ' dnf' : ''} r${i + 1}`, rows);
@@ -324,10 +381,12 @@ export class ResultsView implements ScreenView {
       const laps = h('div', 'laps', box);
       for (const l of vm.playerLaps) h('span', l.best ? 'best' : '', laps, `Lap ${l.lap} ${l.time}`);
     }
+    if (board) this.buildBoard(box, board.name);
     this.actions(box, next);
   }
 
   renderGp(vm: GpVM, next: string): void {
+    this.board = null;
     const { box, rows } = this.frame(vm.headline, vm.sub);
     if (vm.done) {
       const s = h('div', 'stars', box);
@@ -349,6 +408,7 @@ export class ResultsView implements ScreenView {
   }
 
   renderCut(vm: CutVM, next: string): void {
+    this.board = null;
     const { box, rows } = this.frame(vm.headline, vm.sub);
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.out ? ' out' : ''} r${i + 1}`, rows);

@@ -18,7 +18,9 @@ import {
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
 import { adjustSetting, cupMenu, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, type SettingId } from './screens/menus.ts';
-import { gpModel, knockoutCutModel, resultsModel } from './screens/results.ts';
+import { boardModel, gpModel, knockoutCutModel, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
+import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
+import { cleanName, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
 import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Settings } from './store.ts';
 import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
 
@@ -41,6 +43,8 @@ export interface UiHost {
   screenChanged?(app: AppState): void;
   /** a menu blip: focus moved, something was picked, or we went back */
   uiSound?(kind: 'move' | 'confirm' | 'back'): void;
+  /** the global leaderboard; absent means no board on the results screen */
+  readonly leaderboard?: LeaderboardClient;
 }
 
 export interface RaceOver {
@@ -52,6 +56,8 @@ export interface RaceOver {
   seriesHasNext: boolean;
   /** Time Trial only: the track's medal times */
   medalTimesMs?: { gold: number; silver: number; bronze: number };
+  /** Time Trial and Daily, when the player finished: the run as the leaderboard wants it, minus the name */
+  board?: { mode: BoardMode; dailySeed: number | null; draft: Omit<Submission, 'name'> };
 }
 
 export interface RaceFrame {
@@ -88,6 +94,8 @@ export class UiRoot {
   private dots: MinimapDot[] = [];
   private lastOver: RaceOver | null = null;
   private ttNote = '';
+  private boardLoad: BoardLoad = 'loading';
+  private boardPost: BoardPost = { state: 'idle' };
   private padRepeat = newRepeat();
   private padStartWas = false;
   private osReduced = false;
@@ -191,7 +199,49 @@ export class UiRoot {
       if (!tt || me.timeMs < tt.bestMs) this.save.timeTrial[over.results.trackId] = { bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined };
     } else this.ttNote = '';
     writeSave(this.backend, this.save);
+    if (over.board && this.host.leaderboard) {
+      this.boardLoad = 'loading';
+      this.boardPost = { state: 'idle' };
+      this.refreshBoard();
+    }
     this.dispatch({ type: 'raceFinished', seriesHasNext: over.seriesHasNext });
+  }
+
+  // ---------------------------------------------------------------- leaderboard
+  private refreshBoard(): void {
+    const o = this.lastOver, lb = this.host.leaderboard;
+    if (!o?.board || !lb) return;
+    void lb.fetchBoard(o.results.trackId, o.board.mode, o.board.dailySeed).then((rows) => {
+      if (this.lastOver !== o) return; // a newer race finished meanwhile
+      this.boardLoad = rows ?? 'offline';
+      this.paintBoard();
+    });
+  }
+
+  private paintBoard(): void {
+    const o = this.lastOver;
+    if (!o?.board || this.app.screen !== 'results' || this.app.overlays.length) return;
+    this.views.results.updateBoard(boardModel(o.board.mode, o.trackName, o.board.dailySeed, this.boardLoad, this.boardPost));
+  }
+
+  /** Post the finished run under the name in the box. The server replays it before saving. */
+  private async postRun(): Promise<void> {
+    const o = this.lastOver, lb = this.host.leaderboard;
+    if (!o?.board || !lb || this.boardPost.state === 'posting' || this.boardPost.state === 'posted' || this.boardLoad === 'offline') return;
+    const name = this.views.results.nameValue.trim();
+    const bad = !/^[A-Za-z0-9 _-]{1,16}$/.test(name) ? 'Use 1 to 16 letters, digits, spaces, _ or -.' : !cleanName(name) ? 'Please pick another name.' : '';
+    if (bad) { this.boardPost = { state: 'failed', error: bad }; this.paintBoard(); return; }
+    this.boardPost = { state: 'posting' };
+    this.paintBoard();
+    const r = await lb.post({ ...o.board.draft, name });
+    if (this.lastOver !== o) return;
+    if (r.ok) {
+      this.boardPost = { state: 'posted', id: r.id, rank: r.rank };
+      this.save.playerName = name;
+      writeSave(this.backend, this.save);
+      this.refreshBoard();
+    } else this.boardPost = { state: 'failed', error: r.error };
+    this.paintBoard();
   }
 
   // ---------------------------------------------------------------- race
@@ -227,6 +277,13 @@ export class UiRoot {
 
   // ---------------------------------------------------------------- input
   private key(e: KeyboardEvent): void {
+    // typing in the name box: letters stay in the box; only Enter, Escape and up/down navigate
+    if ((e.target as HTMLElement | null)?.tagName === 'INPUT') {
+      if (e.key === 'Enter') { e.preventDefault(); this.host.uiSound?.('confirm'); void this.postRun(); }
+      else if (e.key === 'Escape') { e.preventDefault(); this.setFocus('post'); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); this.nav(e.key === 'ArrowUp' ? 'up' : 'down'); }
+      return;
+    }
     const a = navFromKey(e.code, e.key);
     if (e.repeat && (a === 'confirm' || a === 'back')) return;
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
@@ -302,7 +359,11 @@ export class UiRoot {
         break;
       }
       case 'cupSelect': this.dispatch({ type: 'pickCup', cupId: id }); break;
-      case 'results': case 'gpTable': case 'knockoutCut': this.dispatch({ type: 'continue' }); break;
+      case 'results': case 'gpTable': case 'knockoutCut':
+        if (id === 'post') { void this.postRun(); break; }
+        if (id === 'name') break; // the box takes focus; Enter inside it posts
+        this.dispatch({ type: 'continue' });
+        break;
       default: break;
     }
   }
@@ -398,7 +459,15 @@ export class UiRoot {
     if (key === 'results') {
       const vm = resultsModel(o.results, o.playerId, o.trackName);
       if (this.ttNote) vm.headline = this.ttNote;
-      this.views.results.renderResults(vm, nextLabel);
+      const withBoard = !!o.board && !!this.host.leaderboard;
+      this.views.results.renderResults(vm, nextLabel, withBoard ? { name: this.save.playerName === 'Player' ? '' : this.save.playerName } : undefined);
+      if (withBoard) {
+        this.models.set(key, { rows: [['name', 'post'], ['continue']] });
+        // a known name goes straight to Post; a first-timer starts in the name box
+        this.focusBy.set(key, this.save.playerName && this.save.playerName !== 'Player' ? 'post' : 'name');
+        this.paintBoard();
+        return;
+      }
     }
     else if (key === 'gpTable' && o.gp) this.views.results.renderGp(gpModel(o.gp.before, o.gp.after, o.playerId), nextLabel);
     else if (key === 'knockoutCut' && o.ko) this.views.results.renderCut(knockoutCutModel(o.results, o.ko.after, o.playerId), nextLabel);

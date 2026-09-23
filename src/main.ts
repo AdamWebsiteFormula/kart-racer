@@ -7,7 +7,9 @@ import {
 } from 'three';
 import creditsMarkdown from '../CREDITS.md?raw';
 import { GameAudio, songForTrack, type Listener } from './audio/index.ts';
-import { dailySeed, dailyTrack, soloConfig } from './backend-leaderboard/rules.ts';
+import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
+import { encodeLog } from './backend-leaderboard/inputlog.ts';
+import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
@@ -143,6 +145,7 @@ const host: UiHost = {
   builtTracks: new Set(TRACKS.keys()),
   availableModes: ALL_MODES,
   creditsMarkdown,
+  leaderboard: leaderboardClient(),
   startRace(p) {
     series = null;
     const racers = roster(p.racerId);
@@ -201,10 +204,21 @@ function raceOver(): void {
     seriesHasNext = !isDone(series) && !playerOut;
   }
   audio.play('results');
+  // Time Trial and Daily runs can go on the leaderboard: the whole input log, from tick 0
+  const mode = session.config.mode;
+  const mine = results.ranks.find((r) => r.racerId === player?.racerId);
+  const board = isBoardMode(mode) && player && mine && !mine.dnf ? {
+    mode, dailySeed: mode === 'daily' ? session.config.seed : null,
+    draft: {
+      trackId: session.def.id, mode, ...(mode === 'daily' ? { dailySeed: session.config.seed } : {}), speedClass: 150 as const,
+      timeMs: mine.timeMs, lapTimesMs: mine.lapTimesMs, racerId: player.racerId,
+      inputLog: encodeLog(session.state.inputLog), clientVersion: CLIENT_VERSION,
+    },
+  } : undefined;
   ui.raceOver({
     results, trackName: trackCard(session.def.id)?.name ?? session.def.name, playerId: player?.racerId ?? null,
-    gp, ko, seriesHasNext,
-    medalTimesMs: session.config.mode === 'timeTrial' ? session.def.medalTimesMs : undefined,
+    gp, ko, seriesHasNext, board,
+    medalTimesMs: mode === 'timeTrial' ? session.def.medalTimesMs : undefined,
   });
 }
 

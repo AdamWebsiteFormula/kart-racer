@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "verify": "tsc && vitest run",
-    "build:function": "vite build --config vite.function.config.ts && node scripts/split-long-lines.mjs supabase/functions/submit-score/core.js"
+    "build:function": "vite build --config vite.function.config.ts && node scripts/split-long-lines.mjs supabase/functions/submit-score/core.js",
+    "deploy:function": "npm run build:function && npx --yes supabase functions deploy submit-score --project-ref thuvqdejckcphwuooyhx"
   },
   "devDependencies": {
     "@types/three": "^0.185.4",

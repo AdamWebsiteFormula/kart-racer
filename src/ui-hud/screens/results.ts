@@ -62,3 +62,46 @@ export function knockoutCutModel(res: RaceResults, after: KnockoutState, playerI
   const headline = done ? (winnerId === playerId ? 'Knockout champion!' : `${winnerId ? nameOf(winnerId) : '—'} wins`) : playerOut ? 'Knocked out!' : 'Safe!';
   return { headline, sub: done ? 'Final' : `${remaining} remain`, rows, remaining, playerOut, done, winner: winnerId ? nameOf(winnerId) : null };
 }
+
+// ---------------------------------------------------------------- leaderboard panel
+export interface BoardRowIn { id: string; name: string; racerId: string; timeMs: number }
+export type BoardLoad = 'loading' | 'offline' | readonly BoardRowIn[];
+
+export interface BoardVM {
+  title: string;
+  sub: string;
+  state: 'loading' | 'offline' | 'empty' | 'rows';
+  rows: { rank: string; name: string; racer: string; accent: string; time: string; me: boolean }[];
+  button: string;
+  buttonDisabled: boolean;
+  status: string;
+  statusKind: 'info' | 'error' | 'ok';
+}
+
+export interface BoardPost { state: 'idle' | 'posting' | 'posted' | 'failed'; id?: string; rank?: number | null; error?: string }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "23 Sep" from a YYYYMMDD seed. */
+export function seedDate(seed: number): string {
+  return `${seed % 100} ${MONTHS[(Math.floor(seed / 100) % 100) - 1] ?? ''}`.trim();
+}
+
+/** The leaderboard panel of the results screen. Pure. */
+export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, dailySeed: number | null, load: BoardLoad, post: BoardPost): BoardVM {
+  const sub = mode === 'daily' ? `Daily Challenge · ${seedDate(dailySeed ?? 0)} · ${trackName}` : `Time Trial · ${trackName} · 150cc`;
+  const rows = typeof load === 'string' ? [] : load.map((r, i) => ({
+    rank: ordinal(i + 1), name: r.name, racer: nameOf(r.racerId), accent: accentOf(r.racerId), time: formatMs(r.timeMs), me: r.id === post.id,
+  }));
+  const state = load === 'loading' ? 'loading' : load === 'offline' ? 'offline' : rows.length ? 'rows' : 'empty';
+  const button = post.state === 'posting' ? 'Posting…' : post.state === 'posted' ? (post.rank ? `Posted: ${ordinal(post.rank)}!` : 'Posted!') : 'Post my time';
+  const status = post.state === 'failed' ? post.error ?? 'That did not work.'
+    : post.state === 'posted' ? (post.rank ? `You are ${ordinal(post.rank)} on this board.` : 'Saved. You are outside the top 50 for now.')
+    : state === 'offline' ? 'The leaderboard is offline right now.'
+    : 'Pick a name, then post your time. The server replays your run to check it.';
+  return {
+    title: 'Leaderboard', sub, state, rows, button,
+    buttonDisabled: post.state === 'posting' || post.state === 'posted' || state === 'offline',
+    status, statusKind: post.state === 'failed' ? 'error' : post.state === 'posted' ? 'ok' : 'info',
+  };
+}
