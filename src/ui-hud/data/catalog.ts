@@ -3,7 +3,7 @@
 export interface TrackCard { id: string; name: string; biome: string; bg: string; accent: string; shift: string }
 
 export const TRACKS: readonly TrackCard[] = Object.freeze([
-  { id: 'harbour-loop', name: 'Harbour Loop', biome: 'Seaside town', bg: '#F4E4C1', accent: '#FF6F61', shift: 'The tide comes in' },
+  { id: 'harbour-loop', name: 'Harbor Loop', biome: 'Seaside town', bg: '#F4E4C1', accent: '#FF6F61', shift: 'The tide comes in' },
   { id: 'meadow-run', name: 'Meadow Run', biome: 'Rolling farmland', bg: '#7BC950', accent: '#FFD23F', shift: 'A storm rolls in' },
   { id: 'canyon-rush', name: 'Canyon Rush', biome: 'Red-rock desert', bg: '#C8553D', accent: '#2EC4B6', shift: 'The rope bridge falls' },
   { id: 'frostbite-pass', name: 'Frostbite Pass', biome: 'Snowy mountain', bg: '#DCEBF5', accent: '#FF3E9A', shift: 'A blizzard freezes the lake' },

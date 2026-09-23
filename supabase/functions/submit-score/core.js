@@ -1085,7 +1085,7 @@ var e = {
 	}
 }, r = {
 	id: "harbour-loop",
-	name: "Harbour Loop",
+	name: "Harbor Loop",
 	biome: "harbour",
 	cup: "sunrise",
 	orderInCup: 1,

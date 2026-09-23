@@ -128,6 +128,7 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-23: Boardwalk Nights added: a narrow arcade-alley shortcut across the chicane (about 1.4 s faster per race for a Hard AI), bumper cars and teacups as hazards, and the fireworks shift adds a ramp at the Ferris wheel on the last lap only. Hard AI solo lap 45.6 s.
 - 2026-09-23: Skyline Circuit gets a far-band cloud sea under the road, so the sky islands float on cloud instead of over nothing.
+- 2026-09-23: Each biome has its own road and curb colors (palette.ts BIOMES), and the boardwalk road is planks (a 1×64 shade strip on the shared road material). Harbour Loop shows as "Harbor Loop" to players (the user is in the USA); the id stays `harbour-loop` so saved scores match.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

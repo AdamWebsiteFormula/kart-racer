@@ -3,8 +3,9 @@
 // count is the draw-call count. Placeholder geometries stand in until art-pipeline
 // supplies real ones through `assets`.
 import {
-  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DynamicDrawUsage, Group,
-  InstancedMesh, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry, SphereGeometry, Matrix4, type Material, type Texture,
+  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Group,
+  InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
+  RepeatWrapping, RGBAFormat, SphereGeometry, Matrix4, type Material, type Texture,
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
@@ -12,7 +13,7 @@ import type { Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
-import { hexToRgb, paletteFor, type Rgb, type TrackPalette } from './palette.ts';
+import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -131,6 +132,26 @@ function featureMatrices(track: Track, kind: BakedFeature['kind'], slots?: numbe
   return Float32Array.from(out);
 }
 
+/**
+ * Planks across the road: a 1 × 64 shade strip along the track (v runs 1 per roadTileLength), 16
+ * planks a tile with a dark gap and a little tone change each, multiplied over the vertex colours.
+ */
+function plankTexture(): DataTexture {
+  const px = new Uint8Array(64 * 4);
+  for (let i = 0; i < 64; i++) {
+    const plank = i >> 2, gap = (i & 3) === 3;
+    const shade = gap ? 120 : 228 + ((plank * 37) % 5) * 7;
+    px.set([shade, shade, shade, 255], i * 4);
+  }
+  const t = new DataTexture(px, 1, 64, RGBAFormat);
+  t.wrapS = t.wrapT = RepeatWrapping;
+  t.magFilter = LinearFilter;
+  t.minFilter = LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
+
 export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackScene {
   const def = track.def;
   const env = def.environment ?? {};
@@ -166,6 +187,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
 
   // road chunks: one shared toon material, vertex colours
   const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
+  if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);
@@ -345,6 +367,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       group.traverse((o) => { if ((o as Mesh).isMesh && !chunkMeshes.has(o as Mesh)) others.push(o as Mesh); });
       for (const m of others) retire(m);
       for (const c of chunks) c.mesh.geometry.dispose();
+      roadMaterial.map?.dispose();
       roadMaterial.dispose(); // shared by every chunk: once
       group.clear();
     },
