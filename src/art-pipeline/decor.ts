@@ -8,7 +8,7 @@ type Build = (m: ModelBuilder) => void;
 
 const WOOD = '#a0703c', WOOD_DARK = '#7a5230', WHITE = '#fffaf0', CORAL = '#ff6f61', SUN = '#ffd23f', TEAL = '#2ec4b6', INK = '#1b1b2f';
 
-const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> = {
+const MODELS: Record<string, { build: Build }> = {
   // ---- decor (placeholder: 2 × 4 × 2 box on the ground)
   palm: {
     build: (m) => {
@@ -50,7 +50,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
   // ---- landmark (placeholder: 24 m cone on the ground)
   lighthouse: {
-    ink: 0.12,
     build: (m) => {
       const bands = 6;
       for (let i = 0; i < bands; i++) {
@@ -68,7 +67,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   // ---- barriers (placeholder: 0.6 × 0.8 × 0.6 on the ground): a red and white harbour bollard
   // there are over a thousand of these: six sides, no outline, about 60 triangles each
   'harbour-barrier': {
-    outline: false,
     build: (m) => {
       m.cyl(0.28, 0.3, 0.5, CORAL, [0, 0.25, 0], undefined, 6, false);
       m.cyl(0.28, 0.28, 0.3, WHITE, [0, 0.65, 0], undefined, 6, false);
@@ -77,7 +75,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
   // ---- features, centred as the placeholders are
   balloon: {
-    ink: 0.035,
     build: (m) => {
       // striped balloon (radius 0.9): coral, sun and teal gores, a knot and a string
       const cols = [CORAL, SUN, TEAL, WHITE];
@@ -91,7 +88,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   coin: {
-    ink: 0.03,
     build: (m) => {
       m.cyl(0.5, 0.5, 0.12, '#f2b705', [0, 0, 0], [Math.PI / 2, 0, 0], 16);
       m.cyl(0.36, 0.36, 0.14, SUN, [0, 0, 0], [Math.PI / 2, 0, 0], 16, false);
@@ -99,7 +95,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   boostPad: {
-    outline: false,
     build: (m) => {
       m.box([1, 0.05, 1], '#ff9f1c', [0, 0.025, 0], undefined, false);
       for (let i = 0; i < 3; i++) {
@@ -110,7 +105,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   ramp: {
-    outline: false,
     build: (m) => {
       m.box([1, 0.6, 3], '#e9d8b4', [0, 0.3, 0], undefined, false);
       for (let i = 0; i < 5; i++) m.box([1.02, 0.62, 0.25], i % 2 ? CORAL : WHITE, [0, 0.3, -1.2 + i * 0.6], undefined, false);
@@ -118,7 +112,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
   // ================================================================ Meadow Run
   windmill: {
-    ink: 0.1,
     build: (m) => {
       m.cyl(2.2, 3.4, 14, '#f3ead8', [0, 7, 0], undefined, 12);                 // tower
       m.cone(2.6, 3.4, '#b7410e', [0, 15.7, 0], undefined, 12);                  // cap
@@ -154,7 +147,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
       for (const x of [-1.2, 0, 1.2]) m.box([0.16, 1.1, 0.16], '#fffaf0', [x, 0.55, 0], undefined, false);
       for (const y of [0.45, 0.85]) m.box([2.6, 0.12, 0.08], '#fffaf0', [0, y, 0], undefined, false);
     },
-    outline: false,
   },
   barn: {
     build: (m) => {
@@ -168,7 +160,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
   // hay kerb: a squat round bale, cheap because there are hundreds of them
   'meadow-barrier': {
-    outline: false,
     build: (m) => {
       m.cyl(0.38, 0.38, 0.55, '#e6c46b', [0, 0.38, 0], [Math.PI / 2, 0, 0], 7, false);
       m.cyl(0.39, 0.39, 0.08, '#c9a13f', [0, 0.38, 0], [Math.PI / 2, 0, 0], 7, false);
@@ -184,7 +175,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
   // ================================================================ Canyon Rush
   arch: {
-    ink: 0.14,
     build: (m) => {
       for (const x of [-7, 7]) {
         m.rock(3.2, '#c8553d', [x, 3, 0], [0.2, x, 0], [1, 1.1, 0.9]);
@@ -213,7 +203,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   mesa: {
-    ink: 0.2,
     build: (m) => {
       m.cyl(9, 11, 10, '#c8553d', [0, 5, 0], undefined, 9);
       m.cyl(9.2, 9, 1.6, '#e8a36b', [0, 10.8, 0], undefined, 9);                 // cap layer
@@ -221,7 +210,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   'canyon-barrier': {
-    outline: false,
     build: (m) => {
       m.box([0.62, 0.7, 0.62], '#d9734f', [0, 0.35, 0], [0, 0.3, 0], false);
       m.box([0.64, 0.14, 0.64], '#2ec4b6', [0, 0.62, 0], [0, 0.3, 0], false);    // turquoise paint band
@@ -244,7 +232,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
   // ================================================================ Frostbite Pass
   peak: {
-    ink: 0.3,
     build: (m) => {
       m.cone(30, 38, '#8fa3b8', [0, 19, 0], undefined, 12);                         // mountain
       m.cone(14, 17, '#fbfdff', [0, 30.2, 0], undefined, 12);                         // snow cap
@@ -291,7 +278,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   'frost-barrier': {
-    outline: false,
     build: (m) => {
       m.box([0.62, 0.55, 0.62], '#fbfdff', [0, 0.28, 0], [0, 0.4, 0], false);
       m.box([0.64, 0.12, 0.64], '#ff3e9a', [0, 0.5, 0], [0, 0.4, 0], false);           // hot-pink marker band
@@ -299,7 +285,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
   // ================================================================ Skyline Circuit
   airship: {
-    ink: 0.16,
     build: (m) => {
       const y = 112;                                                                    // above the whole circuit (roads reach 95 m)
       m.ball([6, 6, 18], '#fff1c1', [0, y, 0], undefined, 16);
@@ -313,7 +298,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   cloud: {
-    outline: false,
     build: (m) => {
       m.ball([4, 2.4, 3], '#ffffff', [0, 0, 0], undefined, 8, false);
       m.ball([3, 2.2, 2.6], '#fff6ee', [3.5, 0.6, 0.5], undefined, 8, false);
@@ -322,7 +306,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   'cloud-sea': {
-    outline: false,
     build: (m) => {
       // a wide flat puff far below the road: seen from above, lit, so the islands float on a sea of cloud
       m.ball([12, 3.5, 9], '#ffffff', [0, 0, 0], undefined, 8, false);
@@ -332,7 +315,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   island: {
-    ink: 0.12,
     build: (m) => {
       m.cone(9, 14, '#b8845a', [0, -3, 0], [Math.PI, 0, 0], 9);                       // rock underside
       m.cyl(9.2, 9.2, 1.6, '#7bc950', [0, 4.8, 0], undefined, 9);                      // grass top
@@ -350,21 +332,18 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   'skyline-barrier': {
-    outline: false,
     build: (m) => {
       m.cyl(0.14, 0.18, 0.9, '#f2b705', [0, 0.45, 0], undefined, 6, false);             // gold post
       m.ball([0.2, 0.2, 0.2], [1.8, 1.4, 0.6], [0, 0.95, 0], undefined, 5, false);      // tiny light
     },
   },
   gust: {
-    outline: false,
     build: (m) => {
       for (let i = 0; i < 3; i++) m.torus(0.9 + i * 0.35, 0.06, '#ffffff', [0, -0.3 + i * 0.35, 0], [Math.PI / 2, 0, i], false); // swirl rings
     },
   },
   // ================================================================ Boardwalk Nights
   'ferris-wheel': {
-    ink: 0.14,
     build: (m) => {
       const y = 17;
       m.torus(14, 0.5, [0.4, 1.8, 2.2], [0, y, 0]);                                    // cyan neon rim
@@ -393,7 +372,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   tent: {
-    ink: 0.1,
     build: (m) => {
       m.cyl(5, 5, 4, '#fffaf0', [0, 2, 0], undefined, 12);
       for (let i = 0; i < 6; i++) m.box([0.9, 4.02, 0.2], '#ff2e97', [Math.sin(i * Math.PI / 3) * 5, 2, Math.cos(i * Math.PI / 3) * 5], [0, i * Math.PI / 3, 0], false); // stripes
@@ -419,7 +397,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   'boardwalk-barrier': {
-    outline: false,
     build: (m) => {
       m.cyl(0.12, 0.15, 0.85, '#6b4a2b', [0, 0.43, 0], undefined, 6, false);            // pier post
       m.ball([0.18, 0.18, 0.18], [2.2, 0.5, 1.6], [0, 0.95, 0], undefined, 5, false);   // magenta bulb
@@ -434,7 +411,6 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
     },
   },
   gull: {
-    ink: 0.03,
     build: (m) => {
       m.ball([0.3, 0.3, 0.55], WHITE, [0, 0, 0], undefined, 7);
       m.ball([0.22, 0.22, 0.22], WHITE, [0, 0.18, 0.45], undefined, 7);
@@ -444,7 +420,7 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
   },
 };
 
-export interface DecorGeometry { body: BufferGeometry; hull: BufferGeometry | null }
+export interface DecorGeometry { body: BufferGeometry }
 
 const cache = new Map<string, DecorGeometry>();
 
@@ -454,9 +430,9 @@ export function decorGeometry(name: string): DecorGeometry | null {
   if (hit) return hit;
   const spec = MODELS[name];
   if (!spec) return null;
-  const m = new ModelBuilder(spec.ink ?? 0.06);
+  const m = new ModelBuilder();
   spec.build(m);
-  const out = { body: m.build(), hull: spec.outline === false ? null : m.outline() };
+  const out = { body: m.build() };
   cache.set(name, out);
   return out;
 }
@@ -464,12 +440,8 @@ export function decorGeometry(name: string): DecorGeometry | null {
 export const DECOR_NAMES = Object.freeze(Object.keys(MODELS));
 
 /** Everything the track scene can use, in its TrackAssets shape. Geometries are cached and shared. */
-export function trackAssetsFor(): { geometries: Record<string, BufferGeometry>; hulls: Record<string, BufferGeometry> } {
-  const geometries: Record<string, BufferGeometry> = {}, hulls: Record<string, BufferGeometry> = {};
-  for (const name of DECOR_NAMES) {
-    const g = decorGeometry(name)!;
-    geometries[name] = g.body;
-    if (g.hull) hulls[name] = g.hull;
-  }
-  return { geometries, hulls };
+export function trackAssetsFor(): { geometries: Record<string, BufferGeometry> } {
+  const geometries: Record<string, BufferGeometry> = {};
+  for (const name of DECOR_NAMES) geometries[name] = decorGeometry(name)!.body;
+  return { geometries };
 }

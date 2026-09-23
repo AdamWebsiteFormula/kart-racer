@@ -15,19 +15,24 @@ export type Paint = string | number | readonly [number, number, number];
 const toColor = (c: Paint): Color => (typeof c === 'object' ? new Color().setRGB(c[0], c[1], c[2]) : new Color(c));
 
 const hsl = { h: 0, s: 0, l: 0 };
-/** the brightest an outline may be (linear luminance) */
-export const INK_LUMINANCE = 0.1;
+/** sRGB lightness below which a part gets no outline: tyres and other near-black parts are their own edge */
+export const INK_SKIP_LIGHTNESS = 0.25;
+
+/** A part's sRGB lightness (0 black, 1 white). */
+export function lightness(c: Color): number {
+  new Color(Math.min(1, c.r), Math.min(1, c.g), Math.min(1, c.b)).getHSL(hsl, SRGBColorSpace);
+  return hsl.l;
+}
+
 /**
- * The outline colour for a part: its own hue, a little richer, much darker (in sRGB, so it
- * looks even): dark red around red, dark teal around teal, a soft slate around white.
+ * The outline colour for a part: a mid-tone of its own colour, never black (the user's call,
+ * 2026-09-23): red edged in a richer red, teal in a deeper teal, white in a soft blue-grey.
  */
 export function inkFor(c: Color): Color {
-  const clamped = new Color(Math.min(1, c.r), Math.min(1, c.g), Math.min(1, c.b));
-  clamped.getHSL(hsl, SRGBColorSpace);
-  const ink = new Color().setHSL(hsl.h, Math.min(1, hsl.s * 1.1 + 0.08), Math.min(0.3, Math.max(0.1, hsl.l * 0.4)), SRGBColorSpace);
-  // yellows and greens come out lighter at the same HSL lightness: cap the luminance so every ink is equally deep
-  const lum = 0.2126 * ink.r + 0.7152 * ink.g + 0.0722 * ink.b;
-  return lum > INK_LUMINANCE ? ink.multiplyScalar(INK_LUMINANCE / lum) : ink;
+  new Color(Math.min(1, c.r), Math.min(1, c.g), Math.min(1, c.b)).getHSL(hsl, SRGBColorSpace);
+  // greys and whites get a cool tint so their edge reads as shade, not dirt
+  const grey = hsl.s < 0.08;
+  return new Color().setHSL(grey ? 0.62 : hsl.h, grey ? 0.25 : Math.min(1, hsl.s * 1.15 + 0.1), Math.min(0.55, Math.max(0.18, hsl.l * 0.68)), SRGBColorSpace);
 }
 
 interface PartSpec { geo: BufferGeometry; colour: Color; pos: V3; rot: V3; scale: V3; outline: boolean }
@@ -107,11 +112,14 @@ export class ModelBuilder {
     return out;
   }
 
-  /** The ink hull: every outlined part inflated by `ink` metres on each side, in its own deep shade. One draw call. */
+  /**
+   * An optional ink hull: every outlined part inflated by `ink` metres, in a mid-tone of its own
+   * colour. The game draws none since 2026-09-23 (the user's call; Mario Kart World has no outlines).
+   */
   outline(): BufferGeometry {
     const gs: BufferGeometry[] = [];
     for (const p of this.parts) {
-      if (!p.outline) continue;
+      if (!p.outline || lightness(p.colour) < INK_SKIP_LIGHTNESS) continue;
       const g = p.geo.clone();
       g.computeBoundingBox();
       const s = new Vector3();

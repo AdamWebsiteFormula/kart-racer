@@ -1,11 +1,10 @@
-// The toon look (research plan §7.1): MeshToonMaterial with a 3-step gradient ramp, vertex
-// colours so a whole model is one draw call, and ink outlines drawn as an inflated back-face hull.
+// The toon look (research plan §7.1): MeshToonMaterial with a gradient ramp and vertex colours
+// so a whole model is one draw call. No outlines since 2026-09-23 (Mario Kart World has none).
 import {
-  AdditiveBlending, BackSide, Color, DataTexture, MeshBasicMaterial, MeshToonMaterial, NearestFilter, RedFormat,
+  AdditiveBlending, DataTexture, MeshBasicMaterial, MeshToonMaterial, NearestFilter, RedFormat,
   type Material,
 } from 'three';
 
-export const INK = new Color('#1b1b2f');
 
 let ramp: DataTexture | null = null;
 /** 3-step light ramp: shadow, mid, lit. NearestFilter keeps the bands hard. */
@@ -26,13 +25,6 @@ export function vertexToon(): MeshToonMaterial {
   return vcToon;
 }
 
-let ink: MeshBasicMaterial | null = null;
-/** The one shared outline material: unlit back faces in each part's own deep shade (hull vertex colours). */
-export function inkMaterial(): MeshBasicMaterial {
-  if (!ink) ink = new MeshBasicMaterial({ color: 0xffffff, vertexColors: true, side: BackSide });
-  return ink;
-}
-
 let flame: MeshBasicMaterial | null = null;
 /** The one shared boost-flame material: unlit vertex colours added onto what is behind, no depth write. */
 export function flameMaterial(): MeshBasicMaterial {
@@ -42,5 +34,5 @@ export function flameMaterial(): MeshBasicMaterial {
 
 /** Is this one of the shared materials (never disposed per session)? */
 export function isShared(m: Material): boolean {
-  return m === vcToon || m === ink || m === flame;
+  return m === vcToon || m === flame;
 }

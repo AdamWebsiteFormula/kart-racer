@@ -4,7 +4,8 @@ import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
 import { BASE } from '../kart-controller/constants.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
-import { INK_LUMINANCE } from './model.ts';
+import { inkFor, INK_SKIP_LIGHTNESS, lightness } from './model.ts';
+import { Color } from 'three';
 import { RACER_IDS, racerModel } from './racers.ts';
 
 const SIZE = 32;
@@ -63,8 +64,8 @@ describe('racer models', () => {
     expect(racerModel('nobody')).toBeNull();
   });
 
-  it('each sits on the ground inside the kart footprint, under the triangle budget, with vertex colours and an ink hull', () => {
-    for (const { id, body, hull } of built) {
+  it('each sits on the ground inside the kart footprint, under the triangle budget, with vertex colours', () => {
+    for (const { id, body } of built) {
       const b = body.boundingBox!;
       expect(b.min.y, id).toBeGreaterThanOrEqual(-0.01);
       expect(b.max.y, id).toBeLessThan(2.4);
@@ -72,17 +73,6 @@ describe('racer models', () => {
       expect(b.max.z - b.min.z, id).toBeLessThan(BASE.kartRadius * 2.9);
       expect(body.index!.count / 3, id).toBeLessThan(9000);
       expect(body.hasAttribute('color'), id).toBe(true);
-      expect(hull.index!.count, id).toBeGreaterThan(0);
-      // soft coloured ink: every hull vertex is a deep shade (darker than a lit body), and not all one black
-      expect(hull.hasAttribute('color'), id).toBe(true);
-      const hc = hull.getAttribute('color').array as Float32Array;
-      let brightest = 0, colourful = 0;
-      for (let v = 0; v < hc.length; v += 3) {
-        brightest = Math.max(brightest, 0.2126 * hc[v] + 0.7152 * hc[v + 1] + 0.0722 * hc[v + 2]); // linear luminance
-        if (Math.max(hc[v], hc[v + 1], hc[v + 2]) - Math.min(hc[v], hc[v + 1], hc[v + 2]) > 0.01) colourful++;
-      }
-      expect(brightest, id).toBeLessThanOrEqual(INK_LUMINANCE + 1e-6); // a deep shade, as deep for yellow as for blue
-      expect(colourful, id).toBeGreaterThan(0);
     }
   });
 
@@ -113,15 +103,30 @@ describe('racer models', () => {
 });
 
 describe('track dressing', () => {
-  it('every model exists, and the per-instance triangle budget holds (hull included)', async () => {
+  it('every model exists, and the per-instance triangle budget holds', async () => {
     const { DECOR_NAMES, decorGeometry } = await import('./decor.ts');
     // budgets per instance: the kerb repeats a thousand times, the lighthouse once
     const budget: Record<string, number> = { 'harbour-barrier': 80, 'meadow-barrier': 80, 'canyon-barrier': 80, fence: 150, palm: 1100, oak: 700, cactus: 700, gull: 400, balloon: 1200, coin: 260, lighthouse: 3000, windmill: 3000, arch: 1500, mesa: 800, 'frost-barrier': 80, 'skyline-barrier': 80, 'boardwalk-barrier': 80, pine: 500, snowman: 1000, lamp: 300, stall: 500, cloud: 700, 'cloud-sea': 700, 'sky-lamp': 600, peak: 1500, airship: 4000, 'ferris-wheel': 6000, tent: 1200, island: 900, gust: 1200 };
     for (const name of DECOR_NAMES) {
       const g = decorGeometry(name)!;
-      const tris = (g.body.index!.count + (g.hull?.index!.count ?? 0)) / 3;
+      const tris = g.body.index!.count / 3;
       expect(tris, name).toBeLessThan(budget[name] ?? 1500);
       expect(g.body.hasAttribute('color'), name).toBe(true);
     }
+  });
+});
+
+describe('outline colours', () => {
+  it('are a mid-tone of the part, darker than it, never black; near-black parts get none', () => {
+    const red = new Color('#e63946'), teal = new Color('#2ec4b6'), white = new Color('#ffffff');
+    for (const c of [red, teal, white]) {
+      const ink = inkFor(c);
+      expect(lightness(ink)).toBeLessThan(lightness(c));
+      expect(lightness(ink)).toBeGreaterThanOrEqual(0.18);
+    }
+    expect(inkFor(red).r).toBeGreaterThan(inkFor(red).g * 3); // still red
+    const w = inkFor(white);
+    expect(w.b).toBeGreaterThan(w.r); // white gets a cool blue-grey edge
+    expect(lightness(new Color('#2a2630'))).toBeLessThan(INK_SKIP_LIGHTNESS); // tyres: no outline
   });
 });
