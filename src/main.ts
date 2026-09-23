@@ -262,6 +262,8 @@ function tvCamera(frameDt: number): void {
 }
 
 // ---- loop ----
+/** dev only: a fixed camera for checking art up close (kart.photo) */
+let photo: { pos: Vec3; look: Vec3; fov: number } | null = null;
 let last = performance.now();
 let frames = 0;
 const itemDefs = ITEMS_CONFIG.items;
@@ -305,7 +307,7 @@ function frame(now: number): void {
   else if (!attract && s.finishedFor > RESULTS_AFTER && ui.app.screen === 'racing') raceOver();
 
   const cur = session!;
-  cur.frame(acc.alpha, frameDt);
+  cur.frame(acc.alpha, frameDt, reduced);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   hemi.groundColor.copy(cur.bounce ?? EARTH);
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
@@ -318,6 +320,7 @@ function frame(now: number): void {
   cur.dome?.position.copy(camera.position);
   camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
   camera.rotateZ(attract ? 0 : vfx.roll(pl, reduced));
+  if (photo) { camera.position.set(...photo.pos); camera.lookAt(...photo.look); camera.fov = photo.fov; camera.updateProjectionMatrix(); }
   sun.target.position.set(camLook[0], camLook[1], camLook[2]);
   sun.position.set(camLook[0] + 60, camLook[1] + 120, camLook[2] + 40);
 
@@ -343,6 +346,8 @@ requestAnimationFrame(frame);
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
     get session() { return session; }, ui, audio, vfx, post, renderer, governor,
+    /** dev: hold the camera still at `pos` looking at `look` (null to let go), for checking art */
+    photo: (p: { pos: Vec3; look: Vec3; fov?: number } | null) => { photo = p ? { fov: 50, ...p } : null; },
     /** dev: jump straight into a quick race on any track */
     race: (trackId: string, racerId = 'pip') => { ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId }); load({ ...configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] }) }, false); }, camera, scene, acc,
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),

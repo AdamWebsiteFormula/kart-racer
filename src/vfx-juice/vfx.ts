@@ -2,6 +2,7 @@
 // boost flames, off-road dust, tyre marks) and bursts from the director's effects each tick
 // (balloon pops, coin glints, hit stars, confetti), and owns the shake, kicks and time scale.
 import type { Camera, Scene } from 'three';
+import { EXHAUST, flameColour } from '../art-pipeline/index.ts';
 import type { KartState } from '../kart-controller/types.ts';
 import { CameraKick, TimeScale, Trauma, driftRoll, sparkColour, type Effects } from './juice.ts';
 import { ParticlePool, type SpawnOpts } from './particles.ts';
@@ -9,7 +10,7 @@ import { Skids, SpeedLines } from './trails.ts';
 
 const CORAL: [number, number, number] = [1, 0.44, 0.38], SUN: [number, number, number] = [1, 0.82, 0.25];
 const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
-const CHARGE: readonly number[] = [1.1, 1.1, 1.2], FLAME_HOT: readonly number[] = [1.9, 1.5, 0.5], FLAME: readonly number[] = [1.8, 0.6, 0.15];
+const CHARGE: readonly number[] = [1.1, 1.1, 1.2], FLAME_HOT: readonly number[] = [1.9, 1.5, 0.5];
 const DUST_MUD: readonly number[] = [0.45, 0.33, 0.22], DUST_ICE: readonly number[] = [0.9, 0.95, 1], DUST: readonly number[] = [0.86, 0.77, 0.6];
 const CONFETTI = [CORAL, SUN, TEAL, WHITE, [0.7, 0.62, 0.86] as [number, number, number], [0.39, 0.71, 0.96] as [number, number, number]];
 
@@ -33,6 +34,8 @@ export class Vfx {
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
   readonly shake = { x: 0, y: 0, z: 0, roll: 0 };
   private readonly spark: [number, number, number] = [0, 0, 0];
+  /** each racer's flame colour for the embers (design §5: the exhaust burns in the racer's colour) */
+  private readonly flameCols = new Map<string, readonly number[]>();
 
   constructor(scene: Scene, camera: Camera) {
     scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh);
@@ -146,13 +149,22 @@ export class Vfx {
       }
     } else m.sparkAcc = 0;
 
-    // boost flames out of the back
+    // boost embers streaming off the exhaust pipes (the flames on the pipes themselves: flames.ts)
     if (k.boost.remaining > 0) {
+      const ex = EXHAUST[k.racerId];
+      let col = this.flameCols.get(k.racerId);
+      if (!col) { col = flameColour(k.racerId, 1.8); this.flameCols.set(k.racerId, col); }
       m.flameAcc += dt * 55;
       while (m.flameAcc >= 1) {
         m.flameAcc -= 1;
         const hot = rnd() < 0.4;
-        this.spawn(this.glow, bx + sym() * 0.2, py + 0.45 + sym() * 0.1, bz + sym() * 0.2, -s * (4 + rnd() * 3), 0.6, -c * (4 + rnd() * 3), hot ? FLAME_HOT : FLAME, 0.4, 0.22, 0, 1, 1.4);
+        // a pipe mouth in world space: right = (cos h, 0, −sin h), forward = (sin h, 0, cos h)
+        let x = bx, y = py + 0.45, z = bz;
+        if (ex) {
+          const p = ex.ports[(rnd() * ex.ports.length) | 0];
+          x = px + c * p[0] + s * p[2]; y = py + p[1]; z = pz - s * p[0] + c * p[2];
+        }
+        this.spawn(this.glow, x + sym() * 0.06, y + sym() * 0.06, z + sym() * 0.06, -s * (4 + rnd() * 3), 0.6, -c * (4 + rnd() * 3), hot ? FLAME_HOT : col, 0.3, 0.2, 0, 1, 1.4);
       }
     } else m.flameAcc = 0;
 

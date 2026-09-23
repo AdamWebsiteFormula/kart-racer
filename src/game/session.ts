@@ -15,6 +15,7 @@ import { buildTrackScene, type TrackScene } from '../track-builder/mesh/index.ts
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { buildRacerMesh, isShared, paintSky, SKIES, trackAssets } from '../art-pipeline/index.ts';
+import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { ItemsView } from './itemsView.ts';
 import { simTick, type SimParts } from './simtick.ts';
 import { buildKartMesh } from './kartMesh.ts';
@@ -27,6 +28,8 @@ export class RaceSession {
   readonly items: Items;
   readonly ai: AiDriver;
   readonly views: KartView[];
+  /** the boost flames on each kart's pipes, by kart index */
+  private readonly flames: ExhaustFlames[] = [];
   readonly itemsView: ItemsView;
   readonly config: RaceConfig;
   readonly def: TrackDefinition;
@@ -67,6 +70,7 @@ export class RaceSession {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
       const mesh = buildRacerMesh(config.racers[i].racerId) ?? buildKartMesh(r.accent, r.secondary);
       const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s);
+      this.flames.push(new ExhaustFlames(mesh, config.racers[i].racerId));
       this.group.add(v.root);
       return v;
     });
@@ -96,9 +100,10 @@ export class RaceSession {
   }
 
   /** Interpolated visuals for one rendered frame. */
-  frame(alpha: number, frameDt: number): void {
+  frame(alpha: number, frameDt: number, reduced = false): void {
     const st = this.manager.state;
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt);
+    for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k].boost.remaining, st.time, reduced);
     this.trackScene.update(st.time, this.manager.lastActiveHazards, { pickups: st.pickupStates, coins: st.coinStates });
     this.itemsView.onFrame(this.items, st.karts, this.views.map((v) => v.root as Object3D), alpha, st.time);
   }

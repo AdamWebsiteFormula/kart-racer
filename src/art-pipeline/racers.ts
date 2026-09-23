@@ -1,12 +1,63 @@
 // The eight racers and their signature karts (design §4, §5), modelled from primitives.
 // Origin on the ground, facing +Z, sized to the collision circle (kartRadius 0.85).
 // Each racer is one vertex-coloured mesh plus one ink hull: two draw calls per kart.
+import { Euler, Quaternion, Vector3 } from 'three';
 import { ModelBuilder, type V3 } from './model.ts';
 
 const INK = '#1b1b2f';
 const TYRE = '#2a2630';
 const HUB = '#d9d4c7';
 const SKIN_WHITE = '#fffaf0';
+const CHROME = '#cfd6de';
+
+const unit = (v: V3): V3 => { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; };
+const BACK = unit([0, 0.45, -1]);
+const UP = unit([0, 1, -0.3]);
+
+/**
+ * Exhaust (design §5: the exhaust burns in the racer's colour). Where each pipe's mouth sits, the
+ * way it points (back and a little up; Boulder's truck stacks point up), and the flame colour:
+ * the racer's accent, or their second colour where the accent is too dark to burn.
+ */
+export interface Exhaust { ports: readonly V3[]; dir: V3; flame: string; size?: number }
+
+/** How far a side pipe turns outward, so a pair of flames makes a V the chase camera can see. */
+const SPLAY = 0.35;
+
+/** The way one pipe points: the exhaust's direction, turned outward for a pipe off the centre line. */
+export function portDir(e: Exhaust, p: V3): V3 {
+  const side = p[0] > 0.01 ? 1 : p[0] < -0.01 ? -1 : 0;
+  return unit([e.dir[0] + side * SPLAY, e.dir[1], e.dir[2]]);
+}
+
+const Y_AXIS = new Vector3(0, 1, 0);
+/** Euler angles that turn a primitive's +Y axis onto `d`. */
+function aimY(d: V3): V3 {
+  const e = new Euler().setFromQuaternion(new Quaternion().setFromUnitVectors(Y_AXIS, new Vector3(d[0], d[1], d[2])));
+  return [e.x, e.y, e.z];
+}
+export const EXHAUST: Readonly<Record<string, Exhaust>> = Object.freeze({
+  pip: { ports: [[-0.24, 0.36, -1.02], [0.24, 0.36, -1.02]], dir: BACK, flame: '#2ec4b6' },
+  momo: { ports: [[-0.3, 0.55, -1.08], [0.3, 0.55, -1.08]], dir: BACK, flame: '#ffd23f' },
+  nova: { ports: [[0, 0.62, -1.3]], dir: [0, 0, -1], flame: '#b388ff', size: 1.4 }, // her thruster is the exhaust
+  juniper: { ports: [[-0.36, 0.4, -1.02], [0.36, 0.4, -1.02]], dir: BACK, flame: '#ff7a2e' },
+  otto: { ports: [[-0.28, 0.4, -0.95], [0.28, 0.4, -0.95]], dir: BACK, flame: '#64b5f6' },
+  sprocket: { ports: [[-0.22, 0.42, -1.1], [0.22, 0.42, -1.1]], dir: BACK, flame: '#ffcf7a' },
+  boulder: { ports: [[-0.5, 1.62, -0.86], [0.5, 1.62, -0.86]], dir: UP, flame: '#8bd65a', size: 1.2 },
+  gus: { ports: [[-0.4, 0.5, -1.06], [0.4, 0.5, -1.06]], dir: BACK, flame: '#ff4a3d' },
+});
+
+/** The pipes for an exhaust: a tube ending at each port, a flange, and a dark bore the flames come out of. */
+function pipes(m: ModelBuilder, e: Exhaust, colour: string = CHROME, len = 0.32): void {
+  for (const p of e.ports) {
+    const [dx, dy, dz] = portDir(e, p);
+    const rot = aimY([dx, dy, dz]);
+    const back = (q: V3, d: number): V3 => [q[0] - dx * d, q[1] - dy * d, q[2] - dz * d];
+    m.cyl(0.07, 0.062, len, colour, back(p, len / 2), rot, 10);
+    m.cyl(0.085, 0.085, 0.05, colour, back(p, 0.025), rot, 10);
+    m.cyl(0.05, 0.05, 0.052, INK, back(p, 0.02), rot, 8, false);
+  }
+}
 
 type Kart = (m: ModelBuilder) => void;
 type Driver = (m: ModelBuilder) => void;
@@ -43,6 +94,7 @@ const KARTS: Record<string, Kart> = {
     m.box([0.5, 0.36, 0.42], '#ff6f61', [0, 0.78, -0.78]);                 // parcel
     m.box([0.52, 0.06, 0.06], '#f6d365', [0, 0.97, -0.78], undefined, false); // tape
     m.ball([0.1, 0.1, 0.06], '#ffd23f', [0, 0.52, 0.86], undefined, 10);  // headlamp
+    pipes(m, EXHAUST.pip);
   },
   // Momo: stripped buggy with an exposed engine
   momo: (m) => {
@@ -52,7 +104,7 @@ const KARTS: Record<string, Kart> = {
     m.cyl(0.035, 0.035, 0.84, '#ffd23f', [0, 1.02, -0.3], [0, 0, Math.PI / 2], 6);
     m.box([0.56, 0.36, 0.4], '#6b6b6b', [0, 0.62, -0.68]);                 // engine block
     for (const x of [-0.18, 0, 0.18]) m.cyl(0.05, 0.05, 0.22, '#c0c0c0', [x, 0.9, -0.68], undefined, 8, false);
-    m.cyl(0.06, 0.08, 0.35, '#8a8a8a', [0.3, 0.55, -0.95], [Math.PI / 2, 0, 0], 8); // exhaust
+    pipes(m, EXHAUST.momo);
     m.box([0.84, 0.08, 0.28], '#ffd23f', [0, 0.46, 0.82]);                 // front bumper
   },
   // Nova: a rounded pod with a little thruster
@@ -74,6 +126,7 @@ const KARTS: Record<string, Kart> = {
     m.cyl(0.04, 0.04, 1.0, '#2d6a4f', [0, 1.28, -0.5], [0, 0, Math.PI / 2], 6); // roll bar
     for (const x of [-0.5, 0.5]) m.cyl(0.04, 0.04, 0.55, '#2d6a4f', [x, 1.02, -0.5], undefined, 6);
     m.cyl(0.26, 0.26, 0.12, TYRE, [0, 0.8, -0.98], [Math.PI / 2, 0, 0], 12); // spare
+    pipes(m, EXHAUST.juniper);
   },
   // Otto: a jet-ski kart with a rear float
   otto: (m) => {
@@ -83,6 +136,7 @@ const KARTS: Record<string, Kart> = {
     m.box([0.84, 0.06, 1.3], '#ffffff', [0, 0.63, 0.05], undefined, false);
     m.torus(0.34, 0.12, '#e53935', [0, 0.72, -0.8], [Math.PI / 2, 0, 0]);  // float
     for (let i = 0; i < 4; i++) m.box([0.1, 0.26, 0.26], '#ffffff', [Math.cos(i * Math.PI / 2) * 0.34, 0.72, -0.8 + Math.sin(i * Math.PI / 2) * 0.34], undefined, false);
+    pipes(m, EXHAUST.otto);
   },
   // Sprocket: a tin-toy racer with a wind-up key
   sprocket: (m) => {
@@ -94,6 +148,7 @@ const KARTS: Record<string, Kart> = {
     m.torus(0.13, 0.04, '#b08d57', [-0.14, 1.02, -0.9], [0, Math.PI / 2, 0]);
     m.torus(0.13, 0.04, '#b08d57', [0.14, 1.02, -0.9], [0, Math.PI / 2, 0]);
     m.box([0.18, 0.1, 0.05], '#ff6f61', [0, 0.72, 1.0], undefined, false); // number plate
+    pipes(m, EXHAUST.sprocket, '#b08d57');
   },
   // Boulder: a stone monster truck
   boulder: (m) => {
@@ -103,6 +158,7 @@ const KARTS: Record<string, Kart> = {
     m.rock(0.3, '#5f6b77', [-0.32, 1.12, -0.6], [0.8, 0.1, 0.4], [1.1, 0.7, 1]);
     for (const [x, z] of [[-0.4, 0.4], [0.42, -0.3], [0, 0.75]]) m.ball([0.2, 0.07, 0.18], '#6a994e', [x, 1.14, z], undefined, 10, false); // moss
     m.box([1.2, 0.1, 0.3], '#4b5563', [0, 0.72, 0.9]);
+    pipes(m, EXHAUST.boulder, CHROME, 0.62);                               // truck stacks
   },
   // Big Gus: a food-truck kart with a striped awning
   gus: (m) => {
@@ -112,6 +168,7 @@ const KARTS: Record<string, Kart> = {
     for (let i = 0; i < 6; i++) m.box([0.22, 0.04, 0.5], i % 2 ? '#ffffff' : '#e63946', [0.66, 1.2 - 0.01 * i, -0.52 + i * 0.2 - 0.02], [0, 0, -0.35]); // awning
     m.box([0.9, 0.25, 0.1], '#ffd23f', [0, 1.28, 0.9], undefined, false);  // sign
     m.cone(0.16, 0.3, '#ffffff', [0, 1.42, -0.6]);                          // chimney hat
+    pipes(m, EXHAUST.gus);
   },
 };
 

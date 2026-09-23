@@ -1,7 +1,7 @@
 // The toon look (research plan §7.1): MeshToonMaterial with a 3-step gradient ramp, vertex
 // colours so a whole model is one draw call, and ink outlines drawn as an inflated back-face hull.
 import {
-  BackSide, Color, DataTexture, MeshBasicMaterial, MeshToonMaterial, NearestFilter, RedFormat,
+  AdditiveBlending, BackSide, Color, DataTexture, MeshBasicMaterial, MeshToonMaterial, NearestFilter, RedFormat,
   type Material,
 } from 'three';
 
@@ -33,7 +33,14 @@ export function inkMaterial(): MeshBasicMaterial {
   return ink;
 }
 
+let flame: MeshBasicMaterial | null = null;
+/** The one shared boost-flame material: unlit vertex colours added onto what is behind, no depth write. */
+export function flameMaterial(): MeshBasicMaterial {
+  if (!flame) flame = new MeshBasicMaterial({ vertexColors: true, transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false });
+  return flame;
+}
+
 /** Is this one of the shared materials (never disposed per session)? */
 export function isShared(m: Material): boolean {
-  return m === vcToon || m === ink;
+  return m === vcToon || m === ink || m === flame;
 }
