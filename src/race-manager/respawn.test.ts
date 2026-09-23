@@ -86,10 +86,11 @@ describe('respawn', () => {
     ]);
   });
 
-  it('keeps the lateral it fell at and clamps it inside the road by a kart radius', () => {
+  it('keeps the lateral it fell at and clamps it well inside the road', () => {
     const cp = track.checkpoints[2];
     const hw = cp.halfWidth;
-    for (const [fellAt, lands] of [[0, 0], [-3, -3], [20, hw - BASE.kartRadius], [-20, -(hw - BASE.kartRadius)]]) {
+    const edge = Math.min(hw - BASE.kartRadius, hw * RACE.respawnInset);
+    for (const [fellAt, lands] of [[0, 0], [-3, -3], [20, edge], [-20, -edge]]) {
       const { s, tr } = spawnKart(track, 0);
       tr.lastCheckpoint = 2; tr.nextCheckpoint = 3;
       placeAt(track, s, 0.3, fellAt);

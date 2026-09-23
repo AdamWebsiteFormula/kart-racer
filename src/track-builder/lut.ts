@@ -41,6 +41,8 @@ export class Lut {
   readonly hw: Float64Array;
   /** index into SURFACES; the shift may overwrite */
   readonly surface: Uint8Array;
+  /** open edges per sample: bit 1 left, bit 2 right (Track.rebuildDerived fills it from the def) */
+  readonly open: Uint8Array;
   /** control-point segment the sample lies in */
   readonly seg: Uint16Array;
   /** per-sample grip scale, 1 until a shift multiplies it */
@@ -63,6 +65,7 @@ export class Lut {
     this.bank = new Float64Array(n);
     this.hw = new Float64Array(n);
     this.surface = new Uint8Array(n);
+    this.open = new Uint8Array(n);
     this.seg = new Uint16Array(n);
     this.grip = new Float64Array(n).fill(1);
 
@@ -173,6 +176,15 @@ export class Lut {
     out.halfWidth = this.hw[i0] * b + this.hw[i1] * a;
     out.surface = SURFACES[this.surface[i0]];
     out.gripScale = this.grip[i0] * b + this.grip[i1] * a;
+    const open = this.open[i0];
+    out.open = open;
+    out.overCliff = false;
+    if (open & (lateral < 0 ? 1 : 2)) {
+      // an open edge: loose ground over the kerb, then nothing past the shoulder
+      const off = Math.abs(lateral) - out.halfWidth;
+      if (off > BUILDER.kerbWidth) out.surface = 'dirt';
+      out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
+    }
     return out;
   }
 

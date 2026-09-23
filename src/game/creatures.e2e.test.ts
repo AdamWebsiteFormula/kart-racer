@@ -31,13 +31,14 @@ describe('course creatures in a whole race', () => {
       const inputs = manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
       const parts: SimParts = { manager, items, ai, inputs, playerIndex: -1, playerSlot: { ...NEUTRAL_INPUT } };
       const actions = new Set<string>();
-      let hits = 0;
+      let hits = 0, rescues = 0;
       const step = manager.step.bind(manager);
       manager.step = (inp) => {
         const ev: RaceEvent[] = step(inp);
         for (const e of ev) {
           if (e.type === 'creature') actions.add(e.action);
           if (e.type === 'hazardHit' && e.hazardId === creature.id) hits++;
+          if (e.type === 'rescue' && e.phase === 'start') rescues++;
         }
         return ev;
       };
@@ -46,6 +47,8 @@ describe('course creatures in a whole race', () => {
       expect(manager.results().ranks.every((r) => !r.dnf)).toBe(true);
       for (const k of manager.state.karts) expect(k.position.every(Number.isFinite)).toBe(true);
       expect(actions.size, `${creature.creature} changed what it does`).toBeGreaterThanOrEqual(2);
+      // open cliff edges are a risk for a careless driver, not a trap for the AI
+      expect(rescues, `${def.id}: claw rescues in a two-lap AI race`).toBeLessThanOrEqual(3);
       // a real threat (the whale only pushes): it catches somebody in two laps of eight karts
       if (creature.creature !== 'whale') expect(hits, `${creature.creature} caught somebody`).toBeGreaterThan(0);
     }, 60_000);

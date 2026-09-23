@@ -74,6 +74,10 @@ export interface KartState {
     /** Grapple Anchor: seconds left reeling toward karts[towTarget] (-1 = none) */
     towRemaining: number;
     towTarget: number;
+    /** went over an open edge: no road can catch it now, only the claw (race-manager rescue) */
+    falling: boolean;
+    /** the road height it fell from */
+    fallFromY: number;
   };
   coins: number;
   rank: number;
@@ -119,7 +123,7 @@ export function createKartState(init: KartInit): KartState {
     item: { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 },
     status: {
       spinRemaining: 0, shield: false, slowedTo: 1, slowRemaining: 0, intangibleRemaining: 0,
-      rideRemaining: 0, towRemaining: 0, towTarget: -1,
+      rideRemaining: 0, towRemaining: 0, towTarget: -1, falling: false, fallFromY: 0,
     },
     coins: init.coins ?? 0,
     rank: 0,
@@ -139,6 +143,10 @@ export interface TrackSample {
   halfWidth: number;
   surface: Surface;
   gripScale: number;
+  /** open edges here (no wall): bit 1 the left side (negative lateral), bit 2 the right; absent = walled */
+  open?: number;
+  /** past an open edge's cliff: no ground under this point, the kart falls */
+  overCliff?: boolean;
 }
 
 /** t is main-equivalent; branch 0 unless the feature sits on a shortcut. */

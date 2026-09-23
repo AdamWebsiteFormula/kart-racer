@@ -21,11 +21,13 @@ function setWorldVelocity(s: KartState, w: Vec3): void {
 
 /** Step 10. `lateral` and `right` come from the ground step. */
 export function stepWalls(
-  s: KartState, lateral: number, right: Vec3, halfWidth: number, c: KartConstants, dt: number, events: KartEvent[],
+  s: KartState, lateral: number, right: Vec3, halfWidth: number, c: KartConstants, dt: number, events: KartEvent[], open = 0,
 ): void {
   const limit = halfWidth - radiusOf(s, c);
   if (Math.abs(lateral) <= limit) return;
   const side = Math.sign(lateral);
+  // an open edge has no wall: over the kerb, the shoulder, then the drop
+  if (open & (side < 0 ? 1 : 2)) return;
   const overshoot = Math.abs(lateral) - limit;
   s.position[0] -= right[0] * overshoot * side;
   s.position[2] -= right[2] * overshoot * side;

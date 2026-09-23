@@ -138,7 +138,9 @@ export function placeBarriers(branches: Branches): Float32Array {
       const u = last === 0 ? 0 : i / last;
       const c = lut.sample(u, 0);
       const yaw = headingOf(c.tangent);
+      const open = lut.open[lut.idx(Math.round(u * lut.step))];
       for (const side of [-1, 1]) {
+        if (open & (side < 0 ? 1 : 2)) continue; // an open edge: nothing between you and the drop
         const p = lut.sample(u, side * (c.halfWidth + BUILDER.kerbWidth)).position;
         if (branches.list.length > 1 && insideRoadEnvelope(branches, p[0], p[2], b.index, BUILDER.kerbWidth + 0.5)) continue;
         pushTransform(out, p, yaw);

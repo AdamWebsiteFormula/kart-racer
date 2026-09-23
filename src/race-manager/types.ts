@@ -38,6 +38,15 @@ export interface RaceConfig {
 }
 
 /** Race-manager's private per-kart state. Serialisable; index-aligned with karts[]. */
+/** A claw rescue: where the kart was, where it goes back to, and how long is left. */
+export interface Rescue {
+  from: Vec3;
+  fromHeading: number;
+  to: Vec3;
+  toHeading: number;
+  remaining: number;
+}
+
 export interface KartTracker {
   gridSlot: number;
   nextCheckpoint: number;
@@ -57,6 +66,8 @@ export interface KartTracker {
   stuckSeconds: number;
   freezeRemaining: number;
   respawnCount: number;
+  /** the claw carrying this kart back to the road (fell off, or stuck), or absent */
+  rescue?: Rescue;
   /** force-finished at the grace cut-off */
   dnf: boolean;
 }
@@ -106,6 +117,7 @@ export type RaceEvent =
   | { type: 'trackChanged'; event: TrackChanged }
   | { type: 'kart'; racerId: string; event: KartEvent }
   | { type: 'creature'; id: string; kind: CreatureKind; action: string; position: Vec3 }
+  | { type: 'rescue'; racerId: string; phase: 'start' | 'end' }
   | { type: 'raceFinished' };
 
 export interface RaceResultRow {

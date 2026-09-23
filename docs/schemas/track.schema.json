@@ -68,6 +68,11 @@
         }
       }
     },
+    "openEdges": {
+      "description": "Stretches of the main line with no wall on one or both sides (left = negative lateral). Past the shoulder there is no ground: a kart falls and the claw brings it back.",
+      "type": "array",
+      "items": { "type": "object", "required": ["fromT", "toT", "side"], "properties": { "fromT": { "type": "number" }, "toT": { "type": "number" }, "side": { "type": "string", "enum": ["left", "right", "both"] } } }
+    },
     "jumps": {
       "description": "Trick ramps. Leaving a jump airborne with the hop button pressed awards a trick boost.",
       "type": "array",

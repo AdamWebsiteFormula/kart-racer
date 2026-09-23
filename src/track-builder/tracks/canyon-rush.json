@@ -87,6 +87,7 @@
     { "id": "rockfall-1", "type": "falling", "t": 0.22, "lateral": 2, "period": 5, "hit": "slow", "asset": "rockfall" },
     { "id": "minecart-1", "type": "crossing", "t": 0.74, "lateral": 0, "period": 6, "speed": 1.4, "hit": "spin", "asset": "minecart" }
   ],
+  "openEdges": [{"fromT": 0.46, "toT": 0.6, "side": "left"}, {"fromT": 0.51, "toT": 0.56, "side": "right"}],
   "finalLapShift": {
     "kind": "collapse",
     "label": "THE BRIDGE IS DOWN",

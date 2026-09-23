@@ -103,6 +103,15 @@ export class Track implements TrackQuery {
   /** @internal Checkpoints, spawn grid, minimap and feature views from the current LUTs. */
   rebuildDerived(): void {
     const lut = this.branches.main.lut;
+    // open edges (a route change builds a new LUT, so they are laid again here)
+    lut.open.fill(0);
+    for (const e of this.def.openEdges ?? []) {
+      const bits = e.side === 'left' ? 1 : e.side === 'right' ? 2 : 3;
+      for (let i = 0; i < lut.n; i++) {
+        const u = i / lut.n, d = ((u - e.fromT) % 1 + 1) % 1, span = ((e.toT - e.fromT) % 1 + 1) % 1;
+        if (d <= span) lut.open[i] |= bits;
+      }
+    }
     this.checkpoints = buildCheckpoints(lut, this.startT, this.def.checkpointCount);
     this.spawnGrid = buildSpawnGrid(lut, this.startT, this.def.startGrid);
     this.minimap = buildMinimap(this.branches);

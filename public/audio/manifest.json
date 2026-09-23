@@ -117,6 +117,12 @@
   "tailSlap": {
    "url": "audio/sfx/tailSlap.mp3"
   },
+  "claw": {
+   "url": "audio/sfx/claw.mp3"
+  },
+  "clawDrop": {
+   "url": "audio/sfx/clawDrop.mp3"
+  },
   "hit": {
    "url": "audio/sfx/hit.mp3"
   },

@@ -7,7 +7,7 @@ export interface RaceConstants {
   countdownSteps: number; countdownStepSeconds: number; playerGridSlot: number;
   wrongWaySpeed: number; wrongWayHoldSeconds: number; wrongWayClearSpeed: number;
   stuckSeconds: number; stuckSpeed: number; stuckInputMin: number;
-  respawnFreezeSeconds: number; respawnLift: number;
+  respawnFreezeSeconds: number; respawnLift: number; respawnInset: number; rescueSeconds: number; rescueRise: number;
   rankDebounceSeconds: number; finishGraceSeconds: number;
   checkpointResyncSectors: number; teleportGuardSectors: number;
   hazardSlowTo: number; hazardSlowSeconds: number; hazardBumpLateral: number; hazardCooldownSeconds: number;

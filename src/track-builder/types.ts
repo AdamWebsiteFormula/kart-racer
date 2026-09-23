@@ -106,6 +106,8 @@ export interface TrackDefinition {
   coins?: PickupDef[];
   boostPads?: BoostPadDef[];
   finalLapShift: FinalLapShiftDef;
+  /** stretches of the main line with no wall on one or both sides: drive off and fall (the claw brings you back) */
+  openEdges?: { fromT: number; toT: number; side: 'left' | 'right' | 'both' }[];
   environment?: EnvironmentDef;
   music?: string;
   landmark?: string;

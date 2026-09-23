@@ -37,7 +37,7 @@
           "airborne": { "type": "object", "properties": { "fromJumpId": { "type": "string" }, "trickQueued": { "type": "boolean" } } },
           "boost": { "type": "object", "properties": { "source": { "type": "string", "enum": ["none", "drift", "trick", "pad", "item", "slipstream", "start"] }, "remaining": { "type": "number" }, "multiplier": { "type": "number" } } },
           "item": { "type": "object", "description": "Two slots (design §8): the held item is used first; next moves up when it runs out. Each slot rolls on its own timer.", "properties": { "held": { "type": "string" }, "charges": { "type": "integer" }, "rouletteRemaining": { "type": "number" }, "next": { "type": "string" }, "nextCharges": { "type": "integer" }, "nextRouletteRemaining": { "type": "number" } } },
-          "status": { "type": "object", "properties": { "spinRemaining": { "type": "number" }, "shield": { "type": "boolean" }, "slowedTo": { "type": "number" }, "slowRemaining": { "type": "number" }, "intangibleRemaining": { "type": "number" }, "rideRemaining": { "type": "number" }, "towRemaining": { "type": "number" }, "towTarget": { "type": "integer" } } },
+          "status": { "type": "object", "properties": { "spinRemaining": { "type": "number" }, "shield": { "type": "boolean" }, "slowedTo": { "type": "number" }, "slowRemaining": { "type": "number" }, "intangibleRemaining": { "type": "number" }, "rideRemaining": { "type": "number" }, "towRemaining": { "type": "number" }, "towTarget": { "type": "integer" }, "falling": { "type": "boolean" }, "fallFromY": { "type": "number" } } },
           "coins": { "type": "integer" }, "rank": { "type": "integer" },
           "finishTick": { "type": "integer" },
           "ai": { "type": "object", "properties": { "difficulty": { "type": "string", "enum": ["easy", "normal", "hard"] }, "rubberBand": { "type": "number" } } }
@@ -62,6 +62,9 @@
         "stuckInputMin": { "type": "number", "default": 0.3, "description": "throttle or brake above this means the player wants to move; also the start-boost throttle threshold" },
         "respawnFreezeSeconds": { "type": "number", "default": 0.6 },
         "respawnLift": { "type": "number", "default": 0.35, "description": "metres above the checkpoint ground" },
+        "respawnInset": { "type": "number", "default": 0.6, "description": "a respawned kart keeps its side of the road but lands no further out than this fraction of the half-width (never on the lip of an open edge)" },
+        "rescueSeconds": { "type": "number", "default": 2.4, "description": "the claw rescue, from the fall to the kart back on the road (Adam, 23 Sept 2026: a creative way back, not a cloud with a fishing rod)" },
+        "rescueRise": { "type": "number", "default": 7, "description": "metres the claw lifts the kart above the higher of the two ends while it carries it back" },
         "rankDebounceSeconds": { "type": "number", "default": 0.3, "description": "a new rank must hold this long before positionChange fires" },
         "finishGraceSeconds": { "type": "number", "default": 12, "description": "after the player finishes, stragglers are force-finished" },
         "checkpointResyncSectors": { "type": "number", "default": 0.5, "description": "after a Final Lap Shift, a next checkpoint this far behind the kart counts as hit" },

@@ -81,7 +81,8 @@ export function stepKart(
   // 8–9. gravity, ground, integrate
   const g = stepGround(s, track, c, dt, events);
   // 10. walls
-  stepWalls(s, g.lateral, g.right, g.sample.halfWidth, c, dt, events);
+  // a falling kart is past every wall
+  if (!s.status.falling) stepWalls(s, g.lateral, g.right, g.sample.halfWidth, c, dt, events, g.sample.open ?? 0);
   return events;
 }
 

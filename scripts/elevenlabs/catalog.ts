@@ -62,6 +62,9 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'honk', seconds: 1.2, prompt: `A giant grumpy cartoon goose honking: two loud angry honks and flapping wings. ${CARTOON}` },
   { id: 'whaleSong', seconds: 2.5, prompt: 'A gentle giant whale calling through the sky: a long soft deep magical whale song with a sparkly shimmer. No music, no voice.' },
   { id: 'tailSlap', seconds: 1.5, prompt: `A giant whale tail swooshing through clouds: a big airy whoosh and a soft thunderous slap of wind. ${CARTOON}` },
+  // the rescue claw (race-manager respawn.ts)
+  { id: 'claw', seconds: 2.2, prompt: `A fairground claw machine: an electric motor whirring as the claw drops on its cable, a clunky metal grab, then a whirring lift. ${CARTOON}` },
+  { id: 'clawDrop', seconds: 0.8, prompt: `A toy claw opening and dropping a small go-kart onto a road: a springy metal clack and a soft rubbery bump. ${CARTOON}` },
   { id: 'hit', seconds: 0.8, prompt: `A go-kart getting bonked by a thrown toy: bouncy boing with a small plastic crash. ${CARTOON}` },
   { id: 'spin', seconds: 1.3, prompt: `A go-kart spinning out: a descending slide whistle over a short tyre squeal. ${CARTOON}` },
   // boosts: the drift tiers grow

@@ -140,6 +140,21 @@ const MODELS: Readonly<Record<string, Build>> = {
     }
     return m.build();
   },
+  // the rescue claw: a fairground claw-machine grabber, hub at the top (y = 0), three chrome
+  // prongs hanging below it and curling in, a red light on the cap
+  claw: () => {
+    const m = new ModelBuilder();
+    m.cyl(0.62, 0.7, 0.55, '#f2b705', [0, 0, 0], undefined, 16);                   // hub
+    m.ball([0.45, 0.3, 0.45], '#f2b705', [0, 0.3, 0], undefined, 12);             // cap
+    m.ball([0.14, 0.14, 0.14], [2.4, 0.4, 0.3], [0, 0.6, 0], undefined, 8, false); // light
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2, sx = Math.sin(a), cz = Math.cos(a);
+      m.box([0.18, 1.2, 0.18], '#d9dee8', [sx * 0.7, -0.75, cz * 0.7], [cz * 0.35, 0, -sx * 0.35]);     // upper prong, splayed out
+      m.box([0.16, 0.9, 0.16], '#d9dee8', [sx * 0.78, -1.65, cz * 0.78], [-cz * 0.5, 0, sx * 0.5]);     // lower prong, curling in
+      m.cone(0.12, 0.3, '#c9ced8', [sx * 0.6, -2.12, cz * 0.6], [Math.PI, 0, 0], 6);                     // tip
+    }
+    return m.build();
+  },
   // one chain link, long axis +Z (the chain lays them nose to tail)
   chainLink: () => new ModelBuilder().torus(0.12, 0.035, '#9aa3b5', [0, 0, 0], [0, Math.PI / 2, 0], false).build(),
 };

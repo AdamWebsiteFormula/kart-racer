@@ -81,7 +81,9 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   s.position[1] += s.verticalVelocity * dt;
 
   const y = s.position[1];
-  const groundY = sample.groundY;
+  // past an open edge's cliff there is no ground at all, and once over it, no road below catches it
+  if (sample.overCliff && !s.status.falling) { s.status.falling = true; s.status.fallFromY = sample.groundY; }
+  const groundY = s.status.falling ? -Infinity : sample.groundY;
   const canSnap = s.verticalVelocity <= c.groundLaunchVy;
   // Below the road: a slope rising under a grounded kart, or a landing that crossed
   // the surface this tick, snaps up. An airborne kart within groundCatch of the surface
@@ -119,7 +121,8 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
     s.airborne.seconds += dt;
   }
 
-  if (s.position[1] < track.voidY) events.push({ type: 'respawn' });
+  // below the void, or fallen well past an open edge: the claw comes (race-manager rescue)
+  if (s.position[1] < track.voidY || (s.status.falling && s.position[1] < s.status.fallFromY - c.fallCatchDepth)) events.push({ type: 'respawn' });
 
   return { sample, lateral, right };
 }

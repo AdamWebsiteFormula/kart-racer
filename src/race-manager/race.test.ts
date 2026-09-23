@@ -102,28 +102,38 @@ describe('RaceManager', () => {
     expect(on[0].tick).toBeLessThan(GO_TICK + (RACE.wrongWayHoldSeconds + 1.5) * SIM_HZ);
   });
 
-  it('falling below voidY respawns at the last checkpoint with inputs dead for the freeze', () => {
+  it('falling below voidY: the claw holds, lifts and carries the kart back to the last checkpoint, inputs dead meanwhile', () => {
     const track = buildTrack(OVAL);
     const rm = new RaceManager(track, config(track, racers(1)));
     const s = rm.state.karts[0];
     let dropped = -1;
+    const rescueTicks = Math.round(RACE.rescueSeconds * SIM_HZ);
     const freezeTicks = Math.round(RACE.respawnFreezeSeconds * SIM_HZ);
-    let speedInFreeze = -1, speedAfter = -1;
+    let midAir = -Infinity, speedInFreeze = -1, speedAfter = -1, midRescue = false;
     const log = run(rm, [lookAheadDriver(20)], (t) => {
       // drop the kart well under the road, airborne: the controller must raise its own respawn event
       if (dropped < 0 && rm.state.trackers[0].nextCheckpoint === 3) { s.position[1] = track.voidY - 1; s.grounded = false; dropped = t; }
-      if (dropped > 0 && t === dropped + freezeTicks - 2) speedInFreeze = s.speed;
-      if (dropped > 0 && t === dropped + freezeTicks + 60) speedAfter = s.speed;
-      if (dropped > 0 && t > dropped + SIM_HZ * 3) rm.state.phase = 'finished';
+      if (dropped > 0 && t === dropped + Math.round(rescueTicks * 0.6)) { midAir = s.position[1]; midRescue = !!rm.state.trackers[0].rescue; }
+      if (dropped > 0 && t === dropped + rescueTicks + freezeTicks - 2) speedInFreeze = s.speed;
+      if (dropped > 0 && t === dropped + rescueTicks + freezeTicks + 60) speedAfter = s.speed;
+      if (dropped > 0 && t > dropped + SIM_HZ * 5) rm.state.phase = 'finished';
     });
+    const start = log.filter((x) => x.e.type === 'rescue' && (x.e as { phase: string }).phase === 'start');
     const rs = log.filter((x) => x.e.type === 'respawn');
+    expect(start.length).toBe(1);
+    expect(start[0].tick).toBe(dropped);
     expect(rs.length).toBe(1);
-    expect(rs[0].tick).toBe(dropped);
+    // set down when the claw lets go, not before
+    expect(Math.abs(rs[0].tick - (dropped + rescueTicks))).toBeLessThanOrEqual(1);
     expect(rs[0].e).toEqual({ type: 'respawn', racerId: 'r0', checkpoint: 2 });
     expect(log.some((x) => x.e.type === 'kart' && (x.e as { event: { type: string } }).event.type === 'respawn')).toBe(false);
+    // carried high over the road on the way
+    expect(midRescue).toBe(true);
+    expect(midAir).toBeGreaterThan(track.checkpoints[2].position[1] + 2);
     expect(speedInFreeze).toBe(0);
     expect(speedAfter).toBeGreaterThan(3);
     expect(rm.state.trackers[0].respawnCount).toBe(1);
+    expect(rm.state.trackers[0].rescue).toBeUndefined();
     const cp = track.checkpoints[2];
     expect(s.t).toBeGreaterThan(cp.t);
     expect(s.t).toBeLessThan(cp.t + 0.1);

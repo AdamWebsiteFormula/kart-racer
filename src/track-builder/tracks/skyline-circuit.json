@@ -79,6 +79,7 @@
     { "id": "whale", "type": "creature", "creature": "whale", "t": 0.5, "lateral": -1, "period": 12 },
     { "id": "wake-gust", "type": "gust", "t": 0.12, "lateral": 3, "period": 6, "speed": 11, "hit": "bump", "asset": "gust" }
   ],
+  "openEdges": [{"fromT": 0.18, "toT": 0.27, "side": "both"}, {"fromT": 0.62, "toT": 0.7, "side": "left"}],
   "finalLapShift": {
     "kind": "sunset",
     "label": "SUNSET TO STARLIGHT",

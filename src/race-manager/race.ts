@@ -11,7 +11,7 @@ import { GO_TICK, stepCountdown } from './countdown.ts';
 import { stepHazards } from './hazards.ts';
 import { indexFeatures, initTimers, stepPickups, type FeatureIndex } from './pickups.ts';
 import { assignRanks, sortOrder } from './ranking.ts';
-import { respawnKart, stepStuck } from './respawn.ts';
+import { startRescue, stepRescue, stepStuck } from './respawn.ts';
 import type { KartTracker, RaceConfig, RaceEvent, RaceResults, RaceState } from './types.ts';
 import { countDown } from './util.ts';
 import { stepWrongWay } from './wrongway.ts';
@@ -151,6 +151,8 @@ export class RaceManager {
         let respawn = false;
         const ke = kartEvents[i];
         for (let k = ke.length - 1; k >= 0; k--) if (ke[k].type === 'respawn') { respawn = true; ke.splice(k, 1); }
+        // in the claw: carried back, counts nothing, hits nothing
+        if (tr.rescue) { stepRescue(s, tr, track, dt, events); continue; }
         if (!respawn) {
           const res = stepCheckpoints(s, tr, track, st.lapsTotal, tick, events);
           if (res === 'finish') {
@@ -161,7 +163,7 @@ export class RaceManager {
         stepWrongWay(s, tr, track, dt, events);
         // only real karts can be stuck
         if (!respawn && !s.isGhost && s.finishTick === undefined && stepStuck(s, tr, inputs[i], dt)) respawn = true;
-        if (respawn) respawnKart(s, tr, track, events);
+        if (respawn) { startRescue(s, tr, track, events); continue; }
         stepHazards(s, tr, c, this.lastActiveHazards, dt, events, kartEvents[i]);
       }
       stepPickups(this.fi, st.pickupStates, st.coinStates, track, karts, this.consts, dt, events);

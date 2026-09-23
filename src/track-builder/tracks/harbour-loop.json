@@ -299,6 +299,7 @@
       "asset": "barrel"
     }
   ],
+  "openEdges": [{"fromT": 0.47, "toT": 0.6, "side": "left"}],
   "finalLapShift": {
     "kind": "flood",
     "label": "THE TIDE IS IN",

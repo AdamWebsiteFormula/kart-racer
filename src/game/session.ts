@@ -17,6 +17,7 @@ import type { TrackDefinition } from '../track-builder/types.ts';
 import { buildRacerMesh, isShared, lightOf, paintSky, SKIES, trackAssets, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { ItemsView } from './itemsView.ts';
+import { RescueView } from './rescueView.ts';
 import { simTick, type SimParts } from './simtick.ts';
 import { buildKartMesh } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
@@ -31,6 +32,7 @@ export class RaceSession {
   /** the boost flames on each kart's pipes, by kart index */
   private readonly flames: ExhaustFlames[] = [];
   readonly itemsView: ItemsView;
+  readonly rescueView = new RescueView();
   readonly config: RaceConfig;
   readonly def: TrackDefinition;
   /** index into karts[] of the player, or -1 (attract mode) */
@@ -68,6 +70,7 @@ export class RaceSession {
     this.parts = { manager: this.manager, items: this.items, ai: this.ai, inputs: this.inputs, playerIndex: this.playerIndex, playerSlot: { ...NEUTRAL_INPUT } };
     this.group.add(this.trackScene.group);
     this.itemsView = new ItemsView();
+    this.group.add(this.rescueView.root);
     this.group.add(this.itemsView.root);
     this.views = this.manager.state.karts.map((s, i) => {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
@@ -110,6 +113,7 @@ export class RaceSession {
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k].boost.remaining, st.time, reduced);
     this.trackScene.update(st.time, this.manager.lastActiveHazards, { pickups: st.pickupStates, coins: st.coinStates });
     this.itemsView.onFrame(this.items, st.karts, this.views.map((v) => v.root as Object3D), alpha, st.time, frameDt, this.track);
+    this.rescueView.onFrame(st.trackers, (i) => this.views[i].root.position, frameDt, st.time);
   }
 
   /** The kart index leading the race (for the attract camera). */

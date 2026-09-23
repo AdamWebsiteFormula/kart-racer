@@ -98,6 +98,7 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
       case 'wrongWay': if (e.racerId === me && e.on) push('wrongWay', null); break;
       case 'respawn': if (e.racerId === me) push('respawn', null); break;
       case 'pickup': push('balloon', e.racerId); break;
+      case 'rescue': push(e.phase === 'start' ? 'claw' : 'clawDrop', e.racerId); break;
       case 'creature': {
         const id = CREATURE_SOUND[`${e.kind}:${e.action}`];
         if (!id) break;

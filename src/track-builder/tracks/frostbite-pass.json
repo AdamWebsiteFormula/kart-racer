@@ -91,6 +91,7 @@
     { "id": "snowball-1", "type": "rolling", "t": 0.22, "lateral": 3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" },
     { "id": "snowball-2", "type": "rolling", "t": 0.83, "lateral": -3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" }
   ],
+  "openEdges": [{"fromT": 0.46, "toT": 0.58, "side": "right"}],
   "finalLapShift": {
     "kind": "blizzard",
     "label": "BLIZZARD!",
