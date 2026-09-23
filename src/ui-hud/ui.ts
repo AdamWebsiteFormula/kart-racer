@@ -68,6 +68,8 @@ export interface RaceFrame {
   coinCap: number;
   map: Minimap;
   itemDefs: readonly { id: string; name: string }[];
+  /** the player holds a trailable item behind the kart */
+  trailing?: boolean;
 }
 
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold';
@@ -256,7 +258,7 @@ export class UiRoot {
   /** Once per rendered frame while racing (paused or not). */
   race(f: RaceFrame, nowMs: number): void {
     if (this.app.screen !== 'racing') return;
-    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs);
+    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing);
     this.views.hud.render(vm);
     minimapDots(f.state.karts, f.map, accentOf, this.dots);
     this.views.hud.minimap.render(f.map, this.dots, nowMs);

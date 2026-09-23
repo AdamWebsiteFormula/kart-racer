@@ -165,6 +165,10 @@ describe('Grapple Anchor', () => {
     expect(a.boost.source).toBe('item');
     expect(b.status.slowRemaining).toBeGreaterThan(0);
     expect(a.status.towTarget).toBe(-1);
+    // it drew level beside the hooked kart instead of running into its back
+    expect(h.log.some((e) => e.type === 'hit' && e.racerId === 'k1')).toBe(false);
+    const r = [Math.cos(b.heading), 0, -Math.sin(b.heading)];
+    expect(Math.abs((a.position[0] - b.position[0]) * r[0] + (a.position[2] - b.position[2]) * r[2])).toBeGreaterThan(1);
   });
 
   it('a Bubble eats the anchor', () => {

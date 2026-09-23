@@ -6,6 +6,8 @@ import type { RaceEvent } from '../race-manager/types.ts';
 
 export const JUICE = Object.freeze({
   traumaHit: 0.5, traumaLand: 0.2, traumaBoost: 0.15, traumaWall: 0.25, traumaBump: 0.12,
+  /** the big item moments: a STRIKE burst or a Pogo slam, shaken by the player's own */
+  traumaStrike: 0.45, traumaSlam: 0.35,
   traumaDecay: 1.6,
   shakeMaxRot: (0.6 * Math.PI) / 180,
   shakeMaxMove: 0.35,
@@ -86,7 +88,7 @@ export class TimeScale {
 }
 
 // ---------------------------------------------------------------- director
-export type Burst = 'balloon' | 'coin' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall';
+export type Burst = 'balloon' | 'coin' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'strike' | 'slam' | 'spring' | 'fizz';
 
 export interface Effects {
   bursts: { kind: Burst; racerId: string }[];
@@ -151,6 +153,19 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
       case 'shieldUp': case 'shieldPop': out.bursts.push({ kind: 'shield', racerId: e.racerId }); break;
       case 'horn': out.bursts.push({ kind: 'horn', racerId: e.racerId }); break;
       case 'fog': out.bursts.push({ kind: 'fog', racerId: e.racerId }); break;
+      case 'burst':
+        out.bursts.push({ kind: 'strike', racerId: e.racerId });
+        if (e.racerId === me) out.trauma += JUICE.traumaStrike;
+        break;
+      case 'springSlam':
+        out.bursts.push({ kind: 'slam', racerId: e.racerId });
+        if (e.racerId === me) out.trauma += JUICE.traumaSlam;
+        break;
+      case 'springLaunch': out.bursts.push({ kind: 'spring', racerId: e.racerId }); break;
+      case 'trailBlock': out.bursts.push({ kind: 'shield', racerId: e.racerId }); break;
+      case 'itemUsed':
+        if (e.itemId === 'fizzPop' || e.itemId === 'tripleFizz') out.bursts.push({ kind: 'fizz', racerId: e.racerId });
+        break;
       default: break;
     }
   }

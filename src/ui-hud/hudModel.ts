@@ -7,8 +7,8 @@ import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
 import { formatTime, kmh, ordinal, ordinalParts } from './format.ts';
 
-export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'finish';
-const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, wrongWay: 2, finalLap: 3, finish: 4 };
+export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'finish' | 'strike';
+const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, strike: 2, wrongWay: 2, finalLap: 3, finish: 4 };
 
 export interface HudMemory {
   banner: { text: string; sub: string; kind: BannerKind; until: number } | null;
@@ -51,12 +51,14 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
     }
   }
   for (const e of items) {
+    if (e.type === 'burst' && e.racerId === playerId) show(m, 'strike', 'STRIKE!', '', clock + 1.2, clock);
     if (e.type === 'hit' && e.racerId === playerId) m.flashUntil = clock + UI.flashMs / 1000;
     if (e.type === 'fog' && e.victims.includes(playerId)) m.flashUntil = clock + UI.flashMs / 1000;
   }
 }
 
-export interface ItemSlotVM { state: 'empty' | 'rolling' | 'ready'; itemId: string; label: string; charges: string }
+/** ready: use it; active: a power running from this slot (Strike Ball); trailing: held behind the kart */
+export interface ItemSlotVM { state: 'empty' | 'rolling' | 'ready' | 'active' | 'trailing'; itemId: string; label: string; charges: string }
 
 export interface HudVM {
   timer: string;
@@ -78,20 +80,21 @@ export interface HudVM {
 
 type Def = { id: string; name: string };
 
-function slot(id: string, charges: number, roulette: number, defs: readonly Def[], nowMs: number): ItemSlotVM {
+function slot(id: string, charges: number, roulette: number, defs: readonly Def[], nowMs: number, trailing = false): ItemSlotVM {
   if (roulette > 0) {
     const d = defs[Math.floor(nowMs / UI.rouletteFlickerMs) % Math.max(1, defs.length)];
     return { state: 'rolling', itemId: d?.id ?? '', label: d?.name ?? '?', charges: '' };
   }
   if (id === 'none' || !id) return { state: 'empty', itemId: '', label: '', charges: '' };
   const d = defs.find((x) => x.id === id);
-  return { state: 'ready', itemId: id, label: d?.name ?? id, charges: charges > 1 ? `×${charges}` : '' };
+  const state = charges <= 0 ? 'active' : trailing ? 'trailing' : 'ready';
+  return { state, itemId: id, label: d?.name ?? id, charges: charges > 1 ? `×${charges}` : '' };
 }
 
-export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number): { held: ItemSlotVM; next: ItemSlotVM } {
+export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number, trailing = false): { held: ItemSlotVM; next: ItemSlotVM } {
   const it = p.item;
   return {
-    held: slot(it.held, it.charges, it.rouletteRemaining, defs, nowMs),
+    held: slot(it.held, it.charges, it.rouletteRemaining, defs, nowMs, trailing),
     // offset so the two slots never flicker in step
     next: slot(it.next, it.nextCharges, it.nextRouletteRemaining, defs, nowMs + UI.rouletteFlickerMs * 3),
   };
@@ -103,7 +106,7 @@ export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number): { 
  */
 export function hudModel(
   state: RaceState, player: KartState, shownRank: number, coinCap: number, m: HudMemory, clock: number,
-  defs: readonly Def[], nowMs: number,
+  defs: readonly Def[], nowMs: number, trailing = false,
 ): HudVM {
   const rank = shownRank > 0 ? shownRank : player.rank;
   const lap = Math.min(Math.max(player.lap, 1), state.lapsTotal);
@@ -115,7 +118,7 @@ export function hudModel(
     const cut = KNOCKOUT_CUT_LINES[state.knockout.segment] ?? KNOCKOUT_CUT_LINES[KNOCKOUT_CUT_LINES.length - 1];
     knockout = { text: `TOP ${cut} GO THROUGH`, danger: rank > cut };
   }
-  const slots = itemSlots(player, defs, nowMs);
+  const slots = itemSlots(player, defs, nowMs, trailing);
   return {
     timer: formatTime(state.time),
     lap: `${lap}/${state.lapsTotal}`,

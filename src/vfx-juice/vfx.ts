@@ -98,6 +98,24 @@ export class Vfx {
         case 'fog':
           for (let i = 0; i < 40; i++) this.spawn(this.soft, x + sym() * 10, y + 1 + rnd() * 3, z + sym() * 10, sym(), rnd() * 0.3, sym(), [0.72, 0.74, 0.78], 2.2, 2.5, 0, 0.3, 1);
           break;
+        case 'strike':
+          // STRIKE! confetti and white-and-red pin chips thrown up, and a bright flash ring
+          for (let i = 0; i < 140; i++) this.spawn(this.confetti, x + sym() * 2, y + 1.5, z + sym() * 2, sym() * 9, 5 + rnd() * 8, sym() * 9, CONFETTI[i % CONFETTI.length], 0.2, 1.6 + rnd(), 12, 1);
+          for (let i = 0; i < 24; i++) this.spawn(this.soft, x, y + 1.2, z, sym() * 7, 4 + rnd() * 6, sym() * 7, i % 3 ? WHITE : CORAL, 0.35, 0.9, 16, 0.5);
+          for (let i = 0; i < 36; i++) { const a = (i / 36) * Math.PI * 2; this.spawn(this.glow, x, y + 1, z, Math.cos(a) * 16, 0.5, Math.sin(a) * 16, [1.8, 1.3, 1.9], 0.4, 0.4, 0, 1); }
+          break;
+        case 'slam':
+          // a ring of dust rolling out over the road
+          for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; this.spawn(this.soft, x, y + 0.3, z, Math.cos(a) * 11, 0.6 + rnd(), Math.sin(a) * 11, DUST, 0.9, 0.7, 0, 2.2, 1.6); }
+          for (let i = 0; i < 16; i++) this.spawn(this.glow, x + sym(), y + 0.4, z + sym(), sym() * 3, 2 + rnd() * 3, sym() * 3, [1.8, 1.6, 1.2], 0.3, 0.4, 8, 1);
+          break;
+        case 'spring':
+          for (let i = 0; i < 12; i++) this.spawn(this.soft, x + sym() * 0.6, y + 0.2, z + sym() * 0.6, sym() * 3, rnd() * 1.2, sym() * 3, DUST, 0.6, 0.5, 0, 2, 1.4);
+          break;
+        case 'fizz':
+          // soda foam spraying out behind the kart
+          for (let i = 0; i < 30; i++) this.spawn(this.soft, x + sym() * 0.4, y + 0.8, z + sym() * 0.4, sym() * 2.5, 1.5 + rnd() * 3, sym() * 2.5, i % 4 ? WHITE : TEAL, 0.28, 0.7, 6, 1.2);
+          break;
       }
     }
   }

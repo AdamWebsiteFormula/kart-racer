@@ -11,6 +11,7 @@ import type { ItemRole } from './types.ts';
 const track = buildTrack(OVAL);
 const roles: Record<string, ItemRole> = {
   ball: 'forward', kite: 'homing', oil: 'rearDrop', decoy: 'deception', horn: 'defenceArea', bubble: 'defenceHeld', lolly: 'speed', fog: 'equaliser',
+  strike: 'ride', pogo: 'jump', anchor: 'tether', mouse: 'runner',
 };
 
 /** Another kart `ahead` metres along the heading (negative = behind), `side` metres to the right. */
@@ -29,6 +30,7 @@ function ctx(s: KartState, others: KartState[], gap = 0, threatened = false): It
 function settle(s: KartState, held: string, c: ItemContext, line = fakeLine(0)): boolean {
   const m = memory(PROFILES.hard);
   s.item.held = held;
+  s.item.charges = 1;
   decideItem(s, m, PROFILES.hard, line, c, SIM_DT); // notices the new item, starts the timer
   let r = false;
   for (let i = 0; i < 240; i++) { r = decideItem(s, m, PROFILES.hard, line, c, SIM_DT); if (r) break; }
@@ -67,6 +69,7 @@ describe('items', () => {
     expect(settle(s, 'decoy', ctx(s, [other(s, -40)]))).toBe(false);
     const m = memory(PROFILES.hard);
     s.item.held = 'oil';
+    s.item.charges = 1;
     const c = ctx(s, [other(s, -40)]);
     decideItem(s, m, PROFILES.hard, fakeLine(0), c, SIM_DT);
     let fired = false;
@@ -79,13 +82,63 @@ describe('items', () => {
     expect(settle(s, 'bubble', ctx(s, [other(s, 8)]))).toBe(false);
   });
 
-  it('speed items on a straight, off-road or far behind; equalisers at once', () => {
+  it('speed items on a straight, off-road or far behind; equalisers once far enough back', () => {
     const s = kartAt(track, 0.1);
     expect(settle(s, 'lolly', ctx(s, []), fakeLine(0))).toBe(true);
     expect(settle(s, 'lolly', ctx(s, []), fakeLine(0.8))).toBe(false);
     expect(settle(s, 'lolly', ctx(s, [], AI.items.speedItemGap + 1), fakeLine(0.8))).toBe(true);
     s.surface = 'mud';
     expect(settle(s, 'lolly', ctx(s, []), fakeLine(0.8))).toBe(true);
+    s.rank = 2;
+    expect(settle(s, 'fog', ctx(s, []), fakeLine(0.8))).toBe(false);
+    s.rank = AI.items.equaliserMinRank;
     expect(settle(s, 'fog', ctx(s, []), fakeLine(0.8))).toBe(true);
+  });
+
+  it('a tap is one tick down and one up; nothing is pressed while a power runs from the slot', () => {
+    const s = kartAt(track, 0.1);
+    const m = memory(PROFILES.hard);
+    s.item.held = 'lolly'; s.item.charges = 3;
+    const c = ctx(s, []);
+    decideItem(s, m, PROFILES.hard, fakeLine(0), c, SIM_DT);
+    const presses: boolean[] = [];
+    for (let i = 0; i < 240; i++) presses.push(decideItem(s, m, PROFILES.hard, fakeLine(0), c, SIM_DT));
+    const first = presses.indexOf(true);
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(presses[first + 1]).toBe(false);
+    expect(presses[first + 2]).toBe(true);
+    // a Strike Ball rolling: charges 0, the slot is busy
+    expect(settle(s, 'strike', ctx(s, []))).toBe(true);
+    s.item.charges = 0;
+    for (let i = 0; i < 120; i++) expect(decideItem(s, m, PROFILES.hard, fakeLine(0), c, SIM_DT)).toBe(false);
+  });
+
+  it('the new items: anchor a kart well ahead, send the Mouse at the pack, boing from a threat, slam onto a kart', () => {
+    const s = kartAt(track, 0.1);
+    expect(settle(s, 'anchor', ctx(s, [other(s, 25)]))).toBe(true);
+    expect(settle(s, 'anchor', ctx(s, [other(s, 4)]))).toBe(false);
+    expect(settle(s, 'anchor', ctx(s, [other(s, -25)]))).toBe(false);
+    expect(settle(s, 'mouse', ctx(s, [other(s, 40, 3)]))).toBe(true);
+    expect(settle(s, 'pogo', ctx(s, [other(s, -40)], 0, true))).toBe(true);
+    s.grounded = false;
+    expect(settle(s, 'pogo', ctx(s, [other(s, 2, 1)]))).toBe(true);
+    expect(settle(s, 'pogo', ctx(s, [other(s, 30)]))).toBe(false);
+    s.grounded = true;
+  });
+
+  it('keeps a ball behind as a shield while a shot homes in, and lets go once clear', () => {
+    const s = kartAt(track, 0.1);
+    const m = memory(PROFILES.hard);
+    s.item.held = 'ball'; s.item.charges = 1;
+    const chased = ctx(s, [other(s, -30)], 0, true);
+    decideItem(s, m, PROFILES.hard, fakeLine(0), chased, SIM_DT);
+    let held = 0;
+    for (let i = 0; i < 240; i++) if (decideItem(s, m, PROFILES.hard, fakeLine(0), chased, SIM_DT)) held++;
+    // a long hold (trailing), not a pulse
+    expect(held).toBeGreaterThan(100);
+    expect(m.itemTrailing).toBe(true);
+    // clear of the chaser: let go on the next tick
+    expect(decideItem(s, m, PROFILES.hard, fakeLine(0), ctx(s, [other(s, -60)]), SIM_DT)).toBe(false);
+    expect(m.itemTrailing).toBe(false);
   });
 });

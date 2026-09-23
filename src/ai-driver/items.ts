@@ -37,7 +37,8 @@ export function decideItem(s: KartState, m: AiMemory, profile: AiProfile, line: 
     m.reactionRemaining = held === 'none' ? 0 : range(m, profile.reactionMin, profile.reactionMax) * (1 - m.skill);
     return false;
   }
-  if (held === 'none' || s.item.rouletteRemaining > 0) { m.itemPressed = m.itemTrailing = false; return false; }
+  // nothing to press while the slot rolls, or while a power runs from it (a Strike Ball)
+  if (held === 'none' || s.item.rouletteRemaining > 0 || s.item.charges <= 0) { m.itemPressed = m.itemTrailing = false; return false; }
   m.itemHold += dt;
   if (m.reactionRemaining > 0) { m.reactionRemaining -= dt; return false; }
   const role = ctx.roles[held];
@@ -80,7 +81,7 @@ export function decideItem(s: KartState, m: AiMemory, profile: AiProfile, line: 
       break;
     case 'tether': want = aheadNear >= it.anchorMin && aheadNear <= it.anchorMax; break;
     case 'runner': want = aheadNear <= it.runnerRange; break;
-    case 'equaliser':
+    case 'equaliser': want = s.rank >= it.equaliserMinRank; break;
     case 'chaos': want = true; break;
   }
 

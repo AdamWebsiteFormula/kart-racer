@@ -6,7 +6,7 @@ import type { KartConstants } from './constants.ts';
 import { gripFor } from './constants.ts';
 import { cancelDrift, stepDrift } from './drift.ts';
 import { stepGround } from './ground.ts';
-import { isRiding, isTowed, rideAim, stepPilot } from './powers.ts';
+import { isRiding, isTowed, rideAim, stepPilot, towAim } from './powers.ts';
 import { stepSlipstream } from './slipstream.ts';
 import { stepSpeed, targetSpeed } from './speed.ts';
 import { stepSteer } from './steer.ts';
@@ -39,10 +39,11 @@ export function tickTimers(s: KartState, dt: number): void {
 }
 
 const scratchAim: Vec3 = [0, 0, 0];
+const towScratch: Vec3 = [0, 0, 0];
 
 /**
  * Steps 1–10 for one kart. Returns the events it raised. `towAim` is where a Grapple Anchor
- * pulls this kart (the hooked kart's position); stepKarts passes it.
+ * pulls this kart (beside the hooked kart, or down the road while it is far); stepKarts passes it.
  */
 export function stepKart(
   s: KartState, input: InputState, track: TrackQuery, c: KartConstants, dt: number, opts: StepOptions = {}, towAim?: Vec3,
@@ -91,7 +92,8 @@ export function stepKarts(
 ): KartEvent[][] {
   const events = karts.map((k, i) => {
     const to = k.status.towTarget;
-    return stepKart(k, inputs[i], track, consts[i], dt, opts, isTowed(k) && to < karts.length ? karts[to].position : undefined);
+    const aim = isTowed(k) && to < karts.length ? towAim(k, karts[to], track, consts[i], towScratch) : undefined;
+    return stepKart(k, inputs[i], track, consts[i], dt, opts, aim);
   });
   // 11. kart vs kart, every pair once
   for (let i = 0; i < karts.length; i++) {

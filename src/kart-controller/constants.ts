@@ -28,7 +28,7 @@ export interface KartBase {
   startBoostWindowSeconds: number; startBoostMultiplier: number; startBoostSeconds: number;
   bumpForce: number; hitSpinSeconds: number; hitCoinsLost: number;
   rideSpeedMultiplier: number; rideLookahead: number; rideMassBonus: number; rideRadius: number;
-  pilotTurnRate: number; pilotAccel: number; towSpeedMultiplier: number;
+  pilotTurnRate: number; pilotAccel: number; towSpeedMultiplier: number; towSideOffset: number; towFollowRoad: number;
   springLaunch: number; slamSpeed: number;
   speedClasses: Record<'50' | '100' | '150', number>;
 }

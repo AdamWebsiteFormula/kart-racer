@@ -8,7 +8,7 @@
   "properties": {
     "base": {
       "type": "object",
-      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "driftYawLag", "airSteer", "gripDrift", "bumpSeparateRate", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "wallDeflectRate", "groundCatch", "startBoostCentreSeconds", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier", "shieldMassBonus", "rideSpeedMultiplier", "rideLookahead", "rideMassBonus", "rideRadius", "pilotTurnRate", "pilotAccel", "towSpeedMultiplier", "springLaunch", "slamSpeed"],
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "driftYawLag", "airSteer", "gripDrift", "bumpSeparateRate", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "wallDeflectRate", "groundCatch", "startBoostCentreSeconds", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier", "shieldMassBonus", "rideSpeedMultiplier", "rideLookahead", "rideMassBonus", "rideRadius", "pilotTurnRate", "pilotAccel", "towSpeedMultiplier", "towSideOffset", "towFollowRoad", "springLaunch", "slamSpeed"],
       "properties": {
         "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
         "accel": { "type": "number", "default": 12 },
@@ -98,6 +98,8 @@
         "pilotTurnRate": { "type": "number", "description": "Autopilot (Strike Ball, Grapple Anchor): radians per second the heading may turn toward its aim", "default": 5 },
         "pilotAccel": { "type": "number", "description": "Autopilot: multiple of accel while it speeds up", "default": 3 },
         "towSpeedMultiplier": { "type": "number", "description": "Grapple Anchor: the reel-in speed as a multiple of top speed", "default": 1.4 },
+        "towSideOffset": { "type": "number", "description": "Grapple Anchor: the pull aims this far beside the hooked kart, so you draw level and pass instead of rear-ending it", "default": 2.2 },
+        "towFollowRoad": { "type": "number", "description": "Grapple Anchor: while the hooked kart is more than this far ahead along the road (m), the pull follows the road", "default": 20 },
         "springLaunch": { "type": "number", "description": "Pogo Spring: m/s straight up (about 3.8 m and 1.1 s of air at gravity 26)", "default": 14 },
         "slamSpeed": { "type": "number", "description": "Pogo Spring: m/s straight down on the slam", "default": 30 },
         "hitCoinsLost": { "type": "integer", "description": "Mario Kart World lowered this from 3 to 2 for every racer.", "default": 2 },
@@ -225,7 +227,8 @@
           "anchorMin": { "type": "number", "description": "Grapple Anchor: hook a kart ahead no closer than this (m), not worth it nearer", "default": 10 },
           "anchorMax": { "type": "number", "description": "Grapple Anchor: and no farther than this (m, under the item's 50 m reach)", "default": 45 },
           "runnerRange": { "type": "number", "description": "Wind-Up Mouse: send it when a kart is ahead within this (m)", "default": 60 },
-          "springRange": { "type": "number", "description": "Pogo Spring: boing when a kart ahead is this close (m), and slam when one is inside this under you", "default": 7 }
+          "springRange": { "type": "number", "description": "Pogo Spring: boing when a kart ahead is this close (m), and slam when one is inside this under you", "default": 7 },
+          "equaliserMinRank": { "type": "integer", "description": "The Fog Bank only works from this place back (item.schema minPosition); the AI waits until then", "default": 5 }
         } },
         "autopilot": { "type": "object", "description": "a finished kart keeps rolling out of the way", "properties": {
           "skill": { "type": "number", "default": 0.5 }, "power": { "type": "number", "default": 0.6 }

@@ -30,7 +30,8 @@ class SlotView {
     this.icon.set(s.itemId ? iconMarkup(s.itemId, this.size) : '');
     this.glyph.set(iconFor(s.itemId)?.glyph ?? '');
     this.charges.set(s.charges);
-    this.label.set(s.state === 'ready' ? `Item: ${s.label} ${s.charges}`.trim() : s.state === 'rolling' ? 'Item: rolling' : 'Item: empty');
+    this.label.set(s.state === 'ready' || s.state === 'trailing' ? `Item: ${s.label} ${s.charges}`.trim()
+      : s.state === 'active' ? `Item: ${s.label} running` : s.state === 'rolling' ? 'Item: rolling' : 'Item: empty');
   }
 }
 

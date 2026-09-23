@@ -3,7 +3,7 @@
 // rolling along the road, the Grapple Anchor reeling toward another kart) steer and hold speed
 // on their own.
 import type { KartConstants } from './constants.ts';
-import type { KartState, TrackQuery, Vec3 } from './types.ts';
+import { rightOf, type KartState, type TrackQuery, type Vec3 } from './types.ts';
 
 /** Strike Ball: rolling on autopilot; items, hazards and fog bounce off it. */
 export function isRiding(s: KartState): boolean { return s.status.rideRemaining > 0; }
@@ -20,6 +20,21 @@ export function rideAim(s: KartState, track: TrackQuery, c: KartConstants, out: 
   t -= Math.floor(t);
   const p = track.sample(t, 0, s.branch).position;
   out[0] = p[0]; out[1] = p[1]; out[2] = p[2];
+  return out;
+}
+
+/**
+ * The Grapple Anchor's aim: down the road while the hooked kart is far ahead, then a point
+ * `towSideOffset` beside it on the side you are already on, so you draw level and pass.
+ */
+export function towAim(s: KartState, o: KartState, track: TrackQuery, c: KartConstants, out: Vec3): Vec3 {
+  const ahead = (o.t - s.t) - Math.floor(o.t - s.t);
+  if (ahead * track.length > c.towFollowRoad) return rideAim(s, track, c, out);
+  const r = rightOf(o.heading);
+  const side = (s.position[0] - o.position[0]) * r[0] + (s.position[2] - o.position[2]) * r[2] >= 0 ? 1 : -1;
+  out[0] = o.position[0] + r[0] * side * c.towSideOffset;
+  out[1] = o.position[1];
+  out[2] = o.position[2] + r[2] * side * c.towSideOffset;
   return out;
 }
 
