@@ -1,11 +1,12 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TAGLINE, GAME_TITLE, UI } from '../constants.ts';
-import { SHAPE_PATHS } from '../icons.ts';
+import { iconMarkup, SHAPE_PATHS } from '../icons.ts';
 import type { CreditSection } from '../screens/credits.ts';
+import { CONTROLS, CREATURES, ITEM_LINES, TIPS } from '../data/howto.ts';
 import type { CupVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
-import { button, clear, h } from './dom.ts';
+import { button, clear, h, Markup } from './dom.ts';
 
 export interface ScreenView {
   readonly root: HTMLElement;
@@ -270,6 +271,57 @@ export class SettingsView implements ScreenView {
     const done = button(list, 'done');
     h('span', 'label', done, 'Done');
     this.buttons.set('done', done);
+  }
+}
+
+/** How to Play: controls, every item with its painted art, the course creatures, and tips. */
+export class HowToView implements ScreenView {
+  readonly root: HTMLElement;
+  readonly buttons = new Map<string, HTMLElement>();
+  constructor(parent: HTMLElement) {
+    this.root = h('section', 'screen overlay howto', parent);
+    this.root.setAttribute('role', 'dialog');
+    this.root.setAttribute('aria-modal', 'true');
+    this.root.setAttribute('aria-label', 'How to play');
+  }
+  render(items: readonly { id: string; name: string }[]): void {
+    clear(this.root);
+    this.buttons.clear();
+    h('div', 'dim', this.root);
+    const box = h('div', 'panel box', this.root);
+    h('h2', '', box, 'How to Play');
+    h('h3', '', box, 'Controls');
+    const t = h('table', 'controls', box);
+    const head = h('tr', '', t);
+    h('th', '', head, ''); h('th', '', head, 'Keyboard'); h('th', '', head, 'Gamepad');
+    for (const c of CONTROLS) {
+      const tr = h('tr', '', t);
+      h('td', '', tr, c.action); h('td', 'k', tr, c.keys); h('td', 'k', tr, c.pad);
+    }
+    h('h3', '', box, 'Items');
+    const grid = h('div', 'items', box);
+    for (const it of items) {
+      const card = h('div', 'item', grid);
+      const ic = h('span', 'ic', card);
+      new Markup(ic).set(iconMarkup(it.id, 52));
+      const txt = h('div', 'txt', card);
+      h('b', '', txt, it.name);
+      h('span', '', txt, ITEM_LINES[it.id] ?? '');
+    }
+    h('h3', '', box, 'Course creatures');
+    const cl = h('ul', 'creatures', box);
+    for (const c of CREATURES) {
+      const li = h('li', '', cl);
+      h('b', '', li, `${c.name} (${c.track}): `);
+      h('span', '', li, c.line);
+    }
+    h('h3', '', box, 'Tips');
+    const tl = h('ul', 'tips', box);
+    for (const tip of TIPS) h('li', '', tl, tip);
+    const back = button(box, 'back');
+    h('span', 'label', back, 'Back');
+    back.style.marginTop = '16px';
+    this.buttons.set('back', back);
   }
 }
 

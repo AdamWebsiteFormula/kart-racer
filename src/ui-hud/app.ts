@@ -22,6 +22,7 @@ export function reduce(s: AppState, a: AppAction): AppState {
       case 'back': case 'resume': return a.type === 'resume' ? { ...s, overlays: [] } : pop(s);
       case 'openSettings': return push(s, 'settings');
       case 'openCredits': return push(s, 'credits');
+      case 'openHowTo': return push(s, 'howTo');
       case 'restart': return s.screen === 'racing' ? { ...s, overlays: [] } : s;
       case 'quit': return { ...s, overlays: [], screen: 'modeSelect', seriesHasNext: false };
       default: return s;
@@ -51,6 +52,7 @@ export function reduce(s: AppState, a: AppAction): AppState {
     case 'pause': return s.screen === 'racing' ? push(s, 'pause') : s;
     case 'openSettings': return s.screen === 'title' || s.screen === 'modeSelect' ? push(s, 'settings') : s;
     case 'openCredits': return s.screen === 'title' ? push(s, 'credits') : s;
+    case 'openHowTo': return s.screen === 'title' ? push(s, 'howTo') : s;
     case 'back':
       switch (s.screen) {
         case 'modeSelect': return { ...s, screen: 'title' };

@@ -6,7 +6,7 @@ export type Screen =
   | 'boot' | 'title' | 'modeSelect' | 'rosterSelect' | 'cupSelect' | 'trackSelect'
   | 'racing' | 'results' | 'gpTable' | 'knockoutCut';
 
-export type Overlay = 'pause' | 'settings' | 'credits';
+export type Overlay = 'pause' | 'settings' | 'credits' | 'howTo';
 
 /** The six navigation actions every input maps onto. */
 export type NavAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back';
@@ -41,7 +41,8 @@ export type AppAction =
   | { type: 'restart' }
   | { type: 'quit' }
   | { type: 'openSettings' }
-  | { type: 'openCredits' };
+  | { type: 'openCredits' }
+  | { type: 'openHowTo' };
 
 /** A screen's focusable entries as rows of ids. Disabled ids are skipped by movement. */
 export interface FocusModel {

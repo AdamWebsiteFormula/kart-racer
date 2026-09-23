@@ -11,11 +11,12 @@ import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
 import { ITEM_ICONS, itemArt } from './icons.ts';
+import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
 import {
-  BootView, CreditsView, CupView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, type ScreenView,
+  BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, type ScreenView,
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
 import { adjustSetting, cupMenu, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type SettingId } from './screens/menus.ts';
@@ -88,7 +89,7 @@ export class UiRoot {
   private readonly backend: Backend | null;
   private readonly views: {
     boot: BootView; title: TitleView; modes: ListView; roster: RosterView; cups: CupView; tracks: TrackView; hud: HudView; results: ResultsView;
-    pause: OverlayMenuView; settings: SettingsView; credits: CreditsView;
+    pause: OverlayMenuView; settings: SettingsView; credits: CreditsView; howTo: HowToView;
   };
   private readonly models = new Map<string, FocusModel>();
   private readonly focusBy = new Map<string, string>();
@@ -118,7 +119,7 @@ export class UiRoot {
     this.views = {
       boot: new BootView(r), title: new TitleView(r), modes: new ListView(r, 'mode-screen', 'Pick a mode'),
       roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r),
-      pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r),
+      pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r), howTo: new HowToView(r),
     };
     for (const v of Object.values(this.views)) {
       v.root.addEventListener('pointerover', (e) => this.pointer(e, false));
@@ -346,15 +347,15 @@ export class UiRoot {
       if (id === 'done') this.dispatch({ type: 'back' }); else this.changeSetting(id as SettingId, 1);
       return;
     }
-    if (top === 'credits') { this.dispatch({ type: 'back' }); return; }
+    if (top === 'credits' || top === 'howTo') { this.dispatch({ type: 'back' }); return; }
     if (top === 'pause') {
-      const map: Record<string, AppAction> = { resume: { type: 'resume' }, restart: { type: 'restart' }, settings: { type: 'openSettings' }, credits: { type: 'openCredits' }, quit: { type: 'quit' } };
+      const map: Record<string, AppAction> = { resume: { type: 'resume' }, restart: { type: 'restart' }, howTo: { type: 'openHowTo' }, settings: { type: 'openSettings' }, credits: { type: 'openCredits' }, quit: { type: 'quit' } };
       if (map[id]) this.dispatch(map[id]);
       return;
     }
     switch (s.screen) {
       case 'title':
-        this.dispatch(id === 'settings' ? { type: 'openSettings' } : id === 'credits' ? { type: 'openCredits' } : { type: 'start' });
+        this.dispatch(id === 'settings' ? { type: 'openSettings' } : id === 'credits' ? { type: 'openCredits' } : id === 'howTo' ? { type: 'openHowTo' } : { type: 'start' });
         break;
       case 'modeSelect': this.dispatch({ type: 'pickMode', mode: id as RaceMode }); break;
       case 'rosterSelect': {
@@ -418,7 +419,7 @@ export class UiRoot {
       racing: v.hud, results: v.results, gpTable: v.results, knockoutCut: v.results,
     };
     const baseView = base[s.screen];
-    const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : null;
+    const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : top === 'howTo' ? v.howTo : null;
     for (const x of Object.values(v)) x.root.classList.toggle('on', x === baseView || x === overlayView);
     // a dialog on top makes everything under it unreachable, by Tab and by pointer
     for (const x of Object.values(v)) x.root.inert = overlayView !== null && x !== overlayView;
@@ -452,6 +453,7 @@ export class UiRoot {
       case 'pause': { const vm = pauseMenu(); v.pause.render(vm); this.models.set(key, vm.focus); break; }
       case 'settings': { const vm = settingsMenu(this.save.settings); v.settings.render(vm.rows); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
+      case 'howTo': { v.howTo.render(ITEM_DEFINITIONS); this.models.set(key, { rows: [['back']] }); break; }
       case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key); break;
       default: break;
     }

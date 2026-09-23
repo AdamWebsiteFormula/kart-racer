@@ -20,10 +20,11 @@ const grid = (rows: Entry[][]): FocusModel => ({
 export function titleMenu(): MenuVM {
   const entries: Entry[] = [
     { id: 'start', label: 'Race!' },
+    { id: 'howTo', label: 'How to Play' },
     { id: 'settings', label: 'Settings' },
     { id: 'credits', label: 'Credits' },
   ];
-  return { title: 'Kart Racer', entries, focus: grid([[entries[0]], [entries[1]], [entries[2]]]) };
+  return { title: 'Kart Racer', entries, focus: grid(entries.map((e) => [e])) };
 }
 
 export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = Object.freeze([
@@ -108,7 +109,7 @@ export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save
 
 export function pauseMenu(): MenuVM {
   const entries: Entry[] = [
-    { id: 'resume', label: 'Resume' }, { id: 'restart', label: 'Restart' },
+    { id: 'resume', label: 'Resume' }, { id: 'restart', label: 'Restart' }, { id: 'howTo', label: 'How to Play' },
     { id: 'settings', label: 'Settings' }, { id: 'credits', label: 'Credits' }, { id: 'quit', label: 'Quit race' },
   ];
   return { title: 'Paused', entries, focus: grid(entries.map((e) => [e])) };
