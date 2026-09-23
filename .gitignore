@@ -29,3 +29,6 @@ refs/
 # env
 .env
 .env.*
+
+# agent worktrees
+.claude/worktrees/
