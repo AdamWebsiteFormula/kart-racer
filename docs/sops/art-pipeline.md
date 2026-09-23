@@ -32,6 +32,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: **No imported kits.** Kenney and Quaternius needed downloads and Blender; modelling from primitives in code needs neither, has no licence to record, weighs nothing, and is not a text-to-3D mesh (the design's ban). The SOP's "every GLB under 2 MB / total under 12 MB" gates are moot: there are no GLBs.
 - 2026-09-23: Draw calls 102 → 56 in a race (karts 7 → 2 each). Triangles held near 340 k including the shadow pass: the 1,188 harbour bollards are six-sided with no outline (~60 triangles each); palms ~1,000 with ink; per-model budgets are in `art.test.ts`.
 - 2026-09-23: Track-builder change, the only one outside `src/art-pipeline`: `TrackAssets` gained `hulls`, `ink` and `gradientMap`; the scene uses a geometry's own vertex colours when it has them; decor, barrier and landmark hulls share their model's instance matrices; retiring a mesh never disposes the shared ink.
+- 2026-09-23: Decor for Meadow Run (windmill landmark, small windmills, oaks, fences, a red barn, hay-bale kerbs, rolling hay bales) and Canyon Rush (rock arch landmark, cacti, rocks, mesas, turquoise-banded kerbs, mine carts, falling rocks), plus the `canyon-dusk` sky, modelled ahead of the track files.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

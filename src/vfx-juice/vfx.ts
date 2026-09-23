@@ -9,6 +9,8 @@ import { Skids, SpeedLines } from './trails.ts';
 
 const CORAL: [number, number, number] = [1, 0.44, 0.38], SUN: [number, number, number] = [1, 0.82, 0.25];
 const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
+const CHARGE: readonly number[] = [1.1, 1.1, 1.2], FLAME_HOT: readonly number[] = [1.9, 1.5, 0.5], FLAME: readonly number[] = [1.8, 0.6, 0.15];
+const DUST_MUD: readonly number[] = [0.45, 0.33, 0.22], DUST_ICE: readonly number[] = [0.9, 0.95, 1], DUST: readonly number[] = [0.86, 0.77, 0.6];
 const CONFETTI = [CORAL, SUN, TEAL, WHITE, [0.7, 0.62, 0.86] as [number, number, number], [0.39, 0.71, 0.96] as [number, number, number]];
 
 /** Visual-only randomness (never touches the sim). */
@@ -30,6 +32,7 @@ export class Vfx {
   private readonly mem = new Map<string, KartMem>();
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
   readonly shake = { x: 0, y: 0, z: 0, roll: 0 };
+  private readonly spark: [number, number, number] = [0, 0, 0];
 
   constructor(scene: Scene, camera: Camera) {
     scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh);
@@ -41,6 +44,8 @@ export class Vfx {
   reset(): void {
     this.glow.clear(); this.soft.clear(); this.confetti.clear(); this.skids.clear(); this.mem.clear();
     this.trauma.value = 0;
+    this.time.reset(); // a restart mid hit-stop or slow-mo must not start frozen
+    this.kick.reset();
   }
 
   private spawn(pool: ParticlePool, x: number, y: number, z: number, vx: number, vy: number, vz: number, c: readonly number[], size: number, life: number, gravity = 0, drag = 0, grow = 0): void {
@@ -133,11 +138,11 @@ export class Vfx {
     // drift sparks from the rear wheels, coloured by tier; small white ones while charging
     if (drifting) {
       m.sparkAcc += dt * (k.drift.tier > 0 ? 70 : 18);
-      const col = k.drift.tier > 0 ? sparkColour(k.drift.tier, t) : [1.1, 1.1, 1.2];
+      const col = k.drift.tier > 0 ? sparkColour(k.drift.tier, t, this.spark) : CHARGE;
       while (m.sparkAcc >= 1) {
         m.sparkAcc -= 1;
-        const w = rnd() < 0.5 ? [lx, lz] : [rx, rz];
-        this.spawn(this.glow, w[0], py + 0.12, w[1], -s * 3 + sym() * 2.5 - c * k.drift.direction * 2, 1.5 + rnd() * 3, -c * 3 + sym() * 2.5 + s * k.drift.direction * 2, col, k.drift.tier > 0 ? 0.2 : 0.12, 0.3 + rnd() * 0.15, 9);
+        const left = rnd() < 0.5;
+        this.spawn(this.glow, left ? lx : rx, py + 0.12, left ? lz : rz, -s * 3 + sym() * 2.5 - c * k.drift.direction * 2, 1.5 + rnd() * 3, -c * 3 + sym() * 2.5 + s * k.drift.direction * 2, col, k.drift.tier > 0 ? 0.2 : 0.12, 0.3 + rnd() * 0.15, 9);
       }
     } else m.sparkAcc = 0;
 
@@ -147,14 +152,14 @@ export class Vfx {
       while (m.flameAcc >= 1) {
         m.flameAcc -= 1;
         const hot = rnd() < 0.4;
-        this.spawn(this.glow, bx + sym() * 0.2, py + 0.45 + sym() * 0.1, bz + sym() * 0.2, -s * (4 + rnd() * 3), 0.6, -c * (4 + rnd() * 3), hot ? [1.9, 1.5, 0.5] : [1.8, 0.6, 0.15], 0.4, 0.22, 0, 1, 1.4);
+        this.spawn(this.glow, bx + sym() * 0.2, py + 0.45 + sym() * 0.1, bz + sym() * 0.2, -s * (4 + rnd() * 3), 0.6, -c * (4 + rnd() * 3), hot ? FLAME_HOT : FLAME, 0.4, 0.22, 0, 1, 1.4);
       }
     } else m.flameAcc = 0;
 
     // off-road dust
     if (k.grounded && (k.surface === 'dirt' || k.surface === 'mud' || k.surface === 'ice') && Math.abs(k.speed) > 4) {
       m.dustAcc += dt * 20;
-      const col = k.surface === 'mud' ? [0.45, 0.33, 0.22] : k.surface === 'ice' ? [0.9, 0.95, 1] : [0.86, 0.77, 0.6];
+      const col = k.surface === 'mud' ? DUST_MUD : k.surface === 'ice' ? DUST_ICE : DUST;
       while (m.dustAcc >= 1) {
         m.dustAcc -= 1;
         this.spawn(this.soft, bx + sym() * 0.5, py + 0.2, bz + sym() * 0.5, -s * 1.5 + sym(), 0.8 + rnd(), -c * 1.5 + sym(), col, 0.55, 0.6, 0, 1.5, 1.6);

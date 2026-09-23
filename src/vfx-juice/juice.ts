@@ -48,6 +48,7 @@ export class CameraKick {
   private hitAt = -Infinity;
   boost(t: number): void { this.boostAt = t; }
   hit(t: number): void { this.hitAt = t; }
+  reset(): void { this.boostAt = -Infinity; this.hitAt = -Infinity; }
   /** Extra FOV degrees at time `t`. */
   fov(t: number, reduced = false): number {
     let f = 0;
@@ -74,6 +75,7 @@ export class TimeScale {
   private slowUntil = -Infinity;
   hitStop(now: number): void { this.stopUntil = Math.max(this.stopUntil, now + JUICE.hitStopSeconds); }
   slowMo(now: number): void { this.slowUntil = now + JUICE.slowMoSeconds; }
+  reset(): void { this.stopUntil = -Infinity; this.slowUntil = -Infinity; }
   /** Multiplier on the real frame time fed to the fixed-step accumulator. */
   scale(now: number, reduced = false): number {
     if (reduced) return 1;
@@ -157,10 +159,11 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
 }
 
 /** Spark colour per drift tier (research §7.2: blue → orange → rainbow). `t` cycles the rainbow. */
-export function sparkColour(tier: number, t: number): [number, number, number] {
-  if (tier <= 1) return [0.3, 0.75, 1.6];
-  if (tier === 2) return [1.8, 0.8, 0.2];
+export function sparkColour(tier: number, t: number, out: [number, number, number] = [0, 0, 0]): [number, number, number] {
+  if (tier <= 1) { out[0] = 0.3; out[1] = 0.75; out[2] = 1.6; return out; }
+  if (tier === 2) { out[0] = 1.8; out[1] = 0.8; out[2] = 0.2; return out; }
   const h = (t * 3) % 1;
   const k = (n: number) => { const x = (n + h * 6) % 6; return Math.max(0, Math.min(1, Math.abs(x - 3) - 1)); };
-  return [k(5) * 1.8, k(3) * 1.8, k(1) * 1.8];
+  out[0] = k(5) * 1.8; out[1] = k(3) * 1.8; out[2] = k(1) * 1.8;
+  return out;
 }

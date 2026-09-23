@@ -10,6 +10,7 @@ export const SKIES: Readonly<Record<string, SkyPreset>> = Object.freeze({
   'meadow-day': { top: '#6ec3f0', horizon: '#f4fbe0', ground: '#d8efc2', sun: '#fff7cf' },
   'meadow-storm': { top: '#4b5566', horizon: '#9aa6b2', ground: '#7d8a80', sun: '#c7d0d8' },
   'canyon-day': { top: '#58a6e0', horizon: '#ffd9a8', ground: '#e8b38a', sun: '#fff0c2' },
+  'canyon-dusk': { top: '#3b3a7a', horizon: '#ff9a5a', ground: '#c8553d', sun: '#ffd27a' },
   'frost-day': { top: '#8fc9f0', horizon: '#f2f8ff', ground: '#e3eef7', sun: '#ffffff' },
   'boardwalk-night': { top: '#0b0b33', horizon: '#5a1f6e', ground: '#1a1440', sun: '#ff2e97' },
   'skyline-dawn': { top: '#f59e8b', horizon: '#ffe3b3', ground: '#ffd0a8', sun: '#fff1c1' },

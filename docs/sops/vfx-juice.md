@@ -43,6 +43,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Checklist status (plan §7.2): 1 sparks 3 tiers ✓ (rumble later); 2 boost flame, bloom, FOV kick, chromatic, speed lines ✓; 3 trauma shake with sub-degree roll ✓; 4 drift roll ✓ (spring camera was already there); 5 tyre marks fading 10 s ✓; 6 off-road dust ✓ (idle exhaust not done); 7 hit-stop 75 ms, FOV −5°, hit stars ✓ (squash-stretch and dizzy stars not done); 8 balloon pop shards ✓; 9 position flourish ✓ (ui-hud); 10 final-lap banner ✓ (ui-hud); 11 confetti and 0.3× slow-mo ✓ (camera orbit not done); 12 idle life not done (merged meshes).
 - 2026-09-23: The time scale changes how many fixed ticks run per real second, never the tick itself, so hit-stop and slow-mo keep the sim deterministic.
 - 2026-09-23: Measured: 71 draw calls for a whole frame with the shadow pass and the post chain (`renderer.info.autoReset` off so the count covers every pass). The SOP's 12 ms stress-scene gate still needs a visible browser; the test pane is hidden and throttled to about 1 fps.
+- 2026-09-23: Critique (Codex `gpt-5.5`), both accepted: `Vfx.reset()` now also clears the time scale and camera kicks, so a restart mid hit-stop or slow-mo never starts frozen; emitters reuse constant colour tuples and a scratch spark colour instead of per-particle arrays.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

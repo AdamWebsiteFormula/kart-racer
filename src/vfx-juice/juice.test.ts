@@ -55,6 +55,8 @@ describe('time scale', () => {
     expect(ts.scale(7.01)).toBe(1);
     ts.hitStop(8);
     expect(ts.scale(8.01, true)).toBe(1);
+    ts.reset(); // a new race never inherits a freeze
+    expect(ts.scale(8.01)).toBe(1);
   });
 });
 
@@ -88,5 +90,7 @@ describe('fx director', () => {
     expect(sparkColour(1, 0)[2]).toBeGreaterThan(1);
     expect(sparkColour(2, 0)[0]).toBeGreaterThan(1);
     expect(sparkColour(3, 0)).not.toEqual(sparkColour(3, 0.1));
+    const out: [number, number, number] = [0, 0, 0];
+    expect(sparkColour(2, 0, out)).toBe(out); // writes into the caller's array: no garbage per spark
   });
 });
