@@ -8,6 +8,26 @@ export const BOARD_MODES: readonly BoardMode[] = ['timeTrial', 'daily'];
 export const CLIENT_VERSION = '1';
 export const MAX_LOG_BYTES = 256 * 1024;
 export const MIN_TIME_MS = 30_000;
+/** Yesterday's Daily still takes posts this long after midnight UTC (a race started just before). */
+export const DAILY_GRACE_MINUTES = 15;
+
+/** Minutes since midnight UTC. */
+export const minutesIntoUtcDay = (d = new Date()): number => d.getUTCHours() * 60 + d.getUTCMinutes();
+
+/**
+ * The rate limit's key for an address: IPv4 as it is, IPv6 by its /64 (one home or phone owns a
+ * whole /64, so counting single addresses would let it rotate past the limit).
+ */
+export function ipBucket(ip: string): string {
+  const a = ip.trim().toLowerCase();
+  if (!a.includes(':')) return a;
+  if (a.includes('.')) return a.slice(a.lastIndexOf(':') + 1); // IPv4-mapped (::ffff:1.2.3.4)
+  const [head, tail] = a.split('::');
+  const h = head ? head.split(':') : [];
+  const t = tail ? tail.split(':') : [];
+  const groups = a.includes('::') ? [...h, ...Array<string>(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : a.split(':');
+  return `${groups.slice(0, 4).map((g) => (parseInt(g || '0', 16) || 0).toString(16)).join(':')}::/64`;
+}
 
 export interface Submission {
   name: string;
@@ -57,7 +77,7 @@ export function cleanName(name: string): boolean {
 }
 
 /** Field checks. Returns the first problem, or null when the payload is well formed. */
-export function checkSubmission(p: unknown, trackIds: readonly string[], today = dailySeed()): string | null {
+export function checkSubmission(p: unknown, trackIds: readonly string[], today = dailySeed(), minutesIntoDay = minutesIntoUtcDay()): string | null {
   if (!p || typeof p !== 'object') return 'payload must be an object';
   const s = p as Record<string, unknown>;
   if (typeof s.name !== 'string' || !/^[A-Za-z0-9 _-]{1,16}$/.test(s.name) || !s.name.trim()) return 'name must be 1–16 letters, digits, spaces, _ or -';
@@ -70,8 +90,9 @@ export function checkSubmission(p: unknown, trackIds: readonly string[], today =
   if (typeof s.inputLog !== 'string' || s.inputLog.length === 0 || s.inputLog.length > MAX_LOG_BYTES) return 'input log missing or too large';
   if (s.clientVersion !== CLIENT_VERSION) return 'please reload the game: new version';
   if (s.mode === 'daily') {
-    // today or yesterday (a race that started just before midnight UTC still counts)
-    if (!Number.isInteger(s.dailySeed) || (s.dailySeed !== today && s.dailySeed !== prevDay(today))) return 'that daily challenge is closed';
+    // today, or yesterday in the first minutes after midnight UTC (a race started just before)
+    const lateOk = s.dailySeed === prevDay(today) && minutesIntoDay < DAILY_GRACE_MINUTES;
+    if (!Number.isInteger(s.dailySeed) || (s.dailySeed !== today && !lateOk)) return 'that daily challenge is closed';
     if (s.trackId !== dailyTrack(s.dailySeed as number, trackIds)) return 'wrong track for that day';
   }
   return null;

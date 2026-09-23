@@ -2,7 +2,7 @@
 // Everything the function needs from the game: tracks, the rules, and the re-simulation.
 import type { TrackDefinition } from '../track-builder/types.ts';
 
-export { checkSubmission, dailySeed, CLIENT_VERSION, MAX_LOG_BYTES } from './rules.ts';
+export { checkSubmission, dailySeed, ipBucket, CLIENT_VERSION, MAX_LOG_BYTES } from './rules.ts';
 export { verifyRun, CLAIM_TOLERANCE_MS } from './verify.ts';
 
 const FILES = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;

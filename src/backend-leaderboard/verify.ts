@@ -7,7 +7,7 @@ import { RaceManager } from '../race-manager/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { simTick } from '../game/simtick.ts';
-import { decodeLog } from './inputlog.ts';
+import { decodeLog, encodeLog } from './inputlog.ts';
 import { soloConfig, type BoardMode } from './rules.ts';
 
 export interface Replay { finished: boolean; timeMs: number; lapTimesMs: number[]; ticks: number }
@@ -29,7 +29,7 @@ export function replay(def: TrackDefinition, mode: BoardMode, racerId: string, s
   return { finished, timeMs: finished ? row.timeMs : -1, lapTimesMs: finished ? row.lapTimesMs : [], ticks: t };
 }
 
-export type Verdict = { ok: true; timeMs: number; lapTimesMs: number[] } | { ok: false; reason: string };
+export type Verdict = { ok: true; timeMs: number; lapTimesMs: number[]; canonicalLog: string } | { ok: false; reason: string };
 
 /**
  * How far the claim may be from the replay. The replay is the truth and is what gets stored, so
@@ -45,5 +45,8 @@ export function verifyRun(def: TrackDefinition, mode: BoardMode, racerId: string
   const r = replay(def, mode, racerId, seed, log);
   if (!r.finished) return { ok: false, reason: 'the replay never reached the finish line' };
   if (Math.abs(r.timeMs - claimedMs) > CLAIM_TOLERANCE_MS) return { ok: false, reason: `claimed ${claimedMs} ms but the replay finished in ${r.timeMs} ms` };
-  return { ok: true, timeMs: r.timeMs, lapTimesMs: r.lapTimesMs };
+  // the run as stored: cut at the finish and the horn cleared (the one button the sim never
+  // reads), so the same drive is always the same string and a copy cannot be posted twice
+  const canonical = log.slice(0, r.ticks).map((i) => (i.horn ? { ...i, horn: false } : i));
+  return { ok: true, timeMs: r.timeMs, lapTimesMs: r.lapTimesMs, canonicalLog: encodeLog(canonical) };
 }

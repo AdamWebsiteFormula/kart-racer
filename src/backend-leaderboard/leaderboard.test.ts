@@ -8,7 +8,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { simTick } from '../game/simtick.ts';
 import { decodeLog, encodeLog, quantize } from './inputlog.ts';
-import { CLIENT_VERSION, checkSubmission, cleanName, dailySeed, dailyTrack, soloConfig, type BoardMode } from './rules.ts';
+import { CLIENT_VERSION, checkSubmission, cleanName, DAILY_GRACE_MINUTES, dailySeed, dailyTrack, ipBucket, soloConfig, type BoardMode } from './rules.ts';
 import { CLAIM_TOLERANCE_MS, verifyRun } from './verify.ts';
 
 const TRACKS = Object.fromEntries(Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>).map((d) => [d.id, d]));
@@ -68,14 +68,15 @@ describe('submission rules', () => {
       { timeMs: 29999 }, { timeMs: 95000.5 }, { inputLog: '' }, { clientVersion: '0' },
     ]) expect(checkSubmission({ ...good, ...bad }, IDS), JSON.stringify(bad)).not.toBeNull();
   });
-  it('daily runs must be today (or yesterday, over midnight) on the day\'s track', () => {
+  it('daily runs must be today (or yesterday in the first minutes after midnight) on the day\'s track', () => {
     const seed = dailySeed(new Date(Date.UTC(2026, 8, 30, 12)));
     expect(seed).toBe(20260930);
     const track = dailyTrack(seed, IDS);
     const d = { ...good, mode: 'daily', dailySeed: seed, trackId: track };
     expect(checkSubmission(d, IDS, seed)).toBeNull();
-    expect(checkSubmission(d, IDS, 20261001)).toBeNull(); // yesterday still counts
-    expect(checkSubmission(d, IDS, 20261003)).not.toBeNull();
+    expect(checkSubmission(d, IDS, 20261001, 5)).toBeNull(); // yesterday, five minutes after midnight UTC
+    expect(checkSubmission(d, IDS, 20261001, DAILY_GRACE_MINUTES)).not.toBeNull(); // closed after the grace
+    expect(checkSubmission(d, IDS, 20261003, 0)).not.toBeNull();
     expect(checkSubmission({ ...d, trackId: IDS.find((x) => x !== track) }, IDS, seed)).not.toBeNull();
     expect(dailyTrack(seed, [...IDS].reverse())).toBe(track); // order-proof
   });
@@ -92,7 +93,7 @@ describe('re-simulation (SOP gate)', () => {
   it('a real run replays to exactly the same time', () => {
     expect(run.result.dnf).toBe(false);
     const v = verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, log, run.result.timeMs);
-    expect(v).toEqual({ ok: true, timeMs: run.result.timeMs, lapTimesMs: run.result.lapTimesMs });
+    expect(v).toMatchObject({ ok: true, timeMs: run.result.timeMs, lapTimesMs: run.result.lapTimesMs });
   });
   it('a forged time is rejected, and a near miss is stored as the replay time, never the claim', () => {
     for (const forged of [run.result.timeMs - 1500, run.result.timeMs - 5000, 30000]) {
@@ -116,5 +117,37 @@ describe('re-simulation (SOP gate)', () => {
     const track = dailyTrack(seed, IDS);
     const d = clientRun(track, 'daily', 'otto', seed);
     expect(verifyRun(TRACKS[track], 'daily', 'otto', seed, encodeLog(d.log), d.result.timeMs)).toMatchObject({ ok: true });
+  });
+});
+
+describe('red-team hardening (2026-09-23)', () => {
+  const run = clientRun('harbour-loop', 'timeTrial', 'pip', 0);
+  const verify = (log: string) => verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'pip', 0, log, run.result.timeMs);
+
+  it('the stored log is canonical: padding after the finish and horn presses make no new run', () => {
+    const base = verify(encodeLog(run.log));
+    if (!base.ok) throw new Error(base.reason);
+    // junk after the finish line
+    const padded = verify(encodeLog([...run.log, ...Array.from({ length: 500 }, () => ({ ...run.log[0], steer: 0.5, horn: true }))]));
+    // the horn honked all race
+    const honking = verify(encodeLog(run.log.map((i) => ({ ...i, horn: true }))));
+    expect(padded.ok && honking.ok).toBe(true);
+    if (padded.ok && honking.ok) {
+      expect(padded.canonicalLog).toBe(base.canonicalLog);
+      expect(honking.canonicalLog).toBe(base.canonicalLog);
+    }
+    // and the canonical log itself replays to the same time
+    const again = verify(base.canonicalLog);
+    expect(again).toMatchObject({ ok: true, timeMs: base.timeMs });
+  });
+
+  it('IPv6 counts by its /64, IPv4 and mapped IPv4 as they are', () => {
+    expect(ipBucket('203.0.113.9')).toBe('203.0.113.9');
+    expect(ipBucket('::ffff:203.0.113.9')).toBe('203.0.113.9');
+    const a = ipBucket('2001:db8:85a3:1234:aaaa:bbbb:cccc:1');
+    expect(a).toBe('2001:db8:85a3:1234::/64');
+    expect(ipBucket('2001:0db8:85a3:1234::ffff')).toBe(a); // same /64, other host, zero-padded
+    expect(ipBucket('2001:db8:85a3::1')).toBe('2001:db8:85a3:0::/64');
+    expect(ipBucket('2001:db8:85a3:1235::1')).not.toBe(a);
   });
 });
