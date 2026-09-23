@@ -11,6 +11,7 @@ import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from '
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
+import { dprCap, Governor } from './performance/governor.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
@@ -66,11 +67,17 @@ let camSpeed = 0;
 let orbit = 0;
 
 let settings: Settings | null = null;
+// quality Auto: the governor trades resolution, then shadows and post, to hold 55+ fps
+const coarse = matchMedia('(pointer: coarse)').matches;
+const governor = new Governor(dprCap(devicePixelRatio, coarse));
+let governing = false;
+const autoQuality = () => (settings?.quality ?? 'auto') === 'auto';
 function applyRender(): void {
-  const scale = settings?.resolutionScale ?? 1;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * scale);
-  renderer.shadowMap.enabled = settings?.quality !== 'low';
-  post?.setEnabled(settings?.quality !== 'low');
+  const auto = autoQuality();
+  const low = settings?.quality === 'low' || (auto && governor.low);
+  renderer.setPixelRatio(dprCap(devicePixelRatio, coarse) * (settings?.resolutionScale ?? 1) * (auto ? governor.scale : 1));
+  renderer.shadowMap.enabled = !low;
+  post?.setEnabled(!low);
   resize();
 }
 function resize(): void {
@@ -119,6 +126,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
   if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id);
+  if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
@@ -167,7 +175,7 @@ const host: UiHost = {
   setPaused(p) {
     if (!p) acc.reset();
   },
-  settingsChanged(s) { settings = s; applyRender(); audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume }); },
+  settingsChanged(s) { settings = s; governor.reset(performance.now() / 1000); applyRender(); audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume }); },
   uiSound(kind) { audio.ui(kind); },
   screenChanged(app) {
     // leaving the race screens for the menus brings the attract race back
@@ -262,7 +270,8 @@ function frame(now: number): void {
   frames++;
   requestAnimationFrame(frame);
   renderer.info.reset();
-  const frameDt = Math.min(0.25, (now - last) / 1000);
+  const rawMs = now - last;
+  const frameDt = Math.min(0.25, rawMs / 1000);
   last = now;
   ui.poll(now);
   const s = session;
@@ -271,6 +280,11 @@ function frame(now: number): void {
   const racing = !attract && ui.app.screen === 'racing';
   const reduced = ui.reducedMotion;
   const nowS = now / 1000;
+  // measure only live play; after a pause or a hidden tab, warm up again before judging
+  const measuring = autoQuality() && !ui.paused && !document.hidden;
+  if (measuring && !governing) governor.reset(nowS);
+  governing = measuring;
+  if (measuring && governor.sample(rawMs, nowS)) applyRender();
   let simDt = 0;
   if (!ui.paused && !document.hidden) {
     const steps = acc.steps(frameDt * vfx.time.scale(nowS, reduced));
@@ -328,9 +342,9 @@ requestAnimationFrame(frame);
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
-    get session() { return session; }, ui, audio, vfx, post, renderer,
+    get session() { return session; }, ui, audio, vfx, post, renderer, governor,
     /** dev: jump straight into a quick race on any track */
     race: (trackId: string, racerId = 'pip') => { ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId }); load({ ...configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] }) }, false); }, camera, scene, acc,
-    stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables() }),
+    stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
   };
 }
