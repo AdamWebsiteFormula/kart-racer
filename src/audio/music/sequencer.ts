@@ -48,7 +48,9 @@ export class Sequencer {
   lift(now: number): void {
     if (this.lifted) return;
     this.lifted = true;
-    const bar = Math.ceil(Math.max(this.beatAt(now), this.booked) / 4) * 4;
+    // the next bar line after the event itself; notes already booked past it keep their old
+    // pitch (at most the scheduler lookahead), which beats landing a whole bar late
+    const bar = Math.ceil(this.beatAt(now) / 4) * 4;
     this.pre = { time: this.anchorTime, beat: this.anchorBeat, bpm: this.bpm };
     this.anchorTime = this.timeOfBeat(bar);
     this.anchorBeat = bar;

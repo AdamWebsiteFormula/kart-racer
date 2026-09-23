@@ -14,6 +14,8 @@ export const AUDIO = Object.freeze({
   nearMetres: 12,
   farMetres: 45,
   farGain: 0.35,
+  /** other racers are never as loud as the player: their near level */
+  otherGain: 0.6,
   /** pitch variation on repeated sfx (±) */
   pitchJitter: 0.03,
   /** engine: fake gearbox */

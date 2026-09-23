@@ -97,6 +97,13 @@ describe('sequencer', () => {
     // and beats after the bar line are closer together
     expect(seq.timeOfBeat(9) - seq.timeOfBeat(8)).toBeCloseTo(beat / AUDIO.liftTempo);
     expect(seq.timeOfBeat(3) - seq.timeOfBeat(2)).toBeCloseTo(beat);
+    // an event just before a bar line whose next bar is already booked still lifts on that bar
+    const s2 = new Sequencer(song, 0);
+    s2.take(beat * 4.1); // lookahead has booked into bar 2
+    s2.lift(beat * 3.95);
+    expect(s2.timeOfBeat(9) - s2.timeOfBeat(8)).toBeCloseTo(beat / AUDIO.liftTempo);
+    expect(s2.take(beat * 8).find((n) => n.voice === 'bass' && Math.abs(n.time - s2.timeOfBeat(5)) < 1e-6)?.pitch)
+      .toBe(song.parts.find((p) => p.voice === 'bass')!.notes.find((n) => n.at === 5)!.pitch + AUDIO.liftSemitones);
     seq.lift(beat * 20); // once only
     expect(seq.timeOfBeat(9) - seq.timeOfBeat(8)).toBeCloseTo(beat / AUDIO.liftTempo);
   });
@@ -144,7 +151,8 @@ describe('director', () => {
     const hit = (id: string) => ({ type: 'hit' as const, racerId: id, byRacerId: 'x', itemId: 'beachBall', spun: true, coinsLost: 0 });
     const { cues, music } = direct([], [hit('p'), hit('n'), hit('m'), hit('f'), { type: 'itemUsed', racerId: 'p', itemId: 'rocketLolly', chargesLeft: 2 }], l);
     expect(cues.map((c) => c.sfx)).toEqual(['spin', 'spin', 'spin', 'rocket']);
-    expect(cues[1].gain).toBe(1);
+    expect(cues[0].gain).toBe(1); // the player's own hit
+    expect(cues[1].gain).toBe(AUDIO.otherGain); // a near opponent: quieter than the player
     expect(cues[2].gain).toBeLessThan(AUDIO.farGain);
     expect(cues[1].pan).toBeLessThan(-0.5); // facing +z, world +x is on the left of the screen
     expect(music).toEqual([{ type: 'duck' }]);

@@ -69,6 +69,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: The ear sits on the camera. Pan uses the screen's right (forward × up), because with a camera looking along +z world +x is on the left of the screen.
 - 2026-09-23: Menus play `title`; a race plays its cup song with the drums held until `go`; the results screen plays `results`. Other racers' hops and drifts are silent; their walls, bumps, hits, balloons and item uses are heard when within 45 m.
 - 2026-09-23: Checked by rendering offline in the browser: every song peaks 0.43–0.52 with RMS 0.10–0.14 after the bus, every SFX peaks 0.06–0.67. Nothing clips; nothing is silent. The SOP's manual gate (hear it in Safari and Chrome) is still Adam's.
+- 2026-09-23: Critique (Codex `gpt-5.5`), all four accepted: the scheduler starts on the context's `statechange` to running, so the first gesture is enough; the final-lap lift lands on the next bar after the event even when the lookahead already booked into it; other racers peak at `otherGain` 0.6 of the player's level; no destructuring swaps in the per-frame engine sort.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

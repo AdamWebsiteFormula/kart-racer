@@ -32,7 +32,7 @@ function spatial(l: Listener, racerId: string): { gain: number; pan: number } {
   // screen right for a camera looking along forward (sin h, 0, cos h) is forward × up =
   // (−cos h, 0, sin h); at heading 0 world +x is on the LEFT of the screen
   const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
-  return { gain: distanceGain(d), pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 };
+  return { gain: AUDIO.otherGain * distanceGain(d), pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 };
 }
 
 const ITEM_USE: Readonly<Record<string, SfxId>> = Object.freeze({

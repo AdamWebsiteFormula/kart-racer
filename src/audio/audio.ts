@@ -27,10 +27,20 @@ export class GameAudio {
   private ai: EngineVoice[] = [];
   private jitter = 0x9e3779b9;
   private lastHorn = false;
+  private watching = false;
 
   constructor(bus = new AudioBus()) {
     this.bus = bus;
-    const unlock = () => { if (this.bus.unlock()) this.start(); };
+    const unlock = () => {
+      if (this.bus.unlock()) { this.start(); return; }
+      // resume() settles asynchronously: start the scheduler the moment the context runs,
+      // so the very first gesture is enough (Safari and Chrome)
+      const c = this.bus.ctx;
+      if (c && !this.watching) {
+        this.watching = true;
+        c.addEventListener?.('statechange', () => { if (c.state === 'running') this.start(); });
+      }
+    };
     for (const ev of ['pointerdown', 'keydown', 'touchend']) addEventListener(ev, unlock, { passive: true });
     addEventListener('visibilitychange', () => this.bus.setHidden(document.hidden));
   }
@@ -182,8 +192,8 @@ export class GameAudio {
       near[i] = k;
       // bubble it into place by distance
       while (i > 0 && this.nearD[i - 1] > this.nearD[i]) {
-        [this.nearD[i - 1], this.nearD[i]] = [this.nearD[i], this.nearD[i - 1]];
-        [near[i - 1], near[i]] = [near[i], near[i - 1]];
+        const td = this.nearD[i - 1]; this.nearD[i - 1] = this.nearD[i]; this.nearD[i] = td;
+        const tk = near[i - 1]; near[i - 1] = near[i]; near[i] = tk;
         i--;
       }
     }
