@@ -1,6 +1,7 @@
-// The coast of a sea track (Harbor Loop, Boardwalk Nights): land that follows the road out past
-// the roadside decor band and then slopes under the sea, so houses, palms, stalls and lamps stand
-// on solid ground instead of in the water. One heightfield over the track's box: every vertex
+// The land around a track: on a sea track (Harbor Loop, Boardwalk Nights) the coast, and on a land
+// track the hills, mesas and mountainsides under every raised road. It follows the road out past
+// the roadside decor band and then falls to the sea or the ground plane, so houses, palms, stalls,
+// lamps, cacti and pines stand on solid ground and no road floats in the air. One heightfield over the track's box: every vertex
 // takes the height of the nearest road sample (any branch) and falls away past the flat band. The
 // coastline is where that slope meets the water plane, so it is smooth even on a coarse grid.
 // Attributes: world-space `uv` (metres), `blend` 0 on the flat top → 1 on the slope (the material
@@ -19,7 +20,14 @@ export interface CoastOptions {
   slope: number;
   /** grid cell, metres */
   cell: number;
+  /** a sea: the sand darkens toward the waterline */
+  wet?: boolean;
+  /** rock strata: bands of colour down the slope (canyon cliffs) */
+  strata?: boolean;
 }
+
+/** Strata tints (multiplied over the texture), bottom to top, one band per 2.4 m. */
+const STRATA: readonly (readonly [number, number, number])[] = [[1.08, 0.98, 0.88], [0.8, 0.5, 0.38], [1, 0.78, 0.62], [0.72, 0.44, 0.34], [1.05, 0.9, 0.76], [0.88, 0.6, 0.46]];
 
 /** Below the sea by this much the slope stops: nothing there shows. */
 const UNDER = 1.2;
@@ -83,9 +91,15 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
       pos[v * 3] = x; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z;
       uv[v * 2] = x; uv[v * 2 + 1] = z;
       blend[v] = mix;
-      // wet sand darkens toward the waterline
-      const c = 1 - Math.max(0, Math.min(1, 1 - (y - o.waterY) / 0.8)) * 0.3;
-      col[v * 3] = c; col[v * 3 + 1] = c; col[v * 3 + 2] = c;
+      // wet sand darkens toward the waterline; a cliff shows its rock bands
+      let r = 1, gg = 1, bb = 1;
+      if (o.wet) { const c = 1 - Math.max(0, Math.min(1, 1 - (y - o.waterY) / 0.8)) * 0.3; r = gg = bb = c; }
+      if (o.strata && mix > 0.2) {
+        const band = STRATA[((Math.floor((y - o.waterY) / 2.4) % STRATA.length) + STRATA.length) % STRATA.length];
+        const k = Math.min(1, (mix - 0.2) / 0.5);
+        r *= 1 + (band[0] - 1) * k; gg *= 1 + (band[1] - 1) * k; bb *= 1 + (band[2] - 1) * k;
+      }
+      col[v * 3] = r; col[v * 3 + 1] = gg; col[v * 3 + 2] = bb;
     }
   }
 

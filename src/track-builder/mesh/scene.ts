@@ -61,6 +61,12 @@ const SKY_RADIUS = 900;
 const GROUND_SIZE = 2400;
 /** The coast of a sea track: metres of flat land past the shoulder (the roadside band ends at 14), the slope into the sea, the grid. */
 const COAST = Object.freeze({ flat: 14, slope: 12, cell: 2.5 });
+/** Land under raised roads on a land track: how far each biome's hills fall (metres), and whether its slopes show rock bands. */
+const LAND: Readonly<Partial<Record<string, { slope: number; strata: boolean }>>> = Object.freeze({
+  canyon: { slope: 8, strata: true }, frost: { slope: 14, strata: false }, meadow: { slope: 22, strata: false },
+});
+/** A land track gets hills only where its road rises this far above the ground plane. */
+const LAND_MIN_RISE = 2.5;
 const START_LINE_LENGTH = 1.5;
 
 function toColor(c: Rgb): Color { return new Color(c[0], c[1], c[2]); }
@@ -363,8 +369,13 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     ground.position.y = groundY;
     ground.receiveShadow = true;
     group.add(ground);
-    // a sea track gets a coast along the road, so its roadside decor stands on land
-    const coastGeo = groundKind === 'water' ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell }) : null;
+    // a sea track gets a coast along the road, a land track hills under its raised road, so every
+    // roadside prop stands on ground and no road floats
+    const land = LAND[def.biome];
+    const rises = branches.main.lut.maxY - groundY > LAND_MIN_RISE;
+    const coastGeo = groundKind === 'water'
+      ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell, wet: true })
+      : land && rises ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: land.slope, cell: COAST.cell, strata: land.strata }) : null;
     if (coastGeo) {
       const own = assets.coast?.();
       const coast = new Mesh(coastGeo, own ?? new MeshToonMaterial({ color: toColor(palette.shoulder), vertexColors: true, gradientMap: GRADIENT ?? null }));
