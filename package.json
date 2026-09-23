@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "verify": "tsc && vitest run"
+    "verify": "tsc && vitest run",
+    "build:function": "vite build --config vite.function.config.ts && node scripts/split-long-lines.mjs supabase/functions/submit-score/core.js"
   },
   "devDependencies": {
     "@types/three": "^0.185.4",
