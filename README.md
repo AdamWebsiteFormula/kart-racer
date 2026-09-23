@@ -32,7 +32,7 @@ Works in any modern desktop browser (Chrome, Edge, Firefox, Safari). Keyboard or
 - **Original music and sound:** 7 songs and 58 effects, a real engine sound, and a final-lap music lift.
 - Runs at 60 fps. The game lowers its own resolution on slower laptops.
 
-![Boost flames in each racer's colour](docs/media/boost.jpg)
+![Boost flames in each racer's color](docs/media/boost.jpg)
 
 ## Built with AI
 
@@ -46,6 +46,10 @@ Built for the *AI Automations with Jack* September 2026 game competition.
 | Engine | Three.js, TypeScript, Vite; Supabase for the leaderboard |
 
 ![The cast](docs/media/cast.jpg)
+
+![Items in the race: the Strike Ball, the Wind-Up Mouse, an oil slick and the Bubble shield](docs/media/items.jpg)
+
+![The course creatures: the Rumblesaur's shock ring, the Kraken's slam, the Yeti's snowball and the giant goose](docs/media/creatures.jpg)
 
 ## Run it yourself
 

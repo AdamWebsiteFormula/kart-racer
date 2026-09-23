@@ -3,6 +3,7 @@
 import { BASE } from '../kart-controller/constants.ts';
 import { forwardOf, type KartState } from '../kart-controller/types.ts';
 import type { Track } from '../track-builder/track.ts';
+import { lateralOf } from './projectiles.ts';
 import type { GroundItem, ItemDefinition, ItemEvent, ItemsConfig, ItemsState } from './types.ts';
 
 export function placeGround(
@@ -18,7 +19,8 @@ export function placeGround(
   const f = forwardOf(s.heading);
   const pos: [number, number, number] = [s.position[0] - f[0] * cfg.dropBehindMetres, s.position[1], s.position[2] - f[2] * cfg.dropBehindMetres];
   const near = track.nearest(pos, { t: s.t, branch: s.branch }, BASE.tSearchWindow);
-  const smp = track.sample(near.t, 0, near.branch);
+  // the road's height where the drop lands, not on the centreline (a banked road is higher on one side)
+  const smp = track.sample(near.t, lateralOf(track, near.t, near.branch, pos), near.branch);
   pos[1] = smp.groundY;
   const g: GroundItem = {
     id: m.nextId++, itemId: def.id, owner, ownerId: s.racerId, t: near.t, branch: near.branch, position: pos,

@@ -112,7 +112,7 @@ export class ItemsView {
       const [x, y, z] = g.position;
       if (g.itemId === 'oilCan') {
         const a = spread(g.id) * Math.PI * 2;
-        this.put('oilSlick', x, y, z, this.yaw(a));
+        this.put('oilSlick', x, y + 0.03, z, this.yaw(a));
         this.put('oilCan', x, y, z, this.yaw(a));
       } else if (g.itemId === 'decoyBalloon') {
         // hovering and bobbing exactly like a real balloon
