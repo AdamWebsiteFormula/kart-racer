@@ -1,0 +1,120 @@
+{
+  "id": "frostbite-pass",
+  "name": "Frostbite Pass",
+  "biome": "frost",
+  "cup": "summit",
+  "orderInCup": 1,
+  "laps": 3,
+  "targetLapSeconds": 54,
+  "medalTimesMs": {
+    "gold": 162000,
+    "silver": 177000,
+    "bronze": 192000
+  },
+  "voidY": -10,
+  "landmark": "peak",
+  "music": "frost",
+  "controlPoints": [
+    { "x": -72, "y": 0, "z": -192, "halfWidth": 9, "surface": "road" },
+    { "x": 48, "y": 0, "z": -194.4, "halfWidth": 9, "surface": "road" },
+    { "x": 138, "y": 1, "z": -177.6, "halfWidth": 8, "bank": 6, "surface": "ice" },
+    { "x": 189.6, "y": 3, "z": -153.6, "halfWidth": 7.5, "bank": 14, "surface": "ice" },
+    { "x": 192, "y": 4.5, "z": -105.6, "halfWidth": 7, "bank": 10, "surface": "road" },
+    { "x": 153.6, "y": 6, "z": -66, "halfWidth": 6.5, "surface": "road" },
+    { "x": 114, "y": 7.5, "z": -24, "halfWidth": 6.5, "surface": "road" },
+    { "x": 74.4, "y": 9, "z": 6, "halfWidth": 6.5, "surface": "road" },
+    { "x": 30, "y": 10, "z": 26.4, "halfWidth": 7, "surface": "road" },
+    { "x": -30, "y": 10.5, "z": 36, "halfWidth": 7, "bank": -8, "surface": "road" },
+    { "x": -74.4, "y": 9, "z": 66, "halfWidth": 7, "surface": "road" },
+    { "x": -122.4, "y": 6.5, "z": 96, "halfWidth": 7, "bank": 12, "surface": "road" },
+    { "x": -170.4, "y": 3.5, "z": 72, "halfWidth": 7, "bank": 8, "surface": "road" },
+    { "x": -194.4, "y": 1, "z": 19.2, "halfWidth": 7.5, "bank": 6, "surface": "road" },
+    { "x": -188.4, "y": 0, "z": -45.6, "halfWidth": 8, "bank": 4, "surface": "ice" },
+    { "x": -158.4, "y": 0, "z": -105.6, "halfWidth": 8.5, "surface": "road" },
+    { "x": -120, "y": 0, "z": -158.4, "halfWidth": 9, "surface": "road" }
+  ],
+  "checkpointCount": 12,
+  "startGrid": {
+    "t": 0.03,
+    "rows": 4,
+    "columns": 2,
+    "spacing": 3.5
+  },
+  "shortcuts": [
+    {
+      "id": "lake-crossing",
+      "entryT": 0.5513,
+      "exitT": 0.7606,
+      "risk": "hazard",
+      "openOnLaps": [3],
+      "controlPoints": [
+        { "x": -30, "y": 10.5, "z": 36, "halfWidth": 6, "surface": "ice" },
+        { "x": -90, "y": 6, "z": 28.8, "halfWidth": 6, "surface": "ice" },
+        { "x": -150, "y": 2.5, "z": 21.6, "halfWidth": 6, "surface": "ice" },
+        { "x": -194.4, "y": 1, "z": 19.2, "halfWidth": 6, "surface": "ice" }
+      ]
+    }
+  ],
+  "jumps": [
+    { "id": "ski-jump", "t": 0.472, "lateral": 2, "launch": 5.5, "width": 6 }
+  ],
+  "boostPads": [
+    { "t": 0.14, "lateral": 0, "width": 3 },
+    { "t": 0.68, "lateral": 0, "width": 3 }
+  ],
+  "pickups": [
+    { "t": 0.03, "lateral": -4 },
+    { "t": 0.03, "lateral": 0 },
+    { "t": 0.03, "lateral": 4 },
+    { "t": 0.30, "lateral": -3 },
+    { "t": 0.30, "lateral": 3 },
+    { "t": 0.46, "lateral": 0 },
+    { "t": 0.62, "lateral": -3 },
+    { "t": 0.62, "lateral": 3 },
+    { "t": 0.65, "lateral": 0, "shortcut": "lake-crossing" },
+    { "t": 0.90, "lateral": -3 },
+    { "t": 0.90, "lateral": 3 }
+  ],
+  "coins": [
+    { "t": 0.08, "lateral": -2 },
+    { "t": 0.08, "lateral": 2 },
+    { "t": 0.20, "lateral": 0 },
+    { "t": 0.40, "lateral": -2 },
+    { "t": 0.40, "lateral": 2 },
+    { "t": 0.60, "lateral": 0, "shortcut": "lake-crossing" },
+    { "t": 0.70, "lateral": 0 },
+    { "t": 0.88, "lateral": -2 },
+    { "t": 0.88, "lateral": 2 }
+  ],
+  "hazards": [
+    { "id": "snowball-1", "type": "rolling", "t": 0.22, "lateral": 3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" },
+    { "id": "snowball-2", "type": "rolling", "t": 0.83, "lateral": -3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" }
+  ],
+  "finalLapShift": {
+    "kind": "blizzard",
+    "label": "BLIZZARD!",
+    "opensShortcuts": ["lake-crossing"],
+    "sky": "frost-blizzard",
+    "fogDensity": 0.006,
+    "musicVariant": "blizzard"
+  },
+  "environment": {
+    "sky": "frost-day",
+    "fogColor": "#eaf6ff",
+    "fogDensity": 0.002,
+    "ground": {
+      "kind": "plane",
+      "y": -0.5
+    },
+    "sunDirection": [0.35, 0.85, 0.3],
+    "palette": {
+      "background": "#eaf6ff",
+      "accent": "#ff2d95"
+    },
+    "decor": [
+      { "asset": "pine", "instances": 80, "band": "roadside" },
+      { "asset": "snowman", "instances": 35, "band": "roadside" },
+      { "asset": "chalet", "instances": 25, "band": "far" }
+    ]
+  }
+}

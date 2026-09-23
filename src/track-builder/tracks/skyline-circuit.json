@@ -1,0 +1,114 @@
+{
+  "id": "skyline-circuit",
+  "name": "Skyline Circuit",
+  "biome": "skyline",
+  "cup": "summit",
+  "orderInCup": 3,
+  "laps": 3,
+  "targetLapSeconds": 54,
+  "medalTimesMs": {
+    "gold": 162000,
+    "silver": 178000,
+    "bronze": 194000
+  },
+  "voidY": 0,
+  "landmark": "airship",
+  "music": "skyline",
+  "controlPoints": [
+    { "x": -190, "y": 38, "z": 0, "halfWidth": 10, "surface": "road" },
+    { "x": -164.5, "y": 42, "z": -75, "halfWidth": 9, "surface": "road" },
+    { "x": -95, "y": 50, "z": -129.9, "halfWidth": 9, "surface": "road" },
+    { "x": 0, "y": 60, "z": -150, "halfWidth": 8, "surface": "road" },
+    { "x": 95, "y": 68, "z": -129.9, "halfWidth": 8, "surface": "road" },
+    { "x": 164.5, "y": 63, "z": -75, "halfWidth": 8, "surface": "road" },
+    { "x": 190, "y": 70, "z": 0, "halfWidth": 8, "surface": "road" },
+    { "x": 194.1, "y": 84, "z": 88.5, "halfWidth": 7, "bank": 8, "surface": "road" },
+    { "x": 112.1, "y": 94, "z": 153.3, "halfWidth": 7, "bank": -6, "surface": "road" },
+    { "x": 0, "y": 82, "z": 150, "halfWidth": 7, "surface": "road" },
+    { "x": -95, "y": 64, "z": 129.9, "halfWidth": 7, "surface": "road" },
+    { "x": -164.5, "y": 48, "z": 75, "halfWidth": 8, "bank": 6, "surface": "road" }
+  ],
+  "checkpointCount": 12,
+  "startGrid": {
+    "t": 0.02,
+    "rows": 4,
+    "columns": 2,
+    "spacing": 3.5
+  },
+  "shortcuts": [
+    {
+      "id": "sky-rail",
+      "entryT": 0.479,
+      "exitT": 0.7578,
+      "risk": "narrow",
+      "controlPoints": [
+        { "x": 189.97, "y": 69.98, "z": -0.13, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 126.7, "y": 70.99, "z": 49.92, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 63.43, "y": 76.01, "z": 99.97, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 0.16, "y": 82.02, "z": 150.02, "halfWidth": 4.5, "surface": "rail" }
+      ]
+    }
+  ],
+  "jumps": [
+    { "id": "island-hop", "t": 0.29, "lateral": -2, "launch": 5, "width": 6 }
+  ],
+  "boostPads": [
+    { "t": 0.06, "lateral": 0, "width": 3 },
+    { "t": 0.9, "lateral": -3, "width": 3 }
+  ],
+  "pickups": [
+    { "t": 0.03, "lateral": -4 },
+    { "t": 0.03, "lateral": 0 },
+    { "t": 0.03, "lateral": 4 },
+    { "t": 0.6184, "shortcut": "sky-rail", "lateral": 0 },
+    { "t": 0.8, "lateral": -3 },
+    { "t": 0.8, "lateral": 3 },
+    { "t": 0.95, "lateral": 0 }
+  ],
+  "coins": [
+    { "t": 0.09, "lateral": -3 },
+    { "t": 0.09, "lateral": 3 },
+    { "t": 0.16, "lateral": 0 },
+    { "t": 0.35, "lateral": 0 },
+    { "t": 0.71, "shortcut": "sky-rail", "lateral": 0 },
+    { "t": 0.88, "lateral": -2 },
+    { "t": 0.88, "lateral": 2 },
+    { "t": 0.97, "lateral": 0 }
+  ],
+  "hazards": [
+    { "id": "wake-gust", "type": "gust", "t": 0.12, "lateral": 3, "period": 6, "speed": 11, "hit": "bump", "asset": "gust" }
+  ],
+  "finalLapShift": {
+    "kind": "sunset",
+    "label": "SUNSET TO STARLIGHT",
+    "closesShortcuts": ["sky-rail"],
+    "routeOverrides": [
+      {
+        "fromT": 0.479,
+        "toT": 0.7578,
+        "controlPoints": [
+          { "x": 189.97, "y": 69.98, "z": -0.13, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 126.7, "y": 70.99, "z": 49.92, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 63.43, "y": 76.01, "z": 99.97, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 0.16, "y": 82.02, "z": 150.02, "halfWidth": 4.5, "surface": "rail" }
+        ]
+      }
+    ],
+    "sky": "skyline-night",
+    "fogDensity": 0.0035,
+    "musicVariant": "starlight"
+  },
+  "environment": {
+    "sky": "skyline-dawn",
+    "fogColor": "#ffd9b3",
+    "fogDensity": 0.0018,
+    "ground": { "kind": "none" },
+    "sunDirection": [0.4, 0.7, 0.35],
+    "palette": { "background": "#ffb997", "accent": "#f2b705" },
+    "decor": [
+      { "asset": "cloud", "instances": 40, "band": "sky" },
+      { "asset": "island", "instances": 20, "band": "far" },
+      { "asset": "sky-lamp", "instances": 60, "band": "roadside" }
+    ]
+  }
+}
