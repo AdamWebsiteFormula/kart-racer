@@ -16,6 +16,8 @@ export interface ModelSpec {
   yaw?: number;
   /** a lamp: its own colours glow this strongly (its bright glass passes the bloom, its dark post stays dark) */
   glow?: number;
+  /** a prop: match the code-built model's height (default) or its widest side (a flat cloud bank) */
+  fit?: 'height' | 'width';
 }
 export type ModelManifest = Record<string, ModelSpec>;
 
@@ -114,13 +116,15 @@ export function bakedGeometry(mesh: Mesh): BufferGeometry {
 }
 
 /**
- * Fit a geometry onto the box of the code-built model it replaces: the same height, centred on
- * the same spot, standing on the same floor, so every placement and clearance stays true. Pure.
+ * Fit a geometry onto the box of the code-built model it replaces: the same height (or the same
+ * widest side), centred on the same spot, standing on the same floor, so every placement and
+ * clearance stays true. One uniform scale. Pure.
  */
-export function fitToBox(g: BufferGeometry, target: Box3): BufferGeometry {
+export function fitToBox(g: BufferGeometry, target: Box3, by: 'height' | 'width' = 'height'): BufferGeometry {
   g.computeBoundingBox();
   const b = g.boundingBox!;
-  const s = (target.max.y - target.min.y) / Math.max(1e-6, b.max.y - b.min.y);
+  const wide = (x: Box3) => Math.max(x.max.x - x.min.x, x.max.z - x.min.z);
+  const s = by === 'width' ? wide(target) / Math.max(1e-6, wide(b)) : (target.max.y - target.min.y) / Math.max(1e-6, b.max.y - b.min.y);
   g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
   g.scale(s, s, s);
   g.translate((target.min.x + target.max.x) / 2, target.min.y, (target.min.z + target.max.z) / 2);
@@ -161,7 +165,7 @@ export class PropModels {
           if (!mesh) return;
           const geometry = bakedGeometry(mesh);
           geometry.rotateY(spec.yaw ?? 0);
-          fitToBox(geometry, target);
+          fitToBox(geometry, target, spec.fit);
           const material = mesh.material as Material;
           material.userData.shared = true;
           const std = material as MeshStandardMaterial;

@@ -23,6 +23,15 @@
   "url": "models/props/chalet.glb",
   "yaw": 0
  },
+ "cloud": {
+  "url": "models/props/cloud.glb",
+  "yaw": 0
+ },
+ "cloud-sea": {
+  "url": "models/props/cloud.glb",
+  "yaw": 0,
+  "fit": "width"
+ },
  "fence": {
   "url": "models/props/fence.glb",
   "yaw": 0
@@ -71,6 +80,11 @@
  "rock": {
   "url": "models/props/rock.glb",
   "yaw": 0
+ },
+ "sky-lamp": {
+  "url": "models/props/sky-lamp.glb",
+  "yaw": 0,
+  "glow": 1.6
  },
  "snowman": {
   "url": "models/props/snowman.glb",

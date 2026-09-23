@@ -182,6 +182,10 @@ describe('scenery model files', () => {
     expect((b.min.x + b.max.x) / 2).toBeCloseTo(0, 6);
     expect((b.min.z + b.max.z) / 2).toBeCloseTo(5, 6);
     expect(b.max.x - b.min.x).toBeCloseTo(3, 6); // one uniform scale: 2 m wide × 1.5
+    // by width: a flat cloud bank matches the target's widest side, not its height
+    const w = fitToBox(new BoxGeometry(2, 4, 1), new Box3(new Vector3(-10, 0, -3), new Vector3(10, 2, 3)), 'width').boundingBox!;
+    expect(w.max.x - w.min.x).toBeCloseTo(20, 6);
+    expect(w.max.y - w.min.y).toBeCloseTo(40, 6);
     // no manifest: every prop stays code-built
     const none = new PropModels('/', (async () => ({ ok: false })) as unknown as typeof fetch);
     await none.load();
