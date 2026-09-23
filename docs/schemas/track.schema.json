@@ -174,7 +174,7 @@
         "loopRadius": { "type": "number", "default": 9, "description": "a loop-the-loop's radius, metres" },
         "loopShift": { "type": "number", "default": 7, "description": "metres the ring moves right in one turn: the way in (left of centre) never meets the way out (right)" },
         "loopSpread": { "type": "number", "default": 1.2, "description": "metres either side of its lane a kart rides round, by where it came in (karts side by side stay side by side)" },
-        "loopApproach": { "type": "number", "default": 14, "description": "metres before the foot a kart is caught and eased into the entry lane" },
+        "loopApproach": { "type": "number", "default": 24, "description": "metres before the foot a kart is caught and eased into the entry lane" },
         "loopExit": { "type": "number", "default": 6, "description": "metres after the foot a kart is set down in the exit lane" },
         "loopWidth": { "type": "number", "default": 6, "description": "width of the ring's track, metres" },
         "humpEdge": { "type": "number", "default": 1.6, "description": "metres over which a trick bump rounds off to the road at each kerb" },

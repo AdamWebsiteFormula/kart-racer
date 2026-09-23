@@ -12,6 +12,8 @@ import { buildTrackScene, isDrawn } from './scene.ts';
 
 function collapseDef(): TrackDefinition {
   const d = cloneDef(HARBOUR_LOOP);
+  // the harbor's open pier edge (0.47-0.6) would straddle this made-up detour; the validator forbids that
+  d.openEdges = [];
   d.finalLapShift = {
     kind: 'collapse', label: 'BRIDGE OUT',
     routeOverrides: [{ fromT: 0.5, toT: 0.58, controlPoints: [{ x: 60, y: 8, z: 175, halfWidth: 7 }, { x: 20, y: 8, z: 185, halfWidth: 7 }] }],

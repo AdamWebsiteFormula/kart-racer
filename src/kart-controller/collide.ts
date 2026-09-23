@@ -24,13 +24,17 @@ export function stepWalls(
   s: KartState, lateral: number, right: Vec3, halfWidth: number, c: KartConstants, dt: number, events: KartEvent[], open = 0,
 ): void {
   const limit = halfWidth - radiusOf(s, c);
-  if (Math.abs(lateral) <= limit) return;
+  if (Math.abs(lateral) <= limit) { s.status.wallEasing = false; return; }
   const side = Math.sign(lateral);
   // an open edge has no wall: over the kerb, the shoulder, then the drop
   if (open & (side < 0 ? 1 : 2)) return;
   const overshoot = Math.abs(lateral) - limit;
-  s.position[0] -= right[0] * overshoot * side;
-  s.position[2] -= right[2] * overshoot * side;
+  // far outside the line (on an open shoulder where the barrier starts): eased all the way back, not teleported
+  if (overshoot > c.wallEndOvershoot) s.status.wallEasing = true;
+  const push = s.status.wallEasing ? Math.min(overshoot, c.wallEndPushRate * dt) : overshoot;
+  if (push >= overshoot) s.status.wallEasing = false;
+  s.position[0] -= right[0] * push * side;
+  s.position[2] -= right[2] * push * side;
 
   const n: Vec3 = [right[0] * side, 0, right[2] * side]; // outward
   const w = worldVelocity(s);

@@ -182,7 +182,13 @@ export class Lut {
     if (open & (lateral < 0 ? 1 : 2)) {
       // an open edge: loose ground over the kerb, then nothing past the shoulder
       const off = Math.abs(lateral) - out.halfWidth;
-      if (off > BUILDER.kerbWidth) out.surface = 'dirt';
+      if (off > BUILDER.kerbWidth) {
+        out.surface = 'dirt';
+        // the shoulder falls away to the lip, as road.ts draws it
+        const drop = BUILDER.shoulderDrop * Math.min(1, (off - BUILDER.kerbWidth) / BUILDER.shoulderWidth);
+        out.groundY -= drop;
+        p[1] -= drop;
+      }
       out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
     }
     return out;

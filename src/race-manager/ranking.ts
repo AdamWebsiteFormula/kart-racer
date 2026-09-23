@@ -4,6 +4,9 @@ import type { KartState } from '../kart-controller/types.ts';
 import { RACE } from './constants.ts';
 import type { KartTracker, RaceEvent } from './types.ts';
 
+/** Metres into a loop-the-loop ride (0 when not riding): the tie-break for karts on the ring. */
+const rideS = (k: KartState) => (k.status.loopIndex >= 0 ? k.status.loopS : 0);
+
 function compare(karts: KartState[], trackers: KartTracker[], i: number, j: number): number {
   const a = karts[i], b = karts[j];
   const af = a.finishTick !== undefined, bf = b.finishTick !== undefined;
@@ -14,10 +17,13 @@ function compare(karts: KartState[], trackers: KartTracker[], i: number, j: numb
     // force-finish, then progress decides, then the grid
     if (trackers[i].dnf !== trackers[j].dnf) return trackers[i].dnf ? 1 : -1;
     if (a.distanceAlong !== b.distanceAlong) return b.distanceAlong - a.distanceAlong;
+    if (rideS(a) !== rideS(b)) return rideS(b) - rideS(a);
     return trackers[i].gridSlot - trackers[j].gridSlot;
   }
   if (af !== bf) return af ? -1 : 1;
   if (a.distanceAlong !== b.distanceAlong) return b.distanceAlong - a.distanceAlong;
+  // karts round a loop-the-loop's ring share its t: further round the ride is ahead
+  if (rideS(a) !== rideS(b)) return rideS(b) - rideS(a);
   return trackers[i].gridSlot - trackers[j].gridSlot;
 }
 

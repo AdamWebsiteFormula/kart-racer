@@ -19,6 +19,22 @@ describe('walls', () => {
     expect(ev).toEqual([{ type: 'wall' }]);
   });
 
+  it('a kart far outside the wall line is eased all the way back, never snapped (review 2026-09-23)', () => {
+    const s = createKartState({ racerId: 'x', position: [8 + 2, 0, 0], heading: 0 });
+    s.speed = 15;
+    const dt = 1 / 120;
+    let lateral = 10, steps = 0;
+    while (lateral > 8 - c.kartRadius + 1e-9 && steps < 400) {
+      stepWalls(s, lateral, [1, 0, 0], 8, c, dt, []);
+      const moved = lateral - s.position[0];
+      expect(moved).toBeLessThanOrEqual(c.wallEndPushRate * dt + 1e-9);
+      lateral = s.position[0];
+      steps++;
+    }
+    expect(lateral).toBeCloseTo(8 - c.kartRadius, 6);
+    expect(s.status.wallEasing).toBe(false);
+  });
+
   it('scrubs speed on a hard hit and respects the cooldown', () => {
     const s = createKartState({ racerId: 'x', heading: 0 });
     s.speed = 10; s.lateralVelocity = 10;

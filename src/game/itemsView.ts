@@ -3,6 +3,7 @@
 // kart, the Grapple Anchor's chain, the Strike Ball around a kart and the Bubble around a shielded
 // one. One InstancedMesh per model kind, drawn only while something of that kind is out.
 // Projectiles interpolate prev → current like karts.
+import { jumpLift } from '../kart-controller/ground.ts';
 import {
   InstancedMesh, Group, Matrix4, Object3D, Quaternion, SphereGeometry, Vector3, type BufferGeometry, type Material,
 } from 'three';
@@ -47,6 +48,7 @@ export class ItemsView {
   private readonly w = new Vector3();
   private readonly s = new Vector3(1, 1, 1);
   private readonly up = new Vector3(0, 1, 0);
+  private readonly at = new Vector3();
   private readonly dummy = new Object3D();
 
   constructor() {
@@ -75,6 +77,14 @@ export class ItemsView {
   }
 
   private yaw(a: number): Quaternion { return this.q.setFromAxisAngle(this.up, a); }
+  /**
+   * A point `x` right, `y` up, `z` forward of a kart at `r` facing `h`, pitched `pitch` round a
+   * loop-the-loop (0 on the road), in world metres. Writes and returns this.at.
+   */
+  private local(r: Vector3, h: number, pitch: number, x: number, y: number, z: number): Vector3 {
+    const ca = Math.cos(pitch), sa = Math.sin(pitch), fwd = z * ca - y * sa;
+    return this.at.set(r.x + Math.cos(h) * x + Math.sin(h) * fwd, r.y + y * ca + z * sa, r.z - Math.sin(h) * x + Math.cos(h) * fwd);
+  }
 
   /** alpha: render interpolation between the previous and the current tick; dt: this frame's seconds. */
   onFrame(items: Items, karts: readonly KartState[], kartRoots: readonly Object3D[], alpha: number, time: number, dt = 0, track?: Track): void {
@@ -126,6 +136,8 @@ export class ItemsView {
       const r = root.position, h = s.heading;
       const fx = Math.sin(h), fz = Math.cos(h);
       this.roll[i] ??= 0;
+      // round a loop-the-loop the kart is pitched: what it carries goes round with it
+      const pitch = s.status.loopIndex >= 0 ? s.status.loopAngle : 0;
 
       // Strike Ball: the kart rides inside, rolling
       const riding = s.status.rideRemaining > 0;
@@ -135,26 +147,32 @@ export class ItemsView {
         this.q.setFromAxisAngle(this.up, h);
         this.spin.setFromAxisAngle(this.w.set(1, 0, 0), this.roll[i]);
         this.q.multiply(this.spin);
-        this.put('strikeBall', r.x, r.y + RIDE_RADIUS - 0.1, r.z, this.q);
+        const p = this.local(r, h, pitch, 0, RIDE_RADIUS - 0.1, 0);
+        this.put('strikeBall', p.x, p.y, p.z, this.q);
       }
 
-      if (s.status.shield) this.put('bubble', r.x, r.y + 0.75, r.z, this.yaw(time * 0.7), 1 + Math.sin(time * 5 + i) * 0.03);
+      if (s.status.shield) {
+        const p = this.local(r, h, pitch, 0, 0.75, 0);
+        this.put('bubble', p.x, p.y, p.z, this.yaw(time * 0.7), 1 + Math.sin(time * 5 + i) * 0.03);
+      }
 
       // Pogo Spring: stretched from the road to the kart
       if (st.pogo[i] > 0 && !s.grounded && track) {
-        const ground = track.sample(s.t, 0, s.branch).groundY;
+        const g = track.sample(s.t, 0, s.branch);
+        const ground = g.groundY + jumpLift(track, s.t, s.branch, 0, g.halfWidth);
         const len = Math.max(0.3, r.y - ground);
         this.put('pogoSpring', r.x, ground, r.z, this.yaw(h), 1, len);
       }
 
       // hold to trail: the item rides just behind the kart
       if (items.isTrailing(i)) {
-        const bx = r.x - fx * 1.9, bz = r.z - fz * 1.9, bob = Math.sin(time * 8 + i) * 0.05;
+        const bob = Math.sin(time * 8 + i) * 0.05;
+        let p: Vector3;
         switch (s.item.held) {
-          case 'beachBall': this.put('beachBall', bx, r.y + 0.6 + bob, bz, this.yaw(time * 3)); break;
-          case 'oilCan': this.put('oilCan', bx - 0.55 * Math.cos(h), r.y + bob, bz + 0.55 * Math.sin(h), this.yaw(h + Math.PI / 2)); break;
-          case 'decoyBalloon': this.put('decoyBalloon', bx, r.y + 1.7 + bob, bz, this.yaw(h), 0.8); break;
-          case 'windUpMouse': this.put('windUpMouse', bx, r.y + bob, bz, this.yaw(h)); break;
+          case 'beachBall': p = this.local(r, h, pitch, 0, 0.6 + bob, -1.9); this.put('beachBall', p.x, p.y, p.z, this.yaw(time * 3)); break;
+          case 'oilCan': p = this.local(r, h, pitch, -0.55, bob, -1.9); this.put('oilCan', p.x, p.y, p.z, this.yaw(h + Math.PI / 2)); break;
+          case 'decoyBalloon': p = this.local(r, h, pitch, 0, 1.7 + bob, -1.9); this.put('decoyBalloon', p.x, p.y, p.z, this.yaw(h), 0.8); break;
+          case 'windUpMouse': p = this.local(r, h, pitch, 0, bob, -1.9); this.put('windUpMouse', p.x, p.y, p.z, this.yaw(h)); break;
         }
       }
 
@@ -165,7 +183,9 @@ export class ItemsView {
           this.q.setFromAxisAngle(this.w.set(Math.sin(a), 0, -Math.cos(a)), 0.45);
           this.spin.setFromAxisAngle(this.up, time * 5 + k);
           this.q.multiply(this.spin);
-          this.put('fizzBottle', r.x + Math.cos(a) * 1.55, r.y + 1.15 + Math.sin(time * 4 + k * 2) * 0.12, r.z + Math.sin(a) * 1.55, this.q, 0.95);
+          // the same world orbit on the road (a + h turns world axes into the kart's), tipped with the kart round a loop
+          const p = this.local(r, h, pitch, Math.cos(a + h) * 1.55, 1.15 + Math.sin(time * 4 + k * 2) * 0.12, Math.sin(a + h) * 1.55);
+          this.put('fizzBottle', p.x, p.y, p.z, this.q, 0.95);
         }
       }
 

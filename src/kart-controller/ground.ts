@@ -61,6 +61,8 @@ export function jumpLift(track: TrackQuery, t: number, branch: number, lateral =
   const L = track.length;
   for (const j of track.jumps) {
     if (!j.rise || !j.run || (j.branch ?? 0) !== branch) continue;
+    // a ramp spans kerb to kerb; a bump rounds off at the kerbs (edgeTaper)
+    if (!j.edge && Math.abs(lateral) > halfWidth) continue;
     let d = (j.t - t) * L;
     if (d > L / 2) d -= L; else if (d < -L / 2) d += L;
     const h = jumpProfile(j.shape, j.run, j.rise, d) * edgeTaper(j.edge, lateral, halfWidth);
@@ -69,12 +71,35 @@ export function jumpLift(track: TrackQuery, t: number, branch: number, lateral =
   return lift;
 }
 
+/** Metres around a ramp's lip inside which the lip wall is checked. */
+const LIP_ZONE = 8;
+
+/** Is a ramp's lip within LIP_ZONE metres of t on this branch? */
+function rampLipNear(track: TrackQuery, t: number, branch: number): boolean {
+  for (const j of track.jumps) {
+    if (j.shape === 'hump' || !j.rise || (j.branch ?? 0) !== branch) continue;
+    const d = Math.abs(wrap01(j.t - t + 0.5) - 0.5) * track.length;
+    if (d < LIP_ZONE) return true;
+  }
+  return false;
+}
+
+/** Did the kart back over a ramp's lip line (t went down across it) on the ramp itself? */
+function rampLipBehind(track: TrackQuery, prevT: number, t: number, branch: number, lateral: number): boolean {
+  for (const j of track.jumps) {
+    if (j.shape === 'hump' || !j.rise || (j.branch ?? 0) !== branch) continue;
+    if (crossed(t, prevT, j.t) && Math.abs(lateral) <= track.sample(j.t, 0, branch).halfWidth) return true;
+  }
+  return false;
+}
+
 export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt: number, events: KartEvent[]): GroundResult {
   // 9. integrate horizontally
   const f = forwardOf(s.heading);
   const r = rightOf(s.heading);
   const vx = f[0] * s.speed + r[0] * s.lateralVelocity;
   const vz = f[2] * s.speed + r[2] * s.lateralVelocity;
+  const x0 = s.position[0], z0 = s.position[2], branch0 = s.branch;
   s.position[0] += vx * dt;
   s.position[2] += vz * dt;
 
@@ -82,24 +107,27 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   const near = track.nearest(s.position, { t: s.t, branch: s.branch }, c.tSearchWindow);
   s.t = near.t;
   s.branch = near.branch;
-  s.distanceAlong = s.t * track.length;
 
-  const { lateral, right } = lateralOffset(track, s.t, s.position, s.branch);
+  let { lateral, right } = lateralOffset(track, s.t, s.position, s.branch);
+  // backing into a ramp's lip: the lip is a wall, not a step up. Where the kart was is measured
+  // again here: a bump from another kart moved it after last tick's t was taken.
+  const t0 = s.grounded && rampLipNear(track, s.t, s.branch)
+    ? track.nearest([x0, s.position[1], z0], { t: prevT, branch: branch0 }, c.tSearchWindow).t : prevT;
+  if (s.grounded && rampLipBehind(track, t0, s.t, s.branch, lateral)) {
+    s.position[0] = x0; s.position[2] = z0;
+    s.t = t0; s.branch = branch0;
+    s.speed = 0; s.lateralVelocity = 0;
+    events.push({ type: 'wall' });
+    ({ lateral, right } = lateralOffset(track, s.t, s.position, s.branch));
+  }
+  s.distanceAlong = s.t * track.length;
   const sample = track.sample(s.t, lateral, s.branch);
   const wasGrounded = s.grounded;
-
-  // a loop-the-loop's catch line: the ride takes over from the next tick
-  if (s.grounded && s.branch === 0 && track.loops) {
-    for (let k = 0; k < track.loops.length; k++) {
-      const l = track.loops[k];
-      if (crossed(prevT, s.t, (((l.t - l.approach / track.length) % 1) + 1) % 1)) { startLoop(s, k, l, lateral, c, events); break; }
-    }
-  }
 
   // ramps: leaving one sets the launch velocity
   if (s.grounded) {
     for (const j of track.jumps) {
-      if ((j.branch ?? 0) === s.branch && crossed(prevT, s.t, j.t)) {
+      if ((j.branch ?? 0) === s.branch && crossed(prevT, s.t, j.t) && Math.abs(lateral) <= sample.halfWidth) {
         s.verticalVelocity = j.launch;
         s.grounded = false;
         s.airborne.fromJumpId = j.id;
@@ -128,6 +156,9 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   const y = s.position[1];
   // past an open edge's cliff there is no ground at all, and once over it, no road below catches it
   if (sample.overCliff && !s.status.falling) { s.status.falling = true; s.status.fallFromY = sample.groundY; }
+  // back over the road it went off (a hop over the lip and back) before it sank: not falling after all.
+  // A lower road under the cliff (a tunnel) never counts: only the height it fell from does.
+  else if (s.status.falling && !sample.overCliff && Math.abs(sample.groundY - s.status.fallFromY) < c.groundCatch && y >= sample.groundY - c.groundCatch) s.status.falling = false;
   const groundY = s.status.falling ? -Infinity : sample.groundY + jumpLift(track, s.t, s.branch, lateral, sample.halfWidth);
   const canSnap = s.verticalVelocity <= c.groundLaunchVy;
   // Below the road: a slope rising under a grounded kart, or a landing that crossed
@@ -164,6 +195,17 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
     }
   } else {
     s.airborne.seconds += dt;
+  }
+
+  // a loop-the-loop's run-in: a kart on the ground anywhere in it is caught, a landing in it too
+  const forward = wrap01(s.t - prevT);
+  if (s.grounded && s.branch === 0 && track.loops && !s.status.falling && forward > 0 && forward < 0.5) {
+    const L = track.length;
+    for (let k = 0; k < track.loops.length; k++) {
+      const l = track.loops[k];
+      const into = wrap01(s.t - (l.t - l.approach / L)) * L;
+      if (into < l.approach) { startLoop(s, k, l, lateral, c, events, into); break; }
+    }
   }
 
   // below the void, or fallen well past an open edge: the claw comes (race-manager rescue)

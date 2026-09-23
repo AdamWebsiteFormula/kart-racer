@@ -11,7 +11,7 @@ import { GO_TICK, stepCountdown } from './countdown.ts';
 import { stepHazards } from './hazards.ts';
 import { indexFeatures, initTimers, stepPickups, type FeatureIndex } from './pickups.ts';
 import { assignRanks, sortOrder } from './ranking.ts';
-import { startRescue, stepRescue, stepStuck } from './respawn.ts';
+import { retargetRescue, startRescue, stepRescue, stepStuck } from './respawn.ts';
 import type { KartTracker, RaceConfig, RaceEvent, RaceResults, RaceState } from './types.ts';
 import { countDown } from './util.ts';
 import { stepWrongWay } from './wrongway.ts';
@@ -108,6 +108,7 @@ export class RaceManager {
     const kartEvents = this.kartEvents;
     for (const list of kartEvents) list.length = 0;
 
+    const wasFinished = st.phase === 'finished';
     // 1. inputs
     let go = false;
     if (st.phase === 'countdown') {
@@ -202,6 +203,15 @@ export class RaceManager {
       }
     }
 
+    // after the flag (from the tick after it) the claw still finishes what it started, and a kart
+    // it set down is let go again
+    if (wasFinished) {
+      for (let i = 0; i < karts.length; i++) {
+        trackers[i].freezeRemaining = countDown(trackers[i].freezeRemaining, dt);
+        if (trackers[i].rescue) stepRescue(karts[i], trackers[i], track, dt, events);
+      }
+    }
+
     st.tick = tick + 1;
     const out: RaceEvent[] = [];
     for (let i = 0; i < karts.length; i++) for (const e of kartEvents[i]) out.push({ type: 'kart', racerId: karts[i].racerId, event: e });
@@ -217,6 +227,7 @@ export class RaceManager {
     if (changed) events.push({ type: 'trackChanged', event: changed });
     for (let i = 0; i < st.karts.length; i++) {
       resyncAfterShift(st.karts[i], st.trackers[i], this.track, st.lapsTotal, tick, events);
+      retargetRescue(st.karts[i], st.trackers[i], this.track);
       st.karts[i].distanceAlong = distanceAlong(st.karts[i], st.trackers[i], this.track);
     }
     st.phase = 'finalLap';

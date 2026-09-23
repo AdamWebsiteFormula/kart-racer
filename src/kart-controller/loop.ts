@@ -1,11 +1,12 @@
-// The loop-the-loop (design.md Track thrills): a ride on a fixed path, like the claw. A kart that
-// reaches a loop's catch line on the ground is eased into the entry lane, carried up and right
+// The loop-the-loop (design.md Track thrills): a ride on a fixed path, like the claw. A kart on the
+// ground anywhere in a loop's run-in (driving in or landing in it) is eased into the entry lane, carried up and right
 // round the ring (upside down at the top) and set down in the exit lane with a boost. The ring
 // shifts sideways as it turns, so the way in and the way out never cross. Deterministic: the path
 // is a pure function of the track and the lateral the kart was caught at.
 import { requestBoost } from './boost.ts';
 import type { KartConstants } from './constants.ts';
 import { cancelDrift } from './drift.ts';
+import { jumpLift } from './ground.ts';
 import { headingOf, type KartEvent, type KartState, type TrackLoop, type TrackQuery, type Vec3 } from './types.ts';
 
 const TAU = Math.PI * 2;
@@ -44,18 +45,30 @@ export interface LoopPose {
   t: number;
 }
 
-/** Where the ride has a kart `s` metres after it was caught at lateral `lat0`. Pure. */
-export function loopPose(track: TrackQuery, l: TrackLoop, lat0: number, s: number): LoopPose {
+/** A point on the road at t, `lat` from the centre, with any ramp under it. */
+function onRoad(track: TrackQuery, t: number, lat: number): { position: Vec3; tangent: Vec3 } {
+  const p = track.sample(t, lat, 0);
+  return { position: [p.position[0], p.position[1] + jumpLift(track, t, 0, lat, p.halfWidth), p.position[2]], tangent: p.tangent };
+}
+
+/**
+ * Where the ride has a kart `s` metres after the catch line, caught `s0` metres into the run-in at
+ * lateral `lat0`. Pure.
+ */
+export function loopPose(track: TrackQuery, l: TrackLoop, lat0: number, s: number, s0 = 0): LoopPose {
   const L = track.length;
   const f = loopFrame(track, l);
   const [entry, exit] = loopLanes(l, lat0, f.halfWidth);
   const ring = TAU * l.radius;
   if (s < l.approach) {
-    // the run-in: along the road, in the entry lane well before the ring
+    // the run-in: along the road into the entry lane by the ring's foot, the nose along the path
     const t = l.t + (s - l.approach) / L;
-    const k = smooth((s / l.approach) * 1.6);
-    const p = track.sample(t, lat0 + (entry - lat0) * k, 0);
-    return { position: [...p.position], heading: headingOf(p.tangent), angle: 0, t };
+    const span = Math.max(1e-6, l.approach - s0);
+    const u = Math.max(0, Math.min(1, (s - s0) / span));
+    const lat = lat0 + (entry - lat0) * smooth(u);
+    const slope = ((entry - lat0) * 6 * u * (1 - u)) / span;
+    const p = onRoad(track, t, lat);
+    return { position: p.position, heading: headingOf(p.tangent) + Math.atan(slope), angle: 0, t };
   }
   if (s < l.approach + ring) {
     const a = (s - l.approach) / l.radius;
@@ -68,19 +81,20 @@ export function loopPose(track: TrackQuery, l: TrackLoop, lat0: number, s: numbe
     };
   }
   const t = l.t + Math.min(s - l.approach - ring, l.exit) / L;
-  const p = track.sample(t, exit, 0);
-  return { position: [...p.position], heading: headingOf(p.tangent), angle: 0, t };
+  const p = onRoad(track, t, exit);
+  return { position: p.position, heading: headingOf(p.tangent), angle: 0, t };
 }
 
-/** Caught by loop `index` at `lateral`: the ride starts; nothing hits a kart in the ring. */
-export function startLoop(s: KartState, index: number, l: TrackLoop, lateral: number, c: KartConstants, events: KartEvent[]): void {
+/** Caught by loop `index` at `lateral`, `into` metres into its run-in: the ride starts; nothing hits a kart on it. */
+export function startLoop(s: KartState, index: number, l: TrackLoop, lateral: number, c: KartConstants, events: KartEvent[], into = 0): void {
   const st = s.status;
   st.loopIndex = index;
-  st.loopS = 0;
+  st.loopS = into;
+  st.loopS0 = into;
   st.loopLat0 = lateral;
   st.loopSpeed = Math.max(Math.abs(s.speed), c.topSpeed * c.loopSpeedFactor);
   st.loopAngle = 0;
-  st.intangibleRemaining = Math.max(st.intangibleRemaining, loopLength(l) / st.loopSpeed + 0.2);
+  st.intangibleRemaining = Math.max(st.intangibleRemaining, (loopLength(l) - into) / st.loopSpeed + 0.2);
   cancelDrift(s);
   events.push({ type: 'loop', phase: 'start' });
 }
@@ -92,7 +106,7 @@ export function stepLoop(s: KartState, track: TrackQuery, c: KartConstants, dt: 
   if (!l) { st.loopIndex = -1; st.loopAngle = 0; return; }
   const total = loopLength(l);
   st.loopS = Math.min(total, st.loopS + st.loopSpeed * dt);
-  const p = loopPose(track, l, st.loopLat0, st.loopS);
+  const p = loopPose(track, l, st.loopLat0, st.loopS, st.loopS0);
   s.position[0] = p.position[0]; s.position[1] = p.position[1]; s.position[2] = p.position[2];
   s.heading = p.heading;
   s.t = ((p.t % 1) + 1) % 1;

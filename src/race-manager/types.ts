@@ -40,6 +40,8 @@ export interface RaceConfig {
 /** Race-manager's private per-kart state. Serialisable; index-aligned with karts[]. */
 /** A claw rescue: where the kart was, where it goes back to, and how long is left. */
 export interface Rescue {
+  /** the kart's lateral when the claw came (its t goes stale while it is held) */
+  lateral: number;
   from: Vec3;
   fromHeading: number;
   to: Vec3;

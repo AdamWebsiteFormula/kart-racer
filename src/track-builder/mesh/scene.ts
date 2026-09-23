@@ -289,11 +289,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     }
     for (const m of jumpMeshes) { (m.material as MeshToonMaterial).map?.dispose(); retire(m); }
     jumpMeshes = buildJumpMeshes(track, palette, GRADIENT ?? null);
-    for (const m of jumpMeshes) group.add(m);
+    for (const m of jumpMeshes) { OWNED.add(m.geometry); group.add(m); }
   };
   addFeatures();
   // loop-the-loops: the ring, its neon rails, its gantries
-  for (const m of buildLoopMeshes(track, GRADIENT ?? null)) group.add(m);
+  for (const m of buildLoopMeshes(track, GRADIENT ?? null)) { OWNED.add(m.geometry); group.add(m); }
 
   // hazards: one instancer per asset, capacity = authored count, moved by update(time)
   const hazardAsset = new Map<string, string>();

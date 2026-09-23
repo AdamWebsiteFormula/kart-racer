@@ -2,6 +2,7 @@
 // reflected off the road edge, 3 bounces), the Homing Kite (rides the spline at
 // speed, eases to its target's lateral inside homingSnapDistance) and the Wind-Up Mouse
 // (rides the spline either way, weaving across the road, and bumps up to 3 karts).
+import { jumpLift } from '../kart-controller/ground.ts';
 import { BASE } from '../kart-controller/constants.ts';
 import { forwardOf, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import { wrap01 } from '../track-builder/lut.ts';
@@ -58,7 +59,7 @@ export function spawnProjectile(
   const pos: Vec3 = [s.position[0] + f[0] * cfg.spawnAheadMetres * dir, s.position[1], s.position[2] + f[2] * cfg.spawnAheadMetres * dir];
   const near = track.nearest(pos, { t: s.t, branch: s.branch }, BASE.tSearchWindow);
   const smp = track.sample(near.t, 0, near.branch);
-  pos[1] = smp.groundY + cfg.projectileHeight;
+  pos[1] = smp.groundY + jumpLift(track, near.t, near.branch, lateralOf(track, near.t, near.branch, pos), smp.halfWidth) + cfg.projectileHeight;
   const homing = def.behaviour.homing === true;
   const runner = def.role === 'runner';
   const p: Projectile = {
@@ -126,7 +127,7 @@ export function stepProjectiles(
       }
       p.lateral = Math.max(-smp.halfWidth + p.radius, Math.min(smp.halfWidth - p.radius, p.lateral));
       const at = track.sample(p.t, p.lateral, p.branch);
-      p.position[0] = at.position[0]; p.position[1] = at.groundY + cfg.projectileHeight; p.position[2] = at.position[2];
+      p.position[0] = at.position[0]; p.position[1] = at.groundY + jumpLift(track, p.t, p.branch, p.lateral, at.halfWidth) + cfg.projectileHeight; p.position[2] = at.position[2];
       continue;
     }
 
@@ -150,6 +151,6 @@ export function stepProjectiles(
     p.lateral = lat;
     p.position[0] = smp.position[0] + r[0] * lat;
     p.position[2] = smp.position[2] + r[2] * lat;
-    p.position[1] = smp.groundY + cfg.projectileHeight;
+    p.position[1] = smp.groundY + jumpLift(track, p.t, p.branch, lat, smp.halfWidth) + cfg.projectileHeight;
   }
 }

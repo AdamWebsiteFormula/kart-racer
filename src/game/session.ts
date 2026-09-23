@@ -128,6 +128,7 @@ export class RaceSession {
     this.scene.remove(this.group);
     this.group.remove(this.trackScene.group);
     this.trackScene.dispose();
+    this.rescueView.dispose();
     this.group.traverse((o) => {
       const m = o as unknown as { geometry?: { dispose(): void }; material?: { dispose(): void } | { dispose(): void }[] };
       // shared placeholder geometries live at module scope; only per-session materials go

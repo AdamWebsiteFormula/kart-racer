@@ -215,6 +215,8 @@ void main() {
   float e = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
   c = mix(vec3(0.05, 0.02, 0.01), c, smoothstep(0.04, 0.06, e));
   gl_FragColor = vec4(c, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
   #include <fog_fragment>
 }`;
 

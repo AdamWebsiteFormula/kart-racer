@@ -54,6 +54,8 @@ export function stepKart(
   // input and bleeds speed linearly, hitting exactly 0 on the tick the spin ends
   const spinning = s.status.spinRemaining > 0;
   tickTimers(s, dt);
+  // in the claw: the race manager moves it (race-manager rescue)
+  if (s.status.held) { s.prevDrift = input.drift; return events; }
   // on a loop-the-loop: the ride has the kart, nothing else moves it
   if (inLoop(s)) { s.prevDrift = input.drift; stepLoop(s, track, c, dt, events); return events; }
   const inp = spinning ? NEUTRAL_INPUT : input;
@@ -102,12 +104,12 @@ export function stepKarts(
   // 11. kart vs kart, every pair once
   for (let i = 0; i < karts.length; i++) {
     for (let j = i + 1; j < karts.length; j++) {
-      if (inLoop(karts[i]) || inLoop(karts[j])) continue;
+      if (inLoop(karts[i]) || inLoop(karts[j]) || karts[i].status.held || karts[j].status.held) continue;
       collideKarts(karts[i], karts[j], consts[i], consts[j], consts[i], dt, events[i], events[j]);
     }
   }
   // 12. slipstream
-  for (let i = 0; i < karts.length; i++) if (!inLoop(karts[i])) stepSlipstream(karts[i], karts, consts[i], dt, events[i]);
+  for (let i = 0; i < karts.length; i++) if (!inLoop(karts[i]) && !karts[i].status.held) stepSlipstream(karts[i], karts, consts[i], dt, events[i]);
   return events;
 }
 

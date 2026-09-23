@@ -103,6 +103,18 @@ export function validateTrack(def: TrackDefinition): Validation {
   named('pickup', def.pickups); named('coin', def.coins); named('boostPad', def.boostPads); named('jump', def.jumps);
   (def.hazards ?? []).forEach((h, i) => { if (!inRange(h.t)) errors.push(`hazard ${i}: t ${h.t} outside 0..1`); });
 
+  // an open edge on a stretch a route override replaces goes with that road; one that only
+  // partly overlaps it would leave a wall-less stub on the new road
+  const inside = (t: number, a: number, b: number) => wrap01(t - a) <= wrap01(b - a);
+  (def.openEdges ?? []).forEach((e, i) => {
+    if (!inRange(e.fromT) || !inRange(e.toT)) errors.push(`openEdges ${i}: t outside 0..1`);
+    for (const ov of def.finalLapShift.routeOverrides ?? []) {
+      const a = inside(e.fromT, ov.fromT, ov.toT), b = inside(e.toT, ov.fromT, ov.toT);
+      const covers = inside(ov.fromT, e.fromT, e.toT) || inside(ov.toT, e.fromT, e.toT);
+      if (a !== b || (!a && covers)) errors.push(`openEdges ${i}: ${e.fromT}-${e.toT} partly overlaps the route override ${ov.fromT}-${ov.toT}; keep it clear of it or wholly inside`);
+    }
+  });
+
   const shift = def.finalLapShift;
   const hazardIds = new Set((def.hazards ?? []).map((h, i) => h.id ?? `hazard-${i}`));
   for (const id of [...(shift.closesShortcuts ?? []), ...(shift.opensShortcuts ?? [])]) {

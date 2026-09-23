@@ -31,6 +31,13 @@ export class RescueView {
     for (const x of [this.claw, this.cable]) { x.frustumCulled = false; x.count = 0; this.root.add(x); }
   }
 
+  /** Free the cable geometry and both instance buffers (the claw's geometry and the materials are shared or freed by the session). */
+  dispose(): void {
+    this.cable.geometry.dispose();
+    this.cable.dispose();
+    this.claw.dispose();
+  }
+
   private put(i: number, x: number, y: number, z: number, open: number, spin: number): void {
     this.q.setFromAxisAngle(this.v.set(0, 1, 0), spin);
     // the prongs spread when open, close round the kart when holding it

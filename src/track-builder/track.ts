@@ -32,6 +32,9 @@ export class Track implements TrackQuery {
   loops: readonly TrackLoop[] = [];
   boostPads: readonly TrackBoostPad[] = [];
   shifted = false;
+  /** open edges and loops as laid now: t re-derived from world points after a route change; dropped if their road was replaced */
+  openEdges: { fromT: number; toT: number; side: 'left' | 'right' | 'both'; fromPoint: Vec3; toPoint: Vec3 }[];
+  loopFeet: { id: string; t: number; radius?: number; point: Vec3 }[];
   private readonly listeners: TrackListener[] = [];
 
   constructor(def: TrackDefinition) {
@@ -45,6 +48,8 @@ export class Track implements TrackQuery {
     this.branches = new Branches(list);
     this.startT = wrap01(def.startGrid.t);
     this.startPoint = mainLut.sample(this.startT, 0).position;
+    this.openEdges = (def.openEdges ?? []).map((e) => ({ ...e, fromPoint: mainLut.sample(e.fromT, 0).position, toPoint: mainLut.sample(e.toT, 0).position }));
+    this.loopFeet = (def.loops ?? []).map((l) => ({ ...l, point: mainLut.sample(l.t, 0).position }));
     this.features = bakeFeatures(def, this.branches);
     this.hazards = new Hazards(def.hazards ?? [], this.branches);
     this.branches.setLap(1);
@@ -107,7 +112,7 @@ export class Track implements TrackQuery {
     const lut = this.branches.main.lut;
     // open edges (a route change builds a new LUT, so they are laid again here)
     lut.open.fill(0);
-    for (const e of this.def.openEdges ?? []) {
+    for (const e of this.openEdges) {
       const bits = e.side === 'left' ? 1 : e.side === 'right' ? 2 : 3;
       for (let i = 0; i < lut.n; i++) {
         const u = i / lut.n, d = ((u - e.fromT) % 1 + 1) % 1, span = ((e.toT - e.fromT) % 1 + 1) % 1;
@@ -119,7 +124,7 @@ export class Track implements TrackQuery {
     this.minimap = buildMinimap(this.branches);
     this.jumps = jumpView(this.features);
     this.boostPads = boostPadView(this.features);
-    this.loops = (this.def.loops ?? []).map((l) => ({
+    this.loops = this.loopFeet.map((l) => ({
       id: l.id, t: l.t, radius: l.radius ?? BUILDER.loopRadius, shift: BUILDER.loopShift, spread: BUILDER.loopSpread,
       approach: BUILDER.loopApproach, exit: BUILDER.loopExit, width: BUILDER.loopWidth,
     }));

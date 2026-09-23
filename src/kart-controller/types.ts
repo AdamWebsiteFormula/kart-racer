@@ -78,9 +78,15 @@ export interface KartState {
     falling: boolean;
     /** the road height it fell from */
     fallFromY: number;
+    /** held by the race manager (the claw rescue): no physics, no events, until it lets go */
+    held: boolean;
+    /** being eased back inside a wall's line from far outside it (collide.ts) */
+    wallEasing: boolean;
     /** riding track.loops[loopIndex] (-1 = not): metres along the ride, the lateral it was caught at, its speed, its angle round the ring */
     loopIndex: number;
     loopS: number;
+    /** metres into the run-in where it was caught (0 = at the catch line) */
+    loopS0: number;
     loopLat0: number;
     loopSpeed: number;
     loopAngle: number;
@@ -130,7 +136,7 @@ export function createKartState(init: KartInit): KartState {
     status: {
       spinRemaining: 0, shield: false, slowedTo: 1, slowRemaining: 0, intangibleRemaining: 0,
       rideRemaining: 0, towRemaining: 0, towTarget: -1, falling: false, fallFromY: 0,
-      loopIndex: -1, loopS: 0, loopLat0: 0, loopSpeed: 0, loopAngle: 0,
+      held: false, wallEasing: false, loopIndex: -1, loopS: 0, loopS0: 0, loopLat0: 0, loopSpeed: 0, loopAngle: 0,
     },
     coins: init.coins ?? 0,
     rank: 0,

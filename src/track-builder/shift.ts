@@ -71,6 +71,12 @@ export function applyFinalLapShift(track: Track, karts: readonly ShiftKart[] = [
       b.span = wrap01(b.exitT - b.entryT);
     }
     track.startT = main.lut.nearestTGlobal(track.startPoint);
+    // open edges and loops on the replaced road go with it; the rest keep their world place
+    const replaced = (t: number) => overrides.some((ov) => inRange(t, ov.fromT, ov.toT));
+    track.openEdges = track.openEdges
+      .filter((e) => !replaced(e.fromT) && !replaced(e.toT))
+      .map((e) => ({ ...e, fromT: main.lut.nearestTGlobal(e.fromPoint), toT: main.lut.nearestTGlobal(e.toPoint) }));
+    track.loopFeet = track.loopFeet.filter((l) => !replaced(l.t)).map((l) => ({ ...l, t: main.lut.nearestTGlobal(l.point) }));
 
     // 2. karts: main-line karts by world position; branch karts keep their local u
     karts.forEach((k, i) => {

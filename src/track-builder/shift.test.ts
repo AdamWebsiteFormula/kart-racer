@@ -8,6 +8,8 @@ import type { TrackChanged, TrackDefinition } from './types.ts';
 /** Harbour Loop with a bridge that collapses: the shift reroutes t 0.45–0.55 over a longer detour. */
 function collapseDef(): TrackDefinition {
   const d = cloneDef(HARBOUR_LOOP);
+  // the harbor's open pier edge (0.47-0.6) would straddle this made-up detour; the validator forbids that
+  d.openEdges = [];
   d.finalLapShift = {
     kind: 'collapse',
     label: 'BRIDGE OUT',
