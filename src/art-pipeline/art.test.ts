@@ -155,3 +155,15 @@ describe('racer model files', () => {
     expect(models.make('pip')).toBeNull();
   });
 });
+
+describe('painted skies', () => {
+  it('every sky preset has its panorama file, and its horizon colour is a real colour for the fog', async () => {
+    const { SKIES, PANORAMAS } = await import('./sky.ts');
+    const fs = (await import('node:fs' as string)) as { existsSync(p: URL): boolean };
+    for (const id of Object.keys(SKIES)) {
+      expect(PANORAMAS.has(id), id).toBe(true);
+      expect(fs.existsSync(new URL(`../../public/skies/${id}.webp`, import.meta.url)), id).toBe(true);
+      expect(SKIES[id].horizon, id).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+});

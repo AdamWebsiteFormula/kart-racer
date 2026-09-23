@@ -40,6 +40,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Every kart has exhaust pipes (racers.ts EXHAUST: ports, direction, flame color). Side pipes splay 0.35 outward so the chase camera sees the flames as a V, not two dots. Nova's thruster and Boulder's truck stacks are their exhausts. Flame color is the racer's accent, or their second color where the accent is too dark to burn (Momo, Boulder).
 - 2026-09-23: Outlines are soft and colored, not black (the user's call): each hull part is a deep shade of its own color (same hue, richer, sRGB lightness × 0.4, capped at linear luminance 0.1 so yellow is as deep as blue), drawn with one shared vertex-colored back-face material. The racers' ink is thinner (0.028 m) than the scenery's.
 - 2026-09-23: No outlines at all (the user's call, twice: Mario Kart World draws none). Racers and scenery render their body mesh only; `ModelBuilder.outline()` stays as an unused option. Harbor Loop dropped from 76 to 69 draw calls.
+- 2026-09-23: Painted skies: 12 AI panoramas (GPT Image 2.5 via Higgsfield, 21:9 at 2K, medium quality, 1 credit each) in public/skies, wrapped once round the dome from the horizon to 0.85 rad up, the one seam hidden by a mirrored blend, a little saturation added before tone mapping. Each preset's horizon and top colours are measured from its painting (scripts/skies/prepare.py), so the fog melts into it.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

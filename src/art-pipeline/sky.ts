@@ -1,22 +1,24 @@
-// Painted gradient skies (research plan §7.1: a painted sky sphere keeps the toon look).
-// Presets by the track's `environment.sky` id; the Final Lap Shift can switch to another one.
-import { BackSide, Color, Mesh, ShaderMaterial, type Object3D } from 'three';
+// Painted skies (research plan §7.1: a painted sky sphere keeps the toon look). Each preset is a
+// gradient; a preset with a painted panorama (public/skies/<id>.webp, made with AI) wraps it round
+// the dome once the file arrives. Presets by the track's `environment.sky` id; the Final Lap Shift
+// can switch to another one. The horizon colour is the fog colour, so it matches the painting's.
+import { BackSide, Color, Mesh, ShaderMaterial, SRGBColorSpace, TextureLoader, type Object3D, type Texture } from 'three';
 
 export interface SkyPreset { top: string; horizon: string; ground: string; sun: string }
 
 export const SKIES: Readonly<Record<string, SkyPreset>> = Object.freeze({
-  'harbour-day': { top: '#5fb8ec', horizon: '#fdf0d5', ground: '#cfe9f5', sun: '#fff6c9' },
-  'harbour-tide': { top: '#3f7fb6', horizon: '#ffd9b0', ground: '#b9d6e6', sun: '#ffe0a3' },
-  'meadow-day': { top: '#6ec3f0', horizon: '#f4fbe0', ground: '#d8efc2', sun: '#fff7cf' },
-  'meadow-storm': { top: '#4b5566', horizon: '#9aa6b2', ground: '#7d8a80', sun: '#c7d0d8' },
-  'canyon-day': { top: '#58a6e0', horizon: '#ffd9a8', ground: '#e8b38a', sun: '#fff0c2' },
-  'canyon-dusk': { top: '#3b3a7a', horizon: '#ff9a5a', ground: '#c8553d', sun: '#ffd27a' },
-  'frost-day': { top: '#8fc9f0', horizon: '#f2f8ff', ground: '#e3eef7', sun: '#ffffff' },
-  'frost-blizzard': { top: '#9aa9b8', horizon: '#dfe7ee', ground: '#cfd9e2', sun: '#eef3f7' },
-  'boardwalk-night': { top: '#0b0b33', horizon: '#5a1f6e', ground: '#1a1440', sun: '#ff2e97' },
-  'boardwalk-fireworks': { top: '#16114a', horizon: '#8a2f86', ground: '#221a52', sun: '#ffd23f' },
-  'skyline-dawn': { top: '#3f7fd9', horizon: '#ffd2b0', ground: '#9fb8ec', sun: '#fff1c1' },
-  'skyline-night': { top: '#0a1a4a', horizon: '#6a4a9f', ground: '#2a3a78', sun: '#f2b705' },
+  'harbour-day': { top: '#1484f5', horizon: '#f6dbb0', ground: '#cfe9f5', sun: '#fff6c9' },
+  'harbour-tide': { top: '#1f67c4', horizon: '#de826a', ground: '#b9d6e6', sun: '#ffe0a3' },
+  'meadow-day': { top: '#1b8ffa', horizon: '#dbfccc', ground: '#d8efc2', sun: '#fff7cf' },
+  'meadow-storm': { top: '#1e3c65', horizon: '#96b0a8', ground: '#7d8a80', sun: '#c7d0d8' },
+  'canyon-day': { top: '#1d71e3', horizon: '#fee5ae', ground: '#e8b38a', sun: '#fff0c2' },
+  'canyon-dusk': { top: '#1b1e69', horizon: '#b53e5f', ground: '#c8553d', sun: '#ffd27a' },
+  'frost-day': { top: '#32a0fb', horizon: '#daf1fd', ground: '#e3eef7', sun: '#ffffff' },
+  'frost-blizzard': { top: '#90a9ca', horizon: '#e6f1fc', ground: '#cfd9e2', sun: '#eef3f7' },
+  'boardwalk-night': { top: '#02155a', horizon: '#dc73f2', ground: '#1a1440', sun: '#ff2e97' },
+  'boardwalk-fireworks': { top: '#0e164e', horizon: '#ec89ca', ground: '#221a52', sun: '#ffd23f' },
+  'skyline-dawn': { top: '#2c8af4', horizon: '#9b9be3', ground: '#9fb8ec', sun: '#fff1c1' },
+  'skyline-night': { top: '#05206d', horizon: '#3a58bd', ground: '#2a3a78', sun: '#f2b705' },
 });
 
 const VERT = `
@@ -28,15 +30,53 @@ void main() {
 
 const FRAG = `
 uniform vec3 top; uniform vec3 horizon; uniform vec3 ground; uniform vec3 sun; uniform vec3 sunDir;
+uniform sampler2D pano; uniform float hasPano; uniform float panoSpan;
 varying vec3 vDir;
 void main() {
-  float y = vDir.y;
+  vec3 d = normalize(vDir);
+  float y = d.y;
   // two soft bands above the horizon, a quick fade below it: a painted look, not a photo
   vec3 c = y > 0.0 ? mix(horizon, top, smoothstep(0.0, 0.55, pow(y, 0.8))) : mix(horizon, ground, smoothstep(0.0, 0.2, -y));
-  float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0);
-  c = mix(c, sun, smoothstep(0.985, 0.995, s) + 0.25 * pow(s, 24.0));
+  if (hasPano > 0.5) {
+    // once round the dome; the painting's bottom edge sits on the horizon, its top panoSpan up
+    float u = atan(d.x, -d.z) / 6.2831853 + 0.5;
+    float v = clamp(asin(clamp(y, 0.0, 1.0)) / panoSpan, 0.002, 0.998);
+    vec3 a = texture2D(pano, vec2(u, v)).rgb;
+    // the one seam: the left edge fades into a mirror of the right edge, so both sides meet
+    vec3 b = texture2D(pano, vec2(1.0 - u, v)).rgb;
+    vec3 p = mix(b, a, smoothstep(0.0, 0.04, u));
+    // a little richer than the file: the tone mapping after this pass softens paint the most
+    float l = dot(p, vec3(0.2126, 0.7152, 0.0722));
+    p = max(mix(vec3(l), p, 1.18), 0.0) * 1.08;
+    float w = (1.0 - smoothstep(0.8, 0.998, v)) * smoothstep(-0.03, 0.0, y);
+    c = mix(c, p, w);
+  }
+  float s = max(dot(d, normalize(sunDir)), 0.0);
+  c = mix(c, sun, (smoothstep(0.985, 0.995, s) + 0.25 * pow(s, 24.0)) * (1.0 - 0.85 * hasPano));
   gl_FragColor = vec4(c, 1.0);
 }`;
+
+/** The painted panoramas that ship with the game (public/skies). */
+export const PANORAMAS: ReadonlySet<string> = new Set<string>(Object.keys(SKIES));
+/** How far up the sky a panorama reaches from the horizon (radians). */
+const PANO_SPAN = 0.85;
+const panoCache = new Map<string, Promise<Texture | null>>();
+
+/** A preset's panorama, loaded once and shared; null when it has none or the file fails. */
+function panorama(id: string): Promise<Texture | null> {
+  if (!PANORAMAS.has(id)) return Promise.resolve(null);
+  let p = panoCache.get(id);
+  if (!p) {
+    p = new TextureLoader().loadAsync(`${import.meta.env?.BASE_URL ?? '/'}skies/${id}.webp`).then((t) => {
+      t.colorSpace = SRGBColorSpace;
+      t.anisotropy = 4;
+      t.userData.shared = true;
+      return t;
+    }).catch(() => null);
+    panoCache.set(id, p);
+  }
+  return p;
+}
 
 export function skyMaterial(p: SkyPreset): ShaderMaterial {
   return new ShaderMaterial({
@@ -44,6 +84,7 @@ export function skyMaterial(p: SkyPreset): ShaderMaterial {
     uniforms: {
       top: { value: new Color(p.top) }, horizon: { value: new Color(p.horizon) }, ground: { value: new Color(p.ground) },
       sun: { value: new Color(p.sun) }, sunDir: { value: [0.45, 0.8, 0.35] },
+      pano: { value: null }, hasPano: { value: 0 }, panoSpan: { value: PANO_SPAN },
     },
   });
 }
@@ -54,8 +95,11 @@ export function paintSky(group: Object3D, id: string | undefined, fallback: SkyP
   const dome = group.getObjectByName('sky') as Mesh | undefined;
   if (dome) {
     const old = dome.material as { dispose(): void };
-    dome.material = skyMaterial(preset);
+    const mat = skyMaterial(preset);
+    dome.material = mat;
     old.dispose();
+    // the painting fades in when it arrives (the gradient already matches its colours)
+    if (id) void panorama(id).then((t) => { if (t && dome.material === mat) { mat.uniforms.pano.value = t; mat.uniforms.hasPano.value = 1; } });
   }
   return new Color(preset.horizon);
 }
