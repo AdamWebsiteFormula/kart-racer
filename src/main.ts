@@ -12,7 +12,7 @@ import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from '
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
@@ -216,6 +216,7 @@ applyRender();
 startAttract();
 // racer model files, when there are any (fails soft to code-built karts). The title's race started
 // before they arrived: restart it so the first thing a player sees is the modelled cast.
+preloadSurfaces();
 void Promise.all([RACER_MODELS.load(), PROP_MODELS.load()]).then(() => { if (attract) startAttract(); });
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));

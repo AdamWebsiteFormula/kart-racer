@@ -113,7 +113,7 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
       const lateral = side * (entry.band === 'roadside' ? c.halfWidth + BUILDER.kerbWidth + dist : dist);
       x = c.position[0] + c.tangent[2] * lateral;
       z = c.position[2] - c.tangent[0] * lateral;
-      y = entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY;
+      y = entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
       if (insideRoadEnvelope(branches, x, z)) continue;
     }
     pushTransform(out, [x, y, z], yaw, [scale, scale, scale]);

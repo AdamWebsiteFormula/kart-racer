@@ -2,7 +2,7 @@
 // textures (AI-made, public/textures). Everything here is shared across races and never disposed
 // by a scene. WATER_CLOCK is the one time uniform every water material reads; the game ticks it.
 import {
-  Color, MeshToonMaterial, MirroredRepeatWrapping, RepeatWrapping, ShaderMaterial, SRGBColorSpace, TextureLoader,
+  CanvasTexture, Color, MeshToonMaterial, MirroredRepeatWrapping, RepeatWrapping, ShaderMaterial, SRGBColorSpace, TextureLoader,
   Texture, UniformsLib, UniformsUtils, type Material,
 } from 'three';
 import { toonRamp } from './toon.ts';
@@ -120,9 +120,101 @@ export function groundMaterial(biome: string, kind: string, size: number): Mater
   return m;
 }
 
+/** Start loading every painted surface now, so no race opens on a black ground while one arrives. */
+export function preloadSurfaces(): void {
+  for (const g of Object.values(GROUNDS)) texture(g.file);
+  texture('asphalt');
+}
+
 /** The road's fine grain (a neutral grey, so each biome's road colour shows through), repeating along the track. */
 export function roadGrain(): Texture {
   const t = texture('asphalt');
   t.wrapS = t.wrapT = RepeatWrapping;
   return t;
+}
+
+/** A wide wooden deck (Boardwalk Nights): warm planks with grain and dark gaps, 4 planks a tile. */
+function planks(): Texture {
+  let t = texCache.get('planks');
+  if (!t) {
+    if (typeof document === 'undefined') t = new Texture();
+    else {
+      const c = document.createElement('canvas');
+      c.width = c.height = 256;
+      const g = c.getContext('2d');
+      if (g) {
+        for (let p = 0; p < 4; p++) {
+          const y = p * 64, shade = [0, -10, 6, -4][p];
+          g.fillStyle = `rgb(${196 + shade}, ${150 + shade}, ${108 + shade})`;
+          g.fillRect(0, y, 256, 64);
+          // grain: long soft streaks along the plank
+          for (let k = 0; k < 26; k++) {
+            g.fillStyle = `rgba(${90 + (k % 3) * 20}, ${56 + (k % 2) * 10}, 30, ${0.05 + (k % 4) * 0.02})`;
+            g.fillRect(0, y + 4 + ((k * 37) % 56), 256, 1 + (k % 2));
+          }
+          // plank ends staggered along the deck
+          g.fillStyle = 'rgba(40, 24, 16, 0.55)';
+          g.fillRect(((p * 97) % 256), y, 2, 64);
+          g.fillStyle = 'rgba(30, 18, 12, 0.85)';
+          g.fillRect(0, y + 61, 256, 3); // gap
+        }
+      }
+      t = new CanvasTexture(c);
+    }
+    t.colorSpace = SRGBColorSpace;
+    t.wrapS = t.wrapT = RepeatWrapping;
+    t.anisotropy = 8;
+    t.userData.shared = true;
+    texCache.set('planks', t);
+  }
+  return t;
+}
+
+/** The coast's two surfaces per sea biome: the flat top and the beach, metres per tile, and how the sand is toned. */
+const COASTS: Readonly<Record<string, { top: () => Texture; topMetres: number; beach: string; beachMetres: number; beachTint: string; beachSat: number }>> = Object.freeze({
+  harbour: { top: () => texture('grass'), topMetres: 14, beach: 'sand', beachMetres: 10, beachTint: '#fff6de', beachSat: 0.5 },
+  boardwalk: { top: planks, topMetres: 2.6, beach: 'sand', beachMetres: 10, beachTint: '#c9b8d6', beachSat: 0.25 },
+});
+
+const coastCache = new Map<string, Material>();
+/**
+ * The coast of a sea track: the top texture on the flat land, a pale beach sand down the slope,
+ * mixed by the geometry's `blend` attribute (0 top → 1 beach) and sampled by world metres (the
+ * geometry's `uv`); vertex colours darken the wet sand. Both textures are the shared ones, read
+ * through their own uniforms so no repeat is touched. Undefined for a biome with no coast.
+ * Shared, never disposed.
+ */
+export function coastMaterial(biome: string): Material | undefined {
+  const spec = COASTS[biome];
+  if (!spec) return undefined;
+  let m = coastCache.get(biome);
+  if (!m) {
+    const mat = new MeshToonMaterial({ color: 0xffffff, gradientMap: toonRamp(), vertexColors: true });
+    const uniforms = {
+      topMap: { value: spec.top() }, topScale: { value: 1 / spec.topMetres },
+      beachMap: { value: texture(spec.beach) }, beachScale: { value: 1 / spec.beachMetres },
+      beachTint: { value: new Color(spec.beachTint) }, beachSat: { value: spec.beachSat },
+    };
+    mat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = 'attribute float blend;\nvarying float vBlend;\nvarying vec2 vWorldUv;\n'
+        + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBlend = blend;\n  vWorldUv = uv;');
+      shader.fragmentShader = 'uniform sampler2D topMap;\nuniform sampler2D beachMap;\nuniform float topScale;\nuniform float beachScale;\nuniform vec3 beachTint;\nuniform float beachSat;\nvarying float vBlend;\nvarying vec2 vWorldUv;\n'
+        + shader.fragmentShader.replace(
+          '#include <map_fragment>',
+          [
+            '#include <map_fragment>',
+            '  vec3 topTexel = texture2D(topMap, vWorldUv * topScale).rgb;',
+            '  vec3 sandTexel = texture2D(beachMap, vWorldUv * beachScale).rgb;',
+            '  sandTexel = mix(vec3(dot(sandTexel, vec3(0.299, 0.587, 0.114))), sandTexel, beachSat) * beachTint;',
+            '  diffuseColor.rgb *= mix(topTexel, sandTexel, smoothstep(0.0, 1.0, vBlend));',
+          ].join('\n'),
+        );
+    };
+    mat.customProgramCacheKey = () => `coast-${biome}`;
+    mat.userData.shared = true;
+    coastCache.set(biome, mat);
+    m = mat;
+  }
+  return m;
 }

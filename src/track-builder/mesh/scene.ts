@@ -13,6 +13,7 @@ import type { Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
+import { buildCoast, buildPier } from './land.ts';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -32,6 +33,8 @@ export interface TrackAssets {
   ground?: (kind: string, size: number) => Material | undefined;
   /** a fine grain multiplied over every road's colours (not on planked roads); never disposed by the scene */
   roadMap?: Texture;
+  /** the coast of a sea track (flat top, beach slope); never disposed by the scene */
+  coast?: () => Material | undefined;
 }
 
 export interface TrackScene {
@@ -55,6 +58,8 @@ export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[
 
 const SKY_RADIUS = 900;
 const GROUND_SIZE = 2400;
+/** The coast of a sea track: metres of flat land past the shoulder (the roadside band ends at 14), the slope into the sea, the grid. */
+const COAST = Object.freeze({ flat: 14, slope: 12, cell: 2.5 });
 const START_LINE_LENGTH = 1.5;
 
 function toColor(c: Rgb): Color { return new Color(c[0], c[1], c[2]); }
@@ -233,6 +238,16 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     instancers.set(m.name, m);
     group.add(m);
     withHull(m, entry.asset);
+    if (entry.footing === 'pier') {
+      // each one out at sea stands on its own pier, sized to what stands on it
+      const box = m.geometry.boundingBox ?? (m.geometry.computeBoundingBox(), m.geometry.boundingBox!);
+      const radius = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 0.55 + 0.6;
+      const pier = new InstancedMesh(buildPier(radius, BUILDER.pierLift), new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null }), p.count);
+      pier.instanceMatrix.set(p.matrices.subarray(0, p.count * 16));
+      pier.name = `pier:${entry.asset}`;
+      pier.receiveShadow = true;
+      group.add(pier);
+    }
   }
 
   // features: balloons, coins, boost pads, ramps
@@ -339,6 +354,16 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     ground.position.y = groundY;
     ground.receiveShadow = true;
     group.add(ground);
+    // a sea track gets a coast along the road, so its roadside decor stands on land
+    const coastGeo = groundKind === 'water' ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell }) : null;
+    if (coastGeo) {
+      const own = assets.coast?.();
+      const coast = new Mesh(coastGeo, own ?? new MeshToonMaterial({ color: toColor(palette.shoulder), vertexColors: true, gradientMap: GRADIENT ?? null }));
+      if (own) coast.userData.sharedMaterial = true;
+      coast.name = 'coast';
+      coast.receiveShadow = true;
+      group.add(coast);
+    }
   }
 
   // sky: one dome
@@ -360,7 +385,17 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const landmark = new Mesh(lg, own ?? toon(lg, palette.accent, GRADIENT));
     if (own) landmark.userData.sharedMaterial = true;
     landmark.name = `landmark-${def.landmark}`;
-    landmark.position.set((minX + maxX) / 2, groundKind === 'none' ? lut.minY : groundY, (minZ + maxZ) / 2);
+    const onPier = env.landmarkFooting === 'pier';
+    landmark.position.set((minX + maxX) / 2, groundKind === 'none' ? lut.minY : groundY + (onPier ? BUILDER.pierLift : 0), (minZ + maxZ) / 2);
+    if (onPier) {
+      lg.computeBoundingBox();
+      const b = lg.boundingBox!;
+      const pier = new Mesh(buildPier(Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.5 + 2, BUILDER.pierLift), new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null }));
+      pier.position.copy(landmark.position);
+      pier.name = 'pier:landmark';
+      pier.receiveShadow = true;
+      group.add(pier);
+    }
     landmark.castShadow = true;
     group.add(landmark);
     withHull(landmark, def.landmark);

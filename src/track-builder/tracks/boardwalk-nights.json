@@ -112,10 +112,11 @@
       "background": "#15154a",
       "accent": "#2ee6ff"
     },
+    "landmarkFooting": "pier",
     "decor": [
       { "asset": "stall", "instances": 55, "band": "roadside" },
       { "asset": "lamp", "instances": 75, "band": "roadside" },
-      { "asset": "tent", "instances": 20, "band": "far" }
+      { "asset": "tent", "instances": 20, "band": "far", "footing": "pier" }
     ]
   }
 }

@@ -3,7 +3,7 @@ import type { Material } from 'three';
 import type { TrackAssets } from '../track-builder/mesh/index.ts';
 import { trackAssetsFor } from './decor.ts';
 import { PROP_MODELS } from './glb.ts';
-import { groundMaterial, roadGrain } from './surfaces.ts';
+import { coastMaterial, groundMaterial, roadGrain } from './surfaces.ts';
 import { toonRamp } from './toon.ts';
 
 export { buildRacerMesh, racerGeometry } from './kart.ts';
@@ -16,7 +16,7 @@ export { DAY_LIGHT, lightOf, paintSky, SKIES, type SkyLight, type SkyPreset } fr
 export { flameMaterial, isShared, toonRamp, vertexToon } from './toon.ts';
 export { BUBBLE_CLOCK, bubbleMaterial, ITEM_MODEL_KINDS, itemGeometry, oilSlickMaterial, strikeBallMaterial } from './items.ts';
 
-export { WATER_CLOCK } from './surfaces.ts';
+export { preloadSurfaces, WATER_CLOCK } from './surfaces.ts';
 
 /**
  * The TrackAssets a track scene gets: the modelled decor and the toon ramp, with every prop that
@@ -30,6 +30,6 @@ export function trackAssets(biome?: string): TrackAssets {
     const file = PROP_MODELS.get(name);
     if (file) { geometries[name] = file.geometry; materials[name] = file.material; }
   }
-  const surfaces = biome ? { ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain() } : {};
+  const surfaces = biome ? { ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome) } : {};
   return { geometries, materials, gradientMap: toonRamp(), ...surfaces };
 }

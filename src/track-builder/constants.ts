@@ -10,7 +10,7 @@ export interface BuilderConstants {
   barrierSpacing: number; roadTileLength: number; chunkCount: number;
   minimapSamples: number; minimapPadding: number;
   boostPadHalfLength: number; boostPadWidth: number;
-  balloonHeight: number; balloonRadius: number; coinRadius: number; hazardRadius: number;
+  balloonHeight: number; balloonRadius: number; coinRadius: number; hazardRadius: number; pierLift: number;
   fallingActiveSeconds: number; gustWindow: number;
   decorBands: { roadside: [number, number]; far: [number, number]; sky: [number, number] };
   lapTimeWarn: [number, number]; trackDrawCallBudget: number;

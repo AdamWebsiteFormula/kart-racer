@@ -77,7 +77,9 @@ export interface EnvironmentDef {
   ground?: { kind: GroundKind; y?: number };
   sunDirection?: [number, number, number];
   palette?: { background?: string; accent?: string };
-  decor?: { asset: string; instances: number; band: DecorBand }[];
+  decor?: { asset: string; instances: number; band: DecorBand; footing?: 'pier' }[];
+  /** the landmark stands on a wooden pier (a sea track) */
+  landmarkFooting?: 'pier';
 }
 
 export interface TrackDefinition {
