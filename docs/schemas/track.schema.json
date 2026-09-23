@@ -58,12 +58,13 @@
         "type": "object", "required": ["type", "t"],
         "properties": {
           "id": { "type": "string" },
-          "type": { "type": "string", "enum": ["rolling", "crossing", "falling", "static", "gust"] },
+          "type": { "type": "string", "enum": ["rolling", "crossing", "falling", "static", "gust", "creature"] },
           "t": { "type": "number" }, "lateral": { "type": "number", "default": 0 },
           "period": { "type": "number", "description": "Seconds between activations" },
           "speed": { "type": "number", "description": "m/s for rolling/crossing/falling; gust push strength" },
           "hit": { "type": "string", "enum": ["spin", "slow", "bump"], "default": "spin" },
-          "asset": { "type": "string" }
+          "asset": { "type": "string" },
+          "creature": { "type": "string", "enum": ["rumblesaur", "yeti", "kraken", "crab", "goose", "whale"], "description": "type creature: the track's big creature (design §6); lateral's sign picks its side of the road" }
         }
       }
     },

@@ -1,7 +1,7 @@
 // Race-manager types. RaceState mirrors docs/schemas/race-state.schema.json plus
 // the per-kart tracker fields the rules need. No Three.js in here.
-import type { Archetype, InputState, KartEvent, KartState, SpeedClass } from '../kart-controller/types.ts';
-import type { HazardHit, TrackChanged } from '../track-builder/types.ts';
+import type { Archetype, InputState, KartEvent, KartState, SpeedClass, Vec3 } from '../kart-controller/types.ts';
+import type { CreatureKind, HazardHit, TrackChanged } from '../track-builder/types.ts';
 
 export type RaceMode = 'quick' | 'grandPrix' | 'knockout' | 'timeTrial' | 'daily';
 export type RacePhase = 'countdown' | 'racing' | 'finalLap' | 'finished';
@@ -105,6 +105,7 @@ export type RaceEvent =
   | { type: 'coin'; racerId: string; coins: number }
   | { type: 'trackChanged'; event: TrackChanged }
   | { type: 'kart'; racerId: string; event: KartEvent }
+  | { type: 'creature'; id: string; kind: CreatureKind; action: string; position: Vec3 }
   | { type: 'raceFinished' };
 
 export interface RaceResultRow {

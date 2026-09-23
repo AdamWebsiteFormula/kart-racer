@@ -32,6 +32,10 @@
   "yaw": 0,
   "fit": "width"
  },
+ "crab": {
+  "url": "models/props/crab.glb",
+  "yaw": -1.5708
+ },
  "fence": {
   "url": "models/props/fence.glb",
   "yaw": 0
@@ -40,6 +44,10 @@
   "url": "models/props/ferris-wheel.glb",
   "yaw": 0
  },
+ "goose": {
+  "url": "models/props/goose.glb",
+  "yaw": -1.5708
+ },
  "house": {
   "url": "models/props/house.glb",
   "yaw": 0
@@ -47,6 +55,10 @@
  "island": {
   "url": "models/props/island.glb",
   "yaw": 0
+ },
+ "kraken": {
+  "url": "models/props/kraken.glb",
+  "yaw": -1.5708
  },
  "lamp": {
   "url": "models/props/lamp.glb",
@@ -81,6 +93,10 @@
   "url": "models/props/rock.glb",
   "yaw": 0
  },
+ "rumblesaur": {
+  "url": "models/props/rumblesaur.glb",
+  "yaw": -1.5708
+ },
  "sky-lamp": {
   "url": "models/props/sky-lamp.glb",
   "yaw": 0,
@@ -98,6 +114,10 @@
   "url": "models/props/tent.glb",
   "yaw": 0
  },
+ "whale": {
+  "url": "models/props/whale.glb",
+  "yaw": -1.5708
+ },
  "windmill": {
   "url": "models/props/windmill.glb",
   "yaw": 0
@@ -105,5 +125,9 @@
  "windmill-small": {
   "url": "models/props/windmill-small.glb",
   "yaw": 0
+ },
+ "yeti": {
+  "url": "models/props/yeti.glb",
+  "yaw": -1.5708
  }
 }

@@ -87,6 +87,7 @@
     { "t": 0.88, "lateral": 2 }
   ],
   "hazards": [
+    { "id": "yeti", "type": "creature", "creature": "yeti", "t": 0.62, "lateral": -1, "period": 4.2, "hit": "spin" },
     { "id": "snowball-1", "type": "rolling", "t": 0.22, "lateral": 3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" },
     { "id": "snowball-2", "type": "rolling", "t": 0.83, "lateral": -3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" }
   ],

@@ -87,6 +87,36 @@
   "trail": {
    "url": "audio/sfx/trail.mp3"
   },
+  "roar": {
+   "url": "audio/sfx/roar.mp3"
+  },
+  "stomp": {
+   "url": "audio/sfx/stomp.mp3"
+  },
+  "yetiThrow": {
+   "url": "audio/sfx/yetiThrow.mp3"
+  },
+  "snowThud": {
+   "url": "audio/sfx/snowThud.mp3"
+  },
+  "krakenRise": {
+   "url": "audio/sfx/krakenRise.mp3"
+  },
+  "krakenSlam": {
+   "url": "audio/sfx/krakenSlam.mp3"
+  },
+  "crabClack": {
+   "url": "audio/sfx/crabClack.mp3"
+  },
+  "honk": {
+   "url": "audio/sfx/honk.mp3"
+  },
+  "whaleSong": {
+   "url": "audio/sfx/whaleSong.mp3"
+  },
+  "tailSlap": {
+   "url": "audio/sfx/tailSlap.mp3"
+  },
   "hit": {
    "url": "audio/sfx/hit.mp3"
   },

@@ -7,7 +7,9 @@ export type { Surface, Vec3 };
 export type Biome = 'harbour' | 'meadow' | 'canyon' | 'frost' | 'boardwalk' | 'skyline' | 'temple' | 'foundry';
 export type Cup = 'sunrise' | 'summit';
 export type ShiftKind = 'flood' | 'storm' | 'collapse' | 'blizzard' | 'fireworks' | 'sunset' | 'rise' | 'reverse';
-export type HazardKind = 'rolling' | 'crossing' | 'falling' | 'static' | 'gust';
+export type HazardKind = 'rolling' | 'crossing' | 'falling' | 'static' | 'gust' | 'creature';
+/** The course creatures (design §6): one per track. */
+export type CreatureKind = 'rumblesaur' | 'yeti' | 'kraken' | 'crab' | 'goose' | 'whale';
 export type HazardHit = 'spin' | 'slow' | 'bump';
 export type ShortcutRisk = 'jump' | 'narrow' | 'hazard';
 export type DecorBand = 'roadside' | 'far' | 'sky';
@@ -42,6 +44,8 @@ export interface HazardDef {
   speed?: number;
   hit?: HazardHit;
   asset?: string;
+  /** type 'creature': which one */
+  creature?: CreatureKind;
 }
 
 /** `shortcut` names the branch a feature sits on; t stays main-equivalent. */
@@ -137,6 +141,8 @@ export interface ActiveHazard {
   hit: HazardHit;
   /** m/s² sideways, gusts only */
   push?: Vec3;
+  /** a shock wave along the ground: a kart in the air (a hop) passes over it */
+  ground?: boolean;
 }
 
 /** Fired once by applyFinalLapShift for art, audio, HUD and the scene layer. */

@@ -4,7 +4,7 @@
 import type { Camera, Scene } from 'three';
 import { EXHAUST, flameColour } from '../art-pipeline/index.ts';
 import type { KartState } from '../kart-controller/types.ts';
-import { CameraKick, TimeScale, Trauma, driftRoll, sparkColour, type Effects } from './juice.ts';
+import { CameraKick, JUICE, TimeScale, Trauma, driftRoll, sparkColour, type Effects } from './juice.ts';
 import { ParticlePool, type SpawnOpts } from './particles.ts';
 import { Skids, SpeedLines } from './trails.ts';
 
@@ -59,12 +59,26 @@ export class Vfx {
   }
 
   /** Once per sim tick with the director's effects. `now` is a wall clock in seconds. */
+  /** the player's kart as of the last frame (a creature's quake fades with distance from it) */
+  private lastPlayer: KartState | undefined;
+
   onTick(fx: Effects, kartOf: (racerId: string) => KartState | undefined, now: number, reduced: boolean): void {
     if (fx.trauma > 0) this.trauma.add(fx.trauma);
     if (fx.kickBoost) this.kick.boost(now);
     if (fx.kickHit) this.kick.hit(now);
     if (fx.hitStop && !reduced) this.time.hitStop(now);
     if (fx.slowMo && !reduced) this.time.slowMo(now);
+    for (const q of fx.quakes) {
+      // dust where it hit, and a shake for the player that fades with distance
+      const [x, y, z] = q.position;
+      for (let i = 0; i < 36; i++) { const a = (i / 36) * Math.PI * 2; this.spawn(this.soft, x + Math.cos(a) * 3, y + 0.5, z + Math.sin(a) * 3, Math.cos(a) * 9, 1 + rnd() * 2, Math.sin(a) * 9, DUST, 1.4, 0.9, 0, 1.8, 1.5); }
+      const me = this.lastPlayer;
+      if (me) {
+        const d = Math.hypot(me.position[0] - x, me.position[2] - z);
+        const k = Math.max(0, 1 - d / JUICE.quakeReach);
+        if (k > 0 && !reduced) this.trauma.add(JUICE.traumaQuake * q.strength * k);
+      }
+    }
     for (const b of fx.bursts) {
       const k = kartOf(b.racerId);
       if (!k) continue;
@@ -125,6 +139,7 @@ export class Vfx {
    * frozen), so emitters stop with the sim; particles keep fading on the real `dt`.
    */
   frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean): void {
+    this.lastPlayer = player;
     if (simDt > 0) for (const k of karts) this.emit(k, simDt, t, camPos);
     this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt);
     this.skids.setTime(t);

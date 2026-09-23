@@ -13,6 +13,7 @@ import type { Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
+import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
@@ -277,6 +278,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const hazardAsset = new Map<string, string>();
   const hazardCapacity = new Map<string, number>();
   (def.hazards ?? []).forEach((h, i) => {
+    if (h.type === 'creature') return; // drawn by the CreatureView below
     const asset = h.asset ?? h.type;
     hazardAsset.set(h.id ?? `hazard-${i}`, asset);
     hazardCapacity.set(asset, (hazardCapacity.get(asset) ?? 0) + 1);
@@ -310,7 +312,14 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     }
     m.instanceMatrix.needsUpdate = true;
   };
+  // the course creature (design §6): its model, posed from its script every frame
+  const creatures = track.hazards.creatures.length
+    ? new CreatureView(track, (kind) => geometryFor(assets, kind, 'decor'), (kind) => assets.materials?.[kind], GRADIENT)
+    : null;
+  if (creatures) group.add(creatures.group);
+
   const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time), live?: LiveFeatures) => {
+    creatures?.update(time);
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); }
     if (live) { syncLive('balloons', live.pickups); syncLive('coins', live.coins); }
@@ -418,6 +427,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       group.traverse((o) => { if ((o as Mesh).isMesh && !chunkMeshes.has(o as Mesh)) others.push(o as Mesh); });
       for (const m of others) retire(m);
       for (const c of chunks) c.mesh.geometry.dispose();
+      creatures?.dispose();
       if (roadMaterial.map && roadMaterial.map !== assets.roadMap) roadMaterial.map.dispose();
       roadMaterial.dispose(); // shared by every chunk: once
       group.clear();

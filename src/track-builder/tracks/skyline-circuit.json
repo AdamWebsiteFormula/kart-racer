@@ -76,6 +76,7 @@
     { "t": 0.97, "lateral": 0 }
   ],
   "hazards": [
+    { "id": "whale", "type": "creature", "creature": "whale", "t": 0.5, "lateral": -1, "period": 12 },
     { "id": "wake-gust", "type": "gust", "t": 0.12, "lateral": 3, "period": 6, "speed": 11, "hit": "bump", "asset": "gust" }
   ],
   "finalLapShift": {

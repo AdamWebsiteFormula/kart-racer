@@ -60,6 +60,17 @@ export const PATCHES: Readonly<Record<SfxId, Patch>> = Object.freeze({
   blocked: P({ wave: 'triangle', f0: 900, f1: 1500, glide: 0.05, attack: 0.001, decay: 0.18, gain: 0.35 }),
   denied: P({ wave: 'square', f0: 220, attack: 0.005, decay: 0.12, gain: 0.2, steps: [0, -4], stepDur: 0.08, filter: { type: 'lowpass', f0: 1200 } }),
   trail: P({ wave: 'square', f0: 1200, attack: 0.001, decay: 0.04, gain: 0.15, steps: [0, 5], stepDur: 0.03 }),
+  // the course creatures
+  roar: P({ wave: 'sawtooth', f0: 110, f1: 70, glide: 0.9, attack: 0.08, hold: 0.4, decay: 0.6, gain: 0.5, vibrato: [8, 20], filter: { type: 'lowpass', f0: 600 } }),
+  stomp: P({ wave: 'sine', f0: 90, f1: 32, glide: 0.35, attack: 0.002, decay: 0.8, gain: 0.6 }),
+  yetiThrow: P({ wave: 'noise', f0: 1, attack: 0.02, decay: 0.4, gain: 0.35, filter: { type: 'bandpass', f0: 500, f1: 1400, q: 1 } }),
+  snowThud: P({ wave: 'noise', f0: 1, attack: 0.002, decay: 0.35, gain: 0.5, filter: { type: 'lowpass', f0: 500 } }),
+  krakenRise: P({ wave: 'noise', f0: 1, attack: 0.3, hold: 0.5, decay: 0.6, gain: 0.35, filter: { type: 'lowpass', f0: 380, f1: 900 } }),
+  krakenSlam: P({ wave: 'noise', f0: 1, attack: 0.002, decay: 0.7, gain: 0.6, filter: { type: 'lowpass', f0: 1200, f1: 300 } }),
+  crabClack: P({ wave: 'square', f0: 1800, attack: 0.001, decay: 0.03, gain: 0.25, steps: [0, 0, 0], stepDur: 0.09 }),
+  honk: P({ wave: 'sawtooth', f0: 330, f1: 290, glide: 0.2, attack: 0.01, hold: 0.15, decay: 0.12, gain: 0.4, steps: [0, 0], stepDur: 0.3, filter: { type: 'bandpass', f0: 900, q: 2 } }),
+  whaleSong: P({ wave: 'sine', f0: 220, f1: 330, glide: 1.2, attack: 0.3, hold: 0.6, decay: 0.8, gain: 0.35, vibrato: [5, 12] }),
+  tailSlap: P({ wave: 'noise', f0: 1, attack: 0.05, decay: 0.9, gain: 0.5, filter: { type: 'lowpass', f0: 900, f1: 200 } }),
   hit: P({ wave: 'square', f0: 220, f1: 110, glide: 0.2, attack: 0.002, decay: 0.25, gain: 0.4, filter: { type: 'lowpass', f0: 1200 } }),
   spin: P({ wave: 'square', f0: 700, f1: 120, glide: 0.6, attack: 0.002, decay: 0.65, gain: 0.35, vibrato: [300, 14], filter: { type: 'lowpass', f0: 1800 } }),
   // boosts: the drift tiers rise in pitch and length

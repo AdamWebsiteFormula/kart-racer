@@ -418,6 +418,76 @@ const MODELS: Record<string, { build: Build }> = {
       for (const x of [-1, 1]) m.ball([0.8, 0.06, 0.28], '#c9d2dc', [x * 0.8, 0.1, 0], [0, 0, x * 0.25], 6);
     },
   },
+  // ================================================================ course creatures (design §6)
+  // Stand-ins that set each creature's size (the AI-made model is fitted to this box) and show if
+  // the model file fails. Origin: on the ground at the creature's centre, facing +Z.
+  rumblesaur: {
+    build: (m) => {
+      // a red-rock tyrannosaur, 16 m tall, standing on two legs, facing +Z
+      m.ball([3.2, 3.6, 5.4], '#c4502d', [0, 8.2, 0.4], [-0.35, 0, 0], 12);      // body
+      for (const x of [-1, 1]) m.cyl(1.1, 1.3, 7, '#a8401f', [x * 2, 3.5, -0.8], undefined, 10); // legs
+      m.cone(2, 9, '#c4502d', [0, 7.4, -7.8], [-Math.PI / 2 - 0.3, 0, 0], 10);    // tail
+      m.ball([2.2, 2.2, 3.4], '#d45a33', [0, 13.4, 5], [0.1, 0, 0], 12);         // head
+      m.box([2.8, 0.5, 2.4], '#fff3d6', [0, 12.3, 6.2]);                        // grin
+      m.eye(0.55, [-1.2, 14.4, 6.4]); m.eye(0.55, [1.2, 14.4, 6.4]);
+      m.box([0.1, 16, 0.1], '#c4502d', [0, 8, 0], undefined, false);            // sets the height
+    },
+  },
+  yeti: {
+    build: (m) => {
+      m.ball([2.2, 2.6, 1.9], '#f4f8ff', [0, 3.6, 0], undefined, 12);             // body
+      m.ball([1.2, 1.2, 1.1], '#f4f8ff', [0, 6.2, 0.1], undefined, 12);           // head
+      m.ball([0.8, 0.7, 0.3], '#8ec5ff', [0, 6.1, 1.05], undefined, 10, false);   // face
+      m.eye(0.22, [-0.3, 6.35, 1.2]); m.eye(0.22, [0.3, 6.35, 1.2]);
+      for (const x of [-1, 1]) m.cyl(0.55, 0.65, 2, '#f4f8ff', [x * 1.1, 1, 0], undefined, 10);
+      m.box([0.1, 7, 0.1], '#f4f8ff', [0, 3.5, 0], undefined, false);
+    },
+  },
+  kraken: {
+    build: (m) => {
+      m.ball([4, 4.6, 4], '#8b3fd9', [0, 4.6, 0], undefined, 14);                 // head out of the sea
+      m.eye(1.1, [-1.5, 5.2, 3.4]); m.eye(1.1, [1.5, 5.2, 3.4]);
+      for (let k = 0; k < 6; k++) m.ball([0.35, 0.35, 0.35], [0.4, 2.2, 2.4], [Math.sin(k) * 3.4, 6 + (k % 3), Math.cos(k * 2) * 3], undefined, 6, false); // glow spots
+      m.box([0.1, 9, 0.1], '#8b3fd9', [0, 4.5, 0], undefined, false);
+    },
+  },
+  crab: {
+    build: (m) => {
+      m.ball([2.4, 1.2, 1.8], '#e8492a', [0, 1.8, 0], undefined, 12);             // shell
+      for (const x of [-1, 1]) {
+        m.ball([0.9, 0.7, 0.6], '#f05a36', [x * 2.6, 2.8, 1.2], undefined, 10); // claws
+        for (let k = 0; k < 3; k++) m.cyl(0.14, 0.14, 1.8, '#d9401f', [x * (1.8 + k * 0.1), 0.8, -0.8 + k * 0.8], [0, 0, x * 0.7], 6);
+        m.cyl(0.08, 0.08, 0.8, '#d9401f', [x * 0.5, 3.1, 1.2], undefined, 6, false); // eye stalks
+        m.eye(0.28, [x * 0.5, 3.6, 1.3]);
+      }
+      m.box([0.1, 3.8, 0.1], '#e8492a', [0, 1.9, 0], undefined, false);
+    },
+  },
+  goose: {
+    build: (m) => {
+      m.ball([1.4, 1.3, 2.1], '#fbfbf7', [0, 2.2, 0], undefined, 12);             // body
+      m.cyl(0.35, 0.45, 1.8, '#fbfbf7', [0, 3.5, 1.4], [0.5, 0, 0], 10);         // neck
+      m.ball([0.55, 0.55, 0.7], '#fbfbf7', [0, 4.4, 2], undefined, 10);           // head
+      m.cone(0.3, 0.8, '#ff9f1c', [0, 4.3, 2.8], [Math.PI / 2, 0, 0], 8);        // beak
+      m.eye(0.14, [-0.35, 4.6, 2.3]); m.eye(0.14, [0.35, 4.6, 2.3]);
+      for (const x of [-1, 1]) {
+        m.ball([0.25, 1, 1.6], '#eeeee8', [x * 1.5, 2.6, -0.2], [0, 0, x * 0.9], 10); // wings
+        m.cyl(0.1, 0.1, 1.1, '#ff9f1c', [x * 0.5, 0.55, 0.2], undefined, 6);       // legs
+        m.box([0.5, 0.08, 0.6], '#ff9f1c', [x * 0.5, 0.04, 0.45]);               // feet
+      }
+      m.box([0.1, 5, 0.1], '#fbfbf7', [0, 2.5, 0], undefined, false);
+    },
+  },
+  whale: {
+    build: (m) => {
+      m.ball([5, 5.5, 14], '#9fd3f2', [0, 6, 0], undefined, 16);                  // body
+      m.ball([4.2, 3, 12], '#ffc2d4', [0, 4.4, 0.6], undefined, 14, false);        // belly
+      m.box([12, 0.5, 4], '#9fd3f2', [0, 6.5, -14], undefined);                  // tail fluke
+      for (const x of [-1, 1]) m.box([5, 0.4, 2.6], '#9fd3f2', [x * 5.5, 4.5, 3], [0, 0, x * -0.4]); // fins
+      m.eye(0.8, [-4.2, 7.4, 8]); m.eye(0.8, [4.2, 7.4, 8]);
+      m.box([0.1, 12, 0.1], '#9fd3f2', [0, 6, 0], undefined, false);
+    },
+  },
 };
 
 export interface DecorGeometry { body: BufferGeometry }

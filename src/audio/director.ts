@@ -35,6 +35,16 @@ function spatial(l: Listener, racerId: string): { gain: number; pan: number } {
   return { gain: AUDIO.otherGain * distanceGain(d), pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 };
 }
 
+/** The sound each course creature makes when it starts doing something (kind:action). */
+const CREATURE_SOUND: Readonly<Record<string, SfxId>> = Object.freeze({
+  'rumblesaur:rear': 'roar', 'rumblesaur:stomp': 'stomp',
+  'yeti:windUp': 'yetiThrow', 'yeti:idle': 'snowThud',
+  'kraken:warn': 'krakenRise', 'kraken:slam': 'krakenSlam',
+  'crab:wait': 'crabClack',
+  'goose:charge': 'honk', 'goose:turn': 'honk',
+  'whale:warn': 'whaleSong', 'whale:slap': 'tailSlap',
+});
+
 const ITEM_USE: Readonly<Record<string, SfxId>> = Object.freeze({
   beachBall: 'throw', homingKite: 'kite', oilCan: 'drop', decoyBalloon: 'drop',
   airHorn: 'airHorn', bubble: 'shieldUp', fizzPop: 'fizz', tripleFizz: 'fizz', fogBank: 'fog',
@@ -88,6 +98,16 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
       case 'wrongWay': if (e.racerId === me && e.on) push('wrongWay', null); break;
       case 'respawn': if (e.racerId === me) push('respawn', null); break;
       case 'pickup': push('balloon', e.racerId); break;
+      case 'creature': {
+        const id = CREATURE_SOUND[`${e.kind}:${e.action}`];
+        if (!id) break;
+        // a creature is big: heard from twice as far, and never quieter than the other racers
+        const dx = e.position[0] - l.position[0], dz = e.position[2] - l.position[2], d = Math.hypot(dx, dz);
+        const g = distanceGain(d / 2);
+        const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
+        if (g > 0.01) out.push({ sfx: id, gain: g, pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 });
+        break;
+      }
       case 'coin': if (e.racerId === me) push('coin', null); break;
       case 'kart': {
         if (e.event.type === 'hit' && e.racerId === me) music.push({ type: 'duck' });

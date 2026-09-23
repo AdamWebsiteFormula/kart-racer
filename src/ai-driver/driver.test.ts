@@ -347,11 +347,13 @@ describe('AiDriver gates', () => {
   it('16: side paths help, never hinder (design §6): a solo Hard AI forced onto each shortcut is at least as fast as on the main road', () => {
     // no drifting in either run: this measures the path, not where the AI chose to hop
     const noDrift = { pip: { lateralBias: -0.2, aggression: 0.7, driftUse: 0 } };
+    // the course creatures are timing luck, not path: both runs race without them
+    const calm = (t: ReturnType<typeof buildTrack>) => { for (const c of t.hazards.creatures) t.hazards.setEnabled(c.id, false); return t; };
     for (const def of TRACKS) {
-      const base = buildTrack(def);
+      const base = calm(buildTrack(def));
       const none = finishes(runRace(base, config(base, racers(1), 150), { onlyShortcut: 'none', personalities: noDrift }).log)[0].tick;
       for (const sc of def.shortcuts ?? []) {
-        const track = buildTrack(def);
+        const track = calm(buildTrack(def));
         const forced = finishes(runRace(track, config(track, racers(1), 150), { onlyShortcut: sc.id, personalities: noDrift }).log)[0].tick;
         expect(forced, `${def.id} ${sc.id}: ${(forced / SIM_HZ).toFixed(1)} s via the shortcut vs ${(none / SIM_HZ).toFixed(1)} s on the road`).toBeLessThanOrEqual(none);
       }

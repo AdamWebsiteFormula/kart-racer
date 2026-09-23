@@ -9,6 +9,7 @@
 import type { Branches } from './branches.ts';
 import { BUILDER } from './constants.ts';
 import { lateralAt } from './features.ts';
+import { Creature, type CreaturePose } from './creatures.ts';
 import type { ActiveHazard, HazardDef, Vec3 } from './types.ts';
 
 interface Baked {
@@ -23,29 +24,38 @@ interface Baked {
 export class Hazards {
   private readonly items: Baked[] = [];
   private readonly branches: Branches;
+  /** the course creatures, kept apart: they move by their own script (creatures.ts) */
+  readonly creatures: Creature[] = [];
 
   constructor(defs: readonly HazardDef[], branches: Branches) {
     this.branches = branches;
     defs.forEach((def, i) => {
+      if (def.type === 'creature') { this.creatures.push(new Creature(def.id ?? `creature-${i}`, def, branches)); return; }
       const lateral = def.lateral ?? 0;
       const s = branches.sample(def.t, lateral, 0);
       this.items.push({ id: def.id ?? `hazard-${i}`, def, t: def.t, lateral, position: s.position, enabled: true });
     });
   }
 
-  get ids(): string[] { return this.items.map((h) => h.id); }
+  get ids(): string[] { return [...this.items.map((h) => h.id), ...this.creatures.map((c) => c.id)]; }
+
+  /** Where to draw every creature at race time `time`. */
+  creaturePoses(time: number): CreaturePose[] { return this.creatures.map((c) => c.pose(time)); }
 
   setEnabled(id: string, enabled: boolean): void {
     const h = this.items.find((x) => x.id === id);
     if (h) h.enabled = enabled;
+    if (this.creatures.some((c) => c.id === id)) { if (enabled) this.off.delete(id); else this.off.add(id); }
   }
 
   isEnabled(id: string): boolean {
+    if (this.creatures.some((c) => c.id === id)) return !this.off.has(id);
     return this.items.find((x) => x.id === id)?.enabled ?? false;
   }
 
   /** After a main-line rebuild: keep the world position, re-derive t. */
   rederive(): void {
+    for (const c of this.creatures) c.rederive();
     for (const h of this.items) {
       h.t = this.branches.main.nearestGlobal(h.position).t;
       h.lateral = lateralAt(this.branches, h.t, 0, h.position);
@@ -100,6 +110,10 @@ export class Hazards {
         }
       }
     }
+    for (const c of this.creatures) if (this.creatureEnabled(c.id)) out.push(...c.hazards(time));
     return out;
   }
+
+  private readonly off = new Set<string>();
+  private creatureEnabled(id: string): boolean { return !this.off.has(id); }
 }

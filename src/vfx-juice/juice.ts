@@ -8,6 +8,8 @@ export const JUICE = Object.freeze({
   traumaHit: 0.5, traumaLand: 0.2, traumaBoost: 0.15, traumaWall: 0.25, traumaBump: 0.12,
   /** the big item moments: a STRIKE burst or a Pogo slam, shaken by the player's own */
   traumaStrike: 0.45, traumaSlam: 0.35,
+  /** a creature's stomp or slam shakes the camera this much at its feet, fading to nothing at quakeReach metres */
+  traumaQuake: 0.55, quakeReach: 70,
   traumaDecay: 1.6,
   shakeMaxRot: (0.6 * Math.PI) / 180,
   shakeMaxMove: 0.35,
@@ -92,6 +94,8 @@ export type Burst = 'balloon' | 'coin' | 'hitStars' | 'confetti' | 'shield' | 'h
 
 export interface Effects {
   bursts: { kind: Burst; racerId: string }[];
+  /** creature stomps and slams: dust at a world point, and a shake that fades with distance from the player */
+  quakes: { position: [number, number, number]; strength: number }[];
   /** drift spark tier per racer that changed this tick (0 = sparks off) */
   sparks: { racerId: string; tier: number }[];
   boosts: { racerId: string; source: string }[];
@@ -103,7 +107,7 @@ export interface Effects {
 }
 
 export function newEffects(): Effects {
-  return { bursts: [], sparks: [], boosts: [], trauma: 0, kickBoost: false, kickHit: false, hitStop: false, slowMo: false };
+  return { bursts: [], quakes: [], sparks: [], boosts: [], trauma: 0, kickBoost: false, kickHit: false, hitStop: false, slowMo: false };
 }
 
 function kart(fx: Effects, id: string, e: KartEvent, me: string | null): void {
@@ -131,12 +135,16 @@ function kart(fx: Effects, id: string, e: KartEvent, me: string | null): void {
 
 /** One tick of events → effects. `out` is reset and reused. */
 export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[], me: string | null, out: Effects = newEffects()): Effects {
-  out.bursts.length = 0; out.sparks.length = 0; out.boosts.length = 0;
+  out.bursts.length = 0; out.quakes.length = 0; out.sparks.length = 0; out.boosts.length = 0;
   out.trauma = 0; out.kickBoost = false; out.kickHit = false; out.hitStop = false; out.slowMo = false;
   for (const e of race) {
     switch (e.type) {
       case 'kart': kart(out, e.racerId, e.event, me); break;
       case 'pickup': out.bursts.push({ kind: 'balloon', racerId: e.racerId }); break;
+      case 'creature':
+        if ((e.kind === 'rumblesaur' && e.action === 'stomp') || (e.kind === 'kraken' && e.action === 'slam')) out.quakes.push({ position: [...e.position], strength: 1 });
+        else if (e.kind === 'yeti' && e.action === 'idle') out.quakes.push({ position: [...e.position], strength: 0.3 });
+        break;
       case 'coin': out.bursts.push({ kind: 'coin', racerId: e.racerId }); break;
       case 'finish':
         if (e.racerId === me) { out.bursts.push({ kind: 'confetti', racerId: e.racerId }); if (!e.dnf) out.slowMo = true; }

@@ -36,6 +36,17 @@ describe('hazards', () => {
     expect(Math.abs(k.s.speed) + Math.abs(k.s.lateralVelocity)).toBeGreaterThan(0);
   });
 
+  it('a shock wave along the ground misses a kart in the air (a hop clears the Rumblesaur ring)', () => {
+    const k = onHazard('spinner');
+    const ring: ActiveHazard[] = [{ ...byId('spinner'), id: 'ring', ground: true }];
+    k.s.grounded = false;
+    stepHazards(k.s, k.tr, k.c, ring, SIM_DT, k.events, k.kartEvents);
+    expect(k.s.status.spinRemaining).toBe(0);
+    k.s.grounded = true;
+    stepHazards(k.s, k.tr, k.c, ring, SIM_DT, k.events, k.kartEvents);
+    expect(k.s.status.spinRemaining).toBeGreaterThan(0);
+  });
+
   it('a finished kart coasting through a hazard is left alone', () => {
     const k = onHazard('spinner');
     k.s.finishTick = 100;
