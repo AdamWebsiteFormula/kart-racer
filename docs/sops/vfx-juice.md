@@ -18,8 +18,31 @@ Frame time under 12 ms on Low with all effects firing at once in a stress scene;
 ## References
 Juice It or Lose It; Art of Screenshake; pmndrs postprocessing.
 
+## Approach
+_Written 23 Sept 2026 from research plan §4.7 and §7.2 (the 12-item juice checklist), design §7, the kart-controller events (`driftTierUp`, `boostStart`, `hit`, `landed`, `wall`, `bump`), the race and item events, and the pmndrs postprocessing API._
+
+**Pure layer (tested):**
+- `trauma.ts` — trauma in [0, 1], added by events (hit 0.5, landing 0.2, boost 0.15, wall 0.25), decaying 1.6 per second; shake = trauma², offsets from a seeded smooth noise, **rotation a fraction of a degree** (max 0.6°), translation max 0.35 m.
+- `camera.ts` — FOV kick on boost: +12° in 0.12 s, eased back over 0.6 s; −5° on a hit for 0.25 s; roll ±3° with drift direction.
+- `director.ts` — events → effect cues: spark tier and colour, bursts (balloon pop, coin, hit stars, confetti), skid on/off per kart, hit-stop (75 ms, player only), finish slow-motion (0.3× for 1 s, player only).
+- `timing.ts` — the sim-time scale the loop applies to the accumulator (hit-stop 0, slow-mo 0.3, else 1). The sim stays deterministic: only how many fixed ticks run per real second changes.
+
+**Three layer (smoke-tested):**
+- `particles.ts` — one `InstancedMesh` of camera-facing quads (billboard in the vertex shader), up to 2,048 live, per-instance colour and life, CPU integration with gravity and drag, additive blending. One draw call.
+- `skids.ts` — a ring buffer of tyre-mark quads laid while drifting, fading over 10 s. One draw call.
+- `speedLines.ts` — thin streaks in camera space while boosting. One draw call.
+- `post.ts` — one `EffectPass`: bloom (high threshold, so only sparks, flames and lamps glow), chromatic aberration (boost only), vignette, ACES tone mapping. Off on `quality: low`.
+
+**Reduced motion** (ui-hud setting or OS): no shake, no speed lines, no chromatic aberration, no hit-stop, no slow-motion; FOV kick halved.
+
+**Tests:** trauma decays to zero and never exceeds 1; shake rotation stays under 0.6°; FOV kick timing; director mapping per event; timing scale per state; reduced motion zeroes the right things; particle pool never exceeds capacity and recycles oldest first.
+
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-23: Built. `src/vfx-juice/` = `juice` (pure: trauma, camera kick, drift roll, time scale, event director, spark colours; 8 tests), `particles` (one pool, one draw call each: additive glow, soft dust, square confetti), `trails` (tyre marks ring buffer, camera-space speed lines), `post` (bloom at HDR threshold 1.0, chromatic aberration on boost only, vignette, ACES in one EffectPass), `vfx` (emitters and bursts).
+- 2026-09-23: Checklist status (plan §7.2): 1 sparks 3 tiers ✓ (rumble later); 2 boost flame, bloom, FOV kick, chromatic, speed lines ✓; 3 trauma shake with sub-degree roll ✓; 4 drift roll ✓ (spring camera was already there); 5 tyre marks fading 10 s ✓; 6 off-road dust ✓ (idle exhaust not done); 7 hit-stop 75 ms, FOV −5°, hit stars ✓ (squash-stretch and dizzy stars not done); 8 balloon pop shards ✓; 9 position flourish ✓ (ui-hud); 10 final-lap banner ✓ (ui-hud); 11 confetti and 0.3× slow-mo ✓ (camera orbit not done); 12 idle life not done (merged meshes).
+- 2026-09-23: The time scale changes how many fixed ticks run per real second, never the tick itself, so hit-stop and slow-mo keep the sim deterministic.
+- 2026-09-23: Measured: 71 draw calls for a whole frame with the shadow pass and the post chain (`renderer.info.autoReset` off so the count covers every pass). The SOP's 12 ms stress-scene gate still needs a visible browser; the test pane is hidden and throttled to about 1 fps.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

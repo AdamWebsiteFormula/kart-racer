@@ -2,11 +2,12 @@
 // Behind the menus an all-AI race runs as the attract mode; picking a race swaps in a new
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
-  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, PCFSoftShadowMap,
+  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, PCFShadowMap,
   PerspectiveCamera, Scene, Vector3, WebGLRenderer,
 } from 'three';
 import creditsMarkdown from '../CREDITS.md?raw';
 import { GameAudio, songForTrack, type Listener } from './audio/index.ts';
+import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
@@ -33,9 +34,11 @@ const RESULTS_AFTER = 2.5;
 // ---- renderer, scene, lights ----
 const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = PCFSoftShadowMap;
+renderer.shadowMap.type = PCFShadowMap;
 renderer.toneMapping = ACESFilmicToneMapping;
+renderer.info.autoReset = false; // the post chain renders several passes; count the whole frame
 renderer.domElement.className = 'game';
+let post: Post | null = null; // made once the camera exists
 document.body.appendChild(renderer.domElement);
 
 const scene = new Scene();
@@ -47,6 +50,9 @@ Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, f
 scene.add(sun, sun.target, new HemisphereLight(0xcfe8ff, 0x7a6a4f, 0.9), new AmbientLight(0xbcd8ff, 0.5));
 
 const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
+const vfx = new Vfx(scene, camera);
+post = new Post(renderer, scene, camera);
+const fxBuf = newEffects();
 const camPos: Vec3 = [0, 20, 40];
 const camLook: Vec3 = [0, 0, 0];
 const lookTmp = new Vector3();
@@ -59,10 +65,12 @@ function applyRender(): void {
   const scale = settings?.resolutionScale ?? 1;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * scale);
   renderer.shadowMap.enabled = settings?.quality !== 'low';
+  post?.setEnabled(settings?.quality !== 'low');
   resize();
 }
 function resize(): void {
   renderer.setSize(innerWidth, innerHeight);
+  post?.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
@@ -78,6 +86,7 @@ let topSpeed = 25;
 const audio = new GameAudio();
 /** racerId → kart index for the current session (audio needs positions by racer) */
 const indexOf = new Map<string, number>();
+const kartOf = (id: string) => { const i = indexOf.get(id); return i === undefined ? undefined : session?.state.karts[i]; };
 const listener: Listener = {
   playerId: null, position: [0, 0, 0], heading: 0,
   positionOf: (id) => { const i = indexOf.get(id); return i === undefined ? undefined : session?.state.karts[i].position; },
@@ -108,6 +117,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
+  vfx.reset();
   const k = session.player ?? session.state.karts[0];
   camYaw = k.heading;
   camSpeed = 0;
@@ -239,6 +249,7 @@ const itemDefs = ITEMS_CONFIG.items;
 function frame(now: number): void {
   frames++;
   requestAnimationFrame(frame);
+  renderer.info.reset();
   const frameDt = Math.min(0.25, (now - last) / 1000);
   last = now;
   ui.poll(now);
@@ -246,12 +257,17 @@ function frame(now: number): void {
   if (!s) return;
 
   const racing = !attract && ui.app.screen === 'racing';
+  const reduced = ui.reducedMotion;
+  const nowS = now / 1000;
+  let simDt = 0;
   if (!ui.paused && !document.hidden) {
-    const steps = acc.steps(frameDt);
+    const steps = acc.steps(frameDt * vfx.time.scale(nowS, reduced));
+    simDt = steps * SIM_DT;
     for (let i = 0; i < steps; i++) {
       let live: InputState | null = null;
       if (racing) live = input.sample(SIM_DT); else input.sample(SIM_DT);
       const ev = s.tick(racing ? live : null);
+      vfx.onTick(directFx(ev.race, ev.items, attract ? null : s.player?.racerId ?? null, fxBuf), kartOf, nowS, reduced);
       if (!attract && s.player) {
         ui.feed(ev.race, ev.items, s.player.racerId);
         audio.tick(ev.race, ev.items, listener);
@@ -266,9 +282,14 @@ function frame(now: number): void {
   cur.frame(acc.alpha, frameDt);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
+  const pl = cur.player;
+  vfx.frame(frameDt, simDt, nowS, cur.state.karts, attract ? undefined : pl, camPos, reduced);
+  if (!attract) camera.fov += vfx.kick.fov(nowS, reduced);
   camera.updateProjectionMatrix();
-  camera.position.set(camPos[0], camPos[1], camPos[2]);
+  const sh = vfx.shake;
+  camera.position.set(camPos[0] + sh.x, camPos[1] + sh.y, camPos[2] + sh.z);
   camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
+  camera.rotateZ(attract ? 0 : vfx.roll(pl, reduced));
   sun.target.position.set(camLook[0], camLook[1], camLook[2]);
   sun.position.set(camLook[0] + 60, camLook[1] + 120, camLook[2] + 40);
 
@@ -286,14 +307,14 @@ function frame(now: number): void {
       map: cur.track.minimap, itemDefs,
     }, now);
   }
-  renderer.render(scene, camera);
+  post!.render(frameDt, !attract && !!pl && pl.boost.remaining > 0, reduced);
 }
 requestAnimationFrame(frame);
 
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
-    get session() { return session; }, ui, audio, renderer, camera, scene, acc,
+    get session() { return session; }, ui, audio, vfx, post, renderer, camera, scene, acc,
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables() }),
   };
 }

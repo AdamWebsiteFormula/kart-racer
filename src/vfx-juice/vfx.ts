@@ -1,0 +1,173 @@
+// Vfx: the Three.js side of the juice. Emits particles from kart state every frame (drift sparks,
+// boost flames, off-road dust, tyre marks) and bursts from the director's effects each tick
+// (balloon pops, coin glints, hit stars, confetti), and owns the shake, kicks and time scale.
+import type { Camera, Scene } from 'three';
+import type { KartState } from '../kart-controller/types.ts';
+import { CameraKick, TimeScale, Trauma, driftRoll, sparkColour, type Effects } from './juice.ts';
+import { ParticlePool, type SpawnOpts } from './particles.ts';
+import { Skids, SpeedLines } from './trails.ts';
+
+const CORAL: [number, number, number] = [1, 0.44, 0.38], SUN: [number, number, number] = [1, 0.82, 0.25];
+const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
+const CONFETTI = [CORAL, SUN, TEAL, WHITE, [0.7, 0.62, 0.86] as [number, number, number], [0.39, 0.71, 0.96] as [number, number, number]];
+
+/** Visual-only randomness (never touches the sim). */
+let seed = 0x1234567;
+const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0xffffffff; };
+const sym = () => rnd() * 2 - 1;
+
+interface KartMem { l: [number, number, number]; r: [number, number, number]; skid: boolean; sparkAcc: number; flameAcc: number; dustAcc: number }
+
+export class Vfx {
+  readonly glow = new ParticlePool(1536, true);
+  readonly soft = new ParticlePool(1024, false);
+  readonly confetti = new ParticlePool(512, false, true);
+  readonly skids = new Skids();
+  readonly lines = new SpeedLines();
+  readonly trauma = new Trauma();
+  readonly kick = new CameraKick();
+  readonly time = new TimeScale();
+  private readonly mem = new Map<string, KartMem>();
+  private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
+  readonly shake = { x: 0, y: 0, z: 0, roll: 0 };
+
+  constructor(scene: Scene, camera: Camera) {
+    scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh);
+    this.lines.attach(camera);
+    if (!camera.parent) scene.add(camera); // camera children only render if the camera is in the scene
+  }
+
+  /** New race: forget trails and particles. */
+  reset(): void {
+    this.glow.clear(); this.soft.clear(); this.confetti.clear(); this.skids.clear(); this.mem.clear();
+    this.trauma.value = 0;
+  }
+
+  private spawn(pool: ParticlePool, x: number, y: number, z: number, vx: number, vy: number, vz: number, c: readonly number[], size: number, life: number, gravity = 0, drag = 0, grow = 0): void {
+    const o = this.o;
+    o.x = x; o.y = y; o.z = z; o.vx = vx; o.vy = vy; o.vz = vz;
+    o.r = c[0]; o.g = c[1]; o.b = c[2]; o.size = size; o.life = life; o.gravity = gravity; o.drag = drag; o.grow = grow;
+    pool.spawn(o);
+  }
+
+  /** Once per sim tick with the director's effects. `now` is a wall clock in seconds. */
+  onTick(fx: Effects, kartOf: (racerId: string) => KartState | undefined, now: number, reduced: boolean): void {
+    if (fx.trauma > 0) this.trauma.add(fx.trauma);
+    if (fx.kickBoost) this.kick.boost(now);
+    if (fx.kickHit) this.kick.hit(now);
+    if (fx.hitStop && !reduced) this.time.hitStop(now);
+    if (fx.slowMo && !reduced) this.time.slowMo(now);
+    for (const b of fx.bursts) {
+      const k = kartOf(b.racerId);
+      if (!k) continue;
+      const [x, y, z] = k.position;
+      switch (b.kind) {
+        case 'balloon':
+          for (let i = 0; i < 26; i++) this.spawn(this.soft, x, y + 1.6, z, sym() * 6, 2 + rnd() * 5, sym() * 6, CONFETTI[i % 4], 0.22, 0.7, 12, 1);
+          for (let i = 0; i < 10; i++) this.spawn(this.glow, x, y + 1.6, z, sym() * 3, rnd() * 3, sym() * 3, [1.6, 1.4, 0.9], 0.3, 0.3, 0, 3);
+          break;
+        case 'coin':
+          for (let i = 0; i < 10; i++) this.spawn(this.glow, x, y + 1, z, sym() * 2, 2 + rnd() * 3, sym() * 2, [1.8, 1.4, 0.3], 0.18, 0.5, 6);
+          break;
+        case 'hitStars':
+          for (let i = 0; i < 14; i++) {
+            const a = (i / 14) * Math.PI * 2;
+            this.spawn(this.glow, x, y + 1.4, z, Math.cos(a) * 3, 3 + rnd() * 2, Math.sin(a) * 3, [1.9, 1.6, 0.3], 0.26, 0.6, 7, 1.5);
+          }
+          break;
+        case 'confetti':
+          for (let i = 0; i < 180; i++) this.spawn(this.confetti, x + sym() * 4, y + 5 + rnd() * 3, z + sym() * 4, sym() * 4, rnd() * 4, sym() * 4, CONFETTI[i % CONFETTI.length], 0.18, 2.5 + rnd(), 4, 1.2);
+          break;
+        case 'land': case 'wall':
+          for (let i = 0; i < 10; i++) this.spawn(this.soft, x + sym() * 0.6, y + 0.2, z + sym() * 0.6, sym() * 2.5, rnd() * 1.5, sym() * 2.5, [0.86, 0.8, 0.7], 0.5, 0.5, 0, 2, 1.5);
+          break;
+        case 'shield':
+          for (let i = 0; i < 18; i++) this.spawn(this.glow, x, y + 1, z, sym() * 3, sym() * 3, sym() * 3, [0.6, 1.3, 1.9], 0.25, 0.45, 0, 2);
+          break;
+        case 'horn':
+          for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; this.spawn(this.glow, x, y + 0.8, z, Math.cos(a) * 14, 0, Math.sin(a) * 14, [1.4, 1.4, 1.5], 0.35, 0.35, 0, 1); }
+          break;
+        case 'fog':
+          for (let i = 0; i < 40; i++) this.spawn(this.soft, x + sym() * 10, y + 1 + rnd() * 3, z + sym() * 10, sym(), rnd() * 0.3, sym(), [0.72, 0.74, 0.78], 2.2, 2.5, 0, 0.3, 1);
+          break;
+      }
+    }
+  }
+
+  /**
+   * Once per rendered frame. `simDt` is the sim time that passed this frame (0 while paused or
+   * frozen), so emitters stop with the sim; particles keep fading on the real `dt`.
+   */
+  frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean): void {
+    if (simDt > 0) for (const k of karts) this.emit(k, simDt, t, camPos);
+    this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt);
+    this.skids.setTime(t);
+    this.trauma.update(dt);
+    this.trauma.shake(t, this.shake, !reduced);
+    this.lines.update(t, dt, !reduced && player !== undefined && player.boost.remaining > 0 && player.speed > 8);
+  }
+
+  private emit(k: KartState, dt: number, t: number, cam: readonly number[]): void {
+    if (k.isGhost) return;
+    const dx = k.position[0] - cam[0], dz = k.position[2] - cam[2];
+    if (dx * dx + dz * dz > 70 * 70) { const far = this.mem.get(k.racerId); if (far) far.skid = false; return; } // too far to see
+    let m = this.mem.get(k.racerId);
+    if (!m) { m = { l: [0, 0, 0], r: [0, 0, 0], skid: false, sparkAcc: 0, flameAcc: 0, dustAcc: 0 }; this.mem.set(k.racerId, m); }
+    const s = Math.sin(k.heading), c = Math.cos(k.heading);
+    const [px, py, pz] = k.position;
+    // rear wheels: 0.6 back, 0.55 either side (right = (cos h, 0, −sin h))
+    const bx = px - s * 0.6, bz = pz - c * 0.6;
+    const lx = bx - c * 0.55, lz = bz + s * 0.55, rx = bx + c * 0.55, rz = bz - s * 0.55;
+    const drifting = k.drift.active && k.grounded;
+
+    // tyre marks while drifting on the ground
+    if (drifting) {
+      if (m.skid) {
+        this.skids.add(m.l[0], m.l[1], m.l[2], lx, py, lz, 0.22, t);
+        this.skids.add(m.r[0], m.r[1], m.r[2], rx, py, rz, 0.22, t);
+      }
+      m.l[0] = lx; m.l[1] = py; m.l[2] = lz; m.r[0] = rx; m.r[1] = py; m.r[2] = rz;
+    }
+    m.skid = drifting;
+
+    // drift sparks from the rear wheels, coloured by tier; small white ones while charging
+    if (drifting) {
+      m.sparkAcc += dt * (k.drift.tier > 0 ? 70 : 18);
+      const col = k.drift.tier > 0 ? sparkColour(k.drift.tier, t) : [1.1, 1.1, 1.2];
+      while (m.sparkAcc >= 1) {
+        m.sparkAcc -= 1;
+        const w = rnd() < 0.5 ? [lx, lz] : [rx, rz];
+        this.spawn(this.glow, w[0], py + 0.12, w[1], -s * 3 + sym() * 2.5 - c * k.drift.direction * 2, 1.5 + rnd() * 3, -c * 3 + sym() * 2.5 + s * k.drift.direction * 2, col, k.drift.tier > 0 ? 0.2 : 0.12, 0.3 + rnd() * 0.15, 9);
+      }
+    } else m.sparkAcc = 0;
+
+    // boost flames out of the back
+    if (k.boost.remaining > 0) {
+      m.flameAcc += dt * 55;
+      while (m.flameAcc >= 1) {
+        m.flameAcc -= 1;
+        const hot = rnd() < 0.4;
+        this.spawn(this.glow, bx + sym() * 0.2, py + 0.45 + sym() * 0.1, bz + sym() * 0.2, -s * (4 + rnd() * 3), 0.6, -c * (4 + rnd() * 3), hot ? [1.9, 1.5, 0.5] : [1.8, 0.6, 0.15], 0.4, 0.22, 0, 1, 1.4);
+      }
+    } else m.flameAcc = 0;
+
+    // off-road dust
+    if (k.grounded && (k.surface === 'dirt' || k.surface === 'mud' || k.surface === 'ice') && Math.abs(k.speed) > 4) {
+      m.dustAcc += dt * 20;
+      const col = k.surface === 'mud' ? [0.45, 0.33, 0.22] : k.surface === 'ice' ? [0.9, 0.95, 1] : [0.86, 0.77, 0.6];
+      while (m.dustAcc >= 1) {
+        m.dustAcc -= 1;
+        this.spawn(this.soft, bx + sym() * 0.5, py + 0.2, bz + sym() * 0.5, -s * 1.5 + sym(), 0.8 + rnd(), -c * 1.5 + sym(), col, 0.55, 0.6, 0, 1.5, 1.6);
+      }
+    } else m.dustAcc = 0;
+  }
+
+  /** Camera roll for the player's drift plus the trauma roll. */
+  roll(player: KartState | undefined, reduced: boolean): number {
+    return (player ? driftRoll(player.drift.active, player.drift.direction, reduced) : 0) + this.shake.roll;
+  }
+
+  dispose(): void {
+    this.glow.dispose(); this.soft.dispose(); this.confetti.dispose(); this.skids.dispose(); this.lines.dispose();
+  }
+}
