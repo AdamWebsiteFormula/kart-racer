@@ -35,6 +35,10 @@
   "url": "models/props/house.glb",
   "yaw": 0
  },
+ "island": {
+  "url": "models/props/island.glb",
+  "yaw": 0
+ },
  "lamp": {
   "url": "models/props/lamp.glb",
   "yaw": 0,
@@ -74,6 +78,10 @@
  },
  "stall": {
   "url": "models/props/stall.glb",
+  "yaw": 0
+ },
+ "tent": {
+  "url": "models/props/tent.glb",
   "yaw": 0
  },
  "windmill": {
