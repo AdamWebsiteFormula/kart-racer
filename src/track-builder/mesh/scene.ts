@@ -26,6 +26,8 @@ export interface TrackAssets {
   ink?: Material;
   /** toon light ramp for every toon material the scene makes */
   gradientMap?: Texture;
+  /** a model file's own (textured) material for an asset key, same keys as `geometries`; never disposed by the scene */
+  materials?: Record<string, Material>;
 }
 
 export interface TrackScene {
@@ -85,9 +87,10 @@ function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | unde
 
 let GRADIENT: Texture | undefined; // set per buildTrackScene call from assets.gradientMap
 
-function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices: Float32Array, capacity = matrices.length / 16): InstancedMesh {
-  const mat = toon(geometry, colour, GRADIENT);
+function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices: Float32Array, capacity = matrices.length / 16, own?: Material): InstancedMesh {
+  const mat = own ?? toon(geometry, colour, GRADIENT);
   const m = new InstancedMesh(geometry, mat, Math.max(1, capacity));
+  if (own) m.userData.sharedMaterial = true;
   m.name = name;
   m.count = matrices.length / 16;
   (m.instanceMatrix.array as Float32Array).set(matrices.subarray(0, Math.min(matrices.length, m.instanceMatrix.array.length)));
@@ -218,7 +221,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   for (const entry of env.decor ?? []) {
     const p = placeDecor(branches, entry, rng, groundY);
     decor.push(p);
-    const m = instancer(`decor:${entry.asset}`, geometryFor(assets, entry.asset, 'decor'), palette.decor, p.matrices);
+    const m = instancer(`decor:${entry.asset}`, geometryFor(assets, entry.asset, 'decor'), palette.decor, p.matrices, undefined, assets.materials?.[entry.asset]);
     instancers.set(m.name, m);
     group.add(m);
     withHull(m, entry.asset);
@@ -343,7 +346,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       if (lut.pz[i] < minZ) minZ = lut.pz[i]; if (lut.pz[i] > maxZ) maxZ = lut.pz[i];
     }
     const lg = geometryFor(assets, def.landmark, 'landmark');
-    const landmark = new Mesh(lg, toon(lg, palette.accent, GRADIENT));
+    const own = assets.materials?.[def.landmark];
+    const landmark = new Mesh(lg, own ?? toon(lg, palette.accent, GRADIENT));
+    if (own) landmark.userData.sharedMaterial = true;
     landmark.name = `landmark-${def.landmark}`;
     landmark.position.set((minX + maxX) / 2, groundKind === 'none' ? lut.minY : groundY, (minZ + maxZ) / 2);
     landmark.castShadow = true;

@@ -1,0 +1,38 @@
+{
+ "airship": {
+  "url": "models/props/airship.glb",
+  "yaw": 0
+ },
+ "arch": {
+  "url": "models/props/arch.glb",
+  "yaw": 0
+ },
+ "cactus": {
+  "url": "models/props/cactus.glb",
+  "yaw": 0
+ },
+ "ferris-wheel": {
+  "url": "models/props/ferris-wheel.glb",
+  "yaw": 0
+ },
+ "lighthouse": {
+  "url": "models/props/lighthouse.glb",
+  "yaw": 0
+ },
+ "palm": {
+  "url": "models/props/palm.glb",
+  "yaw": 0
+ },
+ "pine": {
+  "url": "models/props/pine.glb",
+  "yaw": 0
+ },
+ "windmill": {
+  "url": "models/props/windmill.glb",
+  "yaw": 0
+ },
+ "windmill-small": {
+  "url": "models/props/windmill.glb",
+  "yaw": 0
+ }
+}

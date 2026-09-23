@@ -167,3 +167,24 @@ describe('painted skies', () => {
     }
   });
 });
+
+describe('scenery model files', () => {
+  it('fit onto the code-built model they replace: same height, same spot, same floor', async () => {
+    const { Box3, BoxGeometry, Vector3 } = await import('three');
+    const { fitToBox, PropModels } = await import('./glb.ts');
+    // a 2 × 4 × 1 box sitting off to one side, fitted onto a 6 m tall target standing on y = -1
+    const g = new BoxGeometry(2, 4, 1).translate(10, 2, -3);
+    const target = new Box3(new Vector3(-1, -1, 4), new Vector3(1, 5, 6));
+    fitToBox(g, target);
+    const b = g.boundingBox!;
+    expect(b.max.y - b.min.y).toBeCloseTo(6, 6);
+    expect(b.min.y).toBeCloseTo(-1, 6);
+    expect((b.min.x + b.max.x) / 2).toBeCloseTo(0, 6);
+    expect((b.min.z + b.max.z) / 2).toBeCloseTo(5, 6);
+    expect(b.max.x - b.min.x).toBeCloseTo(3, 6); // one uniform scale: 2 m wide × 1.5
+    // no manifest: every prop stays code-built
+    const none = new PropModels('/', (async () => ({ ok: false })) as unknown as typeof fetch);
+    await none.load();
+    expect(none.get('palm')).toBeUndefined();
+  });
+});
