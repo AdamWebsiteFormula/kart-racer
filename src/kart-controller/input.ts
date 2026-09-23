@@ -64,12 +64,16 @@ export function rampSteer(prev: number, target: number, dt: number): number {
   return Math.abs(d) <= step ? target : prev + Math.sign(d) * step;
 }
 
+/** On-screen controls (touch): analogue steer, and buttons. Merged with keys and the gamepad. */
+export type VirtualPad = () => Pick<InputState, 'steer' | 'throttle' | 'brake' | 'drift' | 'item' | 'lookBack'> | null;
+
 /** Listens to the window; call sample() once per sim tick. */
 export class InputSource {
   private held = new Set<string>();
   private target: Window;
   private keys: KeyMap;
   private steer = 0;
+  private virtual: VirtualPad | null = null;
   constructor(target: Window = window, keys: KeyMap = DEFAULT_KEYS) {
     this.target = target;
     this.keys = keys;
@@ -80,11 +84,22 @@ export class InputSource {
   private onDown = (e: KeyboardEvent) => { this.held.add(e.code); };
   private onUp = (e: KeyboardEvent) => { this.held.delete(e.code); };
   private onBlur = () => { this.held.clear(); };
+  /** Touch controls: read every sample, merged over the keys and the gamepad. */
+  setVirtual(v: VirtualPad | null): void { this.virtual = v; }
+
   /** `dt` is the sim tick the sample is for; the steer ramp runs on it. */
   sample(dt = 1 / 120): InputState {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = pads.find((p): p is Gamepad => !!p && p.mapping === 'standard') ?? null;
     const raw = mapInput(this.held, pad, this.keys);
+    const v = this.virtual?.() ?? null;
+    if (v) {
+      // a thumb on the pad is analogue, like a stick; the buttons add to the keys
+      if (raw.steer === 0 && v.steer !== 0) { this.steer = v.steer; return { ...raw, steer: v.steer, throttle: Math.max(raw.throttle, v.throttle), brake: Math.max(raw.brake, v.brake), drift: raw.drift || v.drift, item: raw.item || v.item, lookBack: raw.lookBack || v.lookBack }; }
+      raw.throttle = Math.max(raw.throttle, v.throttle); raw.brake = Math.max(raw.brake, v.brake);
+      raw.drift ||= v.drift; raw.item ||= v.item; raw.lookBack ||= v.lookBack;
+      if (raw.brake > 0 && v.brake > 0) raw.throttle = 0;
+    }
     // an analogue stick already is a ramp; keys get one
     const analogue = pad !== null && Math.abs(pad.axes[GAMEPAD.steerAxis] ?? 0) > GAMEPAD.deadZone;
     this.steer = analogue ? raw.steer : rampSteer(this.steer, raw.steer, dt);

@@ -15,6 +15,7 @@ import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
+import { TouchControls } from './render/touch.ts';
 import {
   BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, type ScreenView,
 } from './render/screens.ts';
@@ -105,6 +106,9 @@ export class UiRoot {
   private osReduced = false;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
 
+  /** on-screen thumbs for phones and tablets (shown only there, only while racing) */
+  readonly touch: TouchControls;
+
   constructor(parent: HTMLElement, host: UiHost, backend: Backend | null) {
     this.host = host;
     this.backend = backend;
@@ -113,6 +117,7 @@ export class UiRoot {
     this.root = document.createElement('div');
     this.root.id = 'ui';
     parent.appendChild(this.root);
+    this.touch = new TouchControls(this.root);
     // the item roulette flicks through every painted item: have them all in the cache first
     for (const id of Object.keys(ITEM_ICONS)) new Image().src = itemArt(id);
     const r = this.root;

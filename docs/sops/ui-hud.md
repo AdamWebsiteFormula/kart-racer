@@ -131,6 +131,8 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: The controls strip (W / ↑ go · A D / ← → steer · Shift / Space drift · E item · S / ↓ brake · Esc pause) shows through every countdown and 3.5 s after the go, above the speed readout. Before this it sat 40 px below the screen edge and nobody saw it.
 - 2026-09-23: Quick Race and Time Trial pick a track (a new trackSelect screen after the roster: every built track in cup order, three to a row; Time Trial cards show the best time and medal). Before this both always raced the first track in the list, so five tracks were only reachable through the cups. Daily still picks its own.
 
+- 2026-09-23: Touch controls (phones and tablets, `(pointer: coarse)`, while racing and not paused): a steering pad under the left thumb (analogue, like a stick), Drift, Item, Brake and Back buttons under the right; the gas is on by itself and Brake overrides it. `InputSource.setVirtual` merges them with keys and gamepad. On touch the map moves to the top right and the place moves up. How to Play (title and pause menus) lists the controls, every item with its art, the creatures and tips. The page is `lang="en-US"` and cannot be pinch-zoomed.
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-23: **Cup titles drew inside white boxes with borders.** Cause: the cup header used the class `row`, which the results table also styles. Fix: `cup-head`. Rule: in one global stylesheet, name classes after their screen, never generic words like `row`.

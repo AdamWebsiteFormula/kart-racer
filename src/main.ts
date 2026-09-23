@@ -210,6 +210,8 @@ const host: UiHost = {
 };
 
 const ui = new UiRoot(document.body, host, browserBackend());
+// phones and tablets steer with on-screen thumbs, merged with any keys or gamepad
+input.setVirtual(() => ui.touch.state());
 settings = ui.save.settings;
 audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume });
 applyRender();
@@ -315,6 +317,7 @@ function step(now: number): void {
   if (!s) return;
 
   const racing = !attract && ui.app.screen === 'racing';
+  ui.touch.show(racing && !ui.paused);
   const reduced = ui.reducedMotion;
   const nowS = now / 1000;
   WATER_CLOCK.value = nowS % 3600; // every water surface drifts on one clock (wrapped so noise keeps its precision)
