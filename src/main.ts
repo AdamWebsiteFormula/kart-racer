@@ -7,6 +7,7 @@ import {
 } from 'three';
 import creditsMarkdown from '../CREDITS.md?raw';
 import { GameAudio, songForTrack, type Listener } from './audio/index.ts';
+import { dailySeed, dailyTrack, soloConfig } from './backend-leaderboard/rules.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
@@ -131,16 +132,11 @@ function startAttract(): void {
   load({ mode: 'quick', trackId: FIRST_TRACK, speedClass: ATTRACT_CC, seed, racers: roster(null) }, true);
 }
 
-function dailySeed(): number {
-  const d = new Date();
-  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
-}
-
 function configFor(p: RacePlan): RaceConfig {
-  const seed = p.mode === 'daily' ? dailySeed() : Date.now() % 1_000_000;
-  const trackId = p.mode === 'daily' ? [...TRACKS.keys()][seed % TRACKS.size] : p.tracks[0] ?? FIRST_TRACK;
-  const racers = p.mode === 'timeTrial' ? roster(p.racerId).slice(0, 1) : roster(p.racerId);
-  return { mode: p.mode, trackId, speedClass: p.mode === 'timeTrial' ? 150 : p.speedClass, seed, racers };
+  // leaderboard modes are the exact solo race the server replays (backend-leaderboard/rules.ts)
+  if (p.mode === 'timeTrial') return soloConfig('timeTrial', p.tracks[0] ?? FIRST_TRACK, p.racerId, 0);
+  if (p.mode === 'daily') { const seed = dailySeed(); return soloConfig('daily', dailyTrack(seed, [...TRACKS.keys()]), p.racerId, seed); }
+  return { mode: p.mode, trackId: p.tracks[0] ?? FIRST_TRACK, speedClass: p.speedClass, seed: Date.now() % 1_000_000, racers: roster(p.racerId) };
 }
 
 const host: UiHost = {

@@ -16,6 +16,7 @@ import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { buildRacerMesh, isShared, paintSky, trackAssets } from '../art-pipeline/index.ts';
 import { ItemsView } from './itemsView.ts';
+import { simTick, type SimParts } from './simtick.ts';
 import { buildKartMesh } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
 
@@ -36,6 +37,7 @@ export class RaceSession {
   horizon: Color;
   /** seconds since the phase became `finished` */
   finishedFor = 0;
+  private readonly parts: SimParts;
   private readonly group = new Group();
   private readonly scene: Scene;
 
@@ -51,6 +53,7 @@ export class RaceSession {
     this.ai = new AiDriver(this.track, config, this.manager.state, { itemRoles: this.items.roles });
     this.playerIndex = this.manager.state.karts.findIndex((k) => k.isPlayer);
     this.inputs = this.manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
+    this.parts = { manager: this.manager, items: this.items, ai: this.ai, inputs: this.inputs, playerIndex: this.playerIndex, playerSlot: { ...NEUTRAL_INPUT } };
     this.group.add(this.trackScene.group);
     this.itemsView = new ItemsView();
     this.group.add(this.itemsView.root);
@@ -69,17 +72,13 @@ export class RaceSession {
 
   /** One 120 Hz tick. `playerInput` is the live sample, or null to leave the slot to the AI autopilot. */
   tick(playerInput: InputState | null): { race: RaceEvent[]; items: ItemEvent[] } {
-    const { manager, ai, items, inputs, views } = this;
-    ai.fill(manager.state, manager.lastActiveHazards, inputs);
-    const p = this.playerIndex;
-    if (p >= 0 && playerInput && manager.state.karts[p].finishTick === undefined) inputs[p] = playerInput;
-    const race = manager.step(inputs);
-    for (const e of race) if (e.type === 'trackChanged' && e.event.sky) this.horizon = paintSky(this.trackScene.group, e.event.sky);
-    const itemEvents = items.step(inputs, race, SIM_DT);
-    for (let k = 0; k < views.length; k++) ai.threatened[k] = items.threatened[k];
-    for (let k = 0; k < views.length; k++) views[k].onTick(manager.state.karts[k], SIM_DT);
-    if (manager.state.phase === 'finished') this.finishedFor += SIM_DT;
-    return { race, items: itemEvents };
+    // the same tick the leaderboard server replays (game/simtick.ts)
+    const ev = simTick(this.parts, playerInput);
+    const st = this.manager.state;
+    for (const e of ev.race) if (e.type === 'trackChanged' && e.event.sky) this.horizon = paintSky(this.trackScene.group, e.event.sky);
+    for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT);
+    if (st.phase === 'finished') this.finishedFor += SIM_DT;
+    return ev;
   }
 
   /** Interpolated visuals for one rendered frame. */
