@@ -10,7 +10,7 @@ A bright cartoon kart racer where eight original racers drift, boost and trade b
 
 ## 3. Tone and art direction
 - Tone: sunny, mischievous, generous. Nobody is a villain; rivals grin when they hit you.
-- Art: saturated toon-diorama. `MeshToonMaterial` with a 3-step gradient, inverted-hull outlines, warm key light + cool fill, one accent colour per biome, painted gradient skies. Palettes per biome in §6.
+- Art: saturated toon-diorama. `MeshToonMaterial` with a 3-step gradient, no outlines (Adam, 23 Sept 2026: Mario Kart World draws none), warm key light + cool fill, one accent colour per biome, painted gradient skies. Palettes per biome in §6.
 - Silhouette rule: every racer and every item must be identifiable in a 32 px black silhouette.
 - Hard IP rules: no Nintendo names, characters, items, sounds, layouts, typography or item-box look-alikes. Pickups are **balloons**, not boxes. See research plan §3.1.
 
@@ -30,7 +30,7 @@ Coins are everyone's hit buffer, not a class perk: a hit with coins in hand cost
 | 7 | **Boulder** | Round, friendly rock golem with moss | Heavy | Gentle giant, apologises after ramming | Stone monster-truck | Slate + moss green |
 | 8 | **Big Gus** | Walrus chef, chef's hat, spatula | Heavy | Booming laugh, feeds rivals after races | Food-truck kart, awning flaps on turns | Tomato red + white |
 
-Rig: one blobby body rig (root, spine, head, 2 arms) shared by all eight; heads and props swap. Idle: head turns into corners, body bobs, prop wobble (hat, key, float, awning). No AI-generated character meshes; kitbash Kenney Mini Characters / Quaternius and hand-tweak in Blender.
+Rig: one blobby body rig (root, spine, head, 2 arms) shared by all eight; heads and props swap. Idle: head turns into corners, body bobs, prop wobble (hat, key, float, awning). Racers may be AI-made 3D models (concept image, then image-to-3D via the Higgsfield connector), fitted to the kart footprint in `src/art-pipeline/glb.ts`; the code-built kart stays as the fallback. (Adam, 23 Sept 2026: the contest allows any tools; replaces the no-AI-mesh rule.)
 
 ## 5. Vehicles
 Each racer has one signature kart (above) plus two shared body styles unlockable later (Classic, Buggy). Karts own the class; racers own the personality. Exhaust colour = racer accent. Horn = racer sound (Pip chirp, Momo purr-rev, Nova chime, Juniper whistle, Otto squeaky float, Sprocket tick-tock, Boulder rumble, Gus foghorn).
