@@ -1,0 +1,121 @@
+{
+  "id": "boardwalk-nights",
+  "name": "Boardwalk Nights",
+  "biome": "boardwalk",
+  "cup": "summit",
+  "orderInCup": 2,
+  "laps": 3,
+  "targetLapSeconds": 48,
+  "medalTimesMs": {
+    "gold": 148000,
+    "silver": 163000,
+    "bronze": 179000
+  },
+  "voidY": -14,
+  "landmark": "ferris-wheel",
+  "music": "boardwalk",
+  "controlPoints": [
+    { "x": -96.3, "y": 0, "z": -128.4, "halfWidth": 8, "surface": "road" },
+    { "x": 0, "y": 0, "z": -130.54, "halfWidth": 8, "surface": "road" },
+    { "x": 96.3, "y": 0, "z": -126.26, "halfWidth": 8, "surface": "road" },
+    { "x": 149.8, "y": 0, "z": -101.65, "halfWidth": 7, "surface": "road" },
+    { "x": 171.2, "y": 0, "z": -58.85, "halfWidth": 7, "surface": "road" },
+    { "x": 160.5, "y": 0, "z": -16.05, "halfWidth": 6, "surface": "road" },
+    { "x": 176.55, "y": 0, "z": 16.05, "halfWidth": 6, "surface": "road" },
+    { "x": 160.5, "y": 0, "z": 48.15, "halfWidth": 6, "surface": "road" },
+    { "x": 117.7, "y": 0, "z": 74.9, "halfWidth": 7, "surface": "road" },
+    { "x": 64.2, "y": 0, "z": 90.95, "halfWidth": 7, "surface": "road" },
+    { "x": 10.7, "y": 0, "z": 74.9, "halfWidth": 6, "surface": "road" },
+    { "x": -32.1, "y": 0, "z": 96.3, "halfWidth": 6, "surface": "road" },
+    { "x": -74.9, "y": 0, "z": 74.9, "halfWidth": 7, "surface": "road" },
+    { "x": -139.1, "y": 0, "z": 42.8, "halfWidth": 7, "surface": "road" },
+    { "x": -171.2, "y": 0, "z": -10.7, "halfWidth": 7, "surface": "road" },
+    { "x": -160.5, "y": 0, "z": -64.2, "halfWidth": 7, "surface": "road" },
+    { "x": -128.4, "y": 0, "z": -101.65, "halfWidth": 8, "surface": "road" }
+  ],
+  "checkpointCount": 12,
+  "startGrid": {
+    "t": 0.12,
+    "rows": 4,
+    "columns": 2,
+    "spacing": 3.5
+  },
+  "shortcuts": [
+    {
+      "id": "arcade-alley",
+      "entryT": 0.31,
+      "exitT": 0.41,
+      "risk": "narrow",
+      "controlPoints": [
+        { "x": 170.729, "y": 0, "z": -62.154, "halfWidth": 5.5, "surface": "road" },
+        { "x": 171.833, "y": 0, "z": -32.230, "halfWidth": 5.5, "surface": "road" },
+        { "x": 172.937, "y": 0, "z": -2.305, "halfWidth": 5.5, "surface": "road" },
+        { "x": 174.041, "y": 0, "z": 27.620, "halfWidth": 5.5, "surface": "road" }
+      ]
+    }
+  ],
+  "jumps": [
+    { "id": "pier-gap-ramp", "t": 0.80, "lateral": 0, "launch": 5, "width": 6 }
+  ],
+  "boostPads": [
+    { "t": 0.14, "lateral": 0, "width": 3 },
+    { "t": 0.60, "lateral": -3, "width": 3 }
+  ],
+  "pickups": [
+    { "t": 0.16, "lateral": -4 },
+    { "t": 0.16, "lateral": 0 },
+    { "t": 0.16, "lateral": 4 },
+    { "t": 0.27, "lateral": -3 },
+    { "t": 0.27, "lateral": 3 },
+    { "t": 0.36, "shortcut": "arcade-alley", "lateral": 0 },
+    { "t": 0.58, "lateral": -3 },
+    { "t": 0.58, "lateral": 3 },
+    { "t": 0.90, "lateral": -3 },
+    { "t": 0.90, "lateral": 3 }
+  ],
+  "coins": [
+    { "t": 0.08, "lateral": -2 },
+    { "t": 0.08, "lateral": 2 },
+    { "t": 0.22, "lateral": 0 },
+    { "t": 0.38, "shortcut": "arcade-alley", "lateral": 0 },
+    { "t": 0.44, "lateral": 0 },
+    { "t": 0.65, "lateral": -2 },
+    { "t": 0.65, "lateral": 2 },
+    { "t": 0.82, "lateral": 0 },
+    { "t": 0.97, "lateral": 0 }
+  ],
+  "hazards": [
+    { "id": "bumper-cars", "type": "crossing", "t": 0.72, "lateral": 0, "period": 5, "speed": 2, "hit": "bump", "asset": "bumper-car" },
+    { "id": "teacup-1", "type": "static", "t": 0.67, "lateral": -4, "hit": "spin", "asset": "teacup" },
+    { "id": "teacup-2", "type": "static", "t": 0.87, "lateral": 4, "hit": "spin", "asset": "teacup" }
+  ],
+  "finalLapShift": {
+    "kind": "fireworks",
+    "label": "FIREWORKS FINALE",
+    "sky": "boardwalk-fireworks",
+    "addsJumps": [
+      { "id": "ferris-ramp", "t": 0.50, "lateral": 0, "launch": 6, "width": 6 }
+    ],
+    "fogDensity": 0.0015,
+    "musicVariant": "finale"
+  },
+  "environment": {
+    "sky": "boardwalk-night",
+    "fogColor": "#1a1440",
+    "fogDensity": 0.0025,
+    "ground": {
+      "kind": "water",
+      "y": -1.5
+    },
+    "sunDirection": [0.4, 0.7, -0.3],
+    "palette": {
+      "background": "#15154a",
+      "accent": "#2ee6ff"
+    },
+    "decor": [
+      { "asset": "stall", "instances": 55, "band": "roadside" },
+      { "asset": "lamp", "instances": 75, "band": "roadside" },
+      { "asset": "tent", "instances": 20, "band": "far" }
+    ]
+  }
+}

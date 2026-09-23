@@ -108,6 +108,7 @@
     "decor": [
       { "asset": "cloud", "instances": 40, "band": "sky" },
       { "asset": "island", "instances": 20, "band": "far" },
+      { "asset": "cloud-sea", "instances": 36, "band": "far" },
       { "asset": "sky-lamp", "instances": 60, "band": "roadside" }
     ]
   }
