@@ -23,6 +23,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Quality Auto is a pure governor (src/performance/governor.ts): 1 s windows after a 2 s warm-up, hitches over 250 ms ignored. Below 55 fps it steps resolution down 10 % to a pixel ratio of 1, then turns shadows and post off (Low), then steps resolution to half. Never steps up mid-race; a race that held 59+ fps earns one step back at the next start.
 - 2026-09-23: Pixel ratio cap 2 on desktop, 1.5 on touch screens (pointer: coarse).
 - 2026-09-23: Measured on an M4 Pro at 2048×1536: sim 0.06 ms per tick, render and post 3.5 ms per frame, about 60 draw calls, 217 k triangles. JS bundle 241 KB gzipped (`npm run check:bundle`, limit 1.5 MB). The headless Playwright fps run is still not built.
+- 2026-09-23: Dev-only soak tools in main.ts: `kart.step(n, ms)` runs the real loop by hand (works with the tab hidden) and `kart.autopilot(true)` lets the AI drive the player (AiDriver.drivePlayer). A full Summit Cup Grand Prix ran through menus, HUD, audio and effects with zero errors, at about 15× real time.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

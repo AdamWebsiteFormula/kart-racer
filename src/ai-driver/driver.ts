@@ -108,6 +108,9 @@ export class AiDriver {
     this.memory = JSON.parse(JSON.stringify(mem));
   }
 
+  /** Dev and soak tests only: the AI also drives the player while it races. Never set in a real game. */
+  drivePlayer = false;
+
   /** Writes this tick's input for every AI kart (and a finished player) into `inputs`. */
   fill(state: RaceState, hazards: readonly ActiveHazard[], inputs: InputState[]): void {
     const karts = state.karts;
@@ -119,7 +122,7 @@ export class AiDriver {
     for (let i = 0; i < karts.length; i++) {
       const s = karts[i];
       if (s.isGhost) continue;
-      if (s.isPlayer && s.finishTick === undefined) continue;
+      if (s.isPlayer && s.finishTick === undefined && !this.drivePlayer) continue;
       const out = this.outputs[i];
       inputs[i] = out;
       this.drive(state, s, i, playerRacing ? player : undefined, out);

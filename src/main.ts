@@ -89,6 +89,9 @@ function resize(): void {
 addEventListener('resize', resize);
 
 // ---- sessions ----
+/** dev only: the AI drives the player (soak tests through the real loop), and frames stepped by hand */
+let autopilot = false;
+let devStepping = false;
 let session: RaceSession | null = null;
 let attract = true;
 let series: SeriesState | null = null;
@@ -127,6 +130,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   listener.playerId = session.player?.racerId ?? null;
   if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id);
   if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
+  if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
@@ -269,11 +273,16 @@ let frames = 0;
 const itemDefs = ITEMS_CONFIG.items;
 
 function frame(now: number): void {
-  frames++;
   requestAnimationFrame(frame);
+  step(now);
+}
+
+/** One rendered frame at time `now` (ms). */
+function step(now: number): void {
+  frames++;
   renderer.info.reset();
   const rawMs = now - last;
-  const frameDt = Math.min(0.25, rawMs / 1000);
+  const frameDt = Math.max(0, Math.min(0.25, rawMs / 1000));
   last = now;
   ui.poll(now);
   const s = session;
@@ -288,13 +297,13 @@ function frame(now: number): void {
   governing = measuring;
   if (measuring && governor.sample(rawMs, nowS)) applyRender();
   let simDt = 0;
-  if (!ui.paused && !document.hidden) {
+  if (!ui.paused && (!document.hidden || devStepping)) {
     const steps = acc.steps(frameDt * vfx.time.scale(nowS, reduced));
     simDt = steps * SIM_DT;
     for (let i = 0; i < steps; i++) {
       let live: InputState | null = null;
       if (racing) live = input.sample(SIM_DT); else input.sample(SIM_DT);
-      const ev = s.tick(racing ? live : null);
+      const ev = s.tick(racing && !autopilot ? live : null);
       vfx.onTick(directFx(ev.race, ev.items, attract ? null : s.player?.racerId ?? null, fxBuf), kartOf, nowS, reduced);
       if (!attract && s.player) {
         ui.feed(ev.race, ev.items, s.player.racerId);
@@ -346,6 +355,13 @@ requestAnimationFrame(frame);
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
     get session() { return session; }, ui, audio, vfx, post, renderer, governor,
+    /** dev: run `n` frames of the real loop by hand, `ms` apart (works while the tab is hidden) */
+    step: (n = 1, ms = 1000 / 60) => {
+      devStepping = true;
+      try { for (let i = 0; i < n; i++) step(last + ms); } finally { devStepping = false; }
+    },
+    /** dev: let the AI drive the player's kart (soak tests); applies to this race and the next */
+    autopilot: (on: boolean) => { autopilot = on; if (session) session.ai.drivePlayer = on; },
     /** dev: hold the camera still at `pos` looking at `look` (null to let go), for checking art */
     photo: (p: { pos: Vec3; look: Vec3; fov?: number } | null) => { photo = p ? { fov: 50, ...p } : null; },
     /** dev: jump straight into a quick race on any track */
