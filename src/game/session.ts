@@ -1,7 +1,7 @@
 // One race, from its config to its disposal: track, scene objects, race manager, items, AI
 // and kart views. The game builds a fresh session for every race, restart and attract loop.
 // Tick order is the one every SOP assumes: AI fills inputs → manager.step → items.step → views.
-import { type Color, Group, type Object3D, type Scene } from 'three';
+import { Color, Group, type Object3D, type Scene } from 'three';
 import { AiDriver } from '../ai-driver/index.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { SIM_DT } from '../kart-controller/step.ts';
@@ -14,7 +14,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, isShared, paintSky, trackAssets } from '../art-pipeline/index.ts';
+import { buildRacerMesh, isShared, paintSky, SKIES, trackAssets } from '../art-pipeline/index.ts';
 import { ItemsView } from './itemsView.ts';
 import { simTick, type SimParts } from './simtick.ts';
 import { buildKartMesh } from './kartMesh.ts';
@@ -35,6 +35,10 @@ export class RaceSession {
   readonly inputs: InputState[];
   /** the painted sky's horizon colour; the fog matches it so the far road melts into the sky */
   horizon: Color;
+  /** light from below: the sky's lower band on tracks with no ground (sky islands), else null for the earth tone */
+  bounce: Color | null;
+  /** the sky dome; the game keeps it centred on the camera so the horizon sits at eye level */
+  readonly dome: Object3D | undefined;
   /** seconds since the phase became `finished` */
   finishedFor = 0;
   private readonly parts: SimParts;
@@ -48,6 +52,8 @@ export class RaceSession {
     this.track = buildTrack(def);
     this.trackScene = buildTrackScene(this.track, trackAssets());
     this.horizon = paintSky(this.trackScene.group, this.trackScene.sky);
+    this.bounce = this.skyBounce(this.trackScene.sky);
+    this.dome = this.trackScene.group.getObjectByName('sky');
     this.manager = new RaceManager(this.track, config);
     this.items = new Items(this.track, this.manager);
     this.ai = new AiDriver(this.track, config, this.manager.state, { itemRoles: this.items.roles });
@@ -67,6 +73,10 @@ export class RaceSession {
     scene.add(this.group);
   }
 
+  private skyBounce(sky: string | undefined): Color | null {
+    return this.def.environment?.ground?.kind === 'none' && sky && SKIES[sky] ? new Color(SKIES[sky].ground) : null;
+  }
+
   get state() { return this.manager.state; }
   get player() { return this.playerIndex >= 0 ? this.manager.state.karts[this.playerIndex] : undefined; }
 
@@ -75,7 +85,11 @@ export class RaceSession {
     // the same tick the leaderboard server replays (game/simtick.ts)
     const ev = simTick(this.parts, playerInput);
     const st = this.manager.state;
-    for (const e of ev.race) if (e.type === 'trackChanged' && e.event.sky) this.horizon = paintSky(this.trackScene.group, e.event.sky);
+    for (const e of ev.race) {
+      if (e.type !== 'trackChanged' || !e.event.sky) continue;
+      this.horizon = paintSky(this.trackScene.group, e.event.sky);
+      this.bounce = this.skyBounce(e.event.sky);
+    }
     for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT);
     if (st.phase === 'finished') this.finishedFor += SIM_DT;
     return ev;

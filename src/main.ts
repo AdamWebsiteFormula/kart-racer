@@ -50,7 +50,9 @@ sun.position.set(60, 120, 40);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, far: 400 });
-scene.add(sun, sun.target, new HemisphereLight(0xcfe8ff, 0x7a6a4f, 0.9), new AmbientLight(0xbcd8ff, 0.5));
+const EARTH = new Color(0x7a6a4f);
+const hemi = new HemisphereLight(0xcfe8ff, EARTH, 0.9);
+scene.add(sun, sun.target, hemi, new AmbientLight(0xbcd8ff, 0.5));
 
 const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
 const vfx = new Vfx(scene, camera);
@@ -291,6 +293,7 @@ function frame(now: number): void {
   const cur = session!;
   cur.frame(acc.alpha, frameDt);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
+  hemi.groundColor.copy(cur.bounce ?? EARTH);
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
   const pl = cur.player;
   vfx.frame(frameDt, simDt, nowS, cur.state.karts, attract ? undefined : pl, camPos, reduced);
@@ -298,6 +301,7 @@ function frame(now: number): void {
   camera.updateProjectionMatrix();
   const sh = vfx.shake;
   camera.position.set(camPos[0] + sh.x, camPos[1] + sh.y, camPos[2] + sh.z);
+  cur.dome?.position.copy(camera.position);
   camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
   camera.rotateZ(attract ? 0 : vfx.roll(pl, reduced));
   sun.target.position.set(camLook[0], camLook[1], camLook[2]);
