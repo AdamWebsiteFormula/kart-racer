@@ -32,3 +32,6 @@ refs/
 
 # agent worktrees
 .claude/worktrees/
+
+# supabase CLI scratch
+supabase/.temp/
