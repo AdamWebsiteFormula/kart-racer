@@ -85,7 +85,7 @@
     { "t": 0.97, "lateral": 0 }
   ],
   "hazards": [
-    { "id": "kraken", "type": "creature", "creature": "kraken", "t": 0.42, "lateral": 1, "period": 8.8, "hit": "spin" },
+    { "id": "kraken", "type": "creature", "creature": "kraken", "t": 0.42, "lateral": 1, "period": 7.6, "hit": "spin" },
     { "id": "bumper-cars", "type": "crossing", "t": 0.72, "lateral": 0, "period": 5, "speed": 2, "hit": "bump", "asset": "bumper-car" },
     { "id": "teacup-1", "type": "static", "t": 0.67, "lateral": -4, "hit": "spin", "asset": "teacup" },
     { "id": "teacup-2", "type": "static", "t": 0.87, "lateral": 4, "hit": "spin", "asset": "teacup" }

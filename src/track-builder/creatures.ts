@@ -10,20 +10,20 @@ import type { ActiveHazard, CreatureKind, HazardDef, Vec3 } from './types.ts';
 export const CREATURE = Object.freeze({
   rumblesaur: {
     /** metres off the road edge it stands, on its own side */ off: 9,
-    /** seconds of idle, then rearing up (the warning), then the stomp */ idle: 4.4, rear: 1.2,
+    /** seconds of idle, then rearing up (the warning), then the stomp */ idle: 2.9, rear: 1.2,
     /** the shock ring: rolls out from the foot this fast, this far, this thick */ ringSpeed: 19, ringReach: 30, ringHalf: 1.2,
     /** the stomping foot itself, for this long after it lands */ footRadius: 3, footSeconds: 0.3,
-    /** points along the ring that can hit (it only matters over the road) */ ringPoints: 22,
+    /** points along the ring that can hit, close enough that no kart slips between two at full reach */ ringPoints: 48,
   },
   yeti: {
-    off: 11, windUp: 1, flight: 1.25, roll: 2.2, rollSpeed: 9, radius: 1.3,
+    off: 11, windUp: 0.9, flight: 1.2, roll: 2.2, rollSpeed: 10, radius: 1.6,
     /** how far down the road (metres) the snowball lands from the yeti */ ahead: 14,
   },
   kraken: {
-    off: 17, idle: 4.6, warn: 1.5, slam: 0.7, retract: 1.2,
+    off: 17, idle: 3.4, warn: 1.5, slam: 0.7, retract: 1.2,
     /** the tentacle across the road: circles of this radius */ radius: 1.5,
   },
-  crab: { wait: 1.6, cross: 3, radius: 2.6, /** metres past each road edge it waits */ off: 5 },
+  crab: { wait: 1.4, cross: 2.4, radius: 3, /** metres past each road edge it waits */ off: 5 },
   goose: {
     wait: 2.2, charge: 3.2, turn: 1.4, speed: 17, radius: 2, off: 7,
     /** its weave down the road: amplitude (m) and period (s) */ weave: 2.2, weavePeriod: 1.1,

@@ -287,7 +287,7 @@
     }
   ],
   "hazards": [
-    { "id": "crab", "type": "creature", "creature": "crab", "t": 0.36, "lateral": 1, "period": 9.2, "hit": "spin" },
+    { "id": "crab", "type": "creature", "creature": "crab", "t": 0.36, "lateral": 1, "period": 7.6, "hit": "spin" },
     {
       "id": "barrels",
       "type": "rolling",
