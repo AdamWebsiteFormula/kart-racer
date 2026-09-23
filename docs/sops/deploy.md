@@ -20,6 +20,7 @@ research plan §6.5, §8.9.
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-23: The live link is GitHub Pages (https://adamwebsiteformula.github.io/kart-racer/), built by .github/workflows/pages.yml on every push to main after `npm run verify`, with `vite build --base=/kart-racer/`. Chosen over Vercel because the repo is public and the gh CLI is logged in, so it needs no new account. Turning Pages on (Settings → Pages → Source: GitHub Actions) is the user's call.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
