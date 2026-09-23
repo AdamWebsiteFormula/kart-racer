@@ -44,7 +44,7 @@ const ALL: SfxId[] = Object.keys(PATCHES) as SfxId[];
 
 describe('sfx patches', () => {
   it('every SfxId has a patch with a sane shape and a length under 2 s', () => {
-    const expected: SfxId[] = ['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'balloon', 'coin', 'rouletteTick', 'itemReady', 'throw', 'kite', 'drop', 'shieldUp', 'shieldPop', 'airHorn', 'fog', 'rocket', 'hit', 'spin', 'boost1', 'boost2', 'boost3', 'boostPad', 'boostTrick', 'boostStart', 'tierUp', 'hop', 'land', 'wall', 'bump', 'wrongWay', 'gainPlace', 'losePlace', 'respawn', 'uiMove', 'uiConfirm', 'uiBack', 'horn:pip', 'horn:momo', 'horn:nova', 'horn:juniper', 'horn:otto', 'horn:sprocket', 'horn:boulder', 'horn:gus'];
+    const expected: SfxId[] = ['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'balloon', 'coin', 'rouletteTick', 'itemReady', 'throw', 'kite', 'drop', 'shieldUp', 'shieldPop', 'airHorn', 'fog', 'rocket', 'hit', 'spin', 'boost1', 'boost2', 'boost3', 'boostPad', 'boostTrick', 'boostStart', 'tierUp', 'hop', 'land', 'wall', 'bump', 'wrongWay', 'gainPlace', 'losePlace', 'respawn', 'uiMove', 'uiConfirm', 'uiBack', 'horn:pip', 'horn:momo', 'horn:nova', 'horn:juniper', 'horn:otto', 'horn:sprocket', 'horn:boulder', 'horn:gus', 'yelp:pip', 'yelp:momo', 'yelp:nova', 'yelp:juniper', 'yelp:otto', 'yelp:sprocket', 'yelp:boulder', 'yelp:gus'];
     expect(ALL.sort()).toEqual(expected.sort());
     for (const id of ALL) {
       const p = PATCHES[id];

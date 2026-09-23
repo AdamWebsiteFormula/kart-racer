@@ -92,6 +92,7 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         const id = kartCue(e.event);
         // other racers' drift and hop noise is clutter: only walls, bumps and hits carry
         if (id && (e.racerId === me || id === 'wall' || id === 'bump' || id === 'hit' || id === 'spin')) push(id, e.racerId);
+        if (e.event.type === 'hit') { const y = yelpFor(e.racerId); if (y) push(y, e.racerId, 0.8); }
         break;
       }
       default: break;
@@ -103,6 +104,7 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
       case 'itemUsed': { const id = ITEM_USE[e.itemId]; if (id) push(id, e.racerId); break; }
       case 'hit':
         push(e.spun ? 'spin' : 'hit', e.racerId);
+        { const y = yelpFor(e.racerId); if (y) push(y, e.racerId, 0.8); }
         if (e.racerId === me) music.push({ type: 'duck' });
         break;
       case 'shieldPop': push('shieldPop', e.racerId); break;
@@ -119,7 +121,13 @@ const lastRank = new Map<string | null, number>();
 export function resetDirector(): void { lastRank.clear(); }
 
 /** The horn for a racer, or a generic one. */
+const RACERS: readonly string[] = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];
+
 export function hornFor(racerId: string): SfxId {
-  const known = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];
-  return (known.includes(racerId) ? `horn:${racerId}` : 'horn:pip') as SfxId;
+  return (RACERS.includes(racerId) ? `horn:${racerId}` : 'horn:pip') as SfxId;
+}
+
+/** The racer's own hit yelp (design §11), or null for anyone not in the cast. */
+export function yelpFor(racerId: string): SfxId | null {
+  return RACERS.includes(racerId) ? (`yelp:${racerId}` as SfxId) : null;
 }

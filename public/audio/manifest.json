@@ -1,0 +1,212 @@
+{
+ "sfx": {
+  "count": {
+   "url": "audio/sfx/count.mp3"
+  },
+  "go": {
+   "url": "audio/sfx/go.mp3"
+  },
+  "lap": {
+   "url": "audio/sfx/lap.mp3"
+  },
+  "finalLap": {
+   "url": "audio/sfx/finalLap.mp3"
+  },
+  "finish": {
+   "url": "audio/sfx/finish.mp3"
+  },
+  "finishLow": {
+   "url": "audio/sfx/finishLow.mp3"
+  },
+  "balloon": {
+   "url": "audio/sfx/balloon.mp3"
+  },
+  "coin": {
+   "url": "audio/sfx/coin.mp3"
+  },
+  "rouletteTick": {
+   "url": "audio/sfx/rouletteTick.mp3"
+  },
+  "itemReady": {
+   "url": "audio/sfx/itemReady.mp3"
+  },
+  "throw": {
+   "url": "audio/sfx/throw.mp3"
+  },
+  "kite": {
+   "url": "audio/sfx/kite.mp3"
+  },
+  "drop": {
+   "url": "audio/sfx/drop.mp3"
+  },
+  "shieldUp": {
+   "url": "audio/sfx/shieldUp.mp3"
+  },
+  "shieldPop": {
+   "url": "audio/sfx/shieldPop.mp3"
+  },
+  "airHorn": {
+   "url": "audio/sfx/airHorn.mp3"
+  },
+  "fog": {
+   "url": "audio/sfx/fog.mp3"
+  },
+  "rocket": {
+   "url": "audio/sfx/rocket.mp3"
+  },
+  "hit": {
+   "url": "audio/sfx/hit.mp3"
+  },
+  "spin": {
+   "url": "audio/sfx/spin.mp3"
+  },
+  "boost1": {
+   "url": "audio/sfx/boost1.mp3"
+  },
+  "boost2": {
+   "url": "audio/sfx/boost2.mp3"
+  },
+  "boost3": {
+   "url": "audio/sfx/boost3.mp3"
+  },
+  "boostPad": {
+   "url": "audio/sfx/boostPad.mp3"
+  },
+  "boostTrick": {
+   "url": "audio/sfx/boostTrick.mp3"
+  },
+  "boostStart": {
+   "url": "audio/sfx/boostStart.mp3"
+  },
+  "tierUp": {
+   "url": "audio/sfx/tierUp.mp3"
+  },
+  "hop": {
+   "url": "audio/sfx/hop.mp3"
+  },
+  "land": {
+   "url": "audio/sfx/land.mp3"
+  },
+  "wall": {
+   "url": "audio/sfx/wall.mp3"
+  },
+  "bump": {
+   "url": "audio/sfx/bump.mp3"
+  },
+  "wrongWay": {
+   "url": "audio/sfx/wrongWay.mp3"
+  },
+  "gainPlace": {
+   "url": "audio/sfx/gainPlace.mp3"
+  },
+  "losePlace": {
+   "url": "audio/sfx/losePlace.mp3"
+  },
+  "respawn": {
+   "url": "audio/sfx/respawn.mp3"
+  },
+  "uiMove": {
+   "url": "audio/sfx/uiMove.mp3"
+  },
+  "uiConfirm": {
+   "url": "audio/sfx/uiConfirm.mp3"
+  },
+  "uiBack": {
+   "url": "audio/sfx/uiBack.mp3"
+  },
+  "horn:pip": {
+   "url": "audio/sfx/horn-pip.mp3"
+  },
+  "horn:momo": {
+   "url": "audio/sfx/horn-momo.mp3"
+  },
+  "horn:nova": {
+   "url": "audio/sfx/horn-nova.mp3"
+  },
+  "horn:juniper": {
+   "url": "audio/sfx/horn-juniper.mp3"
+  },
+  "horn:otto": {
+   "url": "audio/sfx/horn-otto.mp3"
+  },
+  "horn:sprocket": {
+   "url": "audio/sfx/horn-sprocket.mp3"
+  },
+  "horn:boulder": {
+   "url": "audio/sfx/horn-boulder.mp3"
+  },
+  "horn:gus": {
+   "url": "audio/sfx/horn-gus.mp3"
+  },
+  "yelp:pip": {
+   "url": "audio/sfx/yelp-pip.mp3"
+  },
+  "yelp:momo": {
+   "url": "audio/sfx/yelp-momo.mp3"
+  },
+  "yelp:nova": {
+   "url": "audio/sfx/yelp-nova.mp3"
+  },
+  "yelp:juniper": {
+   "url": "audio/sfx/yelp-juniper.mp3"
+  },
+  "yelp:otto": {
+   "url": "audio/sfx/yelp-otto.mp3"
+  },
+  "yelp:sprocket": {
+   "url": "audio/sfx/yelp-sprocket.mp3"
+  },
+  "yelp:boulder": {
+   "url": "audio/sfx/yelp-boulder.mp3"
+  },
+  "yelp:gus": {
+   "url": "audio/sfx/yelp-gus.mp3"
+  },
+  "engine-idle": {
+   "url": "audio/sfx/engine-idle.mp3",
+   "loop": true
+  },
+  "engine-mid": {
+   "url": "audio/sfx/engine-mid.mp3",
+   "loop": true
+  },
+  "engine-high": {
+   "url": "audio/sfx/engine-high.mp3",
+   "loop": true
+  },
+  "drift": {
+   "url": "audio/sfx/drift.mp3",
+   "loop": true
+  }
+ },
+ "music": {
+  "title": {
+   "url": "audio/music/title.mp3",
+   "bpm": 128
+  },
+  "race-harbour": {
+   "url": "audio/music/race-harbour.mp3",
+   "bpm": 150
+  },
+  "race-meadow": {
+   "url": "audio/music/race-meadow.mp3",
+   "bpm": 146
+  },
+  "race-frost": {
+   "url": "audio/music/race-frost.mp3",
+   "bpm": 140
+  },
+  "race-boardwalk": {
+   "url": "audio/music/race-boardwalk.mp3",
+   "bpm": 140
+  },
+  "race-finale": {
+   "url": "audio/music/race-finale.mp3",
+   "bpm": 160
+  },
+  "results": {
+   "url": "audio/music/results.mp3",
+   "bpm": 100
+  }
+ }
+}

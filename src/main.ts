@@ -118,7 +118,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   indexOf.clear();
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
-  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id));
+  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id);
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();

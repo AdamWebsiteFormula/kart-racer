@@ -80,6 +80,15 @@ export const PATCHES: Readonly<Record<SfxId, Patch>> = Object.freeze({
   'horn:sprocket': P({ wave: 'noise', f0: 1, attack: 0.001, decay: 0.03, gain: 0.5, steps: [0, 0, 0, 0], stepDur: 0.12, filter: { type: 'bandpass', f0: 3200, q: 6 } }),
   'horn:boulder': P({ wave: 'sawtooth', f0: 55, f1: 45, glide: 0.6, attack: 0.05, hold: 0.3, decay: 0.3, gain: 0.5, filter: { type: 'lowpass', f0: 280 } }),
   'horn:gus': P({ wave: 'sawtooth', f0: 110, attack: 0.08, hold: 0.55, decay: 0.3, gain: 0.45, detune: -1200, filter: { type: 'lowpass', f0: 600 } }),
+  // hit yelps, one per racer (design §11): short creature squeaks at each racer's own pitch
+  'yelp:pip': P({ wave: 'sine', f0: 1800, f1: 2600, glide: 0.08, attack: 0.003, decay: 0.12, gain: 0.25, vibrato: [60, 30] }),
+  'yelp:momo': P({ wave: 'sawtooth', f0: 700, f1: 480, glide: 0.2, attack: 0.01, decay: 0.25, gain: 0.25, vibrato: [80, 12], filter: { type: 'lowpass', f0: 1800 } }),
+  'yelp:nova': P({ wave: 'sine', f0: 1400, f1: 1900, glide: 0.15, attack: 0.01, decay: 0.2, gain: 0.25, vibrato: [40, 18] }),
+  'yelp:juniper': P({ wave: 'square', f0: 900, f1: 1300, glide: 0.06, attack: 0.003, decay: 0.1, gain: 0.2, filter: { type: 'lowpass', f0: 2500 } }),
+  'yelp:otto': P({ wave: 'sine', f0: 1200, f1: 1700, glide: 0.05, attack: 0.003, decay: 0.12, gain: 0.25, steps: [0, 3], stepDur: 0.07 }),
+  'yelp:sprocket': P({ wave: 'square', f0: 600, f1: 300, glide: 0.15, attack: 0.003, decay: 0.18, gain: 0.2, vibrato: [200, 25], filter: { type: 'lowpass', f0: 2200 } }),
+  'yelp:boulder': P({ wave: 'sawtooth', f0: 120, f1: 80, glide: 0.2, attack: 0.01, decay: 0.3, gain: 0.4, filter: { type: 'lowpass', f0: 500 } }),
+  'yelp:gus': P({ wave: 'sawtooth', f0: 160, f1: 110, glide: 0.25, attack: 0.02, decay: 0.3, gain: 0.35, vibrato: [30, 8], filter: { type: 'lowpass', f0: 700 } }),
 });
 
 let noiseBuf: AudioBuffer | null = null;

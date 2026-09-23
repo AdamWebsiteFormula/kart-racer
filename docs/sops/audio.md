@@ -71,7 +71,15 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Checked by rendering offline in the browser: every song peaks 0.43–0.52 with RMS 0.10–0.14 after the bus, every SFX peaks 0.06–0.67. Nothing clips; nothing is silent. The SOP's manual gate (hear it in Safari and Chrome) is still Adam's.
 - 2026-09-23: Critique (Codex `gpt-5.5`), all four accepted: the scheduler starts on the context's `statechange` to running, so the first gesture is enough; the final-lap lift lands on the next bar after the event even when the lookahead already booked into it; other racers peak at `otherGain` 0.6 of the player's level; no destructuring swaps in the per-frame engine sort.
 
+- 2026-09-23: Recorded audio from ElevenLabs (scripts/elevenlabs: catalog.ts holds every prompt, generate.ts makes the files and public/audio/manifest.json). 58 sound effects cost 643 credits; 7 songs (9.6 min) with music_v2_5. The synth stays as the fallback for anything missing or not decoded yet.
+- 2026-09-23: Every recording is levelled in the browser at decode time (loudest 50 ms for effects, mean for loops and songs), then set by one mix table (samples.ts MIX), so no audio tool is needed offline.
+- 2026-09-23: Songs loop on whole bars: the bar is measured from the onsets near the tempo the prompt asked for, the loop ends on the last 4-bar phrase before the fade, and is nudged ±80 ms to line the beats up. The pass before rings on 150 ms past the loop point.
+- 2026-09-23: Race songs start on the go, not during the countdown. Final lap: the song stops for the fanfare, then comes back from the top at ×1.06 (a semitone up, the classic lift).
+- 2026-09-23: The engine is three recorded loops (idle, mid, high) crossfaded at equal power by rpm, pitched by rpm / band rpm, plus a recorded drift screech (plan §7.4). Rivals use the mid loop, panned.
+- 2026-09-23: Every racer has a hit yelp (design §11): creature noises, never words. Only cast racers yelp.
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
+- 2026-09-23: **Recorded songs came out a third as loud as the synth songs (−9 dB).** Cause: a mastered recording has far more peak for its average than a synth loop, so levelling it to a quiet mean left it thin. Fix: measure both through an AnalyserNode on the music bus with the master at zero, and raise the song target. Rule: level new audio against what it replaces by measurement, with the master muted, never by guesswork.
 - 2026-09-23: **Pan was mirrored.** Cause: used the kart's `rightOf` (up × forward = +x at heading 0); the camera's screen right is forward × up, the opposite. Fix: `right = −dx cos h + dz sin h`. Rule: for anything the player hears or sees, derive left/right from the camera, not the kart.
 - 2026-09-23: **A sequencer test failed one run in some.** Cause: the window ended exactly on a note, and `beat × 60 / bpm` round-trips with a rounding error either side. Fix: window edges between notes. Rule: never put a test boundary on a grid value that went through floating-point maths.

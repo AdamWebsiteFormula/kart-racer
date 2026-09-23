@@ -7,7 +7,8 @@ export type SfxId =
   | 'hit' | 'spin' | 'boost1' | 'boost2' | 'boost3' | 'boostPad' | 'boostTrick' | 'boostStart'
   | 'tierUp' | 'hop' | 'land' | 'wall' | 'bump' | 'wrongWay' | 'gainPlace' | 'losePlace'
   | 'respawn' | 'uiMove' | 'uiConfirm' | 'uiBack'
-  | 'horn:pip' | 'horn:momo' | 'horn:nova' | 'horn:juniper' | 'horn:otto' | 'horn:sprocket' | 'horn:boulder' | 'horn:gus';
+  | 'horn:pip' | 'horn:momo' | 'horn:nova' | 'horn:juniper' | 'horn:otto' | 'horn:sprocket' | 'horn:boulder' | 'horn:gus'
+  | 'yelp:pip' | 'yelp:momo' | 'yelp:nova' | 'yelp:juniper' | 'yelp:otto' | 'yelp:sprocket' | 'yelp:boulder' | 'yelp:gus';
 
 export type SongId = 'title' | 'raceSunrise' | 'raceSummit' | 'results';
 

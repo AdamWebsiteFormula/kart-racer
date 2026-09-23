@@ -9,6 +9,7 @@ import { engineHz, rpmFor } from './engine.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
+import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, themeForTrack } from './samples.ts';
 import { PATCHES, playPatch } from './sfx.ts';
 import type { Cue, MusicCue, SfxId, SongId } from './types.ts';
 
@@ -16,9 +17,18 @@ interface EngineVoice { o1: OscillatorNode; o2: OscillatorNode; lp: BiquadFilter
 
 export class GameAudio {
   readonly bus: AudioBus;
+  /** the recorded sounds and songs; whatever is missing plays on the synth */
+  readonly bank: SampleBank;
   private seq: Sequencer | null = null;
   private songId: SongId | null = null;
   private wantSong: SongId | null = null;
+  /** the recorded song asked for, the one playing, and whether it waits for the go */
+  private wantKey: string | null = null;
+  private songKey: string | null = null;
+  private awaitGo = false;
+  private song: SongPlayer | null = null;
+  private loopPlayer: LoopEngine | null = null;
+  private readonly loopAi: LoopEngine[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly booked: Scheduled[] = [];
   private readonly cues: Cue[] = [];
@@ -29,8 +39,10 @@ export class GameAudio {
   private lastHorn = false;
   private watching = false;
 
-  constructor(bus = new AudioBus()) {
+  constructor(bus = new AudioBus(), bank = new SampleBank()) {
     this.bus = bus;
+    this.bank = bank;
+    bank.onLoaded = () => this.samplesReady();
     const unlock = () => {
       if (this.bus.unlock()) { this.start(); return; }
       // resume() settles asynchronously: start the scheduler the moment the context runs,
@@ -48,32 +60,84 @@ export class GameAudio {
   private start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => this.pump(), AUDIO.schedulerTickMs);
-    if (this.wantSong) this.play(this.wantSong);
+    void this.bank.load(this.bus.ctx!);
+    if (!this.awaitGo && (this.wantSong || this.wantKey)) this.play(this.wantSong, this.wantKey);
+  }
+
+  /** The recordings arrived: swap the synth song for the recorded one if there is one. */
+  private samplesReady(): void {
+    if (!this.bus.running || this.awaitGo || !this.wantKey || this.songKey === this.wantKey || !this.bank.hasSong(this.wantKey)) return;
+    this.play(this.wantSong, this.wantKey);
   }
 
   setVolumes(v: Volumes): void { this.bus.setVolumes(v); }
 
-  /** Switch songs. Queued until the context is unlocked. */
-  play(song: SongId | null): void {
+  /**
+   * Switch songs: the recording `key` when there is one, else the synth `song`. Queued until the
+   * context is unlocked.
+   */
+  play(song: SongId | null, key: string | null = song): void {
     this.wantSong = song;
+    this.wantKey = key;
+    this.awaitGo = false;
     const ctx = this.bus.ctx;
     if (!ctx || !this.bus.running) return;
+    if (key && this.bank.hasSong(key)) {
+      this.seq = null;
+      this.songId = null;
+      if (this.songKey !== key) this.startSong(ctx, key);
+      return;
+    }
+    this.stopSong();
     if (song === this.songId && this.seq) return;
     this.songId = song;
     this.seq = song ? new Sequencer(SONGS[song], ctx.currentTime + 0.1) : null;
   }
 
-  /** Race start: fresh director memory, drums muted until the go. */
-  newRace(song: SongId): void {
+  private startSong(ctx: AudioContext, key: string): void {
+    this.songKey = key;
+    this.song ??= new SongPlayer(ctx, this.bus.music!);
+    this.song.stop(ctx.currentTime, 0.3);
+    void this.bank.song(ctx, key).then((s) => {
+      if (this.songKey !== key) return; // another song was asked for while this one decoded
+      if (s) { this.song!.start(s, ctx.currentTime + 0.05); return; }
+      // it would not decode: the synth plays instead
+      this.songKey = null;
+      if (this.wantSong) { this.songId = this.wantSong; this.seq = new Sequencer(SONGS[this.wantSong], ctx.currentTime + 0.1); }
+    });
+  }
+
+  private stopSong(): void {
+    if (this.songKey) this.song?.stop(this.bus.time);
+    this.songKey = null;
+  }
+
+  /**
+   * Race start: fresh director memory. A recorded race song decodes during the countdown and
+   * starts on the go; the synth one plays with its drums muted until the go.
+   */
+  newRace(song: SongId, trackId?: string): void {
     resetDirector();
     this.songId = null;
-    this.play(song);
+    const key = trackId ? themeForTrack(trackId) : song;
+    if (this.bank.hasSong(key)) {
+      this.seq = null;
+      this.stopSong();
+      this.wantSong = song;
+      this.wantKey = key;
+      this.awaitGo = true;
+      if (this.bus.ctx) void this.bank.song(this.bus.ctx, key);
+      return;
+    }
+    this.play(song, key);
     if (this.seq) this.seq.drums = false;
   }
 
   private pump(): void {
     const ctx = this.bus.ctx, seq = this.seq;
-    if (!ctx || !seq || ctx.state !== 'running') return;
+    if (!ctx || ctx.state !== 'running') return;
+    this.song?.pump(ctx.currentTime);
+    if (!seq) return;
     const notes = seq.take(ctx.currentTime + AUDIO.scheduleAhead, this.booked);
     for (const n of notes) {
       if (n.time < ctx.currentTime - 0.05) continue; // fell behind (tab was busy): skip, never pile up
@@ -86,7 +150,9 @@ export class GameAudio {
     if (!ctx || !this.bus.running) return;
     this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
     const rate = 1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter;
-    playPatch(ctx, this.bus.sfx!, PATCHES[id], ctx.currentTime + 0.005, gain, pan, rate);
+    const s = this.bank.get(id);
+    if (s) playSample(ctx, this.bus.sfx!, s, ctx.currentTime + 0.005, gain * mixLevel(id), pan, rate);
+    else playPatch(ctx, this.bus.sfx!, PATCHES[id], ctx.currentTime + 0.005, gain, pan, rate);
   }
 
   ui(kind: 'move' | 'confirm' | 'back'): void {
@@ -99,9 +165,12 @@ export class GameAudio {
     const { cues, music } = direct(race, items, l, this.cues, this.music);
     for (const c of cues) this.sfx(c.sfx, c.gain, c.pan);
     for (const m of music) {
-      if (m.type === 'finalLap') this.seq?.lift(this.bus.time);
-      else if (m.type === 'drums' && this.seq) this.seq.drums = m.on;
-      else if (m.type === 'duck') this.bus.duck();
+      if (m.type === 'finalLap') {
+        if (this.songKey) this.song?.lift(this.bus.time); else this.seq?.lift(this.bus.time);
+      } else if (m.type === 'drums') {
+        if (m.on && this.awaitGo && this.wantKey && this.bus.ctx) { this.awaitGo = false; this.startSong(this.bus.ctx, this.wantKey); }
+        else if (this.seq) this.seq.drums = m.on;
+      } else if (m.type === 'duck') this.bus.duck();
     }
   }
 
@@ -160,6 +229,7 @@ export class GameAudio {
   engines(player: KartState | undefined, throttle: number, topSpeed: number, others: readonly KartState[], l: Listener, on: boolean): void {
     const ctx = this.bus.ctx;
     if (!ctx || !this.bus.running) return;
+    if (this.recordedEngines(ctx, player, throttle, topSpeed, others, l, on)) return;
     const t = ctx.currentTime;
     if (!this.player) this.player = this.voice(ctx, false);
     if (this.ai.length === 0) for (let i = 0; i < AUDIO.aiEngines; i++) this.ai.push(this.voice(ctx, true));
@@ -180,7 +250,21 @@ export class GameAudio {
     const slip = Math.min(1, Math.abs(player.lateralVelocity) / 6) * (player.grounded ? 1 : 0);
     pv.scrub.gain.setTargetAtTime(player.drift.active ? 0.04 + 0.08 * slip : 0.06 * Math.max(0, slip - 0.4), t, 0.05);
 
-    // nearest others, into reused slots (no per-frame arrays)
+    const near = this.nearest(player, others, l);
+    this.ai.forEach((v, i) => {
+      const k = near[i], d = this.nearD[i];
+      if (!k || d > AUDIO.farMetres) { v.gain.gain.setTargetAtTime(0, t, 0.1); return; }
+      const r = rpmFor(k.speed, topSpeed);
+      v.o1.frequency.setTargetAtTime(engineHz(r) * 1.02, t, 0.05);
+      v.lp.frequency.setTargetAtTime(300 + r * 0.2, t, 0.05);
+      const g = 0.035 * Math.max(0, 1 - d / AUDIO.farMetres);
+      v.gain.gain.setTargetAtTime(g, t, 0.1);
+      v.pan?.pan.setTargetAtTime(panOf(k, l, d), t, 0.1);
+    });
+  }
+
+  /** The three racers nearest the ear, into reused slots (no per-frame arrays), nearest first. */
+  private nearest(player: KartState, others: readonly KartState[], l: Listener): KartState[] {
     const near = this.near;
     near.length = 0;
     for (const k of others) {
@@ -197,17 +281,46 @@ export class GameAudio {
         i--;
       }
     }
-    this.ai.forEach((v, i) => {
-      const k = near[i], d = this.nearD[i];
-      if (!k || d > AUDIO.farMetres) { v.gain.gain.setTargetAtTime(0, t, 0.1); return; }
-      const r = rpmFor(k.speed, topSpeed);
-      v.o1.frequency.setTargetAtTime(engineHz(r) * 1.02, t, 0.05);
-      v.lp.frequency.setTargetAtTime(300 + r * 0.2, t, 0.05);
-      const g = 0.035 * Math.max(0, 1 - d / AUDIO.farMetres);
-      v.gain.gain.setTargetAtTime(g, t, 0.1);
-      const dx = k.position[0] - l.position[0], dz = k.position[2] - l.position[2];
-      const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
-      v.pan?.pan.setTargetAtTime(Math.max(-1, Math.min(1, right / Math.max(d, 1))), t, 0.1);
-    });
+    return near;
   }
+
+  /**
+   * The recorded engine once its loops are decoded: three loops crossfaded by rpm and the drift
+   * screech for the player, the mid loop panned for the nearest rivals. False: use the synth.
+   */
+  private recordedEngines(ctx: AudioContext, player: KartState | undefined, throttle: number, topSpeed: number, others: readonly KartState[], l: Listener, on: boolean): boolean {
+    const idle = this.bank.get('engine-idle'), mid = this.bank.get('engine-mid'), high = this.bank.get('engine-high');
+    if (!idle || !mid || !high) return false;
+    const t = ctx.currentTime, L = AUDIO.engineLoop;
+    if (!this.loopPlayer) {
+      this.loopPlayer = new LoopEngine(ctx, this.bus.sfx!, [idle, mid, high], this.bank.get('drift'), false);
+      for (let i = 0; i < AUDIO.aiEngines; i++) this.loopAi.push(new LoopEngine(ctx, this.bus.sfx!, [mid], undefined, true));
+      // the synth voices, if they ran before the recordings arrived, go quiet
+      if (this.player) { this.player.gain.gain.setTargetAtTime(0, t, 0.05); this.player.scrub.gain.setTargetAtTime(0, t, 0.05); }
+      for (const v of this.ai) v.gain.gain.setTargetAtTime(0, t, 0.05);
+    }
+    if (!on || !player) {
+      this.loopPlayer.set(t, AUDIO.idleRpm, 0);
+      for (const v of this.loopAi) v.set(t, AUDIO.idleRpm, 0);
+      return true;
+    }
+    const boosting = player.boost.remaining > 0;
+    const slip = Math.min(1, Math.abs(player.lateralVelocity) / 6) * (player.grounded ? 1 : 0);
+    const screech = player.drift.active ? 0.35 + 0.65 * slip : 0.5 * Math.max(0, slip - 0.4);
+    this.loopPlayer.set(t, rpmFor(player.speed, topSpeed, boosting), L.base + L.throttle * throttle + (boosting ? L.boost : 0), screech * L.screech);
+    const near = this.nearest(player, others, l);
+    this.loopAi.forEach((v, i) => {
+      const k = near[i], d = this.nearD[i];
+      if (!k || d > AUDIO.farMetres) { v.set(t, AUDIO.idleRpm, 0); return; }
+      v.set(t, rpmFor(k.speed, topSpeed), L.other * Math.max(0, 1 - d / AUDIO.farMetres), 0, panOf(k, l, d));
+    });
+    return true;
+  }
+}
+
+/** Screen-right pan of a racer from the ear (see director.spatial). */
+function panOf(k: KartState, l: Listener, d: number): number {
+  const dx = k.position[0] - l.position[0], dz = k.position[2] - l.position[2];
+  const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
+  return Math.max(-1, Math.min(1, right / Math.max(d, 1)));
 }
