@@ -153,6 +153,7 @@ export class HudView {
   private bannerKind: Attr;
   private lastBanner = '';
   private flash: Flag;
+  private keysHint: Flag;
   private lastFlourish = false;
 
   constructor(parent: HTMLElement) {
@@ -200,7 +201,7 @@ export class HudView {
     this.bannerKind = new Attr(this.banner, 'data-kind');
 
     this.flash = new Flag(h('div', 'flash', this.root), 'on');
-    h('div', 'keys-hint', this.root, '↑ drive · ← → steer · ↓ brake · Shift drift · E item · Q look back · Esc pause');
+    this.keysHint = new Flag(h('div', 'keys-hint', this.root, 'W / ↑ go · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause'), 'on');
   }
 
   render(vm: HudVM): void {
@@ -232,5 +233,6 @@ export class HudView {
       if (b) replay(this.banner, 'show'); else this.banner.classList.remove('show');
     }
     this.flash.set(vm.flash);
+    this.keysHint.set(vm.keysHint);
   }
 }

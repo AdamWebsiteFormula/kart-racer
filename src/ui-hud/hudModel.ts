@@ -16,9 +16,11 @@ export interface HudMemory {
   flourishUntil: number;
   wrongWay: boolean;
   shiftLabel: string;
+  /** the controls strip shows through the countdown and a moment after the go */
+  hintUntil: number;
 }
 
-export const newHudMemory = (): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '' });
+export const newHudMemory = (): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', hintUntil: -1 });
 
 function show(m: HudMemory, kind: BannerKind, text: string, sub: string, until: number, clock: number): void {
   const cur = m.banner && m.banner.until > clock ? m.banner : null;
@@ -31,8 +33,8 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
   const hold = clock + UI.bannerHoldSeconds;
   for (const e of race) {
     switch (e.type) {
-      case 'countdown': show(m, 'countdown', `${e.stepsLeft}`, '', clock + 1, clock); break;
-      case 'go': show(m, 'go', 'GO!', '', clock + 1, clock); break;
+      case 'countdown': show(m, 'countdown', `${e.stepsLeft}`, '', clock + 1, clock); m.hintUntil = clock + 1.5; break;
+      case 'go': show(m, 'go', 'GO!', '', clock + 1, clock); m.hintUntil = clock + UI.keysHintSeconds; break;
       case 'trackChanged': m.shiftLabel = e.event.label; break;
       case 'phase':
         if (e.phase === 'finalLap') show(m, 'finalLap', 'FINAL LAP', m.shiftLabel, hold, clock);
@@ -70,6 +72,8 @@ export interface HudVM {
   banner: { text: string; sub: string; kind: BannerKind } | null;
   flash: boolean;
   knockout: { text: string; danger: boolean } | null;
+  /** show the controls strip */
+  keysHint: boolean;
 }
 
 type Def = { id: string; name: string };
@@ -126,5 +130,6 @@ export function hudModel(
     banner: banner ? { text: banner.text, sub: banner.sub, kind: banner.kind } : null,
     flash: m.flashUntil > clock,
     knockout,
+    keysHint: m.hintUntil > clock,
   };
 }

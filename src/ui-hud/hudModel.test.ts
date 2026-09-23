@@ -85,3 +85,16 @@ describe('hud model', () => {
     expect(hudModel(race(), kart(), 7, 10, newHudMemory(), 0, defs, 0).knockout).toBeNull();
   });
 });
+
+describe('controls strip', () => {
+  it('shows through the countdown and a moment after the go, then hides', () => {
+    const m = newHudMemory();
+    const at = (clock: number) => hudModel(race(), kart(), 4, 10, m, clock, defs, 0).keysHint;
+    expect(at(0)).toBe(false);
+    feedHud(m, [{ type: 'countdown', stepsLeft: 3 } as never], [], 'p', 1);
+    expect(at(1.2)).toBe(true);
+    feedHud(m, [{ type: 'go' } as never], [], 'p', 4);
+    expect(at(4 + UI.keysHintSeconds - 0.1)).toBe(true);
+    expect(at(4 + UI.keysHintSeconds + 0.1)).toBe(false);
+  });
+});

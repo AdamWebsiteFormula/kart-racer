@@ -301,7 +301,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 
 .flash { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(255, 59, 59, 0.55)); opacity: 0; transition: opacity 90ms; }
 .flash.on { opacity: 1; }
-.keys-hint { position: absolute; bottom: calc(8px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(40px); font: 600 13px/1 var(--body); color: var(--paper); text-shadow: 0 1px 0 var(--ink); opacity: 0.75; white-space: nowrap; }
+.keys-hint { position: absolute; bottom: calc(64px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(12px); padding: 8px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.62); font: 600 14px/1 var(--body); color: var(--paper); white-space: nowrap; opacity: 0; transition: opacity var(--t-med) ease, transform var(--t-med) var(--pop); pointer-events: none; }
+.keys-hint.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (max-width: 720px) { .keys-hint { white-space: normal; width: min(92vw, 420px); text-align: center; line-height: 1.4; border-radius: 16px; } }
 
 /* ---------- overlays: pause, settings, credits ---------- */
 .overlay { display: none; align-items: center; justify-content: center; }
