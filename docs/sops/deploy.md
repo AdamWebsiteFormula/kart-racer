@@ -24,3 +24,4 @@ _(append dated one-liners as they are made)_
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
+- 2026-09-23: **The live site never loaded the racer model files.** Cause: a scripted edit inserted `RACER_MODELS.load()` after the first `startAttract();` in main.ts, which sits inside the host's nextRace method, not at startup; tests cannot see boot wiring. Fix: moved to after the top-level `startAttract();`. Rule: anchor scripted edits on context unique to the spot, and smoke-test the live URL's network requests after each deploy.

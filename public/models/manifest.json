@@ -1,3 +1,34 @@
 {
- "pip": { "url": "models/pip.glb", "yaw": -1.5708 }
+ "boulder": {
+  "url": "models/boulder.glb",
+  "yaw": -1.5708
+ },
+ "gus": {
+  "url": "models/gus.glb",
+  "yaw": -1.5708
+ },
+ "juniper": {
+  "url": "models/juniper.glb",
+  "yaw": -1.5708
+ },
+ "momo": {
+  "url": "models/momo.glb",
+  "yaw": -1.5708
+ },
+ "nova": {
+  "url": "models/nova.glb",
+  "yaw": -1.5708
+ },
+ "otto": {
+  "url": "models/otto.glb",
+  "yaw": -1.5708
+ },
+ "pip": {
+  "url": "models/pip.glb",
+  "yaw": -1.5708
+ },
+ "sprocket": {
+  "url": "models/sprocket.glb",
+  "yaw": -1.5708
+ }
 }

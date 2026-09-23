@@ -177,8 +177,6 @@ const host: UiHost = {
   nextRace() {
     const next = series ? nextRace(series) : undefined;
     if (next) load(next, false); else startAttract();
-// racer model files, when there are any: the next race uses them (fails soft to code-built karts)
-void RACER_MODELS.load();
   },
   restartRace() {
     if (session) load(session.config, false);
@@ -200,6 +198,8 @@ settings = ui.save.settings;
 audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume });
 applyRender();
 startAttract();
+// racer model files, when there are any: the next race uses them (fails soft to code-built karts)
+void RACER_MODELS.load();
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));
 setTimeout(() => ui.dispatch({ type: 'boot' }), 1500); // never wait on fonts for more than 1.5 s
