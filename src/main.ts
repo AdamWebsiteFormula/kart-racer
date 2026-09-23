@@ -3,8 +3,9 @@
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, PCFShadowMap,
-  PerspectiveCamera, Scene, Vector3, WebGLRenderer,
+  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer,
 } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
 import { GameAudio, songForTrack, type Listener } from './audio/index.ts';
 import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
@@ -47,6 +48,10 @@ let post: Post | null = null; // made once the camera exists
 document.body.appendChild(renderer.domElement);
 
 const scene = new Scene();
+// a soft studio reflection for the model-file racers (their PBR metal is black without one);
+// the toon materials ignore it
+scene.environment = new PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.7;
 const sun = new DirectionalLight(0xfff4e0, 2.2);
 sun.position.set(60, 120, 40);
 sun.castShadow = true;

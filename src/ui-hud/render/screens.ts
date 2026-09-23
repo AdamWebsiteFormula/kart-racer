@@ -120,7 +120,9 @@ export class RosterView implements ScreenView {
       b.style.setProperty('--bar', luminance(c.accent) > 0.6 ? c.secondary : c.accent);
       b.setAttribute('aria-label', `${c.name}, ${c.archetype}. ${c.species}. ${c.personality}.`);
       h('span', 'cls', b, c.archetype);
-      h('div', 'face', b, c.name[0]);
+      // the racer's portrait (their concept art, public/art/racers), zoomed to face and shoulders
+      const face = h('div', 'face has-portrait', b, c.name[0]);
+      face.style.setProperty('--portrait', `url("${import.meta.env.BASE_URL}art/racers/${c.id}.webp")`);
       h('div', 'name', b, c.name);
       h('div', 'who', b, `${c.species} · ${c.kart}`);
       h('div', 'quip', b, c.personality);

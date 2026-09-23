@@ -18,6 +18,9 @@ Every third-party asset and library shipped in the game, with its licence. The i
 ## Art
 | Work | Author | Licence |
 |---|---|---|
+| Racer concept art and portraits (8), made for this game with GPT Image 2.5 via Higgsfield, Sept 2026 | Higgsfield (GPT Image 2.5), prompts by the Rascal Rally! team | Higgsfield paid-plan terms |
+| Racer 3D models, made for this game with Tripo H3.1 image-to-3D via Higgsfield, Sept 2026 | Higgsfield (Tripo H3.1), from the concept art above | Higgsfield paid-plan terms |
+| Tracks, scenery, karts (fallback) and effects, modelled in code | Rascal Rally! team | Original work |
 
 ## Audio
 | Work | Author | Licence |
