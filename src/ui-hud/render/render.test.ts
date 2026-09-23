@@ -72,7 +72,7 @@ describe('HUD renderer', () => {
 });
 
 describe('UiRoot', () => {
-  it('SOP test 1 in the DOM: keys alone walk title → mode → roster → race, and Escape pauses', () => {
+  it('SOP test 1 in the DOM: keys alone walk title → mode → roster → track → race, and Escape pauses', () => {
     document.body.innerHTML = '';
     const h = host();
     const ui = new UiRoot(document.body, h, null);
@@ -83,6 +83,9 @@ describe('UiRoot', () => {
     key('Enter'); // Quick Race
     expect(ui.app.screen).toBe('rosterSelect');
     key('ArrowRight'); // Momo
+    key('Enter');
+    expect(ui.app.screen).toBe('trackSelect');
+    expect(document.querySelectorAll('#ui .track-card').length).toBe(1); // the one built track
     key('Enter');
     expect(ui.app.screen).toBe('racing');
     expect(h.calls).toContain('start:quick:momo:harbour-loop');
@@ -164,7 +167,7 @@ describe('leaderboard panel', () => {
       },
     };
     const ui = new UiRoot(document.body, h, null);
-    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     ui.raceOver({ results, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'timeTrial', dailySeed: null, draft } });
     return { ui, posts, fetches: () => fetches };
   }
@@ -229,7 +232,7 @@ describe('leaderboard panel', () => {
   it('a Quick Race has no board at all', () => {
     document.body.innerHTML = '';
     const ui = new UiRoot(document.body, { ...host(), leaderboard: { fetchBoard: async () => [], post: async () => ({ ok: false, error: '' }) } }, null);
-    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     ui.raceOver({ results, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false });
     expect(document.querySelector('#ui .board')).toBeNull();
     ui.dispose();

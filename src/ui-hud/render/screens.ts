@@ -3,7 +3,7 @@
 import { GAME_TAGLINE, GAME_TITLE, UI } from '../constants.ts';
 import { SHAPE_PATHS } from '../icons.ts';
 import type { CreditSection } from '../screens/credits.ts';
-import type { CupVM, MenuVM, RosterVM, SettingRow } from '../screens/menus.ts';
+import type { CupVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
 import { button, clear, h } from './dom.ts';
 
@@ -178,6 +178,34 @@ export class CupView implements ScreenView {
       }
       if (c.disabled) b.setAttribute('aria-disabled', 'true');
       this.buttons.set(c.id, b);
+    });
+    hint(st);
+  }
+}
+
+export class TrackView implements ScreenView {
+  readonly root: HTMLElement;
+  readonly buttons = new Map<string, HTMLElement>();
+  constructor(parent: HTMLElement) {
+    this.root = h('section', 'screen track-screen', parent);
+    this.root.setAttribute('aria-label', 'Pick a track');
+  }
+  render(vm: TrackVM): void {
+    clear(this.root);
+    this.buttons.clear();
+    const st = stage(this.root);
+    h('h2', 'heading display enter', st, vm.title);
+    const grid = h('div', 'track-cards', st);
+    vm.tracks.forEach((t, i) => {
+      const b = button(grid, t.id, 'btn track-card enter');
+      delay(b, i * 70);
+      b.style.setProperty('--bg', t.bg);
+      b.style.setProperty('--accent', t.accent);
+      h('span', 'swatch', b);
+      h('span', 'label', b, t.label);
+      h('span', 'biome', b, t.biome);
+      if (t.sub) h('span', 'sub', b, t.sub);
+      this.buttons.set(t.id, b);
     });
     hint(st);
   }

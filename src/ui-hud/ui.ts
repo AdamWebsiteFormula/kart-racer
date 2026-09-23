@@ -5,7 +5,7 @@ import type { KartState, SpeedClass } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import type { GrandPrixState, KnockoutState, RaceEvent, RaceMode, RaceResults, RaceState } from '../race-manager/types.ts';
 import type { Minimap } from '../track-builder/minimap.ts';
-import { initialApp, isPaused, needsCup, reduce, topOverlay } from './app.ts';
+import { initialApp, isPaused, needsCup, needsTrack, reduce, topOverlay } from './app.ts';
 import { accentOf } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
@@ -14,10 +14,10 @@ import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.t
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
 import {
-  BootView, CreditsView, CupView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, type ScreenView,
+  BootView, CreditsView, CupView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, type ScreenView,
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
-import { adjustSetting, cupMenu, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, type SettingId } from './screens/menus.ts';
+import { adjustSetting, cupMenu, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type SettingId } from './screens/menus.ts';
 import { boardModel, gpModel, knockoutCutModel, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
 import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
 import { cleanName, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
@@ -84,7 +84,7 @@ export class UiRoot {
   private readonly host: UiHost;
   private readonly backend: Backend | null;
   private readonly views: {
-    boot: BootView; title: TitleView; modes: ListView; roster: RosterView; cups: CupView; hud: HudView; results: ResultsView;
+    boot: BootView; title: TitleView; modes: ListView; roster: RosterView; cups: CupView; tracks: TrackView; hud: HudView; results: ResultsView;
     pause: OverlayMenuView; settings: SettingsView; credits: CreditsView;
   };
   private readonly models = new Map<string, FocusModel>();
@@ -112,7 +112,7 @@ export class UiRoot {
     const r = this.root;
     this.views = {
       boot: new BootView(r), title: new TitleView(r), modes: new ListView(r, 'mode-screen', 'Pick a mode'),
-      roster: new RosterView(r), cups: new CupView(r), hud: new HudView(r), results: new ResultsView(r),
+      roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r),
       pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r),
     };
     for (const v of Object.values(this.views)) {
@@ -166,7 +166,7 @@ export class UiRoot {
     const list = s.mode === 'knockout' ? KNOCKOUT_SETS : CUPS;
     const cup = needsCup(s) ? list.find((c) => c.id === s.cupId) : undefined;
     const vm = cup && (s.mode === 'grandPrix' || s.mode === 'knockout') ? cupMenu(s.mode, built, this.save, s.speedClass).cups.find((c) => c.id === cup.id) : undefined;
-    const tracks = vm?.plays ?? [[...built][0]];
+    const tracks = needsTrack(s) && s.trackId ? [s.trackId] : vm?.plays ?? [[...built][0]];
     return { mode: s.mode ?? 'quick', racerId: s.racerId, speedClass: s.speedClass, cupId: s.cupId, tracks };
   }
 
@@ -359,6 +359,7 @@ export class UiRoot {
         break;
       }
       case 'cupSelect': this.dispatch({ type: 'pickCup', cupId: id }); break;
+      case 'trackSelect': this.dispatch({ type: 'pickTrack', trackId: id }); break;
       case 'results': case 'gpTable': case 'knockoutCut':
         if (id === 'post') { void this.postRun(); break; }
         if (id === 'name') break; // the box takes focus; Enter inside it posts
@@ -408,7 +409,7 @@ export class UiRoot {
     const v = this.views;
     const top = topOverlay(s);
     const base: Record<string, ScreenView> = {
-      boot: v.boot, title: v.title, modeSelect: v.modes, rosterSelect: v.roster, cupSelect: v.cups,
+      boot: v.boot, title: v.title, modeSelect: v.modes, rosterSelect: v.roster, cupSelect: v.cups, trackSelect: v.tracks,
       racing: v.hud, results: v.results, gpTable: v.results, knockoutCut: v.results,
     };
     const baseView = base[s.screen];
@@ -442,6 +443,7 @@ export class UiRoot {
         this.models.set(key, vm.focus);
         break;
       }
+      case 'trackSelect': { const vm = trackMenu(s.mode ?? 'quick', built, this.save); v.tracks.render(vm); this.models.set(key, vm.focus); break; }
       case 'pause': { const vm = pauseMenu(); v.pause.render(vm); this.models.set(key, vm.focus); break; }
       case 'settings': { const vm = settingsMenu(this.save.settings); v.settings.render(vm.rows); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }

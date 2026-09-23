@@ -365,7 +365,11 @@ if (import.meta.env.DEV) {
     /** dev: hold the camera still at `pos` looking at `look` (null to let go), for checking art */
     photo: (p: { pos: Vec3; look: Vec3; fov?: number } | null) => { photo = p ? { fov: 50, ...p } : null; },
     /** dev: jump straight into a quick race on any track */
-    race: (trackId: string, racerId = 'pip') => { ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId }); load({ ...configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] }) }, false); }, camera, scene, acc,
+    race: (trackId: string, racerId = 'pip') => {
+      for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId }, { type: 'pickTrack', trackId }] as const) ui.dispatch(a);
+      // from any other screen the menu walk does nothing: load the race directly
+      if (ui.app.screen !== 'racing' || session?.def.id !== trackId) load(configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] }), false);
+    }, camera, scene, acc,
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
   };
 }

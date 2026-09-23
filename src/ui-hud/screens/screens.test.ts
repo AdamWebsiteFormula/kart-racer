@@ -106,3 +106,20 @@ describe('results screens', () => {
     expect(parseCredits(md)).toEqual([{ title: 'Code', rows: [{ work: 'three.js', author: 'mrdoob', licence: 'MIT' }] }]);
   });
 });
+
+describe('track select', () => {
+  it('lists the built tracks in cup order, three to a row; Time Trial cards show the best time and medal', async () => {
+    const { trackMenu } = await import('./menus.ts');
+    const { defaultSave } = await import('../store.ts');
+    const built = new Set(['skyline-circuit', 'harbour-loop', 'canyon-rush', 'meadow-run']);
+    const save = defaultSave();
+    save.timeTrial['canyon-rush'] = { bestMs: 131240, medal: 'gold' };
+    const quick = trackMenu('quick', built, save);
+    expect(quick.tracks.map((t) => t.id)).toEqual(['harbour-loop', 'meadow-run', 'canyon-rush', 'skyline-circuit']);
+    expect(quick.focus.rows).toEqual([['harbour-loop', 'meadow-run', 'canyon-rush'], ['skyline-circuit']]);
+    expect(quick.tracks.every((t) => t.sub === undefined)).toBe(true);
+    const tt = trackMenu('timeTrial', built, save);
+    expect(tt.title).toMatch(/Time Trial/);
+    expect(tt.tracks.find((t) => t.id === 'canyon-rush')!.sub).toBe('Best 2:11.24 · Gold');
+  });
+});

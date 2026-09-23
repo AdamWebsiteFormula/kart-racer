@@ -3,10 +3,12 @@
 import type { AppAction, AppState, Overlay } from './types.ts';
 
 export function initialApp(): AppState {
-  return { screen: 'boot', overlays: [], mode: null, racerId: 'pip', speedClass: 100, cupId: null, seriesHasNext: false };
+  return { screen: 'boot', overlays: [], mode: null, racerId: 'pip', speedClass: 100, cupId: null, trackId: null, seriesHasNext: false };
 }
 
 export const needsCup = (s: AppState) => s.mode === 'grandPrix' || s.mode === 'knockout';
+/** Quick Race and Time Trial race one track the player picks (Daily picks its own). */
+export const needsTrack = (s: AppState) => s.mode === 'quick' || s.mode === 'timeTrial';
 export const topOverlay = (s: AppState): Overlay | undefined => s.overlays[s.overlays.length - 1];
 export const isPaused = (s: AppState) => s.screen === 'racing' && s.overlays.length > 0;
 
@@ -28,12 +30,13 @@ export function reduce(s: AppState, a: AppAction): AppState {
   switch (a.type) {
     case 'boot': return s.screen === 'boot' ? { ...s, screen: 'title' } : s;
     case 'start': return s.screen === 'title' ? { ...s, screen: 'modeSelect' } : s;
-    case 'pickMode': return s.screen === 'modeSelect' ? { ...s, mode: a.mode, cupId: null, screen: 'rosterSelect' } : s;
+    case 'pickMode': return s.screen === 'modeSelect' ? { ...s, mode: a.mode, cupId: null, trackId: null, screen: 'rosterSelect' } : s;
     case 'setSpeedClass': return { ...s, speedClass: a.speedClass };
     case 'pickRacer':
       if (s.screen !== 'rosterSelect') return s;
-      return { ...s, racerId: a.racerId, screen: needsCup(s) ? 'cupSelect' : 'racing' };
+      return { ...s, racerId: a.racerId, screen: needsCup(s) ? 'cupSelect' : needsTrack(s) ? 'trackSelect' : 'racing' };
     case 'pickCup': return s.screen === 'cupSelect' ? { ...s, cupId: a.cupId, screen: 'racing' } : s;
+    case 'pickTrack': return s.screen === 'trackSelect' ? { ...s, trackId: a.trackId, screen: 'racing' } : s;
     case 'raceFinished': return s.screen === 'racing' ? { ...s, screen: 'results', seriesHasNext: a.seriesHasNext } : s;
     case 'continue':
       if (s.screen === 'results') {
@@ -53,6 +56,7 @@ export function reduce(s: AppState, a: AppAction): AppState {
         case 'modeSelect': return { ...s, screen: 'title' };
         case 'rosterSelect': return { ...s, screen: 'modeSelect' };
         case 'cupSelect': return { ...s, screen: 'rosterSelect' };
+        case 'trackSelect': return { ...s, screen: 'rosterSelect' };
         case 'racing': return push(s, 'pause');
         default: return s;
       }

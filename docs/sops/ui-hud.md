@@ -129,6 +129,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Measured in the browser: 102 draw calls with the placeholder karts (7 meshes each, 56 for 8 karts). Over the 100 budget; the art pipeline must ship one merged mesh per kart. Bundle 722 kB JS (197 kB gzip), almost all Three.js.
 - 2026-09-23: Critique (Codex `gpt-5.5`), all four accepted: only the focused button is a Tab stop and everything under a dialog is `inert`; minimap dots are rewritten in place (no per-frame objects); the minimap road key includes the track's own points so a new track never reuses the old road; Credits is reachable from the pause menu.
 - 2026-09-23: The controls strip (W / ↑ go · A D / ← → steer · Shift / Space drift · E item · S / ↓ brake · Esc pause) shows through every countdown and 3.5 s after the go, above the speed readout. Before this it sat 40 px below the screen edge and nobody saw it.
+- 2026-09-23: Quick Race and Time Trial pick a track (a new trackSelect screen after the roster: every built track in cup order, three to a row; Time Trial cards show the best time and medal). Before this both always raced the first track in the list, so five tracks were only reachable through the cups. Daily still picks its own.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

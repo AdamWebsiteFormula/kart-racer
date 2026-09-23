@@ -239,6 +239,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .cup .trk.soon { filter: grayscale(0.9) opacity(0.55); }
 .cup .trk .soon-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
 
+/* ---------- track select ---------- */
+.track-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; width: min(1000px, 92vw); }
+.track-card { position: relative; flex-direction: column; align-items: flex-start !important; justify-content: flex-end; gap: 4px; min-height: 150px; padding: 16px 18px !important; border-radius: var(--radius) !important; background: linear-gradient(160deg, var(--bg) 0 60%, var(--accent) 60%) !important; overflow: hidden; }
+.track-card .label { font: 400 26px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; }
+.track-card .biome { font: 700 13px/1 var(--body); color: var(--ink); background: var(--paper); border-radius: 999px; padding: 4px 10px; }
+.track-card .sub { font: 700 12px/1 var(--body); color: var(--paper); background: var(--ink); border-radius: 999px; padding: 4px 10px; }
+@media (max-width: 720px) { .track-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .track-card { min-height: 110px; } }
+
 /* ---------- HUD ---------- */
 .hud { font-variant-numeric: tabular-nums; }
 .hud .tl { position: absolute; top: calc(18px + var(--safe-t)); left: calc(20px + var(--safe-l)); display: flex; align-items: flex-start; gap: 10px; }

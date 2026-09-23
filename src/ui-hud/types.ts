@@ -3,7 +3,7 @@ import type { SpeedClass } from '../kart-controller/types.ts';
 import type { RaceMode } from '../race-manager/types.ts';
 
 export type Screen =
-  | 'boot' | 'title' | 'modeSelect' | 'rosterSelect' | 'cupSelect'
+  | 'boot' | 'title' | 'modeSelect' | 'rosterSelect' | 'cupSelect' | 'trackSelect'
   | 'racing' | 'results' | 'gpTable' | 'knockoutCut';
 
 export type Overlay = 'pause' | 'settings' | 'credits';
@@ -19,6 +19,8 @@ export interface AppState {
   racerId: string;
   speedClass: SpeedClass;
   cupId: string | null;
+  /** the track picked for a Quick Race or a Time Trial */
+  trackId: string | null;
   /** a series (Grand Prix or Knockout) has another race after this results screen */
   seriesHasNext: boolean;
 }
@@ -30,6 +32,7 @@ export type AppAction =
   | { type: 'pickRacer'; racerId: string }
   | { type: 'setSpeedClass'; speedClass: SpeedClass }
   | { type: 'pickCup'; cupId: string }
+  | { type: 'pickTrack'; trackId: string }
   | { type: 'raceFinished'; seriesHasNext: boolean }
   | { type: 'continue' }
   | { type: 'back' }

@@ -4,7 +4,8 @@ import { ARCHETYPES } from '../../kart-controller/constants.ts';
 import type { SpeedClass } from '../../kart-controller/types.ts';
 import type { RaceMode } from '../../race-manager/types.ts';
 import { CAST } from '../data/cast.ts';
-import { CUPS, KNOCKOUT_SETS, playableTracks, trackCard, type CupCard } from '../data/catalog.ts';
+import { CUPS, KNOCKOUT_SETS, playableTracks, trackCard, TRACKS, type CupCard } from '../data/catalog.ts';
+import { formatMs } from '../format.ts';
 import type { Save, Settings } from '../store.ts';
 import type { FocusModel } from '../types.ts';
 
@@ -88,6 +89,21 @@ export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<strin
     };
   });
   return { title: mode === 'grandPrix' ? 'Pick a cup' : 'Pick a Knockout', cups, focus: grid([cups]) };
+}
+
+export interface TrackEntry extends Entry { biome: string; bg: string; accent: string }
+export interface TrackVM { title: string; tracks: TrackEntry[]; focus: FocusModel }
+
+/** Every built track in cup order, three to a row; a Time Trial card shows your best time and medal. */
+export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save): TrackVM {
+  const tracks: TrackEntry[] = TRACKS.filter((t) => built.has(t.id)).map((t) => {
+    const best = mode === 'timeTrial' ? save.timeTrial[t.id] : undefined;
+    const medal = best && best.medal !== 'none' ? ` · ${best.medal[0].toUpperCase()}${best.medal.slice(1)}` : '';
+    return { id: t.id, label: t.name, biome: t.biome, bg: t.bg, accent: t.accent, sub: best ? `Best ${formatMs(best.bestMs)}${medal}` : undefined };
+  });
+  const rows: TrackEntry[][] = [];
+  for (let i = 0; i < tracks.length; i += 3) rows.push(tracks.slice(i, i + 3));
+  return { title: mode === 'timeTrial' ? 'Time Trial: pick a track' : 'Pick a track', tracks, focus: grid(rows) };
 }
 
 export function pauseMenu(): MenuVM {
