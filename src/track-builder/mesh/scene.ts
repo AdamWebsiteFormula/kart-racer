@@ -133,17 +133,18 @@ function featureMatrices(track: Track, kind: BakedFeature['kind'], slots?: numbe
 }
 
 /**
- * Planks across the road: a 1 × 64 shade strip along the track (v runs 1 per roadTileLength), 16
- * planks a tile with a dark gap and a little tone change each, multiplied over the vertex colours.
+ * Planks across the road: a 1 × 256 shade strip along the track (v runs 1 per roadTileLength), 16
+ * planks a tile (about 60 cm each) with a thin soft gap (about 4 cm) and a little tone change each,
+ * multiplied over the vertex colours. A wide gap reads as a black band right under the camera.
  */
 function plankTexture(): DataTexture {
-  const px = new Uint8Array(64 * 4);
-  for (let i = 0; i < 64; i++) {
-    const plank = i >> 2, gap = (i & 3) === 3;
-    const shade = gap ? 120 : 228 + ((plank * 37) % 5) * 7;
+  const px = new Uint8Array(256 * 4);
+  for (let i = 0; i < 256; i++) {
+    const plank = i >> 4, gap = (i & 15) === 15;
+    const shade = gap ? 150 : 226 + ((plank * 37) % 5) * 6;
     px.set([shade, shade, shade, 255], i * 4);
   }
-  const t = new DataTexture(px, 1, 64, RGBAFormat);
+  const t = new DataTexture(px, 1, 256, RGBAFormat);
   t.wrapS = t.wrapT = RepeatWrapping;
   t.magFilter = LinearFilter;
   t.minFilter = LinearMipmapLinearFilter;

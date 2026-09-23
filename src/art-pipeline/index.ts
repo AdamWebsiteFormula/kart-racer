@@ -9,7 +9,7 @@ export { EXHAUST, portDir, RACER_IDS, racerModel, type Exhaust } from './racers.
 export { flameColour, flameGeometry } from './flames.ts';
 export { ModelBuilder } from './model.ts';
 export { DECOR_NAMES, decorGeometry } from './decor.ts';
-export { paintSky, SKIES, type SkyPreset } from './sky.ts';
+export { DAY_LIGHT, lightOf, paintSky, SKIES, type SkyLight, type SkyPreset } from './sky.ts';
 export { flameMaterial, isShared, toonRamp, vertexToon } from './toon.ts';
 
 /** The TrackAssets every track scene gets: modelled decor and the toon ramp (no outlines). */

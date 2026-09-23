@@ -12,7 +12,7 @@ import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from '
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
-import { RACER_MODELS } from './art-pipeline/index.ts';
+import { RACER_MODELS, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
@@ -57,9 +57,24 @@ sun.position.set(60, 120, 40);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, far: 400 });
-const EARTH = new Color(0x7a6a4f);
-const hemi = new HemisphereLight(0xcfe8ff, EARTH, 0.9);
-scene.add(sun, sun.target, hemi, new AmbientLight(0xbcd8ff, 0.5));
+const hemi = new HemisphereLight(0xcfe8ff, 0x7a6a4f, 0.9);
+const fill = new AmbientLight(0xbcd8ff, 0.5);
+scene.add(sun, sun.target, hemi, fill);
+/** the lights ease to the current sky's (a final-lap sunset falls over a couple of seconds) */
+const lightTo = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color() };
+let lightFor: SkyLight | null = null;
+function applyLight(l: SkyLight, bounce: Color | null, dt: number, snap: boolean): void {
+  if (l !== lightFor) {
+    lightFor = l;
+    lightTo.sun.set(l.sun); lightTo.sky.set(l.sky); lightTo.ambient.set(l.ambient); lightTo.earth.set(l.earth);
+  }
+  const k = snap ? 1 : 1 - Math.exp(-dt * 1.6);
+  sun.color.lerp(lightTo.sun, k); sun.intensity += (l.sunI - sun.intensity) * k;
+  hemi.color.lerp(lightTo.sky, k); hemi.intensity += (l.skyI - hemi.intensity) * k;
+  hemi.groundColor.lerp(bounce ?? lightTo.earth, k);
+  fill.color.lerp(lightTo.ambient, k); fill.intensity += (l.ambientI - fill.intensity) * k;
+}
+let lightSnap = true;
 
 const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
 const vfx = new Vfx(scene, camera);
@@ -137,6 +152,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id);
   if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
   if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
+  lightSnap = true; // a new race starts under its own light, no fade from the last one
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
@@ -327,7 +343,8 @@ function step(now: number): void {
   const cur = session!;
   cur.frame(acc.alpha, frameDt, reduced);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
-  hemi.groundColor.copy(cur.bounce ?? EARTH);
+  applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap);
+  lightSnap = false;
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
   const pl = cur.player;
   vfx.frame(frameDt, simDt, nowS, cur.state.karts, attract ? undefined : pl, camPos, reduced);

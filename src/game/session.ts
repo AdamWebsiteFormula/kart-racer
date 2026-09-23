@@ -14,7 +14,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, isShared, paintSky, SKIES, trackAssets } from '../art-pipeline/index.ts';
+import { buildRacerMesh, isShared, lightOf, paintSky, SKIES, trackAssets, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { ItemsView } from './itemsView.ts';
 import { simTick, type SimParts } from './simtick.ts';
@@ -42,6 +42,8 @@ export class RaceSession {
   bounce: Color | null;
   /** the sky dome; the game keeps it centred on the camera so the horizon sits at eye level */
   readonly dome: Object3D | undefined;
+  /** the lights the current sky wants (a sunset, a night); the game eases towards them */
+  skyLight: SkyLight;
   /** seconds since the phase became `finished` */
   finishedFor = 0;
   private readonly parts: SimParts;
@@ -56,6 +58,7 @@ export class RaceSession {
     this.trackScene = buildTrackScene(this.track, trackAssets());
     this.horizon = paintSky(this.trackScene.group, this.trackScene.sky);
     this.bounce = this.skyBounce(this.trackScene.sky);
+    this.skyLight = lightOf(this.trackScene.sky);
     this.dome = this.trackScene.group.getObjectByName('sky');
     this.manager = new RaceManager(this.track, config);
     this.items = new Items(this.track, this.manager);
@@ -93,6 +96,7 @@ export class RaceSession {
       if (e.type !== 'trackChanged' || !e.event.sky) continue;
       this.horizon = paintSky(this.trackScene.group, e.event.sky);
       this.bounce = this.skyBounce(e.event.sky);
+      this.skyLight = lightOf(e.event.sky);
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT);
     if (st.phase === 'finished') this.finishedFor += SIM_DT;
