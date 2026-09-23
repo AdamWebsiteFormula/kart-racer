@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ } from '../kart-controller/step.ts';
 import { Accumulator, MAX_STEPS } from './loop.ts';
-import { formatTime, hudNumbers, itemSlots, ROULETTE_FLICKER_MS } from './hud.ts';
 import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './camera.ts';
-import { buildTrack } from '../track-builder/track.ts';
-import { RaceManager } from '../race-manager/race.ts';
-import { HARBOUR_LOOP } from '../race-manager/__tests__/fixtures.ts';
 import type { Vec3 } from '../kart-controller/types.ts';
 
 const wrapTo = (a: number) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
@@ -85,57 +81,5 @@ describe('chase camera', () => {
     for (let i = 0; i < 120; i++) smoothTo(at, [10, 2, -4], CAM.lag, 1 / 60);
     expect(at[0]).toBeCloseTo(10, 1);
     expect(at[2]).toBeCloseTo(-4, 1);
-  });
-});
-
-describe('hud', () => {
-  it('counts down, then shows lap, place and speed', () => {
-    const track = buildTrack(HARBOUR_LOOP);
-    const rm = new RaceManager(track, {
-      mode: 'quick', trackId: track.id, speedClass: 150, seed: 1,
-      racers: [{ racerId: 'pip', archetype: 'medium', isPlayer: true }, { racerId: 'momo', archetype: 'medium' }],
-    });
-    const tiers = [250, 550, 850];
-    const p = rm.state.karts[0];
-    expect(hudNumbers(rm.state, p, tiers).banner).toBe('3');
-    while (rm.state.phase === 'countdown') rm.step(rm.state.karts.map(() => ({ steer: 0, throttle: 0, brake: 0, drift: false, item: false, lookBack: false, horn: false })));
-    p.speed = 20;
-    p.lap = 2;
-    p.rank = 1;
-    const h = hudNumbers(rm.state, p, tiers);
-    expect(h.banner).toBe('');
-    expect(h.lap).toBe('LAP 2/3');
-    expect(h.position).toBe('1st');
-    expect(h.speed).toBe('72 km/h');
-    expect(h.drift).toBe('—');
-    p.drift.active = true; p.drift.tier = 2; p.drift.charge = 600;
-    expect(hudNumbers(rm.state, p, tiers).drift).toBe('★★ 600');
-  });
-
-  it('formats race time', () => {
-    expect(formatTime(-1)).toBe('0:00.00');
-    expect(formatTime(9.5)).toBe('0:09.50');
-    expect(formatTime(75.25)).toBe('1:15.25');
-  });
-});
-
-describe('item slot', () => {
-  const defs = [{ id: 'a', name: 'Alpha' }, { id: 'b', name: 'Beta' }];
-  const kart = (held: string, roulette: number, charges = 1, next = 'none', nextRoulette = 0, nextCharges = 1) =>
-    ({ item: { held, charges, rouletteRemaining: roulette, next, nextCharges, nextRouletteRemaining: nextRoulette } }) as unknown as import('../kart-controller/types.ts').KartState;
-  it('is empty with no item, flickers through names while rolling, and names the item with its charges when ready', () => {
-    expect(itemSlots(kart('none', 0), defs, 0).held).toEqual({ state: 'empty', label: '', charges: '' });
-    expect(itemSlots(kart('a', 1), defs, 0).held.state).toBe('rolling');
-    expect(itemSlots(kart('a', 1), defs, 0).held.label).toBe('Alpha');
-    expect(itemSlots(kart('a', 1), defs, ROULETTE_FLICKER_MS).held.label).toBe('Beta');
-    expect(itemSlots(kart('b', 0, 3), defs, 0).held).toEqual({ state: 'ready', label: 'Beta', charges: '×3' });
-    expect(itemSlots(kart('a', 0, 1), defs, 0).held.charges).toBe('');
-  });
-  it('shows the next slot on its own: empty, rolling out of phase with the held one, or ready', () => {
-    expect(itemSlots(kart('a', 0), defs, 0).next.state).toBe('empty');
-    const both = itemSlots(kart('a', 1, 1, 'b', 1), defs, 0);
-    expect(both.next.state).toBe('rolling');
-    expect(both.next.label).not.toBe(both.held.label);
-    expect(itemSlots(kart('a', 0, 1, 'b', 0, 3), defs, 0).next).toEqual({ state: 'ready', label: 'Beta', charges: '×3' });
   });
 });

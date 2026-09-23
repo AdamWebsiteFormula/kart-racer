@@ -35,7 +35,8 @@ export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = 
 
 export function modeMenu(available: ReadonlySet<RaceMode>): MenuVM {
   const entries = MODES.map((m) => ({ id: m.mode, label: m.label, sub: m.sub, disabled: !available.has(m.mode), badge: available.has(m.mode) ? undefined : 'Soon' }));
-  return { title: 'Pick a mode', entries, focus: grid(entries.map((e) => [e])) };
+  // three across, matching the .modes grid, so the arrows move the way the cards sit
+  return { title: 'Pick a mode', entries, focus: grid([entries.slice(0, 3), entries.slice(3)]) };
 }
 
 /** A stat multiplier as a 0.1–1 bar: medium sits at 0.6, each 6 % is one fifth. */

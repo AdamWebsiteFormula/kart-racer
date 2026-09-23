@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { UI } from './constants.ts';
-import { navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
+import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 
 describe('input', () => {
   it('keys map onto the six actions', () => {
-    expect(['ArrowUp', 'KeyS', 'ArrowLeft', 'KeyD', 'Enter', 'Space', 'Escape'].map(navFromKey))
+    expect(['ArrowUp', 'KeyS', 'ArrowLeft', 'KeyD', 'Enter', 'Space', 'Escape'].map((c) => navFromKey(c)))
       .toEqual(['up', 'down', 'left', 'right', 'confirm', 'confirm', 'back']);
     expect(navFromKey('KeyQ')).toBeNull();
+  });
+
+  it('falls back to the key value when the code is empty, never when it is set', () => {
+    expect(navFromKey('', 'Enter')).toBe('confirm');
+    expect(navFromKey('', 'ArrowLeft')).toBe('left');
+    expect(navFromKey('KeyQ', 'Enter')).toBeNull();
+    expect(isPauseKey('', 'Escape')).toBe(true);
+    expect(isPauseKey('KeyP')).toBe(true);
+    expect(isPauseKey('KeyE', 'p')).toBe(false);
   });
 
   it('gamepad d-pad, stick and face buttons', () => {

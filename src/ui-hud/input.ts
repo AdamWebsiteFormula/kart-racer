@@ -11,8 +11,24 @@ const KEYS: Readonly<Record<string, NavAction>> = Object.freeze({
   Escape: 'back', Backspace: 'back',
 });
 
-export function navFromKey(code: string): NavAction | null {
-  return KEYS[code] ?? null;
+/** By `key` value, for events whose `code` is empty (some virtual keyboards and automation). */
+const BY_KEY: Readonly<Record<string, NavAction>> = Object.freeze({
+  ArrowUp: 'up', w: 'up', W: 'up',
+  ArrowDown: 'down', s: 'down', S: 'down',
+  ArrowLeft: 'left', a: 'left', A: 'left',
+  ArrowRight: 'right', d: 'right', D: 'right',
+  Enter: 'confirm', ' ': 'confirm',
+  Escape: 'back', Backspace: 'back',
+});
+
+/** `code` first (layout-independent WASD), `key` when the code is missing. */
+export function navFromKey(code: string, key = ''): NavAction | null {
+  return KEYS[code] ?? (code ? null : BY_KEY[key] ?? null);
+}
+
+/** Is this the pause key (Escape or P) by code or, failing that, by key? */
+export function isPauseKey(code: string, key = ''): boolean {
+  return code === 'Escape' || code === 'KeyP' || (!code && (key === 'Escape' || key === 'p' || key === 'P'));
 }
 
 /** Standard mapping: 0 = A (confirm), 1 = B (back), 9 = Start (back = pause in a race), 12–15 = d-pad. */

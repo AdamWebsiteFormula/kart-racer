@@ -1,209 +1,272 @@
-// Test drive: Harbour Loop, you plus 7 AI, placeholder karts. Not the game — the
-// smallest thing that lets the handling be felt. Placeholder items, no menus, no real art.
-// Order per tick is the one the SOPs assume: AI fills inputs → manager.step → items.step → scene.
+// The game: renderer, lights, camera, the ui-hud overlay, and one RaceSession at a time.
+// Behind the menus an all-AI race runs as the attract mode; picking a race swaps in a new
+// session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
-  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, PCFSoftShadowMap,
+  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, PCFSoftShadowMap,
   PerspectiveCamera, Scene, Vector3, WebGLRenderer,
 } from 'three';
-import './style.css';
-import { AiDriver } from './ai-driver/index.ts';
-import { makeConstants } from './kart-controller/constants.ts';
+import creditsMarkdown from '../CREDITS.md?raw';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
-import { NEUTRAL_INPUT, type InputState, type Vec3 } from './kart-controller/types.ts';
-import { KartView } from './kart-controller/view.ts';
-import { Items } from './items/items.ts';
-import { RaceManager } from './race-manager/index.ts';
-import type { RaceConfig } from './race-manager/types.ts';
-import { buildTrackScene } from './track-builder/mesh/index.ts';
-import { buildTrack } from './track-builder/track.ts';
-import harbourLoop from './track-builder/tracks/harbour-loop.json';
+import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
+import { ITEMS_CONFIG } from './items/data.ts';
+import { makeConstants } from './kart-controller/constants.ts';
+import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from './race-manager/series.ts';
+import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, smoothTo, travelYaw } from './game/camera.ts';
-import { hudNumbers, itemSlots } from './game/hud.ts';
-import { ItemsView } from './game/itemsView.ts';
-import { buildKartMesh } from './game/kartMesh.ts';
 import { Accumulator } from './game/loop.ts';
-import { ROSTER } from './game/racers.ts';
+import { RaceSession } from './game/session.ts';
+import { CAST, UiRoot, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
+import './ui-hud/ui.css';
 
-const SPEED_CLASS = 100; // 100cc = Normal AI (ai-driver Decisions 2026-09-21); 150 is Hard
-const PLAYER = 0; // index into ROSTER: you drive Pip
+// ---- content: every track file present is a built track ----
+const TRACK_FILES = import.meta.glob('./track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
+const TRACKS = new Map<string, TrackDefinition>(Object.values(TRACK_FILES).map((d) => [d.id, d]));
+const FIRST_TRACK = [...TRACKS.keys()][0];
+const ALL_MODES: ReadonlySet<RaceMode> = new Set<RaceMode>(['quick', 'grandPrix', 'knockout', 'timeTrial', 'daily']);
+const ATTRACT_CC: SpeedClass = 150;
+/** seconds the finished race stays on screen before the results slide in */
+const RESULTS_AFTER = 2.5;
 
-// ---- race ----
-const track = buildTrack(harbourLoop as TrackDefinition);
-const config: RaceConfig = {
-  mode: 'quick', trackId: track.id, speedClass: SPEED_CLASS, seed: 1,
-  racers: ROSTER.map((r, i) => ({ racerId: r.id, archetype: r.archetype, isPlayer: i === PLAYER })),
-};
-const manager = new RaceManager(track, config);
-const items = new Items(track, manager);
-const ai = new AiDriver(track, config, manager.state, { itemRoles: items.roles });
-const input = new InputSource();
-const inputs: InputState[] = manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
+// ---- renderer, scene, lights ----
+const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = PCFSoftShadowMap;
+renderer.toneMapping = ACESFilmicToneMapping;
+renderer.domElement.className = 'game';
+document.body.appendChild(renderer.domElement);
 
-// ---- scene ----
 const scene = new Scene();
-const trackScene = buildTrackScene(track);
-scene.add(trackScene.group);
-scene.background = new Color(...trackScene.palette.background);
-scene.fog = new Fog(new Color(...trackScene.fog.color), 120, 800);
-
 const sun = new DirectionalLight(0xfff4e0, 2.2);
 sun.position.set(60, 120, 40);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-const cam = sun.shadow.camera;
-cam.left = -60; cam.right = 60; cam.top = 60; cam.bottom = -60; cam.far = 400;
-scene.add(sun, sun.target);
-scene.add(new AmbientLight(0xbcd8ff, 1.1));
-
-const itemsView = new ItemsView();
-scene.add(itemsView.root);
-
-const views = manager.state.karts.map((s, i) => {
-  const r = ROSTER[i];
-  const view = new KartView(makeConstants(r.archetype, SPEED_CLASS), buildKartMesh(r.accent, r.secondary), s);
-  scene.add(view.root);
-  return view;
-});
+Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, far: 400 });
+scene.add(sun, sun.target, new HemisphereLight(0xcfe8ff, 0x7a6a4f, 0.9), new AmbientLight(0xbcd8ff, 0.5));
 
 const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
-const camPos: Vec3 = [...manager.state.karts[PLAYER].position];
-const camLook: Vec3 = [...camPos];
-let camYaw = manager.state.karts[PLAYER].heading;
+const camPos: Vec3 = [0, 20, 40];
+const camLook: Vec3 = [0, 0, 0];
+const lookTmp = new Vector3();
+let camYaw = 0;
 let camSpeed = 0;
+let orbit = 0;
 
-const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); // plan §6.4
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = PCFSoftShadowMap;
-renderer.toneMapping = ACESFilmicToneMapping;
-document.body.appendChild(renderer.domElement);
-
-function resize() {
-  const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h);
-  camera.aspect = w / h;
+let settings: Settings | null = null;
+function applyRender(): void {
+  const scale = settings?.resolutionScale ?? 1;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2) * scale);
+  renderer.shadowMap.enabled = settings?.quality !== 'low';
+  resize();
+}
+function resize(): void {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
-resize();
 
-// ---- hud ----
-const hud = document.createElement('div');
-hud.id = 'hud';
-hud.innerHTML = `
-  <div class="banner"></div>
-  <div class="corner tl"><span class="lap"></span><span class="time"></span><div class="slot"><span class="item"></span><span class="charges"></span></div><div class="slot next"><span class="tag">NEXT</span><span class="item"></span><span class="charges"></span></div><span class="coins"></span></div>
-  <div class="corner bl"><span class="place"></span></div>
-  <div class="corner br"><span class="speed"></span><span class="drift"></span><span class="boost"></span></div>
-  <div class="keys">↑ drive · ← → steer · ↓ brake · SHIFT drift · E / X item · Q look back · P pause · R restart</div>`;
-document.body.appendChild(hud);
-const el = {
-  banner: hud.querySelector('.banner') as HTMLElement,
-  lap: hud.querySelector('.lap') as HTMLElement,
-  time: hud.querySelector('.time') as HTMLElement,
-  place: hud.querySelector('.place') as HTMLElement,
-  speed: hud.querySelector('.speed') as HTMLElement,
-  drift: hud.querySelector('.drift') as HTMLElement,
-  boost: hud.querySelector('.boost') as HTMLElement,
-  slot: hud.querySelector('.slot:not(.next)') as HTMLElement,
-  item: hud.querySelector('.slot:not(.next) .item') as HTMLElement,
-  charges: hud.querySelector('.slot:not(.next) .charges') as HTMLElement,
-  nextSlot: hud.querySelector('.slot.next') as HTMLElement,
-  nextItem: hud.querySelector('.slot.next .item') as HTMLElement,
-  nextCharges: hud.querySelector('.slot.next .charges') as HTMLElement,
-  coins: hud.querySelector('.coins') as HTMLElement,
-};
-
-// ---- loop ----
+// ---- sessions ----
+let session: RaceSession | null = null;
+let attract = true;
+let series: SeriesState | null = null;
+let overSent = false;
+let coinCap = 10;
+const input = new InputSource();
 const acc = new Accumulator();
 
-const player = manager.state.karts[PLAYER];
-const tiers = makeConstants(ROSTER[PLAYER].archetype, SPEED_CLASS).driftTiers;
-let last = performance.now();
-let paused = false;
-
-addEventListener('visibilitychange', () => {
-  paused = document.hidden;
-  if (!paused) { last = performance.now(); acc.reset(); }
-});
-addEventListener('keydown', (e) => {
-  if (e.code === 'KeyR') location.reload();
-  if (e.code === 'KeyP' || e.code === 'Escape') {
-    paused = !paused;
-    if (paused) el.banner.textContent = 'PAUSED';
-    else { last = performance.now(); acc.reset(); }
-  }
-});
-
-// dev hook: tuning and the perf check read the live objects from the console
-if (import.meta.env.DEV) {
-  (globalThis as unknown as Record<string, unknown>).kart = {
-    manager, ai, items, track, trackScene, views, renderer, camera, acc, scene, inputs,
-    /** sim ticks and rendered frames since the page loaded */
-    stats: () => ({ tick: manager.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: trackScene.drawables() }),
-  };
+function roster(playerId: string | null): RacerConfig[] {
+  // the player first in racer order; race-manager puts them on the back row
+  const cast = playerId ? [...CAST.filter((c) => c.id === playerId), ...CAST.filter((c) => c.id !== playerId)] : [...CAST];
+  return cast.map((c) => ({ racerId: c.id, archetype: c.archetype, isPlayer: c.id === playerId }));
 }
 
-let frames = 0;
+function load(config: RaceConfig, isAttract: boolean): void {
+  session?.dispose();
+  const def = TRACKS.get(config.trackId) ?? TRACKS.get(FIRST_TRACK)!;
+  session = new RaceSession(scene, def, { ...config, trackId: def.id });
+  attract = isAttract;
+  overSent = false;
+  const pi = session.playerIndex;
+  coinCap = makeConstants(session.config.racers[Math.max(0, pi)].archetype, session.config.speedClass).coinCap;
+  scene.background = new Color(...session.trackScene.palette.background);
+  scene.fog = new Fog(new Color(...session.trackScene.fog.color), 120, 800);
+  acc.reset();
+  const k = session.player ?? session.state.karts[0];
+  camYaw = k.heading;
+  camSpeed = 0;
+  camPos[0] = k.position[0] - Math.sin(k.heading) * 12; camPos[1] = k.position[1] + 6; camPos[2] = k.position[2] - Math.cos(k.heading) * 12;
+  camLook[0] = k.position[0]; camLook[1] = k.position[1]; camLook[2] = k.position[2];
+}
 
-function frame(now: number) {
-  frames++;
-  requestAnimationFrame(frame);
-  const frameDt = Math.min(0.25, (now - last) / 1000);
-  last = now;
-  if (paused) return;
+function startAttract(): void {
+  series = null;
+  const seed = Math.floor(Math.random() * 1e6); // attract only: never recorded, never replayed
+  load({ mode: 'quick', trackId: FIRST_TRACK, speedClass: ATTRACT_CC, seed, racers: roster(null) }, true);
+}
 
-  const steps = acc.steps(frameDt);
-  for (let i = 0; i < steps; i++) {
-    ai.fill(manager.state, manager.lastActiveHazards, inputs);
-    inputs[PLAYER] = player.finishTick === undefined ? input.sample(SIM_DT) : inputs[PLAYER];
-    const raceEvents = manager.step(inputs);
-    items.step(inputs, raceEvents, SIM_DT);
-    for (let k = 0; k < views.length; k++) ai.threatened[k] = items.threatened[k];
-    for (let k = 0; k < views.length; k++) views[k].onTick(manager.state.karts[k], SIM_DT);
+function dailySeed(): number {
+  const d = new Date();
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+
+function configFor(p: RacePlan): RaceConfig {
+  const seed = p.mode === 'daily' ? dailySeed() : Date.now() % 1_000_000;
+  const trackId = p.mode === 'daily' ? [...TRACKS.keys()][seed % TRACKS.size] : p.tracks[0] ?? FIRST_TRACK;
+  const racers = p.mode === 'timeTrial' ? roster(p.racerId).slice(0, 1) : roster(p.racerId);
+  return { mode: p.mode, trackId, speedClass: p.mode === 'timeTrial' ? 150 : p.speedClass, seed, racers };
+}
+
+const host: UiHost = {
+  builtTracks: new Set(TRACKS.keys()),
+  availableModes: ALL_MODES,
+  creditsMarkdown,
+  startRace(p) {
+    series = null;
+    const racers = roster(p.racerId);
+    const seed = Date.now() % 1_000_000;
+    if (p.mode === 'grandPrix' && p.cupId) series = createGrandPrix({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
+    if (p.mode === 'knockout' && p.cupId) series = createKnockout({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
+    load(series ? nextRace(series)! : configFor(p), false);
+  },
+  nextRace() {
+    const next = series ? nextRace(series) : undefined;
+    if (next) load(next, false); else startAttract();
+  },
+  restartRace() {
+    if (session) load(session.config, false);
+  },
+  quitRace() { startAttract(); },
+  setPaused(p) {
+    if (!p) acc.reset();
+  },
+  settingsChanged(s) { settings = s; applyRender(); },
+  screenChanged(app) {
+    // leaving the race screens for the menus brings the attract race back
+    if (!attract && (app.screen === 'modeSelect' || app.screen === 'title')) startAttract();
+  },
+};
+
+const ui = new UiRoot(document.body, host, browserBackend());
+settings = ui.save.settings;
+applyRender();
+startAttract();
+
+document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));
+setTimeout(() => ui.dispatch({ type: 'boot' }), 1500); // never wait on fonts for more than 1.5 s
+addEventListener('visibilitychange', () => {
+  if (document.hidden && ui.app.screen === 'racing' && !ui.paused) ui.dispatch({ type: 'pause' });
+  acc.reset();
+});
+
+// ---- race over → results ----
+function raceOver(): void {
+  if (!session || attract || overSent) return;
+  overSent = true;
+  const results = session.manager.results();
+  const player = session.player;
+  let gp: { before: GrandPrixState | null; after: GrandPrixState } | undefined;
+  let ko;
+  let seriesHasNext = false;
+  if (series) {
+    const before = series.kind === 'grandPrix' ? structuredClone(series) : null;
+    applyResults(series, results); // mutates
+    if (series.kind === 'grandPrix') gp = { before, after: series };
+    else ko = { after: series };
+    const playerOut = series.kind === 'knockout' && player !== undefined && series.eliminated.includes(player.racerId);
+    seriesHasNext = !isDone(series) && !playerOut;
   }
+  ui.raceOver({
+    results, trackName: trackCard(session.def.id)?.name ?? session.def.name, playerId: player?.racerId ?? null,
+    gp, ko, seriesHasNext,
+    medalTimesMs: session.config.mode === 'timeTrial' ? session.def.medalTimesMs : undefined,
+  });
+}
 
-  const alpha = acc.alpha;
-  for (let k = 0; k < views.length; k++) views[k].onFrame(alpha, manager.state.karts[k], inputs[k].steer, frameDt);
-  trackScene.update(manager.state.time, manager.lastActiveHazards, { pickups: manager.state.pickupStates, coins: manager.state.coinStates });
-  itemsView.onFrame(items, manager.state.karts, views.map((v) => v.root), alpha, manager.state.time);
-
-  // chase camera on the player's interpolated pose
-  const root = views[PLAYER].root.position;
-  // the camera swings behind the direction of travel slowly; the kart turns inside the frame
-  const lookBack = inputs[PLAYER].lookBack;
-  const want = travelYaw(views[PLAYER].root.rotation.y, player.speed, player.lateralVelocity, player.drift.active);
+// ---- cameras ----
+function chaseCamera(frameDt: number): void {
+  const s = session!;
+  const i = s.playerIndex >= 0 ? s.playerIndex : s.leader();
+  const k = s.state.karts[i];
+  const root = s.views[i].root.position;
+  const lookBack = s.inputs[i]?.lookBack ?? false;
+  const want = travelYaw(s.views[i].root.rotation.y, k.speed, k.lateralVelocity, k.drift.active);
   camYaw = chaseYaw(camYaw, want, lookBack ? CAM.flipLag : CAM.yawLag, frameDt);
-  camSpeed = easedSpeed(camSpeed, player.speed, frameDt);
+  camSpeed = easedSpeed(camSpeed, k.speed, frameDt);
   const pose = idealPose([root.x, root.y, root.z], camYaw, camSpeed, lookBack);
   const lag = lookBack ? CAM.flipLag : CAM.lag;
   smoothTo(camPos, pose.position, lag, frameDt);
   smoothTo(camLook, pose.target, lag, frameDt);
   camera.fov = fovFor(camSpeed);
+}
+
+/** Attract mode: a slow TV camera swinging around whoever leads. */
+function tvCamera(frameDt: number): void {
+  const s = session!;
+  const k = s.views[s.leader()].root.position;
+  orbit += frameDt * (ui.reducedMotion ? 0.02 : 0.12);
+  const r = 16;
+  const want: Vec3 = [k.x + Math.sin(orbit) * r, k.y + 5.5, k.z + Math.cos(orbit) * r];
+  smoothTo(camPos, want, 0.6, frameDt);
+  smoothTo(camLook, [k.x, k.y + 1, k.z], 0.25, frameDt);
+  camera.fov = 58;
+}
+
+// ---- loop ----
+let last = performance.now();
+let frames = 0;
+const itemDefs = ITEMS_CONFIG.items;
+
+function frame(now: number): void {
+  frames++;
+  requestAnimationFrame(frame);
+  const frameDt = Math.min(0.25, (now - last) / 1000);
+  last = now;
+  ui.poll(now);
+  const s = session;
+  if (!s) return;
+
+  const racing = !attract && ui.app.screen === 'racing';
+  if (!ui.paused && !document.hidden) {
+    const steps = acc.steps(frameDt);
+    for (let i = 0; i < steps; i++) {
+      let live: InputState | null = null;
+      if (racing) live = input.sample(SIM_DT); else input.sample(SIM_DT);
+      const ev = s.tick(racing ? live : null);
+      if (!attract && s.player) ui.feed(ev.race, ev.items, s.player.racerId);
+    }
+  }
+
+  if (attract && s.finishedFor > 4) startAttract();
+  else if (!attract && s.finishedFor > RESULTS_AFTER && ui.app.screen === 'racing') raceOver();
+
+  const cur = session!;
+  cur.frame(acc.alpha, frameDt);
+  if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
   camera.updateProjectionMatrix();
   camera.position.set(camPos[0], camPos[1], camPos[2]);
-  camera.lookAt(new Vector3(camLook[0], camLook[1], camLook[2]));
-  sun.target.position.copy(views[PLAYER].root.position);
+  camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
+  sun.target.position.set(camLook[0], camLook[1], camLook[2]);
+  sun.position.set(camLook[0] + 60, camLook[1] + 120, camLook[2] + 40);
 
-  const h = hudNumbers(manager.state, player, tiers);
-  el.banner.textContent = h.banner;
-  el.lap.textContent = h.lap;
-  el.time.textContent = h.time;
-  el.place.textContent = h.position;
-  el.speed.textContent = h.speed;
-  el.drift.textContent = h.drift;
-  el.boost.textContent = h.boost;
-  const slots = itemSlots(player, items.cfg.items, now);
-  el.slot.dataset.state = slots.held.state;
-  el.item.textContent = slots.held.label;
-  el.charges.textContent = slots.held.charges;
-  el.nextSlot.dataset.state = slots.next.state;
-  el.nextItem.textContent = slots.next.label;
-  el.nextCharges.textContent = slots.next.charges;
-  el.coins.textContent = `● ${player.coins}`;
-
+  const p = cur.player;
+  if (p && !attract) {
+    const pi = cur.playerIndex;
+    ui.race({
+      state: cur.state, player: p, shownRank: cur.state.trackers[pi].shownRank,
+      coinCap,
+      map: cur.track.minimap, itemDefs,
+    }, now);
+  }
   renderer.render(scene, camera);
 }
 requestAnimationFrame(frame);
+
+// dev hook: tuning and the perf check read the live objects from the console
+if (import.meta.env.DEV) {
+  (globalThis as unknown as Record<string, unknown>).kart = {
+    get session() { return session; }, ui, renderer, camera, scene, acc,
+    stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables() }),
+  };
+}

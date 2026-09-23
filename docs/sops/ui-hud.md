@@ -116,6 +116,21 @@ The attract-mode camera rail and the roster turntable (vfx-juice and art-pipelin
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-23: Built. `src/ui-hud/` = pure view models (`app`, `focus`, `input`, `format`, `hudModel`, `minimap`, `icons`, `store`, `screens/*`, `data/*`) and thin renderers (`render/dom`, `render/hud`, `render/screens`, `ui`), plus `ui.css`. 44 tests, 3 of them in jsdom. `npm run verify` green at 369.
+- 2026-09-23: The game is called **Rascal Rally!** (`GAME_TITLE` in `constants.ts`, one place to rename). "Balloon Rally" was rejected: balloons plus karts sits too close to Mario Kart's Balloon Battle.
+- 2026-09-23: A cup plays its built tracks and repeats them to keep its length (`playableTracks`), so Grand Prix and Knockout are playable end to end on Harbour Loop alone; a cup with no built track is disabled and says "Tracks coming soon".
+- 2026-09-23: A player knocked out of a Knockout ends the series ("Knocked out!" then back to the menu); watching the rest is not in v1.
+- 2026-09-23: The track, cup, Knockout-set and cast catalogs live in `src/ui-hud/data/` until a cups data file and a kart data file exist; they move out then.
+- 2026-09-23: `save.schema.json` settings gained `masterVolume`, `reducedMotion` (auto/on/off), `iconLabels` and `resolutionScale`, schema first.
+- 2026-09-23: Fonts are self-hosted through `@fontsource/lilita-one` and `@fontsource/fredoka` (OFL-1.1), bundled by Vite; no Google Fonts request at runtime. `CREDITS.md` created; the credits screen parses its tables.
+- 2026-09-23: Menus read `KeyboardEvent.code` and fall back to `key` when the code is empty; racing input stays on `code` (kart-controller).
+- 2026-09-23: `main.ts` rewritten as the game: `src/game/session.ts` builds and disposes one race (track, scene, manager, items, AI, views); an all-AI race runs behind the menus as the attract mode with a slow TV camera on the leader. The old test-drive `game/hud.ts` and `style.css` are deleted; their tests moved into ui-hud.
+- 2026-09-23: Mode select is a fixed three-column grid so the arrow keys move the way the cards sit.
+- 2026-09-23: Measured in the browser: 102 draw calls with the placeholder karts (7 meshes each, 56 for 8 karts). Over the 100 budget; the art pipeline must ship one merged mesh per kart. Bundle 722 kB JS (197 kB gzip), almost all Three.js.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
+- 2026-09-23: **Cup titles drew inside white boxes with borders.** Cause: the cup header used the class `row`, which the results table also styles. Fix: `cup-head`. Rule: in one global stylesheet, name classes after their screen, never generic words like `row`.
+- 2026-09-23: **The browser test pane showed old frames and 1 fps.** Cause: the pane was hidden, so the browser throttles `requestAnimationFrame`; screenshots lag one paint. Fix: check state with `kart.ui.app` and the DOM, step `kart.session.tick()` from the console to run a race, take a second screenshot to see the real frame. Rule: never judge frame rate in a hidden pane.
+- 2026-09-23: **Arrow keys and Enter did nothing in the automated browser.** Cause: its synthetic keydown carries `key` but an empty `code`. Fix: menus fall back to `key`. Rule: any keyboard handler that only a person tests still needs a `key` fallback.
+- 2026-09-23: **A long bash heredoc holding a test file failed with "unexpected EOF".** Cause unknown (the harness shell quoting). Fix: write long files with the file tool. Rule: heredocs for short files only.
