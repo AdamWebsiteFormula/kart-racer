@@ -37,6 +37,14 @@ _Written 23 Sept 2026 from research plan §6.6 (and §8 red-team), the score and
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-23: Supabase project `rascal-rally` (ref `thuvqdejckcphwuooyhx`, East US, Free plan), created by Adam: Data API on, new tables not auto-exposed, automatic RLS on.
+- 2026-09-23: Migrations applied: `scores` and `submit_attempts` with RLS on and no policies; `get_leaderboard` and `get_ghost` are the only public reads; the automatic-RLS helper's EXECUTE revoked from anon and authenticated. Checked: anon cannot select or insert `scores`, can call `get_leaderboard`.
+- 2026-09-23: **The replay is the truth.** The stored time is always the server's replay time; the claim must be within `CLAIM_TOLERANCE_MS` (1 s) or the run is rejected. Exact equality would reject honest Safari or Firefox runs if their maths differs from the server's V8 in the last bit.
+- 2026-09-23: Daily Challenge is a solo 150cc time attack on the UTC day's track (sorted track ids, seed = YYYYMMDD); yesterday's seed is still accepted so a race started before midnight counts.
+- 2026-09-23: The player's input is quantised to 1/127 steps before the sim sees it (`game/simtick.ts`, shared with the server), so the log reproduces the run exactly; −0 is folded to 0.
+- 2026-09-23: The function bundles the real sim (`npm run build:function` → `core.js`, generated). **Any change to the sim, the tracks or the kart schema needs `npm run deploy:function`** or honest runs stop verifying; bump `CLIENT_VERSION` when old clients must reload.
+- 2026-09-23: Deploy path: the Supabase CLI (`npm run deploy:function`), after Adam logs it in once. Pasting the 176 KB bundle through the MCP deploy call was rejected as error-prone; loading it from a pinned GitHub commit waits on Adam's go-ahead to push.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
+- 2026-09-23: **The input-log round-trip failed on −0.** Cause: `Math.round(−0.3 × 127) / 127` is −0 and the byte log cannot carry the sign of zero. Fix: `+ 0` in quantise and decode. Rule: anything that must replay bit for bit is normalised before the sim sees it, not after.
