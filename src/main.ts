@@ -198,8 +198,9 @@ settings = ui.save.settings;
 audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume });
 applyRender();
 startAttract();
-// racer model files, when there are any: the next race uses them (fails soft to code-built karts)
-void RACER_MODELS.load();
+// racer model files, when there are any (fails soft to code-built karts). The title's race started
+// before they arrived: restart it so the first thing a player sees is the modelled cast.
+void RACER_MODELS.load().then(() => { if (attract && RACER_MODELS.has('pip')) startAttract(); });
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));
 setTimeout(() => ui.dispatch({ type: 'boot' }), 1500); // never wait on fonts for more than 1.5 s
