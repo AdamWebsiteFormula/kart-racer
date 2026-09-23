@@ -24,6 +24,15 @@ describe('minimap', () => {
     expect(dots.at(-1)!.radius).toBe(UI.playerDotPx);
     expect(dots.find((d) => d.rank === 3)!.dim).toBe(true);
     expect(dots[0].rank).toBeGreaterThan(dots[1].rank); // AI back to front
+    // reused, not reallocated
+    const again = minimapDots(karts, track.minimap, () => '#fff', dots);
+    expect(again).toBe(dots);
+    expect(again[0]).toBe(dots[0]);
+  });
+
+  it('a different track with the same layout gets a different road key', () => {
+    const fake = { outlines: track.minimap.outlines.map((o) => ({ ...o, left: o.left.map((x) => x * 0.5) })) };
+    expect(outlineKey(fake)).not.toBe(outlineKey(track.minimap));
   });
 
   it('the static layer key changes only when a shortcut opens or closes', () => {

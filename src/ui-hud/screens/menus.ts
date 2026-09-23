@@ -93,7 +93,7 @@ export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<strin
 export function pauseMenu(): MenuVM {
   const entries: Entry[] = [
     { id: 'resume', label: 'Resume' }, { id: 'restart', label: 'Restart' },
-    { id: 'settings', label: 'Settings' }, { id: 'quit', label: 'Quit race' },
+    { id: 'settings', label: 'Settings' }, { id: 'credits', label: 'Credits' }, { id: 'quit', label: 'Quit race' },
   ];
   return { title: 'Paused', entries, focus: grid(entries.map((e) => [e])) };
 }

@@ -278,7 +278,7 @@ export class UiRoot {
     }
     if (top === 'credits') { this.dispatch({ type: 'back' }); return; }
     if (top === 'pause') {
-      const map: Record<string, AppAction> = { resume: { type: 'resume' }, restart: { type: 'restart' }, settings: { type: 'openSettings' }, quit: { type: 'quit' } };
+      const map: Record<string, AppAction> = { resume: { type: 'resume' }, restart: { type: 'restart' }, settings: { type: 'openSettings' }, credits: { type: 'openCredits' }, quit: { type: 'quit' } };
       if (map[id]) this.dispatch(map[id]);
       return;
     }
@@ -320,7 +320,10 @@ export class UiRoot {
     if (!this.active) return;
     const { key, view } = this.active;
     const prevId = this.focusBy.get(key);
-    if (prevId && prevId !== id) view.buttons.get(prevId)?.classList.remove('focused');
+    if (prevId && prevId !== id) {
+      const pb = view.buttons.get(prevId);
+      if (pb) { pb.classList.remove('focused'); pb.tabIndex = -1; } // one Tab stop per screen
+    }
     this.focusBy.set(key, id);
     const b = view.buttons.get(id);
     if (b) {
@@ -342,6 +345,8 @@ export class UiRoot {
     const baseView = base[s.screen];
     const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : null;
     for (const x of Object.values(v)) x.root.classList.toggle('on', x === baseView || x === overlayView);
+    // a dialog on top makes everything under it unreachable, by Tab and by pointer
+    for (const x of Object.values(v)) x.root.inert = overlayView !== null && x !== overlayView;
     const key = top ?? s.screen;
     const view = overlayView ?? baseView;
     if (!force && this.active?.key === key) return;

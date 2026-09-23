@@ -89,7 +89,11 @@ describe('UiRoot', () => {
     key('Escape');
     expect(ui.paused).toBe(true);
     expect(h.calls).toContain('paused:true');
-    key('ArrowDown'); key('Enter'); // Restart
+    // under the pause dialog the HUD is inert; only one button on the dialog is a Tab stop
+    expect((document.querySelector('#ui .hud') as HTMLElement).inert).toBe(true);
+    key('ArrowDown'); key('ArrowDown'); key('ArrowUp');
+    expect(document.querySelectorAll('#ui .pause [tabindex="0"]').length).toBe(1);
+    key('Enter'); // Restart
     expect(h.calls).toContain('restart');
     expect(ui.paused).toBe(false);
     ui.dispose();
