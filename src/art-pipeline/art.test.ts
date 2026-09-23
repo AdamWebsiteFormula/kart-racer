@@ -106,7 +106,7 @@ describe('track dressing', () => {
   it('every model exists, and the per-instance triangle budget holds (hull included)', async () => {
     const { DECOR_NAMES, decorGeometry } = await import('./decor.ts');
     // budgets per instance: the kerb repeats a thousand times, the lighthouse once
-    const budget: Record<string, number> = { 'harbour-barrier': 80, 'meadow-barrier': 80, 'canyon-barrier': 80, fence: 150, palm: 1100, oak: 700, cactus: 700, gull: 400, balloon: 1200, coin: 260, lighthouse: 3000, windmill: 3000, arch: 1500, mesa: 800 };
+    const budget: Record<string, number> = { 'harbour-barrier': 80, 'meadow-barrier': 80, 'canyon-barrier': 80, fence: 150, palm: 1100, oak: 700, cactus: 700, gull: 400, balloon: 1200, coin: 260, lighthouse: 3000, windmill: 3000, arch: 1500, mesa: 800, 'frost-barrier': 80, 'skyline-barrier': 80, 'boardwalk-barrier': 80, pine: 500, snowman: 1000, lamp: 300, stall: 500, cloud: 700, 'cloud-sea': 700, 'sky-lamp': 600, peak: 1500, airship: 4000, 'ferris-wheel': 6000, tent: 1200, island: 900, gust: 1200 };
     for (const name of DECOR_NAMES) {
       const g = decorGeometry(name)!;
       const tris = (g.body.index!.count + (g.hull?.index!.count ?? 0)) / 3;

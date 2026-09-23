@@ -8,6 +8,10 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type V3 = [number, number, number];
+/** A CSS colour, a hex number, or linear RGB where values above 1 glow through the bloom. */
+export type Paint = string | number | readonly [number, number, number];
+
+const toColor = (c: Paint): Color => (typeof c === 'object' ? new Color().setRGB(c[0], c[1], c[2]) : new Color(c));
 
 interface PartSpec { geo: BufferGeometry; colour: Color; pos: V3; rot: V3; scale: V3; outline: boolean }
 
@@ -47,28 +51,28 @@ export class ModelBuilder {
   readonly ink: number;
   constructor(ink = 0.045) { this.ink = ink; }
 
-  private push(geo: BufferGeometry, colour: string | number, pos: V3, rot: V3 = [0, 0, 0], scale: V3 = [1, 1, 1], outline = true): this {
-    this.parts.push({ geo, colour: new Color(colour), pos, rot, scale, outline });
+  private push(geo: BufferGeometry, colour: Paint, pos: V3, rot: V3 = [0, 0, 0], scale: V3 = [1, 1, 1], outline = true): this {
+    this.parts.push({ geo, colour: toColor(colour), pos, rot, scale, outline });
     return this;
   }
 
-  box(size: V3, colour: string | number, pos: V3, rot?: V3, outline = true): this {
+  box(size: V3, colour: Paint, pos: V3, rot?: V3, outline = true): this {
     return this.push(new BoxGeometry(size[0], size[1], size[2]), colour, pos, rot, [1, 1, 1], outline);
   }
   /** A sphere of radius 1 scaled to `radii` (an ellipsoid). */
-  ball(radii: V3, colour: string | number, pos: V3, rot?: V3, detail = 14, outline = true): this {
+  ball(radii: V3, colour: Paint, pos: V3, rot?: V3, detail = 14, outline = true): this {
     return this.push(new SphereGeometry(1, detail, Math.max(4, detail * 0.66 | 0)), colour, pos, rot, radii, outline);
   }
-  cyl(rTop: number, rBottom: number, h: number, colour: string | number, pos: V3, rot?: V3, seg = 12, outline = true): this {
+  cyl(rTop: number, rBottom: number, h: number, colour: Paint, pos: V3, rot?: V3, seg = 12, outline = true): this {
     return this.push(new CylinderGeometry(rTop, rBottom, h, seg), colour, pos, rot, [1, 1, 1], outline);
   }
-  cone(r: number, h: number, colour: string | number, pos: V3, rot?: V3, seg = 10, outline = true): this {
+  cone(r: number, h: number, colour: Paint, pos: V3, rot?: V3, seg = 10, outline = true): this {
     return this.push(new ConeGeometry(r, h, seg), colour, pos, rot, [1, 1, 1], outline);
   }
-  torus(r: number, tube: number, colour: string | number, pos: V3, rot?: V3, outline = true): this {
+  torus(r: number, tube: number, colour: Paint, pos: V3, rot?: V3, outline = true): this {
     return this.push(new TorusGeometry(r, tube, 8, 18), colour, pos, rot, [1, 1, 1], outline);
   }
-  rock(r: number, colour: string | number, pos: V3, rot?: V3, scale: V3 = [1, 1, 1]): this {
+  rock(r: number, colour: Paint, pos: V3, rot?: V3, scale: V3 = [1, 1, 1]): this {
     return this.push(new IcosahedronGeometry(r, 0), colour, pos, rot, scale, true);
   }
   /** A cartoon eye: white ball with a dark pupil, facing +Z. */

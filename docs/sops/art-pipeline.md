@@ -34,7 +34,12 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Track-builder change, the only one outside `src/art-pipeline`: `TrackAssets` gained `hulls`, `ink` and `gradientMap`; the scene uses a geometry's own vertex colours when it has them; decor, barrier and landmark hulls share their model's instance matrices; retiring a mesh never disposes the shared ink.
 - 2026-09-23: Decor for Meadow Run (windmill landmark, small windmills, oaks, fences, a red barn, hay-bale kerbs, rolling hay bales) and Canyon Rush (rock arch landmark, cacti, rocks, mesas, turquoise-banded kerbs, mine carts, falling rocks), plus the `canyon-dusk` sky, modelled ahead of the track files.
 
+- 2026-09-23: `Paint` accepts linear RGB with values above 1, so lanterns, neon and lit windows glow through the bloom with no extra material or draw call.
+- 2026-09-23: Summit Cup decor modelled (Frostbite, Skyline, Boardwalk). Hazard models are built centred with their base 1.2 m down, because the scene lifts a hazard's centre by its radius.
+- 2026-09-23: The sky dome follows the camera, so the horizon sits at eye level on any track height. On tracks with no ground, the hemisphere light's lower colour is the sky's lower band, not earth brown.
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
+- 2026-09-23: **Skyline Circuit looked like a flat peach desert.** Cause: the sky gradient was keyed to the dome's centre at the world origin; with the road 40–95 m up, the whole view sat in the horizon band, and the hemisphere light lit cloud undersides earth brown. Fix: the dome follows the camera, the dawn preset has a blue top and a blue haze below, and no-ground tracks bounce the sky colour. Rule: anything that paints by direction must be centred on the eye; check a new track at its real height, not at y 0.
 - 2026-09-23: **A commit said "verify green" with one test failing.** Cause: `npm run verify | grep …` reports grep's exit code, not the test run's. Fix: amended before any push; verify now runs to a file and its own exit code is checked. Rule: never pipe the gate into a filter when its exit code decides a commit.
 - 2026-09-23: **The first dressed track rendered a million triangles.** Cause: a 180-triangle outlined bollard instanced 1,188 times is 428 k before shadows. Fix: count instances before choosing detail. Rule: budget triangles per *instance* in a test, and measure `renderer.info` after every art change.

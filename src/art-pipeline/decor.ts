@@ -242,6 +242,189 @@ const MODELS: Record<string, { build: Build; ink?: number; outline?: boolean }> 
       m.rock(0.5, '#d9734f', [0.6, 0.5, 0.3], [0.2, 0.8, 0.1]);
     },
   },
+  // ================================================================ Frostbite Pass
+  peak: {
+    ink: 0.3,
+    build: (m) => {
+      m.cone(30, 38, '#8fa3b8', [0, 19, 0], undefined, 12);                         // mountain
+      m.cone(14, 17, '#fbfdff', [0, 30.2, 0], undefined, 12);                         // snow cap
+      m.rock(9, '#7a8ea3', [16, 6, 6], [0.3, 0.8, 0.1], [1.2, 0.8, 1]);
+      m.rock(8, '#9fb3c8', [-14, 5, -10], [0.6, 0.2, 0.4], [1.1, 0.8, 1]);
+      m.cone(8, 12, '#fbfdff', [15, 12.5, 5], [0.1, 0, -0.2], 8);                      // a shoulder with snow
+    },
+  },
+  pine: {
+    build: (m) => {
+      m.cyl(0.22, 0.3, 1.2, '#6b4a2b', [0, 0.6, 0], undefined, 6);
+      m.cone(1.6, 2.2, '#2f6b4f', [0, 2.1, 0], undefined, 7);
+      m.cone(1.25, 1.9, '#3a7d5c', [0, 3.2, 0], undefined, 7);
+      m.cone(0.85, 1.6, '#468f68', [0, 4.2, 0], undefined, 7);
+      m.cone(0.5, 0.7, '#fbfdff', [0, 4.8, 0], undefined, 7, false);                   // snowy tip
+    },
+  },
+  snowman: {
+    build: (m) => {
+      m.ball([0.75, 0.7, 0.75], '#fbfdff', [0, 0.7, 0], undefined, 7);
+      m.ball([0.55, 0.52, 0.55], '#fbfdff', [0, 1.7, 0], undefined, 7);
+      m.ball([0.4, 0.4, 0.4], '#fbfdff', [0, 2.45, 0], undefined, 6);
+      m.cone(0.07, 0.4, '#ff8c1a', [0, 2.45, 0.55], [Math.PI / 2, 0, 0], 6, false);    // carrot
+      m.cyl(0.3, 0.3, 0.45, '#1b1b2f', [0, 2.95, 0], undefined, 8);                    // hat
+      m.cyl(0.45, 0.45, 0.05, '#1b1b2f', [0, 2.75, 0], undefined, 8, false);
+      m.torus(0.42, 0.08, '#ff3e9a', [0, 2.12, 0], [Math.PI / 2, 0, 0]);               // scarf
+    },
+  },
+  chalet: {
+    build: (m) => {
+      m.box([4.2, 3, 3.6], '#a0703c', [0, 1.5, 0]);
+      m.cone(3.3, 2.2, '#5a3a22', [0, 4.1, 0], [0, Math.PI / 4, 0], 4);
+      m.cone(3.35, 1.1, '#fbfdff', [0, 4.75, 0], [0, Math.PI / 4, 0], 4, false);       // snow on the roof
+      for (const x of [-1.1, 1.1]) m.box([0.9, 0.9, 0.05], [2.2, 1.7, 0.7], [x, 1.8, 1.81], undefined, false); // warm windows
+      m.box([0.8, 1.5, 0.05], '#5a3a22', [0, 0.75, 1.81], undefined, false);
+      m.box([0.5, 1.4, 0.5], '#8a8a8a', [1.2, 5.1, -0.8]);                              // chimney
+    },
+  },
+  snowball: {
+    build: (m) => {
+      m.ball([1.2, 1.2, 1.2], '#fbfdff', [0, 0, 0], undefined, 12);
+      m.ball([0.4, 0.3, 0.4], '#e3eef7', [0.7, 0.6, 0.3], undefined, 7, false);
+      m.ball([0.35, 0.3, 0.35], '#e3eef7', [-0.5, -0.4, 0.8], undefined, 7, false);
+    },
+  },
+  'frost-barrier': {
+    outline: false,
+    build: (m) => {
+      m.box([0.62, 0.55, 0.62], '#fbfdff', [0, 0.28, 0], [0, 0.4, 0], false);
+      m.box([0.64, 0.12, 0.64], '#ff3e9a', [0, 0.5, 0], [0, 0.4, 0], false);           // hot-pink marker band
+    },
+  },
+  // ================================================================ Skyline Circuit
+  airship: {
+    ink: 0.16,
+    build: (m) => {
+      const y = 112;                                                                    // above the whole circuit (roads reach 95 m)
+      m.ball([6, 6, 18], '#fff1c1', [0, y, 0], undefined, 16);
+      for (const z of [-8, 0, 8]) m.ball([6.08, 6.08, 1.1], '#f2b705', [0, y, z], undefined, 16, false); // gold bands
+      for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) m.box([0.4, 5, 4], '#f59e8b', [Math.sin(a) * 3.2, y + Math.cos(a) * 3.2, -16], [0, 0, a]); // fins
+      m.box([3.2, 2, 7], '#b8452f', [0, y - 7.2, 1]);                                  // gondola
+      for (const z of [-1.5, 1, 3.5]) m.box([3.3, 0.7, 0.9], [2.2, 1.9, 0.9], [0, y - 7, z], undefined, false); // lit windows
+      for (const x of [-2.5, 2.5]) { m.cyl(0.08, 0.08, 5.5, '#1b1b2f', [x * 0.5, y - 4.4, 1], [0, 0, x * 0.08], 4, false); }
+      m.box([0.3, 3.5, 0.3], '#1b1b2f', [0, y - 7.2, -3], undefined, false);           // propeller
+      m.box([3.5, 0.3, 0.3], '#1b1b2f', [0, y - 7.2, -3], undefined, false);
+    },
+  },
+  cloud: {
+    outline: false,
+    build: (m) => {
+      m.ball([4, 2.4, 3], '#ffffff', [0, 0, 0], undefined, 8, false);
+      m.ball([3, 2.2, 2.6], '#fff6ee', [3.5, 0.6, 0.5], undefined, 8, false);
+      m.ball([2.8, 1.9, 2.4], '#ffffff', [-3.4, 0.3, -0.4], undefined, 8, false);
+      m.ball([2.2, 1.8, 2], '#fff1e6', [0.8, 1.8, 0.2], undefined, 8, false);
+    },
+  },
+  'cloud-sea': {
+    outline: false,
+    build: (m) => {
+      // a wide flat puff far below the road: seen from above, lit, so the islands float on a sea of cloud
+      m.ball([12, 3.5, 9], '#ffffff', [0, 0, 0], undefined, 8, false);
+      m.ball([9, 3, 8], '#fff6ee', [11, 0.8, 3], undefined, 8, false);
+      m.ball([8, 2.8, 7], '#ffffff', [-10, 0.5, -3], undefined, 8, false);
+      m.ball([6, 3, 6], '#fff1e6', [2, 2.4, -4], undefined, 8, false);
+    },
+  },
+  island: {
+    ink: 0.12,
+    build: (m) => {
+      m.cone(9, 14, '#b8845a', [0, -3, 0], [Math.PI, 0, 0], 9);                       // rock underside
+      m.cyl(9.2, 9.2, 1.6, '#7bc950', [0, 4.8, 0], undefined, 9);                      // grass top
+      m.cyl(0.5, 0.7, 4, '#6b4a2b', [2, 7.5, 1], undefined, 6);
+      m.ball([2.6, 2.2, 2.6], '#5cc15e', [2, 10.2, 1], undefined, 7);
+      m.rock(1.4, '#9e7454', [-4, 6, -2], [0.4, 0.2, 0.1]);
+    },
+  },
+  'sky-lamp': {
+    build: (m) => {
+      m.ball([1.3, 0.6, 1.3], '#fff6ee', [0, 0.2, 0], undefined, 7);                   // its little cloud
+      m.cyl(0.08, 0.08, 1.6, '#1b1b2f', [0, 1.2, 0], undefined, 4, false);
+      m.ball([0.45, 0.55, 0.45], [2.4, 1.9, 0.9], [0, 2.2, 0], undefined, 8);          // lantern glow
+      m.cone(0.5, 0.35, '#b8452f', [0, 2.85, 0], undefined, 6);
+    },
+  },
+  'skyline-barrier': {
+    outline: false,
+    build: (m) => {
+      m.cyl(0.14, 0.18, 0.9, '#f2b705', [0, 0.45, 0], undefined, 6, false);             // gold post
+      m.ball([0.2, 0.2, 0.2], [1.8, 1.4, 0.6], [0, 0.95, 0], undefined, 5, false);      // tiny light
+    },
+  },
+  gust: {
+    outline: false,
+    build: (m) => {
+      for (let i = 0; i < 3; i++) m.torus(0.9 + i * 0.35, 0.06, '#ffffff', [0, -0.3 + i * 0.35, 0], [Math.PI / 2, 0, i], false); // swirl rings
+    },
+  },
+  // ================================================================ Boardwalk Nights
+  'ferris-wheel': {
+    ink: 0.14,
+    build: (m) => {
+      const y = 17;
+      m.torus(14, 0.5, [0.4, 1.8, 2.2], [0, y, 0]);                                    // cyan neon rim
+      m.torus(10, 0.3, [2.2, 0.5, 1.6], [0, y, 0], undefined, false);                  // magenta inner ring
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        m.box([0.3, 14, 0.3], '#e6e6f0', [Math.sin(a) * 7, y + Math.cos(a) * 7, 0], [0, 0, -a], false); // spokes
+        m.box([1.8, 1.4, 1.6], k % 2 ? '#ff2e97' : '#3ec9f0', [Math.sin(a) * 14, y + Math.cos(a) * 14 - 1.2, 0]); // cabins
+      }
+      m.cyl(1.2, 1.2, 2.5, '#2a2a4a', [0, y, 0], [Math.PI / 2, 0, 0], 10);            // hub
+      for (const x of [-1, 1]) m.box([0.8, y + 1, 0.8], '#2a2a4a', [x * 5, (y + 1) / 2, -1.5], [0, 0, x * 0.28]); // legs
+    },
+  },
+  stall: {
+    build: (m) => {
+      m.box([3, 1.2, 2], '#fffaf0', [0, 0.6, 0]);
+      for (let i = 0; i < 5; i++) m.box([0.6, 0.12, 2.4], i % 2 ? '#fffaf0' : '#ff2e97', [-1.2 + i * 0.6, 2.4, 0.2], [0.25, 0, 0]); // striped awning
+      for (const x of [-1.4, 1.4]) m.cyl(0.07, 0.07, 1.8, '#1b1b2f', [x, 1.5, 0.9], undefined, 4, false);
+      m.box([2.6, 0.35, 0.1], [2.2, 1.9, 0.4], [0, 1.45, 1.02], undefined, false);      // glowing sign
+    },
+  },
+  lamp: {
+    build: (m) => {
+      m.cyl(0.08, 0.12, 3.4, '#2a2a4a', [0, 1.7, 0], undefined, 6);
+      m.ball([0.35, 0.35, 0.35], [0.5, 2.2, 2.4], [0, 3.55, 0], undefined, 8);          // cyan neon globe
+    },
+  },
+  tent: {
+    ink: 0.1,
+    build: (m) => {
+      m.cyl(5, 5, 4, '#fffaf0', [0, 2, 0], undefined, 12);
+      for (let i = 0; i < 6; i++) m.box([0.9, 4.02, 0.2], '#ff2e97', [Math.sin(i * Math.PI / 3) * 5, 2, Math.cos(i * Math.PI / 3) * 5], [0, i * Math.PI / 3, 0], false); // stripes
+      m.cone(5.6, 4.5, '#ff2e97', [0, 6.2, 0], undefined, 12);
+      m.cone(0.4, 1.4, [2.2, 1.9, 0.5], [0, 9.1, 0], undefined, 6, false);               // glowing flag top
+    },
+  },
+  'bumper-car': {
+    build: (m) => {
+      m.cyl(1.1, 1.2, 0.6, '#ff2e97', [0, -0.9, 0], undefined, 12);                    // sits on the road (centre is 1.2 up)
+      m.torus(1.15, 0.18, '#1b1b2f', [0, -1.0, 0], [Math.PI / 2, 0, 0]);               // rubber bumper
+      m.box([1, 0.5, 0.6], '#3ec9f0', [0, -0.45, -0.3]);
+      m.cyl(0.05, 0.05, 1.6, '#e6e6f0', [0, 0.4, -0.6], undefined, 4, false);           // pole
+      m.ball([0.12, 0.12, 0.12], [2.2, 1.8, 0.5], [0, 1.2, -0.6], undefined, 5, false); // spark
+    },
+  },
+  teacup: {
+    build: (m) => {
+      m.cyl(1.1, 0.75, 1.1, '#fffaf0', [0, -0.52, 0], undefined, 12);
+      m.torus(0.35, 0.1, '#fffaf0', [1.05, -0.47, 0], [0, 0, Math.PI / 2]);             // handle
+      m.cyl(1.12, 1.12, 0.14, '#ff2e97', [0, 0.0, 0], undefined, 12, false);            // rim stripe
+      m.cyl(1.4, 1.4, 0.15, '#3ec9f0', [0, -1.12, 0], undefined, 12);                   // saucer
+    },
+  },
+  'boardwalk-barrier': {
+    outline: false,
+    build: (m) => {
+      m.cyl(0.12, 0.15, 0.85, '#6b4a2b', [0, 0.43, 0], undefined, 6, false);            // pier post
+      m.ball([0.18, 0.18, 0.18], [2.2, 0.5, 1.6], [0, 0.95, 0], undefined, 5, false);   // magenta bulb
+    },
+  },
   // ---- hazards (placeholder: sphere of hazardRadius 1.2, centred)
   barrel: {
     build: (m) => {

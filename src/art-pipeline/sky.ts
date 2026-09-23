@@ -12,9 +12,11 @@ export const SKIES: Readonly<Record<string, SkyPreset>> = Object.freeze({
   'canyon-day': { top: '#58a6e0', horizon: '#ffd9a8', ground: '#e8b38a', sun: '#fff0c2' },
   'canyon-dusk': { top: '#3b3a7a', horizon: '#ff9a5a', ground: '#c8553d', sun: '#ffd27a' },
   'frost-day': { top: '#8fc9f0', horizon: '#f2f8ff', ground: '#e3eef7', sun: '#ffffff' },
+  'frost-blizzard': { top: '#9aa9b8', horizon: '#dfe7ee', ground: '#cfd9e2', sun: '#eef3f7' },
   'boardwalk-night': { top: '#0b0b33', horizon: '#5a1f6e', ground: '#1a1440', sun: '#ff2e97' },
-  'skyline-dawn': { top: '#f59e8b', horizon: '#ffe3b3', ground: '#ffd0a8', sun: '#fff1c1' },
-  'skyline-night': { top: '#0a1a4a', horizon: '#3a4a8f', ground: '#1b2a5c', sun: '#f2b705' },
+  'boardwalk-fireworks': { top: '#16114a', horizon: '#8a2f86', ground: '#221a52', sun: '#ffd23f' },
+  'skyline-dawn': { top: '#3f7fd9', horizon: '#ffd2b0', ground: '#9fb8ec', sun: '#fff1c1' },
+  'skyline-night': { top: '#0a1a4a', horizon: '#6a4a9f', ground: '#2a3a78', sun: '#f2b705' },
 });
 
 const VERT = `
