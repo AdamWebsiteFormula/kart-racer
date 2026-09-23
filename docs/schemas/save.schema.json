@@ -68,6 +68,10 @@
         "quality": { "type": "string", "enum": ["low", "high", "auto"], "default": "auto" },
         "musicVolume": { "type": "number", "minimum": 0, "maximum": 1 },
         "sfxVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "masterVolume": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.8 },
+        "reducedMotion": { "type": "string", "enum": ["auto", "on", "off"], "default": "auto", "description": "auto follows prefers-reduced-motion" },
+        "iconLabels": { "type": "boolean", "default": false, "description": "a letter on every item icon, on top of shape and colour" },
+        "resolutionScale": { "type": "number", "minimum": 0.5, "maximum": 1, "default": 1, "description": "multiplies the capped DPR" },
         "selectedRacerId": { "type": "string" }, "selectedBodyId": { "type": "string" }, "selectedSkinId": { "type": "string" }
       }
     }
