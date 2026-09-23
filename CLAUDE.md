@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Goal
-Original browser 3D kart racer in the Mario Kart World mould, zero Nintendo IP: cartoon world, 8 original racers, drift/mini-turbo that feels right, 8 original items, Knockout mode, global leaderboard, 60 fps on a mid laptop. Deadline 30 Sept 2026.
+Original browser 3D kart racer in the Mario Kart World mould, zero Nintendo IP: cartoon world, 8 original racers, drift/mini-turbo that feels right, 13 original items (design §8), Knockout mode, global leaderboard, 60 fps on a mid laptop. Deadline 30 Sept 2026.
 
 ## Commands
 ```
@@ -14,7 +14,7 @@ npm run preview   # serve the built dist/
 `npm run verify` is `tsc && vitest run` (typecheck + unit tests). The headless perf run, bundle size and a11y stages named in the SOPs are **not in it yet**; do not claim they passed.
 
 ## Current state
-Built and green (427 tests): kart-controller, track-builder (all six tracks: Harbour Loop, Meadow Run, Canyon Rush; Frostbite Pass, Boardwalk Nights, Skyline Circuit), race-manager, ai-driver, items, ui-hud, audio, art-pipeline, vfx-juice, backend-leaderboard. `npm run dev` runs **Rascal Rally!**: attract-mode title, every mode (Quick, Grand Prix, Knockout, Time Trial, Daily), code-modelled toon racers, karts and decor, painted skies, post chain, and the leaderboard on the results screen (fails soft offline). Audio is recorded (ElevenLabs: `scripts/elevenlabs/catalog.ts` holds every prompt; `node scripts/elevenlabs/generate.ts --list`) with the Web Audio synth as fallback. The ElevenLabs key lives only in `.env.local`. `src/game/` holds the loop, the chase camera and `session.ts` (one race, built and disposed per race); `src/main.ts` is the game controller. In dev, `kart` on the browser console exposes the live session, UI, audio, renderer, `kart.race(trackId, racerId)` and `kart.stats()`.
+Built and green (465 tests): kart-controller, track-builder (all six tracks: Harbour Loop, Meadow Run, Canyon Rush; Frostbite Pass, Boardwalk Nights, Skyline Circuit), race-manager, ai-driver, items, ui-hud, audio, art-pipeline, vfx-juice, backend-leaderboard. `npm run dev` runs **Rascal Rally!**: attract-mode title, every mode (Quick, Grand Prix, Knockout, Time Trial, Daily), code-modelled toon racers, karts and decor, painted skies, post chain, and the leaderboard on the results screen (fails soft offline). Audio is recorded (ElevenLabs: `scripts/elevenlabs/catalog.ts` holds every prompt; `node scripts/elevenlabs/generate.ts --list`) with the Web Audio synth as fallback. The ElevenLabs key lives only in `.env.local`. `src/game/` holds the loop, the chase camera and `session.ts` (one race, built and disposed per race); `src/main.ts` is the game controller. In dev, `kart` on the browser console exposes the live session, UI, audio, renderer, `kart.race(trackId, racerId)` and `kart.stats()`.
 Not done: the submit-score Edge Function deploy (`npm run deploy:function`, needs `npx supabase login` by the user), performance pass, deploy (push and Vercel only with the user's OK in chat), red-team. Build order from docs/build-ritual.md: kart-controller → track-builder → race-manager → ai-driver → items → ui-hud → audio → art-pipeline → vfx-juice → backend-leaderboard → performance → deploy. Each system lives in `src/<system>` with headless tests.
 
 ## Where the truth lives
