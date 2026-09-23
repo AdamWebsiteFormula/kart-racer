@@ -39,6 +39,8 @@ export interface UiHost {
   settingsChanged(s: Settings): void;
   /** the screen changed (the host swaps the camera between attract and chase) */
   screenChanged?(app: AppState): void;
+  /** a menu blip: focus moved, something was picked, or we went back */
+  uiSound?(kind: 'move' | 'confirm' | 'back'): void;
 }
 
 export interface RaceOver {
@@ -241,8 +243,9 @@ export class UiRoot {
     if (!b || !this.active || !this.active.view.root.contains(b)) return;
     const id = b.dataset.id as string;
     if (b.getAttribute('aria-disabled') === 'true') return;
+    if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
     this.setFocus(id);
-    if (click) this.confirm(id);
+    if (click) { this.host.uiSound?.('confirm'); this.confirm(id); }
   }
 
   /** One navigation action on whatever is on top. */
@@ -251,13 +254,18 @@ export class UiRoot {
     const key = this.active?.key;
     const model = key ? this.models.get(key) : undefined;
     const cur = key ? this.focusBy.get(key) : undefined;
-    if (a === 'back') { this.back(); return; }
-    if (a === 'confirm') { if (cur) this.confirm(cur); return; }
+    if (a === 'back') { this.host.uiSound?.('back'); this.back(); return; }
+    if (a === 'confirm') { if (cur) { this.host.uiSound?.('confirm'); this.confirm(cur); } return; }
     if (key === 'settings' && cur && cur !== 'done' && (a === 'left' || a === 'right')) {
+      this.host.uiSound?.('move');
       this.changeSetting(cur as SettingId, a === 'left' ? -1 : 1);
       return;
     }
-    if (model && cur) this.setFocus(move(model, cur, a));
+    if (model && cur) {
+      const next = move(model, cur, a);
+      if (next !== cur) this.host.uiSound?.('move');
+      this.setFocus(next);
+    }
   }
 
   private back(): void {

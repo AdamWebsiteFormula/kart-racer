@@ -6,6 +6,7 @@ import {
   PerspectiveCamera, Scene, Vector3, WebGLRenderer,
 } from 'three';
 import creditsMarkdown from '../CREDITS.md?raw';
+import { GameAudio, songForTrack, type Listener } from './audio/index.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
@@ -73,6 +74,14 @@ let attract = true;
 let series: SeriesState | null = null;
 let overSent = false;
 let coinCap = 10;
+let topSpeed = 25;
+const audio = new GameAudio();
+/** racerId → kart index for the current session (audio needs positions by racer) */
+const indexOf = new Map<string, number>();
+const listener: Listener = {
+  playerId: null, position: [0, 0, 0], heading: 0,
+  positionOf: (id) => { const i = indexOf.get(id); return i === undefined ? undefined : session?.state.karts[i].position; },
+};
 const input = new InputSource();
 const acc = new Accumulator();
 
@@ -89,7 +98,13 @@ function load(config: RaceConfig, isAttract: boolean): void {
   attract = isAttract;
   overSent = false;
   const pi = session.playerIndex;
-  coinCap = makeConstants(session.config.racers[Math.max(0, pi)].archetype, session.config.speedClass).coinCap;
+  const kc = makeConstants(session.config.racers[Math.max(0, pi)].archetype, session.config.speedClass);
+  coinCap = kc.coinCap;
+  topSpeed = kc.topSpeed;
+  indexOf.clear();
+  session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
+  listener.playerId = session.player?.racerId ?? null;
+  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id));
   scene.background = new Color(...session.trackScene.palette.background);
   scene.fog = new Fog(new Color(...session.trackScene.fog.color), 120, 800);
   acc.reset();
@@ -141,7 +156,8 @@ const host: UiHost = {
   setPaused(p) {
     if (!p) acc.reset();
   },
-  settingsChanged(s) { settings = s; applyRender(); },
+  settingsChanged(s) { settings = s; applyRender(); audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume }); },
+  uiSound(kind) { audio.ui(kind); },
   screenChanged(app) {
     // leaving the race screens for the menus brings the attract race back
     if (!attract && (app.screen === 'modeSelect' || app.screen === 'title')) startAttract();
@@ -150,6 +166,7 @@ const host: UiHost = {
 
 const ui = new UiRoot(document.body, host, browserBackend());
 settings = ui.save.settings;
+audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume });
 applyRender();
 startAttract();
 
@@ -177,6 +194,7 @@ function raceOver(): void {
     const playerOut = series.kind === 'knockout' && player !== undefined && series.eliminated.includes(player.racerId);
     seriesHasNext = !isDone(series) && !playerOut;
   }
+  audio.play('results');
   ui.raceOver({
     results, trackName: trackCard(session.def.id)?.name ?? session.def.name, playerId: player?.racerId ?? null,
     gp, ko, seriesHasNext,
@@ -234,7 +252,10 @@ function frame(now: number): void {
       let live: InputState | null = null;
       if (racing) live = input.sample(SIM_DT); else input.sample(SIM_DT);
       const ev = s.tick(racing ? live : null);
-      if (!attract && s.player) ui.feed(ev.race, ev.items, s.player.racerId);
+      if (!attract && s.player) {
+        ui.feed(ev.race, ev.items, s.player.racerId);
+        audio.tick(ev.race, ev.items, listener);
+      }
     }
   }
 
@@ -250,9 +271,14 @@ function frame(now: number): void {
   sun.target.position.set(camLook[0], camLook[1], camLook[2]);
   sun.position.set(camLook[0] + 60, camLook[1] + 120, camLook[2] + 40);
 
+  // the ear sits on the camera, facing where it looks
+  listener.position[0] = camPos[0]; listener.position[1] = camPos[1]; listener.position[2] = camPos[2];
+  listener.heading = Math.atan2(camLook[0] - camPos[0], camLook[2] - camPos[2]);
   const p = cur.player;
+  const pi = cur.playerIndex;
+  audio.engines(p, pi >= 0 ? cur.inputs[pi].throttle : 0, topSpeed, cur.state.karts, listener, racing && !ui.paused);
+  if (racing && !ui.paused) audio.input(p, pi >= 0 ? cur.inputs[pi] : undefined);
   if (p && !attract) {
-    const pi = cur.playerIndex;
     ui.race({
       state: cur.state, player: p, shownRank: cur.state.trackers[pi].shownRank,
       coinCap,
@@ -266,7 +292,7 @@ requestAnimationFrame(frame);
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
-    get session() { return session; }, ui, renderer, camera, scene, acc,
+    get session() { return session; }, ui, audio, renderer, camera, scene, acc,
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables() }),
   };
 }

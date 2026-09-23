@@ -64,6 +64,13 @@ _Synthesised 23 Sept 2026 from research plan §7.3–7.4, design §5, §11, the 
 
 ## Decisions
 _(append dated one-liners as they are made)_
+- 2026-09-23: Built. `src/audio/` = `types`, `constants`, `director`, `engine`, `sfx` (46 patches), `bus`, `audio` (GameAudio), `music/{theory,patterns,sequencer,instruments}`. 19 tests. Four original songs: Sunrise ska (F major, 150 bpm, 16 bars), Summit funk (E dorian, 112 bpm, 16 bars), title (G major, 118 bpm), results (C major, 100 bpm).
+- 2026-09-23: No sample or music files at all; every sound is code. Nothing to credit, nothing to license, zero download weight.
+- 2026-09-23: The ear sits on the camera. Pan uses the screen's right (forward × up), because with a camera looking along +z world +x is on the left of the screen.
+- 2026-09-23: Menus play `title`; a race plays its cup song with the drums held until `go`; the results screen plays `results`. Other racers' hops and drifts are silent; their walls, bumps, hits, balloons and item uses are heard when within 45 m.
+- 2026-09-23: Checked by rendering offline in the browser: every song peaks 0.43–0.52 with RMS 0.10–0.14 after the bus, every SFX peaks 0.06–0.67. Nothing clips; nothing is silent. The SOP's manual gate (hear it in Safari and Chrome) is still Adam's.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
+- 2026-09-23: **Pan was mirrored.** Cause: used the kart's `rightOf` (up × forward = +x at heading 0); the camera's screen right is forward × up, the opposite. Fix: `right = −dx cos h + dz sin h`. Rule: for anything the player hears or sees, derive left/right from the camera, not the kart.
+- 2026-09-23: **A sequencer test failed one run in some.** Cause: the window ended exactly on a note, and `beat × 60 / bpm` round-trips with a rounding error either side. Fix: window edges between notes. Rule: never put a test boundary on a grid value that went through floating-point maths.
