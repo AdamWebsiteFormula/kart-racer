@@ -7,8 +7,24 @@
   "url": "models/props/arch.glb",
   "yaw": 0
  },
+ "barn": {
+  "url": "models/props/barn.glb",
+  "yaw": 0
+ },
+ "boat": {
+  "url": "models/props/boat.glb",
+  "yaw": 0
+ },
  "cactus": {
   "url": "models/props/cactus.glb",
+  "yaw": 0
+ },
+ "chalet": {
+  "url": "models/props/chalet.glb",
+  "yaw": 0
+ },
+ "fence": {
+  "url": "models/props/fence.glb",
   "yaw": 0
  },
  "ferris-wheel": {
@@ -19,8 +35,17 @@
   "url": "models/props/house.glb",
   "yaw": 0
  },
+ "lamp": {
+  "url": "models/props/lamp.glb",
+  "yaw": 0,
+  "glow": 1.6
+ },
  "lighthouse": {
   "url": "models/props/lighthouse.glb",
+  "yaw": 0
+ },
+ "mesa": {
+  "url": "models/props/mesa.glb",
   "yaw": 0
  },
  "oak": {
@@ -39,6 +64,14 @@
   "url": "models/props/pine.glb",
   "yaw": 0
  },
+ "rock": {
+  "url": "models/props/rock.glb",
+  "yaw": 0
+ },
+ "snowman": {
+  "url": "models/props/snowman.glb",
+  "yaw": 0
+ },
  "stall": {
   "url": "models/props/stall.glb",
   "yaw": 0
@@ -48,7 +81,7 @@
   "yaw": 0
  },
  "windmill-small": {
-  "url": "models/props/windmill.glb",
+  "url": "models/props/windmill-small.glb",
   "yaw": 0
  }
 }

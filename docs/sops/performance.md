@@ -24,6 +24,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Pixel ratio cap 2 on desktop, 1.5 on touch screens (pointer: coarse).
 - 2026-09-23: Measured on an M4 Pro at 2048×1536: sim 0.06 ms per tick, render and post 3.5 ms per frame, about 60 draw calls, 217 k triangles. JS bundle 241 KB gzipped (`npm run check:bundle`, limit 1.5 MB). The headless Playwright fps run is still not built.
 - 2026-09-23: Dev-only soak tools in main.ts: `kart.step(n, ms)` runs the real loop by hand (works with the tab hidden) and `kart.autopilot(true)` lets the AI drive the player (AiDriver.drivePlayer). A full Summit Cup Grand Prix ran through menus, HUD, audio and effects with zero errors, at about 15× real time.
+- 2026-09-23: With AI models everywhere, triangles (not fill) became the cost: up to 1.6 M a frame. Fixes: far and sky props cast no shadows (an InstancedMesh is never culled per instance, so every copy drew into the shadow map); the most repeated props simplified to about 1,200 to 1,500 triangles and the racers to about 10 k (gltf-transform simplify); the small windmills got their own simplified model. Now 540 k to 870 k triangles and 61 to 73 draw calls a frame on every track, 5 to 7 ms on an M4 Pro at DPR 2.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

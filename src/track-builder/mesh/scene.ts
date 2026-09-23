@@ -227,6 +227,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const p = placeDecor(branches, entry, rng, groundY);
     decor.push(p);
     const m = instancer(`decor:${entry.asset}`, geometryFor(assets, entry.asset, 'decor'), palette.decor, p.matrices, undefined, assets.materials?.[entry.asset]);
+    // an instancer is never culled per instance, so every copy is drawn into the shadow map each
+    // frame: only the roadside band is near enough for its shadows to be seen
+    m.castShadow = entry.band === 'roadside';
     instancers.set(m.name, m);
     group.add(m);
     withHull(m, entry.asset);
