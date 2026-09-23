@@ -1,0 +1,123 @@
+{
+  "id": "canyon-rush",
+  "name": "Canyon Rush",
+  "biome": "canyon",
+  "cup": "sunrise",
+  "orderInCup": 3,
+  "laps": 3,
+  "targetLapSeconds": 52,
+  "medalTimesMs": {
+    "gold": 156000,
+    "silver": 172000,
+    "bronze": 188000
+  },
+  "voidY": -25,
+  "landmark": "arch",
+  "music": "canyon",
+  "controlPoints": [
+    { "x": -120, "y": 0, "z": -144, "halfWidth": 10, "surface": "road" },
+    { "x": -24, "y": 0, "z": -150, "halfWidth": 10, "surface": "road" },
+    { "x": 84, "y": 0, "z": -141.6, "halfWidth": 9, "surface": "road" },
+    { "x": 156, "y": 1, "z": -114, "halfWidth": 8, "surface": "road" },
+    { "x": 192, "y": 5, "z": -66, "halfWidth": 7, "bank": 8, "surface": "road" },
+    { "x": 201.6, "y": 14, "z": -12, "halfWidth": 7, "surface": "road" },
+    { "x": 194.4, "y": 26, "z": 42, "halfWidth": 6, "bank": -6, "surface": "road" },
+    { "x": 168, "y": 34, "z": 84, "halfWidth": 6, "surface": "road" },
+    { "x": 114, "y": 36, "z": 102, "halfWidth": 6, "surface": "road" },
+    { "x": 60, "y": 34, "z": 93.6, "halfWidth": 6, "surface": "road" },
+    { "x": 12, "y": 26, "z": 72, "halfWidth": 7, "bank": 6, "surface": "road" },
+    { "x": -36, "y": 14, "z": 54, "halfWidth": 7, "surface": "road" },
+    { "x": -84, "y": 4, "z": 48, "halfWidth": 8, "surface": "road" },
+    { "x": -138, "y": 0, "z": 24, "halfWidth": 8, "surface": "road" },
+    { "x": -180, "y": 0, "z": -36, "halfWidth": 9, "surface": "road" },
+    { "x": -168, "y": 0, "z": -96, "halfWidth": 9, "surface": "road" }
+  ],
+  "checkpointCount": 12,
+  "startGrid": {
+    "t": 0.02,
+    "rows": 4,
+    "columns": 2,
+    "spacing": 3.5
+  },
+  "shortcuts": [
+    {
+      "id": "mine-tunnel",
+      "entryT": 0.32,
+      "exitT": 0.665,
+      "risk": "hazard",
+      "controlPoints": [
+        { "x": 187.27, "y": 3.87, "z": -75.81, "halfWidth": 7, "surface": "road" },
+        { "x": 139.16, "y": -9.3, "z": -40.67, "halfWidth": 5.5, "surface": "road" },
+        { "x": 91.04, "y": -12.11, "z": -5.52, "halfWidth": 5.5, "surface": "road" },
+        { "x": 42.93, "y": -0.28, "z": 29.63, "halfWidth": 5.5, "surface": "road" },
+        { "x": -5.19, "y": 21.91, "z": 64.77, "halfWidth": 7, "surface": "road" }
+      ]
+    }
+  ],
+  "jumps": [
+    { "id": "wash-ramp", "t": 0.28, "lateral": -2, "launch": 5, "width": 6 },
+    { "id": "outcrop-ramp", "t": 0.7, "lateral": -2, "launch": 6, "width": 6 }
+  ],
+  "boostPads": [
+    { "t": 0.12, "lateral": 0, "width": 3 },
+    { "t": 0.72, "lateral": 0, "width": 3 }
+  ],
+  "pickups": [
+    { "t": 0.04, "lateral": -5 },
+    { "t": 0.04, "lateral": 0 },
+    { "t": 0.04, "lateral": 5 },
+    { "t": 0.36, "shortcut": "mine-tunnel", "lateral": 0 },
+    { "t": 0.71, "lateral": -3 },
+    { "t": 0.71, "lateral": 3 },
+    { "t": 0.78, "lateral": -3 },
+    { "t": 0.78, "lateral": 3 }
+  ],
+  "coins": [
+    { "t": 0.08, "lateral": -3 },
+    { "t": 0.08, "lateral": 3 },
+    { "t": 0.22, "lateral": 0 },
+    { "t": 0.46, "shortcut": "mine-tunnel", "lateral": 0 },
+    { "t": 0.9, "lateral": -2 },
+    { "t": 0.9, "lateral": 2 },
+    { "t": 0.85, "lateral": 0 },
+    { "t": 0.95, "lateral": 0 }
+  ],
+  "hazards": [
+    { "id": "rockfall-1", "type": "falling", "t": 0.22, "lateral": 2, "period": 5, "hit": "slow", "asset": "rockfall" },
+    { "id": "minecart-1", "type": "crossing", "t": 0.74, "lateral": 0, "period": 6, "speed": 1.4, "hit": "spin", "asset": "minecart" }
+  ],
+  "finalLapShift": {
+    "kind": "collapse",
+    "label": "THE BRIDGE IS DOWN",
+    "closesShortcuts": ["mine-tunnel"],
+    "routeOverrides": [
+      {
+        "fromT": 0.32,
+        "toT": 0.665,
+        "controlPoints": [
+          { "x": 187.27, "y": 3.87, "z": -75.81, "halfWidth": 7, "surface": "road" },
+          { "x": 139.16, "y": -9.3, "z": -40.67, "halfWidth": 5.5, "surface": "road" },
+          { "x": 91.04, "y": -12.11, "z": -5.52, "halfWidth": 5.5, "surface": "road" },
+          { "x": 42.93, "y": -0.28, "z": 29.63, "halfWidth": 5.5, "surface": "road" },
+          { "x": -5.19, "y": 21.91, "z": 64.77, "halfWidth": 7, "surface": "road" }
+        ]
+      }
+    ],
+    "sky": "canyon-dusk",
+    "fogDensity": 0.003,
+    "musicVariant": "dusk"
+  },
+  "environment": {
+    "sky": "canyon-day",
+    "fogColor": "#f2d9b8",
+    "fogDensity": 0.0015,
+    "ground": { "kind": "plane", "y": -1 },
+    "sunDirection": [0.5, 0.75, 0.3],
+    "palette": { "background": "#d97a4a", "accent": "#3ec9c0" },
+    "decor": [
+      { "asset": "cactus", "instances": 40, "band": "roadside" },
+      { "asset": "rock", "instances": 40, "band": "roadside" },
+      { "asset": "mesa", "instances": 20, "band": "far" }
+    ]
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "id": "meadow-run",
+  "name": "Meadow Run",
+  "biome": "meadow",
+  "cup": "sunrise",
+  "orderInCup": 2,
+  "laps": 3,
+  "targetLapSeconds": 50,
+  "medalTimesMs": {
+    "gold": 148000,
+    "silver": 163000,
+    "bronze": 178000
+  },
+  "voidY": -10,
+  "landmark": "windmill",
+  "music": "meadow",
+  "controlPoints": [
+    { "x": -140, "y": 0, "z": -15, "halfWidth": 6, "bank": 12, "surface": "road" },
+    { "x": -115.38, "y": 1, "z": -19.36, "halfWidth": 9, "surface": "road" },
+    { "x": 210, "y": 2, "z": -77, "halfWidth": 8, "bank": 6, "surface": "road" },
+    { "x": 248.5, "y": 2.83, "z": -66.68, "halfWidth": 8, "bank": 6, "surface": "road" },
+    { "x": 276.68, "y": 3.67, "z": -38.5, "halfWidth": 8, "bank": 6, "surface": "road" },
+    { "x": 287, "y": 4.5, "z": 0, "halfWidth": 8, "bank": 6, "surface": "road" },
+    { "x": 276.68, "y": 3.67, "z": 38.5, "halfWidth": 8, "bank": 6, "surface": "road" },
+    { "x": 248.5, "y": 2.83, "z": 66.68, "halfWidth": 8, "bank": 6, "surface": "road" },
+    { "x": 210, "y": 2, "z": 77, "halfWidth": 8, "bank": 6, "surface": "road" },
+    { "x": -115.38, "y": 1, "z": 19.36, "halfWidth": 9, "surface": "mud" },
+    { "x": -140, "y": 0, "z": 15, "halfWidth": 6, "bank": 12, "surface": "road" },
+    { "x": -147.5, "y": 0, "z": 12.99, "halfWidth": 6, "bank": 12, "surface": "road" },
+    { "x": -152.99, "y": 0, "z": 7.5, "halfWidth": 6, "bank": 12, "surface": "road" },
+    { "x": -155, "y": 0, "z": 0, "halfWidth": 6, "bank": 12, "surface": "road" },
+    { "x": -152.99, "y": 0, "z": -7.5, "halfWidth": 6, "bank": 12, "surface": "road" },
+    { "x": -147.5, "y": 0, "z": -12.99, "halfWidth": 6, "bank": 12, "surface": "road" }
+  ],
+  "checkpointCount": 12,
+  "startGrid": {
+    "t": 0.06,
+    "rows": 4,
+    "columns": 2,
+    "spacing": 3.5
+  },
+  "shortcuts": [
+    {
+      "id": "hedgerow-cut",
+      "entryT": 0.3556,
+      "exitT": 0.5571,
+      "risk": "narrow",
+      "controlPoints": [
+        { "x": 210, "y": 2, "z": -77, "halfWidth": 5, "surface": "road" },
+        { "x": 222.7, "y": 2.27, "z": -29.6, "halfWidth": 5, "surface": "road" },
+        { "x": 235.8, "y": 2.56, "z": 19.3, "halfWidth": 5, "surface": "road" },
+        { "x": 248.5, "y": 2.83, "z": 66.68, "halfWidth": 5, "surface": "road" }
+      ]
+    }
+  ],
+  "jumps": [
+    {
+      "id": "haystack-ramp",
+      "t": 0.75,
+      "lateral": 2,
+      "launch": 5,
+      "width": 6
+    }
+  ],
+  "boostPads": [
+    { "t": 0.15, "lateral": 0, "width": 3 },
+    { "t": 0.7, "lateral": -3, "width": 3 }
+  ],
+  "pickups": [
+    { "t": 0.09, "lateral": -4 },
+    { "t": 0.09, "lateral": 0 },
+    { "t": 0.09, "lateral": 4 },
+    { "t": 0.4765, "shortcut": "hedgerow-cut", "lateral": 0 },
+    { "t": 0.62, "lateral": -3 },
+    { "t": 0.62, "lateral": 3 },
+    { "t": 0.9, "lateral": 0 }
+  ],
+  "coins": [
+    { "t": 0.2, "lateral": -3 },
+    { "t": 0.2, "lateral": 3 },
+    { "t": 0.3, "lateral": 0 },
+    { "t": 0.64, "lateral": -2 },
+    { "t": 0.64, "lateral": 2 },
+    { "t": 0.8, "lateral": 0 },
+    { "t": 0.97, "lateral": -2 },
+    { "t": 0.97, "lateral": 2 }
+  ],
+  "hazards": [
+    {
+      "id": "haybale-1",
+      "type": "rolling",
+      "t": 0.16,
+      "lateral": -3,
+      "period": 8,
+      "speed": 6,
+      "hit": "spin",
+      "asset": "haybale"
+    }
+  ],
+  "finalLapShift": {
+    "kind": "storm",
+    "label": "STORM ROLLS IN",
+    "closesShortcuts": ["hedgerow-cut"],
+    "sky": "meadow-storm",
+    "gripMultiplier": 0.85,
+    "fogDensity": 0.003
+  },
+  "environment": {
+    "sky": "meadow-day",
+    "fogColor": "#eaf6d8",
+    "fogDensity": 0.0015,
+    "ground": {
+      "kind": "plane",
+      "y": -0.3
+    },
+    "sunDirection": [0.4, 0.8, 0.3],
+    "palette": {
+      "background": "#eaf6d8",
+      "accent": "#ffd23f"
+    },
+    "decor": [
+      { "asset": "oak", "instances": 50, "band": "roadside" },
+      { "asset": "fence", "instances": 60, "band": "roadside" },
+      { "asset": "barn", "instances": 15, "band": "far" },
+      { "asset": "windmill-small", "instances": 20, "band": "far" }
+    ]
+  }
+}

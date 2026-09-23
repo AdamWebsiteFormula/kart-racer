@@ -314,7 +314,9 @@ requestAnimationFrame(frame);
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
-    get session() { return session; }, ui, audio, vfx, post, renderer, camera, scene, acc,
+    get session() { return session; }, ui, audio, vfx, post, renderer,
+    /** dev: jump straight into a quick race on any track */
+    race: (trackId: string, racerId = 'pip') => { ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId }); load({ ...configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] }) }, false); }, camera, scene, acc,
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables() }),
   };
 }
