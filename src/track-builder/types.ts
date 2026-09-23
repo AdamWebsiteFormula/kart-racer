@@ -49,7 +49,16 @@ export interface HazardDef {
 }
 
 /** `shortcut` names the branch a feature sits on; t stays main-equivalent. */
-export interface JumpDef { id: string; t: number; lateral?: number; width?: number; launch: number; shortcut?: string }
+export type JumpShape = 'ramp' | 'hump';
+export interface JumpDef {
+  id: string; t: number; lateral?: number; width?: number; launch: number; shortcut?: string;
+  /** a ramp (wedge up to a lip at t) or a trick bump (crest at t); default ramp */
+  shape?: JumpShape;
+  /** metres the ramp rises over, or the bump spans */
+  run?: number;
+  /** metres the lip or crest stands above the road */
+  rise?: number;
+}
 export interface PickupDef { t: number; lateral?: number; shortcut?: string; /** a gold double balloon: both item slots at once */ double?: boolean }
 export interface BoostPadDef { t: number; lateral?: number; width?: number; shortcut?: string }
 
@@ -133,6 +142,12 @@ export interface BakedFeature {
   launch: number;
   /** a gold double balloon (pickups) */
   double?: boolean;
+  /** jumps: ramp or trick bump, and its size (metres) */
+  shape?: JumpShape;
+  run?: number;
+  rise?: number;
+  /** bumps: metres over which it rounds off to the road at each kerb */
+  edge?: number;
 }
 
 export interface ActiveHazard {

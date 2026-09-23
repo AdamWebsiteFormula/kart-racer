@@ -81,6 +81,9 @@
         "properties": {
           "id": { "type": "string" }, "t": { "type": "number" }, "lateral": { "type": "number", "default": 0 },
           "width": { "type": "number" }, "launch": { "type": "number", "description": "Vertical launch speed m/s" },
+          "shape": { "type": "string", "enum": ["ramp", "hump"], "default": "ramp", "description": "ramp: a striped wedge across the road up to a lip at t; hump: a trick bump (dune, mogul) whose crest is at t (design.md Track thrills)" },
+          "run": { "type": "number", "description": "metres along the road the ramp rises over, or the bump spans (default builder rampRun / humpRun)" },
+          "rise": { "type": "number", "description": "metres the lip or crest stands above the road (default builder rampRise / humpRise)" },
           "shortcut": { "type": "string", "description": "Shortcut id this jump sits on; t stays main-equivalent" }
         }
       }
@@ -156,6 +159,11 @@
         "minimapPadding": { "type": "number", "default": 0.06 },
         "boostPadHalfLength": { "type": "number", "default": 1.75 },
         "boostPadWidth": { "type": "number", "default": 3.0 },
+        "rampRun": { "type": "number", "default": 5, "description": "metres a ramp rises over to its lip (karts drive up it: kart-controller jumpLift)" },
+        "rampRise": { "type": "number", "default": 0.8, "description": "height of a ramp's lip above the road, metres" },
+        "humpRun": { "type": "number", "default": 8, "description": "metres along the road a trick bump spans" },
+        "humpRise": { "type": "number", "default": 1.0, "description": "height of a trick bump's crest, metres" },
+        "humpEdge": { "type": "number", "default": 1.6, "description": "metres over which a trick bump rounds off to the road at each kerb" },
         "balloonHeight": { "type": "number", "default": 1.2 },
         "balloonRadius": { "type": "number", "default": 0.9 },
         "pierLift": { "type": "number", "default": 1.1, "description": "A pier's deck stands this far above the sea (level with a sea track's coast)" },

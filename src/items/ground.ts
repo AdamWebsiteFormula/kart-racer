@@ -1,5 +1,6 @@
 // Ground items: Oil Can and Decoy Balloon. Static on the road; they pop on a kart,
 // on ttl, when their branch closes, or when a Horn or projectile reaches them.
+import { jumpLift } from '../kart-controller/ground.ts';
 import { BASE } from '../kart-controller/constants.ts';
 import { forwardOf, type KartState } from '../kart-controller/types.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -20,8 +21,9 @@ export function placeGround(
   const pos: [number, number, number] = [s.position[0] - f[0] * cfg.dropBehindMetres, s.position[1], s.position[2] - f[2] * cfg.dropBehindMetres];
   const near = track.nearest(pos, { t: s.t, branch: s.branch }, BASE.tSearchWindow);
   // the road's height where the drop lands, not on the centreline (a banked road is higher on one side)
-  const smp = track.sample(near.t, lateralOf(track, near.t, near.branch, pos), near.branch);
-  pos[1] = smp.groundY;
+  const lat = lateralOf(track, near.t, near.branch, pos);
+  const smp = track.sample(near.t, lat, near.branch);
+  pos[1] = smp.groundY + jumpLift(track, near.t, near.branch, lat, smp.halfWidth);
   const g: GroundItem = {
     id: m.nextId++, itemId: def.id, owner, ownerId: s.racerId, t: near.t, branch: near.branch, position: pos,
     ttl: def.behaviour.lifetimeSeconds ?? 20, graceRemaining: cfg.ownerGraceSeconds, radius: def.behaviour.radius ?? 1,

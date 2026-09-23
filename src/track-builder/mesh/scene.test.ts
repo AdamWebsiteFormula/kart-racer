@@ -67,7 +67,7 @@ describe('draw-call budget (SOP test 14)', () => {
   });
 
   it('every expected instancer exists and is an InstancedMesh', () => {
-    for (const name of ['barriers', 'balloons', 'coins', 'boostPads', 'ramps', 'hazard:barrel', 'decor:palm', 'decor:boat']) {
+    for (const name of ['barriers', 'balloons', 'coins', 'boostPads', 'hazard:barrel', 'decor:palm', 'decor:boat']) {
       expect(scene.instancers.get(name), name).toBeInstanceOf(InstancedMesh);
     }
     expect(scene.instancers.get('balloons')!.count).toBe(HARBOUR_LOOP.pickups!.length);
@@ -198,14 +198,14 @@ describe('Final Lap Shift swap and hazards', () => {
     const scene = buildTrackScene(track);
     const before = scene.chunks.map((c) => c.mesh.geometry);
     const barriersBefore = scene.instancers.get('barriers');
-    const rampsBefore = scene.instancers.get('ramps')!.count;
+    const rampsBefore = scene.group.getObjectByName('ramps')!.userData.count as number;
     track.applyFinalLapShift();
     scene.chunks.forEach((c, i) => {
       if (c.branch === 0) expect(c.mesh.geometry).not.toBe(before[i]);
       else expect(c.mesh.geometry).toBe(before[i]);
     });
     expect(scene.instancers.get('barriers')).not.toBe(barriersBefore);
-    expect(scene.instancers.get('ramps')!.count).toBe(rampsBefore + 1);
+    expect(scene.group.getObjectByName('ramps')!.userData.count).toBe(rampsBefore + 1);
     expect(scene.fog.density).toBe(0.01);
     expect(scene.drawables()).toBeLessThanOrEqual(BUILDER.trackDrawCallBudget);
   });

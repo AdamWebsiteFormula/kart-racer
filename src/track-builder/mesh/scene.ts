@@ -15,6 +15,7 @@ import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chu
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
+import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -257,14 +258,14 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     }
   }
 
-  // features: balloons, coins, boost pads, ramps
+  // features: balloons, coins, glowing boost pads; ramps and trick bumps are merged meshes
   const featureNames: [string, BakedFeature['kind'], string, Rgb][] = [
     ['balloons', 'pickup', 'balloon', palette.accent],
     ['coins', 'coin', 'coin', [1, 0.84, 0.2]],
     ['boostPads', 'boostPad', 'boostPad', palette.surfaces.boost],
-    ['ramps', 'jump', 'ramp', palette.surfaces.road],
   ];
   const featureSlots = new Map<string, { slots: number[]; mats: Float32Array }>();
+  let jumpMeshes: Mesh[] = [];
   const addFeatures = () => {
     for (const [name, kind, geo, colour] of featureNames) {
       const old = instancers.get(name);
@@ -273,10 +274,21 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       const mats = featureMatrices(track, kind, slots);
       featureSlots.set(name, { slots, mats });
       if (mats.length === 0) { instancers.delete(name); continue; }
-      const m = instancer(name, geometryFor(assets, geo), colour, mats);
+      let m: InstancedMesh;
+      if (kind === 'boostPad') {
+        // a flat panel that glows, its chevrons scrolling forward (ramps.ts)
+        const panel = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.035, 0);
+        OWNED.add(panel);
+        m = instancer(name, panel, colour, mats, undefined, padMaterial());
+        m.userData.sharedMaterial = false;
+        m.castShadow = false;
+      } else m = instancer(name, geometryFor(assets, geo), colour, mats);
       instancers.set(name, m);
       group.add(m);
     }
+    for (const m of jumpMeshes) { (m.material as MeshToonMaterial).map?.dispose(); retire(m); }
+    jumpMeshes = buildJumpMeshes(track, palette, GRADIENT ?? null);
+    for (const m of jumpMeshes) group.add(m);
   };
   addFeatures();
 
@@ -326,6 +338,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
 
   const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time), live?: LiveFeatures) => {
     creatures?.update(time);
+    tickPads(time);
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); }
     if (live) { syncLive('balloons', live.pickups); syncLive('coins', live.coins); }
@@ -436,7 +449,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       const chunkMeshes = new Set(chunks.map((c) => c.mesh));
       const others: Mesh[] = [];
       group.traverse((o) => { if ((o as Mesh).isMesh && !chunkMeshes.has(o as Mesh)) others.push(o as Mesh); });
-      for (const m of others) retire(m);
+      for (const m of others) { if (jumpMeshes.includes(m)) (m.material as MeshToonMaterial).map?.dispose(); retire(m); }
       for (const c of chunks) c.mesh.geometry.dispose();
       creatures?.dispose();
       if (roadMaterial.map && roadMaterial.map !== assets.roadMap) roadMaterial.map.dispose();

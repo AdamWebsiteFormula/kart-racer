@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeConstants } from './constants.ts';
-import { crossed, stepGround } from './ground.ts';
+import { crossed, jumpLift, stepGround } from './ground.ts';
 import { createKartState, headingOf, type KartEvent, type KartState } from './types.ts';
 import { makeOval } from './__tests__/oval-stub.ts';
 
@@ -48,6 +48,36 @@ describe('ground', () => {
     expect(ticks * DT).toBeGreaterThan(c.hopSeconds * 0.7);
     expect(ticks * DT).toBeLessThanOrEqual(c.hopSeconds + 0.01);
     expect(ev.some((e) => e.type === 'landed')).toBe(true);
+  });
+
+  it('drives up a ramp to its lip, then flies (design Track thrills: real ramps)', () => {
+    const track = makeOval({ jumps: [{ id: 'r', t: 0.06, launch: 6, shape: 'ramp', run: 5, rise: 0.8 }] });
+    const s = kartAt(track, 0.05, 25);
+    let peakOnRamp = 0;
+    for (let i = 0; i < 400 && s.airborne.fromJumpId === undefined; i++) {
+      stepGround(s, track, c, DT, []);
+      if (s.grounded) peakOnRamp = Math.max(peakOnRamp, s.position[1] - track.sample(s.t, 0).groundY);
+    }
+    expect(s.airborne.fromJumpId).toBe('r');
+    // it climbed the wedge (most of its 0.8 m) before the lip, instead of driving through it
+    expect(peakOnRamp).toBeGreaterThan(0.6);
+    expect(peakOnRamp).toBeLessThanOrEqual(0.8 + 1e-6);
+    expect(jumpLift(track, 0.06 + 1 / track.length, 0)).toBe(0); // nothing past the lip
+  });
+
+  it('a row of trick bumps: each crest is a jump, and a trick off each one is a boost', () => {
+    const L = makeOval({}).length;
+    const jumps = [0, 1, 2].map((k) => ({ id: `b${k}`, t: 0.06 + (k * 14) / L, launch: 5, shape: 'hump' as const, run: 8, rise: 1 }));
+    const track = makeOval({ jumps });
+    const s = kartAt(track, 0.05, 25);
+    const ev: KartEvent[] = [];
+    for (let i = 0; i < 480; i++) {
+      stepGround(s, track, c, DT, ev);
+      if (s.airborne.fromJumpId && !s.airborne.trickQueued) s.airborne.trickQueued = true;
+    }
+    const from = ev.filter((e) => e.type === 'launched').map((e) => (e.type === 'launched' ? e.jumpId : ''));
+    expect(from).toEqual(['b0', 'b1', 'b2']);
+    expect(ev.filter((e) => e.type === 'landed' && e.trick).length).toBe(3);
   });
 
   it('launches off a ramp, lands and fires a queued trick', () => {

@@ -32,6 +32,42 @@ export interface GroundResult {
   right: Vec3;
 }
 
+/** The shape of a ramp or trick bump: its height `d` metres before its jump line (negative = past it). Pure. */
+export function jumpProfile(shape: 'ramp' | 'hump' | undefined, run: number, rise: number, d: number): number {
+  if (shape === 'hump') {
+    if (Math.abs(d) >= run / 2) return 0;
+    const c = Math.cos((Math.PI * d) / run);
+    return rise * c * c;
+  }
+  return d >= 0 && d < run ? rise * (1 - d / run) : 0;
+}
+
+/** A bump's height falls away to nothing over `edge` metres at each kerb. Pure. */
+export function edgeTaper(edge: number | undefined, lateral: number, halfWidth: number): number {
+  if (!edge) return 1;
+  const k = (halfWidth - Math.abs(lateral)) / edge;
+  if (k >= 1) return 1;
+  if (k <= 0) return 0;
+  return k * k * (3 - 2 * k);
+}
+
+/**
+ * Height ramps and trick bumps add to the road at t on a branch, `lateral` metres from its centre
+ * line, metres. Karts drive up them; the launch is at the line.
+ */
+export function jumpLift(track: TrackQuery, t: number, branch: number, lateral = 0, halfWidth = Infinity): number {
+  let lift = 0;
+  const L = track.length;
+  for (const j of track.jumps) {
+    if (!j.rise || !j.run || (j.branch ?? 0) !== branch) continue;
+    let d = (j.t - t) * L;
+    if (d > L / 2) d -= L; else if (d < -L / 2) d += L;
+    const h = jumpProfile(j.shape, j.run, j.rise, d) * edgeTaper(j.edge, lateral, halfWidth);
+    if (h > lift) lift = h;
+  }
+  return lift;
+}
+
 export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt: number, events: KartEvent[]): GroundResult {
   // 9. integrate horizontally
   const f = forwardOf(s.heading);
@@ -83,7 +119,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   const y = s.position[1];
   // past an open edge's cliff there is no ground at all, and once over it, no road below catches it
   if (sample.overCliff && !s.status.falling) { s.status.falling = true; s.status.fallFromY = sample.groundY; }
-  const groundY = s.status.falling ? -Infinity : sample.groundY;
+  const groundY = s.status.falling ? -Infinity : sample.groundY + jumpLift(track, s.t, s.branch, lateral, sample.halfWidth);
   const canSnap = s.verticalVelocity <= c.groundLaunchVy;
   // Below the road: a slope rising under a grounded kart, or a landing that crossed
   // the surface this tick, snaps up. An airborne kart within groundCatch of the surface

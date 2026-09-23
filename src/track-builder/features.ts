@@ -31,7 +31,14 @@ export function bakeFeatures(def: TrackDefinition, branches: Branches): BakedFea
 }
 
 export function bakeJump(branches: Branches, j: JumpDef): BakedFeature {
-  return bakeOne(branches, 'jump', j.id, j, j.width ?? BUILDER.boostPadWidth, j.launch);
+  const hump = j.shape === 'hump';
+  return {
+    ...bakeOne(branches, 'jump', j.id, j, j.width ?? BUILDER.boostPadWidth, j.launch),
+    shape: hump ? 'hump' : 'ramp',
+    run: j.run ?? (hump ? BUILDER.humpRun : BUILDER.rampRun),
+    rise: j.rise ?? (hump ? BUILDER.humpRise : BUILDER.rampRise),
+    ...(hump ? { edge: BUILDER.humpEdge } : {}),
+  };
 }
 
 /** Signed lateral of a world point from the centreline at t on a branch. */
@@ -52,7 +59,7 @@ export function rederive(features: BakedFeature[], branches: Branches): void {
 }
 
 export function jumpView(features: readonly BakedFeature[]): TrackJump[] {
-  return features.filter((f) => f.kind === 'jump').map((f) => ({ id: f.id, t: f.t, launch: f.launch, branch: f.branch }));
+  return features.filter((f) => f.kind === 'jump').map((f) => ({ id: f.id, t: f.t, launch: f.launch, branch: f.branch, shape: f.shape, run: f.run, rise: f.rise, ...(f.edge ? { edge: f.edge } : {}) }));
 }
 
 export function boostPadView(features: readonly BakedFeature[]): TrackBoostPad[] {

@@ -17,12 +17,21 @@ const FILES = import.meta.glob('../track-builder/tracks/*.json', { eager: true, 
 
 describe('course creatures in a whole race', () => {
   for (const def of Object.values(FILES)) {
-    const creature = def.hazards?.find((h) => h.type === 'creature');
-    if (!creature) continue;
+    const found = def.hazards?.find((h) => h.type === 'creature');
+    if (!found) continue;
+    const creature = found;
     it(`${def.id}: the ${creature.creature} acts all race and every kart still finishes`, () => {
+      // two seeds: a creature catches 0 to 5 karts in one two-lap race, so one race alone is luck
+      let hits = 0;
+      for (const seed of [7, 2]) hits += race(seed);
+      // a real threat (the whale only pushes): it catches somebody in two races of eight karts
+      if (creature.creature !== 'whale') expect(hits, `${creature.creature} caught somebody`).toBeGreaterThan(0);
+    }, 120_000);
+
+    function race(seed: number): number {
       const track = buildTrack(def);
       const config: RaceConfig = {
-        mode: 'quick', trackId: def.id, speedClass: 150, seed: 7, laps: 2,
+        mode: 'quick', trackId: def.id, speedClass: 150, seed, laps: 2,
         racers: CAST.map((c) => ({ racerId: c.id, archetype: c.archetype, isPlayer: false })),
       };
       const manager = new RaceManager(track, config);
@@ -49,8 +58,7 @@ describe('course creatures in a whole race', () => {
       expect(actions.size, `${creature.creature} changed what it does`).toBeGreaterThanOrEqual(2);
       // open cliff edges are a risk for a careless driver, not a trap for the AI
       expect(rescues, `${def.id}: claw rescues in a two-lap AI race`).toBeLessThanOrEqual(3);
-      // a real threat (the whale only pushes): it catches somebody in two laps of eight karts
-      if (creature.creature !== 'whale') expect(hits, `${creature.creature} caught somebody`).toBeGreaterThan(0);
-    }, 60_000);
+      return hits;
+    }
   }
 });

@@ -60,11 +60,18 @@
       "lateral": 2,
       "launch": 5,
       "width": 6
-    }
+    },
+    { "id": "hay-hump-1", "t": 0.84, "launch": 4.5, "shape": "hump" },
+    { "id": "hay-hump-2", "t": 0.854, "launch": 4.5, "shape": "hump" },
+    { "id": "hay-hump-3", "t": 0.868, "launch": 4.5, "shape": "hump" }
   ],
   "boostPads": [
     { "t": 0.15, "lateral": 0, "width": 3 },
-    { "t": 0.7, "lateral": -3, "width": 3 }
+    { "t": 0.741, "lateral": 0, "width": 3 },
+    { "t": 0.733, "lateral": 0, "width": 3 },
+    { "t": 0.725, "lateral": 0, "width": 3 },
+    { "t": 0.95, "lateral": 3, "width": 3 },
+    { "t": 0.45, "lateral": 0, "width": 3, "shortcut": "hedgerow-cut" }
   ],
   "pickups": [
     { "t": 0.09, "lateral": -4 },

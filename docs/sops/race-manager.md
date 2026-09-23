@@ -115,6 +115,8 @@ _(append dated one-liners as they are made)_
 - 2026-09-21 (Adam, for ai-driver): a finished kart keeps taking its input; only the respawn freeze forces neutral. The driver (ai-driver autopilot, player included once finished) rolls it out of the way. Checkpoints, hazards and pickups already ignore finished karts, so nothing else changed.
 - 2026-09-21: Codex CLI 0.142.5 cannot use the configured `gpt-6-astra`; `codex review -c model="gpt-5.5" "…"` works on this account. Upgrade the CLI or keep the flag.
 
+- 2026-09-23: **The claw rescue** replaces the instant respawn: a fall or a stuck kart starts a 2.4 s rescue (hold, grab, carry in an arc over the road, set down), frozen and intangible; it lands no further out than `respawnInset` (0.6) of the half-width, never on the lip of an open edge.
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-21: **A kart respawned before its first line crossing could never lap.** Cause: respawn set `prevT = t = cp.t` and the crossing test needs `t` to move *past* the checkpoint; with `next === last === 0` the kart sat on the very line it had to cross. Fix: `prevT = cp.t − 1e-7`. Rule: whenever code places a kart *on* a checkpoint, ask which checkpoint it is waiting for; "on it" is not "past it".

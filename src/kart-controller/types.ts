@@ -150,7 +150,13 @@ export interface TrackSample {
 }
 
 /** t is main-equivalent; branch 0 unless the feature sits on a shortcut. */
-export interface TrackJump { id: string; t: number; launch: number /* m/s up */; branch?: number }
+export interface TrackJump {
+  id: string; t: number; launch: number /* m/s up */; branch?: number;
+  /** ramp: a wedge rising `rise` m over `run` m to its lip at t; hump: a mound `run` m long whose crest (`rise` m) is at t. No rise = a flat launch line. */
+  shape?: 'ramp' | 'hump'; run?: number; rise?: number;
+  /** a bump rounds off to the road over this many metres at each kerb */
+  edge?: number;
+}
 export interface TrackBoostPad { t: number; lateral: number; halfWidth: number; branch?: number }
 
 export interface TrackHint { t: number; branch: number }

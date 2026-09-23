@@ -59,7 +59,11 @@
   ],
   "boostPads": [
     { "t": 0.14, "lateral": 0, "width": 3 },
-    { "t": 0.60, "lateral": -3, "width": 3 }
+    { "t": 0.6, "lateral": -3, "width": 3 },
+    { "t": 0.7917, "lateral": 0, "width": 3 },
+    { "t": 0.7844, "lateral": 0, "width": 3 },
+    { "t": 0.7771, "lateral": 0, "width": 3 },
+    { "t": 0.34, "lateral": 0, "width": 3, "shortcut": "arcade-alley" }
   ],
   "pickups": [
     { "t": 0.16, "lateral": -4 },

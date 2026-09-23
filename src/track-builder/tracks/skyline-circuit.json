@@ -54,7 +54,11 @@
   ],
   "boostPads": [
     { "t": 0.06, "lateral": 0, "width": 3 },
-    { "t": 0.9, "lateral": -3, "width": 3 }
+    { "t": 0.9, "lateral": -3, "width": 3 },
+    { "t": 0.282, "lateral": 0, "width": 3 },
+    { "t": 0.2748, "lateral": 0, "width": 3 },
+    { "t": 0.2677, "lateral": 0, "width": 3 },
+    { "t": 0.6, "lateral": 0, "width": 3, "shortcut": "sky-rail" }
   ],
   "pickups": [
     { "t": 0.03, "lateral": -4 },

@@ -56,11 +56,19 @@
     }
   ],
   "jumps": [
-    { "id": "ski-jump", "t": 0.472, "lateral": 2, "launch": 5.5, "width": 6 }
+    { "id": "ski-jump", "t": 0.472, "lateral": 2, "launch": 5.5, "width": 6 },
+    { "id": "mogul-1", "t": 0.335, "launch": 4.5, "shape": "hump" },
+    { "id": "mogul-2", "t": 0.348, "launch": 4.5, "shape": "hump" },
+    { "id": "mogul-3", "t": 0.361, "launch": 4.5, "shape": "hump" },
+    { "id": "mogul-4", "t": 0.374, "launch": 4.5, "shape": "hump" }
   ],
   "boostPads": [
     { "t": 0.14, "lateral": 0, "width": 3 },
-    { "t": 0.68, "lateral": 0, "width": 3 }
+    { "t": 0.4636, "lateral": 0, "width": 3 },
+    { "t": 0.4562, "lateral": 0, "width": 3 },
+    { "t": 0.4488, "lateral": 0, "width": 3 },
+    { "t": 0.68, "lateral": 0, "width": 3 },
+    { "t": 0.69, "lateral": 0, "width": 3, "shortcut": "lake-crossing" }
   ],
   "pickups": [
     { "t": 0.03, "lateral": -4 },

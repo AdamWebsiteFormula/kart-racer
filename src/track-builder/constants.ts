@@ -9,7 +9,7 @@ export interface BuilderConstants {
   branchBlendMetres: number; kerbWidth: number; kerbHeight: number; shoulderWidth: number; shoulderDrop: number;
   barrierSpacing: number; roadTileLength: number; chunkCount: number;
   minimapSamples: number; minimapPadding: number;
-  boostPadHalfLength: number; boostPadWidth: number;
+  boostPadHalfLength: number; boostPadWidth: number; rampRun: number; rampRise: number; humpRun: number; humpRise: number; humpEdge: number;
   balloonHeight: number; balloonRadius: number; coinRadius: number; hazardRadius: number; pierLift: number;
   fallingActiveSeconds: number; gustWindow: number;
   decorBands: { roadside: [number, number]; far: [number, number]; sky: [number, number] };

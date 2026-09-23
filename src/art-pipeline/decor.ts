@@ -1,5 +1,5 @@
-// Track dressing modelled in code: decor, landmark, barriers, balloons, coins, pads, ramps and
-// hazards. Every model keeps the size and origin of the placeholder it replaces (scene.ts), so
+// Track dressing modelled in code: decor, landmark, barriers, balloons, coins and
+// hazards (pads, ramps and bumps: track-builder/mesh/ramps.ts). Every model keeps the size and origin of the placeholder it replaces (scene.ts), so
 // placement code never changes. Keyed exactly as TrackAssets expects.
 import type { BufferGeometry } from 'three';
 import { ModelBuilder } from './model.ts';
@@ -92,22 +92,6 @@ const MODELS: Record<string, { build: Build }> = {
       m.cyl(0.5, 0.5, 0.12, '#f2b705', [0, 0, 0], [Math.PI / 2, 0, 0], 16);
       m.cyl(0.36, 0.36, 0.14, SUN, [0, 0, 0], [Math.PI / 2, 0, 0], 16, false);
       m.box([0.1, 0.34, 0.16], '#f2b705', [0, 0, 0], undefined, false);        // the mark
-    },
-  },
-  boostPad: {
-    build: (m) => {
-      m.box([1, 0.05, 1], '#ff9f1c', [0, 0.025, 0], undefined, false);
-      for (let i = 0; i < 3; i++) {
-        const z = -0.3 + i * 0.3;
-        m.box([0.42, 0.06, 0.08], SUN, [-0.14, 0.03, z], [0, 0.7, 0], false);  // chevrons point +Z
-        m.box([0.42, 0.06, 0.08], SUN, [0.14, 0.03, z], [0, -0.7, 0], false);
-      }
-    },
-  },
-  ramp: {
-    build: (m) => {
-      m.box([1, 0.6, 3], '#e9d8b4', [0, 0.3, 0], undefined, false);
-      for (let i = 0; i < 5; i++) m.box([1.02, 0.62, 0.25], i % 2 ? CORAL : WHITE, [0, 0.3, -1.2 + i * 0.6], undefined, false);
     },
   },
   // ================================================================ Meadow Run

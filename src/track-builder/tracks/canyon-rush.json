@@ -56,10 +56,16 @@
   ],
   "jumps": [
     { "id": "wash-ramp", "t": 0.28, "lateral": -2, "launch": 5, "width": 6 },
-    { "id": "outcrop-ramp", "t": 0.7, "lateral": -2, "launch": 6, "width": 6 }
+    { "id": "outcrop-ramp", "t": 0.7, "lateral": -2, "launch": 6, "width": 6 },
+    { "id": "dune-1", "t": 0.92, "launch": 4.5, "shape": "hump" },
+    { "id": "dune-2", "t": 0.9334, "launch": 4.5, "shape": "hump" },
+    { "id": "dune-3", "t": 0.9469, "launch": 4.5, "shape": "hump" }
   ],
   "boostPads": [
     { "t": 0.12, "lateral": 0, "width": 3 },
+    { "t": 0.6914, "lateral": 0, "width": 3 },
+    { "t": 0.6837, "lateral": 0, "width": 3 },
+    { "t": 0.676, "lateral": 0, "width": 3 },
     { "t": 0.72, "lateral": 0, "width": 3 }
   ],
   "pickups": [

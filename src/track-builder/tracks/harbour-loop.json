@@ -194,16 +194,12 @@
     }
   ],
   "boostPads": [
-    {
-      "t": 0.2172,
-      "lateral": -4,
-      "width": 3
-    },
-    {
-      "t": 0.3886,
-      "lateral": 0,
-      "width": 3
-    }
+    { "t": 0.217, "lateral": -4, "width": 3 },
+    { "t": 0.3262, "lateral": 0, "width": 3 },
+    { "t": 0.3183, "lateral": 0, "width": 3 },
+    { "t": 0.3104, "lateral": 0, "width": 3 },
+    { "t": 0.62, "lateral": 4, "width": 3 },
+    { "t": 0.8, "lateral": 0, "width": 3, "shortcut": "beach" }
   ],
   "pickups": [
     {
