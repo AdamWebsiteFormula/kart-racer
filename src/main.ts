@@ -12,7 +12,7 @@ import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from '
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
-import { PROP_MODELS, RACER_MODELS, type SkyLight } from './art-pipeline/index.ts';
+import { PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
@@ -316,6 +316,7 @@ function step(now: number): void {
   const racing = !attract && ui.app.screen === 'racing';
   const reduced = ui.reducedMotion;
   const nowS = now / 1000;
+  WATER_CLOCK.value = nowS % 3600; // every water surface drifts on one clock (wrapped so noise keeps its precision)
   // measure only live play; after a pause or a hidden tab, warm up again before judging
   const measuring = autoQuality() && !ui.paused && !document.hidden;
   if (measuring && !governing) governor.reset(nowS);

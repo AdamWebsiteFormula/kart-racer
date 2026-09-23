@@ -2,7 +2,7 @@
 // Loaded once at boot; a racer without a model, or before its model arrives, keeps its
 // code-built kart (racers.ts). Every model is fitted to the kart footprint: facing +Z,
 // centred on the kart, wheels on y = 0, one uniform scale.
-import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, type Material, type Object3D } from 'three';
+import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, type Material, type MeshStandardMaterial, type Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
 import type { V3 } from './model.ts';
@@ -14,6 +14,8 @@ export interface ModelSpec {
   url: string;
   /** extra turn about Y (radians) when the source model does not face +Z */
   yaw?: number;
+  /** a lamp: its own colours glow this strongly (its bright glass passes the bloom, its dark post stays dark) */
+  glow?: number;
 }
 export type ModelManifest = Record<string, ModelSpec>;
 
@@ -162,6 +164,8 @@ export class PropModels {
           fitToBox(geometry, target);
           const material = mesh.material as Material;
           material.userData.shared = true;
+          const std = material as MeshStandardMaterial;
+          if (spec.glow && std.isMeshStandardMaterial) { std.emissiveMap = std.map; std.emissive.set(0xffffff); std.emissiveIntensity = spec.glow; }
           this.ready.set(name, { geometry, material });
         } catch { /* a broken file leaves that prop code-built */ }
       }));

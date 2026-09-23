@@ -188,3 +188,14 @@ describe('scenery model files', () => {
     expect(none.get('palm')).toBeUndefined();
   });
 });
+
+describe('painted surfaces', () => {
+  it('every ground and road texture the game asks for ships, and the sea tracks get water', async () => {
+    const fs = (await import('node:fs' as string)) as { existsSync(p: URL): boolean };
+    for (const f of ['grass', 'sand', 'snow', 'asphalt']) expect(fs.existsSync(new URL(`../../public/textures/${f}.webp`, import.meta.url)), f).toBe(true);
+    const { groundMaterial } = await import('./surfaces.ts');
+    expect(groundMaterial('harbour', 'water', 2400)?.type).toBe('ShaderMaterial');
+    expect(groundMaterial('meadow', 'plane', 2400)?.type).toBe('MeshToonMaterial');
+    expect(groundMaterial('skyline', 'none', 2400)).toBeUndefined();
+  });
+});

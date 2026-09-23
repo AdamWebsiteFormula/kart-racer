@@ -55,7 +55,7 @@ export class RaceSession {
     this.def = def;
     this.config = config;
     this.track = buildTrack(def);
-    this.trackScene = buildTrackScene(this.track, trackAssets());
+    this.trackScene = buildTrackScene(this.track, trackAssets(def.biome));
     this.horizon = paintSky(this.trackScene.group, this.trackScene.sky);
     this.bounce = this.skyBounce(this.trackScene.sky);
     this.skyLight = lightOf(this.trackScene.sky);

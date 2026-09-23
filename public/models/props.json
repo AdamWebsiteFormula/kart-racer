@@ -15,16 +15,32 @@
   "url": "models/props/ferris-wheel.glb",
   "yaw": 0
  },
+ "house": {
+  "url": "models/props/house.glb",
+  "yaw": 0
+ },
  "lighthouse": {
   "url": "models/props/lighthouse.glb",
+  "yaw": 0
+ },
+ "oak": {
+  "url": "models/props/oak.glb",
   "yaw": 0
  },
  "palm": {
   "url": "models/props/palm.glb",
   "yaw": 0
  },
+ "peak": {
+  "url": "models/props/peak.glb",
+  "yaw": 0
+ },
  "pine": {
   "url": "models/props/pine.glb",
+  "yaw": 0
+ },
+ "stall": {
+  "url": "models/props/stall.glb",
   "yaw": 0
  },
  "windmill": {

@@ -28,6 +28,10 @@ export interface TrackAssets {
   gradientMap?: Texture;
   /** a model file's own (textured) material for an asset key, same keys as `geometries`; never disposed by the scene */
   materials?: Record<string, Material>;
+  /** the ground plane's material (painted land, animated water); never disposed by the scene */
+  ground?: (kind: string, size: number) => Material | undefined;
+  /** a fine grain multiplied over every road's colours (not on planked roads); never disposed by the scene */
+  roadMap?: Texture;
 }
 
 export interface TrackScene {
@@ -192,6 +196,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // road chunks: one shared toon material, vertex colours
   const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
   if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
+  else if (assets.roadMap) roadMaterial.map = assets.roadMap;
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);
@@ -324,7 +329,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // ground: one plane (or water), none for sky tracks
   const groundKind = env.ground?.kind ?? 'plane';
   if (groundKind !== 'none') {
-    const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
+    const own = assets.ground?.(groundKind, GROUND_SIZE);
+    const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), own ?? new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
+    if (own) ground.userData.sharedMaterial = true;
     ground.name = `ground-${groundKind}`;
     ground.position.y = groundY;
     ground.receiveShadow = true;
@@ -373,7 +380,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       group.traverse((o) => { if ((o as Mesh).isMesh && !chunkMeshes.has(o as Mesh)) others.push(o as Mesh); });
       for (const m of others) retire(m);
       for (const c of chunks) c.mesh.geometry.dispose();
-      roadMaterial.map?.dispose();
+      if (roadMaterial.map && roadMaterial.map !== assets.roadMap) roadMaterial.map.dispose();
       roadMaterial.dispose(); // shared by every chunk: once
       group.clear();
     },
