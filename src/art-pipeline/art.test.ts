@@ -1,0 +1,103 @@
+// Art checks: every racer builds inside the kart footprint and a triangle budget, has an ink
+// hull, and passes the SOP's 32 px silhouette test (no two racers read the same in black).
+import type { BufferGeometry } from 'three';
+import { describe, expect, it } from 'vitest';
+import { BASE } from '../kart-controller/constants.ts';
+import { CAST } from '../ui-hud/data/cast.ts';
+import { RACER_IDS, racerModel } from './racers.ts';
+
+const SIZE = 32;
+
+/** Rasterise a geometry's triangles, projected on two world axes, into a SIZE² bitmap. */
+function silhouette(g: BufferGeometry, ax: 0 | 1 | 2, ay: 0 | 1 | 2, box: { min: number[]; max: number[] }): Uint8Array {
+  const pos = g.getAttribute('position');
+  const idx = g.index!;
+  const bmp = new Uint8Array(SIZE * SIZE);
+  const span = Math.max(box.max[ax] - box.min[ax], box.max[ay] - box.min[ay]);
+  const px = (v: number, a: number) => ((v - box.min[a]) / span) * SIZE;
+  const P = (i: number) => [px(pos.getComponent(i, ax), ax), SIZE - px(pos.getComponent(i, ay), ay)];
+  for (let t = 0; t < idx.count; t += 3) {
+    const [a, b, c] = [P(idx.getX(t)), P(idx.getX(t + 1)), P(idx.getX(t + 2))];
+    const x0 = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]))), x1 = Math.min(SIZE - 1, Math.ceil(Math.max(a[0], b[0], c[0])));
+    const y0 = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]))), y1 = Math.min(SIZE - 1, Math.ceil(Math.max(a[1], b[1], c[1])));
+    const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    if (Math.abs(area) < 1e-9) continue;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const p = [x + 0.5, y + 0.5];
+      const w0 = (b[0] - p[0]) * (c[1] - p[1]) - (b[1] - p[1]) * (c[0] - p[0]);
+      const w1 = (c[0] - p[0]) * (a[1] - p[1]) - (c[1] - p[1]) * (a[0] - p[0]);
+      const w2 = (a[0] - p[0]) * (b[1] - p[1]) - (a[1] - p[1]) * (b[0] - p[0]);
+      if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0)) bmp[y * SIZE + x] = 1;
+    }
+  }
+  return bmp;
+}
+
+const iou = (a: Uint8Array, b: Uint8Array) => {
+  let i = 0, u = 0;
+  for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; }
+  return i / u;
+};
+
+const svg = (bmp: Uint8Array) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="128" height="128" shape-rendering="crispEdges"><rect width="${SIZE}" height="${SIZE}" fill="#fff"/>`
+  + [...bmp].map((v, k) => (v ? `<rect x="${k % SIZE}" y="${Math.floor(k / SIZE)}" width="1" height="1"/>` : '')).join('') + '</svg>';
+
+const built = RACER_IDS.map((id) => {
+  const m = racerModel(id)!;
+  const body = m.build();
+  return { id, body, hull: m.outline() };
+});
+
+// one shared frame for every racer, so size differences show in the silhouette too
+const frame = { min: [Infinity, 0, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+for (const { body } of built) {
+  const b = body.boundingBox!;
+  frame.min[0] = Math.min(frame.min[0], b.min.x); frame.min[2] = Math.min(frame.min[2], b.min.z);
+  frame.max[0] = Math.max(frame.max[0], b.max.x); frame.max[1] = Math.max(frame.max[1], b.max.y); frame.max[2] = Math.max(frame.max[2], b.max.z);
+}
+
+describe('racer models', () => {
+  it('every cast member has a model, and nothing else does', () => {
+    expect([...RACER_IDS].sort()).toEqual(CAST.map((c) => c.id).sort());
+    expect(racerModel('nobody')).toBeNull();
+  });
+
+  it('each sits on the ground inside the kart footprint, under the triangle budget, with vertex colours and an ink hull', () => {
+    for (const { id, body, hull } of built) {
+      const b = body.boundingBox!;
+      expect(b.min.y, id).toBeGreaterThanOrEqual(-0.01);
+      expect(b.max.y, id).toBeLessThan(2.4);
+      expect(b.max.x - b.min.x, id).toBeLessThan(BASE.kartRadius * 2.1);
+      expect(b.max.z - b.min.z, id).toBeLessThan(BASE.kartRadius * 2.9);
+      expect(body.index!.count / 3, id).toBeLessThan(9000);
+      expect(body.hasAttribute('color'), id).toBe(true);
+      expect(hull.index!.count, id).toBeGreaterThan(0);
+      expect(hull.hasAttribute('color'), id).toBe(false);
+    }
+  });
+
+  it('SOP gate: every racer passes the 32 px silhouette test, side and front, against every other', async () => {
+    const side = built.map((r) => silhouette(r.body, 2, 1, frame));
+    const front = built.map((r) => silhouette(r.body, 0, 1, frame));
+    const worst: [string, number][] = [];
+    for (let i = 0; i < built.length; i++) {
+      for (let j = i + 1; j < built.length; j++) {
+        // two racers read the same only if BOTH views overlap almost entirely
+        const same = Math.min(iou(side[i], side[j]), iou(front[i], front[j]));
+        worst.push([`${built[i].id}/${built[j].id}`, same]);
+      }
+    }
+    worst.sort((a, b) => b[1] - a[1]);
+    expect(worst[0][1], `most alike: ${worst[0][0]}`).toBeLessThan(0.86);
+    // WRITE_SILHOUETTES=1 npx vitest run src/art-pipeline refreshes docs/silhouettes/
+    const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
+    if (env.WRITE_SILHOUETTES) {
+      const fs = (await import('node:fs' as string)) as { mkdirSync(p: string, o: object): void; writeFileSync(p: string, d: string): void };
+      fs.mkdirSync('docs/silhouettes', { recursive: true });
+      built.forEach((r, i) => {
+        fs.writeFileSync(`docs/silhouettes/${r.id}-side.svg`, svg(side[i]));
+        fs.writeFileSync(`docs/silhouettes/${r.id}-front.svg`, svg(front[i]));
+      });
+    }
+  });
+});

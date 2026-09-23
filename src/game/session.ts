@@ -14,6 +14,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
+import { buildRacerMesh, isShared } from '../art-pipeline/index.ts';
 import { ItemsView } from './itemsView.ts';
 import { buildKartMesh } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
@@ -52,7 +53,8 @@ export class RaceSession {
     this.group.add(this.itemsView.root);
     this.views = this.manager.state.karts.map((s, i) => {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
-      const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), buildKartMesh(r.accent, r.secondary), s);
+      const mesh = buildRacerMesh(config.racers[i].racerId) ?? buildKartMesh(r.accent, r.secondary);
+      const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s);
       this.group.add(v.root);
       return v;
     });
@@ -99,7 +101,8 @@ export class RaceSession {
     this.group.traverse((o) => {
       const m = o as unknown as { geometry?: { dispose(): void }; material?: { dispose(): void } | { dispose(): void }[] };
       // shared placeholder geometries live at module scope; only per-session materials go
-      if (Array.isArray(m.material)) m.material.forEach((x) => x.dispose()); else m.material?.dispose();
+      const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
+      for (const x of mats) if (!isShared(x as never)) x.dispose();
     });
   }
 }
