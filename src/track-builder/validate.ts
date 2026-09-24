@@ -5,6 +5,7 @@ import { BUILDER, KART_RADIUS } from './constants.ts';
 import { buildLut, wrap01, type Lut } from './lut.ts';
 import { spliceRoute } from './shift.ts';
 import type { ControlPoint, TrackDefinition, Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 const TOP_SPEED: number = kartSchema.properties.base.properties.topSpeed.default;
 /** Design §6: the AI/player averages about 80% of top speed over a lap. */
@@ -54,7 +55,7 @@ function turnRadius(lut: Lut, i: number): number {
   const ip = lut.idx(i + 1), im = lut.idx(i - 1);
   const dx = lut.tx[ip] - lut.tx[im], dy = lut.ty[ip] - lut.ty[im], dz = lut.tz[ip] - lut.tz[im];
   const ds = lut.length / lut.step;
-  const k = Math.hypot(dx, dy, dz) / (2 * ds);
+  const k = dmath.hypot3(dx, dy, dz) / (2 * ds);
   return k > 0 ? 1 / k : Infinity;
 }
 
@@ -63,7 +64,7 @@ function checkSpacing(points: readonly ControlPoint[], label: string, errors: st
   const n = points.length;
   for (let i = 0; i < (closed ? n : n - 1); i++) {
     const a = points[i], b = points[(i + 1) % n];
-    const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    const d = dmath.hypot3(b.x - a.x, b.y - a.y, b.z - a.z);
     if (d < MIN_POINT_SPACING) errors.push(`${label}: control points ${i} and ${(i + 1) % n} are ${d.toFixed(2)} m apart (min ${MIN_POINT_SPACING})`);
   }
 }
@@ -96,8 +97,8 @@ function checkRoad(lut: Lut, label: string, errors: string[]): void {
 
 /** Plan-view angle in degrees between two tangents. */
 function planAngle(a: Vec3, b: Vec3): number {
-  const c = (a[0] * b[0] + a[2] * b[2]) / (Math.hypot(a[0], a[2]) * Math.hypot(b[0], b[2]) || 1);
-  return (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
+  const c = (a[0] * b[0] + a[2] * b[2]) / (dmath.hypot(a[0], a[2]) * dmath.hypot(b[0], b[2]) || 1);
+  return (dmath.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
 }
 
 /** The main line a route-changing Final Lap Shift builds (shift.ts, bare points: no weld). */
@@ -146,8 +147,8 @@ export function validateTrack(def: TrackDefinition): Validation {
     const entry = lut.sample(sc.entryT, 0).position;
     const exit = lut.sample(sc.exitT, 0).position;
     const a = sc.controlPoints[0], b = sc.controlPoints[sc.controlPoints.length - 1];
-    const dEntry = Math.hypot(a.x - entry[0], a.y - entry[1], a.z - entry[2]);
-    const dExit = Math.hypot(b.x - exit[0], b.y - exit[1], b.z - exit[2]);
+    const dEntry = dmath.hypot3(a.x - entry[0], a.y - entry[1], a.z - entry[2]);
+    const dExit = dmath.hypot3(b.x - exit[0], b.y - exit[1], b.z - exit[2]);
     if (dEntry > BRANCH_END_TOLERANCE) errors.push(`${label}: first point is ${dEntry.toFixed(2)} m from the main line at entryT (max ${BRANCH_END_TOLERANCE})`);
     if (dExit > BRANCH_END_TOLERANCE) errors.push(`${label}: last point is ${dExit.toFixed(2)} m from the main line at exitT (max ${BRANCH_END_TOLERANCE})`);
     const bl = buildLut(sc.controlPoints, { closed: false, samples: 256, divisions: 512 });

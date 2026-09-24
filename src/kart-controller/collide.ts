@@ -3,6 +3,7 @@ import { boostLive } from './boost.ts';
 import type { KartConstants } from './constants.ts';
 import { isRiding, radiusOf } from './powers.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export function collisionMass(s: KartState, c: KartConstants): number {
   return c.mass + (boostLive(s) ? c.dashMassBonus : 0) + (s.status.shield ? c.shieldMassBonus : 0)
@@ -53,7 +54,7 @@ export function bounceOff(s: KartState, n: Vec3, c: KartConstants, dt: number, e
   const w = worldVelocity(s);
   const out = w[0] * n[0] + w[2] * n[2];
   if (out <= 0) return;
-  const total = Math.hypot(w[0], w[2]);
+  const total = dmath.hypot(w[0], w[2]);
   w[0] -= n[0] * out * (1 + c.wallRestitution);
   w[2] -= n[2] * out * (1 + c.wallRestitution);
   const square = total > 0 ? out / total : 0; // sin of the angle of the hit
@@ -69,7 +70,7 @@ export function bounceOff(s: KartState, n: Vec3, c: KartConstants, dt: number, e
     // the impact turns the nose most of the way (wallDeflect) to where the kart now goes, along the
     // wall and a touch off it, so the grip does not eat the deflected speed as sideways slide
     // (KartView eases the snap on screen)
-    let d = Math.atan2(w[0], w[2]) - s.heading;
+    let d = dmath.atan2(w[0], w[2]) - s.heading;
     while (d > Math.PI) d -= 2 * Math.PI;
     while (d < -Math.PI) d += 2 * Math.PI;
     s.heading += d * c.wallDeflect;
@@ -79,9 +80,9 @@ export function bounceOff(s: KartState, n: Vec3, c: KartConstants, dt: number, e
     const into = f[0] * n[0] + f[2] * n[2]; // how much the nose points into the wall
     if (into > 0) {
       const tangent: Vec3 = [f[0] - n[0] * into, 0, f[2] - n[2] * into];
-      const len = Math.hypot(tangent[0], tangent[2]);
+      const len = dmath.hypot(tangent[0], tangent[2]);
       if (len > 1e-6) {
-        const target = Math.atan2(tangent[0] / len, tangent[2] / len);
+        const target = dmath.atan2(tangent[0] / len, tangent[2] / len);
         let d = target - s.heading;
         while (d > Math.PI) d -= 2 * Math.PI;
         while (d < -Math.PI) d += 2 * Math.PI;
@@ -120,7 +121,7 @@ export function collideKarts(
   if (skipsContact(a) || skipsContact(b) || !level(a, b, c)) return false;
   const dx = b.position[0] - a.position[0];
   const dz = b.position[2] - a.position[2];
-  const dist = Math.hypot(dx, dz);
+  const dist = dmath.hypot(dx, dz);
   const minDist = radiusOf(a, ca) + radiusOf(b, cb);
   if (dist >= minDist || dist === 0) return false;
   const nx = dx / dist, nz = dz / dist; // from a toward b

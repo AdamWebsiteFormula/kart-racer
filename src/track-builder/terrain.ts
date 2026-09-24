@@ -10,6 +10,7 @@
 import { BUILDER } from './constants.ts';
 import type { Lut } from './lut.ts';
 import type { TrackDefinition } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** Metres past a piece's curb at which it stops shaping the land (a road that far off has no say). */
 const BLEND_REACH = 30;
@@ -151,7 +152,7 @@ function piece(L: Lut, i: number, x: number, z: number): typeof PIECE | null {
   }
   const i0 = L.idx(Math.floor(fi)), i1 = L.idx(Math.floor(fi) + 1), u = fi - Math.floor(fi), v = 1 - u;
   const cx = L.px[i0] * v + L.px[i1] * u, cz = L.pz[i0] * v + L.pz[i1] * u;
-  const rx = L.rx[i0] * v + L.rx[i1] * u, rz = L.rz[i0] * v + L.rz[i1] * u, rl = Math.hypot(rx, rz) || 1;
+  const rx = L.rx[i0] * v + L.rx[i1] * u, rz = L.rz[i0] * v + L.rz[i1] * u, rl = dmath.hypot(rx, rz) || 1;
   const lat = ((x - cx) * rx + (z - cz) * rz) / rl;
   const hw = L.hw[i0] * v + L.hw[i1] * u, curb = hw + BUILDER.kerbWidth;
   const bank = L.bank[i0] * v + L.bank[i1] * u;
@@ -169,7 +170,7 @@ function piece(L: Lut, i: number, x: number, z: number): typeof PIECE | null {
     PIECE.h = roadY + above;
     PIECE.lip = BUILDER.tunnelMesaTop;
   } else {
-    PIECE.h = roadY - latC * Math.tan(bank) - BUILDER.offroadDrop;
+    PIECE.h = roadY - latC * dmath.tan(bank) - BUILDER.offroadDrop;
     PIECE.lip = NaN;
   }
   PIECE.edge = past;
@@ -195,7 +196,7 @@ export function groundPlaneY(def: TrackDefinition, main: Lut): number {
   let low = Infinity;
   for (let i = 0; i < main.n; i++) {
     const curb = main.hw[i] + BUILDER.kerbWidth;
-    const edge = main.py[i] - curb * Math.abs(Math.tan(main.bank[i]));
+    const edge = main.py[i] - curb * Math.abs(dmath.tan(main.bank[i]));
     if (edge < low) low = edge;
   }
   return Math.min(y, low - BUILDER.offroadDrop - 0.25);

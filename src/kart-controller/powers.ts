@@ -4,6 +4,7 @@
 // on their own.
 import type { KartConstants } from './constants.ts';
 import { rightOf, type KartState, type TrackQuery, type Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** Strike Ball: rolling on autopilot; items, hazards and fog bounce off it. */
 export function isRiding(s: KartState): boolean { return s.status.rideRemaining > 0; }
@@ -45,7 +46,7 @@ export function towAim(s: KartState, o: KartState, track: TrackQuery, c: KartCon
 export function stepPilot(s: KartState, aim: Vec3, speed: number, c: KartConstants, dt: number): void {
   const dx = aim[0] - s.position[0], dz = aim[2] - s.position[2];
   if (dx * dx + dz * dz > 1e-6) {
-    let d = Math.atan2(dx, dz) - s.heading;
+    let d = dmath.atan2(dx, dz) - s.heading;
     while (d > Math.PI) d -= 2 * Math.PI;
     while (d < -Math.PI) d += 2 * Math.PI;
     const turn = c.pilotTurnRate * dt;

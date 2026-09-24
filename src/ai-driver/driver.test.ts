@@ -59,7 +59,7 @@ describe('AiDriver gates', () => {
       expect(spread, `${def.id} spread`).toBeLessThanOrEqual(20);
       expect(idle, `${def.id} idle ticks`).toBe(0);
     }
-  }, 30_000); // full races on every track: the time grows with each track added
+  }); // full races on every track: no per-test timeout, so vitest.config.ts (120 s, sized for CI) applies
 
   it('1b: the same field finishes with zero respawns at 50cc and 150cc', () => {
     for (const cc of [50, 150] as const) {
@@ -381,7 +381,7 @@ describe('AiDriver gates', () => {
         expect(forced, `${def.id} ${sc.id}: ${(forced / SIM_HZ).toFixed(1)} s via the shortcut vs ${(none / SIM_HZ).toFixed(1)} s on the road`).toBeLessThanOrEqual(none);
       }
     }
-  }, 30_000); // full races on every track: the time grows with each track added
+  }); // full races on every track: no per-test timeout, so vitest.config.ts (120 s, sized for CI) applies
 
   it('15: budget: 7 AI × a full race stays far under 0.05 ms per AI per tick', () => {
     const track = buildTrack(HARBOUR_LOOP);

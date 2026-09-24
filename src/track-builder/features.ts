@@ -5,6 +5,7 @@ import type { TrackBoostPad, TrackJump } from '../kart-controller/types.ts';
 import type { Branches } from './branches.ts';
 import { BUILDER } from './constants.ts';
 import type { BakedFeature, BoostPadDef, JumpDef, PickupDef, TrackDefinition, Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 function branchIndex(branches: Branches, shortcut: string | undefined): number {
   if (!shortcut) return 0;
@@ -45,7 +46,7 @@ export function bakeJump(branches: Branches, j: JumpDef): BakedFeature {
 export function lateralAt(branches: Branches, t: number, branch: number, position: Vec3): number {
   const c = branches.sample(t, 0, branch);
   const rx = c.tangent[2], rz = -c.tangent[0];
-  const h = Math.hypot(rx, rz) || 1;
+  const h = dmath.hypot(rx, rz) || 1;
   return ((position[0] - c.position[0]) * rx + (position[2] - c.position[2]) * rz) / h;
 }
 

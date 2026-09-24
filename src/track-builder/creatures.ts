@@ -5,6 +5,7 @@
 // `pose(time)` tells the scene where to draw the creature and its warning marks.
 import type { Branches } from './branches.ts';
 import type { ActiveHazard, CreatureKind, HazardDef, Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** The numbers behind each creature. One place, named, so tuning never hunts for a literal. */
 export const CREATURE = Object.freeze({
@@ -57,7 +58,7 @@ export interface CreaturePose {
 
 const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
 /** A fixed pseudo-random 0..1 for throw number k (deterministic). */
-const hash = (k: number) => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const hash = (k: number) => { const x = dmath.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 /** hw: the road's half width; reach: how far out a kart can drive (the course limit past the curb on an off-road track) */
 interface Frame { t: number; p: Vec3; tangent: Vec3; right: Vec3; hw: number; reach: number; heading: number }
@@ -91,8 +92,8 @@ export class Creature {
 
   private frame(t: number): Frame {
     const s = this.branches.main.sample(t, 0);
-    const rx = s.tangent[2], rz = -s.tangent[0], n = Math.hypot(rx, rz) || 1;
-    return { t, p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: s.wall ?? s.halfWidth, heading: Math.atan2(s.tangent[0], s.tangent[2]) };
+    const rx = s.tangent[2], rz = -s.tangent[0], n = dmath.hypot(rx, rz) || 1;
+    return { t, p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: s.wall ?? s.halfWidth, heading: dmath.atan2(s.tangent[0], s.tangent[2]) };
   }
 
   /**
@@ -135,7 +136,7 @@ export class Creature {
             const f = this.frame(this.t);
             for (let k = 0; k < C.ringPoints; k++) {
               const a = (k / C.ringPoints) * Math.PI * 2;
-              const x = m.position[0] + Math.cos(a) * m.radius, z = m.position[2] + Math.sin(a) * m.radius;
+              const x = m.position[0] + dmath.cos(a) * m.radius, z = m.position[2] + dmath.sin(a) * m.radius;
               const lat = (x - f.p[0]) * f.right[0] + (z - f.p[2]) * f.right[2];
               if (Math.abs(lat) > Math.max(f.hw + 2, f.reach)) continue;
               // the ring bumps (hop to clear it); only the foot spins (design §6; 24 Sept 2026: the ring spun)
@@ -212,7 +213,7 @@ export class Creature {
         if (p < C.flight) {
           const s = smooth(p / C.flight);
           const hand: Vec3 = [body[0], body[1] + 4, body[2]];
-          const arc = Math.sin(s * Math.PI) * 9;
+          const arc = dmath.sin(s * Math.PI) * 9;
           marks.push({ kind: 'snowball', position: [hand[0] + (land[0] - hand[0]) * s, hand[1] + (land[1] + C.radius - hand[1]) * s + arc, hand[2] + (land[2] - hand[2]) * s], radius: C.radius, strength: 0 });
           marks.push({ kind: 'shadow', position: land, radius: C.radius * (0.6 + 0.6 * s), strength: s });
         } else if (p < C.flight + C.roll) {
@@ -275,7 +276,7 @@ export class Creature {
           const tau = p - C.wait;
           d = tau * C.speed;
           const into = smooth(tau / 0.8);
-          lat = side * edge * (1 - into) + Math.sin((tau / C.weavePeriod) * Math.PI * 2) * C.weave * into;
+          lat = side * edge * (1 - into) + dmath.sin((tau / C.weavePeriod) * Math.PI * 2) * C.weave * into;
           action = 'charge'; ph = tau / C.charge;
         } else if (p >= chargeEnd) {
           d = C.charge * C.speed;
@@ -305,12 +306,12 @@ export class Creature {
         if (p >= C.swim && p < warnEnd) { action = 'warn'; ph = (p - C.swim) / C.warn; }
         else if (p >= warnEnd && p < slapEnd) { action = 'slap'; ph = (p - warnEnd) / C.slap; }
         else if (p >= slapEnd) { action = 'swim'; ph = (p - slapEnd) / (this.period() - slapEnd); }
-        const along = Math.sin((time / this.period()) * Math.PI * 2) * 20;
+        const along = dmath.sin((time / this.period()) * Math.PI * 2) * 20;
         const L = this.branches.main.lut.length;
         const g = this.frame(this.t + along / L);
         const lat = side * (f.hw + C.off * (1 - near * 0.55));
         const pos = this.at(g, lat, C.height - near * 8);
-        return { id, kind, position: pos, heading: g.heading + (Math.cos((time / this.period()) * Math.PI * 2) > 0 ? 0 : Math.PI), action, phase: ph, marks };
+        return { id, kind, position: pos, heading: g.heading + (dmath.cos((time / this.period()) * Math.PI * 2) > 0 ? 0 : Math.PI), action, phase: ph, marks };
       }
     }
     return { id, kind, position: this.frame(this.t).p, heading: 0, action: 'idle', phase: 0, marks };

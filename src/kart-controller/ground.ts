@@ -6,6 +6,7 @@ import { bounceOff } from './collide.ts';
 import type { KartConstants } from './constants.ts';
 import { radiusOf } from './powers.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type TrackJump, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** Signed lateral offset of `pos` from the centreline at `t` (positive = track right). */
 export function lateralOffset(track: TrackQuery, t: number, pos: Vec3, branch = 0): { lateral: number; right: Vec3 } {
@@ -39,7 +40,7 @@ export interface GroundResult {
 export function jumpProfile(shape: 'ramp' | 'hump' | undefined, run: number, rise: number, d: number): number {
   if (shape === 'hump') {
     if (Math.abs(d) >= run / 2) return 0;
-    const c = Math.cos((Math.PI * d) / run);
+    const c = dmath.cos((Math.PI * d) / run);
     return rise * c * c;
   }
   return d >= 0 && d < run ? rise * (1 - d / run) : 0;
@@ -126,7 +127,7 @@ function groundNormalInto(out: Vec3, track: TrackQuery, t: number, branch: numbe
     const slope = (ahead - here) / SLOPE_PROBE, tg = sample.tangent;
     x -= tg[0] * slope; y -= tg[1] * slope; z -= tg[2] * slope;
   }
-  const len = Math.hypot(x, y, z) || 1;
+  const len = dmath.hypot3(x, y, z) || 1;
   out[0] = x / len; out[1] = y / len; out[2] = z / len;
 }
 
@@ -156,7 +157,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
     // off like any wall, nose swung along the lip (bug hunt, 24 Sept 2026: a dead stop every tick
     // pinned a kart driving nose-first into a lip, too slow to steer, a wall event every tick, until
     // the claw)
-    const tg = track.sample(lip.t, 0, s.branch).tangent, h = Math.hypot(tg[0], tg[2]) || 1;
+    const tg = track.sample(lip.t, 0, s.branch).tangent, h = dmath.hypot(tg[0], tg[2]) || 1;
     const n: Vec3 = [-tg[0] / h, 0, -tg[2] / h]; // back along the road at the lip, into it
     const dx = s.position[0] - x0, dz = s.position[2] - z0, into = dx * n[0] + dz * n[2];
     s.position[0] = x0 + dx - n[0] * into; s.position[2] = z0 + dz - n[2] * into;
@@ -176,7 +177,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
     const at = track.sample(s.t, lateral, s.branch), side = lateral < 0 ? -1 : 1;
     if (Math.abs(lateral) >= (at.wall ?? at.halfWidth) - radiusOf(s, c) && !((at.open ?? 0) & (side < 0 ? 1 : 2))) {
       n[0] += right[0] * side; n[2] += right[2] * side;
-      const k = Math.hypot(n[0], n[2]);
+      const k = dmath.hypot(n[0], n[2]);
       n[0] /= k; n[2] /= k;
     }
     bounceOff(s, n, c, dt, events);

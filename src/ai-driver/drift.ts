@@ -17,6 +17,7 @@ import { AI, targetTierFor } from './constants.ts';
 import { clamp } from './line.ts';
 import { next, nextDrift } from './rng.ts';
 import type { AiMemory, AiProfile, DriftEndReason, LineInfo } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 function countDown(x: number, dt: number): number {
   const n = x - dt;
@@ -268,8 +269,8 @@ export function stepDriftDecision(
 export function swingIn(s: KartState, c: KartConstants, dir: number, v: number, scale: number, roadYaw: number, inside: number, psi: number): number {
   const d = AI.drift;
   const h = d.swingStep;
-  const easeK = 1 - Math.exp(-h / c.driftYawLag);
-  let yawK = s.drift.yawK, beta = -Math.atan2(s.lateralVelocity, v) * dir, y = inside, p = psi, most = inside;
+  const easeK = 1 - dmath.exp(-h / c.driftYawLag);
+  let yawK = s.drift.yawK, beta = -dmath.atan2(s.lateralVelocity, v) * dir, y = inside, p = psi, most = inside;
   for (let t = 0; t < d.swingSeconds; t += h) {
     yawK -= yawK * easeK;
     const w = c.steerRate * (c.driftSteerMin + (c.driftSteerMax - c.driftSteerMin) * yawK) * scale;

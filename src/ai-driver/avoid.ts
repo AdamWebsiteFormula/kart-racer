@@ -12,6 +12,7 @@ import type { ActiveHazard } from '../track-builder/types.ts';
 import { AI } from './constants.ts';
 import { clamp } from './line.ts';
 import type { LineInfo, Scratch } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export interface AvoidContext {
   track: Track;
@@ -191,7 +192,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
       if (h.ground) {
         // a shock wave along the ground (the Rumblesaur's footstep ring): hop it, as a player would, when
         // it is about to reach the kart. Steering round a ring of points swerved the pack into the foot.
-        const gap = Math.hypot(h.position[0] - s.position[0], h.position[2] - s.position[2]) - h.radius - kartR;
+        const gap = dmath.hypot(h.position[0] - s.position[0], h.position[2] - s.position[2]) - h.radius - kartR;
         if (gap < v * a.ringHop) line.hopRing = true;
         continue;
       }

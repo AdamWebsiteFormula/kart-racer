@@ -7,6 +7,7 @@ import type { TrackHint, TrackSample } from '../kart-controller/types.ts';
 import { BUILDER } from './constants.ts';
 import { buildLut, wrap01, type Lut } from './lut.ts';
 import type { ControlPoint, ShortcutDef, Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** Signed offset of t from `from`, in (−0.5, 0.5]. */
 export function signedOffset(t: number, from: number): number {
@@ -183,16 +184,16 @@ function weldEnds(lut: Lut, main: Lut, entryT: number, exitT: number): void {
       // the main road's surface under the shortcut's centre (level from its curb out, as the land
       // is), and the tilt it has along the shortcut's own lateral (its bank and climb, seen sideways)
       const curb = main.hw[j] + BUILDER.kerbWidth, latC = Math.max(-curb, Math.min(curb, lat));
-      const th = Math.hypot(main.tx[j], main.tz[j]) || 1, climb = main.ty[j] / th;
+      const th = dmath.hypot(main.tx[j], main.tz[j]) || 1, climb = main.ty[j] / th;
       const along = (lut.rx[i] * main.tx[j] + lut.rz[i] * main.tz[j]) / th;
       // (its height carried the few centimetres along from sample j to beside the shortcut's centre)
       const ahead = ((x - main.px[j]) * main.tx[j] + (z - main.pz[j]) * main.tz[j]) / th;
-      const y = main.py[j] + ahead * climb - latC * Math.tan(main.bank[j]);
+      const y = main.py[j] + ahead * climb - latC * dmath.tan(main.bank[j]);
       // past the curb the land is level, so the main road's bank fades out as the shortcut's ribbon leaves
       // it (track review, 24 Sept 2026: Canyon's mine, forking at 25° off a banked turn, kept the full bank
       // with its centre on the level curb height, and its inner edge sat 0.35 m under the main road)
       const fade = Math.max(0, Math.min(1, 1 - (Math.abs(lat) - curb) / lut.hw[i]));
-      const bank = Math.atan(Math.tan(main.bank[j]) * across * fade - climb * along);
+      const bank = dmath.atan(dmath.tan(main.bank[j]) * across * fade - climb * along);
       lut.py[i] += (y - lut.py[i]) * w;
       lut.bank[i] += (bank - lut.bank[i]) * w;
     }

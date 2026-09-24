@@ -5,6 +5,7 @@ import { wrapAngle } from './line.ts';
 import { AI } from './constants.ts';
 import { range } from './rng.ts';
 import type { AiMemory, AiProfile, ItemRole, LineInfo } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export interface ItemContext {
   karts: readonly KartState[];
@@ -20,11 +21,11 @@ export interface ItemContext {
 
 /** Angle from my heading to another kart, radians, positive = right. */
 function bearing(s: KartState, o: KartState): number {
-  return wrapAngle(Math.atan2(o.position[0] - s.position[0], o.position[2] - s.position[2]) - s.heading);
+  return wrapAngle(dmath.atan2(o.position[0] - s.position[0], o.position[2] - s.position[2]) - s.heading);
 }
 
 function distXZ(a: KartState, b: KartState): number {
-  return Math.hypot(a.position[0] - b.position[0], a.position[2] - b.position[2]);
+  return dmath.hypot(a.position[0] - b.position[0], a.position[2] - b.position[2]);
 }
 
 /** Roles whose item trails behind while the button is held (design §8 hold to trail). */

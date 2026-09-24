@@ -2,6 +2,7 @@
 // the lateral part by grip. Ice slides because grip is low, nothing else.
 import type { KartConstants } from './constants.ts';
 import type { InputState, KartState } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export function clamp(x: number, lo: number, hi: number): number {
   return x < lo ? lo : x > hi ? hi : x;
@@ -57,8 +58,8 @@ export function yawRate(s: KartState, input: InputState, c: KartConstants, V: nu
 /** Turn the heading by dTheta and express the same world velocity in the new frame. */
 export function applyYaw(s: KartState, dTheta: number): void {
   if (dTheta === 0) return;
-  const cos = Math.cos(dTheta);
-  const sin = Math.sin(dTheta);
+  const cos = dmath.cos(dTheta);
+  const sin = dmath.sin(dTheta);
   const speed = s.speed;
   const lat = s.lateralVelocity;
   s.heading += dTheta;
@@ -74,7 +75,7 @@ export function dampLateral(s: KartState, grip: number, dt: number): void {
 export function stepSteer(s: KartState, input: InputState, c: KartConstants, V: number, grip: number, dt: number): number {
   // the drift turn value chases the stick; it starts at 0 on the lock, so a drift begins loose and tightens
   if (s.drift.phase === 'drifting') {
-    const k = 1 - Math.exp(-dt / c.driftYawLag);
+    const k = 1 - dmath.exp(-dt / c.driftYawLag);
     s.drift.yawK += (driftTurnTarget(input.steer, s.drift.direction) - s.drift.yawK) * k;
   }
   const dTheta = yawRate(s, input, c, V) * dt;

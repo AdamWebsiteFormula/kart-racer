@@ -9,11 +9,12 @@ import { signedOffset } from '../track-builder/branches.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
 import type { ItemDefinition, ItemEvent, ItemsConfig, ItemsState, Projectile } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** Unit right vector of the road at t: sample(t, 1) − sample(t, 0). */
 function rightAt(track: Track, t: number, branch: number, out: Vec3): Vec3 {
   // level, like the road's own right (a banked road's tilt is not sideways travel)
-  const tg = track.sample(t, 0, branch).tangent, h = Math.hypot(tg[0], tg[2]) || 1;
+  const tg = track.sample(t, 0, branch).tangent, h = dmath.hypot(tg[0], tg[2]) || 1;
   out[0] = tg[2] / h; out[1] = 0; out[2] = -tg[0] / h;
   return out;
 }
@@ -99,7 +100,7 @@ export function spawnProjectile(
   // the Mouse starts its weave from where it was let go
   if (runner && p.weave > 0) {
     const room = Math.max(1e-6, smp.halfWidth - p.radius);
-    p.age = (Math.asin(Math.max(-1, Math.min(1, p.lateral / (room * p.weave)))) / (2 * Math.PI)) * p.weaveSeconds;
+    p.age = (dmath.asin(Math.max(-1, Math.min(1, p.lateral / (room * p.weave)))) / (2 * Math.PI)) * p.weaveSeconds;
   }
   m.projectiles.push(p);
   events.push({ type: 'projectileSpawn', id: p.id, itemId: p.itemId, racerId: s.racerId, position: [...pos] });
@@ -157,7 +158,7 @@ export function stepProjectiles(
       const smp = track.sample(p.t, 0, p.branch);
       if (p.weave > 0) {
         // the Mouse weaves from kerb to kerb
-        p.lateral = Math.sin((2 * Math.PI * p.age) / p.weaveSeconds) * p.weave * (smp.halfWidth - p.radius);
+        p.lateral = dmath.sin((2 * Math.PI * p.age) / p.weaveSeconds) * p.weave * (smp.halfWidth - p.radius);
       } else {
         const step = cfg.homingLateralRate * dt;
         p.lateral += Math.max(-step, Math.min(step, want - p.lateral));

@@ -8,6 +8,7 @@ import { bakeJump, rederive } from './features.ts';
 import { buildLut, wrap01, type Lut } from './lut.ts';
 import { surfaceId, type ControlPoint, type RouteOverride, type TrackChanged, type TrackDefinition, type Vec3 } from './types.ts';
 import type { Track } from './track.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** The least a kart needs for the remap. KartState satisfies it. */
 export interface ShiftKart { position: [number, number, number]; t: number; branch: number }
@@ -44,7 +45,7 @@ export function spliceRoute(points: readonly ControlPoint[], tOf: readonly numbe
       if (!end) continue;
       for (let i = 0; i < points.length; i++) {
         const p = points[i];
-        if (Math.hypot(p.x - end.x, p.y - end.y, p.z - end.z) < SPLICE_CLEAR * end.halfWidth) removed.add(i);
+        if (dmath.hypot3(p.x - end.x, p.y - end.y, p.z - end.z) < SPLICE_CLEAR * end.halfWidth) removed.add(i);
       }
     }
   }
@@ -219,14 +220,14 @@ function surfaceUnder(R: Lut, lut: Lut, i: number): typeof UNDER | null {
   const f = R.norm(u) * R.step, k = Math.floor(f), i0 = R.idx(k), i1 = R.idx(k + 1), a = f - k, b = 1 - a;
   const cx = R.px[i0] * b + R.px[i1] * a, cy = R.py[i0] * b + R.py[i1] * a, cz = R.pz[i0] * b + R.pz[i1] * a;
   const tx = R.tx[i0] * b + R.tx[i1] * a, ty = R.ty[i0] * b + R.ty[i1] * a, tz = R.tz[i0] * b + R.tz[i1] * a;
-  const th = Math.hypot(tx, tz) || 1, rx = tz / th, rz = -tx / th;
+  const th = dmath.hypot(tx, tz) || 1, rx = tz / th, rz = -tx / th;
   const bank = R.bank[i0] * b + R.bank[i1] * a, curb = R.hw[i0] * b + R.hw[i1] * a + BUILDER.kerbWidth;
   const lat = (AT[0] - cx) * rx + (AT[2] - cz) * rz, latC = Math.max(-curb, Math.min(curb, lat));
-  const y = cy - latC * Math.tan(bank);
+  const y = cy - latC * dmath.tan(bank);
   if (Math.abs(y - AT[1]) > BUILDER.tunnelApex) return null;
   const across = lut.rx[i] * rx + lut.rz[i] * rz, along = (lut.rx[i] * tx + lut.rz[i] * tz) / th;
   UNDER.y = y;
-  UNDER.bank = Math.atan(Math.tan(bank) * across - (ty / th) * along);
+  UNDER.bank = dmath.atan(dmath.tan(bank) * across - (ty / th) * along);
   UNDER.gap = Math.abs(lat) - curb - (lut.hw[i] + BUILDER.kerbWidth) * Math.abs(across);
   return UNDER;
 }

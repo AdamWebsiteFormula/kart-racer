@@ -1,5 +1,6 @@
 // Kart controller types. Mirrors docs/schemas/race-state.schema.json karts[i]
 // plus a few private fields the state machine needs. No Three.js in here.
+import * as dmath from '../sim-math/dmath.ts';
 
 export type Surface = 'road' | 'dirt' | 'mud' | 'ice' | 'boost' | 'rail';
 export type Archetype = 'light' | 'medium' | 'heavy';
@@ -240,12 +241,12 @@ export interface StepOptions {
 
 /** Forward unit vector for a heading. */
 export function forwardOf(heading: number): Vec3 {
-  return [Math.sin(heading), 0, Math.cos(heading)];
+  return [dmath.sin(heading), 0, dmath.cos(heading)];
 }
 /** Right unit vector for a heading (up × forward). */
 export function rightOf(heading: number): Vec3 {
-  return [Math.cos(heading), 0, -Math.sin(heading)];
+  return [dmath.cos(heading), 0, -dmath.sin(heading)];
 }
 export function headingOf(tangent: Vec3): number {
-  return Math.atan2(tangent[0], tangent[2]);
+  return dmath.atan2(tangent[0], tangent[2]);
 }

@@ -9,6 +9,7 @@ import { AI } from './constants.ts';
 import { driftNeedsRoom, driftYaw } from './drift.ts';
 import { rollAt } from './rng.ts';
 import type { AiMemory, AiProfile, LineInfo, Scratch } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export function clamp(x: number, lo: number, hi: number): number {
   return x < lo ? lo : x > hi ? hi : x;
@@ -64,7 +65,7 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
     }
   }
   out.roadErr = wrapAngle(hShort - s.heading);
-  out.course = wrapAngle(s.heading + Math.atan2(s.lateralVelocity, Math.max(1, Math.abs(s.speed))) - h);
+  out.course = wrapAngle(s.heading + dmath.atan2(s.lateralVelocity, Math.max(1, Math.abs(s.speed))) - h);
   out.halfWidth = sc.here.halfWidth;
   out.wall = sc.here.wall ?? sc.here.halfWidth;
   out.open = sc.here.open ?? 0;
@@ -142,7 +143,7 @@ export function lateralTarget(s: KartState, c: KartConstants, m: AiMemory, profi
   }
   // positive turn = right turn = inside on the right = positive lateral
   const inside = clamp(line.turnNear * l.insideGain, -l.insideBiasMax, l.insideBiasMax) * hw;
-  const wander = m.wanderAmp * Math.sin((2 * Math.PI * seconds) / m.wanderPeriod + m.wanderPhase);
+  const wander = m.wanderAmp * dmath.sin((2 * Math.PI * seconds) / m.wanderPeriod + m.wanderPhase);
   const max = l.lateralMaxFraction * hw;
   return clamp(lane + inside + wander, -max, max);
 }

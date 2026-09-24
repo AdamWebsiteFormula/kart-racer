@@ -13,6 +13,7 @@ import { BUILDER } from './constants.ts';
 import { lateralAt } from './features.ts';
 import { Creature, type CreaturePose } from './creatures.ts';
 import type { ActiveHazard, HazardDef, Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 interface Baked {
   id: string;
@@ -140,7 +141,7 @@ export class Hazards {
         case 'crossing': {
           const hw = main.sample(h.t, 0).halfWidth;
           const amp = Math.max(0, hw - radius);
-          const lateral = amp * Math.sin((2 * Math.PI * phase) / period);
+          const lateral = amp * dmath.sin((2 * Math.PI * phase) / period);
           out.push({ id: h.id, type: d.type, position: main.sample(h.t, lateral).position, radius, hit });
           break;
         }
@@ -158,7 +159,7 @@ export class Hazards {
           if (phase < period / 2) {
             const s = main.sample(h.t, 0);
             const rx = s.tangent[2], rz = -s.tangent[0];
-            const hh = Math.hypot(rx, rz) || 1;
+            const hh = dmath.hypot(rx, rz) || 1;
             // authored on one side, pushes toward the other; lateral 0 pushes right
             const sign = h.lateral > 0 ? -1 : 1;
             const p = (d.speed ?? 0) * sign;

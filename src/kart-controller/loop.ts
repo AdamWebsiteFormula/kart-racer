@@ -8,6 +8,7 @@ import type { KartConstants } from './constants.ts';
 import { cancelDrift } from './drift.ts';
 import { jumpLift } from './ground.ts';
 import { headingOf, type KartEvent, type KartState, type TrackLoop, type TrackQuery, type Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 const TAU = Math.PI * 2;
 
@@ -31,7 +32,7 @@ export function loopLanes(l: TrackLoop, lat0: number, halfWidth: number): [numbe
 /** The ring's frame: the road centre at its foot, the road's forward and right there (level). */
 export function loopFrame(track: TrackQuery, l: TrackLoop): { origin: Vec3; forward: Vec3; right: Vec3; halfWidth: number } {
   const b = track.sample(l.t, 0, 0);
-  const h = Math.hypot(b.tangent[0], b.tangent[2]) || 1;
+  const h = dmath.hypot(b.tangent[0], b.tangent[2]) || 1;
   const fx = b.tangent[0] / h, fz = b.tangent[2] / h;
   return { origin: [...b.position], forward: [fx, 0, fz], right: [fz, 0, -fx], halfWidth: b.halfWidth };
 }
@@ -68,12 +69,12 @@ export function loopPose(track: TrackQuery, l: TrackLoop, lat0: number, s: numbe
     const lat = lat0 + (entry - lat0) * smooth(u);
     const slope = ((entry - lat0) * 6 * u * (1 - u)) / span;
     const p = onRoad(track, t, lat);
-    return { position: p.position, heading: headingOf(p.tangent) + Math.atan(slope), angle: 0, t };
+    return { position: p.position, heading: headingOf(p.tangent) + dmath.atan(slope), angle: 0, t };
   }
   if (s < l.approach + ring) {
     const a = (s - l.approach) / l.radius;
     const lat = entry + (exit - entry) * (a / TAU);
-    const fwd = l.radius * Math.sin(a), up = l.radius * (1 - Math.cos(a));
+    const fwd = l.radius * dmath.sin(a), up = l.radius * (1 - dmath.cos(a));
     const o = f.origin;
     return {
       position: [o[0] + f.right[0] * lat + f.forward[0] * fwd, o[1] + up, o[2] + f.right[2] * lat + f.forward[2] * fwd],

@@ -8,9 +8,10 @@ import { applyHit } from '../kart-controller/step.ts';
 import type { HitKind, KartEvent, KartState, Vec3 } from '../kart-controller/types.ts';
 import { clearSlots } from './roulette.ts';
 import type { ItemDefinition, ItemEvent, ItemsState } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export function distXZ(a: Vec3, b: Vec3): number {
-  return Math.hypot(a[0] - b[0], a[2] - b[2]);
+  return dmath.hypot(a[0] - b[0], a[2] - b[2]);
 }
 
 /** Can this kart be hit at all right now? (A rolling Strike Ball shrugs everything off.) */

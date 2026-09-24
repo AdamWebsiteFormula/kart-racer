@@ -8,6 +8,7 @@ import { BUILDER } from './constants.ts';
 import type { LandPoint, RoadIndex } from './terrain.ts';
 import { ClosedSpline, OpenSpline, type Spline } from './spline.ts';
 import { SURFACES, surfaceId, type ControlPoint, type Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export const wrap01 = (t: number): number => {
   const w = t % 1;
@@ -132,10 +133,10 @@ export class Lut {
       let dx = this.px[ip] - this.px[im];
       let dy = this.py[ip] - this.py[im];
       let dz = this.pz[ip] - this.pz[im];
-      const len = Math.hypot(dx, dy, dz) || 1;
+      const len = dmath.hypot3(dx, dy, dz) || 1;
       dx /= len; dy /= len; dz /= len;
       this.tx[i] = dx; this.ty[i] = dy; this.tz[i] = dz;
-      const h = Math.hypot(dx, dz) || 1;
+      const h = dmath.hypot(dx, dz) || 1;
       this.rx[i] = dz / h;
       this.rz[i] = -dx / h;
     }
@@ -173,23 +174,23 @@ export class Lut {
     let tx = this.tx[i0] * b + this.tx[i1] * a;
     let ty = this.ty[i0] * b + this.ty[i1] * a;
     let tz = this.tz[i0] * b + this.tz[i1] * a;
-    const tl = Math.hypot(tx, ty, tz) || 1;
+    const tl = dmath.hypot3(tx, ty, tz) || 1;
     tx /= tl; ty /= tl; tz /= tl;
-    const h = Math.hypot(tx, tz) || 1;
+    const h = dmath.hypot(tx, tz) || 1;
     const rx = tz / h, rz = -tx / h;
 
     const bank = this.bank[i0] * b + this.bank[i1] * a;
-    const rise = -lateral * Math.tan(bank); // positive bank lifts the left (negative lateral) edge
+    const rise = -lateral * dmath.tan(bank); // positive bank lifts the left (negative lateral) edge
     const x = this.px[i0] * b + this.px[i1] * a + rx * lateral;
     const y = this.py[i0] * b + this.py[i1] * a + rise;
     const z = this.pz[i0] * b + this.pz[i1] * a + rz * lateral;
 
     // banked right vector, then normal = tangent × rightBanked (points up on flat road)
-    const rbx = rx, rby = -Math.tan(bank), rbz = rz;
+    const rbx = rx, rby = -dmath.tan(bank), rbz = rz;
     let nx = ty * rbz - tz * rby;
     let ny = tz * rbx - tx * rbz;
     let nz = tx * rby - ty * rbx;
-    const nl = Math.hypot(nx, ny, nz) || 1;
+    const nl = dmath.hypot3(nx, ny, nz) || 1;
     nx /= nl; ny /= nl; nz /= nl;
 
     const p = out.position, tg = out.tangent, nm = out.normal;
@@ -219,7 +220,7 @@ export class Lut {
         } else {
           // the land as drawn (terrain.ts): flat from the curb out, one smooth slope to any other
           // road near; the first half metre past the curb eases down onto it
-          const flat = y + Math.sign(lateral) * (off - BUILDER.kerbWidth) * Math.tan(bank) - BUILDER.offroadDrop;
+          const flat = y + Math.sign(lateral) * (off - BUILDER.kerbWidth) * dmath.tan(bank) - BUILDER.offroadDrop;
           let top = flat, blended = false;
           if (this.land) {
             const q = this.land.query(x, z, LAND);
@@ -240,7 +241,7 @@ export class Lut {
             } else {
               nm[0] = ty * rz; nm[1] = tz * rx - tx * rz; nm[2] = -ty * rx;
             }
-            const l = Math.hypot(nm[0], nm[1], nm[2]) || 1;
+            const l = dmath.hypot3(nm[0], nm[1], nm[2]) || 1;
             nm[0] /= l; nm[1] /= l; nm[2] /= l;
           }
         }

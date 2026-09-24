@@ -3,13 +3,14 @@
 // it lose top speed, and never above the player-legal cap.
 import { AI } from './constants.ts';
 import type { AiProfile } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** gap = player.distanceAlong − kart.distanceAlong (metres); positive = AI behind. */
 export function rubberBand(gap: number): number {
   const r = AI.rubber;
   const a = Math.abs(gap);
   if (a <= r.deadZone) return 1;
-  const x = Math.tanh((a - r.deadZone) / r.scale);
+  const x = dmath.tanh((a - r.deadZone) / r.scale);
   return gap > 0 ? 1 + (r.max - 1) * x : 1 - (1 - r.min) * x;
 }
 

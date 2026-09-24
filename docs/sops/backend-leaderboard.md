@@ -60,6 +60,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24 (Adam's OK): migration hide_scores applied live: `scores.hidden` (default false) and get_leaderboard skips hidden rows. To take a row off the board: `update public.scores set hidden = true where name = 'X';` (SQL editor or the Supabase connector). Checked: anon can call get_leaderboard, cannot select or update scores.
 - 2026-09-24 (Adam's OK): live spoof test. A client-set `cf-connecting-ip` is refused by the gateway (403, the function never runs); client-set `x-real-ip` and `x-forwarded-for` are ignored because the gateway's own cf-connecting-ip comes first: 12 posts under 12 fake addresses got 400 ten times, then 429. The rate limit cannot be dodged with headers.
 - 2026-09-24 (audit): the client's 12 s timeout now covers the body as well as the headers (`call` reads and parses inside it); a stalled body reads as offline, not Loading for ever.
+- 2026-09-24: The replay is now bit-identical to the player's browser on every chip and engine: the sim uses `src/sim-math/dmath.ts` instead of Math transcendentals (kart-controller SOP, Lessons), proven by a per-tick dump identical on arm64 Mac, linux/arm64 and linux/amd64. CLIENT_VERSION 3 (old tabs, which ran the Math sim, are told to reload); core rebuilt with `npm run build:function`, not deployed. CLAIM_TOLERANCE_MS stays as a margin, though an honest claim should now match exactly.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

@@ -2,6 +2,7 @@
 // ('centripetal', closed) so authored points look identical in a debug overlay.
 // Pure TypeScript; the sim never imports Three.js.
 import type { Vec3 } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 export interface SplinePoint { x: number; y: number; z: number }
 
@@ -52,9 +53,9 @@ export class ClosedSpline implements Spline {
       const p1 = points[i];
       const p2 = points[(i + 1) % l];
       const p3 = points[(i + 2) % l];
-      let dt0 = Math.pow(d2(p0, p1), 0.25);
-      let dt1 = Math.pow(d2(p1, p2), 0.25);
-      let dt2 = Math.pow(d2(p2, p3), 0.25);
+      let dt0 = Math.sqrt(Math.sqrt(d2(p0, p1)));
+      let dt1 = Math.sqrt(Math.sqrt(d2(p1, p2)));
+      let dt2 = Math.sqrt(Math.sqrt(d2(p2, p3)));
       // three.js safety: coincident points fall back to uniform
       if (dt1 < EPS_DT) dt1 = 1.0;
       if (dt0 < EPS_DT) dt0 = dt1;
@@ -103,7 +104,7 @@ export class ClosedSpline implements Spline {
     let sum = 0;
     for (let k = 1; k <= divisions; k++) {
       this.pointAt(k / divisions, b);
-      sum += Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      sum += dmath.hypot3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
       arc[k] = sum;
       a[0] = b[0]; a[1] = b[1]; a[2] = b[2];
     }
@@ -134,9 +135,9 @@ export class OpenSpline implements Spline {
       const p1 = points[i];
       const p2 = points[i + 1];
       const p3 = i + 2 < l ? points[i + 2] : ghost(points[l - 1], points[l - 2]);
-      let dt0 = Math.pow(d2(p0, p1), 0.25);
-      let dt1 = Math.pow(d2(p1, p2), 0.25);
-      let dt2 = Math.pow(d2(p2, p3), 0.25);
+      let dt0 = Math.sqrt(Math.sqrt(d2(p0, p1)));
+      let dt1 = Math.sqrt(Math.sqrt(d2(p1, p2)));
+      let dt2 = Math.sqrt(Math.sqrt(d2(p2, p3)));
       if (dt1 < EPS_DT) dt1 = 1.0;
       if (dt0 < EPS_DT) dt0 = dt1;
       if (dt2 < EPS_DT) dt2 = dt1;
@@ -175,7 +176,7 @@ export class OpenSpline implements Spline {
     let sum = 0;
     for (let k = 1; k <= divisions; k++) {
       this.pointAt(k / divisions, b);
-      sum += Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      sum += dmath.hypot3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
       arc[k] = sum;
       a[0] = b[0]; a[1] = b[1]; a[2] = b[2];
     }

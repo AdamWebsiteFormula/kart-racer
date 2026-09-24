@@ -4,11 +4,12 @@ import { AI } from './constants.ts';
 import { clamp, wrapAngle } from './line.ts';
 import { range } from './rng.ts';
 import type { AiMemory } from './types.ts';
+import * as dmath from '../sim-math/dmath.ts';
 
 /** Heading error to `aim` in radians, wrapped; positive = aim is to the right. */
 export function headingError(s: KartState, aim: Vec3): number {
   const dx = aim[0] - s.position[0], dz = aim[2] - s.position[2];
-  return wrapAngle(Math.atan2(dx, dz) - s.heading);
+  return wrapAngle(dmath.atan2(dx, dz) - s.heading);
 }
 
 /**

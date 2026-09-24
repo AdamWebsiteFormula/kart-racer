@@ -34,8 +34,8 @@ export type Verdict = { ok: true; timeMs: number; lapTimesMs: number[]; canonica
 
 /**
  * How far the claim may be from the replay. The replay is the truth and is what gets stored, so
- * this never lets a cheat through; it only absorbs last-bit maths differences between browser
- * engines (Safari, Firefox) and the server's V8 that could move an honest finish by a tick or two.
+ * this never lets a cheat through. Since the sim moved to sim-math/dmath.ts (24 Sept 2026) every
+ * engine and chip replays bit for bit, so an honest claim matches exactly; this is only a margin.
  */
 export const CLAIM_TOLERANCE_MS = 1000;
 
