@@ -14,7 +14,7 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
   - audio: 90 sounds and 7 songs.
 - Leaderboard: the submit-score Edge Function is v12 (checker core-64b1850294351a8d, pinned at commit 4ee31a4). It refuses a forged time (422, checked 24 Sept). The board is empty: the test scores were deleted.
 - 24 Sept: pickup balloons redrawn as glossy party balloons (not striped beach balls). Red-team 2 fixed: one drive is one run (canonical log, 3 names per client per board), a tighter name filter, capped body read, save records checked entry by entry. A full Knockout ran with no errors (muted). All racers checked: rated G.
-- Waiting on Adam's OK: a `hidden` column for board rows (database change), and a live test of a spoofed x-real-ip header against the rate limit.
+- Board hide switch is live: `update public.scores set hidden = true where name = 'X';` takes a row off the board. The rate limit cannot be dodged with fake address headers (tested live).
 - The deadline for the "AI Automations with Jack" contest is 30 Sept 2026.
 
 ## Adam's rules (all agents)
