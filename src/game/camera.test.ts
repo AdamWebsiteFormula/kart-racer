@@ -197,4 +197,40 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
       }
     }
   });
+
+  // audit 24 Sept 2026: behind a kart on the outside of a bend the camera sat in the mine's rock and past Skyline's parapet
+  it('keeps the camera inside the walls, wallClear in from their line, where there is a wall', () => {
+    let rawAll = 0;
+    for (const def of Object.values(TRACKS)) {
+      const track = buildTrack(def);
+      let outside = 0, raw = 0;
+      for (const b of track.branches.list) {
+        for (let k = 0; k < 400; k++) {
+          const t = b.toMain(k / 400);
+          const mid = track.sample(t, 0, b.index);
+          const reach = mid.wall ?? mid.halfWidth;
+          for (const side of [-1, 1]) {
+            if ((mid.open ?? 0) & (side < 0 ? 1 : 2)) continue;
+            const kart = track.sample(t, side * (reach - BASE.kartRadius), b.index);
+            const pos = idealPose(kart.position, Math.atan2(kart.tangent[0], kart.tangent[2]), CAM.topSpeed, false).position;
+            const lateralOf = (p: Vec3) => {
+              const at = track.nearest(p, { t, branch: b.index }, BASE.tSearchWindow);
+              const c = track.sample(at.t, 0, at.branch);
+              const h = Math.hypot(c.tangent[0], c.tangent[2]) || 1;
+              if ((c.open ?? 0) & 3) return { over: -Infinity, reach: Infinity }; // an open edge: no wall to keep inside
+              const lat = ((p[0] - c.position[0]) * c.tangent[2] - (p[2] - c.position[2]) * c.tangent[0]) / h;
+              return { over: Math.abs(lat) - (c.wall ?? c.halfWidth), reach: c.wall ?? c.halfWidth };
+            };
+            if (lateralOf(pos).over > 0) raw++;
+            clampToRoad(track, pos, { t, branch: b.index });
+            if (lateralOf(pos).over > -CAM.wallClear / 2) outside++;
+          }
+        }
+      }
+      expect(outside, `${def.id} (raw ${raw})`).toBe(0);
+      rawAll += raw;
+    }
+    // unclamped, the pose does go past a wall somewhere
+    expect(rawAll).toBeGreaterThan(0);
+  });
 });

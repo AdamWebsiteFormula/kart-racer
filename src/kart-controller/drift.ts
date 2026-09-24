@@ -2,7 +2,7 @@
 // Charge numbers in the schema are per 60 fps frame, so we scale by dt × 60.
 import { requestBoost } from './boost.ts';
 import type { KartConstants } from './constants.ts';
-import { stickToward } from './steer.ts';
+import { driftTurnTarget } from './steer.ts';
 import type { InputState, KartEvent, KartState, StepOptions } from './types.ts';
 
 export function tierFor(charge: number, tiers: readonly number[], max = Infinity): number {
@@ -18,6 +18,18 @@ export function cancelDrift(s: KartState): void {
   s.drift.charge = 0;
   s.drift.tier = 0;
   s.drift.hopSeconds = 0;
+}
+
+/** Lock a drift toward `direction`: loose at first, it tightens over driftYawLag. */
+function lockDrift(s: KartState, direction: number, events: KartEvent[]): void {
+  const d = s.drift;
+  d.phase = 'drifting';
+  d.active = true;
+  d.direction = direction;
+  d.charge = 0;
+  d.tier = 0;
+  d.yawK = 0;
+  events.push({ type: 'driftStart', direction });
 }
 
 /** Release: boost from the tier (tier 0 → nothing), then idle. */
@@ -38,8 +50,13 @@ export function stepDrift(
   const d = s.drift;
 
   // trick: drift button while airborne from a jump
-  if (pressed && !s.grounded && s.airborne.fromJumpId !== undefined) {
+  // (the 'trick' event marks the moment it is done, for its sound; the boost still waits for the landing)
+  if (pressed && !s.grounded && s.airborne.fromJumpId !== undefined && !s.airborne.trickQueued) {
     s.airborne.trickQueued = true;
+    events.push({ type: 'trick' });
+  } else if (pressed) {
+    // a press just before a ramp's lip still counts as the trick at the launch (ground.ts)
+    s.trickBuffer = c.trickBufferSeconds;
   }
 
   switch (d.phase) {
@@ -50,6 +67,9 @@ export function stepDrift(
         s.verticalVelocity = c.hopVelocity;
         s.grounded = false;
         events.push({ type: 'hop' });
+      } else if (!pressed && input.drift && s.grounded && Math.abs(input.steer) >= c.driftLateSteer && s.speed >= c.driftMinSpeed * V) {
+        // the button still held and the stick goes over (a late drift, or straight off a landing): drift now, no hop
+        lockDrift(s, Math.sign(input.steer), events);
       }
       return;
     }
@@ -61,13 +81,7 @@ export function stepDrift(
       }
       // landed: lock the drift if the button and the stick are held
       if (input.drift && input.steer !== 0 && s.speed >= c.driftMinSpeed * V) {
-        d.phase = 'drifting';
-        d.active = true;
-        d.direction = Math.sign(input.steer);
-        d.charge = 0;
-        d.tier = 0;
-        d.yawK = 0; // loose at first, tightens over driftYawLag
-        events.push({ type: 'driftStart', direction: d.direction });
+        lockDrift(s, Math.sign(input.steer), events);
       } else {
         cancelDrift(s);
       }
@@ -78,7 +92,8 @@ export function stepDrift(
       if (s.speed < c.driftKeepSpeed * V) { cancelDrift(s); return; }
       if (!s.grounded && s.airborne.seconds > c.driftAirCancelSeconds) { cancelDrift(s); return; }
       if (!input.drift) { releaseDrift(s, c, events); return; }
-      const rate = stickToward(input, d.direction) >= 0.5 ? c.chargeFull : c.chargeNeutral;
+      // full rate with the stick centred or in (the medium line or tighter); pushed out for the wide line, the slow rate
+      const rate = driftTurnTarget(input.steer, d.direction) >= 0.5 ? c.chargeFull : c.chargeNeutral;
       const mult = d.chargeMultiplierRemaining > 0 ? d.chargeMultiplier : 1;
       d.charge += rate * dt * 60 * mult;
       const tier = tierFor(d.charge, c.driftTiers, opts.maxDriftTier ?? c.driftTiers.length);

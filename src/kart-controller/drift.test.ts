@@ -47,10 +47,13 @@ describe('drift', () => {
     expect(Math.abs(t1 + t2 + t3 - 340)).toBeLessThanOrEqual(1);
   });
 
-  it('neutral stick charges slower', () => {
-    const s = drifting();
-    const t1 = ticksToTier(s, { ...hold, steer: 0 }, 1);
+  // the whole stick range steers a drift (24 Sept 2026): centred is the medium line and charges at the full rate;
+  // pushed out, the wide line, charges at the neutral rate
+  it('the stick pushed out of the drift charges slower; centred charges full', () => {
+    const t1 = ticksToTier(drifting(), { ...hold, steer: -1 }, 1);
     expect(Math.abs(t1 - 250)).toBeLessThanOrEqual(1);
+    const t0 = ticksToTier(drifting(), { ...hold, steer: 0 }, 1);
+    expect(Math.abs(t0 - 100)).toBeLessThanOrEqual(1);
   });
 
   it('chargeMultiplier 2 halves the time to tier 1', () => {
@@ -139,16 +142,27 @@ describe('drift', () => {
   it('a hold is not a press: no re-hop while the button stays down', () => {
     const s = createKartState({ racerId: 'x' });
     s.speed = 25; s.prevDrift = true;
-    stepDrift(s, hold, c, V, DT, []);
+    const ev: KartEvent[] = [];
+    stepDrift(s, { ...hold, steer: 0 }, c, V, DT, ev);
     expect(s.drift.phase).toBe('idle');
+    // held with the stick over it is a late drift (24 Sept 2026): drifting at once, still no hop
+    stepDrift(s, hold, c, V, DT, ev);
+    expect(s.drift.phase).toBe('drifting');
+    expect(ev).toEqual([{ type: 'driftStart', direction: 1 }]);
   });
 
   it('drift press while airborne from a jump queues a trick', () => {
     const s = createKartState({ racerId: 'x' });
     s.speed = 25; s.grounded = false; s.airborne.fromJumpId = 'j1';
-    stepDrift(s, hold, c, V, DT, []);
+    const events: KartEvent[] = [];
+    stepDrift(s, hold, c, V, DT, events);
     expect(s.airborne.trickQueued).toBe(true);
     expect(s.drift.phase).toBe('idle');
+    // the trick is announced the moment it is done (its sound), once per jump
+    expect(events).toEqual([{ type: 'trick' }]);
+    s.prevDrift = false;
+    stepDrift(s, hold, c, V, DT, events);
+    expect(events).toEqual([{ type: 'trick' }]);
   });
 
   it('maxDriftTier caps the tier', () => {

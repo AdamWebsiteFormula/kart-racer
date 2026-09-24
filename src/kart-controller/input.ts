@@ -24,8 +24,24 @@ export function isRaceKey(code: string, keys: KeyMap = DEFAULT_KEYS): boolean {
   return Object.values(keys).some((list) => list.includes(code));
 }
 
-/** Standard-mapping gamepad: left stick X, RT throttle, LT brake, A drift, X item, B look back, Y horn. */
-export const GAMEPAD = Object.freeze({ steerAxis: 0, throttleButton: 7, brakeButton: 6, drift: 0, item: 2, lookBack: 1, horn: 3, deadZone: 0.15 });
+/** Standard-mapping gamepad: left stick X (or the D-pad), RT throttle, LT brake, A drift, X item, B look back, Y horn. */
+export const GAMEPAD = Object.freeze({ steerAxis: 0, throttleButton: 7, brakeButton: 6, drift: 0, item: 2, lookBack: 1, horn: 3, dpadLeft: 14, dpadRight: 15, deadZone: 0.15 });
+
+/**
+ * The pad to read: a standard-mapping one first; else the first connected pad (browsers give many
+ * pads, Mac ones included, an empty mapping). Its left stick is axis 0 and its face buttons are
+ * 0–3 on nearly every pad, so the same indices are a sensible guess; a missing button reads as
+ * not pressed.
+ */
+export function pickGamepad(pads: readonly (Gamepad | null)[]): Gamepad | null {
+  let any: Gamepad | null = null;
+  for (const p of pads) {
+    if (!p || p.connected === false) continue;
+    if (p.mapping === 'standard') return p;
+    if (!any && p.axes.length > 0) any = p;
+  }
+  return any;
+}
 
 /**
  * Pure: keys held + optional gamepad snapshot → InputState. Testable without a DOM.
@@ -45,6 +61,8 @@ export function mapInput(held: ReadonlySet<string>, pad: Gamepad | null, keys: K
   if (pad) {
     const x = pad.axes[GAMEPAD.steerAxis] ?? 0;
     if (Math.abs(x) > GAMEPAD.deadZone && steer === 0) steer = -Math.sign(x) * (Math.abs(x) - GAMEPAD.deadZone) / (1 - GAMEPAD.deadZone);
+    // the D-pad steers like the keys (left = sim +)
+    if (steer === 0) steer = (pad.buttons[GAMEPAD.dpadLeft]?.pressed ? 1 : 0) - (pad.buttons[GAMEPAD.dpadRight]?.pressed ? 1 : 0);
     throttle = Math.max(throttle, pad.buttons[GAMEPAD.throttleButton]?.value ?? 0);
     brake = Math.max(brake, pad.buttons[GAMEPAD.brakeButton]?.value ?? 0);
     drift ||= pad.buttons[GAMEPAD.drift]?.pressed ?? false;
@@ -70,12 +88,18 @@ export function rampSteer(prev: number, target: number, dt: number): number {
   return Math.abs(d) <= step ? target : prev + Math.sign(d) * step;
 }
 
+function isMeta(code: string): boolean {
+  return code === 'MetaLeft' || code === 'MetaRight' || code === 'OSLeft' || code === 'OSRight';
+}
+
 /** On-screen controls (touch): analogue steer, and buttons. Merged with keys and the gamepad. */
 export type VirtualPad = () => Pick<InputState, 'steer' | 'throttle' | 'brake' | 'drift' | 'item' | 'lookBack'> | null;
 
 /** Listens to the window; call sample() once per sim tick. */
 export class InputSource {
   private held = new Set<string>();
+  /** keys that went down since the last sample: a tap shorter than a tick still counts for one */
+  private tapped = new Set<string>();
   private target: Window;
   private keys: KeyMap;
   private steer = 0;
@@ -87,17 +111,32 @@ export class InputSource {
     target.addEventListener('keyup', this.onUp);
     target.addEventListener('blur', this.onBlur);
   }
-  private onDown = (e: KeyboardEvent) => { this.held.add(e.code); };
-  private onUp = (e: KeyboardEvent) => { this.held.delete(e.code); };
-  private onBlur = () => { this.held.clear(); };
+  // Mac: while Cmd is held the browser swallows the other keys' keyups, so a key let go under Cmd
+  // would stay held for ever; Cmd going down or up forgets every held key instead
+  private onDown = (e: KeyboardEvent) => {
+    if (isMeta(e.code)) { this.held.clear(); return; }
+    this.held.add(e.code); this.tapped.add(e.code);
+  };
+  private onUp = (e: KeyboardEvent) => {
+    if (isMeta(e.code)) { this.held.clear(); return; }
+    this.held.delete(e.code);
+  };
+  private onBlur = () => { this.held.clear(); this.tapped.clear(); };
   /** Touch controls: read every sample, merged over the keys and the gamepad. */
   setVirtual(v: VirtualPad | null): void { this.virtual = v; }
 
   /** `dt` is the sim tick the sample is for; the steer ramp runs on it. */
   sample(dt = 1 / 120): InputState {
     const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
-    const pad = pads.find((p): p is Gamepad => !!p && p.mapping === 'standard') ?? null;
-    const raw = mapInput(this.held, pad, this.keys);
+    const pad = pickGamepad(pads);
+    let keys: ReadonlySet<string> = this.held;
+    if (this.tapped.size) {
+      const all = new Set(this.held);
+      for (const k of this.tapped) all.add(k);
+      keys = all;
+      this.tapped.clear();
+    }
+    const raw = mapInput(keys, pad, this.keys);
     const v = this.virtual?.() ?? null;
     if (v) {
       // a thumb on the pad is analogue, like a stick; the buttons add to the keys

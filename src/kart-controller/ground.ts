@@ -80,15 +80,12 @@ export function jumpLift(track: TrackQuery, t: number, branch: number, lateral =
   return lift;
 }
 
-/** Metres around a ramp's lip inside which the lip wall is checked. */
-const LIP_ZONE = 8;
-
-/** Is a ramp's lip within LIP_ZONE metres of t on this branch? */
-function rampLipNear(track: TrackQuery, t: number, branch: number): boolean {
+/** Is a ramp's lip within `zone` metres (lipZone) of t on this branch? */
+function rampLipNear(track: TrackQuery, t: number, branch: number, zone: number): boolean {
   for (const j of track.jumps) {
     if (j.shape === 'hump' || !j.rise || (j.branch ?? 0) !== branch) continue;
     const d = Math.abs(wrap01(j.t - t + 0.5) - 0.5) * track.length;
-    if (d < LIP_ZONE) return true;
+    if (d < zone) return true;
   }
   return false;
 }
@@ -113,6 +110,26 @@ function rampLipBehind(track: TrackQuery, prevT: number, t: number, branch: numb
   return undefined;
 }
 
+/** Metres along the road over which a ramp's or bump's slope is measured for the ground normal. */
+const SLOPE_PROBE = 0.25;
+
+/**
+ * The ground normal under the kart, a ramp's or bump's slope included (the road sample's normal
+ * knows only the road). Render-only: KartView tilts the body to it; the sim never reads it.
+ */
+function groundNormalInto(out: Vec3, track: TrackQuery, t: number, branch: number, lateral: number, sample: TrackSample, here: number): void {
+  const n = sample.normal;
+  let x = n[0], y = n[1], z = n[2];
+  const ahead = track.jumps.length ? jumpLift(track, t + SLOPE_PROBE / track.length, branch, lateral, sample.halfWidth, sample.open ?? 0) : 0;
+  if (here > 0 || ahead > 0) {
+    // the surface rises along the tangent by `slope`: the normal leans back against it
+    const slope = (ahead - here) / SLOPE_PROBE, tg = sample.tangent;
+    x -= tg[0] * slope; y -= tg[1] * slope; z -= tg[2] * slope;
+  }
+  const len = Math.hypot(x, y, z) || 1;
+  out[0] = x / len; out[1] = y / len; out[2] = z / len;
+}
+
 export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt: number, events: KartEvent[]): GroundResult {
   // 9. integrate horizontally
   const f = forwardOf(s.heading);
@@ -131,7 +148,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   let { lateral, right } = lateralOffset(track, s.t, s.position, s.branch);
   // backing into a ramp's lip: the lip is a wall, not a step up. Where the kart was is measured
   // again here: a bump from another kart moved it after last tick's t was taken.
-  const t0 = s.grounded && rampLipNear(track, s.t, s.branch)
+  const t0 = s.grounded && rampLipNear(track, s.t, s.branch, c.lipZone)
     ? track.nearest([x0, s.position[1], z0], { t: prevT, branch: branch0 }, c.tSearchWindow).t : prevT;
   const lip = s.grounded ? rampLipBehind(track, t0, s.t, s.branch, lateral) : undefined;
   if (lip) {
@@ -168,15 +185,25 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   const sample = track.sample(s.t, lateral, s.branch);
   const wasGrounded = s.grounded;
 
-  // ramps: leaving one sets the launch velocity
-  if (s.grounded) {
+  // ramps: leaving one sets the launch velocity. A kart mid-hop at the lip takes it too (it used to
+  // sail off with the hop's 3 m/s and no trick), and a drift press in the last trickBufferSeconds
+  // before the launch is the trick.
+  if (s.grounded || s.drift.phase === 'hopping') {
     for (const j of track.jumps) {
+      // (a hop over a trick bump's crest stays a hop: only a ramp's lip catches a hopping kart)
+      if (!s.grounded && j.shape === 'hump') continue;
       if ((j.branch ?? 0) === s.branch && crossed(prevT, s.t, j.t) && Math.abs(lateral) <= sample.halfWidth) {
-        s.verticalVelocity = j.launch;
+        s.verticalVelocity = Math.max(s.verticalVelocity, j.launch);
         s.grounded = false;
         s.airborne.fromJumpId = j.id;
         s.airborne.seconds = 0;
         events.push({ type: 'launched', jumpId: j.id });
+        // (a ramp's only: a hop just before a trick bump is a drift's hop, and a trick there throws the kart off the bend)
+        if (s.trickBuffer > 0 && j.shape !== 'hump' && !s.airborne.trickQueued) {
+          s.airborne.trickQueued = true;
+          events.push({ type: 'trick' });
+        }
+        s.trickBuffer = 0;
         break;
       }
     }
@@ -203,7 +230,8 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   // back over the road it went off (a hop over the lip and back) before it sank: not falling after all.
   // A lower road under the cliff (a tunnel) never counts: only the height it fell from does.
   else if (s.status.falling && !sample.overCliff && Math.abs(sample.groundY - s.status.fallFromY) < c.groundCatch && y >= sample.groundY - c.groundCatch) s.status.falling = false;
-  const groundY = s.status.falling ? -Infinity : sample.groundY + jumpLift(track, s.t, s.branch, lateral, sample.halfWidth, sample.open ?? 0);
+  const lift = s.status.falling ? 0 : jumpLift(track, s.t, s.branch, lateral, sample.halfWidth, sample.open ?? 0);
+  const groundY = s.status.falling ? -Infinity : sample.groundY + lift;
   const canSnap = s.verticalVelocity <= c.groundLaunchVy;
   // Below the road: a slope rising under a grounded kart, or a landing that crossed
   // the surface this tick, snaps up. An airborne kart within groundCatch of the surface
@@ -225,6 +253,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   if (s.grounded) {
     s.surface = sample.surface;
     s.gripScale = sample.gripScale;
+    groundNormalInto(s.groundNormal, track, s.t, s.branch, lateral, sample, lift);
     // boost surface: fires on entry, including landing straight onto it
     if (sample.surface === 'boost' && (prevSurface !== 'boost' || !wasGrounded)) {
       requestBoost(s, 'pad', c.padMultiplier, c.padSeconds, events);

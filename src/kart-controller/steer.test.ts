@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { gripFor, makeConstants } from './constants.ts';
-import { stepSteer, yawRate } from './steer.ts';
+import { driftStickFor, driftTurnTarget, stepSteer, yawRate } from './steer.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type Surface } from './types.ts';
 
 const c = makeConstants('medium', 150);
@@ -63,7 +63,7 @@ describe('steer', () => {
 
   it('drift yaw is outward only and scales with the lagged stick (drift.yawK)', () => {
     const s = createKartState({ racerId: 'x' });
-    s.speed = 20; s.drift.phase = 'drifting'; s.drift.direction = 1;
+    s.speed = 25; s.drift.phase = 'drifting'; s.drift.direction = 1;
     s.drift.yawK = 0;
     expect(yawRate(s, { ...right, steer: -1 }, c, 25)).toBeCloseTo(c.steerRate * c.driftSteerMin);
     s.drift.yawK = 1;
@@ -76,5 +76,31 @@ describe('steer', () => {
     // and lets go again on counter-steer
     for (let i = 0; i < 240; i++) stepSteer(s, { ...right, steer: -1 }, c, 25, c.gripRoad, dt);
     expect(s.drift.yawK).toBeLessThan(0.01);
+  });
+
+  // audit 24 Sept 2026: a centred stick drew the widest drift line (99 m at top speed)
+  it('the whole stick range counts: full out wide, centred medium, full in tight', () => {
+    expect(driftTurnTarget(-1, 1)).toBe(0);
+    expect(driftTurnTarget(0, 1)).toBe(0.5);
+    expect(driftTurnTarget(1, 1)).toBe(1);
+    expect(driftTurnTarget(1, -1)).toBe(0);
+    expect(driftStickFor(driftTurnTarget(0.3, 1))).toBeCloseTo(0.3, 9);
+    const s = createKartState({ racerId: 'x' });
+    s.speed = 25; s.drift.phase = 'drifting'; s.drift.direction = 1;
+    const dt = 1 / 120;
+    for (let i = 0; i < 240; i++) stepSteer(s, { ...right, steer: 0 }, c, 25, c.gripDrift, dt);
+    expect(s.drift.yawK).toBeCloseTo(0.5, 2);
+    s.speed = 25; // stepSteer alone bleeds speed into the slide
+    expect(yawRate(s, NEUTRAL_INPUT, c, 25)).toBeCloseTo(c.steerRate * (c.driftSteerMin + c.driftSteerMax) / 2, 2);
+  });
+
+  it('a full-inward drift is never wider than steering at full lock at the same speed (was at 70 % of V)', () => {
+    for (const frac of [0.35, 0.5, 0.7, 0.9, 1]) {
+      const s = createKartState({ racerId: 'x' });
+      s.speed = 25 * frac;
+      const grip = yawRate(s, right, c, 25);
+      s.drift.phase = 'drifting'; s.drift.direction = 1; s.drift.yawK = 1;
+      expect(yawRate(s, NEUTRAL_INPUT, c, 25)).toBeGreaterThanOrEqual(grip - 1e-9);
+    }
   });
 });

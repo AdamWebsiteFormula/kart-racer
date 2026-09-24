@@ -42,6 +42,10 @@ export const CAM = Object.freeze({
   nearFade: 2.8,
   /** the same for a rival's kart: one between you and the lens dissolves, one alongside you does not (camera.test.ts); yours never does */
   kartFade: 4,
+  /** riding a Strike Ball (2.6 m across, taller than the lens): the camera rises and backs off by these metres so the road ahead shows over the ball; 1/s, how fast it eases in and out */
+  rideUp: 1.8, rideBack: 3, rideEase: 3,
+  /** metres the camera keeps inside a wall's line (the mine's bore, Skyline's parapet): behind a kart on the outside of a bend it would sit in the rock */
+  wallClear: 0.6,
 });
 
 /** A loop-the-loop seen side on, from left of the road: far enough out to hold the whole ring, a little behind its foot. */
@@ -113,7 +117,8 @@ const below: Vec3 = [0, 0, 0];
  * Keep the camera between the ground under its own spot and the roof: at least CAM.roadClear above
  * it, and under the timber beams where that road is a tunnel's. The chase pose rides the kart's
  * height, and on a steep climb (the Canyon mine's exit) the road under the camera is metres off
- * the kart's. `kart` is the kart's place on the track. Writes pos[1].
+ * the kart's. And inside the walls, CAM.wallClear in from their line (an open edge has none).
+ * `kart` is the kart's place on the track. Writes pos.
  */
 export function clampToRoad(track: Track, pos: Vec3, kart: TrackHint): void {
   // the nearest road point in 3D sits uphill of the one straight below: look again from the road's height
@@ -123,6 +128,13 @@ export function clampToRoad(track: Track, pos: Vec3, kart: TrackHint): void {
   const c = track.sampleInto(at.t, 0, at.branch, under);
   const h = Math.hypot(c.tangent[0], c.tangent[2]) || 1, reach = c.wall ?? c.halfWidth;
   const lateral = ((pos[0] - c.position[0]) * c.tangent[2] - (pos[2] - c.position[2]) * c.tangent[0]) / h;
+  const side = lateral < 0 ? 1 : 2, inner = reach - CAM.wallClear;
+  if (Math.abs(lateral) > inner && inner > 0 && !((c.open ?? 0) & side)) {
+    // back inside the wall, square to the road (right = up × tangent)
+    const out = lateral - Math.sign(lateral) * inner;
+    pos[0] -= (c.tangent[2] / h) * out;
+    pos[2] += (c.tangent[0] / h) * out;
+  }
   const ground = track.sampleInto(at.t, Math.max(-reach, Math.min(reach, lateral)), at.branch, under).groundY;
   let y = Math.max(pos[1], ground + CAM.roadClear);
   const b = track.branches.list[at.branch] ?? track.branches.main, L = b.lut;

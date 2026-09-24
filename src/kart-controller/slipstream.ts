@@ -1,11 +1,14 @@
 // Step 12: sit in another kart's wake for slipstreamSeconds → boost.
 import { requestBoost } from './boost.ts';
+import { level } from './collide.ts';
 import type { KartConstants } from './constants.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState } from './types.ts';
 
 /** Is `s` inside `lead`'s wake? */
 export function inWake(s: KartState, lead: KartState, c: KartConstants): boolean {
   if (lead === s || lead.isGhost || s.isGhost) return false;
+  // a kart far above or below (a jump, a bridge over the road) makes no wake here
+  if (!level(s, lead, c)) return false;
   const f = forwardOf(lead.heading), r = rightOf(lead.heading);
   const dx = s.position[0] - lead.position[0];
   const dz = s.position[2] - lead.position[2];

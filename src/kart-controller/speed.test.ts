@@ -19,6 +19,29 @@ describe('speed', () => {
     expect(s.speed).toBeCloseTo(25, 3);
   });
 
+  it('accel tapers with speed: a punchy launch, 0 to V no slower than the old flat 12 m/s² (2.08 s)', () => {
+    const s = createKartState({ racerId: 'x' });
+    stepSpeed(s, full, 25, c, DT);
+    const launch = s.speed / DT;
+    s.speed = 22.5;
+    stepSpeed(s, full, 25, c, DT);
+    const late = (s.speed - 22.5) / DT;
+    expect(launch).toBeCloseTo(c.accel * c.accelLaunch, 6);
+    expect(late).toBeLessThan(launch * 0.6);
+    const r = createKartState({ racerId: 'x' });
+    let ticks = 0;
+    while (r.speed < 25 && ticks < 1000) { stepSpeed(r, full, 25, c, DT); ticks++; }
+    expect(ticks * DT).toBeLessThanOrEqual(25 / 12);
+    expect(ticks * DT).toBeGreaterThan(1.7);
+  });
+
+  it('the brake bites above the cap too (after a boost), at the brake rate', () => {
+    const s = createKartState({ racerId: 'x' });
+    s.speed = 34;
+    for (let i = 0; i < 60; i++) stepSpeed(s, { ...NEUTRAL_INPUT, brake: 1 }, 25, c, DT);
+    expect(s.speed).toBeCloseTo(34 - c.brake * 0.5, 6);
+  });
+
   it('coins raise V, capped at coinCap', () => {
     const s = createKartState({ racerId: 'x', coins: 10 });
     expect(targetSpeed(s, c).base).toBeCloseTo(25 * (1 + 10 * 0.0066));

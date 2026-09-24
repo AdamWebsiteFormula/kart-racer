@@ -34,6 +34,7 @@ export function tickTimers(s: KartState, dt: number): void {
   if (s.drift.chargeMultiplierRemaining === 0) s.drift.chargeMultiplier = 1;
   s.wallCooldown = countDown(s.wallCooldown, dt);
   s.bumpCooldown = countDown(s.bumpCooldown, dt);
+  s.trickBuffer = countDown(s.trickBuffer, dt);
   s.status.rideRemaining = countDown(s.status.rideRemaining, dt);
   s.status.towRemaining = countDown(s.status.towRemaining, dt);
   if (s.status.towRemaining === 0) s.status.towTarget = -1;
@@ -77,7 +78,7 @@ export function stepKart(
     // 4–5. steer and slide
     // a drift slides: the lateral part of the velocity lives longer than on grip
     const surfaceGrip = gripFor(c, s.surface);
-    const grip = (s.drift.phase === 'drifting' ? Math.min(surfaceGrip, c.gripDrift) : surfaceGrip) * s.gripScale * (s.grounded ? 1 : 0.5);
+    const grip = (s.drift.phase === 'drifting' ? Math.min(surfaceGrip, c.gripDrift) : surfaceGrip) * s.gripScale * (s.grounded ? 1 : c.airGrip);
     stepSteer(s, inp, c, targets.base, grip, dt);
     // 6. hop / drift
     stepDrift(s, inp, c, targets.base, dt, events, opts);
@@ -113,7 +114,10 @@ export function stepKarts(
   return events;
 }
 
-/** Step 13. Items and hazards call this. Coins are the hit buffer. */
+/**
+ * Step 13. Items and hazards call this. A hit always spins the kart and costs hitCoinsLost coins, as in
+ * Mario Kart 8 Deluxe and World (Adam, 24 Sept 2026); the coin buffer is a schema switch, off.
+ */
 export function applyHit(s: KartState, c: KartConstants, kind: HitKind, events: KartEvent[]): void {
   const hadCoins = s.coins > 0;
   const coinsLost = Math.min(s.coins, c.hitCoinsLost);

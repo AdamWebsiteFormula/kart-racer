@@ -7,20 +7,21 @@ import { makeOval } from './__tests__/oval-stub.ts';
 const c = makeConstants('medium', 150);
 const DT = 1 / 120;
 
-describe('applyHit and the coin shield', () => {
-  it('with coins: drops 2, slows, no spin, drift and boost cancelled', () => {
+describe('applyHit', () => {
+  // the coin buffer is off (Adam, 24 Sept 2026): a hit always spins and costs coins, as in MK8DX and World
+  it('with coins: drops 2 and still spins; drift and boost cancelled', () => {
     const s = createKartState({ racerId: 'x', coins: 5 });
     s.drift.phase = 'drifting'; s.drift.tier = 2; s.drift.charge = 600;
     s.boost.source = 'drift'; s.boost.remaining = 1; s.boost.multiplier = 1.3;
     const ev: KartEvent[] = [];
     applyHit(s, c, 'item', ev);
+    expect(c.coinShield.enabled).toBe(false);
     expect(s.coins).toBe(3);
-    expect(s.status.spinRemaining).toBe(0);
-    expect(s.status.slowedTo).toBe(c.coinShield.slowedTo);
-    expect(s.status.slowRemaining).toBe(c.coinShield.slowSeconds);
+    expect(s.status.spinRemaining).toBe(c.hitSpinSeconds);
+    expect(s.status.slowRemaining).toBe(0);
     expect(s.drift.phase).toBe('idle');
     expect(s.boost.source).toBe('none');
-    expect(ev[0]).toEqual({ type: 'hit', kind: 'item', spun: false, coinsLost: 2 });
+    expect(ev[0]).toEqual({ type: 'hit', kind: 'item', spun: true, coinsLost: 2 });
   });
 
   it('at zero coins: spins for hitSpinSeconds', () => {
@@ -31,11 +32,11 @@ describe('applyHit and the coin shield', () => {
     expect(ev[0]).toEqual({ type: 'hit', kind: 'hazard', spun: true, coinsLost: 0 });
   });
 
-  it('one coin still shields', () => {
+  it('one coin: lost, and the kart spins', () => {
     const s = createKartState({ racerId: 'x', coins: 1 });
     applyHit(s, c, 'item', []);
     expect(s.coins).toBe(0);
-    expect(s.status.spinRemaining).toBe(0);
+    expect(s.status.spinRemaining).toBe(c.hitSpinSeconds);
   });
 });
 

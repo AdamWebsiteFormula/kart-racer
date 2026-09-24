@@ -99,6 +99,12 @@ export interface KartState {
   wallCooldown: number;
   bumpCooldown: number;
   gripScale: number; // from the last track sample; the steer step runs before ground
+  /** a boost refused (or displaced) by the live one: it starts when the live one ends (boost.ts) */
+  boostQueue: { source: BoostSource; remaining: number; multiplier: number };
+  /** seconds left in which the last drift press still counts as a trick at a ramp's launch */
+  trickBuffer: number;
+  /** ground normal under the kart at its last grounded tick, ramps included; render-only (the view tilts to it) */
+  groundNormal: Vec3;
 }
 
 export interface KartInit {
@@ -144,6 +150,9 @@ export function createKartState(init: KartInit): KartState {
     wallCooldown: 0,
     bumpCooldown: 0,
     gripScale: 1,
+    boostQueue: { source: 'none', remaining: 0, multiplier: 1 },
+    trickBuffer: 0,
+    groundNormal: [0, 1, 0],
   };
 }
 
@@ -215,6 +224,8 @@ export type KartEvent =
   | { type: 'driftEnd'; tier: number }
   | { type: 'boostStart'; source: BoostSource; multiplier: number; seconds: number }
   | { type: 'landed'; fromJumpId?: string; trick: boolean }
+  /** a trick done in the air off a jump (its boost fires on landing) */
+  | { type: 'trick' }
   | { type: 'launched'; jumpId: string }
   | { type: 'wall' }
   | { type: 'bump'; otherId: string }

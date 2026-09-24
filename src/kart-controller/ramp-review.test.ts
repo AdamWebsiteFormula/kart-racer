@@ -37,7 +37,11 @@ function liftUnder(track: TrackQuery, s: KartState): number {
 }
 
 function frostbite(): { track: Track; ski: TrackJump } {
-  const track = buildTrack(frostbiteJson as TrackDefinition);
+  // the shoulder beside the ski jump is open here as it shipped before the track review (24 Sept 2026 moved
+  // the ledge to 0.535, clear of the landing); the rule under test is the ramp's side over any open edge
+  const def = cloneDef(frostbiteJson as TrackDefinition);
+  def.openEdges = [{ fromT: 0.46, toT: 0.6, side: 'right' }];
+  const track = buildTrack(def);
   const ski = track.jumps.find((j) => j.id === 'ski-jump');
   if (!ski) throw new Error('no ski-jump on Frostbite Pass');
   return { track, ski };

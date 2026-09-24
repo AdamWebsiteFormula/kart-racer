@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_KEYS, InputSource, STEER_RAMP, isRaceKey, mapInput, rampSteer, type VirtualPad } from './input.ts';
+import { DEFAULT_KEYS, InputSource, STEER_RAMP, isRaceKey, mapInput, pickGamepad, rampSteer, type VirtualPad } from './input.ts';
 
 describe('input mapping', () => {
   it('maps keys', () => {
@@ -64,5 +64,52 @@ describe('touch controls (a virtual pad)', () => {
     const c = src.sample();
     expect([c.throttle, c.brake, c.drift, c.item]).toEqual([0, 0, false, false]);
     src.dispose();
+  });
+});
+
+// audit 24 Sept 2026
+describe('keyboard and pad edge cases', () => {
+  const key = (type: string, code: string) => Object.assign(new Event(type), { code });
+
+  it('a tap shorter than a tick still reaches the sim for one sample', () => {
+    const win = new EventTarget() as unknown as Window;
+    const src = new InputSource(win);
+    win.dispatchEvent(key('keydown', 'Space'));
+    win.dispatchEvent(key('keyup', 'Space'));
+    expect(src.sample().drift).toBe(true);
+    expect(src.sample().drift).toBe(false);
+    src.dispose();
+  });
+
+  it('Cmd going down or up forgets held keys (Mac swallows their keyups under Cmd)', () => {
+    const win = new EventTarget() as unknown as Window;
+    const src = new InputSource(win);
+    win.dispatchEvent(key('keydown', 'ArrowUp'));
+    expect(src.sample().throttle).toBe(1);
+    win.dispatchEvent(key('keydown', 'MetaLeft'));
+    // ArrowUp's keyup never comes while Cmd is held
+    win.dispatchEvent(key('keyup', 'MetaLeft'));
+    expect(src.sample().throttle).toBe(0);
+    src.dispose();
+  });
+
+  it('the D-pad steers like the keys; the stick wins when it is over the dead zone', () => {
+    const btn = (pressed: boolean) => ({ pressed, value: pressed ? 1 : 0 });
+    const buttons = Array.from({ length: 16 }, () => btn(false));
+    buttons[14] = btn(true);
+    const pad = { axes: [0], buttons } as unknown as Gamepad;
+    expect(mapInput(new Set(), pad).steer).toBe(1); // D-pad left = screen left = sim +
+    buttons[14] = btn(false); buttons[15] = btn(true);
+    expect(mapInput(new Set(), pad).steer).toBe(-1);
+    const stick = { axes: [-1], buttons } as unknown as Gamepad;
+    expect(mapInput(new Set(), stick).steer).toBeCloseTo(1);
+  });
+
+  it('a standard pad is preferred; a non-standard one is read with the same indices', () => {
+    const odd = { mapping: '', connected: true, axes: [0, 0], buttons: [] } as unknown as Gamepad;
+    const std = { mapping: 'standard', connected: true, axes: [0, 0], buttons: [] } as unknown as Gamepad;
+    expect(pickGamepad([null, odd, std])).toBe(std);
+    expect(pickGamepad([null, odd])).toBe(odd);
+    expect(pickGamepad([null])).toBe(null);
   });
 });

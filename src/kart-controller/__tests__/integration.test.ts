@@ -183,15 +183,16 @@ describe('integration on the flat oval', () => {
     expect(shove('heavy', 'light')).toBeGreaterThan(shove('light', 'heavy'));
   });
 
-  it('coin shield in a race: hit with coins slows and keeps steering; at zero coins it spins', () => {
+  // coin buffer off (Adam, 24 Sept 2026): a hit spins with coins in hand too, and costs hitCoinsLost
+  it('a hit in a race spins, coins or not, and costs coins', () => {
     const s = spawn(track, 0.01, 'x', 4);
     s.speed = 25;
     const ev: KartEvent[] = [];
     applyHit(s, c, 'item', ev);
     for (let i = 0; i < 60; i++) stepKart(s, driver(s, track), track, c, DT);
     expect(s.coins).toBe(2);
-    expect(s.speed).toBeLessThan(25);
-    expect(s.speed).toBeGreaterThan(15);
+    expect(s.status.spinRemaining).toBeGreaterThan(0);
+    expect(s.speed).toBeLessThan(15);
     const z = spawn(track, 0.01, 'z', 0);
     z.speed = 25;
     applyHit(z, c, 'item', []);

@@ -40,9 +40,16 @@ describe('walls', () => {
     s.speed = 10; s.lateralVelocity = 10;
     const ev: KartEvent[] = [];
     stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev);
-    expect(s.speed).toBeCloseTo(10 * (1 - c.wallScrub));
+    // the scrub scales with how square the hit is (24 Sept 2026): 45° here, sin = 0.707; the
+    // velocity after it (10 along, 3 bounced back) is kept in the world, whatever the nose does
+    const keep = 1 - c.wallScrub * (Math.SQRT1_2 - c.hardWallFraction) / (1 - c.hardWallFraction);
+    const v = Math.hypot(s.speed, s.lateralVelocity);
+    expect(v).toBeCloseTo(keep * Math.hypot(10, 10 * c.wallRestitution));
+    s.lateralVelocity += 1; // pressed on into the wall
     stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev);
     expect(ev).toHaveLength(1);
+    // once per impact: the second tick of contact scrubs nothing
+    expect(Math.hypot(s.speed, s.lateralVelocity)).toBeGreaterThan(v * 0.98);
   });
 
   it('a nose-first hit swings the nose along the wall and keeps the kart moving', () => {
@@ -50,10 +57,15 @@ describe('walls', () => {
     s.speed = 20;
     const ev: KartEvent[] = [];
     stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev);
-    // one tick swings the nose by at most wallDeflectRate × dt: no snap
-    expect(Math.abs(s.heading)).toBeCloseTo(Math.PI / 4 - c.wallDeflectRate / 120, 5);
+    // the impact turns the nose wallDeflect of the way to where the kart now goes (KartView eases it on screen)
+    const wx0 = 20 * Math.SQRT1_2 * -c.wallRestitution, keep = 1 - c.wallScrub * (Math.SQRT1_2 - c.hardWallFraction) / (1 - c.hardWallFraction);
+    const travel = Math.atan2(wx0, 20 * Math.SQRT1_2);
+    expect(s.heading).toBeCloseTo(Math.PI / 4 + (travel - Math.PI / 4) * c.wallDeflect, 9);
+    expect(Math.hypot(s.speed, s.lateralVelocity)).toBeCloseTo(keep * Math.hypot(wx0, 20 * Math.SQRT1_2), 9);
     expect(s.speed).toBeGreaterThan(5); // it slides on, it does not park
-    expect(s.lateralVelocity).toBe(0);
+    // the deflected velocity is kept in the world (24 Sept 2026: re-pointing it along the nose drove it back into the wall)
+    const wx = Math.sin(s.heading) * s.speed + Math.cos(s.heading) * s.lateralVelocity;
+    expect(wx).toBeLessThan(0);
     // pressing on for half a second brings the nose along the wall
     for (let i = 0; i < 60; i++) { s.lateralVelocity = 4; stepWalls(s, 9, [1, 0, 0], 8, c, 1 / 120, ev); }
     expect(Math.abs(s.heading)).toBeLessThan(0.05);

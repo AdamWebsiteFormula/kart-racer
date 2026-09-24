@@ -29,20 +29,28 @@ export function targetSpeed(s: KartState, c: KartConstants): SpeedTargets {
   return { base, effective, target };
 }
 
+/** Throttle accel at speed v toward V: strong off the line, tapering toward the top (accelLaunch, accelTaper). */
+export function throttleAccel(v: number, V: number, c: KartConstants): number {
+  const u = V > 0 ? Math.min(1, Math.max(0, v) / V) : 1;
+  return c.accel * (c.accelLaunch - c.accelTaper * u * u);
+}
+
 export function stepSpeed(s: KartState, input: InputState, V: number, c: KartConstants, dt: number): void {
   const v = s.speed;
+  const braking = input.brake > 0 && input.throttle <= 0;
   if (v > V) {
-    // over the cap: tail off, never slam
-    s.speed = Math.max(V, v - c.overSpeedDecel * dt);
+    // over the cap: tail off, never slam; the brake still bites (it used to do nothing here)
+    if (braking) s.speed = Math.max(0, v - Math.max(c.overSpeedDecel, c.brake * input.brake) * dt);
+    else s.speed = Math.max(V, v - c.overSpeedDecel * dt);
     return;
   }
-  if (input.brake > 0 && input.throttle <= 0) {
+  if (braking) {
     if (v > 0) s.speed = Math.max(0, v - c.brake * input.brake * dt);
     else s.speed = Math.max(-c.reverseFraction * V, v - c.accel * input.brake * dt);
     return;
   }
   if (input.throttle > 0) {
-    s.speed = Math.min(V, v + c.accel * input.throttle * dt);
+    s.speed = Math.min(V, v + throttleAccel(v, V, c) * input.throttle * dt);
     return;
   }
   // coast toward zero

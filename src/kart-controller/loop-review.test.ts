@@ -220,7 +220,7 @@ describe('loop-the-loop review fixes (2026-09-23)', () => {
     // the collapsed bridge from shift.test.ts: t 0.5-0.58 rerouted over a longer detour
     def.finalLapShift = {
       kind: 'collapse', label: 'BRIDGE OUT',
-      routeOverrides: [{ fromT: 0.5, toT: 0.58, controlPoints: [{ x: 60, y: 8, z: 175, halfWidth: 7 }, { x: 20, y: 8, z: 185, halfWidth: 7 }] }],
+      routeOverrides: [{ fromT: 0.5, toT: 0.58, controlPoints: [{ x: 100, y: 8, z: 140, halfWidth: 7 }, { x: 50, y: 8, z: 165, halfWidth: 7 }] }], // smooth: the validator checks the final-lap road (track review, 24 Sept 2026)
     };
     const track = buildTrack(def);
     const before = track.length;

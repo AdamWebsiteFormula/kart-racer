@@ -19,7 +19,7 @@ Stats are multipliers on a shared base, tuned so the classes race level on the r
 
 Why speed is only −1% / +1% (bug hunt 2, 24 Sept 2026; it was −8% / +10%): our tracks are fast and flowing, so top speed sets almost all of a lap time and accel and handling pay about 1%; at −8% / +10% the heavy was 12–20% faster on every track and won 47 of 48 all-AI races, and now the AI's solo times per class are within about 3% at 100cc and 150cc.
 
-Coins are everyone's hit buffer, not a class perk: a hit with coins in hand costs 2 coins and a short slow, and the same hit at zero coins spins you out.
+Coins are everyone's speed bonus: a hit always spins you out and costs coins.
 
 | # | Name | Species / idea | Class | Personality | Signature kart | Colour |
 |---|---|---|---|---|---|---|
@@ -91,7 +91,7 @@ Research: `docs/research/track-thrills.md`. What we take from it, in our own for
 - Skipped on purpose: gliding, wall riding, charge jumps and grind rails everywhere (first-principles: one trick surface at most; Skyline keeps its one rail), traffic, rewind.
 
 ## 7. Handling (from research plan §4.1)
-Hop 0.25 s → drift (lands loose, tightens over 0.25 s, slides outward first, like an MKW outside drift); charge +5/frame full stick, +2 neutral; tiers 250 / 550 / 850; drift boosts +30% for 0.6 / 1.5 / 2.5 s; trick +30% 0.7 s; pad +40% 1.0 s; speed item +40% 1.5 s; non-stacking, Trick > Item > Drift; slipstream 2 s → +12% 1.5 s; coins +0.66% each, cap 10; start boost: throttle down as the **2** appears (2.0 s before GO, ±0.5 s), like Mario Kart; too early or too late earns nothing, never a spin-out. Camera and juice per plan §4.7 and §7.2.
+Hop 0.25 s → drift (lands loose, tightens over 0.35 s, slides outward first, like an MKW outside drift); charge +5/frame with the stick centred or into the drift, +2 pushed out of it (the whole stick steers the drift: out wide, centred medium, in tight); tiers 250 / 550 / 850; drift boosts +30% for 0.6 / 1.5 / 2.5 s; trick +30% 0.7 s; pad +40% 1.0 s; speed item +40% 1.5 s; non-stacking, Trick > Item > Drift; slipstream 2 s → +12% 1.5 s; coins +0.66% each, cap 10; start boost: throttle down as the **2** appears (2.0 s before GO, ±0.5 s), like Mario Kart; too early or too late earns nothing, never a spin-out. Camera and juice per plan §4.7 and §7.2.
 
 Surfaces cap top speed rather than cutting grip: dirt 0.7, mud 0.6, ice 0.9 plus real sliding. A live boost or being airborne ignores the cap, so hopping a mud patch is a real line.
 
