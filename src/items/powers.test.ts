@@ -2,6 +2,7 @@
 // Anchor, Wind-Up Mouse, hold to trail, double balloons.
 import { describe, expect, it } from 'vitest';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
+import { respawnLateral, startRescue } from '../race-manager/respawn.ts';
 import { ITEMS_CONFIG } from './data.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import { lateralOf } from './projectiles.ts';
@@ -113,6 +114,33 @@ describe('Strike Ball', () => {
     const hits = h.log.filter((e) => e.type === 'hit' && e.racerId === 'k1');
     expect(hits).toEqual([expect.objectContaining({ itemId: 'strikeBall', spun: false, coinsLost: 2 })]);
     expect(b.coins).toBe(8);
+  });
+
+  it('the claw takes the ball away: a held rider knocks nothing and ends without a burst (seam review: a rider the shift stranded spun a kart where the claw set it down)', () => {
+    for (const ride of [5, 0.5]) {
+      const h = setup({ n: 2, cfg: withBehaviour('strikeBall', { durationSeconds: ride }) });
+      go(h);
+      const [a, b] = [kart(h, 0), kart(h, 1)];
+      placeAt(h.track, a, 0.05, 0);
+      give(h, 0, 'strikeBall');
+      give(h, 0, 'fizzPop', 1);
+      press(h, 0);
+      const tr = h.rm.state.trackers[0];
+      startRescue(a, tr, h.track, []);
+      // a kart waiting where the claw sets the rider down
+      placeAt(h.track, b, h.track.checkpoints[tr.lastCheckpoint].t, respawnLateral(a, h.track, h.track.checkpoints[tr.lastCheckpoint].halfWidth, tr.rescue?.lateral));
+      const whileHeld: string[] = [];
+      for (let k = 0; k < seconds(4) && (a.status.held || k === 0); k++) {
+        const held = a.status.held;
+        for (const e of tick(h)) if (held) whileHeld.push(e.type === 'hit' ? `hit ${e.racerId}` : e.type);
+      }
+      expect(a.status.held, `${ride} s`).toBe(false);
+      expect(whileHeld.filter((e) => e.startsWith('hit') || e === 'burst'), `${ride} s`).toEqual([]);
+      expect(whileHeld.filter((e) => e === 'powerEnd'), `${ride} s`).toHaveLength(1);
+      expect(a.status.rideRemaining, `${ride} s`).toBe(0);
+      expect(a.item.held, `${ride} s`).toBe('fizzPop');
+      expect(b.status.spinRemaining, `${ride} s`).toBe(0);
+    }
   });
 });
 

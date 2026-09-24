@@ -37,7 +37,14 @@ export function stepPowers(
     // Strike Ball
     if (m.power[i]) {
       const def = defs.get(m.power[i]) as ItemDefinition;
-      if (!isRiding(s)) {
+      if (s.status.held) {
+        // the claw took it: the ride ends there, quietly (a kart in the claw hits nothing; seam review,
+        // 24 Sept 2026: a rider stranded by the shift knocked karts where the claw set it down)
+        s.status.rideRemaining = 0;
+        events.push({ type: 'powerEnd', racerId: s.racerId, itemId: def.id });
+        if (s.item.held === def.id && s.item.charges === 0) promoteNext(s);
+        m.power[i] = '';
+      } else if (!isRiding(s)) {
         // it stops: STRIKE! the burst spins karts around, and the slot frees up
         const radius = def.behaviour.burstRadius ?? 0;
         events.push({ type: 'burst', racerId: s.racerId, position: [...s.position], radius });
