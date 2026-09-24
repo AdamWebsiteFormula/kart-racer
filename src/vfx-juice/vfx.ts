@@ -10,7 +10,7 @@ import { Skids, SpeedLines } from './trails.ts';
 
 const CORAL: [number, number, number] = [1, 0.44, 0.38], SUN: [number, number, number] = [1, 0.82, 0.25];
 const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
-const CHARGE: readonly number[] = [1.1, 1.1, 1.2], FLAME_HOT: readonly number[] = [1.9, 1.5, 0.5];
+const CHARGE: readonly number[] = [1.1, 1.1, 1.2], FLAME_HOT: readonly number[] = [1.5, 1.2, 0.45];
 const DUST_MUD: readonly number[] = [0.45, 0.33, 0.22], DUST_ICE: readonly number[] = [0.9, 0.95, 1], DUST: readonly number[] = [0.86, 0.77, 0.6];
 const CONFETTI = [CORAL, SUN, TEAL, WHITE, [0.7, 0.62, 0.86] as [number, number, number], [0.39, 0.71, 0.96] as [number, number, number]];
 
@@ -187,7 +187,7 @@ export class Vfx {
       const ex = EXHAUST[k.racerId];
       let col = this.flameCols.get(k.racerId);
       if (!col) { col = flameColour(k.racerId, 1.8); this.flameCols.set(k.racerId, col); }
-      m.flameAcc += dt * 55;
+      m.flameAcc += dt * 36; // a stream of small embers; the flame itself is the mesh on the pipe
       while (m.flameAcc >= 1) {
         m.flameAcc -= 1;
         const hot = rnd() < 0.4;
@@ -197,17 +197,18 @@ export class Vfx {
           const p = ex.ports[(rnd() * ex.ports.length) | 0];
           x = px + c * p[0] + s * p[2]; y = py + p[1]; z = pz - s * p[0] + c * p[2];
         }
-        this.spawn(this.glow, x + sym() * 0.06, y + sym() * 0.06, z + sym() * 0.06, -s * (4 + rnd() * 3), 0.6, -c * (4 + rnd() * 3), hot ? FLAME_HOT : col, 0.3, 0.2, 0, 1, 1.4);
+        this.spawn(this.glow, x + sym() * 0.06, y + sym() * 0.06, z + sym() * 0.06, -s * (5 + rnd() * 4), 0.6 + rnd(), -c * (5 + rnd() * 4), hot ? FLAME_HOT : col, 0.13, 0.16, 0, 1, 0.5);
       }
     } else m.flameAcc = 0;
 
     // off-road dust
     if (k.grounded && (k.surface === 'dirt' || k.surface === 'mud' || k.surface === 'ice') && Math.abs(k.speed) > 4) {
-      m.dustAcc += dt * 20;
+      m.dustAcc += dt * 14;
       const col = k.surface === 'mud' ? DUST_MUD : k.surface === 'ice' ? DUST_ICE : DUST;
       while (m.dustAcc >= 1) {
         m.dustAcc -= 1;
-        this.spawn(this.soft, bx + sym() * 0.5, py + 0.2, bz + sym() * 0.5, -s * 1.5 + sym(), 0.8 + rnd(), -c * 1.5 + sym(), col, 0.55, 0.6, 0, 1.5, 1.6);
+        // low, small and quick: a kicked-up trail, never a cloud that hides the kart
+        this.spawn(this.soft, bx + sym() * 0.5, py + 0.15, bz + sym() * 0.5, -s * 1.5 + sym(), 0.4 + rnd() * 0.5, -c * 1.5 + sym(), col, 0.38, 0.42, 0, 1.8, 0.9);
       }
     } else m.dustAcc = 0;
   }

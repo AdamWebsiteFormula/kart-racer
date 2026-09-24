@@ -95,6 +95,43 @@ function geometryFor(assets: TrackAssets, name: string, fallback = name): Buffer
   return g;
 }
 
+/**
+ * Crisp kerb stripes (two colours, hard-edged and anti-aliased, one stripe every roadTileLength / 4)
+ * and painted road lines: an edge line inside each kerb and a dashed centre line (asphalt only).
+ * Reads the ribbon's `mark` attribute (road.ts ROAD_MARK); vertex colours still tint everything else.
+ */
+function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean): void {
+  const kerbA = new Color(...palette.kerbA), kerbB = new Color(...palette.kerbB);
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uKerbA = { value: kerbA };
+    shader.uniforms.uKerbB = { value: kerbB };
+    shader.uniforms.uLines = { value: lines ? 1 : 0 };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float mark;\nvarying float vMark;\nvarying vec2 vRoad;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvRoad = uv;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nvarying float vMark;\nvarying vec2 vRoad;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        if (vMark > 0.5 && vMark < 1.5) {
+          // the kerb: hard stripes, anti-aliased so they do not shimmer far away
+          float p = vRoad.y * 2.0;
+          float w = fwidth(p) * 1.5;
+          float t = abs(fract(p) - 0.5) * 2.0;
+          diffuseColor.rgb = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
+        } else if (vMark < 0.5 && uLines > 0.5) {
+          // painted lines: an edge line just inside each kerb, a dashed centre line
+          float x = vRoad.x, wx = fwidth(x);
+          float e = min(x, 1.0 - x);
+          float edge = smoothstep(0.012 - wx, 0.012, e) * (1.0 - smoothstep(0.024, 0.024 + wx, e));
+          float c = abs(x - 0.5);
+          float dash = step(fract(vRoad.y * 0.6), 0.45);
+          float centre = (1.0 - smoothstep(0.006, 0.006 + wx, c)) * dash;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.88), max(edge, centre) * 0.9);
+        }`);
+  };
+  m.customProgramCacheKey = () => `road-lines-${lines ? 1 : 0}`;
+}
+
 /** Placeholder geometries the scene made itself; caller-owned `assets` geometries are never disposed. */
 const OWNED = new WeakSet<BufferGeometry>();
 
@@ -212,6 +249,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
   if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
   else if (assets.roadMap) roadMaterial.map = assets.roadMap;
+  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome));
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);

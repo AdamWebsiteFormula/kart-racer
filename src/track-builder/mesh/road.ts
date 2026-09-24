@@ -1,7 +1,8 @@
 // Hand-built road ribbon (appendix A§3: not TubeGeometry). Per LUT sample: road (2 verts),
 // kerb each side (face, top, inner face), shoulder each side falling SHOULDER_DROP over
 // SHOULDER_WIDTH. Every strip of a chunk lands in ONE indexed BufferGeometry with vertex
-// colours and UV v = arcLength / ROAD_TILE_LENGTH.
+// colours and UV v = arcLength / ROAD_TILE_LENGTH. A `mark` attribute says what each strip is
+// (ROAD_MARK): the road material paints crisp kerb stripes and the road lines from it (scene.ts).
 import { BufferAttribute, BufferGeometry } from 'three';
 import { BUILDER } from '../constants.ts';
 import type { Lut } from '../lut.ts';
@@ -16,7 +17,12 @@ interface Strip {
   ah: number;
   bh: number;
   colour: (sampleIndex: number, arcLength: number) => Rgb;
+  /** what the strip is, for the material (ROAD_MARK) */
+  mark: number;
 }
+
+/** The `mark` attribute: the road surface, a kerb, a shoulder, or a strip that blends under the main road. */
+export const ROAD_MARK = Object.freeze({ road: 0, kerb: 1, shoulder: 2, plain: 3 });
 
 /** Sample indices covering local u0..u1 inclusive. On a closed LUT u1 = 1 reaches index n, which wraps to 0 and closes the seam. */
 export function sampleRange(lut: Lut, u0: number, u1: number): { i0: number; i1: number } {
@@ -39,16 +45,17 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   const kerb = (i: number, s: number) => (blended(i) ? roadColour(i) : stripe(s));
   const road = (i: number) => roadColour(i);
   const shoulder = (i: number) => (blended(i) ? roadColour(i) : palette.shoulder);
+  const M = ROAD_MARK;
   const strips: Strip[] = [
-    { a: (hw) => -(hw + kw + sw), ah: -drop, b: (hw) => -(hw + kw), bh: 0, colour: shoulder },
-    { a: (hw) => -(hw + kw), ah: 0, b: (hw) => -(hw + kw), bh: kh, colour: kerb },
-    { a: (hw) => -(hw + kw), ah: kh, b: (hw) => -hw, bh: kh, colour: kerb },
-    { a: (hw) => -hw, ah: kh, b: (hw) => -hw, bh: 0, colour: kerb },
-    { a: (hw) => -hw, ah: 0, b: (hw) => hw, bh: 0, colour: road },
-    { a: (hw) => hw, ah: 0, b: (hw) => hw, bh: kh, colour: kerb },
-    { a: (hw) => hw, ah: kh, b: (hw) => hw + kw, bh: kh, colour: kerb },
-    { a: (hw) => hw + kw, ah: kh, b: (hw) => hw + kw, bh: 0, colour: kerb },
-    { a: (hw) => hw + kw, ah: 0, b: (hw) => hw + kw + sw, bh: -drop, colour: shoulder },
+    { a: (hw) => -(hw + kw + sw), ah: -drop, b: (hw) => -(hw + kw), bh: 0, colour: shoulder, mark: M.shoulder },
+    { a: (hw) => -(hw + kw), ah: 0, b: (hw) => -(hw + kw), bh: kh, colour: kerb, mark: M.kerb },
+    { a: (hw) => -(hw + kw), ah: kh, b: (hw) => -hw, bh: kh, colour: kerb, mark: M.kerb },
+    { a: (hw) => -hw, ah: kh, b: (hw) => -hw, bh: 0, colour: kerb, mark: M.kerb },
+    { a: (hw) => -hw, ah: 0, b: (hw) => hw, bh: 0, colour: road, mark: M.road },
+    { a: (hw) => hw, ah: 0, b: (hw) => hw, bh: kh, colour: kerb, mark: M.kerb },
+    { a: (hw) => hw, ah: kh, b: (hw) => hw + kw, bh: kh, colour: kerb, mark: M.kerb },
+    { a: (hw) => hw + kw, ah: kh, b: (hw) => hw + kw, bh: 0, colour: kerb, mark: M.kerb },
+    { a: (hw) => hw + kw, ah: 0, b: (hw) => hw + kw + sw, bh: -drop, colour: shoulder, mark: M.shoulder },
   ];
 
   const { i0, i1 } = sampleRange(lut, u0, u1);
@@ -58,6 +65,7 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   const pos = new Float32Array(total * 3);
   const col = new Float32Array(total * 3);
   const uv = new Float32Array(total * 2);
+  const mark = new Float32Array(total);
   const idx = new Uint32Array(strips.length * (count - 1) * 6);
 
   let v = 0, f = 0;
@@ -79,6 +87,8 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
         pos[v * 3 + 2] = lut.pz[j] + lut.rz[j] * l;
         col[v * 3] = c[0]; col[v * 3 + 1] = c[1]; col[v * 3 + 2] = c[2];
         uv[v * 2] = side; uv[v * 2 + 1] = s / tile;
+        // a branch's blended ends are plain: no stripes, no lines where it slides under the main road
+        mark[v] = inBlend && strip.mark !== M.road ? M.plain : strip.mark;
         v++;
       }
     }
@@ -94,6 +104,7 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   g.setAttribute('position', new BufferAttribute(pos, 3));
   g.setAttribute('color', new BufferAttribute(col, 3));
   g.setAttribute('uv', new BufferAttribute(uv, 2));
+  g.setAttribute('mark', new BufferAttribute(mark, 1));
   g.setIndex(new BufferAttribute(idx, 1));
   g.computeVertexNormals();
   g.computeBoundingSphere();
