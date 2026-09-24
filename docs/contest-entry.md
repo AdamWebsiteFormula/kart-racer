@@ -17,12 +17,12 @@ What's in it:
 - 13 original items, held two at a time: roll over rivals as a giant **Strike Ball**, boing over trouble on a **Pogo Spring**, hook the racer ahead with a **Grapple Anchor** and slingshot past
 - A giant creature on every track: a lava-rock dinosaur whose stomp sends a shock ring across the road, a snowball-throwing yeti, a kraken that slams a tentacle across the boardwalk, and more
 - Tracks built from research into what makes Mario Kart World's courses fun: a neon **loop-the-loop** you ride upside down, **geysers** that blast you into the air for a trick, rows of snow moguls and sand dunes to trick off, real ramps, glowing boost pads, and cliff edges with no walls (fall off and a giant claw carries you back)
-- **Final Lap Shift:** on the last lap every track changes (a storm rolls in, the bridge goes down, the tide comes in)
+- **Final Lap Shift:** on the last lap every track changes (a storm rolls in, the bridge goes down and the only way on is through a lantern-lit mine, the tide comes in)
 - Grand Prix, Knockout (8 start, only 2 finish), Time Trial and a Daily Challenge with a global leaderboard
 - Plays on keyboard, gamepad, and phone (turn it sideways)
 
 How AI built it:
-- **Claude Code** (Opus): designed and wrote the whole game: physics, AI rivals, items, tracks, UI, tests (520 of them) and deploy. It also ran teams of AI reviewers that hunted bugs and wrote the tests that prove the fixes
+- **Claude Code** (Opus): designed and wrote the whole game: physics, AI rivals, items, tracks, UI, tests (569 of them) and deploy. It also ran teams of AI reviewers that hunted bugs and wrote the tests that prove the fixes
 - **Higgsfield**: every racer, creature, landmark and item model (AI images turned into 3D), the painted skies and the item art
 - **ElevenLabs**: all the music and every sound effect
 - **Supabase**: the leaderboard
@@ -53,7 +53,7 @@ Recording tips:
 
 ## Which prize fits
 
-- **Best Game:** the full package: modes, leaderboard, 520 automated tests, AI bug hunts.
+- **Best Game:** the full package: modes, leaderboard, 569 automated tests, AI bug hunts.
 - **Most Creative:** the Final Lap Shift, the course creatures, the claw rescue, the neon loop, and our own items (Strike Ball, Grapple Anchor, Pogo Spring).
 - **Eye Candy:** AI-made 3D cast and creatures, painted skies, night neon on Boardwalk Nights.
 - **One More Go:** the Daily Challenge seed and its leaderboard.
