@@ -60,8 +60,8 @@ Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, f
 const hemi = new HemisphereLight(0xcfe8ff, 0x7a6a4f, 0.9);
 const fill = new AmbientLight(0xbcd8ff, 0.5);
 scene.add(sun, sun.target, hemi, fill);
-/** The sun's place relative to what the camera looks at: the track's own compass direction, low in the sky (about 34°) so shadows are long. */
-const SUN_ELEVATION = 0.6, SUN_DISTANCE = 140;
+/** The sun's place relative to what the camera looks at: the track's own compass direction, low in the sky (about 24°, late afternoon) so shadows are long and every prop has a lit side and a shadow side. */
+const SUN_ELEVATION = 0.42, SUN_DISTANCE = 140;
 function sunOffset(dir: [number, number, number] | undefined): Vec3 {
   const x = dir?.[0] ?? 0.4, z = dir?.[2] ?? 0.3, h = Math.hypot(x, z) || 1;
   const c = Math.cos(SUN_ELEVATION) * SUN_DISTANCE;

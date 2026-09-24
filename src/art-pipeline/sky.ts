@@ -67,9 +67,10 @@ void main() {
     // once round the dome; the painting's bottom edge sits on the horizon, its top panoSpan up
     float u = atan(d.x, -d.z) / 6.2831853 + 0.5;
     float v = clamp(asin(clamp(y, 0.0, 1.0)) / panoSpan, 0.002, 0.998);
-    vec3 a = texture2D(pano, vec2(u, v)).rgb;
+    // no mipmaps: u jumps from 1 to 0 at the seam, and a mip picked from that jump draws a line down the sky
+    vec3 a = textureLod(pano, vec2(u, v), 0.0).rgb;
     // the one seam: the left edge fades into a mirror of the right edge, so both sides meet
-    vec3 b = texture2D(pano, vec2(1.0 - u, v)).rgb;
+    vec3 b = textureLod(pano, vec2(1.0 - u, v), 0.0).rgb;
     vec3 p = mix(b, a, smoothstep(0.0, 0.04, u));
     // a little richer than the file: the tone mapping after this pass softens paint the most
     float l = dot(p, vec3(0.2126, 0.7152, 0.0722));

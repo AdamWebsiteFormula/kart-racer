@@ -8,10 +8,10 @@ export const CAM = Object.freeze({
   /** loop-the-loop side view: out to the left by this many ring radii, back by this many, up by this many; its lag, 1/s */
   loopSide: 2.4, loopBack: 0.3, loopHeight: 1.1, loopLag: 2.2,
   /** metres behind the kart at a standstill */
-  back: 7.5,
+  back: 6.3,
   /** extra metres of back-off at top speed */
-  backAtSpeed: 2.5,
-  height: 3.2,
+  backAtSpeed: 1.8,
+  height: 2.8,
   /** metres ahead of the kart the camera looks */
   aheadLook: 8,
   lookHeight: 1.0,

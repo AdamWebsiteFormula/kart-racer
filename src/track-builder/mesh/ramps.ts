@@ -95,7 +95,7 @@ function rampTexture(palette: TrackPalette): DataTexture {
 
 /** Trick bumps by biome: sand dunes, snow moguls, turf humps; elsewhere the shoulder's colour. */
 const HUMP_TINT: Readonly<Partial<Record<string, Rgb>>> = Object.freeze({
-  canyon: [0.96, 0.7, 0.46], frost: [0.95, 0.975, 1], meadow: [0.55, 0.78, 0.36],
+  canyon: [0.96, 0.7, 0.46], frost: [0.95, 0.975, 1], meadow: [0.72, 0.52, 0.3], // meadow: dirt mounds (green ones read as grass through the road)
 });
 
 /** A trick bump: its biome's ground with a dashed accent line along its crest. */
