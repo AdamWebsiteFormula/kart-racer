@@ -56,13 +56,15 @@ const ITEM_USE: Readonly<Record<string, SfxId>> = Object.freeze({
 function kartCue(e: KartEvent): SfxId | null {
   switch (e.type) {
     case 'hop': return 'hop';
-    case 'driftTierUp': return 'tierUp';
+    // each spark color its own zap (blue, orange, purple), pitched up the tiers in `direct`
+    case 'driftTierUp': return e.tier >= 3 ? 'tierUp3' : e.tier === 2 ? 'tierUp2' : 'tierUp';
     case 'boostStart':
       switch (e.source) {
         case 'drift': return e.multiplier > 0 && e.seconds > 2 ? 'boost3' : e.seconds > 1 ? 'boost2' : 'boost1';
         case 'pad': return 'boostPad';
         case 'trick': return 'boostTrick';
         case 'start': return 'boostStart';
+        case 'slipstream': return 'slipstream';
         case 'item': return null; // the item cue already played
         default: return null;
       }
@@ -80,10 +82,10 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
   out.length = 0;
   music.length = 0;
   const me = l.playerId;
-  const push = (sfx: SfxId, racerId: string | null, gain = 1) => {
+  const push = (sfx: SfxId, racerId: string | null, gain = 1, rate = 1) => {
     const sp = racerId ? spatial(l, racerId) : { gain: 1, pan: 0 };
     const g = sp.gain * gain;
-    if (g > 0.01) out.push({ sfx, gain: g, pan: sp.pan });
+    if (g > 0.01) out.push(rate === 1 ? { sfx, gain: g, pan: sp.pan } : { sfx, gain: g, pan: sp.pan, rate });
   };
   for (const e of race) {
     switch (e.type) {
@@ -96,7 +98,14 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         push(e.isFinal ? 'finalLap' : 'lap', null);
         if (e.isFinal) music.push({ type: 'finalLap' });
         break;
-      case 'finish': if (e.racerId === me) push(e.rank <= goodRank && !e.dnf ? 'finish' : 'finishLow', null); break;
+      case 'finish': {
+        if (e.racerId !== me) break;
+        // the race song stops so the sting plays alone, and the results song waits for its last chord
+        const win = e.rank <= goodRank && !e.dnf;
+        push(win ? 'finish' : 'finishLow', null);
+        music.push({ type: 'finish', win });
+        break;
+      }
       case 'positionChange':
         // only the player's own place changes, measured against the last one (the grid slot at first)
         if (e.racerId === me) push(e.rank < (lastRank ?? e.rank) ? 'gainPlace' : 'losePlace', null, 0.6);
@@ -133,7 +142,8 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         // second of two other karts stay quiet (the player's own plays at full level)
         if (e.event.type === 'bump' && e.racerId !== me && (e.event.otherId === me || e.racerId > e.event.otherId)) break;
         // other racers' drift and hop noise is clutter: only walls, bumps and hits carry
-        if (id && (e.racerId === me || id === 'wall' || id === 'bump' || id === 'hit' || id === 'spin')) push(id, e.racerId);
+        const rate = e.event.type === 'driftTierUp' ? AUDIO.tierRates[Math.min(AUDIO.tierRates.length, Math.max(1, e.event.tier)) - 1] : 1;
+        if (id && (e.racerId === me || id === 'wall' || id === 'bump' || id === 'hit' || id === 'spin')) push(id, e.racerId, 1, rate);
         if (e.event.type === 'hit') { const y = yelpFor(e.racerId); if (y) push(y, e.racerId, 0.8); }
         break;
       }
@@ -146,6 +156,7 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
       default: break;
     }
   }
+  let confirmed = false;
   for (const e of items) {
     switch (e.type) {
       case 'itemReady': if (e.racerId === me) push('itemReady', null); break;
@@ -154,6 +165,9 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         push(e.spun ? 'spin' : 'hit', e.racerId);
         { const y = yelpFor(e.racerId); if (y) push(y, e.racerId, 0.8); }
         if (e.racerId === me) music.push({ type: 'duck' });
+        // the player's own item landed: a payoff at full level however far ahead the rival is,
+        // once a tick however many it caught
+        if (e.byRacerId === me && e.racerId !== me && !confirmed) { confirmed = true; push('hitConfirm', null); }
         break;
       case 'shieldPop': push('shieldPop', e.racerId); break;
       case 'springLaunch': push('boing', e.racerId); break;

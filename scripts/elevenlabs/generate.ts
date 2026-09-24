@@ -9,7 +9,7 @@
 //   add --force to remake files that already exist, --budget=N to cap the credits one run may spend
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { fileFor, SFX, SONGS, type SfxSpec, type SongSpec } from './catalog.ts';
+import { fileFor, SFX, sfxBody, songBody, SONGS, type SfxSpec, type SongSpec } from './catalog.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 const OUT = new URL('public/audio/', ROOT);
@@ -87,9 +87,7 @@ async function save(url: URL, r: Response): Promise<number> {
 }
 
 async function makeSfx(key: string, s: SfxSpec): Promise<string> {
-  const r = await post(key, '/v1/sound-generation?output_format=mp3_44100_128', {
-    text: s.prompt, duration_seconds: s.seconds, prompt_influence: s.influence ?? 0.35, loop: s.loop ?? false, model_id: 'eleven_text_to_sound_v2',
-  });
+  const r = await post(key, '/v1/sound-generation?output_format=mp3_44100_128', sfxBody(s));
   if (!r.ok) return `FAILED ${await failure(r)}`;
   const cost = charge(r);
   return `${Math.round((await save(sfxPath(s), r)) / 1024)} KB, ${cost} credits`;
@@ -98,9 +96,8 @@ async function makeSfx(key: string, s: SfxSpec): Promise<string> {
 let musicModel = 0;
 async function makeSong(key: string, s: SongSpec): Promise<string> {
   for (;;) {
-    const r = await post(key, '/v1/music?output_format=mp3_44100_128', {
-      prompt: s.prompt, music_length_ms: s.seconds * 1000, model_id: MUSIC_MODELS[musicModel], force_instrumental: true,
-    });
+    // instrumental always (songBody): no singing in any song
+    const r = await post(key, '/v1/music?output_format=mp3_44100_128', songBody(s, MUSIC_MODELS[musicModel]));
     if (r.ok) { const cost = charge(r); return `${Math.round((await save(songPath(s), r)) / 1024)} KB, ${cost} credits (${MUSIC_MODELS[musicModel]})`; }
     const why = await failure(r);
     // an unknown or locked model: fall back to the older one once

@@ -221,6 +221,7 @@ const host: UiHost = {
   },
   quitRace() { startAttract(); },
   setPaused(p) {
+    audio.pause(p); // the music drops back under the pause menu
     if (!p) acc.reset();
   },
   settingsChanged(s) { settings = s; governor.reset(performance.now() / 1000); applyRender(); audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume }); },

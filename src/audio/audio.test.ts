@@ -5,7 +5,7 @@ import { createGrandPrix, createKnockout, nextRace } from '../race-manager/serie
 import type { RaceEvent, RacerConfig } from '../race-manager/types.ts';
 import { AUDIO } from './constants.ts';
 import { direct, distanceGain, finishLine, hornFor, resetDirector, type Listener } from './director.ts';
-import { engineHz, gearFor, rpmFor } from './engine.ts';
+import { engineHz, gearFor, offroadAmount, rpmFor } from './engine.ts';
 import { DRUMS, SONGS, keyPcs, line, songForTrack } from './music/patterns.ts';
 import { Sequencer } from './music/sequencer.ts';
 import { chord, freq, midi } from './music/theory.ts';
@@ -130,6 +130,19 @@ describe('engine', () => {
   });
 });
 
+describe('off-road rumble', () => {
+  it('only with the wheels down on dirt or mud, growing with speed to full at top speed', () => {
+    const k = (surface: 'road' | 'dirt' | 'mud' | 'ice', speed: number, grounded = true) => ({ surface, speed, grounded });
+    expect(offroadAmount(k('road', 20), 25)).toBe(0);
+    expect(offroadAmount(k('ice', 20), 25)).toBe(0);
+    expect(offroadAmount(k('dirt', 12.5), 25)).toBeCloseTo(0.5);
+    expect(offroadAmount(k('mud', 30), 25)).toBe(1);
+    expect(offroadAmount(k('dirt', -5), 25)).toBeCloseTo(0.2); // reversing out of the grass
+    expect(offroadAmount(k('dirt', 20, false), 25)).toBe(0); // a hop over the grass is quiet
+    expect(offroadAmount(k('dirt', 20), 0)).toBe(0);
+  });
+});
+
 describe('director', () => {
   it('race events map to cues; the countdown mutes the drums and go brings them back', () => {
     resetDirector();
@@ -144,7 +157,7 @@ describe('director', () => {
     ];
     const { cues, music } = direct(ev, [], listener());
     expect(cues.map((c) => c.sfx)).toEqual(['count', 'go', 'lap', 'balloon', 'coin', 'wrongWay', 'finish']);
-    expect(music).toEqual([{ type: 'drums', on: false }, { type: 'drums', on: true }]);
+    expect(music).toEqual([{ type: 'drums', on: false }, { type: 'drums', on: true }, { type: 'finish', win: true }]);
   });
 
   it('the final-lap fanfare and the music lift come on the player\'s own last lap, not the leader\'s', () => {
@@ -186,6 +199,40 @@ describe('director', () => {
       k('n', { type: 'bump', otherId: 'q' }),
     ], [], listener({ n: [2, 0, 0] }));
     expect(cues.map((c) => c.sfx)).toEqual(['boost3', 'boost1', 'boostPad', 'bump']);
+  });
+
+  it('the slipstream boost whooshes; each drift spark tier has its own zap, climbing in pitch', () => {
+    const k = (racerId: string, event: object) => ({ type: 'kart', racerId, event }) as RaceEvent;
+    const { cues } = direct([
+      k('p', { type: 'boostStart', source: 'slipstream', multiplier: 1.12, seconds: 1.5 }),
+      k('p', { type: 'driftTierUp', tier: 1 }),
+      k('p', { type: 'driftTierUp', tier: 2 }),
+      k('p', { type: 'driftTierUp', tier: 3 }),
+      k('n', { type: 'boostStart', source: 'slipstream', multiplier: 1.12, seconds: 1.5 }), // a rival's draft: clutter
+    ], [], listener({ n: [2, 0, 0] }));
+    expect(cues.map((c) => c.sfx)).toEqual(['slipstream', 'tierUp', 'tierUp2', 'tierUp3']);
+    const rates = cues.slice(1).map((c) => c.rate ?? 1);
+    expect(rates[0]).toBe(1);
+    expect(rates[1]).toBeGreaterThan(rates[0]);
+    expect(rates[2]).toBeGreaterThan(rates[1]);
+  });
+
+  it('the player\'s item landing on a rival confirms at full level however far ahead; once a tick; never for their own hits', () => {
+    const hit = (racerId: string, byRacerId: string) => ({ type: 'hit' as const, racerId, byRacerId, itemId: 'homingKite', spun: true, coinsLost: 0 });
+    const l = listener({ far: [AUDIO.farMetres * 3, 0, 0], a: [4, 0, 0], b: [5, 0, 0] });
+    expect(direct([], [hit('far', 'p')], l).cues).toEqual([{ sfx: 'hitConfirm', gain: 1, pan: 0 }]); // the rival's own spin is out of earshot
+    const strike = direct([], [hit('a', 'p'), hit('b', 'p')], l).cues.map((c) => c.sfx);
+    expect(strike.filter((s) => s === 'hitConfirm')).toHaveLength(1);
+    expect(direct([], [hit('a', 'b')], l).cues.map((c) => c.sfx)).not.toContain('hitConfirm');
+    expect(direct([], [hit('p', 'a')], l).cues.map((c) => c.sfx)).not.toContain('hitConfirm');
+  });
+
+  it('crossing the line stops the race song for the sting (the win flag picks the fanfare)', () => {
+    resetDirector(8);
+    const fin = (racerId: string, rank: number) => direct([{ type: 'finish', racerId, rank, tick: 1, dnf: false }], [], listener());
+    expect(fin('p', 1).music).toEqual([{ type: 'finish', win: true }]);
+    expect(fin('p', AUDIO.podium + 1).music).toEqual([{ type: 'finish', win: false }]);
+    expect(fin('x', 1).music).toEqual([]); // a rival's finish leaves the song alone
   });
 
   it('one bump per contact: the player\'s own at full level, never doubled by the partner\'s; two others once', () => {

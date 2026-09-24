@@ -9,16 +9,18 @@ export type SfxId =
   | 'claw' | 'clawDrop'
   | 'loop'
   | 'ventWarn' | 'geyser' | 'steamVent'
-  | 'hit' | 'spin' | 'boost1' | 'boost2' | 'boost3' | 'boostPad' | 'boostTrick' | 'boostStart'
-  | 'tierUp' | 'hop' | 'land' | 'wall' | 'bump' | 'wrongWay' | 'gainPlace' | 'losePlace'
+  | 'hit' | 'hitConfirm' | 'spin' | 'boost1' | 'boost2' | 'boost3' | 'boostPad' | 'boostTrick' | 'boostStart'
+  | 'slipstream' | 'tierUp' | 'tierUp2' | 'tierUp3' | 'hop' | 'land' | 'wall' | 'bump' | 'wrongWay' | 'gainPlace' | 'losePlace'
   | 'respawn' | 'uiMove' | 'uiConfirm' | 'uiBack'
   | 'horn:pip' | 'horn:momo' | 'horn:nova' | 'horn:juniper' | 'horn:otto' | 'horn:sprocket' | 'horn:boulder' | 'horn:gus'
   | 'yelp:pip' | 'yelp:momo' | 'yelp:nova' | 'yelp:juniper' | 'yelp:otto' | 'yelp:sprocket' | 'yelp:boulder' | 'yelp:gus';
 
 export type SongId = 'title' | 'raceSunrise' | 'raceSummit' | 'results';
 
-/** One sound to play now. `gain` 0–1 on top of the patch's own level; `pan` −1..1. */
-export interface Cue { sfx: SfxId; gain: number; pan: number }
+/** One sound to play now. `gain` 0–1 on top of the patch's own level; `pan` −1..1; `rate` a pitch factor (1 when absent). */
+export interface Cue { sfx: SfxId; gain: number; pan: number; rate?: number }
 
 /** Music-side reactions to the race. */
-export type MusicCue = { type: 'finalLap' } | { type: 'drums'; on: boolean } | { type: 'duck' } | { type: 'song'; song: SongId };
+export type MusicCue = { type: 'finalLap' } | { type: 'drums'; on: boolean } | { type: 'duck' } | { type: 'song'; song: SongId }
+  /** the player crossed the line: the race song stops for the sting (`win`: the fanfare, else the nice-try jingle) */
+  | { type: 'finish'; win: boolean };

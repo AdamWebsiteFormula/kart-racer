@@ -1,4 +1,5 @@
 // Engine sound maths: speed → rpm through a fake gearbox, rpm → pitch. Pure.
+import type { KartState } from '../kart-controller/types.ts';
 import { AUDIO } from './constants.ts';
 
 /** Which gear (0-based) a speed fraction sits in; gears are equal slices of top speed. */
@@ -27,4 +28,13 @@ export function rpmFor(speed: number, topSpeed: number, boosting = false): numbe
 /** Oscillator base frequency for an rpm (linear, idle → engineIdleHz). */
 export function engineHz(rpm: number): number {
   return AUDIO.engineIdleHz * (rpm / AUDIO.idleRpm);
+}
+
+/**
+ * How loud the off-road rumble is, 0..1: the wheels on dirt or mud (the land beside the road and
+ * the mud patches report `dirt` and `mud`), growing with speed. Airborne or on the road: none.
+ */
+export function offroadAmount(k: Pick<KartState, 'grounded' | 'surface' | 'speed'>, topSpeed: number): number {
+  if (!k.grounded || (k.surface !== 'dirt' && k.surface !== 'mud') || !(topSpeed > 0)) return 0;
+  return Math.min(1, Math.abs(k.speed) / topSpeed);
 }

@@ -3,9 +3,10 @@ import { AUDIO } from './constants.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
 import {
   bandRate, bandWeights, barLength, ENGINE_BANDS, envelope, FANFARE_SECONDS, leadIn, levelGain, loopPoints, meanRms,
-  mixLevel, onsets, peakRms, RACE_THEME, SampleBank, SongPlayer, themeForTrack, type Sample,
+  mixLevel, onsets, peakRms, RACE_THEME, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample,
 } from './samples.ts';
 import { PATCHES } from './sfx.ts';
+import { SFX, sfxBody, SONGS, songBody } from '../../scripts/elevenlabs/catalog.ts';
 
 const HOP = 0.01;
 
@@ -94,9 +95,48 @@ describe('music map', () => {
     if (!fs.existsSync(path)) return; // a checkout without recordings plays the synth
     const m = JSON.parse(fs.readFileSync(path, 'utf8')) as { sfx: Record<string, { url: string }>; music: Record<string, { url: string }> };
     for (const id of Object.keys(PATCHES)) expect(m.sfx[id], id).toBeDefined();
-    for (const id of ['engine-idle', 'engine-mid', 'engine-high', 'drift']) expect(m.sfx[id], id).toBeDefined();
+    for (const id of ['engine-idle', 'engine-mid', 'engine-high', 'drift', 'offroad']) expect(m.sfx[id], id).toBeDefined();
     for (const key of [...new Set(Object.values(RACE_THEME)), 'title', 'results']) expect(m.music[key], key).toBeDefined();
     for (const e of [...Object.values(m.sfx), ...Object.values(m.music)]) expect(fs.existsSync(new URL(`../../public/${e.url}`, import.meta.url)), e.url).toBe(true);
+  });
+});
+
+describe('no singing and no human voices (Adam, 24 Sept 2026)', () => {
+  it('every song asks for no vocals, and every song request forces an instrumental', () => {
+    expect(SONGS.length).toBeGreaterThanOrEqual(7);
+    for (const s of SONGS) {
+      expect(s.prompt, s.id).toMatch(/\binstrumental, no vocals\b/i);
+      expect(s.prompt, s.id).not.toMatch(/\b(sing(s|ing|ers?)?|sung|vocal(?!s\b)\w*|voices?|choir|chant\w*|lyrics?|humming)\b/i);
+      expect(songBody(s, 'music_v2_5').force_instrumental, s.id).toBe(true);
+      expect(songBody(s, 'music_v2_5').prompt).toBe(s.prompt);
+    }
+  });
+
+  it('generate.ts sends exactly the catalog request bodies', async () => {
+    const fs = (await import('node:fs' as string)) as { readFileSync(p: URL, enc: 'utf8'): string };
+    const src = fs.readFileSync(new URL('../../scripts/elevenlabs/generate.ts', import.meta.url), 'utf8');
+    expect(src).toMatch(/post\(key, '\/v1\/music[^']*', songBody\(s, /);
+    expect(src).toMatch(/post\(key, '\/v1\/sound-generation[^']*', sfxBody\(s\)\)/);
+    expect(src).not.toMatch(/force_instrumental/); // only songBody sets it
+    expect(sfxBody(SFX[0]).text).toBe(SFX[0].prompt);
+  });
+
+  it('no sound effect asks for a human voice: no crowd, cheer, chant, shout or singing', () => {
+    // the racers' yelps and horns are their own creature and toy noises (design §5, §11)
+    for (const s of SFX) {
+      expect(s.prompt, s.id).not.toMatch(/\b(crowds?|cheer(s|ing)?|chant\w*|shout\w*|sing(s|ing|ers?)?|sung|choir|vocal\w*|people|person|announcer|laugh\w*|scream\w*)\b|"[a-z]+!?"/i);
+    }
+  });
+
+  it('every sound the game can cue has a catalog entry, the rumble loops, and the stings fit their wait', () => {
+    const ids = new Map(SFX.map((s) => [s.id, s]));
+    for (const id of Object.keys(PATCHES)) expect(ids.has(id), id).toBe(true);
+    expect(ids.get('offroad')?.loop).toBe(true);
+    expect(STING_SECONDS.finish).toBeGreaterThanOrEqual(ids.get('finish')!.seconds);
+    expect(STING_SECONDS.finishLow).toBeGreaterThanOrEqual(ids.get('finishLow')!.seconds);
+    // the drift tiers stand out more as they climb
+    expect(mixLevel('tierUp2')).toBeGreaterThan(mixLevel('tierUp'));
+    expect(mixLevel('tierUp3')).toBeGreaterThan(mixLevel('tierUp2'));
   });
 });
 

@@ -27,6 +27,8 @@ const SFX_RMS = 0.2, LOOP_RMS = 0.16, SONG_RMS = 0.16;
 const FADE_IN = 0.008, TAIL = 0.15;
 /** the final-lap fanfare's length: the music waits this long before it comes back faster */
 export const FANFARE_SECONDS = 2.1;
+/** the finish stings' lengths (catalog `finish`, `finishLow`, plus a breath): the results song waits for their last chord */
+export const STING_SECONDS = Object.freeze({ finish: 3.6, finishLow: 2.3 });
 
 // ---------------------------------------------------------------- analysis (pure)
 
@@ -85,8 +87,8 @@ const MIX: Readonly<Record<string, number>> = Object.freeze({
   fizz: 1, strikeRoll: 1, strike: 1.1, boing: 0.9, slam: 1.1, anchor: 0.9, slingshot: 0.9, mouse: 0.8, blocked: 0.8, denied: 0.6, trail: 0.6,
   roar: 1.2, stomp: 1.2, yetiThrow: 0.9, snowThud: 1, krakenRise: 1, krakenSlam: 1.2, crabClack: 0.9, honk: 1.1, whaleSong: 1, tailSlap: 1.1,
   claw: 1, clawDrop: 0.9, loop: 0.9, ventWarn: 0.7, geyser: 0.9, steamVent: 0.85,
-  hit: 1, spin: 1,
-  boost1: 0.75, boost2: 0.85, boost3: 1, boostPad: 0.85, boostTrick: 0.9, boostStart: 1, tierUp: 0.5,
+  hit: 1, hitConfirm: 0.9, spin: 1,
+  boost1: 0.75, boost2: 0.85, boost3: 1, boostPad: 0.85, boostTrick: 0.9, boostStart: 1, slipstream: 0.85, tierUp: 0.5, tierUp2: 0.6, tierUp3: 0.7,
   hop: 0.6, land: 0.7, wall: 0.8, bump: 0.8,
   gainPlace: 0.6, losePlace: 0.5, wrongWay: 0.8, respawn: 0.8,
 });
@@ -357,16 +359,17 @@ export class SongPlayer {
 }
 
 /**
- * An engine from looped recordings. The player's has three bands crossfaded by rpm (plan §7.4)
- * and the drift screech; the others' have the mid band only, panned.
+ * An engine from looped recordings. The player's has three bands crossfaded by rpm (plan §7.4),
+ * the drift screech and the off-road rumble; the others' have the mid band only, panned.
  */
 export class LoopEngine {
   private readonly bands: { src: AudioBufferSourceNode; g: GainNode; s: Sample; band: number }[] = [];
   private readonly out: GainNode;
   private readonly pan: StereoPannerNode | null = null;
   private readonly screech: { g: GainNode; s: Sample } | null = null;
+  private readonly rumble: { g: GainNode; s: Sample } | null = null;
 
-  constructor(ctx: BaseAudioContext, dest: AudioNode, loops: readonly (Sample | undefined)[], drift: Sample | undefined, panned: boolean) {
+  constructor(ctx: BaseAudioContext, dest: AudioNode, loops: readonly (Sample | undefined)[], drift: Sample | undefined, panned: boolean, offroad?: Sample) {
     this.out = ctx.createGain();
     this.out.gain.value = 0;
     if (panned && 'createStereoPanner' in ctx) {
@@ -390,17 +393,22 @@ export class LoopEngine {
       g.connect(this.out);
       this.bands.push({ src: loop(s, g), g, s, band });
     });
-    if (drift) {
+    const layer = (s: Sample) => {
       const g = ctx.createGain();
       g.gain.value = 0;
       g.connect(dest);
-      loop(drift, g);
-      this.screech = { g, s: drift };
-    }
+      loop(s, g);
+      return { g, s };
+    };
+    if (drift) this.screech = layer(drift);
+    if (offroad) this.rumble = layer(offroad);
   }
 
-  /** Follow the rpm; `level` is the engine's loudness, `screech` the drift screech's, `pan` −1..1. */
-  set(t: number, rpm: number, level: number, screech = 0, pan = 0): void {
+  /** Whether this engine plays the recorded off-road rumble (else the synth one stands in). */
+  get hasRumble(): boolean { return this.rumble !== null; }
+
+  /** Follow the rpm; `level` is the engine's loudness, `screech` the drift screech's, `rumble` the off-road's, `pan` −1..1. */
+  set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0): void {
     const w = bandWeights(rpm);
     for (const b of this.bands) {
       b.src.playbackRate.setTargetAtTime(bandRate(rpm, b.band), t, 0.03);
@@ -409,5 +417,6 @@ export class LoopEngine {
     this.out.gain.setTargetAtTime(level, t, 0.05);
     this.pan?.pan.setTargetAtTime(pan, t, 0.1);
     if (this.screech) this.screech.g.gain.setTargetAtTime(screech * this.screech.s.gain, t, 0.05);
+    if (this.rumble) this.rumble.g.gain.setTargetAtTime(rumble * this.rumble.s.gain, t, 0.05);
   }
 }
