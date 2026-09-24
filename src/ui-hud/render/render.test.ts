@@ -275,6 +275,21 @@ describe('leaderboard panel', () => {
     ui.dispose();
   });
 
+  it('a slower run under a name already on the board: the name\'s best row is yours, and the status says it still holds (bug hunt 3)', async () => {
+    const board = [{ id: 'old', name: 'Judge', racerId: 'momo', timeMs: 92800 }, { id: 'b', name: 'Ada', racerId: 'gus', timeMs: 95000 }];
+    const { ui } = setup(board, { ok: true, id: 'new', timeMs: 97000, rank: 1, best: { id: 'old', timeMs: 92800 } });
+    await flush();
+    const input = document.querySelector('#ui .name-input') as HTMLInputElement;
+    input.value = 'Judge';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+    await flush(); await flush();
+    expect(document.querySelector('#ui .board-status')?.textContent).toBe('Saved. Your best, 1:32.80, is still 1st on this board.');
+    expect(document.querySelector('#ui [data-id="post"]')?.textContent).toMatch(/Posted!/);
+    const me = [...document.querySelectorAll('#ui .board-row.me .nm')].map((e) => e.textContent);
+    expect(me).toEqual(['Judge']);
+    ui.dispose();
+  });
+
   it('letters typed in the name box never move the menu focus', async () => {
     const { ui } = setup([]);
     await flush();

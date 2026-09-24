@@ -259,7 +259,7 @@ export class UiRoot {
     const r = await lb.post({ ...o.board.draft, name });
     if (this.lastOver !== o) return;
     if (r.ok) {
-      this.boardPost = { state: 'posted', id: r.id, rank: r.rank };
+      this.boardPost = { state: 'posted', id: r.id, rank: r.rank, best: r.best };
       this.save.playerName = name;
       writeSave(this.backend, this.save);
       this.refreshBoard();

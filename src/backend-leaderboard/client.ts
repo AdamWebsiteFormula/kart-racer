@@ -5,7 +5,11 @@ import type { BoardMode, Submission } from './rules.ts';
 
 export interface BoardRow { id: string; name: string; racerId: string; timeMs: number; lapTimesMs: number[]; createdAt: string }
 
-export type PostResult = { ok: true; id: string; timeMs: number; rank: number | null } | { ok: false; error: string };
+/**
+ * rank is the name's place on its board (null outside the top 50). The board keeps each name's
+ * best run: `best` is that run, this one unless an earlier run under the name was faster.
+ */
+export type PostResult = { ok: true; id: string; timeMs: number; rank: number | null; best: { id: string; timeMs: number } } | { ok: false; error: string };
 
 export interface LeaderboardClient {
   fetchBoard(trackId: string, mode: BoardMode, dailySeed: number | null, limit?: number): Promise<BoardRow[] | null>;
@@ -45,8 +49,11 @@ export function leaderboardClient(f: typeof fetch = (...a) => fetch(...a)): Lead
     async post(s) {
       try {
         const r = await call('/functions/v1/submit-score', s, f);
-        const body = (await r.json().catch(() => ({}))) as { id?: string; timeMs?: number; rank?: number | null; error?: string };
-        if (r.status === 201 && body.id) return { ok: true, id: body.id, timeMs: body.timeMs ?? s.timeMs, rank: body.rank ?? null };
+        const body = (await r.json().catch(() => ({}))) as { id?: string; timeMs?: number; rank?: number | null; bestId?: string | null; bestMs?: number | null; error?: string };
+        if (r.status === 201 && body.id) {
+          const timeMs = body.timeMs ?? s.timeMs;
+          return { ok: true, id: body.id, timeMs, rank: body.rank ?? null, best: { id: body.bestId ?? body.id, timeMs: body.bestMs ?? timeMs } };
+        }
         if (r.status === 429) return { ok: false, error: 'Too many tries. Wait a minute.' };
         return { ok: false, error: body.error ?? `The server said no (${r.status}).` };
       } catch {

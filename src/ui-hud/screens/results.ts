@@ -84,7 +84,8 @@ export interface BoardVM {
   statusKind: 'info' | 'error' | 'ok';
 }
 
-export interface BoardPost { state: 'idle' | 'posting' | 'posted' | 'failed'; id?: string; rank?: number | null; error?: string }
+/** `best`: the name's run the board shows (one row per name), when an earlier one is faster than this. */
+export interface BoardPost { state: 'idle' | 'posting' | 'posted' | 'failed'; id?: string; rank?: number | null; best?: { id: string; timeMs: number }; error?: string }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -96,13 +97,18 @@ export function seedDate(seed: number): string {
 /** The leaderboard panel of the results screen. Pure. */
 export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, dailySeed: number | null, load: BoardLoad, post: BoardPost): BoardVM {
   const sub = mode === 'daily' ? `Daily Challenge · ${seedDate(dailySeed ?? 0)} · ${trackName}` : `Time Trial · ${trackName} · 150cc`;
+  // the board shows each name's best run: the player's row is that one, not always this run's
+  const best = post.best && post.best.id !== post.id ? post.best : null;
+  const mine = best?.id ?? post.id;
   const rows = typeof load === 'string' ? [] : load.map((r, i) => ({
-    rank: ordinal(i + 1), name: r.name, racer: nameOf(r.racerId), accent: accentOf(r.racerId), time: formatMs(r.timeMs), me: r.id === post.id,
+    rank: ordinal(i + 1), name: r.name, racer: nameOf(r.racerId), accent: accentOf(r.racerId), time: formatMs(r.timeMs), me: r.id === mine,
   }));
   const state = load === 'loading' ? 'loading' : load === 'offline' ? 'offline' : rows.length ? 'rows' : 'empty';
-  const button = post.state === 'posting' ? 'Posting…' : post.state === 'posted' ? (post.rank ? `Posted: ${ordinal(post.rank)}!` : 'Posted!') : 'Post my time';
+  const button = post.state === 'posting' ? 'Posting…' : post.state === 'posted' ? (post.rank && !best ? `Posted: ${ordinal(post.rank)}!` : 'Posted!') : 'Post my time';
   const status = post.state === 'failed' ? post.error ?? 'That did not work.'
-    : post.state === 'posted' ? (post.rank ? `You are ${ordinal(post.rank)} on this board.` : 'Saved. You are outside the top 50 for now.')
+    : post.state === 'posted' ? (!post.rank ? 'Saved. You are outside the top 50 for now.'
+      : best ? `Saved. Your best, ${formatMs(best.timeMs)}, is still ${ordinal(post.rank)} on this board.`
+      : `You are ${ordinal(post.rank)} on this board.`)
     : state === 'offline' ? 'The leaderboard is offline right now.'
     : 'Pick a name, then post your time. The server replays your run to check it.';
   return {
