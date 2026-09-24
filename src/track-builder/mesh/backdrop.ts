@@ -199,6 +199,7 @@ function cityMesh(baseY: number): Mesh {
   // brighter than white where the windows are lit, so the bloom picks them out
   const m = new Mesh(g, new MeshBasicMaterial({ map: windowTexture(), color: new Color(1.6, 1.6, 1.6), side: DoubleSide, fog: false }));
   m.name = 'horizon-city';
+  m.userData.ownMap = true; // the window texture is this mesh's alone: the scene frees it with the mesh
   return m;
 }
 

@@ -45,6 +45,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Measured: 71 draw calls for a whole frame with the shadow pass and the post chain (`renderer.info.autoReset` off so the count covers every pass). The SOP's 12 ms stress-scene gate still needs a visible browser; the test pane is hidden and throttled to about 1 fps.
 - 2026-09-23: Critique (Codex `gpt-5.5`), both accepted: `Vfx.reset()` now also clears the time scale and camera kicks, so a restart mid hit-stop or slow-mo never starts frozen; emitters reuse constant colour tuples and a scratch spark colour instead of per-particle arrays.
 - 2026-09-23: Boost flames sit on the pipes (flames.ts): one additive mesh per pipe on the chassis, shown only while boosting, flickering, longer with more boost left; embers stream off the same pipes in the racer's color. Reduced motion holds the flame steady.
+- 2026-09-24: The chase camera (game/camera.ts clampToRoad, after smoothing) keeps `roadClear` 1.2 m over the ground under its own spot, and where that road is a tunnel's (covered or bore) stays `beamClear` 0.45 m under tunnelWall, below the timber beams. The pose rode the kart's height: on the Canyon mine's exit climb, look-back put the camera under the road (the screen went sand) and driving forward it rose past the beams, which hid the kart. Elsewhere it only lifts a camera about to touch the road (Skyline's steepest drop); four tracks are untouched.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

@@ -71,6 +71,21 @@ describe('RaceManager', () => {
     expect(la.length).toBeGreaterThan(50);
   });
 
+  it('grid: a Knockout round of 6 or 4 puts the player at the back of its own field; a solo run keeps playerGridSlot', () => {
+    const track = buildTrack(HARBOUR_LOOP);
+    for (const n of [8, 6, 4]) {
+      const rs = racers(n, 0);
+      const rm = new RaceManager(track, { ...config(track, rs, 2), mode: 'knockout', knockout: { setId: 'k', segment: (8 - n) / 2, cutLine: n - 2, eliminated: [] } });
+      const slots = rm.state.trackers.map((tr) => tr.gridSlot);
+      // the player last, the AI in the slots in front: no empty rows between them
+      expect(slots[0]).toBe(Math.min(RACE.playerGridSlot, n - 1));
+      expect([...slots].sort((a, b) => a - b)).toEqual(Array.from({ length: n }, (_, i) => i));
+    }
+    // a Time Trial (with its ghost) keeps the slot its stored runs were raced from
+    const tt = new RaceManager(track, { ...config(track, [{ racerId: 'p', archetype: 'medium', isPlayer: true }, { racerId: 'g', archetype: 'medium', isPlayer: false, isGhost: true }]), mode: 'timeTrial' });
+    expect(tt.state.trackers.map((tr) => tr.gridSlot)).toEqual([RACE.playerGridSlot, RACE.playerGridSlot]);
+  });
+
   it('countdown: 3-2-1-go on the right ticks, inputs ignored before go, racing phase after', () => {
     const track = buildTrack(OVAL);
     const rm = new RaceManager(track, config(track, racers(2)));

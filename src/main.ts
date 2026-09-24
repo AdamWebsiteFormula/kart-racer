@@ -14,6 +14,7 @@ import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
 import { BUBBLE_CLOCK, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
+import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
@@ -22,7 +23,7 @@ import { makeConstants } from './kart-controller/constants.ts';
 import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from './race-manager/series.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
-import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
+import { CAM, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { CAST, UiRoot, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
@@ -102,8 +103,11 @@ let governing = false;
 const autoQuality = () => (settings?.quality ?? 'auto') === 'auto';
 function applyRender(): void {
   const auto = autoQuality();
+  // re-read the cap every time: zoom or a move to another screen changes devicePixelRatio
+  const cap = dprCap(devicePixelRatio, coarse);
+  governor.rebase(cap);
   const low = settings?.quality === 'low' || (auto && governor.low);
-  renderer.setPixelRatio(dprCap(devicePixelRatio, coarse) * (settings?.resolutionScale ?? 1) * (auto ? governor.scale : 1));
+  renderer.setPixelRatio(cap * (settings?.resolutionScale ?? 1) * (auto ? governor.scale : 1));
   renderer.shadowMap.enabled = !low;
   post?.setEnabled(!low);
   resize();
@@ -114,7 +118,8 @@ function resize(): void {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
-addEventListener('resize', resize);
+addEventListener('resize', applyRender);
+watchPixelRatio(window, applyRender); // a move between screens need not fire resize
 
 // ---- sessions ----
 /** dev only: the AI drives the player (soak tests through the real loop), and frames stepped by hand */
@@ -295,6 +300,8 @@ function chaseCamera(frameDt: number): void {
   const pose = idealPose([root.x, root.y, root.z], camYaw, camSpeed, lookBack);
   const lag = lookBack ? CAM.flipLag : CAM.lag;
   smoothTo(camPos, pose.position, lag, frameDt);
+  // over the road under the camera, and under a tunnel's beams: the pose rides the kart's height
+  clampToRoad(s.track, camPos, k);
   smoothTo(camLook, pose.target, lag, frameDt);
   camera.fov = fovFor(camSpeed);
 }

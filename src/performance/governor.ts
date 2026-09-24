@@ -2,7 +2,9 @@
 // thing first. Resolution steps down 10 % at a time to a device pixel ratio of 1, then shadows and
 // the post chain go (Low), then resolution steps down again to the floor. It only ever steps down
 // during a race (no mid-race flicker); a race that ran clean earns one step back up at the next
-// start. Pure: fed frame times, never touches the renderer.
+// start. If the whole ladder buys no frame rate, the rate was the display's or the browser's limit
+// (a 30 fps battery saver, a 50 Hz screen), not load: full quality comes back and that rate is held
+// from then on. Pure: fed frame times, never touches the renderer.
 
 export interface GovernorOptions {
   /** frames per second to hold */
@@ -19,9 +21,13 @@ export interface GovernorOptions {
   hitchMs: number;
   /** a race that averaged at least this many fps earns a step back up */
   cleanFps: number;
+  /** steps down all the way that lifted the frame rate by less than this share bought nothing: the rate is a cap, not load */
+  capGain: number;
+  /** once a cap is found, the frame rate to hold is this share of it (a steady 30 on a 30 fps display is not a miss) */
+  capShare: number;
 }
 
-export const GOVERNOR: GovernorOptions = Object.freeze({ target: 55, warmup: 2, window: 1, step: 0.1, min: 0.5, hitchMs: 250, cleanFps: 59 });
+export const GOVERNOR: GovernorOptions = Object.freeze({ target: 55, warmup: 2, window: 1, step: 0.1, min: 0.5, hitchMs: 250, cleanFps: 59, capGain: 0.05, capShare: 0.9 });
 
 export interface Quality {
   /** multiplier on the device pixel ratio cap */
@@ -33,9 +39,11 @@ export interface Quality {
 export class Governor {
   scale = 1;
   low = false;
+  /** the frame rate the display or browser allows (found when stepping down bought nothing); Infinity until then */
+  ceiling = Infinity;
   private readonly o: GovernorOptions;
-  /** the device pixel ratio cap the scale multiplies (2 desktop, 1.5 touch) */
-  private readonly baseDpr: number;
+  /** the device pixel ratio cap the scale multiplies (2 desktop, 1.5 touch); rebase() when the screen changes */
+  private baseDpr: number;
   private since = 0;
   private started = false;
   private frames = 0;
@@ -44,6 +52,8 @@ export class Governor {
   private raceFrames = 0;
   private raceSeconds = 0;
   private dropped = false;
+  /** where this run of steps down began: the quality to put back and the frame rate it had */
+  private descent: { scale: number; low: boolean; fps: number } | null = null;
 
   constructor(baseDpr: number, o: GovernorOptions = GOVERNOR) {
     this.baseDpr = baseDpr;
@@ -52,6 +62,16 @@ export class Governor {
 
   /** The device pixel ratio to render at. */
   get dpr(): number { return this.baseDpr * this.scale; }
+
+  /**
+   * The window moved to a screen with another pixel ratio cap (or the browser zoom changed it).
+   * The scale carries over; above Low it never leaves the pixel ratio under 1.
+   */
+  rebase(baseDpr: number): void {
+    if (baseDpr === this.baseDpr) return;
+    this.baseDpr = baseDpr;
+    if (!this.low) this.scale = Math.max(this.scale, Math.min(1, 1 / baseDpr));
+  }
 
   /** Forget the current window and warm up again (a new scene, the tab came back, settings changed). */
   reset(nowS: number): void {
@@ -86,14 +106,28 @@ export class Governor {
     const fps = this.frames / this.seconds;
     this.frames = 0;
     this.seconds = 0;
-    if (fps >= this.o.target) return false;
-    const changed = this.down();
-    if (changed) {
+    const { capGain, capShare } = this.o;
+    if (fps > this.ceiling * (1 + 2 * capGain)) this.ceiling = Infinity; // the cap lifted (the charger went in)
+    if (fps >= Math.min(this.o.target, this.ceiling * capShare)) { this.descent = null; return false; }
+    const d = (this.descent ??= { scale: this.scale, low: this.low, fps });
+    if (this.down()) {
       this.dropped = true;
-      // let the new setting show its effect before judging it (a short settle, not a full warm-up)
-      this.since = nowS - this.o.warmup + 0.5;
+      this.settle(nowS);
+      return true;
     }
-    return changed;
+    if (fps >= d.fps * (1 + capGain)) return false; // the floor helped, just not enough: stay there
+    // every step bought nothing: the display or the browser sets this rate. Put the quality back and hold it
+    this.ceiling = Math.max(fps, d.fps);
+    this.scale = d.scale;
+    this.low = d.low;
+    this.descent = null;
+    this.settle(nowS);
+    return true;
+  }
+
+  /** Let a new setting show its effect before judging it (a short settle, not a full warm-up). */
+  private settle(nowS: number): void {
+    this.since = nowS - this.o.warmup + 0.5;
   }
 
   private down(): boolean {

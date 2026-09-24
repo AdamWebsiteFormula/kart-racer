@@ -117,6 +117,7 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-23: **The claw rescue** replaces the instant respawn: a fall or a stuck kart starts a 2.4 s rescue (hold, grab, carry in an arc over the road, set down), frozen and intangible; it lands no further out than `respawnInset` (0.6) of the half-width, never on the lip of an open edge.
 - 2026-09-24: Bug hunt: when a route-changing Final Lap Shift fires, a kart that was on the stretch of main road it replaces and is now off the new road (past a walled side by more than wallEndOvershoot, more than groundCatch under it, or on the ground before and more than groundCatch above it: `strandedByShift`) is fetched by the claw (`startRescue`) to its checkpoint on the new road. A kart 30–60% of a lap behind the leader on Canyon's bridge or Skyline's retracting bridge was left up to 115 m off the new road and 34 m up, fell onto nothing and was dragged in through the sky or the rock for 4 s with no claw.
+- 2026-09-24: In Knockout the player's grid slot is `playerGridSlot` clamped to the field, not the grid: rounds of 6 and 4 start the player at the back of its own field (slots 5 and 3) instead of in slot 7 behind one or two empty rows. Solo Time Trial and Daily keep slot 7 so stored runs replay unchanged.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

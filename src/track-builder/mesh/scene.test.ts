@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InstancedMesh, Mesh } from 'three';
+import { InstancedMesh, Mesh, type BufferGeometry, type MeshBasicMaterial, type Texture } from 'three';
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
@@ -9,6 +9,7 @@ import { insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
 import { buildTrackScene, isDrawn } from './scene.ts';
+import boardwalkJson from '../tracks/boardwalk-nights.json';
 
 function collapseDef(): TrackDefinition {
   const d = cloneDef(HARBOUR_LOOP);
@@ -258,5 +259,23 @@ describe('Final Lap Shift swap and hazards', () => {
     expect(scene.group.children).toHaveLength(0);
     expect(() => track.applyFinalLapShift()).not.toThrow();
     expect(scene.group.children).toHaveLength(0);
+  });
+
+  it('dispose frees every geometry and texture the scene made: ground, coast, sky, piers, the city windows (no leak race after race)', () => {
+    // Boardwalk has them all: a sea with its coast, tents and the ferris wheel on piers, the city across the bay
+    const scene = buildTrackScene(buildTrack(boardwalkJson as unknown as TrackDefinition));
+    const made = new Map<BufferGeometry | Texture, string>();
+    scene.group.traverse((o) => {
+      const m = o as Mesh;
+      if (!m.isMesh) return;
+      made.set(m.geometry, m.name);
+      const map = (m.material as MeshBasicMaterial).map;
+      if (map) made.set(map, `${m.name} map`);
+    });
+    for (const name of ['ground-water', 'coast', 'sky', 'pier:tent', 'pier:landmark', 'horizon-city']) expect([...made.values()]).toContain(name);
+    const freed = new Set<object>();
+    for (const x of made.keys()) x.addEventListener('dispose', () => freed.add(x));
+    scene.dispose();
+    expect([...made].filter(([x]) => !freed.has(x)).map(([, name]) => name)).toEqual([]);
   });
 });

@@ -47,8 +47,11 @@ export class RaceManager {
     if (config.racers.length > grid.length) throw new Error(`${config.racers.length} racers for ${grid.length} grid slots`);
     const lapsTotal = config.laps ?? track.def.laps;
 
-    // grid: the player takes playerGridSlot, a ghost shares it, the rest fill in order
-    const playerSlot = Math.min(RACE.playerGridSlot, grid.length - 1);
+    // grid: the player takes playerGridSlot, a ghost shares it, the rest fill in order. A Knockout
+    // round with fewer survivors puts the player at the back of its own field, not behind empty
+    // rows (solo Time Trial and Daily keep the grid slot their stored runs were raced from)
+    const field = config.mode === 'knockout' ? config.racers.length : grid.length;
+    const playerSlot = Math.min(RACE.playerGridSlot, field - 1);
     const hasPlayer = config.racers.some((r) => r.isPlayer);
     const free: number[] = [];
     for (let i = 0; i < grid.length; i++) if (!(hasPlayer && i === playerSlot)) free.push(i);

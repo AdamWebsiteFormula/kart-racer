@@ -1,8 +1,11 @@
 // Chase camera placement. Pure vector maths: the caller copies the result onto a
 // Three.js camera, so this is testable headless.
+import { BASE } from '../kart-controller/constants.ts';
 import { loopFrame } from '../kart-controller/loop.ts';
-import type { TrackLoop, TrackQuery } from '../kart-controller/types.ts';
+import type { TrackHint, TrackLoop, TrackQuery, TrackSample } from '../kart-controller/types.ts';
 import { forwardOf, type Vec3 } from '../kart-controller/types.ts';
+import { BUILDER } from '../track-builder/constants.ts';
+import type { Track } from '../track-builder/track.ts';
 
 export const CAM = Object.freeze({
   /** loop-the-loop side view: out to the left by this many ring radii, back by this many, up by this many; its lag, 1/s */
@@ -12,6 +15,10 @@ export const CAM = Object.freeze({
   /** extra metres of back-off at top speed */
   backAtSpeed: 1.8,
   height: 2.8,
+  /** metres the camera keeps above the ground under its own spot (a steep climb seen looking back) */
+  roadClear: 1.2,
+  /** metres the camera keeps under a tunnel's timber beams (tunnelWall: each hangs 0.12 below it, and the near plane is 0.3) */
+  beamClear: 0.45,
   /** metres ahead of the kart the camera looks */
   aheadLook: 8,
   lookHeight: 1.0,
@@ -86,6 +93,31 @@ export function idealPose(position: Vec3, heading: number, speed: number, lookBa
     position: [position[0] - f[0] * back * dir, position[1] + CAM.height, position[2] - f[2] * back * dir],
     target: [position[0] + f[0] * CAM.aheadLook * dir, position[1] + CAM.lookHeight, position[2] + f[2] * CAM.aheadLook * dir],
   };
+}
+
+const under: TrackSample = { position: [0, 0, 0], tangent: [0, 0, 0], normal: [0, 0, 0], groundY: 0, halfWidth: 0, surface: 'road', gripScale: 1 };
+const below: Vec3 = [0, 0, 0];
+
+/**
+ * Keep the camera between the ground under its own spot and the roof: at least CAM.roadClear above
+ * it, and under the timber beams where that road is a tunnel's. The chase pose rides the kart's
+ * height, and on a steep climb (the Canyon mine's exit) the road under the camera is metres off
+ * the kart's. `kart` is the kart's place on the track. Writes pos[1].
+ */
+export function clampToRoad(track: Track, pos: Vec3, kart: TrackHint): void {
+  // the nearest road point in 3D sits uphill of the one straight below: look again from the road's height
+  let at = track.nearest(pos, kart, BASE.tSearchWindow);
+  below[0] = pos[0]; below[1] = track.sampleInto(at.t, 0, at.branch, under).groundY; below[2] = pos[2];
+  at = track.nearest(below, at, BASE.tSearchWindow);
+  const c = track.sampleInto(at.t, 0, at.branch, under);
+  const h = Math.hypot(c.tangent[0], c.tangent[2]) || 1, reach = c.wall ?? c.halfWidth;
+  const lateral = ((pos[0] - c.position[0]) * c.tangent[2] - (pos[2] - c.position[2]) * c.tangent[0]) / h;
+  const ground = track.sampleInto(at.t, Math.max(-reach, Math.min(reach, lateral)), at.branch, under).groundY;
+  let y = Math.max(pos[1], ground + CAM.roadClear);
+  const b = track.branches.list[at.branch] ?? track.branches.main, L = b.lut;
+  const i = L.idx(Math.round(b.toLocal(at.t) * L.step));
+  if (L.covered[i] || !Number.isNaN(L.bore[i])) y = Math.min(y, ground + BUILDER.tunnelWall - CAM.beamClear);
+  pos[1] = y;
 }
 
 /** Exponential smoothing toward `to`, frame-rate independent. Writes into `out`. */
