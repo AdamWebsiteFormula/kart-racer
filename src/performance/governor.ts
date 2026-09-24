@@ -42,8 +42,8 @@ export class Governor {
   /** the frame rate the display or browser allows (found when stepping down bought nothing); Infinity until then */
   ceiling = Infinity;
   private readonly o: GovernorOptions;
-  /** the device pixel ratio cap the scale multiplies (2 desktop, 1.5 touch) */
-  private readonly baseDpr: number;
+  /** the device pixel ratio cap the scale multiplies (2 desktop, 1.5 touch); rebase() when the screen changes */
+  private baseDpr: number;
   private since = 0;
   private started = false;
   private frames = 0;
@@ -62,6 +62,16 @@ export class Governor {
 
   /** The device pixel ratio to render at. */
   get dpr(): number { return this.baseDpr * this.scale; }
+
+  /**
+   * The window moved to a screen with another pixel ratio cap (or the browser zoom changed it).
+   * The scale carries over; above Low it never leaves the pixel ratio under 1.
+   */
+  rebase(baseDpr: number): void {
+    if (baseDpr === this.baseDpr) return;
+    this.baseDpr = baseDpr;
+    if (!this.low) this.scale = Math.max(this.scale, Math.min(1, 1 / baseDpr));
+  }
 
   /** Forget the current window and warm up again (a new scene, the tab came back, settings changed). */
   reset(nowS: number): void {

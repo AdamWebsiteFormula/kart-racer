@@ -99,6 +99,27 @@ describe('auto quality governor', () => {
     expect(g.ceiling).toBe(Infinity);
   });
 
+  it('a move to another screen rebases the cap: stepping down still stops at a pixel ratio of 1 before the effects go', () => {
+    const g = new Governor(2);
+    let t = 0;
+    while (g.dpr > 1.6 + 1e-6) t = run(g, loaded, 1, t).t;
+    expect(g.low).toBe(false);
+    // dragged onto a 1x monitor: 0.8 of a cap of 1 would be a pixel ratio under 1 with the effects still on
+    g.rebase(1);
+    expect(g.dpr).toBe(1);
+    const seen: string[] = [];
+    for (let k = 0; k < 3; k++) {
+      const r = run(g, loaded, 1.6, t);
+      t = r.t;
+      if (r.changes) seen.push(`${g.dpr.toFixed(1)}${g.low ? ' low' : ''}`);
+    }
+    expect(seen[0]).toBe('1.0 low');
+    // and back onto the Retina screen: the same scale of the new cap, sharp again
+    const h = new Governor(1);
+    h.rebase(2);
+    expect(h.dpr).toBe(2);
+  });
+
   it('caps the pixel ratio: 2 on desktop, 1.5 on touch', () => {
     expect(dprCap(3, false)).toBe(2);
     expect(dprCap(3, true)).toBe(1.5);
