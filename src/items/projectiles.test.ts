@@ -8,6 +8,7 @@ import type { GroundItem, Projectile } from './types.ts';
 import type { Vec3 } from '../kart-controller/types.ts';
 import { GO_TICK } from '../race-manager/countdown.ts';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
+import { signedOffset } from '../track-builder/branches.ts';
 import meadowJson from '../track-builder/tracks/meadow-run.json';
 import type { TrackDefinition } from '../track-builder/types.ts';
 
@@ -312,6 +313,124 @@ describe('across the Final Lap Shift', () => {
       expect(shiftStep(h, p), id).toBeNaN();
       expect(h.items.state.groundItems, id).toEqual([kept]);
       expect(kept.t, id).toBeCloseTo(h.track.nearestTGlobal(kept.position), 6);
+    }
+  });
+
+  it("a shift that rebuilds no road moves no shot (seam review: on Meadow's hairpin grass a Kite was sent 70 m along the road, past its kart)", () => {
+    for (const item of ['homingKite', 'beachBall']) {
+      for (const [t0, lat0] of [[0.94, -18], [0.92, -21]] as const) {
+        const h = setup({ n: 3, def: trackDef('meadow'), laps: 2 });
+        go(h);
+        const L = h.track.length, at = `${item} at t ${t0}, lateral ${lat0}`;
+        placeAt(h.track, kart(h, 0), 0.5, 0);
+        placeAt(h.track, kart(h, 1), t0 + 12 / L, lat0 + 1); // its kart, on the grass ahead
+        placeAt(h.track, kart(h, 2), 0.05, 0);
+        for (const i of [0, 1, 2]) kart(h, i).speed = 0;
+        const p = spawnProjectile(h.items.cfg, h.items.state, h.track, h.rm.state.karts, 150, 0, itemById(h.items.cfg, item)!, false, []);
+        const smp = h.track.sample(t0, lat0, 0), c = h.track.sample(t0, 0, 0), flat = Math.hypot(c.tangent[0], c.tangent[2]), v = Math.hypot(...p.velocity);
+        p.t = t0; p.branch = 0; p.lateral = lat0; p.target = item === 'homingKite' ? 1 : -1; p.graceRemaining = 0;
+        p.position = [smp.position[0], smp.groundY + h.items.cfg.projectileHeight, smp.position[2]];
+        p.velocity = [(c.tangent[0] / flat) * v, 0, (c.tangent[2] / flat) * v];
+        // kart 2 starts the last lap on this tick: the storm rolls in
+        kart(h, 2).lap = 2;
+        const t = p.t;
+        tick(h);
+        expect(h.rm.state.finalLapShiftFired, at).toBe(true);
+        expect(Math.abs(signedOffset(p.t, t)) * L, at).toBeLessThan(2);
+        tick(h, seconds(1.5));
+        expect(h.log.find((e) => e.type === 'hit'), at).toMatchObject({ racerId: 'k1', itemId: item });
+      }
+    }
+  });
+});
+
+describe('a shortcut the Final Lap Shift closes', () => {
+  const CLOSING: RealTrack[] = ['harbour', 'meadow', 'canyon', 'skyline'];
+
+  /** Kart 0 in the shortcut at u, kart `last` starts the last lap: the shift closes the shortcut under kart 0. */
+  function closeUnder(id: RealTrack, n: number, u: number): H {
+    const h = setup({ n, def: trackDef(id), laps: 2 });
+    go(h);
+    placeOn(h, 0, 1, u);
+    placeAt(h.track, kart(h, n - 1), 0.05, 0);
+    tick(h);
+    kart(h, n - 1).lap = 2;
+    tick(h);
+    expect(h.rm.state.finalLapShiftFired, id).toBe(true);
+    expect(h.track.branches.list[1].open, id).toBe(false);
+    return h;
+  }
+
+  it('a shot or drop let go by a kart still riding it out rides it out too (seam review: it popped on the tick it was let go, the charge spent)', () => {
+    for (const id of CLOSING) {
+      for (const item of ['homingKite', 'windUpMouse', 'beachBall', 'oilCan', 'decoyBalloon']) {
+        const h = closeUnder(id, 2, 0.4);
+        kart(h, 0).speed = 20;
+        give(h, 0, item);
+        const from = h.log.length;
+        press(h, 0);
+        tick(h, 2);
+        const ev = h.log.slice(from), at = `${id} ${item}`;
+        expect(count(ev, 'projectileSpawn') + count(ev, 'groundPlace'), at).toBe(1);
+        expect(count(ev, 'projectilePop') + count(ev, 'groundPop'), at).toBe(0);
+        expect(h.items.state.projectiles.length + h.items.state.groundItems.length, at).toBe(1);
+      }
+    }
+  });
+
+  it('a drop left on it goes once no kart is on it (no one can reach it)', () => {
+    for (const id of ['harbour', 'meadow'] as const) {
+      const h = closeUnder(id, 2, 0.4);
+      expect(kart(h, 0).branch, id).toBe(1);
+      give(h, 0, 'oilCan');
+      press(h, 0);
+      tick(h, seconds(1));
+      expect(h.items.state.groundItems, id).toHaveLength(1);
+      placeAt(h.track, kart(h, 0), 0.2, 0);
+      tick(h);
+      expect(h.items.state.groundItems, id).toHaveLength(0);
+      expect(count(h.log, 'groundPop'), id).toBe(1);
+    }
+  });
+
+  it('a Kite already flying along it flies on and hits the kart it chases (seam review: the shift popped it)', () => {
+    for (const id of CLOSING) {
+      const h = setup({ n: 3, def: trackDef(id), laps: 2 });
+      go(h);
+      placeOn(h, 0, 1, 0.3);
+      placeOn(h, 1, 1, 0.7);
+      kart(h, 1).speed = 0;
+      placeAt(h.track, kart(h, 2), 0.05, 0);
+      give(h, 0, 'homingKite');
+      press(h, 0);
+      expect(h.items.state.projectiles[0]?.target, id).toBe(1);
+      kart(h, 2).lap = 2;
+      tick(h);
+      expect(h.rm.state.finalLapShiftFired, id).toBe(true);
+      expect(h.items.state.projectiles, id).toHaveLength(1);
+      tick(h, seconds(4));
+      expect(h.log.find((e) => e.type === 'hit'), id).toMatchObject({ racerId: 'k1', itemId: 'homingKite' });
+    }
+  });
+
+  it('Canyon Rush, Skyline Circuit: a kart still in the mine or on the rail is on the new road with everyone else: shots hit it, the Anchor hooks it (seam review: they passed through it)', () => {
+    for (const id of ['canyon', 'skyline'] as const) {
+      for (const item of ['beachBall', 'homingKite', 'grappleAnchor']) {
+        const h = closeUnder(id, 3, 0.55);
+        const [a, b] = [kart(h, 1), kart(h, 0)];
+        const at = `${id} ${item}`;
+        expect(b.branch, at).toBe(0);
+        // a kart on the new main road 18 m behind it
+        placeAt(h.track, a, b.t - 18 / h.track.length, 0);
+        a.speed = 0; b.speed = 0;
+        give(h, 1, item);
+        const from = h.log.length;
+        press(h, 1);
+        tick(h, seconds(2));
+        const ev = h.log.slice(from);
+        if (item === 'grappleAnchor') expect(count(ev, 'tetherStart'), at).toBe(1);
+        else expect(ev.find((e) => e.type === 'hit'), at).toMatchObject({ racerId: 'k0', itemId: item });
+      }
     }
   });
 });

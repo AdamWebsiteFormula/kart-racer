@@ -3,8 +3,9 @@
 // kart-controller surface (item, status, drift charge multiplier, applyHit, requestBoost).
 import type { KartConstants } from '../kart-controller/constants.ts';
 import { isRiding } from '../kart-controller/powers.ts';
-import { forwardOf, type InputState, type KartEvent, type KartState } from '../kart-controller/types.ts';
+import { forwardOf, type InputState, type KartEvent, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
+import { mainUnder } from '../track-builder/shift.ts';
 import type { Track } from '../track-builder/track.ts';
 import { ITEMS_CONFIG, ITEM_ROLES } from './data.ts';
 import { popGround, stepGround } from './ground.ts';
@@ -125,7 +126,7 @@ export class Items {
 
     // 4. motion and timers
     stepProjectiles(cfg, m, track, karts, dt, events);
-    stepGround(m, track, dt, events);
+    stepGround(m, track, karts, dt, events);
 
     // 5. overlaps: projectile × projectile, projectile × ground, projectile × kart, ground × kart
     const ps = m.projectiles, gs = m.groundItems;
@@ -202,23 +203,35 @@ export class Items {
   }
 
   /**
-   * After the Final Lap Shift: the main road changed length, so an old t is somewhere else along it. Every
-   * shot and drop finds its t again on its own road from where it is (race-manager does the same for karts).
-   * One left past the course limit was on the road the shift replaced, and goes with it.
+   * After a route-changing Final Lap Shift: the main road changed length, so an old t is somewhere else
+   * along it. Every shot and drop finds its t again on its own road from where it is, and one on a
+   * shortcut the new main road now runs along is on that (track-builder's shift does the same for karts).
+   * One left past the course limit was on the road the shift replaced, and goes with it. A shift that
+   * rebuilds no road leaves every t right, and nothing moves (seam review, 24 Sept 2026: on Meadow the
+   * nearest road to a Kite on the hairpin's inside grass is the hairpin's other leg, and it was sent up
+   * to 115 m along the road, past the kart it was chasing).
    */
   private reseat(events: ItemEvent[]): void {
     const track = this.track, m = this.state;
+    if (!track.def.finalLapShift.routeOverrides?.length) return;
     for (let k = m.projectiles.length - 1; k >= 0; k--) {
       const p = m.projectiles[k];
-      p.t = track.branches.list[p.branch].nearestGlobal(p.position).t;
+      this.seat(p);
       p.lateral = lateralOf(track, p.t, p.branch, p.position);
       if (offCourse(track, p.t, p.branch, p.lateral, p.radius)) popProjectile(m, p, events);
     }
     for (let k = m.groundItems.length - 1; k >= 0; k--) {
       const g = m.groundItems[k];
-      g.t = track.branches.list[g.branch].nearestGlobal(g.position).t;
+      this.seat(g);
       if (offCourse(track, g.t, g.branch, lateralOf(track, g.t, g.branch, g.position), g.radius)) popGround(m, g, events);
     }
+  }
+
+  /** A shot's or drop's t on its own road from where it is; on the main road, if that now runs under it. */
+  private seat(it: { position: Vec3; t: number; branch: number }): void {
+    const branches = this.track.branches;
+    const on = it.branch > 0 ? mainUnder(branches, it.position) : -1;
+    if (on >= 0) { it.t = on; it.branch = 0; } else it.t = branches.list[it.branch].nearestGlobal(it.position).t;
   }
 
   /** A projectile reaching kart s from behind (it would hit the trailed item first). */

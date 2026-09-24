@@ -1,5 +1,5 @@
 // Ground items: Oil Can and Decoy Balloon. Static on the road; they pop on a kart,
-// on ttl, when their branch closes, or when a Horn or projectile reaches them.
+// on ttl, on a closed branch no kart is on, or when a Horn or projectile reaches them.
 import { jumpLift } from '../kart-controller/ground.ts';
 import { BASE } from '../kart-controller/constants.ts';
 import { forwardOf, type KartState } from '../kart-controller/types.ts';
@@ -40,12 +40,23 @@ export function popGround(m: ItemsState, g: GroundItem, events: ItemEvent[]): vo
   events.push({ type: 'groundPop', id: g.id, itemId: g.itemId, position: [...g.position] });
 }
 
-/** Timers and branch closure. Kart overlap is resolved in items.ts with the other overlaps. */
-export function stepGround(m: ItemsState, track: Track, dt: number, events: ItemEvent[]): void {
+/** Is any kart on `branch`? */
+function riddenBy(karts: readonly KartState[], branch: number): boolean {
+  for (let i = 0; i < karts.length; i++) if (karts[i].branch === branch) return true;
+  return false;
+}
+
+/**
+ * Timers and branch closure. On a closed shortcut a drop stays while karts are still riding it out, then
+ * goes: no one can reach it (seam review, 24 Sept 2026: it popped on closing, so one dropped from a
+ * shortcut the Final Lap Shift had closed died on the tick it was let go). Kart overlap is resolved in
+ * items.ts with the other overlaps.
+ */
+export function stepGround(m: ItemsState, track: Track, karts: readonly KartState[], dt: number, events: ItemEvent[]): void {
   for (let k = m.groundItems.length - 1; k >= 0; k--) {
     const g = m.groundItems[k];
     g.graceRemaining = Math.max(0, g.graceRemaining - dt);
     g.ttl -= dt;
-    if (g.ttl <= 1e-9 || !track.branches.list[g.branch].open) popGround(m, g, events);
+    if (g.ttl <= 1e-9 || (!track.branches.list[g.branch].open && !riddenBy(karts, g.branch))) popGround(m, g, events);
   }
 }

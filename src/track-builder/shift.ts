@@ -2,7 +2,7 @@
 // started the last lap. Order (SOP): route overrides → LUT rebuild → karts remap →
 // features re-derive → race helpers recompute → surface overrides → grip →
 // shortcuts, jumps, hazards → TrackChanged event.
-import { signedOffset, WELD_EASE } from './branches.ts';
+import { signedOffset, WELD_EASE, type Branches } from './branches.ts';
 import { BUILDER } from './constants.ts';
 import { bakeJump, rederive } from './features.ts';
 import { buildLut, wrap01, type Lut } from './lut.ts';
@@ -84,11 +84,13 @@ export function applyFinalLapShift(track: Track, karts: readonly ShiftKart[] = [
     // Canyon's Rumblesaur stood in the mesa over the mine and its ring spun karts in the bore): it goes too
     for (const c of track.hazards.creatures) if (replaced(c.t)) track.hazards.setEnabled(c.id, false);
 
-    // 2. karts: main-line karts by world position; branch karts keep their local u
+    // 2. karts: main-line karts by world position; branch karts keep their local u, unless the new main
+    // road now runs under them
     karts.forEach((k, i) => {
       const b = branches.list[k.branch];
       if (k.branch > 0 && b) {
-        k.t = b.toMain(kartLocal[i]);
+        const on = mainUnder(branches, k.position);
+        if (on >= 0) { k.t = on; k.branch = 0; } else k.t = b.toMain(kartLocal[i]);
       } else {
         k.t = main.lut.nearestTGlobal(k.position);
         k.branch = 0;
@@ -216,6 +218,17 @@ function surfaceUnder(R: Lut, lut: Lut, i: number): typeof UNDER | null {
   UNDER.bank = Math.atan(Math.tan(bank) * across - (ty / th) * along);
   UNDER.gap = Math.abs(lat) - curb - (lut.hw[i] + BUILDER.kerbWidth) * Math.abs(across);
   return UNDER;
+}
+
+/**
+ * The main line's t under `position` (on its road: within its half-width, 3D), or -1. A route change
+ * lays the main road along a shortcut (Canyon's mine, Skyline's sky-rail), and a kart, shot or drop
+ * still on that shortcut is on the main road with everyone else (seam review, 24 Sept 2026: left on
+ * the closed shortcut, it could not be hit, targeted or hooked from the road it shares).
+ */
+export function mainUnder(branches: Branches, position: Vec3): number {
+  const main = branches.main, near = main.nearestGlobal(position);
+  return Math.sqrt(near.d2) <= main.halfWidthAt(near.t) ? near.t : -1;
 }
 
 /** Is main-equivalent t inside the wrap-aware range? Exported for the scene layer's chunk swap. */

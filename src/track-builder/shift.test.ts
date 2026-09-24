@@ -3,6 +3,7 @@ import { makeConstants } from '../kart-controller/constants.ts';
 import { SIM_DT, stepKart } from '../kart-controller/step.ts';
 import { createKartState, NEUTRAL_INPUT } from '../kart-controller/types.ts';
 import { BUILDER } from './constants.ts';
+import { signedOffset } from './branches.ts';
 import { spliceRoute } from './shift.ts';
 import { buildTrack } from './track.ts';
 import canyonJson from './tracks/canyon-rush.json';
@@ -208,10 +209,11 @@ describe('the final-lap road takes the surface of the roads it runs along', () =
       s.speed = 22;
       track.applyFinalLapShift([s]);
       expect(rail.open).toBe(false); // the scene hides it: only the new main road is drawn
+      expect(s.branch).toBe(0); // and the kart is on that road
       let worst = 0, ticks = 0;
-      for (let k = 0; k < 900 && s.branch === rail.index; k++) {
+      for (let k = 0; k < 900 && signedOffset(s.t, rail.exitT) < 0; k++) {
         stepKart(s, { ...NEUTRAL_INPUT, throttle: 1 }, track, c, SIM_DT);
-        if (!s.grounded || s.branch !== rail.index) continue;
+        if (!s.grounded) continue;
         ticks++;
         const t = track.branches.main.lut.nearestT(s.position, s.t, 0.02), m = track.sample(t, 0);
         const lat = ((s.position[0] - m.position[0]) * m.tangent[2] - (s.position[2] - m.position[2]) * m.tangent[0]) / Math.hypot(m.tangent[0], m.tangent[2]);
@@ -219,6 +221,36 @@ describe('the final-lap road takes the surface of the roads it runs along', () =
       }
       expect(ticks, `${back} m before the exit, lateral ${lateral}`).toBeGreaterThan(200);
       expect(worst, `${back} m before the exit, lateral ${lateral}`).toBeLessThan(0.1);
+    }
+  });
+
+  it('Canyon Rush, Skyline Circuit: a kart still on the closed shortcut the new main road runs along is on the main road, where it is (seam review: shots on the new road passed through it)', () => {
+    for (const json of [canyonJson, skylineJson]) {
+      const track = buildTrack(cloneDef(json as TrackDefinition));
+      const sc = track.branches.list[1];
+      const karts: ReturnType<typeof createKartState>[] = [];
+      // (from its first third on: before that Skyline's new road runs up to 5.6 m beside the old rail, whose
+      // karts are not on it and ride the rail out)
+      for (let k = 0; k <= 12; k++) {
+        const u = 0.3 + k * 0.05, hw = sc.lut.sample(u, 0).halfWidth;
+        for (const lateral of [0, hw - c.kartRadius, c.kartRadius - hw]) {
+          const p = sc.lut.sample(u, lateral);
+          const s = createKartState({ racerId: `k${karts.length}`, position: [...p.position], heading: Math.atan2(p.tangent[0], p.tangent[2]), t: sc.toMain(u) });
+          s.branch = sc.index;
+          karts.push(s);
+        }
+      }
+      track.applyFinalLapShift(karts);
+      for (const s of karts) {
+        const at = `${track.id} ${s.racerId}`;
+        expect(s.branch, at).toBe(0);
+        // its t is where it is on the new road, and it sits on that road's surface
+        const m = track.sample(s.t, 0);
+        const lat = ((s.position[0] - m.position[0]) * m.tangent[2] - (s.position[2] - m.position[2]) * m.tangent[0]) / Math.hypot(m.tangent[0], m.tangent[2]);
+        const on = track.sample(s.t, lat);
+        expect(Math.hypot(on.position[0] - s.position[0], on.position[2] - s.position[2]), at).toBeLessThan(0.1);
+        expect(Math.abs(on.groundY - s.position[1]), at).toBeLessThan(0.1);
+      }
     }
   });
 });

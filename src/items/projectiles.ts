@@ -100,7 +100,11 @@ const scratchRight: Vec3 = [0, 0, 0];
 /** A shortcut's local u this close to 0 or 1 is its end (the nearest point past the end is clamped onto it). */
 const END_U = 1e-9;
 
-/** Move every projectile one tick. Pops on ttl, on the 4th edge, and when the branch closes. */
+/**
+ * Move every projectile one tick. Pops on ttl and on the 4th edge. One on a shortcut that closes rides
+ * it out like the karts do, onto the main road at its end (seam review, 24 Sept 2026: popped on
+ * closing, a shot let go from a shortcut the Final Lap Shift had closed died on the tick it was fired).
+ */
 export function stepProjectiles(
   cfg: ItemsConfig, m: ItemsState, track: Track, karts: readonly KartState[], dt: number, events: ItemEvent[],
 ): void {
@@ -111,7 +115,7 @@ export function stepProjectiles(
     p.graceRemaining = Math.max(0, p.graceRemaining - dt);
     p.ttl -= dt;
     p.age += dt;
-    if (p.ttl <= 1e-9 || !track.branches.list[p.branch].open) { popProjectile(m, p, events); continue; }
+    if (p.ttl <= 1e-9) { popProjectile(m, p, events); continue; }
 
     if (p.speed !== 0) {
       // Homing Kite and Wind-Up Mouse: ride the spline (the Mouse either way)
