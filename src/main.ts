@@ -60,6 +60,13 @@ Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, f
 const hemi = new HemisphereLight(0xcfe8ff, 0x7a6a4f, 0.9);
 const fill = new AmbientLight(0xbcd8ff, 0.5);
 scene.add(sun, sun.target, hemi, fill);
+/** The sun's place relative to what the camera looks at: the track's own compass direction, low in the sky (about 34°) so shadows are long. */
+const SUN_ELEVATION = 0.6, SUN_DISTANCE = 140;
+function sunOffset(dir: [number, number, number] | undefined): Vec3 {
+  const x = dir?.[0] ?? 0.4, z = dir?.[2] ?? 0.3, h = Math.hypot(x, z) || 1;
+  const c = Math.cos(SUN_ELEVATION) * SUN_DISTANCE;
+  return [(x / h) * c, Math.sin(SUN_ELEVATION) * SUN_DISTANCE, (z / h) * c];
+}
 /** the lights ease to the current sky's (a final-lap sunset falls over a couple of seconds) */
 const lightTo = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color() };
 let lightFor: SkyLight | null = null;
@@ -374,7 +381,8 @@ function step(now: number): void {
   camera.rotateZ(attract ? 0 : vfx.roll(pl, reduced));
   if (photo) { camera.position.set(...photo.pos); camera.lookAt(...photo.look); camera.fov = photo.fov; camera.updateProjectionMatrix(); }
   sun.target.position.set(camLook[0], camLook[1], camLook[2]);
-  sun.position.set(camLook[0] + 60, camLook[1] + 120, camLook[2] + 40);
+  const so = sunOffset(cur.def.environment?.sunDirection);
+  sun.position.set(camLook[0] + so[0], camLook[1] + so[1], camLook[2] + so[2]);
 
   // the ear sits on the camera, facing where it looks
   listener.position[0] = camPos[0]; listener.position[1] = camPos[1]; listener.position[2] = camPos[2];

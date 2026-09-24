@@ -10,18 +10,22 @@ export interface SkyLight { sun: string; sunI: number; sky: string; skyI: number
 export interface SkyPreset { top: string; horizon: string; ground: string; sun: string; light?: SkyLight }
 
 /** A clear day: the lights every day sky uses. */
-export const DAY_LIGHT: SkyLight = Object.freeze({ sun: '#fff4e0', sunI: 2.2, sky: '#cfe8ff', skyI: 0.9, ambient: '#bcd8ff', ambientI: 0.5, earth: '#7a6a4f' });
+export const DAY_LIGHT: SkyLight = Object.freeze({ sun: '#fff0d8', sunI: 2.5, sky: '#cfe8ff', skyI: 0.65, ambient: '#bcd8ff', ambientI: 0.28, earth: '#7a6a4f' });
 
 /** Lights for the skies that are not a plain day (sunsets, a storm, snow, nights). */
 const LIGHTS: Readonly<Record<string, SkyLight>> = Object.freeze({
+  // each day sky's own afternoon: a warm key, cool shadows, less flat fill
+  'harbour-day': { sun: '#ffdcb0', sunI: 2.6, sky: '#cfe6ff', skyI: 0.6, ambient: '#b8d4ff', ambientI: 0.25, earth: '#7a6a4f' },
+  'meadow-day': { sun: '#fff0cc', sunI: 2.6, sky: '#d2ecff', skyI: 0.6, ambient: '#c0dcff', ambientI: 0.25, earth: '#6a7a3f' },
+  'canyon-day': { sun: '#ffd9a8', sunI: 2.7, sky: '#bcd8ff', skyI: 0.55, ambient: '#c8b8e8', ambientI: 0.25, earth: '#8a4a2f' },
   'harbour-tide': { sun: '#ffb27a', sunI: 2.0, sky: '#ffc9a8', skyI: 0.75, ambient: '#ffcfb0', ambientI: 0.45, earth: '#8a5a4a' },
   'meadow-storm': { sun: '#c9d4e0', sunI: 1.0, sky: '#9aa8b8', skyI: 0.85, ambient: '#8a9aad', ambientI: 0.55, earth: '#4f5a4a' },
   'canyon-dusk': { sun: '#ff8f60', sunI: 1.5, sky: '#9a78c8', skyI: 0.7, ambient: '#7a6ab0', ambientI: 0.45, earth: '#6a3a3a' },
-  'frost-day': { sun: '#f6f9ff', sunI: 2.1, sky: '#d6ecff', skyI: 1.0, ambient: '#c8e0ff', ambientI: 0.55, earth: '#9aa8b8' },
+  'frost-day': { sun: '#fff0dc', sunI: 1.9, sky: '#c6dcff', skyI: 0.55, ambient: '#a8c4f0', ambientI: 0.28, earth: '#8898b8' },
   'frost-blizzard': { sun: '#e8f0ff', sunI: 1.1, sky: '#dde8f5', skyI: 1.05, ambient: '#c8d6e8', ambientI: 0.65, earth: '#a8b4c4' },
-  'boardwalk-night': { sun: '#a4b6ff', sunI: 0.95, sky: '#5a4ab0', skyI: 0.65, ambient: '#6a5ad0', ambientI: 0.45, earth: '#2a1a50' },
+  'boardwalk-night': { sun: '#8fa6ff', sunI: 0.6, sky: '#4a3aa0', skyI: 0.42, ambient: '#5a4ac0', ambientI: 0.22, earth: '#1a1040' },
   'boardwalk-fireworks': { sun: '#c8b0ff', sunI: 1.05, sky: '#8a4ab0', skyI: 0.75, ambient: '#9a6ad0', ambientI: 0.5, earth: '#3a1a50' },
-  'skyline-dawn': { sun: '#ffd2a4', sunI: 2.0, sky: '#ffcae0', skyI: 0.85, ambient: '#d8c8f0', ambientI: 0.5, earth: '#9fb8ec' },
+  'skyline-dawn': { sun: '#ffc890', sunI: 2.4, sky: '#ffc0d8', skyI: 0.6, ambient: '#d0b8f0', ambientI: 0.3, earth: '#9fb8ec' },
   'skyline-night': { sun: '#a8c0ff', sunI: 1.0, sky: '#4060c0', skyI: 0.7, ambient: '#5068c8', ambientI: 0.5, earth: '#2a3a78' },
 });
 

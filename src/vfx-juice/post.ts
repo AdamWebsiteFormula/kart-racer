@@ -2,7 +2,7 @@
 // glints are brighter than 1.0; the toon world is not), chromatic aberration on boost only,
 // a soft vignette, and ACES tone mapping. `quality: low` turns the whole chain off.
 import {
-  BloomEffect, ChromaticAberrationEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
+  BloomEffect, BrightnessContrastEffect, ChromaticAberrationEffect, HueSaturationEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
 } from 'postprocessing';
 import { ACESFilmicToneMapping, HalfFloatType, NoToneMapping, Vector2, type Camera, type Scene, type WebGLRenderer } from 'three';
 
@@ -26,7 +26,10 @@ export class Post {
     this.chroma = new ChromaticAberrationEffect({ offset: this.offset, radialModulation: true, modulationOffset: 0.35 });
     const vignette = new VignetteEffect({ darkness: 0.32, offset: 0.4 });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
-    this.composer.addPass(new EffectPass(camera, bloom, this.chroma, vignette, tone));
+    // the filmic curve flattens colour a little: give it back, cartoon-bright but not garish
+    const grade = new HueSaturationEffect({ saturation: 0.12 });
+    const punch = new BrightnessContrastEffect({ contrast: 0.07 });
+    this.composer.addPass(new EffectPass(camera, bloom, this.chroma, vignette, tone, grade, punch));
     this.setEnabled(true);
   }
 
@@ -42,7 +45,8 @@ export class Post {
   render(dt: number, boost: boolean, reduced: boolean): void {
     if (!this.enabled) { this.renderer.render(this.scene, this.camera); return; }
     this.level += ((boost && !reduced ? 1 : 0) - this.level) * Math.min(1, dt * (boost ? 10 : 3));
-    this.offset.set(0.004 * this.level, 0.002 * this.level);
+    // a hint of fringe on boost, never enough to split palms and roofs into red and cyan
+    this.offset.set(0.0012 * this.level, 0.0006 * this.level);
     this.chroma.offset = this.offset;
     this.composer.render(dt);
   }

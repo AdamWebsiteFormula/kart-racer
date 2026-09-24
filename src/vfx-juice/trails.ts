@@ -74,19 +74,29 @@ export class Skids {
 
 // ---------------------------------------------------------------- speed lines
 const LINE_VERT = `
-attribute vec4 aLine; uniform float uTime; uniform float uOn; varying float vA;
+attribute vec4 aLine; uniform float uTime; uniform float uOn; varying float vA; varying vec2 vUv;
 void main() {
-  // aLine: angle, radius, phase, speed. Each streak rushes from far to near along the view axis.
-  float t = fract(aLine.z + uTime * aLine.w);
-  float z = mix(-40.0, -2.0, t);
-  vec3 p = vec3(cos(aLine.x) * aLine.y, sin(aLine.x) * aLine.y * 0.62, z);
-  p += vec3(position.x * 0.03, 0.0, position.y * 5.0);
-  vA = uOn * smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.75, 1.0, t)) * 0.5;
-  gl_Position = projectionMatrix * vec4(p, 1.0);
+  // aLine: angle, size, phase, speed. Screen space: each streak rushes outward in the outer ring of
+  // the screen (never the middle, where the road and the karts are), tapered and soft.
+  vUv = uv;
+  float t = fract(aLine.z + uTime * aLine.w * 0.7);
+  float r = mix(0.8, 1.3, t);
+  vec2 dir = vec2(cos(aLine.x), sin(aLine.x));
+  vec2 side = vec2(-dir.y, dir.x);
+  float len = 0.09 + 0.02 * aLine.y / 5.0;
+  vec2 p = dir * (r + position.y * len) + side * position.x * 0.007;
+  vA = uOn * smoothstep(0.0, 0.2, t) * (1.0 - smoothstep(0.65, 1.0, t)) * 0.4;
+  gl_Position = vec4(p, 0.0, 1.0);
 }`;
-const LINE_FRAG = `varying float vA; void main() { if (vA <= 0.01) discard; gl_FragColor = vec4(1.0, 1.0, 1.0, vA); }`;
+const LINE_FRAG = `varying float vA; varying vec2 vUv;
+void main() {
+  // thick in the middle, fading to both ends and both sides
+  float a = vA * (1.0 - abs(vUv.x * 2.0 - 1.0)) * smoothstep(0.0, 0.35, vUv.y) * (1.0 - smoothstep(0.65, 1.0, vUv.y));
+  if (a <= 0.004) discard;
+  gl_FragColor = vec4(1.0, 1.0, 1.0, a);
+}`;
 
-/** White streaks in camera space; `on` fades them in and out (boosting only). */
+/** White streaks round the screen's edge; `on` fades them in and out (boosting only). */
 export class SpeedLines {
   readonly mesh: InstancedMesh;
   private readonly mat: ShaderMaterial;
