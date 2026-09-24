@@ -63,3 +63,13 @@ describe('touch gas before the green light (bug hunt 3: a phone could never make
     expect(countdown(0)).toEqual({ boost: 'none', afterGo: 1 }); // resting from the 3, like the gas key held early
   });
 });
+
+describe('touch button labels (detail review)', () => {
+  it('the look-back button reads LOOK, not BACK: beside BRAKE, BACK reads as reverse', () => {
+    const t = new TouchControls(document.body);
+    const label = (id: string) => t.root.querySelector(`.tb.${id}`)!.textContent;
+    expect(label('lookBack')).toBe('LOOK');
+    expect(label('brake')).toBe('BRAKE');
+    expect([...t.root.querySelectorAll('.tb')].map((b) => b.textContent)).not.toContain('BACK');
+  });
+});

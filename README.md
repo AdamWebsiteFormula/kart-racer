@@ -11,7 +11,7 @@ Works in any modern browser (Chrome, Edge, Firefox, Safari): keyboard, gamepad, 
 
 | Action | Keyboard | Gamepad |
 |---|---|---|
-| Go | W or ↑ | RT |
+| Gas | W or ↑ | RT |
 | Steer | A D or ← → | Left stick |
 | Brake / reverse | S or ↓ | LT |
 | Hop and drift (hold) | Shift or Space | A |
@@ -20,16 +20,16 @@ Works in any modern browser (Chrome, Edge, Firefox, Safari): keyboard, gamepad, 
 | Horn | H | Y |
 | Pause | Esc or P | Start |
 
-**Drift to win.** Hold drift through a corner: sparks go blue, then orange, then purple. Let go for a mini-turbo. Press go just as the **2** shows at the start for a rocket start.
+**Drift to win.** Hold drift through a corner: the sparks go blue, then orange, then rainbow. Let go for a mini-turbo. Press the gas just as the **2** appears for a rocket start.
 
 ## What's in it
 
 - **8 racers**, each with their own kart, horn and "ouch": Pip, Momo, Nova, Juniper, Otto, Sprocket, Boulder and Big Gus.
 - **6 tracks in 2 cups.** Each has a **Final Lap Shift**: the tide comes in, a storm fells a tree across the shortcut, a rope bridge collapses and the only way on is through a lantern-lit mine, a blizzard freezes the lake into a shortcut, fireworks turn the Ferris wheel into a ramp, and sunset retracts the sky bridges.
-- **13 items**, held two at a time like Mario Kart World, each our own idea: roll down the road as a giant **Strike Ball** and knock rivals flying like pins, boing over trouble on a **Pogo Spring** and slam down, hook the racer ahead with a **Grapple Anchor** and slingshot past, send a **Wind-Up Mouse** weaving through the pack, blast off on **Fizz Pop** soda (or three of them), plus beach balls, a homing kite, oil, a decoy balloon, an air horn, a bubble shield and a fog bank. Hold the button to trail a ball or a trap behind you as a shield. Gold double balloons fill both slots.
-- **5 modes:** Quick Race, Grand Prix (points and stars), Knockout (8 → 6 → 4 → 2), Time Trial (bronze, silver and gold medals) and a Daily Challenge.
+- **13 items**, held two at a time, each our own idea: roll down the road as a giant **Strike Ball** and knock rivals flying like pins, boing over trouble on a **Pogo Spring** and slam down, hook the racer ahead with a **Grapple Anchor** and slingshot past, send a **Wind-Up Mouse** weaving through the pack, blast off on **Fizz Pop** soda (or three of them), plus beach balls, a homing kite, oil, a decoy balloon, an air horn, a bubble shield and a fog bank. Hold the button to trail a ball or a trap behind you as a shield. Gold double balloons fill both slots.
+- **5 modes:** Quick Race, Grand Prix (points and stars), Knockout (8 → 6 → 4, then one winner), Time Trial (bronze, silver and gold medals) and a Daily Challenge.
 - **Global leaderboards** for Time Trial and Daily. Every run is re-simulated on the server, so posted times are real.
-- **Original music and sound:** 7 songs and 58 effects, a real engine sound, and a final-lap music lift.
+- **Original music and sound:** 7 songs and 85 effects, a real engine sound, and a final-lap music lift.
 - Runs at 60 fps. The game lowers its own resolution on slower laptops.
 
 ![The six tracks: Harbor Loop, Meadow Run, Canyon Rush, Frostbite Pass, Boardwalk Nights, Skyline Circuit](docs/media/tracks.jpg)
@@ -64,4 +64,4 @@ npm install
 npm run dev
 ```
 
-Useful commands: `npm run verify` (type check plus 688 tests), `npm run build`, `npm run check:bundle`. Credits and licences are in [CREDITS.md](CREDITS.md).
+Useful commands: `npm run verify` (type check plus 720 tests), `npm run build`, `npm run check:bundle`. Credits and licenses are in [CREDITS.md](CREDITS.md).

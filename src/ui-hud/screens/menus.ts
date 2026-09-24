@@ -38,7 +38,7 @@ export function titleMenu(twoByTwo = false): MenuVM {
 export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = Object.freeze([
   { mode: 'quick', label: 'Quick Race', sub: 'One track, eight racers' },
   { mode: 'grandPrix', label: 'Grand Prix', sub: 'Three tracks, points and stars' },
-  { mode: 'knockout', label: 'Knockout', sub: 'Eight start. Two finish.' },
+  { mode: 'knockout', label: 'Knockout', sub: 'Eight start. Cuts every race. One wins.' },
   { mode: 'timeTrial', label: 'Time Trial', sub: 'Just you and the clock' },
   { mode: 'daily', label: 'Daily Challenge', sub: 'One seed a day, same for everyone' },
 ]);

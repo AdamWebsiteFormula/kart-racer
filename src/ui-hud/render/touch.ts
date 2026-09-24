@@ -39,7 +39,7 @@ export class TouchControls {
       h('span', '', b, label);
     };
     mk('item', 'ITEM');
-    mk('lookBack', 'BACK');
+    mk('lookBack', 'LOOK'); // not BACK: beside BRAKE that reads as reverse
     mk('drift', 'DRIFT');
     mk('brake', 'BRAKE');
     const pause = h('div', 'tb pauseBtn', this.root);

@@ -2,7 +2,7 @@
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TITLE, UI } from '../constants.ts';
 import { iconMarkup, SHAPE_PATHS } from '../icons.ts';
-import type { CreditSection } from '../screens/credits.ts';
+import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { CONTROLS, CREATURES, ITEM_LINES, TIPS } from '../data/howto.ts';
 import type { CupVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
@@ -369,7 +369,7 @@ export class CreditsView implements ScreenView {
         h('td', 'lic', tr, r.licence);
       }
     }
-    h('p', 'made', box, 'An original game. Built for fun, with no Nintendo names, characters or assets.');
+    h('p', 'made', box, CREDITS_MADE);
     const back = button(box, 'back');
     h('span', 'label', back, 'Back');
     back.style.marginTop = '16px';
