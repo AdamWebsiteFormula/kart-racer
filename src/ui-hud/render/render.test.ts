@@ -158,7 +158,7 @@ describe('touch', () => {
       ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'grandPrix' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickCup', cupId: 'sunrise' });
       expect(ui.app.screen).toBe('racing');
       ui.touch.show(true); // as main.ts does while racing and not paused
-      const pause = document.querySelector('#ui .touch.on .tb.pause')!;
+      const pause = document.querySelector('#ui .touch.on .tb.pauseBtn')!;
       expect(pause).not.toBeNull();
       pause.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }));
       expect(ui.paused).toBe(true);
@@ -343,6 +343,89 @@ describe('gamepad', () => {
     expect(ui.app.screen).toBe('results');
     press(ui, A);
     expect(ui.app.screen).toBe('modeSelect');
+    ui.dispose();
+  });
+});
+
+describe('tall panels (a laptop or a phone on its side)', () => {
+  const tt = {
+    mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
+    ranks: [{ racerId: 'pip', rank: 1, finishTick: 12000, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], dnf: false }],
+  } as never;
+  const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], racerId: 'pip', inputLog: 'AQ==', clientVersion: '1' };
+  const rows = Array.from({ length: 10 }, (_, i) => ({ id: `r${i}`, name: `Racer ${i + 1}`, racerId: 'gus', timeMs: 95000 + i * 700 }));
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  /** jsdom has no layout: give the panel a size and a scroll position by hand */
+  function sized(el: HTMLElement, height: number, view: number) {
+    let top = 0;
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => height });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => view });
+    Object.defineProperty(el, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+    const by = vi.fn((o: ScrollToOptions) => { top = Math.max(0, Math.min(height - view, top + (o.top ?? 0))); });
+    (el as unknown as { scrollBy: typeof by }).scrollBy = by;
+    return by;
+  }
+  const reveal = vi.fn();
+  afterEach(() => { delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView; reveal.mockClear(); });
+
+  async function results() {
+    document.body.innerHTML = '';
+    Element.prototype.scrollIntoView = reveal;
+    const h = { ...host(), leaderboard: { fetchBoard: async () => rows as never, post: async () => ({ ok: false, error: '' }) as never } };
+    const ui = new UiRoot(document.body, h, null);
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    ui.raceOver({ results: tt, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'timeTrial', dailySeed: null, draft } });
+    await flush();
+    return ui;
+  }
+
+  it('results: everything but the button row scrolls inside the panel; the button row is always in sight', async () => {
+    const ui = await results();
+    const box = document.querySelector('#ui .results.on .box')!;
+    const scroll = box.querySelector(':scope > .scroll')!;
+    expect(scroll).not.toBeNull();
+    for (const sel of ['h2', '.rows', '.board-row', '.name-input', '[data-id="post"]']) expect(scroll.querySelector(sel), sel).not.toBeNull();
+    // the name box comes before the times, so it shows on a short screen without scrolling
+    expect(scroll.querySelector('.board-form')!.compareDocumentPosition(scroll.querySelector('.board-list')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const next = box.querySelector(':scope > .actions [data-id="continue"]');
+    expect(next).not.toBeNull();
+    expect(scroll.contains(next)).toBe(false);
+    ui.dispose();
+  });
+
+  it('results: keys keep the focused control in sight, and scroll the board before the focus wraps round', async () => {
+    const ui = await results();
+    const scroll = document.querySelector<HTMLElement>('#ui .results.on .scroll')!;
+    const by = sized(scroll, 790, 500);
+    reveal.mockClear();
+    const input = document.querySelector('#ui .name-input')!;
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })); // name → Back to menu
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
+    key('ArrowDown'); key('ArrowDown'); // more board below: it scrolls, the focus stays
+    expect(by).toHaveBeenCalledTimes(2);
+    expect(by.mock.calls[0][0].top).toBe(UI.panelScrollPx);
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
+    key('ArrowDown'); key('ArrowDown'); // at the bottom: now it wraps round to the name box, scrolled into sight
+    expect(scroll.scrollTop).toBe(290);
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('name');
+    expect(reveal.mock.contexts.at(-1)).toBe(input);
+    ui.dispose();
+  });
+
+  it('How to Play opens at the top, and up and down scroll it on keys (and a pad)', () => {
+    document.body.innerHTML = '';
+    Element.prototype.scrollIntoView = reveal;
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    reveal.mockClear();
+    ui.dispatch({ type: 'openHowTo' });
+    expect(reveal).not.toHaveBeenCalled(); // Back sits at the end: focusing it must not jump there
+    const by = sized(document.querySelector<HTMLElement>('#ui .howto.on .box')!, 1208, 570);
+    key('ArrowDown'); key('ArrowDown'); key('ArrowUp');
+    expect(by.mock.calls.map((c) => c[0].top)).toEqual([UI.panelScrollPx, UI.panelScrollPx, -UI.panelScrollPx]);
+    expect(ui.app.overlays).toEqual(['howTo']);
+    ui.nav('down'); // the pad goes through the same nav
+    expect(by).toHaveBeenCalledTimes(4);
     ui.dispose();
   });
 });

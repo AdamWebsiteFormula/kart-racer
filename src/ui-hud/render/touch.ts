@@ -40,7 +40,7 @@ export class TouchControls {
     mk('lookBack', 'BACK');
     mk('drift', 'DRIFT');
     mk('brake', 'BRAKE');
-    const pause = h('div', 'tb pause', this.root);
+    const pause = h('div', 'tb pauseBtn', this.root);
     pause.dataset.pause = '';
     h('span', '', pause);
     for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture'] as const) {

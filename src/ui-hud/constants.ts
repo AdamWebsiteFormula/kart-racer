@@ -26,4 +26,6 @@ export const UI = Object.freeze({
   rouletteFlickerMs: 90,
   /** a gamepad stick past this counts as a direction */
   stickDeadZone: 0.5,
+  /** up or down past the first or last stop scrolls a tall panel this far (px) */
+  panelScrollPx: 120,
 });
