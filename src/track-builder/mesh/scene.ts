@@ -16,6 +16,7 @@ import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type 
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
+import { glowFromVertexColours } from './glow.ts';
 import { buildStartGantry } from './gantry.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
@@ -139,7 +140,9 @@ const OWNED = new WeakSet<BufferGeometry>();
 /** Toon material for a geometry: its own vertex colours when it carries them, else the palette colour. */
 function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | undefined): MeshToonMaterial {
   const vc = geometry.hasAttribute('color');
-  return new MeshToonMaterial({ color: vc ? 0xffffff : toColor(colour), vertexColors: vc, gradientMap: gradientMap ?? null });
+  const m = new MeshToonMaterial({ color: vc ? 0xffffff : toColor(colour), vertexColors: vc, gradientMap: gradientMap ?? null });
+  if (vc) glowFromVertexColours(m); // lamp globes, bulbs and neon signs light themselves (glow.ts)
+  return m;
 }
 
 let GRADIENT: Texture | undefined; // set per buildTrackScene call from assets.gradientMap

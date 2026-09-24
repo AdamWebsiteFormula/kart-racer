@@ -347,6 +347,7 @@ const MODELS: Record<string, { build: Build }> = {
       for (let i = 0; i < 5; i++) m.box([0.6, 0.12, 2.4], i % 2 ? '#fffaf0' : '#ff2e97', [-1.2 + i * 0.6, 2.4, 0.2], [0.25, 0, 0]); // striped awning
       for (const x of [-1.4, 1.4]) m.cyl(0.07, 0.07, 1.8, '#1b1b2f', [x, 1.5, 0.9], undefined, 4, false);
       m.box([2.6, 0.35, 0.1], [2.2, 1.9, 0.4], [0, 1.45, 1.02], undefined, false);      // glowing sign
+      for (let i = 0; i < 7; i++) m.ball([0.09, 0.09, 0.09], i % 2 ? [2.4, 1.9, 0.8] : [0.6, 2.2, 2.4], [-1.35 + i * 0.45, 2.02, 1.42], undefined, 4, false); // bulbs on the awning's edge
     },
   },
   lamp: {
@@ -361,6 +362,10 @@ const MODELS: Record<string, { build: Build }> = {
       for (let i = 0; i < 6; i++) m.box([0.9, 4.02, 0.2], '#ff2e97', [Math.sin(i * Math.PI / 3) * 5, 2, Math.cos(i * Math.PI / 3) * 5], [0, i * Math.PI / 3, 0], false); // stripes
       m.cone(5.6, 4.5, '#ff2e97', [0, 6.2, 0], undefined, 12);
       m.cone(0.4, 1.4, [2.2, 1.9, 0.5], [0, 9.1, 0], undefined, 6, false);               // glowing flag top
+      for (let i = 0; i < 16; i++) {                                                      // a ring of marquee bulbs round the roof's edge
+        const a = (i / 16) * Math.PI * 2;
+        m.ball([0.16, 0.16, 0.16], i % 3 ? [2.4, 1.9, 0.8] : [2.4, 0.5, 1.5], [Math.sin(a) * 5.7, 3.9, Math.cos(a) * 5.7], undefined, 4, false);
+      }
     },
   },
   'bumper-car': {

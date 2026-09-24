@@ -5,13 +5,14 @@ import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Mesh, MeshTo
 import { BUILDER } from '../constants.ts';
 import type { Track } from '../track.ts';
 import type { Vec3 } from '../types.ts';
+import { glowFromVertexColours } from './glow.ts';
 import type { Rgb, TrackPalette } from './palette.ts';
 
 /** Metres of one checker square on the band and the beam. */
 const SQUARE = 0.75;
 /** The beam's underside above the road, its height, the pillars' width, their distance past the curb. */
 const CLEAR = 6.2, BEAM = 1.3, PILLAR = 0.8, OUT = 0.9;
-const WHITE: Rgb = [0.96, 0.96, 0.94], BLACK: Rgb = [0.08, 0.08, 0.1], RED: Rgb = [1, 0.22, 0.18];
+const WHITE: Rgb = [0.96, 0.96, 0.94], BLACK: Rgb = [0.08, 0.08, 0.1], RED: Rgb = [2.2, 0.35, 0.25]; // RED lights itself (glow.ts)
 
 interface Buf { pos: number[]; col: number[]; idx: number[] }
 
@@ -106,7 +107,9 @@ export function buildStartGantry(track: Track, palette: TrackPalette, gradientMa
   g.setAttribute('color', new Float32BufferAttribute(b.col, 3));
   g.setIndex(b.idx);
   g.computeVertexNormals();
-  const m = new Mesh(g, new MeshToonMaterial({ vertexColors: true, gradientMap, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, emissive: new Color(0x000000), side: DoubleSide }));
+  const mat = new MeshToonMaterial({ vertexColors: true, gradientMap, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, emissive: new Color(0x000000), side: DoubleSide });
+  glowFromVertexColours(mat);
+  const m = new Mesh(g, mat);
   m.name = 'start-line';
   m.castShadow = true;
   m.receiveShadow = true;
