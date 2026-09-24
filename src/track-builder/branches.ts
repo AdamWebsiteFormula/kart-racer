@@ -88,7 +88,34 @@ export class Branch {
       return { t, d2: this.lut.dist2At(t, position) };
     }
     const u = this.lut.nearestT(position, this.toLocal(hintT), window / this.span);
+    // past an end the shortcut is not there any more (bug hunt, 24 Sept 2026: out of Canyon's mine a
+    // kart rode a flat extension of the last sample for metres, up to 4 m over the main road it had
+    // joined, then dropped). Beyond it, the road it welds onto is the road.
+    if (this.pastEnd(u, position)) return { t: this.toMain(u), d2: Infinity };
     return { t: this.toMain(u), d2: this.lut.dist2At(u, position) };
+  }
+
+  /**
+   * Local nearest searched again from where it landed until t stops moving. A switch onto this
+   * branch searched a window centred on the other road's t, and on this road that window's edge can
+   * be metres from the kart (bug hunt, 24 Sept 2026: beside Canyon's mine entry the main road's ground
+   * was read 12 m away, 1.2 m higher, and the kart snapped up, then fell).
+   */
+  settle(position: Vec3, t: number, window: number): number {
+    for (let k = 0; k < SETTLE_PASSES; k++) {
+      const next = this.nearestLocal(position, t, window).t;
+      if (next === t) break;
+      t = next;
+    }
+    return t;
+  }
+
+  /** Is `position` beyond the open end the search clamped u to (along that end's tangent)? */
+  private pastEnd(u: number, position: Vec3): boolean {
+    if (u > 0 && u < 1) return false;
+    const L = this.lut, i = u <= 0 ? 0 : L.n - 1;
+    const along = (position[0] - L.px[i]) * L.tx[i] + (position[2] - L.pz[i]) * L.tz[i];
+    return u <= 0 ? along < 0 : along > 0;
   }
 
   /** Road half-width at main-equivalent t. */
@@ -103,6 +130,9 @@ export class Branch {
     return { t: this.toMain(u), d2: this.lut.dist2At(u, position) };
   }
 }
+
+/** Searches Branch.settle runs at most: each slides the window by up to its width, 2–3 settle a switch. */
+const SETTLE_PASSES = 3;
 
 /** Samples a branch LUT gets: proportional to its length, never fewer than 64. */
 export function branchSampleCount(branchLength: number, mainLength: number): number {
@@ -240,6 +270,8 @@ export class Branches {
         bestT = cand.t;
       }
     }
+    // a switch: read the new road's ground under the kart, not at the edge of the old road's window
+    if (bestBranch !== cur.index) bestT = this.list[bestBranch].settle(position, bestT, window);
     return { t: bestT, branch: bestBranch };
   }
 

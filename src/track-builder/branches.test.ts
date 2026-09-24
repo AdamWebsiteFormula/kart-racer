@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { makeConstants } from '../kart-controller/constants.ts';
+import { lateralOffset } from '../kart-controller/ground.ts';
+import { SIM_DT, stepKart } from '../kart-controller/step.ts';
+import { createKartState, headingOf, NEUTRAL_INPUT, type Vec3 } from '../kart-controller/types.ts';
 import { T_SEARCH_WINDOW } from './constants.ts';
 import { wrap01 } from './lut.ts';
 import { buildTrack } from './track.ts';
+import canyonJson from './tracks/canyon-rush.json';
+import type { TrackDefinition } from './types.ts';
 import { HARBOUR_WITH_PIER as HARBOUR_LOOP, cloneDef } from './__tests__/fixtures.ts';
 
 const track = buildTrack(HARBOUR_LOOP);
@@ -125,5 +131,78 @@ describe('branches', () => {
     const m = track.nearestGlobal(track.sample(0.1, 0).position);
     expect(m.branch).toBe(0);
     expect(m.t).toBeCloseTo(0.1, 3);
+  });
+});
+
+describe('handing a kart between roads (bug hunt, 24 Sept 2026)', () => {
+  const canyon = buildTrack(cloneDef(canyonJson as TrackDefinition));
+  const mine = canyon.branches.byId('mine-tunnel')!;
+  const main = canyon.branches.main;
+
+  /** `metres` along the mine's centreline tangent from its end at u (0 or 1). */
+  function offEnd(u: 0 | 1, metres: number): Vec3 {
+    const e = mine.lut.sample(u, 0), h = Math.hypot(e.tangent[0], e.tangent[2]);
+    return [e.position[0] + (e.tangent[0] / h) * metres, e.position[1], e.position[2] + (e.tangent[2] / h) * metres];
+  }
+
+  it('past either end of a shortcut the kart is on the road it joins; short of the end it is still on the shortcut', () => {
+    // out of the exit, then reversing out of the entry: 2 m is well inside the road's half-width,
+    // where the clamped end point used to hold the kart
+    const out = canyon.nearest(offEnd(1, 2), { t: mine.exitT, branch: mine.index }, T_SEARCH_WINDOW);
+    expect(out.branch).toBe(0);
+    expect(mine.nearestLocal(offEnd(1, 2), mine.exitT, T_SEARCH_WINDOW).d2).toBe(Infinity);
+    const back = canyon.nearest(offEnd(0, -2), { t: mine.entryT, branch: mine.index }, T_SEARCH_WINDOW);
+    expect(back.branch).toBe(0);
+    // 2 m short of either end it is still the mine's
+    expect(canyon.nearest(offEnd(1, -2), { t: mine.exitT, branch: mine.index }, T_SEARCH_WINDOW).branch).toBe(mine.index);
+    expect(canyon.nearest(offEnd(0, 2), { t: mine.entryT, branch: mine.index }, T_SEARCH_WINDOW).branch).toBe(mine.index);
+  });
+
+  it("Canyon Rush: driving out of the mine, straight or wide onto the sand, rides no flat extension of the mine's end", () => {
+    const c = makeConstants('medium', 150);
+    const L = mine.lut, end = L.n - 1;
+    for (const [u, turn] of [[0.95, 0], [0.98, 0.3]] as const) {
+      const p = L.sample(u, 0);
+      const s = createKartState({ racerId: 'k', position: [...p.position], heading: headingOf(p.tangent) + turn, t: mine.toMain(u) });
+      s.branch = mine.index;
+      s.speed = 22;
+      let past = 0, onMine = 0, worst = 0;
+      for (let k = 0; k < 400 && past < 1.5 / SIM_DT; k++) {
+        stepKart(s, { ...NEUTRAL_INPUT, throttle: 1 }, canyon, c, SIM_DT);
+        if ((s.position[0] - L.px[end]) * L.tx[end] + (s.position[2] - L.pz[end]) * L.tz[end] <= 0) continue;
+        past++;
+        if (s.branch === mine.index) onMine++;
+        // standing on the ground, it stands on the main road's ground under it, not on a plane above it
+        const mt = main.nearestGlobal(s.position).t;
+        const g = canyon.sample(mt, lateralOffset(canyon, mt, s.position, 0).lateral, 0).groundY;
+        if (s.grounded) worst = Math.max(worst, Math.abs(s.position[1] - g));
+      }
+      expect(past, `from u ${u}, turned ${turn}`).toBeGreaterThan(100);
+      // it rode the mine's end for 37 ticks straight and 234 wide, up to 4.8 m over the sand
+      expect(onMine, `from u ${u}, turned ${turn}`).toBe(0);
+      expect(worst, `from u ${u}, turned ${turn}`).toBeLessThan(0.2);
+    }
+  });
+
+  it("Canyon Rush: off the mine onto the main road beside its entry, the ground is read under the kart, not at the edge of the mine's window", () => {
+    // on the sand left of the main road, turned back toward the mine entry: it is taken by the mine,
+    // then handed to the main road; that hand-over read the ground 12.5 m away, 1.2 m higher
+    const c = makeConstants('light', 150);
+    const p = canyon.sample(0.3075, -17.4, 0);
+    const s = createKartState({ racerId: 'k', position: [...p.position], heading: headingOf(p.tangent) + (3 * Math.PI) / 4, t: 0.3075 });
+    s.speed = 15;
+    let switches = 0, worstOff = 0, worstRise = 0;
+    for (let k = 0; k < 120; k++) {
+      const branch = s.branch, y = s.position[1], grounded = s.grounded;
+      stepKart(s, { ...NEUTRAL_INPUT, throttle: 1 }, canyon, c, SIM_DT);
+      if (grounded && s.grounded) worstRise = Math.max(worstRise, s.position[1] - y);
+      if (s.branch === branch) continue;
+      switches++;
+      const smp = canyon.sample(s.t, lateralOffset(canyon, s.t, s.position, s.branch).lateral, s.branch);
+      worstOff = Math.max(worstOff, Math.hypot(smp.position[0] - s.position[0], smp.position[2] - s.position[2]));
+    }
+    expect(switches).toBeGreaterThanOrEqual(2); // main → mine → main
+    expect(worstOff).toBeLessThan(0.5);
+    expect(worstRise).toBeLessThan(0.3);
   });
 });
