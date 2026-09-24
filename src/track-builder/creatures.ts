@@ -56,7 +56,7 @@ const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k 
 const hash = (k: number) => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 /** hw: the road's half width; reach: how far out a kart can drive (the course limit past the curb on an off-road track) */
-interface Frame { p: Vec3; tangent: Vec3; right: Vec3; hw: number; reach: number; heading: number }
+interface Frame { t: number; p: Vec3; tangent: Vec3; right: Vec3; hw: number; reach: number; heading: number }
 
 export class Creature {
   readonly id: string;
@@ -88,7 +88,7 @@ export class Creature {
   private frame(t: number): Frame {
     const s = this.branches.main.sample(t, 0);
     const rx = s.tangent[2], rz = -s.tangent[0], n = Math.hypot(rx, rz) || 1;
-    return { p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: s.wall ?? s.halfWidth, heading: Math.atan2(s.tangent[0], s.tangent[2]) };
+    return { t, p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: s.wall ?? s.halfWidth, heading: Math.atan2(s.tangent[0], s.tangent[2]) };
   }
 
   /**
@@ -101,6 +101,17 @@ export class Creature {
 
   private at(f: Frame, lateral: number, up = 0): Vec3 {
     return [f.p[0] + f.right[0] * lateral, f.p[1] + up, f.p[2] + f.right[2] * lateral];
+  }
+
+  /**
+   * On the ground `lateral` metres across: the road there, or past the curb the land as drawn (bug
+   * hunt 2, 24 Sept 2026: at the road centre's height the goose waited 1 m over the grass, the crab
+   * 0.2 m over the sand, and so did the point that hits).
+   */
+  private on(f: Frame, lateral: number, up = 0): Vec3 {
+    const p = this.at(f, lateral);
+    p[1] = this.branches.main.sample(f.t, lateral).groundY + up;
+    return p;
   }
 
   private period(): number { return this.def.period ?? 8; }
@@ -142,7 +153,7 @@ export class Creature {
         const f = this.frame(this.t);
         const lat = (pose.position[0] - f.p[0]) * f.right[0] + (pose.position[2] - f.p[2]) * f.right[2];
         // wherever a kart can reach it (the road, or the sand out to the course limit)
-        if (this.kind === 'goose' || Math.abs(lat) < Math.max(f.hw, f.reach) + C.radius) out.push({ id, type: 'creature', position: [pose.position[0], this.groundAt(pose.position), pose.position[2]], radius: C.radius, hit });
+        if (this.kind === 'goose' || Math.abs(lat) < Math.max(f.hw, f.reach) + C.radius) out.push({ id, type: 'creature', position: pose.position, radius: C.radius, hit });
         break;
       }
       case 'whale': {
@@ -157,19 +168,16 @@ export class Creature {
     return out;
   }
 
-  /** Road height under a point near the creature's spot (its t). */
-  private groundAt(_p: Vec3): number { return this.frame(this.t).p[1]; }
-
   pose(time: number): CreaturePose {
     const p = this.phase(time), side = this.side, id = this.id, kind = this.kind;
     const marks: CreaturePose['marks'] = [];
     switch (kind) {
       case 'rumblesaur': {
         const C = CREATURE.rumblesaur, f = this.frame(this.t);
-        const body = this.at(f, side * this.clear(f, C.off, C.footprint));
+        const body = this.on(f, side * this.clear(f, C.off, C.footprint));
         // it faces the road
         const heading = f.heading - side * Math.PI / 2;
-        const foot = this.at(f, side * (f.hw + C.off - C.step));
+        const foot = this.on(f, side * (f.hw + C.off - C.step));
         const stompAt = C.idle + C.rear;
         let action = 'idle', ph = p / C.idle;
         if (p >= C.idle && p < stompAt) { action = 'rear'; ph = (p - C.idle) / C.rear; marks.push({ kind: 'shadow', position: foot, radius: C.footRadius, strength: ph }); }
@@ -184,7 +192,7 @@ export class Creature {
       }
       case 'yeti': {
         const C = CREATURE.yeti, f = this.frame(this.t);
-        const body = this.at(f, side * this.clear(f, C.off, C.footprint), 3);
+        const body = this.on(f, side * this.clear(f, C.off, C.footprint), 3);
         const heading = f.heading - side * Math.PI / 2;
         const P = this.period(), k = Math.floor(time / P);
         let action = 'idle', ph = 0;
@@ -242,7 +250,7 @@ export class Creature {
         let lat = from, action = 'wait', ph = leg / C.wait;
         if (leg >= C.wait) { const s = smooth((leg - C.wait) / C.cross); lat = from + (to - from) * s; action = 'cross'; ph = (leg - C.wait) / C.cross; }
         // a crab walks sideways: it faces along the road
-        return { id, kind, position: this.at(f, lat), heading: f.heading + Math.PI, action, phase: ph, marks };
+        return { id, kind, position: this.on(f, lat), heading: f.heading + Math.PI, action, phase: ph, marks };
       }
       case 'goose': {
         const C = CREATURE.goose, L = this.branches.main.lut.length;
@@ -266,7 +274,7 @@ export class Creature {
           heading = p >= turnEnd ? f0.heading : f0.heading + Math.PI - side * Math.PI / 2 * back;
         }
         const f = this.frame(this.t - d / L);
-        const pos = this.at(f, lat);
+        const pos = this.on(f, lat);
         if (action === 'wait' && ph > 0.4) marks.push({ kind: 'shadow', position: this.at(f0, side * (f0.hw - 1)), radius: 1.5, strength: ph });
         return { id, kind, position: pos, heading: action === 'charge' ? f.heading + Math.PI : heading, action, phase: ph, marks };
       }

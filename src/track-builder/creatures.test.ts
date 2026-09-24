@@ -8,6 +8,8 @@ import { CREATURE } from './creatures.ts';
 import { buildTrack, type Track } from './track.ts';
 import canyonJson from './tracks/canyon-rush.json';
 import frostbiteJson from './tracks/frostbite-pass.json';
+import harbourJson from './tracks/harbour-loop.json';
+import meadowJson from './tracks/meadow-run.json';
 import type { ActiveHazard, CreatureKind, TrackDefinition } from './types.ts';
 
 function trackWith(kind: CreatureKind, period: number, lateral = 1): Track {
@@ -149,6 +151,20 @@ describe('course creatures', () => {
       const foot = mine(t, C.idle + C.rear + 0.05).find((h) => h.radius === C.footRadius)!;
       expect(lateral(t, foot.position)).toBeCloseTo(hw + C.off - C.step, 6);
       expect(lateral(t, pose(t, 1).position)).toBeCloseTo(offroad ? t.sample(0.3, 0).wall! + C.footprint : hw + C.off, 6);
+    }
+  });
+
+  it('the goose, the crab and the Rumblesaur stand on the ground as drawn, and so does what hits', () => {
+    // bug hunt 2 (24 Sept 2026): at the road centre's height the goose waited 0.96 m over Meadow's grass
+    for (const [json, id, time] of [[meadowJson, 'goose', 1], [harbourJson, 'crab', 0.5], [canyonJson, 'rumblesaur', 1]] as const) {
+      const track = buildTrack(cloneDef(json as TrackDefinition));
+      const c = track.hazards.creatures.find((x) => x.id === id)!;
+      const p = track.hazards.creaturePoses(time).find((x) => x.id === id)!.position;
+      const s = track.sample(c.t, 0);
+      const lat = ((p[0] - s.position[0]) * s.tangent[2] - (p[2] - s.position[2]) * s.tangent[0]) / Math.hypot(s.tangent[0], s.tangent[2]);
+      const ground = track.sample(c.t, lat).groundY;
+      expect(Math.abs(p[1] - ground), id).toBeLessThan(0.02);
+      if (id !== 'rumblesaur') expect(Math.abs(track.activeHazards(time).find((h) => h.id === id)!.position[1] - ground), `${id} hit`).toBeLessThan(0.02);
     }
   });
 
