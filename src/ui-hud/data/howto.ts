@@ -6,7 +6,7 @@ export const CONTROLS: readonly { action: string; keys: string; pad: string }[] 
   { action: 'Gas', keys: 'W or ↑', pad: 'RT' },
   { action: 'Brake / reverse', keys: 'S or ↓', pad: 'LT' },
   { action: 'Hop and drift', keys: 'Shift or Space', pad: 'A' },
-  { action: 'Use item (hold to keep it behind you)', keys: 'E, X or Ctrl', pad: 'X' },
+  { action: 'Use item (hold to keep it behind you)', keys: 'E or X', pad: 'X' },
   { action: 'Look back (throw backward)', keys: 'Q', pad: 'B' },
   { action: 'Horn', keys: 'H', pad: 'Y' },
   { action: 'Pause', keys: 'Esc or P', pad: 'Start' },

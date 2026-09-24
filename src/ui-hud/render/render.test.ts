@@ -116,6 +116,29 @@ describe('UiRoot', () => {
     ui.dispose();
   });
 
+  it('while racing the driving keys never reach the browser (Space scrolls, Ctrl+D bookmarks); the rest do (bug hunt 3)', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    const kept = (code: string, ctrlKey = false) => !dispatchEvent(new KeyboardEvent('keydown', { code, key: code, ctrlKey, cancelable: true }));
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' });
+    ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    for (const code of ['Space', 'ArrowUp', 'ArrowLeft', 'ShiftLeft', 'KeyE', 'KeyX', 'KeyQ', 'KeyH']) expect(kept(code), code).toBe(true);
+    for (const code of ['KeyD', 'KeyS', 'KeyA', 'KeyH']) expect(kept(code, true), `Ctrl+${code}`).toBe(true);
+    for (const code of ['ControlLeft', 'Tab', 'F5', 'KeyR']) expect(kept(code), code).toBe(false);
+    ui.dispose();
+  });
+
+  it('How to Play lists E or X for items, and no Ctrl (bug hunt 3)', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'openHowTo' });
+    const text = document.querySelector('#ui .howto.on')!.textContent!;
+    expect(text).toContain('E or X');
+    expect(text).not.toContain('Ctrl');
+    ui.dispose();
+  });
+
   it('Time Trial and Daily show no 50/100/150cc row: they always run at 150cc (bug hunt 2)', () => {
     for (const [mode, row] of [['quick', true], ['timeTrial', false], ['daily', false]] as const) {
       document.body.innerHTML = '';

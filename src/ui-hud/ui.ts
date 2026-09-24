@@ -1,6 +1,7 @@
 // UiRoot: mounts the overlay, owns every renderer, the app state, the focus ring and menu
 // input (keyboard, gamepad, pointer). The game loop talks to it through UiHost callbacks,
 // feed() once per sim tick and race() once per frame. No Three.js here.
+import { isRaceKey } from '../kart-controller/input.ts';
 import type { KartState, SpeedClass } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import type { GrandPrixState, KnockoutState, RaceEvent, RaceMode, RaceResults, RaceState } from '../race-manager/types.ts';
@@ -318,6 +319,8 @@ export class UiRoot {
     if (e.repeat && (a === 'confirm' || a === 'back')) return;
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (isPauseKey(e.code, e.key)) { e.preventDefault(); this.dispatch({ type: 'pause' }); }
+      // the driving keys are the game's while racing: the browser does not scroll on Space or bookmark on Ctrl+D
+      else if (isRaceKey(e.code)) e.preventDefault();
       return;
     }
     if (!a) return;

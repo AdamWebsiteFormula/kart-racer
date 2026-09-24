@@ -13,10 +13,16 @@ export const DEFAULT_KEYS: Readonly<KeyMap> = Object.freeze({
   throttle: ['ArrowUp', 'KeyW'],
   brake: ['ArrowDown', 'KeyS'],
   drift: ['ShiftLeft', 'ShiftRight', 'Space'],
-  item: ['KeyE', 'KeyX', 'ControlLeft'],
+  // no Ctrl: held with W, D or S it makes browser shortcuts, and Ctrl+W closes the tab (bug hunt 3)
+  item: ['KeyE', 'KeyX'],
   lookBack: ['KeyQ'],
   horn: ['KeyH'],
 });
+
+/** Is this key bound to driving? While racing the page keeps it from the browser (Space never scrolls, Ctrl+D never bookmarks). */
+export function isRaceKey(code: string, keys: KeyMap = DEFAULT_KEYS): boolean {
+  return Object.values(keys).some((list) => list.includes(code));
+}
 
 /** Standard-mapping gamepad: left stick X, RT throttle, LT brake, A drift, X item, B look back, Y horn. */
 export const GAMEPAD = Object.freeze({ steerAxis: 0, throttleButton: 7, brakeButton: 6, drift: 0, item: 2, lookBack: 1, horn: 3, deadZone: 0.15 });

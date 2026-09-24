@@ -9,4 +9,4 @@ export { collisionMass } from './collide.ts';
 export { isRiding, isTowed, radiusOf } from './powers.ts';
 export { inWake } from './slipstream.ts';
 export { applyHit, SIM_DT, SIM_HZ, stepKart, stepKarts, tryStartBoost } from './step.ts';
-export { DEFAULT_KEYS, InputSource, mapInput, type KeyMap } from './input.ts';
+export { DEFAULT_KEYS, InputSource, isRaceKey, mapInput, type KeyMap } from './input.ts';

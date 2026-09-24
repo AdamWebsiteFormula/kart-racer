@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InputSource, STEER_RAMP, mapInput, rampSteer, type VirtualPad } from './input.ts';
+import { DEFAULT_KEYS, InputSource, STEER_RAMP, isRaceKey, mapInput, rampSteer, type VirtualPad } from './input.ts';
 
 describe('input mapping', () => {
   it('maps keys', () => {
@@ -20,6 +20,18 @@ describe('input mapping', () => {
     const pad2 = { axes: [1], buttons: [] } as unknown as Gamepad;
     expect(mapInput(new Set(), pad2).steer).toBeCloseTo(-1); // stick right = screen right = sim −
     expect(mapInput(new Set(['KeyA']), pad2).steer).toBe(1);
+  });
+
+  it('Ctrl is no item key: held with W, D or S it makes browser shortcuts, and Ctrl+W closes the tab (bug hunt 3)', () => {
+    expect(mapInput(new Set(['ControlLeft']), null).item).toBe(false);
+    expect(mapInput(new Set(['ControlRight']), null).item).toBe(false);
+    expect(mapInput(new Set(['KeyE']), null).item).toBe(true);
+    expect(mapInput(new Set(['KeyX']), null).item).toBe(true);
+  });
+
+  it('isRaceKey: every bound key is one, and nothing else is (bug hunt 3)', () => {
+    for (const list of Object.values(DEFAULT_KEYS)) for (const code of list) expect(isRaceKey(code), code).toBe(true);
+    for (const code of ['ControlLeft', 'KeyP', 'Escape', 'Tab', 'F5', 'KeyR', '']) expect(isRaceKey(code), code).toBe(false);
   });
 
   it('keyboard steer ramps to full lock over STEER_RAMP.to and back faster', () => {
