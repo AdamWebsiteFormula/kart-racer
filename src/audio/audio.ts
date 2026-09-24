@@ -113,11 +113,11 @@ export class GameAudio {
   }
 
   /**
-   * Race start: fresh director memory. A recorded race song decodes during the countdown and
-   * starts on the go; the synth one plays with its drums muted until the go.
+   * Race start: fresh director memory, from the player's grid rank. A recorded race song decodes
+   * during the countdown and starts on the go; the synth one plays with its drums muted until the go.
    */
-  newRace(song: SongId, trackId?: string): void {
-    resetDirector();
+  newRace(song: SongId, trackId?: string, gridRank?: number): void {
+    resetDirector(gridRank);
     this.songId = null;
     const key = trackId ? themeForTrack(trackId) : song;
     if (this.bank.hasSong(key)) {

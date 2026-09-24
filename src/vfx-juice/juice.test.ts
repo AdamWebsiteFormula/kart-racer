@@ -86,6 +86,18 @@ describe('fx director', () => {
     expect([fx.hitStop, fx.kickHit]).toEqual([true, true]);
     expect(fx.trauma).toBe(1);
   });
+  it('a bumper car\'s shove and a rockfall jolt the player like a wall; a spin hazard jolts through its kart hit', () => {
+    const hz = (racerId: string, hit: 'spin' | 'slow' | 'bump'): RaceEvent => ({ type: 'hazardHit', racerId, hazardId: 'h', hit });
+    for (const hit of ['bump', 'slow'] as const) {
+      const fx = directFx([hz('p', hit)], [], 'p');
+      expect(fx.trauma, hit).toBeCloseTo(JUICE.traumaWall);
+      expect(fx.bursts, hit).toEqual([{ kind: 'wall', racerId: 'p' }]);
+    }
+    const other = directFx([hz('a', 'bump')], [], 'p');
+    expect([other.trauma, other.bursts.length]).toEqual([0, 0]); // someone else's shove: no shake
+    const spin = directFx([hz('p', 'spin')], [], 'p');
+    expect([spin.trauma, spin.bursts.length]).toEqual([0, 0]); // applyHit's kart 'hit' event does it
+  });
   it('spark colours: blue, orange, then a cycling rainbow', () => {
     expect(sparkColour(1, 0)[2]).toBeGreaterThan(1);
     expect(sparkColour(2, 0)[0]).toBeGreaterThan(1);

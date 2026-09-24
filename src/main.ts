@@ -161,7 +161,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   indexOf.clear();
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
-  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id);
+  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id, session.state.trackers[pi]?.shownRank);
   if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
   if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
   lightSnap = true; // a new race starts under its own light, no fade from the last one
@@ -363,7 +363,9 @@ function step(now: number): void {
       vfx.onTick(directFx(ev.race, ev.items, attract ? null : s.player?.racerId ?? null, fxBuf), kartOf, nowS, reduced);
       if (!attract && s.player) {
         ui.feed(ev.race, ev.items, s.player.racerId);
-        audio.tick(ev.race, ev.items, listener);
+        // the race's sounds only while its screen is up: the results, GP table and Knockout cut
+        // keep the field driving under their own song, engines already quiet
+        if (racing) audio.tick(ev.race, ev.items, listener);
       }
     }
   }
