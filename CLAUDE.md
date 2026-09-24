@@ -35,6 +35,13 @@ The live site is GitHub Pages (pushed builds publish themselves). Performance: A
 - Under 100 draw calls with 8 karts, ≤3 lights, one shadow map, DPR ≤2. Merge statics, InstancedMesh for decor, one material per track chunk.
 - Boosts never stack; priority Trick > Item > Drift. Constants come from the kart schema defaults, not magic numbers.
 
+## Browser checks: silent, always (Adam, 24 Sept 2026)
+A hidden test page played the game's music through the night and woke Adam's household. So, for every agent, main session and builders alike:
+- Load the game only with `?mute` on the address (`http://localhost:5173/?mute`, `https://adamwebsiteformula.github.io/kart-racer/?mute`, `http://localhost:<port>/?mute`). Muted, the game never creates an audio context, whatever is pressed.
+- Close every browser tab you opened (the built-in browser pane included) the moment a check is done. Never leave the game open, not even muted.
+- Stop any dev server you started for a check when you finish it.
+- Never play the game's audio, or any other sound, on Adam's machine.
+
 ## Behaviour
 - Think before coding. Simplicity first. Surgical changes: touch only `src/<system>` and its tests.
 - Read `docs/design.md` before gameplay, art or content work.

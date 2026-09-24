@@ -242,3 +242,36 @@ describe('director', () => {
     expect(sting(AUDIO.podium + 1)).toBe('finishLow');
   });
 });
+
+describe('?mute: a silent bus (24 Sept 2026: a hidden test page played the title music at night)', () => {
+  it('never builds an audio context, however often it is unlocked; a normal bus builds one on the first gesture', async () => {
+    const { AudioBus } = await import('./bus.ts');
+    let built = 0;
+    const node = () => ({ connect: () => undefined, gain: { value: 1, setTargetAtTime: () => undefined }, frequency: { value: 1, setTargetAtTime: () => undefined }, threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, type: '' });
+    class FakeContext {
+      state = 'running';
+      currentTime = 0;
+      destination = {};
+      constructor() { built++; }
+      createDynamicsCompressor() { return node(); }
+      createGain() { return node(); }
+      createBiquadFilter() { return node(); }
+      resume() { return Promise.resolve(); }
+      addEventListener() { /* no events in the test */ }
+    }
+    const g = globalThis as unknown as { AudioContext?: unknown };
+    const before = g.AudioContext;
+    g.AudioContext = FakeContext;
+    try {
+      const silent = AudioBus.silent();
+      for (let i = 0; i < 5; i++) expect(silent.unlock()).toBe(false);
+      expect(silent.ctx).toBeNull();
+      expect(built).toBe(0);
+      const loud = new AudioBus();
+      expect(loud.unlock()).toBe(true);
+      expect(built).toBe(1);
+    } finally {
+      g.AudioContext = before;
+    }
+  });
+});

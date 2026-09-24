@@ -7,7 +7,7 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
-import { finishLine, GameAudio, songForTrack, type Listener } from './audio/index.ts';
+import { AudioBus, finishLine, GameAudio, songForTrack, type Listener } from './audio/index.ts';
 import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
@@ -132,7 +132,10 @@ let series: SeriesState | null = null;
 let overSent = false;
 let coinCap = 10;
 let topSpeed = 25;
-const audio = new GameAudio();
+// ?mute: the game makes no sound at all, however it is played (automated checks in a browser
+// always load it so; docs/sops/audio.md)
+const MUTED = new URLSearchParams(location.search).has('mute');
+const audio = new GameAudio(MUTED ? AudioBus.silent() : undefined);
 /** racerId → kart index for the current session (audio needs positions by racer) */
 const indexOf = new Map<string, number>();
 const kartOf = (id: string) => { const i = indexOf.get(id); return i === undefined ? undefined : session?.state.karts[i]; };

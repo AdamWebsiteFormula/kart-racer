@@ -23,9 +23,18 @@ export class AudioBus {
   private readonly Ctx: Ctor | undefined;
   private readonly listeners: (() => void)[] = [];
 
-  constructor(Ctx: Ctor | undefined = (globalThis as unknown as { AudioContext?: Ctor; webkitAudioContext?: Ctor }).AudioContext
+  constructor(Ctx: Ctor | null | undefined = (globalThis as unknown as { AudioContext?: Ctor; webkitAudioContext?: Ctor }).AudioContext
     ?? (globalThis as unknown as { webkitAudioContext?: Ctor }).webkitAudioContext) {
-    this.Ctx = Ctx;
+    this.Ctx = Ctx ?? undefined;
+  }
+
+  /**
+   * A bus that never makes a sound: no audio context is ever created, whatever is pressed or
+   * played (the game's `?mute`: automated checks in a browser, 24 Sept 2026, after a hidden test
+   * page played the title music through the night).
+   */
+  static silent(): AudioBus {
+    return new AudioBus(null);
   }
 
   /** Called on every user gesture until the context is running. Returns true once it is. */
