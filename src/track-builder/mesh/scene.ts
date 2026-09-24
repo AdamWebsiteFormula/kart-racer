@@ -14,7 +14,7 @@ import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
 import { hashString, mulberry32, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { CreatureView } from './creatures.ts';
-import { buildCoast, landAt, type CoastOptions, buildPier } from './land.ts';
+import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
 import { buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
@@ -353,9 +353,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // the land around the road: a sea track's coast, a land track's hills under its raised road
   const land = LAND[def.biome];
   const rises = branches.main.lut.maxY - groundY > LAND_MIN_RISE;
+  // the land stays under a road the race can hide (a closing shortcut, a road a route override replaces)
+  const hideable = hideableRoads(branches, def.finalLapShift, track.shifted);
   const coastOpts: CoastOptions | null = groundKind === 'none' ? null
-    : groundKind === 'water' ? { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell, wet: true, offroad: def.offroad === true, land: track.land }
-    : land && rises ? { waterY: groundY, flat: COAST.flat, slope: land.slope, cell: COAST.cell, strata: land.strata, offroad: def.offroad === true, land: track.land } : null;
+    : groundKind === 'water' ? { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell, wet: true, offroad: def.offroad === true, land: track.land, hideable }
+    : land && rises ? { waterY: groundY, flat: COAST.flat, slope: land.slope, cell: COAST.cell, strata: land.strata, offroad: def.offroad === true, land: track.land, hideable } : null;
   // an off-road track's scenery stands on the land as drawn (a banked corner's low side is lower)
   const offLand = track.land && coastOpts ? track.land : null;
   const groundAt = offLand && coastOpts ? (x: number, z: number) => Math.max(groundY, landAt(offLand, coastOpts, x, z)?.y ?? -Infinity) : undefined;
