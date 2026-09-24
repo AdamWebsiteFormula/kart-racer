@@ -71,6 +71,8 @@ describe('hazards', () => {
     const t = buildTrack(HARBOUR_LOOP);
     expect(t.hazards.isEnabled('barrels')).toBe(true);
     t.hazards.setEnabled('barrels', false);
-    expect(t.activeHazards(0)).toEqual([]);
+    // (the harbor crab, waiting on the sand at time 0, is solid there: karts can reach it)
+    expect(t.activeHazards(0).filter((h) => h.id === 'barrels')).toEqual([]);
+    expect(t.activeHazards(0).map((h) => h.id)).toEqual(['crab']);
   });
 });

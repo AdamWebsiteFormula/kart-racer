@@ -58,12 +58,14 @@ export function buildStartGantry(track: Track, palette: TrackPalette, gradientMa
     }
   }
 
-  // two pillars just past the curbs, banded accent and white
+  // two pillars just past where a kart can drive (past the curb; on an off-road track past the course
+  // limit out on the sand, or karts would drive through them), banded accent and white
   const accent = palette.accent;
-  const span = hw + BUILDER.kerbWidth + OUT;
-  const top = CLEAR + BEAM;
+  const span = Math.max(hw + BUILDER.kerbWidth, c.wall ?? hw) + OUT;
   for (const side of [-1, 1]) {
-    const base: Vec3 = [o[0] + r[0] * side * span, o[1] - 0.5, o[2] + r[2] * side * span];
+    const foot = track.sample(t0, side * span).groundY - 0.5;
+    const base: Vec3 = [o[0] + r[0] * side * span, foot, o[2] + r[2] * side * span];
+    const top = o[1] + CLEAR + BEAM - foot - 0.5;
     const bands = 5, seg = (top + 0.5) / bands;
     for (let k = 0; k < bands; k++) {
       const cy = base[1] + seg * (k + 0.5);

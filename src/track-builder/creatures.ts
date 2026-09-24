@@ -53,7 +53,8 @@ const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k 
 /** A fixed pseudo-random 0..1 for throw number k (deterministic). */
 const hash = (k: number) => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
-interface Frame { p: Vec3; tangent: Vec3; right: Vec3; hw: number; heading: number }
+/** hw: the road's half width; reach: how far out a kart can drive (the course limit past the curb on an off-road track) */
+interface Frame { p: Vec3; tangent: Vec3; right: Vec3; hw: number; reach: number; heading: number }
 
 export class Creature {
   readonly id: string;
@@ -78,7 +79,7 @@ export class Creature {
   private frame(t: number): Frame {
     const s = this.branches.main.sample(t, 0);
     const rx = s.tangent[2], rz = -s.tangent[0], n = Math.hypot(rx, rz) || 1;
-    return { p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, heading: Math.atan2(s.tangent[0], s.tangent[2]) };
+    return { p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: s.wall ?? s.halfWidth, heading: Math.atan2(s.tangent[0], s.tangent[2]) };
   }
 
   private at(f: Frame, lateral: number, up = 0): Vec3 {
@@ -98,13 +99,13 @@ export class Creature {
         const C = CREATURE.rumblesaur;
         for (const m of pose.marks) {
           if (m.kind === 'ring') {
-            // points round the ring that lie over (or near) the road
+            // points round the ring that lie where a kart can be (the road, and the sand out to the course limit)
             const f = this.frame(this.t);
             for (let k = 0; k < C.ringPoints; k++) {
               const a = (k / C.ringPoints) * Math.PI * 2;
               const x = m.position[0] + Math.cos(a) * m.radius, z = m.position[2] + Math.sin(a) * m.radius;
               const lat = (x - f.p[0]) * f.right[0] + (z - f.p[2]) * f.right[2];
-              if (Math.abs(lat) > f.hw + 2) continue;
+              if (Math.abs(lat) > Math.max(f.hw + 2, f.reach)) continue;
               out.push({ id, type: 'creature', position: [x, m.position[1], z], radius: C.ringHalf, hit, ground: true });
             }
           } else if (m.kind === 'shadow' && pose.action === 'stomp') {
@@ -123,8 +124,8 @@ export class Creature {
         const C = this.kind === 'crab' ? CREATURE.crab : CREATURE.goose;
         const f = this.frame(this.t);
         const lat = (pose.position[0] - f.p[0]) * f.right[0] + (pose.position[2] - f.p[2]) * f.right[2];
-        // only on (or at the edge of) the road
-        if (this.kind === 'goose' || Math.abs(lat) < f.hw + C.radius) out.push({ id, type: 'creature', position: [pose.position[0], this.groundAt(pose.position), pose.position[2]], radius: C.radius, hit });
+        // wherever a kart can reach it (the road, or the sand out to the course limit)
+        if (this.kind === 'goose' || Math.abs(lat) < Math.max(f.hw, f.reach) + C.radius) out.push({ id, type: 'creature', position: [pose.position[0], this.groundAt(pose.position), pose.position[2]], radius: C.radius, hit });
         break;
       }
       case 'whale': {

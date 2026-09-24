@@ -11,10 +11,9 @@ import type { ItemDefinition, ItemEvent, ItemsConfig, ItemsState, Projectile } f
 
 /** Unit right vector of the road at t: sample(t, 1) − sample(t, 0). */
 function rightAt(track: Track, t: number, branch: number, out: Vec3): Vec3 {
-  const a = track.sample(t, 0, branch).position, b = track.sample(t, 1, branch).position;
-  out[0] = b[0] - a[0]; out[1] = b[1] - a[1]; out[2] = b[2] - a[2];
-  const n = Math.hypot(out[0], out[1], out[2]) || 1;
-  out[0] /= n; out[1] /= n; out[2] /= n;
+  // level, like the road's own right (a banked road's tilt is not sideways travel)
+  const tg = track.sample(t, 0, branch).tangent, h = Math.hypot(tg[0], tg[2]) || 1;
+  out[0] = tg[2] / h; out[1] = 0; out[2] = -tg[0] / h;
   return out;
 }
 
@@ -125,9 +124,11 @@ export function stepProjectiles(
         const step = cfg.homingLateralRate * dt;
         p.lateral += Math.max(-step, Math.min(step, want - p.lateral));
       }
-      p.lateral = Math.max(-smp.halfWidth + p.radius, Math.min(smp.halfWidth - p.radius, p.lateral));
+      // the Mouse keeps to the road; a Kite chasing its kart follows it onto the sand, out to the course limit
+      const edge = p.weave <= 0 && p.target >= 0 ? smp.wall ?? smp.halfWidth : smp.halfWidth;
+      p.lateral = Math.max(-edge + p.radius, Math.min(edge - p.radius, p.lateral));
       const at = track.sample(p.t, p.lateral, p.branch);
-      p.position[0] = at.position[0]; p.position[1] = at.groundY + jumpLift(track, p.t, p.branch, p.lateral, at.halfWidth) + cfg.projectileHeight; p.position[2] = at.position[2];
+      p.position[0] = at.position[0]; p.position[1] = at.groundY + jumpLift(track, p.t, p.branch, p.lateral, at.halfWidth, at.open ?? 0) + cfg.projectileHeight; p.position[2] = at.position[2];
       continue;
     }
 
@@ -149,8 +150,10 @@ export function stepProjectiles(
       events.push({ type: 'projectileBounce', id: p.id, itemId: p.itemId, position: [...p.position], bouncesLeft: p.bouncesLeft });
     }
     p.lateral = lat;
-    p.position[0] = smp.position[0] + r[0] * lat;
-    p.position[2] = smp.position[2] + r[2] * lat;
-    p.position[1] = smp.groundY + jumpLift(track, p.t, p.branch, lat, smp.halfWidth) + cfg.projectileHeight;
+    // on the ground where it is (a banked road's high side, the sand past the curb), not at the centre's height
+    const at = track.sample(p.t, lat, p.branch);
+    p.position[0] = at.position[0];
+    p.position[2] = at.position[2];
+    p.position[1] = at.groundY + jumpLift(track, p.t, p.branch, lat, at.halfWidth, at.open ?? 0) + cfg.projectileHeight;
   }
 }

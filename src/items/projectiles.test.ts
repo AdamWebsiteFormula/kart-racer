@@ -2,6 +2,13 @@
 import { describe, expect, it } from 'vitest';
 import { ITEMS_CONFIG } from './data.ts';
 import { count, give, go, kart, placeAt, press, seconds, setup, tick, withBehaviour } from './__tests__/harness.ts';
+import { OVAL } from '../race-manager/__tests__/fixtures.ts';
+import meadowJson from '../track-builder/tracks/meadow-run.json';
+import type { TrackDefinition } from '../track-builder/types.ts';
+
+/** The oval with the land past its curb drivable (the off-road tracks), and Meadow Run (a 12 degree banked hairpin at t 0.99). */
+const OVAL_OFFROAD: TrackDefinition = { ...JSON.parse(JSON.stringify(OVAL)), offroad: true };
+const MEADOW = JSON.parse(JSON.stringify(meadowJson)) as TrackDefinition;
 
 describe('Beach Ball', () => {
   it('bounces exactly 3 times then pops, fired forward across the road', () => {
@@ -153,4 +160,45 @@ describe('Homing Kite', () => {
     tick(solo, seconds(5.1));
     expect(solo.items.state.projectiles.length).toBe(0);
   });
+
+  it('follows its kart onto the sand past the curb (review: two wheels on the grass dodged it)', () => {
+    for (const side of [-1, 1]) {
+      const h = setup({ n: 2, def: OVAL_OFFROAD });
+      go(h);
+      const a = kart(h, 0), b = kart(h, 1);
+      const hw = h.track.sample(0.05, 0, 0).halfWidth;
+      placeAt(h.track, a, 0.05, 0);
+      placeAt(h.track, b, 0.05 + 30 / h.track.length, side * (hw + 3));
+      expect(h.track.sample(b.t, side * (hw + 3), 0).surface).toBe('dirt');
+      h.inputs[1].throttle = 1; // driving on the sand, as a kart dodging it would be
+      tick(h, 2);
+      give(h, 0, 'homingKite');
+      press(h, 0);
+      tick(h, seconds(6));
+      expect(h.log.find((e) => e.type === 'hit'), `side ${side}`).toMatchObject({ racerId: 'k1', itemId: 'homingKite' });
+    }
+  });
 });
+
+describe('Beach Ball on a banked corner', () => {
+  it('rides the ground where it is: resting on a kart on the high side of the bank, it hits (review: it passed under)', () => {
+    const h = setup({ n: 2, def: MEADOW });
+    go(h);
+    const a = kart(h, 0), b = kart(h, 1);
+    const hw = h.track.sample(0.99, 0, 0).halfWidth;
+    placeAt(h.track, a, 0.93, 0);
+    placeAt(h.track, b, 0.99, -(hw + 4)); // the high side: the bank lifts the left edge
+    expect(b.position[1] - h.track.sample(0.99, 0, 0).groundY).toBeGreaterThan(1);
+    tick(h, 2);
+    give(h, 0, 'beachBall');
+    press(h, 0);
+    const p = h.items.state.projectiles[0];
+    p.position = [b.position[0], b.position[1], b.position[2]];
+    p.t = b.t; p.branch = b.branch;
+    p.velocity = [0.01, 0, 0];
+    p.graceRemaining = 0;
+    tick(h, 1);
+    expect(h.log.find((e) => e.type === 'hit')).toMatchObject({ racerId: 'k1', itemId: 'beachBall' });
+  });
+});
+

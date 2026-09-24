@@ -140,7 +140,9 @@ export class Track implements TrackQuery {
     this.checkpoints = buildCheckpoints(lut, this.startT, this.def.checkpointCount);
     this.spawnGrid = buildSpawnGrid(lut, this.startT, this.def.startGrid);
     this.minimap = buildMinimap(this.branches);
-    this.jumps = jumpView(this.features);
+    // on an off-road track a ramp's sides slope down to the sand (karts can drive beside it)
+    const skirt = this.def.offroad === true ? BUILDER.rampSkirt : 0;
+    this.jumps = jumpView(this.features).map((j) => (skirt && j.shape !== 'hump' && j.rise ? { ...j, skirt } : j));
     this.boostPads = boostPadView(this.features);
     this.loops = this.loopFeet.map((l) => ({
       id: l.id, t: l.t, radius: l.radius ?? BUILDER.loopRadius, shift: BUILDER.loopShift, spread: BUILDER.loopSpread,

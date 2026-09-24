@@ -168,6 +168,7 @@
         "kerbHeight": { "type": "number", "default": 0.1 },
         "shoulderWidth": { "type": "number", "default": 6.0 },
         "shoulderDrop": { "type": "number", "default": 0.4 },
+        "rampSkirt": { "type": "number", "default": 2.5, "description": "Off-road tracks: metres past the curb over which a ramp's sides slope down to the sand (karts beside a ramp drive up its side instead of popping up a square edge)" },
         "tunnelWall": { "type": "number", "default": 4.2, "description": "metres: a tunnel's side walls rise this high above the road before the roof arches over" },
         "tunnelApex": { "type": "number", "default": 6.2, "description": "metres: the top of a tunnel's arched roof above the road" },
         "tunnelHill": { "type": "number", "default": 9, "description": "metres: the land over a tunnel stands this high above its road (a mesa the mine runs through)" },

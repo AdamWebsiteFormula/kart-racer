@@ -2,6 +2,7 @@
 // hit, and hits only where it says. Built on the race-manager OVAL (a flat rounded square).
 import { describe, expect, it } from 'vitest';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
+import { BUILDER } from './constants.ts';
 import { CREATURE } from './creatures.ts';
 import { buildTrack, type Track } from './track.ts';
 import type { ActiveHazard, CreatureKind, TrackDefinition } from './types.ts';
@@ -67,6 +68,15 @@ describe('course creatures', () => {
     expect(Math.min(...lats)).toBeLessThanOrEqual(-hw + C.radius);
     expect(Math.max(...lats)).toBeGreaterThanOrEqual(hw - C.radius);
     expect(mine(t, C.idle + C.warn + C.slam + 0.3)).toEqual([]);
+  });
+
+  it('on an off-road track the crab is solid wherever a kart can reach it, waiting on the sand too (review: karts drove through it)', () => {
+    const def = structuredClone(OVAL) as TrackDefinition;
+    def.offroad = true;
+    def.hazards = [{ id: 'crab', type: 'creature', creature: 'crab', t: 0.3, lateral: 1, period: 9.2, hit: 'spin' }];
+    const t = buildTrack(def);
+    expect(Math.abs(lateral(t, pose(t, 0.5).position))).toBeGreaterThan(t.sample(0.3, 0).halfWidth + BUILDER.kerbWidth);
+    expect(mine(t, 0.5)).toHaveLength(1);
   });
 
   it('the crab only hits on the road; the goose charges back down it; the whale blows a gust across it', () => {

@@ -23,7 +23,8 @@ describe('features', () => {
 
   it('views: jumps and boost pads carry t, branch and halfWidth for the kart controller', () => {
     expect(track.jumps).toHaveLength(1);
-    expect(track.jumps[0]).toEqual({ id: 'pier-ramp', t: expect.any(Number), launch: 5, branch: 2, shape: 'ramp', run: BUILDER.rampRun, rise: BUILDER.rampRise });
+    // (an off-road track's ramp slopes down to the sand at its sides: skirt)
+    expect(track.jumps[0]).toEqual({ id: 'pier-ramp', t: expect.any(Number), launch: 5, branch: 2, shape: 'ramp', run: BUILDER.rampRun, rise: BUILDER.rampRise, skirt: BUILDER.rampSkirt });
     expect(track.boostPads[0].halfWidth).toBe(1.5);
     expect(track.boostPads[0].branch).toBe(0);
     expect(track.boostPads[0].lateral).toBeCloseTo(-4, 6);

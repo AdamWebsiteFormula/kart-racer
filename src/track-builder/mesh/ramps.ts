@@ -8,6 +8,7 @@ import {
   MeshToonMaterial, RepeatWrapping, RGBAFormat, ShaderMaterial, SRGBColorSpace, UniformsLib, UniformsUtils, type Texture,
 } from 'three';
 import { edgeTaper, jumpProfile } from '../../kart-controller/ground.ts';
+import { BUILDER } from '../constants.ts';
 import type { Track } from '../track.ts';
 import type { Vec3 } from '../types.ts';
 import type { Rgb, TrackPalette } from './palette.ts';
@@ -17,6 +18,8 @@ const LIFT = 0.03;
 /** Rows along a ramp / a bump, columns across the road. */
 const ALONG = { ramp: 6, hump: 14 } as const;
 const ACROSS = 14;
+/** Points down each sloped side of a skirted ramp (an off-road track's). */
+const SKIRT_STEPS = 3;
 /** Metres across the road per texture repeat (one chevron column). */
 const TILE = 3;
 /** Texture bands (v): the side walls, then the ramp face, then the lip band. */
@@ -121,6 +124,7 @@ export function buildJumpMeshes(track: Track, palette: TrackPalette, gradientMap
     if (f.kind !== 'jump' || !f.rise || !f.run) continue;
     if (f.branch !== 0 && !track.branches.list[f.branch]?.open) continue;
     const hump = f.shape === 'hump';
+    const skirt = !hump && track.def.offroad === true ? BUILDER.rampSkirt : 0;
     const p = hump ? humps : ramps;
     if (hump) nHumps++; else nRamps++;
     const n = hump ? ALONG.hump : ALONG.ramp;
@@ -134,14 +138,20 @@ export function buildJumpMeshes(track: Track, palette: TrackPalette, gradientMap
       const hw = track.sample(t, 0, f.branch).halfWidth;
       const h = jumpProfile(f.shape, f.run, f.rise, d) + LIFT;
       const row: Vec3[] = [], ruv: [number, number][] = [];
-      for (let k = 0; k <= ACROSS; k++) {
-        const lat = -hw + (2 * hw * k) / ACROSS;
+      for (let k = 0; k <= ACROSS + 2 * SKIRT_STEPS * (skirt ? 1 : 0); k++) {
+        // on an off-road track a ramp's sides slope down to the sand over `skirt` metres past the kerb
+        // (the same slope the karts drive on, kart-controller jumpLift): the outer SKIRT_STEPS points
+        const ks = skirt ? k - SKIRT_STEPS : k, out = ks < 0 ? -ks : ks > ACROSS ? ks - ACROSS : 0;
+        const side = ks < 0 ? -1 : 1;
+        const lat = out > 0 ? side * (hw + (skirt * out) / SKIRT_STEPS) : -hw + (2 * hw * ks) / ACROSS;
         const q = track.sample(t, lat, f.branch).position;
-        // a bump rounds off at the kerbs (the same taper the karts drive on); a ramp is square
-        const hk = hump ? (h - LIFT) * edgeTaper(f.edge, lat, hw) + LIFT : h;
+        // a bump rounds off at the kerbs (the same taper the karts drive on); a ramp is square, or skirted
+        const sideOpen = out > 0 && ((track.sample(t, lat, f.branch).open ?? 0) & (lat < 0 ? 1 : 2)) !== 0;
+        const sk = out > 0 ? (sideOpen ? 0 : 1 - out / SKIRT_STEPS) : 1;
+        const hk = hump ? (h - LIFT) * edgeTaper(f.edge, lat, hw) + LIFT : (h - LIFT) * sk * sk * (3 - 2 * sk) + LIFT;
         row.push([q[0], q[1] + hk, q[2]]);
         ruv.push([lat / TILE, hump ? i / n : FACE_V0 + (1 - FACE_V0) * (i / n)]);
-        if (k === 0 || k === ACROSS) {
+        if (!skirt && (k === 0 || k === ACROSS)) {
           const s = k === 0 ? 0 : 1;
           foot[s].push([q[0], q[1] + LIFT, q[2]]);
           footUv[s].push([(i / n) * (f.run / TILE), SIDE_V * 0.5]);
@@ -152,8 +162,8 @@ export function buildJumpMeshes(track: Track, palette: TrackPalette, gradientMap
     }
     // a bump is lit at its crest and shaded in its troughs, so its shape reads from the kart
     grid(p, top, topUv, hump ? (i) => 0.52 + 0.6 * (jumpProfile(f.shape, f.run!, f.rise!, d0 + (d1 - d0) * (i / n)) / f.rise!) : undefined);
-    // the side walls, from the road up to the top along both kerbs
-    for (const s of [0, 1]) {
+    // the side walls, from the road up to the top along both kerbs (a skirted ramp has none: its sides slope)
+    if (!skirt) for (const s of [0, 1]) {
       const k = s === 0 ? 0 : ACROSS;
       const upper = top.map((r) => r[k]);
       grid(p, [foot[s], upper], [footUv[s], footUv[s].map(([u]) => [u, SIDE_V] as [number, number])]);

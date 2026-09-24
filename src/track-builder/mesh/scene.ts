@@ -361,9 +361,13 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const rng = mulberry32(hashString(def.id));
   const decor: DecorPlacement[] = [];
   for (const entry of env.decor ?? []) {
-    const p = placeDecor(branches, entry, rng, groundY, groundAt);
+    const geo = geometryFor(assets, entry.asset, 'decor');
+    // how far the prop reaches from its centre across the ground: a roadside one stands clear of where karts drive
+    if (!geo.boundingBox) geo.computeBoundingBox();
+    const bb = geo.boundingBox!, footprint = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z, 0);
+    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint);
     decor.push(p);
-    const m = instancer(`decor:${entry.asset}`, geometryFor(assets, entry.asset, 'decor'), palette.decor, p.matrices, undefined, assets.materials?.[entry.asset]);
+    const m = instancer(`decor:${entry.asset}`, geo, palette.decor, p.matrices, undefined, assets.materials?.[entry.asset]);
     // an instancer is never culled per instance, so every copy is drawn into the shadow map each
     // frame: only the roadside band is near enough for its shadows to be seen
     m.castShadow = entry.band === 'roadside';

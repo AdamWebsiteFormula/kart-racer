@@ -90,7 +90,7 @@ export interface DecorPlacement {
  * height. With `groundAt` (an off-road track's land), both stand on the land as drawn. sky: 25–60 m above the road. Anything inside a road envelope is rejected and
  * retried; the RNG is shared across entries so order matters and is fixed by the JSON.
  */
-export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef['decor']>[number], rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number): DecorPlacement {
+export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef['decor']>[number], rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number, footprint = 0): DecorPlacement {
   const main = branches.main.lut;
   const band = entry.band === 'roadside' && main.offroad ? BUILDER.decorBands.roadsideOffroad : BUILDER.decorBands[entry.band];
   const out: number[] = [];
@@ -119,11 +119,14 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
       z = c.position[2] - c.tangent[0] * lateral;
       y = c.position[1] + dist;
     } else {
-      const lateral = side * (entry.band === 'roadside' ? c.halfWidth + BUILDER.kerbWidth + dist : dist);
+      // a roadside prop on an off-road track stands wholly past the course limit (its footprint too), where karts cannot reach it
+    const clear = entry.band === 'roadside' && main.offroad ? Math.max(dist, BUILDER.offroadReach + 0.5 + footprint * scale) : dist;
+    const lateral = side * (entry.band === 'roadside' ? c.halfWidth + BUILDER.kerbWidth + clear : dist);
       x = c.position[0] + c.tangent[2] * lateral;
       z = c.position[2] - c.tangent[0] * lateral;
       y = groundAt ? groundAt(x, z) : entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
-      if (insideRoadEnvelope(branches, x, z)) continue;
+      // clear of every road (on an off-road track, of where karts can drive past its curb, footprint and all)
+      if (insideRoadEnvelope(branches, x, z, -1, main.offroad ? BUILDER.kerbWidth + BUILDER.offroadReach + 0.5 + footprint * scale : ENVELOPE_PAD)) continue;
     }
     pushTransform(out, [x, y + (entry.lift ?? 0) * scale, z], yaw, [scale, scale, scale]);
     placed++;

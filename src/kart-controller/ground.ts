@@ -56,16 +56,23 @@ export function edgeTaper(edge: number | undefined, lateral: number, halfWidth: 
  * Height ramps and trick bumps add to the road at t on a branch, `lateral` metres from its centre
  * line, metres. Karts drive up them; the launch is at the line.
  */
-export function jumpLift(track: TrackQuery, t: number, branch: number, lateral = 0, halfWidth = Infinity): number {
+export function jumpLift(track: TrackQuery, t: number, branch: number, lateral = 0, halfWidth = Infinity, open = 0): number {
   let lift = 0;
   const L = track.length;
   for (const j of track.jumps) {
     if (!j.rise || !j.run || (j.branch ?? 0) !== branch) continue;
-    // a ramp spans kerb to kerb; a bump rounds off at the kerbs (edgeTaper)
-    if (!j.edge && Math.abs(lateral) > halfWidth) continue;
+    // a ramp spans kerb to kerb (on an off-road track its sides slope down to the sand over `skirt`
+    // metres); a bump rounds off at the kerbs (edgeTaper)
+    let taper = edgeTaper(j.edge, lateral, halfWidth);
+    if (!j.edge && Math.abs(lateral) > halfWidth) {
+      // (not over an open edge: there the ramp's side stays square above the drop)
+      const k = j.skirt && (open & (lateral < 0 ? 1 : 2)) === 0 ? 1 - (Math.abs(lateral) - halfWidth) / j.skirt : 0;
+      if (k <= 0) continue;
+      taper = k * k * (3 - 2 * k);
+    }
     let d = (j.t - t) * L;
     if (d > L / 2) d -= L; else if (d < -L / 2) d += L;
-    const h = jumpProfile(j.shape, j.run, j.rise, d) * edgeTaper(j.edge, lateral, halfWidth);
+    const h = jumpProfile(j.shape, j.run, j.rise, d) * taper;
     if (h > lift) lift = h;
   }
   return lift;
@@ -88,7 +95,7 @@ function rampLipNear(track: TrackQuery, t: number, branch: number): boolean {
 function rampLipBehind(track: TrackQuery, prevT: number, t: number, branch: number, lateral: number): boolean {
   for (const j of track.jumps) {
     if (j.shape === 'hump' || !j.rise || (j.branch ?? 0) !== branch) continue;
-    if (crossed(t, prevT, j.t) && Math.abs(lateral) <= track.sample(j.t, 0, branch).halfWidth) return true;
+    if (crossed(t, prevT, j.t) && Math.abs(lateral) <= track.sample(j.t, 0, branch).halfWidth + (j.skirt ?? 0) / 2) return true;
   }
   return false;
 }
@@ -159,7 +166,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   // back over the road it went off (a hop over the lip and back) before it sank: not falling after all.
   // A lower road under the cliff (a tunnel) never counts: only the height it fell from does.
   else if (s.status.falling && !sample.overCliff && Math.abs(sample.groundY - s.status.fallFromY) < c.groundCatch && y >= sample.groundY - c.groundCatch) s.status.falling = false;
-  const groundY = s.status.falling ? -Infinity : sample.groundY + jumpLift(track, s.t, s.branch, lateral, sample.halfWidth);
+  const groundY = s.status.falling ? -Infinity : sample.groundY + jumpLift(track, s.t, s.branch, lateral, sample.halfWidth, sample.open ?? 0);
   const canSnap = s.verticalVelocity <= c.groundLaunchVy;
   // Below the road: a slope rising under a grounded kart, or a landing that crossed
   // the surface this tick, snaps up. An airborne kart within groundCatch of the surface

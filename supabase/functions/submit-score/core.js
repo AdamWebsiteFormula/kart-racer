@@ -3335,16 +3335,22 @@ function ze(e, t, n) {
 	let r = (n - Math.abs(t)) / e;
 	return r >= 1 ? 1 : r <= 0 ? 0 : r * r * (3 - 2 * r);
 }
-function Be(e, t, n, r = 0, i = Infinity) {
-	let a = 0, o = e.length;
-	for (let s of e.jumps) {
-		if (!s.rise || !s.run || (s.branch ?? 0) !== n || !s.edge && Math.abs(r) > i) continue;
-		let e = (s.t - t) * o;
-		e > o / 2 ? e -= o : e < -o / 2 && (e += o);
-		let c = Re(s.shape, s.run, s.rise, e) * ze(s.edge, r, i);
-		c > a && (a = c);
+function Be(e, t, n, r = 0, i = Infinity, a = 0) {
+	let o = 0, s = e.length;
+	for (let c of e.jumps) {
+		if (!c.rise || !c.run || (c.branch ?? 0) !== n) continue;
+		let e = ze(c.edge, r, i);
+		if (!c.edge && Math.abs(r) > i) {
+			let t = c.skirt && !(a & (r < 0 ? 1 : 2)) ? 1 - (Math.abs(r) - i) / c.skirt : 0;
+			if (t <= 0) continue;
+			e = t * t * (3 - 2 * t);
+		}
+		let l = (c.t - t) * s;
+		l > s / 2 ? l -= s : l < -s / 2 && (l += s);
+		let u = Re(c.shape, c.run, c.rise, l) * e;
+		u > o && (o = u);
 	}
-	return a;
+	return o;
 }
 var Ve = 8;
 function He(e, t, n) {
@@ -3352,7 +3358,7 @@ function He(e, t, n) {
 	return !1;
 }
 function Ue(e, t, n, r, i) {
-	for (let a of e.jumps) if (a.shape !== "hump" && a.rise && (a.branch ?? 0) === r && Le(n, t, a.t) && Math.abs(i) <= e.sample(a.t, 0, r).halfWidth) return !0;
+	for (let a of e.jumps) if (a.shape !== "hump" && a.rise && (a.branch ?? 0) === r && Le(n, t, a.t) && Math.abs(i) <= e.sample(a.t, 0, r).halfWidth + (a.skirt ?? 0) / 2) return !0;
 	return !1;
 }
 function We(e, t, n, r, i) {
@@ -3392,7 +3398,7 @@ function We(e, t, n, r, i) {
 	e.verticalVelocity -= n.gravity * r, e.position[1] += e.verticalVelocity * r;
 	let b = e.position[1];
 	_.overCliff && !e.status.falling ? (e.status.falling = !0, e.status.fallFromY = _.groundY) : e.status.falling && !_.overCliff && Math.abs(_.groundY - e.status.fallFromY) < n.groundCatch && b >= _.groundY - n.groundCatch && (e.status.falling = !1);
-	let x = e.status.falling ? -Infinity : _.groundY + Be(t, e.t, e.branch, m, _.halfWidth), S = e.verticalVelocity <= n.groundLaunchVy, C = !v && b < x - Math.max(Math.abs(e.verticalVelocity) * r + n.groundStick, n.groundCatch);
+	let x = e.status.falling ? -Infinity : _.groundY + Be(t, e.t, e.branch, m, _.halfWidth, _.open ?? 0), S = e.verticalVelocity <= n.groundLaunchVy, C = !v && b < x - Math.max(Math.abs(e.verticalVelocity) * r + n.groundStick, n.groundCatch);
 	if (b < x && !C && (e.position[1] = x, S && (e.verticalVelocity = 0)), b <= x + n.groundStick && S && !C ? (e.position[1] = x, e.verticalVelocity = 0, e.grounded = !0) : e.grounded = !1, e.grounded) {
 		if (e.surface = _.surface, e.gripScale = _.gripScale, _.surface === "boost" && (y !== "boost" || !v) && T(e, "pad", n.padMultiplier, n.padSeconds, i), !v) {
 			let t = e.airborne.trickQueued;
@@ -3560,11 +3566,11 @@ var it = {
 "perties\":{\"fromT\":{\"type\":\"number\"},\"toT\":{\"type\":\"number\"},\"surface\":{\"type\":\"string\"}}}},\"gripMultiplier\":{\"type\":\"number\",\"default\":1,\"description\":\"Global grip scale, e.g. 0.8 for wet grass\"},\"addsJumps\":{\"$ref\":\"#/properties/jumps\"},\"enablesHazards\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"disablesHazards\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"sky\":{\"type\":\"string\",\"description\":\"Sky preset id\"},\"lut\":{\"type\":\"string\"},\"fogDensity\":{\"type\":\"number\"},\"musicVariant\":{\"type\":\"string\"}}},\"environment\":{\"type\":\"object\",\"properties\":{\"sky\":{\"type\":\"string\"},\"lut\":{\"type\":\"string\"},\"fogColor\":{\"type\":\"string\"},\"fogDensity\":{\"type\":\"number\"},\"ground\":{\"description\":\"One flat plane under the whole track. 'none' for sky tracks; the void is below voidY.\",\"type\":\"object\",\"required\":[\"kind\"],\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"plane\",\"water\",\"none\"],\"default\":\"plane\"},\"y\":{\"type\":\"number\",\"default\":0}}},\"sunDirection\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"minItems\":3,\"maxItems\":3},\"palett" +
 "e\":{\"type\":\"object\",\"properties\":{\"background\":{\"type\":\"string\"},\"accent\":{\"type\":\"string\"}}},\"decor\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"asset\":{\"type\":\"string\"},\"instances\":{\"type\":\"integer\"},\"band\":{\"type\":\"string\",\"enum\":[\"roadside\",\"far\",\"sky\"]},\"footing\":{\"type\":\"string\",\"enum\":[\"pier\"],\"description\":\"Out at sea: each one stands on its own wooden pier, raised pierLift above the water\"},\"lift\":{\"type\":\"number\",\"description\":\"Metres above its band's ground: a model centred on its middle (a hazard's) sits on the ground with lift = its radius\"}}}},\"landmarkFooting\":{\"type\":\"string\",\"enum\":[\"pier\"],\"description\":\"The landmark stands on a wooden pier (a sea track)\"}}},\"music\":{\"type\":\"string\"},\"landmark\":{\"type\":\"string\",\"description\":\"The thing visible from the start line\"},\"builder\":{\"description\":\"Track-builder constants. Never set per track; the defaults are the only values. Code reads them from here (docs/sops/track-builder.md Constants).\",\"type\":\"object\",\"properties\":{\"lutSamples\":{\"type\":\"integer\",\"default\":2048,\"descriptio" +
 "n\":\"Arc-length samples per branch LUT\"},\"arcDivisions\":{\"type\":\"integer\",\"default\":4096,\"description\":\"Fine steps used to walk the curve before resampling\"},\"globalSearchStep\":{\"type\":\"integer\",\"default\":8,\"description\":\"Coarse stride for nearestTGlobal\"},\"branchHysteresis\":{\"type\":\"number\",\"default\":1.0,\"description\":\"metres; another branch must be closer by this much to win\"},\"branchLeaveMargin\":{\"type\":\"number\",\"default\":1.35,\"description\":\"metres inside a road edge a kart still counts as on that road; another branch can only take it once it is past this. Must exceed kartRadius (0.85): the wall holds a kart exactly one radius inside the edge, so at 0.85 nobody could ever leave\"},\"maxBankDeg\":{\"type\":\"number\",\"default\":20},\"minTurnRadiusFactor\":{\"type\":\"number\",\"default\":1.5,\"description\":\"turn radius must be >= factor × halfWidth (hairpin guard)\"},\"minStartHalfWidth\":{\"type\":\"number\",\"default\":4},\"branchBlendMetres\":{\"type\":\"number\",\"default\":14,\"description\":\"a shortcut ribbon loses its kerbs and sinks 3 cm for this long at each end, where it overlaps the main road\"},\"kerbWidth\":{\"type\"" +
-":\"number\",\"default\":1.0},\"kerbHeight\":{\"type\":\"number\",\"default\":0.1},\"shoulderWidth\":{\"type\":\"number\",\"default\":6.0},\"shoulderDrop\":{\"type\":\"number\",\"default\":0.4},\"tunnelWall\":{\"type\":\"number\",\"default\":4.2,\"description\":\"metres: a tunnel's side walls rise this high above the road before the roof arches over\"},\"tunnelApex\":{\"type\":\"number\",\"default\":6.2,\"description\":\"metres: the top of a tunnel's arched roof above the road\"},\"tunnelHill\":{\"type\":\"number\",\"default\":9,\"description\":\"metres: the land over a tunnel stands this high above its road (a mesa the mine runs through)\"},\"tunnelRamp\":{\"type\":\"number\",\"default\":2.5,\"description\":\"metres in from a portal over which the land rises to tunnelHill: the mesa ends in a cliff, and the portal is a rock face in it (mesh/tunnel.ts)\"},\"tunnelMesaTop\":{\"type\":\"number\",\"default\":3,\"description\":\"metres of the mesa's flat top past where a road's shoulder would end, before its sides fall away (a ridge over the mine, not a plateau)\"},\"tunnelFunnel\":{\"type\":\"number\",\"default\":16,\"description\":\"metres before a portal over which the off-road beside" +
-" the approach narrows to the curb, guiding karts into the mouth\"},\"tunnelFrameSpacing\":{\"type\":\"number\",\"default\":8,\"description\":\"metres between the timber frames inside a tunnel\"},\"tunnelLanternSpacing\":{\"type\":\"number\",\"default\":12,\"description\":\"metres between lanterns inside a tunnel (alternate walls)\"},\"offroadReach\":{\"type\":\"number\",\"default\":12,\"description\":\"Off-road tracks: metres past the curb the ground is drivable (slowly) before an invisible course limit, just short of the roadside scenery (the Mario Kart World way: no strip, no wall along the road)\"},\"offroadDrop\":{\"type\":\"number\",\"default\":0.12,\"description\":\"Off-road tracks: the ground past the curb sits this far under the road, as the land mesh draws it\"},\"barrierSpacing\":{\"type\":\"number\",\"default\":2.0},\"roadTileLength\":{\"type\":\"number\",\"default\":10,\"description\":\"metres of road per UV v unit\"},\"chunkCount\":{\"type\":\"integer\",\"default\":8},\"minimapSamples\":{\"type\":\"integer\",\"default\":200},\"minimapPadding\":{\"type\":\"number\",\"default\":0.06},\"boostPadHalfLength\":{\"type\":\"number\",\"default\":1.75},\"boostPadWidth\":{\"type\"" +
-":\"number\",\"default\":3.0},\"rampRun\":{\"type\":\"number\",\"default\":5,\"description\":\"metres a ramp rises over to its lip (karts drive up it: kart-controller jumpLift)\"},\"rampRise\":{\"type\":\"number\",\"default\":0.8,\"description\":\"height of a ramp's lip above the road, metres\"},\"humpRun\":{\"type\":\"number\",\"default\":8,\"description\":\"metres along the road a trick bump spans\"},\"humpRise\":{\"type\":\"number\",\"default\":1.0,\"description\":\"height of a trick bump's crest, metres\"},\"loopRadius\":{\"type\":\"number\",\"default\":9,\"description\":\"a loop-the-loop's radius, metres\"},\"loopShift\":{\"type\":\"number\",\"default\":7,\"description\":\"metres the ring moves right in one turn: the way in (left of centre) never meets the way out (right)\"},\"loopSpread\":{\"type\":\"number\",\"default\":1.2,\"description\":\"metres either side of its lane a kart rides round, by where it came in (karts side by side stay side by side)\"},\"loopApproach\":{\"type\":\"number\",\"default\":24,\"description\":\"metres before the foot a kart is caught and eased into the entry lane\"},\"loopExit\":{\"type\":\"number\",\"default\":6,\"description\":\"metres after the " +
-"foot a kart is set down in the exit lane\"},\"loopWidth\":{\"type\":\"number\",\"default\":6,\"description\":\"width of the ring's track, metres\"},\"humpEdge\":{\"type\":\"number\",\"default\":1.6,\"description\":\"metres over which a trick bump rounds off to the road at each kerb\"},\"balloonHeight\":{\"type\":\"number\",\"default\":1.2},\"balloonRadius\":{\"type\":\"number\",\"default\":0.9},\"pierLift\":{\"type\":\"number\",\"default\":1.1,\"description\":\"A pier's deck stands this far above the sea (level with a sea track's coast)\"},\"coinRadius\":{\"type\":\"number\",\"default\":0.5},\"hazardRadius\":{\"type\":\"number\",\"default\":1.2},\"ventRadius\":{\"type\":\"number\",\"default\":2.2,\"description\":\"a launch vent's mouth, metres (design.md Track thrills)\"},\"ventWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a vent glows and bubbles this long before it erupts\"},\"ventEruptSeconds\":{\"type\":\"number\",\"default\":1.5,\"description\":\"how long a vent erupts; a kart on it then is thrown up\"},\"ventLaunch\":{\"type\":\"number\",\"default\":14,\"description\":\"m/s up a vent throws a kart, about 4 m high (a ramp is 5 to 6)\"},\"fallingActiveSec" +
-"onds\":{\"type\":\"number\",\"default\":0.5},\"gustWindow\":{\"type\":\"number\",\"default\":6,\"description\":\"metres along the road a gust acts over\"},\"decorBands\":{\"type\":\"object\",\"properties\":{\"roadside\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[8,14]},\"roadsideOffroad\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[13,19],\"description\":\"the roadside band on an off-road track: just past the course limit, so the scenery lines the course\"},\"far\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[30,120]},\"sky\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[25,60]}}},\"lapTimeWarn\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[40,65],\"description\":\"seconds; estimated lap outside this warns\"},\"trackDrawCallBudget\":{\"type\":\"integer\",\"default\":40}}}}")
+":\"number\",\"default\":1.0},\"kerbHeight\":{\"type\":\"number\",\"default\":0.1},\"shoulderWidth\":{\"type\":\"number\",\"default\":6.0},\"shoulderDrop\":{\"type\":\"number\",\"default\":0.4},\"rampSkirt\":{\"type\":\"number\",\"default\":2.5,\"description\":\"Off-road tracks: metres past the curb over which a ramp's sides slope down to the sand (karts beside a ramp drive up its side instead of popping up a square edge)\"},\"tunnelWall\":{\"type\":\"number\",\"default\":4.2,\"description\":\"metres: a tunnel's side walls rise this high above the road before the roof arches over\"},\"tunnelApex\":{\"type\":\"number\",\"default\":6.2,\"description\":\"metres: the top of a tunnel's arched roof above the road\"},\"tunnelHill\":{\"type\":\"number\",\"default\":9,\"description\":\"metres: the land over a tunnel stands this high above its road (a mesa the mine runs through)\"},\"tunnelRamp\":{\"type\":\"number\",\"default\":2.5,\"description\":\"metres in from a portal over which the land rises to tunnelHill: the mesa ends in a cliff, and the portal is a rock face in it (mesh/tunnel.ts)\"},\"tunnelMesaTop\":{\"type\":\"number\",\"default\":3,\"description\":\"metres of the mesa's flat to" +
+"p past where a road's shoulder would end, before its sides fall away (a ridge over the mine, not a plateau)\"},\"tunnelFunnel\":{\"type\":\"number\",\"default\":16,\"description\":\"metres before a portal over which the off-road beside the approach narrows to the curb, guiding karts into the mouth\"},\"tunnelFrameSpacing\":{\"type\":\"number\",\"default\":8,\"description\":\"metres between the timber frames inside a tunnel\"},\"tunnelLanternSpacing\":{\"type\":\"number\",\"default\":12,\"description\":\"metres between lanterns inside a tunnel (alternate walls)\"},\"offroadReach\":{\"type\":\"number\",\"default\":12,\"description\":\"Off-road tracks: metres past the curb the ground is drivable (slowly) before an invisible course limit, just short of the roadside scenery (the Mario Kart World way: no strip, no wall along the road)\"},\"offroadDrop\":{\"type\":\"number\",\"default\":0.12,\"description\":\"Off-road tracks: the ground past the curb sits this far under the road, as the land mesh draws it\"},\"barrierSpacing\":{\"type\":\"number\",\"default\":2.0},\"roadTileLength\":{\"type\":\"number\",\"default\":10,\"description\":\"metres of road per UV v unit\"},\"chunkCount\":{\"typ" +
+"e\":\"integer\",\"default\":8},\"minimapSamples\":{\"type\":\"integer\",\"default\":200},\"minimapPadding\":{\"type\":\"number\",\"default\":0.06},\"boostPadHalfLength\":{\"type\":\"number\",\"default\":1.75},\"boostPadWidth\":{\"type\":\"number\",\"default\":3.0},\"rampRun\":{\"type\":\"number\",\"default\":5,\"description\":\"metres a ramp rises over to its lip (karts drive up it: kart-controller jumpLift)\"},\"rampRise\":{\"type\":\"number\",\"default\":0.8,\"description\":\"height of a ramp's lip above the road, metres\"},\"humpRun\":{\"type\":\"number\",\"default\":8,\"description\":\"metres along the road a trick bump spans\"},\"humpRise\":{\"type\":\"number\",\"default\":1.0,\"description\":\"height of a trick bump's crest, metres\"},\"loopRadius\":{\"type\":\"number\",\"default\":9,\"description\":\"a loop-the-loop's radius, metres\"},\"loopShift\":{\"type\":\"number\",\"default\":7,\"description\":\"metres the ring moves right in one turn: the way in (left of centre) never meets the way out (right)\"},\"loopSpread\":{\"type\":\"number\",\"default\":1.2,\"description\":\"metres either side of its lane a kart rides round, by where it came in (karts side by side stay side by " +
+"side)\"},\"loopApproach\":{\"type\":\"number\",\"default\":24,\"description\":\"metres before the foot a kart is caught and eased into the entry lane\"},\"loopExit\":{\"type\":\"number\",\"default\":6,\"description\":\"metres after the foot a kart is set down in the exit lane\"},\"loopWidth\":{\"type\":\"number\",\"default\":6,\"description\":\"width of the ring's track, metres\"},\"humpEdge\":{\"type\":\"number\",\"default\":1.6,\"description\":\"metres over which a trick bump rounds off to the road at each kerb\"},\"balloonHeight\":{\"type\":\"number\",\"default\":1.2},\"balloonRadius\":{\"type\":\"number\",\"default\":0.9},\"pierLift\":{\"type\":\"number\",\"default\":1.1,\"description\":\"A pier's deck stands this far above the sea (level with a sea track's coast)\"},\"coinRadius\":{\"type\":\"number\",\"default\":0.5},\"hazardRadius\":{\"type\":\"number\",\"default\":1.2},\"ventRadius\":{\"type\":\"number\",\"default\":2.2,\"description\":\"a launch vent's mouth, metres (design.md Track thrills)\"},\"ventWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a vent glows and bubbles this long before it erupts\"},\"ventEruptSeconds\":{\"type\":\"number\",\"default\"" +
+":1.5,\"description\":\"how long a vent erupts; a kart on it then is thrown up\"},\"ventLaunch\":{\"type\":\"number\",\"default\":14,\"description\":\"m/s up a vent throws a kart, about 4 m high (a ramp is 5 to 6)\"},\"fallingActiveSeconds\":{\"type\":\"number\",\"default\":0.5},\"gustWindow\":{\"type\":\"number\",\"default\":6,\"description\":\"metres along the road a gust acts over\"},\"decorBands\":{\"type\":\"object\",\"properties\":{\"roadside\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[8,14]},\"roadsideOffroad\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[13,19],\"description\":\"the roadside band on an off-road track: just past the course limit, so the scenery lines the course\"},\"far\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[30,120]},\"sky\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[25,60]}}},\"lapTimeWarn\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[40,65],\"description\":\"seconds; estimated lap outside this warns\"},\"trackDrawCallBudget\":{\"type\":\"integer\",\"default\":40}}}}")
 };
 //#endregion
 //#region src/track-builder/constants.ts
@@ -5427,8 +5433,8 @@ var Cn = class {
 		},
 		homingSnapDistance: {
 			type: "number",
-			default: 12,
-			description: "Metres from its target at which the Homing Kite leaves the centreline for the target's lateral"
+			default: 30,
+			description: "Metres from its target at which the Homing Kite leaves the centreline for the target's lateral (30, not 12: at 8 m/s sideways it must reach a kart out on the sand, up to 19 m off the centreline, before it passes it)"
 		},
 		homingLateralRate: {
 			type: "number",
@@ -5783,10 +5789,8 @@ var Tn = Object.freeze([
 //#endregion
 //#region src/items/projectiles.ts
 function An(e, t, n, r) {
-	let i = e.sample(t, 0, n).position, a = e.sample(t, 1, n).position;
-	r[0] = a[0] - i[0], r[1] = a[1] - i[1], r[2] = a[2] - i[2];
-	let o = Math.hypot(r[0], r[1], r[2]) || 1;
-	return r[0] /= o, r[1] /= o, r[2] /= o, r;
+	let i = e.sample(t, 0, n).tangent, a = Math.hypot(i[0], i[2]) || 1;
+	return r[0] = i[2] / a, r[1] = 0, r[2] = -i[0] / a, r;
 }
 function jn(e, t, n, r) {
 	let i = e.sample(t, 0, n).position, a = An(e, t, n, [
@@ -5898,9 +5902,10 @@ function Ln(e, t, n, r, i, a) {
 				let t = e.homingLateralRate * i;
 				c.lateral += Math.max(-t, Math.min(t, a - c.lateral));
 			}
-			c.lateral = Math.max(-s.halfWidth + c.radius, Math.min(s.halfWidth - c.radius, c.lateral));
-			let l = n.sample(c.t, c.lateral, c.branch);
-			c.position[0] = l.position[0], c.position[1] = l.groundY + Be(n, c.t, c.branch, c.lateral, l.halfWidth) + e.projectileHeight, c.position[2] = l.position[2];
+			let l = c.weave <= 0 && c.target >= 0 ? s.wall ?? s.halfWidth : s.halfWidth;
+			c.lateral = Math.max(-l + c.radius, Math.min(l - c.radius, c.lateral));
+			let u = n.sample(c.t, c.lateral, c.branch);
+			c.position[0] = u.position[0], c.position[1] = u.groundY + Be(n, c.t, c.branch, c.lateral, u.halfWidth, u.open ?? 0) + e.projectileHeight, c.position[2] = u.position[2];
 			continue;
 		}
 		c.position[0] += c.velocity[0] * i, c.position[2] += c.velocity[2] * i;
@@ -5924,7 +5929,9 @@ function Ln(e, t, n, r, i, a) {
 				bouncesLeft: c.bouncesLeft
 			});
 		}
-		c.lateral = f, c.position[0] = u.position[0] + d[0] * f, c.position[2] = u.position[2] + d[2] * f, c.position[1] = u.groundY + Be(n, c.t, c.branch, f, u.halfWidth) + e.projectileHeight;
+		c.lateral = f;
+		let m = n.sample(c.t, f, c.branch);
+		c.position[0] = m.position[0], c.position[2] = m.position[2], c.position[1] = m.groundY + Be(n, c.t, c.branch, f, m.halfWidth, m.open ?? 0) + e.projectileHeight;
 	}
 }
 //#endregion
@@ -7165,6 +7172,7 @@ var Y = Object.freeze({
 				r / i
 			],
 			hw: t.halfWidth,
+			reach: t.wall ?? t.halfWidth,
 			heading: Math.atan2(t.tangent[0], t.tangent[2])
 		};
 	}
@@ -7191,7 +7199,7 @@ var Y = Object.freeze({
 					let n = this.frame(this.t);
 					for (let o = 0; o < e.ringPoints; o++) {
 						let s = o / e.ringPoints * Math.PI * 2, c = a.position[0] + Math.cos(s) * a.radius, l = a.position[2] + Math.sin(s) * a.radius, u = (c - n.p[0]) * n.right[0] + (l - n.p[2]) * n.right[2];
-						Math.abs(u) > n.hw + 2 || t.push({
+						Math.abs(u) > Math.max(n.hw + 2, n.reach) || t.push({
 							id: r,
 							type: "creature",
 							position: [
@@ -7234,7 +7242,7 @@ var Y = Object.freeze({
 			case "crab":
 			case "goose": {
 				let e = this.kind === "crab" ? Y.crab : Y.goose, a = this.frame(this.t), o = (n.position[0] - a.p[0]) * a.right[0] + (n.position[2] - a.p[2]) * a.right[2];
-				(this.kind === "goose" || Math.abs(o) < a.hw + e.radius) && t.push({
+				(this.kind === "goose" || Math.abs(o) < Math.max(a.hw, a.reach) + e.radius) && t.push({
 					id: r,
 					type: "creature",
 					position: [
@@ -8093,7 +8101,12 @@ var Pi = class {
 			let n = t.side === "left" ? 1 : t.side === "right" ? 2 : 3;
 			for (let r = 0; r < e.n; r++) ((r / e.n - t.fromT) % 1 + 1) % 1 <= ((t.toT - t.fromT) % 1 + 1) % 1 && (e.open[r] |= n);
 		}
-		this.checkpoints = ci(e, this.startT, this.def.checkpointCount), this.spawnGrid = li(e, this.startT, this.def.startGrid), this.minimap = si(this.branches), this.jumps = ti(this.features), this.boostPads = ni(this.features), this.loops = this.loopFeet.map((e) => ({
+		this.checkpoints = ci(e, this.startT, this.def.checkpointCount), this.spawnGrid = li(e, this.startT, this.def.startGrid), this.minimap = si(this.branches);
+		let t = this.def.offroad === !0 ? F.rampSkirt : 0;
+		this.jumps = ti(this.features).map((e) => t && e.shape !== "hump" && e.rise ? {
+			...e,
+			skirt: t
+		} : e), this.boostPads = ni(this.features), this.loops = this.loopFeet.map((e) => ({
 			id: e.id,
 			t: e.t,
 			radius: e.radius ?? F.loopRadius,

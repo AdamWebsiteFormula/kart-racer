@@ -61,7 +61,7 @@
     "spawnAheadMetres": { "type": "number", "default": 1.5, "description": "Projectiles spawn this far ahead (or behind) of the kart" },
     "dropBehindMetres": { "type": "number", "default": 2.5, "description": "Ground items land this far behind the kart; past kartRadius + the widest ground radius (0.85 + 1.2) so a parked kart never sits on its own drop" },
     "projectileHeight": { "type": "number", "default": 0.35, "description": "Metres above the road a projectile flies" },
-    "homingSnapDistance": { "type": "number", "default": 12, "description": "Metres from its target at which the Homing Kite leaves the centreline for the target's lateral" },
+    "homingSnapDistance": { "type": "number", "default": 30, "description": "Metres from its target at which the Homing Kite leaves the centreline for the target's lateral (30, not 12: at 8 m/s sideways it must reach a kart out on the sand, up to 19 m off the centreline, before it passes it)" },
     "homingLateralRate": { "type": "number", "default": 8, "description": "m/s the Kite can move sideways while snapping" },
     "maxProjectilesPerOwner": { "type": "integer", "default": 1 },
     "maxGroundPerOwner": { "type": "integer", "default": 2, "description": "A further drop pops the owner's oldest ground item" },

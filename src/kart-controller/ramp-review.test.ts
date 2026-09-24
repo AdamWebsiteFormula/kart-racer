@@ -239,3 +239,34 @@ describe('projectiles ride over ramps and bumps', () => {
     });
   }
 });
+
+describe('a ramp beside the sand (off-road tracks; review, 23 Sept 2026)', () => {
+  // Karts can drive beside a ramp on the sand now: a square side meant a kart overlapping the drawn
+  // side wall, then popped the whole rise in one tick when it turned in. Its sides slope instead.
+  const DEFS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>);
+  for (const def of DEFS.filter((d) => d.offroad === true)) {
+    const track = buildTrack(cloneDef(def));
+    for (const j of track.jumps.filter((x) => x.shape === 'ramp' && (x.branch ?? 0) === 0)) {
+      it(`${def.id} ${j.id}: its sides slope down to the sand, and a kart turning in from the sand rises smoothly`, () => {
+        expect(j.skirt).toBeGreaterThan(0);
+        const run = j.run ?? 0, L = track.length;
+        const tMid = j.t - run / 2 / L;
+        const hw = track.sample(tMid, 0, 0).halfWidth;
+        const open = track.sample(tMid, 0, 0).open ?? 0;
+        const side = open & 1 ? 1 : -1; // a side that is not a cliff
+        const at = (lat: number) => jumpLift(track, tMid, 0, lat, hw, open);
+        expect(at(side * (hw - 0.05)) - at(side * (hw + 0.05))).toBeLessThan(0.05);
+        expect(at(side * (hw + (j.skirt ?? 0) + 0.1))).toBe(0);
+        // a kart on the sand beside the run steers onto the ramp
+        const s = kartAt(track, j.t - (run + 6) / L, side * (hw + 1.4), 18);
+        let prev = s.position[1], worst = 0, wasGrounded = true;
+        for (let k = 0; k < 90; k++) {
+          stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer: -side * 0.35 }, track, c, DT);
+          if (s.grounded && wasGrounded) worst = Math.max(worst, s.position[1] - prev);
+          prev = s.position[1]; wasGrounded = s.grounded;
+        }
+        expect(worst).toBeLessThan(0.3);
+      });
+    }
+  }
+});

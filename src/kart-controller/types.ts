@@ -183,6 +183,8 @@ export interface TrackJump {
   shape?: 'ramp' | 'hump'; run?: number; rise?: number;
   /** a bump rounds off to the road over this many metres at each kerb */
   edge?: number;
+  /** a ramp on an off-road track: its sides slope down to the sand over this many metres past the kerb */
+  skirt?: number;
 }
 export interface TrackBoostPad { t: number; lateral: number; halfWidth: number; branch?: number }
 
