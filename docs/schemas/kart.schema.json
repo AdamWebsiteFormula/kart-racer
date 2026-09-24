@@ -174,6 +174,7 @@
           "edgeShed": { "type": "number", "description": "m/s under its present speed an AI lifting at the outside edge aims for", "default": 3 },
           "airMargin": { "type": "number", "description": "share of the corner margin kept on a bend with bumps or a ramp ahead: airborne, a kart turns with only its air steer", "default": 0.7 },
           "trickBend": { "type": "number", "description": "rad (heading change over turnNearSeconds): over bumps on a bend sharper than this the AI does no tricks; each trick boost carries it faster into the next bump, where airborne it cannot turn (the Canyon dunes)", "default": 0.12 },
+          "joinShare": { "type": "number", "description": "airborne on a shortcut, the heading step where its end meets the main road counts as a bend turned in this share of the metres left to the join (floor lookAheadMin), so the kart sheds speed before it lands at that angle (bug hunt 2, 24 Sept 2026, Canyon's mine exit). 0.25 and 0.5 measure the same (the brake is on either way); 1 lets more karts onto the sand", "default": 0.5 },
           "declineFraction": { "type": "number", "description": "after declining a shortcut, keep at least this × halfWidth on the far side of the fork", "default": 0.35 },
           "wanderAmpMin": { "type": "number", "default": 0.08 }, "wanderAmpMax": { "type": "number", "default": 0.2 },
           "wanderPeriodMin": { "type": "number", "default": 3.3 }, "wanderPeriodMax": { "type": "number", "default": 8.3 }

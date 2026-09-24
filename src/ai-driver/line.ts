@@ -48,6 +48,20 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
   const turnShort = wrapAngle(hShort - h);
   out.kappaShort = Math.abs(turnShort) / l.lookAheadMin;
   out.kappa = Math.max(out.kappaShort, Math.abs(out.turnNear) / out.probeNear);
+  // a shortcut's end meets the main road at an angle, and a kart in the air cannot turn for it (air
+  // steer only): it lands pointing off the road (bug hunt 2, 24 Sept 2026: off Canyon's mine portal
+  // crest a 59° join read as a 31 m bend until the kart was 8 m from it, and it slid onto the sand).
+  // Airborne, the join counts as a bend turned in joinShare of the way left, so it sheds speed now.
+  // Grounded, a kart turns in the short probe's metres and on the road it joins: no join term.
+  if (s.branch !== 0 && !s.grounded) {
+    const b = track.branches.list[s.branch];
+    const dExit = signedOffset(b.exitT, s.t) * len;
+    if (dExit > 0) {
+      const hEnd = headingOf(track.sampleInto(b.exitT, 0, s.branch, sc.tmp).tangent);
+      const step = Math.abs(wrapAngle(headingOf(track.sampleInto(b.exitT, 0, 0, sc.tmp).tangent) - hEnd));
+      out.kappa = Math.max(out.kappa, step / Math.max(l.joinShare * dExit, l.lookAheadMin));
+    }
+  }
   out.roadErr = wrapAngle(hShort - s.heading);
   out.halfWidth = sc.here.halfWidth;
   out.narrow = sc.here.halfWidth < l.narrowRoad;

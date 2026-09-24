@@ -397,3 +397,25 @@ describe('bumps on a bend (review, 23 Sept 2026)', () => {
     }
   }, 120_000);
 });
+
+describe('shortcut joins (bug hunt 2, 24 Sept 2026)', () => {
+  it("off Canyon's mine portal the field lands facing the road it joins, not the sand beyond it", () => {
+    // the shortcut rejoins at 59° just past a crest: airborne there, a kart cannot turn for the join,
+    // and a Hard kart that took it at full speed slid 6–10 m onto the sand on almost every pass
+    const def = TRACKS.find((d) => d.id === 'canyon-rush')!;
+    const track = buildTrack(def);
+    const mine = track.branches.byId('mine-tunnel')!;
+    let off = 0, passes = 0;
+    const was: number[] = [];
+    runRace(track, config(track, racers(8), 150, 3), {}, {}, (_t, _i, rm) => {
+      rm.state.karts.forEach((k, i) => {
+        if (k.branch === mine.index && was[i] !== mine.index) passes++;
+        was[i] = k.branch;
+        if (k.finishTick === undefined && k.branch === 0 && wrap01(k.t - mine.exitT) < 0.03 && k.grounded && k.surface === 'dirt') off++;
+      });
+    });
+    expect(passes).toBeGreaterThanOrEqual(6);
+    // was ~2 s on the sand per pass; the main road through the same stretch never leaves it
+    expect(off / SIM_HZ / passes, `${(off / SIM_HZ).toFixed(1)} s on the sand in ${passes} passes`).toBeLessThan(0.3);
+  }, 60_000);
+});

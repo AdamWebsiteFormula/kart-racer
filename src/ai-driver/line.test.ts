@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { headingOf } from '../kart-controller/types.ts';
+import { wrap01 } from '../track-builder/lut.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import { AI, PROFILES } from './constants.ts';
 import { chooseBranch, lateralTarget, lookAhead, readLine, wrapAngle } from './line.ts';
@@ -29,6 +30,32 @@ describe('line', () => {
     expect(corner.kappa).toBeGreaterThan(0);
     expect(corner.myLat).toBeCloseTo(0, 3);
     expect(lineFor(track, kartAt(track, 0.125, 2.5), m).myLat).toBeCloseTo(2.5, 3);
+  });
+
+  it('airborne on a shortcut, the join ahead is a bend over joinShare of the way left; grounded it adds nothing (bug hunt 2, 24 Sept 2026)', () => {
+    const t2 = buildTrack(AI_OVAL);
+    t2.setLap(2);
+    const b = t2.branches.list[1];
+    const dExit = 20;
+    const s = kartAt(t2, 0.3, 0, 25);
+    s.t = wrap01(b.exitT - dExit / t2.length);
+    s.branch = 1;
+    const p = t2.sample(s.t, 0, 1);
+    s.position = [...p.position];
+    s.heading = headingOf(p.tangent);
+    const step = Math.abs(wrapAngle(headingOf(t2.sample(b.exitT, 0, 0).tangent) - headingOf(t2.sample(b.exitT, 0, 1).tangent)));
+    const m = memory();
+    const grounded = lineFor(t2, s, m).kappa;
+    s.grounded = false;
+    const air = lineFor(t2, s, m).kappa;
+    expect(step).toBeGreaterThan(0.3);
+    expect(air).toBeCloseTo(Math.max(grounded, step / Math.max(AI.line.joinShare * dExit, AI.line.lookAheadMin)));
+    expect(air).toBeGreaterThan(grounded * 1.5);
+    // on the main road nothing changes in the air
+    const main = kartAt(t2, 0.125, 0, 25);
+    const flat = lineFor(t2, main, m).kappa;
+    main.grounded = false;
+    expect(lineFor(t2, main, m).kappa).toBe(flat);
   });
 
   it('lateral target follows the personality lane, is clamped, and centres on narrow roads and branches', () => {
