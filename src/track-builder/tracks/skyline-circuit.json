@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 54,
   "medalTimesMs": {
-    "gold": 128000,
-    "silver": 138000,
-    "bronze": 156000
+    "gold": 136000,
+    "silver": 148000,
+    "bronze": 167000
   },
   "voidY": 0,
   "landmark": "airship",

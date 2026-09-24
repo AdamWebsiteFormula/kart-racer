@@ -21,7 +21,7 @@ describe('constants', () => {
 
   it('archetype multiplies speed, accel, handling, weight', () => {
     const h = makeConstants('heavy', 150);
-    expect(h.topSpeed).toBeCloseTo(25 * 1.1);
+    expect(h.topSpeed).toBeCloseTo(25 * 1.01);
     expect(h.accel).toBeCloseTo(12 * 0.88);
     expect(h.steerRate).toBeCloseTo(2.4 * 0.9);
     expect(h.mass).toBeCloseTo(1.18);

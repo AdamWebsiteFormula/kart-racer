@@ -21,10 +21,12 @@ describe('course creatures in a whole race', () => {
     if (!found) continue;
     const creature = found;
     it(`${def.id}: the ${creature.creature} acts all race and every kart still finishes`, () => {
-      // two seeds: a creature catches 0 to 5 karts in one two-lap race, so one race alone is luck
+      // four seeds: a creature catches 0 to 8 karts in one two-lap race, so one race alone is luck.
+      // Since the classes race level (24 Sept 2026) the pack runs closer, and the rumblesaur and the
+      // yeti catch nobody in about half their races (12 seeds), so two races were no longer enough
       let hits = 0;
-      for (const seed of [7, 2]) hits += race(seed);
-      // a real threat (the whale only pushes): it catches somebody in two races of eight karts
+      for (const seed of [1, 2, 3, 4]) hits += race(seed);
+      // a real threat (the whale only pushes): it catches somebody in four races of eight karts
       if (creature.creature !== 'whale') expect(hits, `${creature.creature} caught somebody`).toBeGreaterThan(0);
     }, 120_000);
 
