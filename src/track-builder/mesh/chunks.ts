@@ -26,8 +26,9 @@ export function chunkCountFor(branch: Branch, main: Branch): number {
 
 /** A shortcut ribbon blends into the main road at both ends; the main line never does. */
 export function ribbonOptions(branch: Branch): RibbonOptions {
-  if (branch.isMain) return {};
-  return { blend: Math.min(0.45, BUILDER.branchBlendMetres / branch.lut.length) };
+  const offroad = branch.lut.offroad;
+  if (branch.isMain) return { offroad };
+  return { blend: Math.min(0.45, BUILDER.branchBlendMetres / branch.lut.length), offroad };
 }
 
 export function buildBranchChunks(branch: Branch, main: Branch, palette: TrackPalette, material: Material): Chunk[] {

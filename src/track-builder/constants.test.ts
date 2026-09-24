@@ -13,7 +13,8 @@ describe('track-builder constants', () => {
     expect(BUILDER.chunkCount).toBe(8);
     expect(BUILDER.minimapSamples).toBe(200);
     expect(BUILDER.boostPadHalfLength).toBe(1.75);
-    expect(BUILDER.decorBands).toEqual({ roadside: [8, 14], far: [30, 120], sky: [25, 60] });
+    expect(BUILDER.decorBands).toEqual({ roadside: [8, 14], roadsideOffroad: [13, 19], far: [30, 120], sky: [25, 60] });
+    expect(BUILDER.offroadReach).toBe(12);
     expect(BUILDER.lapTimeWarn).toEqual([40, 65]);
     expect(BUILDER.trackDrawCallBudget).toBe(40);
   });

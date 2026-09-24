@@ -12,7 +12,7 @@ import { BUILDER } from '../constants.ts';
 import type { Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
-import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
+import { hashString, mulberry32, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
@@ -153,7 +153,8 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           float line = 1.0 - smoothstep(0.1, 0.18, abs(vRoad.x - 0.5));
           totalEmissiveRadiance += uNeon * line;
         }`)
-      .replace('#include <map_fragment>', `#include <map_fragment>
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        // after the vertex colours (the ribbon's old two-colour curb), so the edge is exactly its own colour
         if (vMark > 0.5 && vMark < 1.5) {
           // striped curb: hard stripes, anti-aliased so they do not shimmer far away
           float p = vRoad.y * 2.0;
@@ -167,9 +168,8 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           float corner = uEdgeMode > 1.5 ? 0.0 : uEdgeMode > 0.5 ? smoothstep(0.25, 0.6, vBend) : 1.0;
           diffuseColor.rgb = mix(plain, stripes, corner);
         } else if (vMark > 1.5 && vMark < 2.5 && uOffroad > 0.5) {
-          // the off-road band: the place's own ground (grass, sand, snow), broken up in big soft patches
-          float g = sin(vRoad.y * 7.0 + vRoad.x * 4.0) * sin(vRoad.y * 2.3 - vRoad.x * 6.0) * 0.5 + 0.5;
-          diffuseColor.rgb = mix(uOffA, uOffB, g);
+          // an off-road track: no strip beside the road, the land itself meets the curb (land.ts)
+          discard;
         } else if (vMark < 0.5) {
           // the surface itself: big soft patches of lighter and darker tarmac, and the middle a
           // little darker where the karts run (it is never one flat sheet)
@@ -329,16 +329,17 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const addBarriers = () => {
     const old = instancers.get('barriers');
     if (old) retire(old);
-    // an off-road track has no posts at the road's edge: its boundary is a real wall past the off-road
-    const posts = def.offroad ? new Float32Array(0) : placeBarriers(branches);
+    // no posts along any road (Adam, 23 Sept 2026: "I still see stumps"): an off-road track is lined
+    // by its scenery, a pier or a sky road by a solid low edge (boundary.ts)
+    const posts = new Float32Array(0);
     const m = instancer('barriers', geometryFor(assets, `${def.biome}-barrier`, 'barrier'), palette.barrier, posts);
     instancers.set('barriers', m);
     group.add(m);
     withHull(m, `${def.biome}-barrier`);
-    // the boundary: a hedge, a sandstone wall, a snowbank or a sea wall past the off-road; a rail
-    // through the posts on a pier or a sky road (boundary.ts), rebuilt when a shortcut opens or closes
+    // a pier or a sky road: a solid low edge along the road (boundary.ts), rebuilt when a shortcut
+    // opens or closes; an off-road track has none (the course limit is invisible, the scenery lines it)
     if (boundary) retire(boundary);
-    boundary = buildBoundary(branches, def.biome, def.offroad === true, GRADIENT ?? null);
+    boundary = def.offroad ? null : buildBoundary(branches, def.biome, GRADIENT ?? null);
     if (boundary) { OWNED.add(boundary.geometry); group.add(boundary); }
   };
   addBarriers();
@@ -509,8 +510,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const land = LAND[def.biome];
     const rises = branches.main.lut.maxY - groundY > LAND_MIN_RISE;
     const coastGeo = groundKind === 'water'
-      ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell, wet: true })
-      : land && rises ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: land.slope, cell: COAST.cell, strata: land.strata }) : null;
+      ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell, wet: true, offroad: def.offroad === true })
+      : land && rises ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: land.slope, cell: COAST.cell, strata: land.strata, offroad: def.offroad === true }) : null;
     if (coastGeo) {
       const own = assets.coast?.();
       const coast = new Mesh(coastGeo, own ?? new MeshToonMaterial({ color: toColor(palette.shoulder), vertexColors: true, gradientMap: GRADIENT ?? null }));

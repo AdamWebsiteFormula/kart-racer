@@ -192,17 +192,20 @@ describe('off-road (Adam, 23 Sept 2026: the Mario Kart way)', () => {
   const hw = track.sample(T, 0).halfWidth;
   const { kerbWidth: kw, shoulderWidth: sw, shoulderDrop: drop } = BUILDER;
 
-  it('past the curb on a walled side: loose ground (dirt) that falls away like the drawn shoulder, and the wall at its far edge', () => {
+  it('past the curb on a walled side: loose ground (dirt) a hair under the road, as the land draws it, out to an invisible course limit', () => {
     expect(track.sample(T, 0).open ?? 0).toBe(0);
     expect(track.sample(T, hw + kw * 0.5).surface).toBe('road'); // the curb
     const mid = track.sample(T, hw + kw + sw * 0.5);
     expect(mid.surface).toBe('dirt');
-    expect(track.sample(T, 0).groundY - mid.groundY).toBeGreaterThan(drop * 0.4);
+    // against the same road with a wall at its edge (the banked plane carried on), a hair lower
+    const plane = buildTrack(walledCanyon()).sample(T, hw + kw + sw * 0.5);
+    expect(plane.groundY - mid.groundY).toBeCloseTo(BUILDER.offroadDrop, 6);
     expect(mid.overCliff).toBe(false);
-    expect(mid.wall).toBeCloseTo(hw + kw + sw, 6);
+    expect(mid.wall).toBeCloseTo(hw + kw + BUILDER.offroadReach, 6);
+    void drop;
   });
 
-  it('a kart steered off the road rolls onto the off-road, slows to the dirt cap, and is stopped by the wall, not the road edge', () => {
+  it('a kart steered off the road rolls onto the off-road, slows to the dirt cap, and is held at the course limit, not the road edge', () => {
     const s = kartAt(track, T, 0, 22);
     let maxLat = 0, dirtTicks = 0;
     for (let k = 0; k < 360; k++) {
@@ -211,7 +214,7 @@ describe('off-road (Adam, 23 Sept 2026: the Mario Kart way)', () => {
       if (s.surface === 'dirt') dirtTicks++;
     }
     expect(maxLat).toBeGreaterThan(hw + kw); // it left the road
-    expect(maxLat).toBeLessThanOrEqual(hw + kw + sw - c.kartRadius + 0.05); // held by the boundary wall
+    expect(maxLat).toBeLessThanOrEqual(hw + kw + BUILDER.offroadReach - c.kartRadius + 0.05); // held at the course limit
     expect(dirtTicks).toBeGreaterThan(0);
     expect(s.status.falling).toBe(false);
   });

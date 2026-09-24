@@ -141,6 +141,8 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-23: **Off-road and real boundaries** (Adam): `offroad: true` on a track makes the LUT sample report dirt past the curb (with the shoulder drop) and `TrackSample.wall` = halfWidth + kerbWidth + shoulderWidth; the kart and projectiles stop there, and boundary.ts draws a continuous hedge, sandstone wall, snowbank or sea wall there. Tracks without it keep the wall at the road edge and get a continuous rail through the posts.
 
+- 2026-09-23: **No posts, strips or walls along roads** (Adam: the Mario Kart World edge). Off-road tracks: the land meets the curb (land.ts offroad: offroadDrop under the road), the ribbon's walled shoulders are discarded, the course limit (TrackSample.wall) is offroadReach past the curb and the roadside scenery starts past it (decorBands.roadsideOffroad). Piers and sky roads: a solid low edge (boundary.ts). A shader override of a vertex-coloured strip goes after `#include <color_fragment>`, or the vertex colours tint it (the curbs showed the old stripes through the new colour).
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-19: **Moving hazards would vanish after frame one (caught in review, not play).** Cause: `InstancedMesh` computes its bounding sphere lazily on the first render from the instances present then, and never again; a rolling barrel leaves the sphere and is culled, and an instancer whose first frame has `count = 0` gets an empty sphere and is culled forever. Fix: `frustumCulled = false` on every instancer whose matrices change at runtime. Rule: anything animated through `setMatrixAt` is never frustum-culled, or its `boundingSphere` is reset to `null` after every update.

@@ -22,7 +22,7 @@ interface Strip {
 }
 
 /** The `mark` attribute: the road surface, a kerb, a shoulder, or a strip that blends under the main road. */
-export const ROAD_MARK = Object.freeze({ road: 0, kerb: 1, shoulder: 2, plain: 3 });
+export const ROAD_MARK = Object.freeze({ road: 0, kerb: 1, shoulder: 2, plain: 3, cliffShoulder: 4 });
 
 /** Sample indices covering local u0..u1 inclusive. On a closed LUT u1 = 1 reaches index n, which wraps to 0 and closes the seam. */
 export function sampleRange(lut: Lut, u0: number, u1: number): { i0: number; i1: number } {
@@ -30,6 +30,8 @@ export function sampleRange(lut: Lut, u0: number, u1: number): { i0: number; i1:
 }
 
 export interface RibbonOptions {
+  /** an off-road track: no shoulder strip on a walled side (the land meets the curb), a skirt under the curb */
+  offroad?: boolean;
   /** local-u length at each end where kerbs and shoulders vanish and the ribbon sinks under the main road (branches) */
   blend?: number;
 }
@@ -48,13 +50,13 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   const M = ROAD_MARK;
   const strips: Strip[] = [
     { a: (hw) => -(hw + kw + sw), ah: -drop, b: (hw) => -(hw + kw), bh: 0, colour: shoulder, mark: M.shoulder },
-    { a: (hw) => -(hw + kw), ah: 0, b: (hw) => -(hw + kw), bh: kh, colour: kerb, mark: M.kerb },
+    { a: (hw) => -(hw + kw), ah: opts.offroad ? -0.45 : 0, b: (hw) => -(hw + kw), bh: kh, colour: kerb, mark: M.kerb },
     { a: (hw) => -(hw + kw), ah: kh, b: (hw) => -hw, bh: kh, colour: kerb, mark: M.kerb },
     { a: (hw) => -hw, ah: kh, b: (hw) => -hw, bh: 0, colour: kerb, mark: M.kerb },
     { a: (hw) => -hw, ah: 0, b: (hw) => hw, bh: 0, colour: road, mark: M.road },
     { a: (hw) => hw, ah: 0, b: (hw) => hw, bh: kh, colour: kerb, mark: M.kerb },
     { a: (hw) => hw, ah: kh, b: (hw) => hw + kw, bh: kh, colour: kerb, mark: M.kerb },
-    { a: (hw) => hw + kw, ah: kh, b: (hw) => hw + kw, bh: 0, colour: kerb, mark: M.kerb },
+    { a: (hw) => hw + kw, ah: kh, b: (hw) => hw + kw, bh: opts.offroad ? -0.45 : 0, colour: kerb, mark: M.kerb },
     { a: (hw) => hw + kw, ah: 0, b: (hw) => hw + kw + sw, bh: -drop, colour: shoulder, mark: M.shoulder },
   ];
 
@@ -99,7 +101,9 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
         col[v * 3] = c[0]; col[v * 3 + 1] = c[1]; col[v * 3 + 2] = c[2];
         uv[v * 2] = side; uv[v * 2 + 1] = s / tile;
         // a branch's blended ends are plain: no stripes, no lines where it slides under the main road
-        mark[v] = inBlend && strip.mark !== M.road ? M.plain : strip.mark;
+        // a shoulder on an open edge (a cliff lip) is drawn; on an off-road track a walled one is not (scene.ts discards it)
+        const sideOpen = (lut.open[j] & (l < 0 ? 1 : 2)) !== 0;
+        mark[v] = inBlend && strip.mark !== M.road ? M.plain : strip.mark === M.shoulder && sideOpen ? M.cliffShoulder : strip.mark;
         bend[v] = lut.closed || (i - K >= 0 && i + K <= lut.step) ? bendAt(i) : 0;
         v++;
       }

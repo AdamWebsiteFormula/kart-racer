@@ -70,7 +70,7 @@
         }
       }
     },
-    "offroad": { "type": "boolean", "default": false, "description": "Past the curb, a band of off-road (shoulderWidth metres; the dirt top-speed cap) to a real boundary wall, the Mario Kart way. False: the wall is at the road's edge (a pier, a sky road), with a rail through the posts." },
+    "offroad": { "type": "boolean", "default": false, "description": "The Mario Kart World edge: the land meets the curb with no strip and no wall; it is drivable (the dirt top-speed cap) out to an invisible course limit offroadReach metres past the curb, where the roadside scenery starts. False (a pier, a sky road): a solid low edge wall at the road's edge." },
     "loops": {
       "description": "Loop-the-loops on the main line (design.md Track thrills). Every kart on the ground is caught before the foot at t, rides up and round the ring and is set down after it with a boost. Put one on a straight at least approach + exit metres long.",
       "type": "array",
@@ -163,6 +163,8 @@
         "kerbHeight": { "type": "number", "default": 0.1 },
         "shoulderWidth": { "type": "number", "default": 6.0 },
         "shoulderDrop": { "type": "number", "default": 0.4 },
+        "offroadReach": { "type": "number", "default": 12, "description": "Off-road tracks: metres past the curb the ground is drivable (slowly) before an invisible course limit, just short of the roadside scenery (the Mario Kart World way: no strip, no wall along the road)" },
+        "offroadDrop": { "type": "number", "default": 0.12, "description": "Off-road tracks: the ground past the curb sits this far under the road, as the land mesh draws it" },
         "barrierSpacing": { "type": "number", "default": 2.0 },
         "roadTileLength": { "type": "number", "default": 10, "description": "metres of road per UV v unit" },
         "chunkCount": { "type": "integer", "default": 8 },
@@ -196,6 +198,7 @@
           "type": "object",
           "properties": {
             "roadside": { "type": "array", "items": { "type": "number" }, "default": [8, 14] },
+            "roadsideOffroad": { "type": "array", "items": { "type": "number" }, "default": [13, 19], "description": "the roadside band on an off-road track: just past the course limit, so the scenery lines the course" },
             "far": { "type": "array", "items": { "type": "number" }, "default": [30, 120] },
             "sky": { "type": "array", "items": { "type": "number" }, "default": [25, 60] }
           }

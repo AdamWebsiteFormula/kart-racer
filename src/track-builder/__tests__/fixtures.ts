@@ -80,3 +80,5 @@ export const HARBOUR_WITH_PIER: TrackDefinition = (() => {
 
 /** Harbor Loop with a wall at the road's edge (no off-road band): for the barrier-post tests. */
 export const HARBOUR_WALLED: TrackDefinition = { ...cloneDef(HARBOUR_LOOP), offroad: false };
+/** The walled harbor dressed as a pier (Boardwalk's biome): a solid low edge along its road. */
+export const HARBOUR_WALLED_PIER: TrackDefinition = { ...cloneDef(HARBOUR_WALLED), biome: 'boardwalk' };

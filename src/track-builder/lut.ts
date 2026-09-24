@@ -183,18 +183,21 @@ export class Lut {
     out.overCliff = false;
     const openSide = (open & (lateral < 0 ? 1 : 2)) !== 0;
     if (openSide || this.offroad) {
-      // past the curb, loose ground (off-road: a top-speed cap, kart-controller surfaceSpeed) that
-      // falls away as road.ts draws the shoulder; an open edge ends in a drop, elsewhere a wall
+      // past the curb, loose ground (off-road: a top-speed cap, kart-controller surfaceSpeed). An open
+      // edge's shoulder falls away to the lip as road.ts draws it; elsewhere it is the land, a hair
+      // under the road (land.ts), out to the course limit
       const off = Math.abs(lateral) - out.halfWidth;
       if (off > BUILDER.kerbWidth) {
         out.surface = 'dirt';
-        const drop = BUILDER.shoulderDrop * Math.min(1, (off - BUILDER.kerbWidth) / BUILDER.shoulderWidth);
+        const drop = openSide
+          ? BUILDER.shoulderDrop * Math.min(1, (off - BUILDER.kerbWidth) / BUILDER.shoulderWidth)
+          : BUILDER.offroadDrop * Math.min(1, (off - BUILDER.kerbWidth) / 0.5);
         out.groundY -= drop;
         p[1] -= drop;
       }
       if (openSide) out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
     }
-    out.wall = this.offroad ? out.halfWidth + BUILDER.kerbWidth + BUILDER.shoulderWidth : out.halfWidth;
+    out.wall = this.offroad ? out.halfWidth + BUILDER.kerbWidth + BUILDER.offroadReach : out.halfWidth;
     return out;
   }
 

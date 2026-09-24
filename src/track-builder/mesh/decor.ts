@@ -92,7 +92,7 @@ export interface DecorPlacement {
  */
 export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef['decor']>[number], rng: () => number, groundY: number): DecorPlacement {
   const main = branches.main.lut;
-  const band = BUILDER.decorBands[entry.band];
+  const band = entry.band === 'roadside' && main.offroad ? BUILDER.decorBands.roadsideOffroad : BUILDER.decorBands[entry.band];
   const out: number[] = [];
   let placed = 0;
   const maxTries = entry.instances * 20;

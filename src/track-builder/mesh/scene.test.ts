@@ -3,7 +3,7 @@ import { InstancedMesh, Mesh } from 'three';
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
-import { HARBOUR_LOOP, HARBOUR_WALLED, cloneDef } from '../__tests__/fixtures.ts';
+import { HARBOUR_LOOP, HARBOUR_WALLED, HARBOUR_WALLED_PIER, cloneDef } from '../__tests__/fixtures.ts';
 import { chunkCountFor } from './chunks.ts';
 import { insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
@@ -164,49 +164,34 @@ describe('decor and barriers', () => {
     expect(Array.from(b)).toEqual(Array.from(a));
   });
 
-  it('an off-road track has no posts at the road edge: a continuous boundary wall stands past the off-road band', () => {
+  it('the Mario Kart World edge: no posts on any track; an off-road track has no strip and no wall, its course limit is invisible past the curb', () => {
     const t = buildTrack(HARBOUR_LOOP);
     const s = buildTrackScene(t);
     expect(HARBOUR_LOOP.offroad).toBe(true);
     expect(s.instancers.get('barriers')!.count).toBe(0);
-    const wall = s.group.getObjectByName('boundary') as Mesh;
-    expect(wall).toBeDefined();
-    wall.geometry.computeBoundingBox();
-    expect(wall.geometry.getAttribute('position').count).toBeGreaterThan(1000);
-    // the physics wall is where the drawn one stands
+    expect(s.group.getObjectByName('boundary')).toBeUndefined();
     const smp = t.sample(0.1, 0);
-    expect(smp.wall).toBeCloseTo(smp.halfWidth + BUILDER.kerbWidth + BUILDER.shoulderWidth, 6);
+    expect(smp.wall).toBeCloseTo(smp.halfWidth + BUILDER.kerbWidth + BUILDER.offroadReach, 6);
+    // the roadside scenery starts just past the course limit, so it lines the course
+    expect(BUILDER.decorBands.roadsideOffroad[0]).toBeGreaterThan(BUILDER.offroadReach);
     s.dispose();
   });
 
-  it('barriers: two per BARRIER_SPACING on every branch, minus the few posts that would fence a shortcut mouth', () => {
-    const track = buildTrack(HARBOUR_WALLED);
-    const scene = buildTrackScene(track);
-    let expected = 0;
-    for (const b of track.branches.list) expected += 2 * Math.max(1, Math.floor(b.lut.length / BUILDER.barrierSpacing));
-    const count = scene.instancers.get('barriers')!.count;
-    expect(count).toBeLessThan(expected);
-    expect(count).toBeGreaterThan(expected * 0.9);
-    // no surviving post stands on another branch's road
-    const a = scene.instancers.get('barriers')!.instanceMatrix.array;
-    for (let i = 0; i < count; i++) {
-      const x = a[i * 16 + 12], z = a[i * 16 + 14];
-      let onRoads = 0;
-      for (const b of track.branches.list) {
-        const one = { list: [b], main: track.branches.main } as unknown as typeof track.branches;
-        if (insideRoadEnvelope(one, x, z, -1, BUILDER.kerbWidth + 0.5)) onRoads++;
-      }
-      expect(onRoads).toBeLessThanOrEqual(1);
-    }
+  it('a pier gets a solid low edge along the road, broken at shortcut mouths, and still no posts', () => {
+    const t = buildTrack(HARBOUR_WALLED_PIER);
+    const s = buildTrackScene(t);
+    expect(s.instancers.get('barriers')!.count).toBe(0);
+    const edge = s.group.getObjectByName('boundary') as Mesh;
+    expect(edge).toBeDefined();
+    expect(edge.geometry.getAttribute('position').count).toBeGreaterThan(1000);
+    s.dispose();
   });
 
-  it('a closed shortcut has no posts and its chunks are hidden after the shift', () => {
+  it('a closed shortcut has its chunks hidden after the shift', () => {
     const t = buildTrack(HARBOUR_WALLED); // the tide closes the beach
     const s = buildTrackScene(t);
-    const before = s.instancers.get('barriers')!.count;
     t.applyFinalLapShift();
     const beach = t.branches.byId('beach')!;
-    expect(s.instancers.get('barriers')!.count).toBeLessThan(before - 100);
     for (const c of s.chunks) expect(c.mesh.visible).toBe(c.branch !== beach.index);
   });
 });
@@ -251,7 +236,7 @@ describe('Final Lap Shift swap and hazards', () => {
     expect(m.instanceMatrix.array[12]).not.toBe(x0);
   });
 
-  it('lap gating: a shortcut closed on lap 1 starts hidden, with no coins or posts, and appears when its lap comes', () => {
+  it('lap gating: a shortcut closed on lap 1 starts hidden, with no coins, and appears when its lap comes', () => {
     const d = cloneDef(HARBOUR_WALLED);
     d.shortcuts![0].openOnLaps = [2];
     const t = buildTrack(d);
@@ -259,13 +244,11 @@ describe('Final Lap Shift swap and hazards', () => {
     const beach = t.branches.byId('beach')!;
     for (const c of s.chunks) if (c.branch === beach.index) expect(c.mesh.visible).toBe(false);
     const coinsClosed = s.instancers.get('coins')!.count;
-    const postsClosed = s.instancers.get('barriers')!.count;
     expect(coinsClosed).toBe(HARBOUR_LOOP.coins!.length - 1); // the beach coin
     t.setLap(2);
     s.update(0);
     for (const c of s.chunks) if (c.branch === beach.index) expect(c.mesh.visible).toBe(true);
     expect(s.instancers.get('coins')!.count).toBe(coinsClosed + 1);
-    expect(s.instancers.get('barriers')!.count).toBeGreaterThan(postsClosed + 100);
   });
 
   it('dispose unsubscribes: a later shift does not touch the group', () => {

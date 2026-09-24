@@ -24,6 +24,8 @@ export interface CoastOptions {
   wet?: boolean;
   /** rock strata: bands of colour down the slope (canyon cliffs) */
   strata?: boolean;
+  /** off-road track: the land meets the curb (offroadDrop under the road), no shoulder strip between */
+  offroad?: boolean;
 }
 
 /** Strata tints (multiplied over the texture), bottom to top, one band per 2.4 m. */
@@ -87,7 +89,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
         // and the land a little under it, so no grass ever pokes up through the road
         const lat = (x - xs[bk]) * rxs[bk] + (z - zs[bk]) * rzs[bk];
         const latC = Math.max(-edges[bk], Math.min(edges[bk], lat));
-        const d = Math.sqrt(best), top = ys[bk] - latC * tans[bk] - BUILDER.shoulderDrop - UNDER_ROAD;
+        const d = Math.sqrt(best), top = ys[bk] - latC * tans[bk] - (o.offroad ? BUILDER.offroadDrop : BUILDER.shoulderDrop + UNDER_ROAD);
         // an open edge on this side: no flat past the shoulder, and a sheer drop
         const open = (opens[bk] & (lat < 0 ? 1 : 2)) !== 0;
         const lip = edges[bk] + (open ? 0 : o.flat);
