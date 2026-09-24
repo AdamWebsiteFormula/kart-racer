@@ -84,7 +84,7 @@ const MIX: Readonly<Record<string, number>> = Object.freeze({
   throw: 0.9, kite: 0.8, drop: 0.8, shieldUp: 0.8, shieldPop: 0.9, airHorn: 1.1, fog: 0.8, rocket: 1,
   fizz: 1, strikeRoll: 1, strike: 1.1, boing: 0.9, slam: 1.1, anchor: 0.9, slingshot: 0.9, mouse: 0.8, blocked: 0.8, denied: 0.6, trail: 0.6,
   roar: 1.2, stomp: 1.2, yetiThrow: 0.9, snowThud: 1, krakenRise: 1, krakenSlam: 1.2, crabClack: 0.9, honk: 1.1, whaleSong: 1, tailSlap: 1.1,
-  claw: 1, clawDrop: 0.9, loop: 0.9,
+  claw: 1, clawDrop: 0.9, loop: 0.9, ventWarn: 0.7, geyser: 0.9, steamVent: 0.85,
   hit: 1, spin: 1,
   boost1: 0.75, boost2: 0.85, boost3: 1, boostPad: 0.85, boostTrick: 0.9, boostStart: 1, tierUp: 0.5,
   hop: 0.6, land: 0.7, wall: 0.8, bump: 0.8,

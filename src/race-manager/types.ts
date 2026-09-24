@@ -120,6 +120,7 @@ export type RaceEvent =
   | { type: 'kart'; racerId: string; event: KartEvent }
   | { type: 'creature'; id: string; kind: CreatureKind; action: string; position: Vec3 }
   | { type: 'rescue'; racerId: string; phase: 'start' | 'end' }
+  | { type: 'vent'; id: string; asset: string; phase: 'warn' | 'erupt'; position: Vec3 }
   | { type: 'raceFinished' };
 
 export interface RaceResultRow {

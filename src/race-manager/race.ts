@@ -25,6 +25,8 @@ export class RaceManager {
   readonly playerIndex: number;
   /** the hazard list computed this tick; hand it to TrackScene.update(time, active) */
   lastActiveHazards: readonly ActiveHazard[] = [];
+  /** what each vent did last tick, so a change fires one `vent` event */
+  private readonly ventStates = new Map<string, string>();
   /** what each course creature did last tick, so a change fires one `creature` event */
   private readonly creatureActions = new Map<string, string>();
   /** kart indices in rank order after the last tick */
@@ -98,6 +100,13 @@ export class RaceManager {
     const events: RaceEvent[] = [];
     st.time = (tick - st.goTick) * dt;
     this.lastActiveHazards = track.activeHazards(st.time);
+    if (st.phase !== 'countdown') {
+      for (const v of track.hazards.vents(st.time)) {
+        if (this.ventStates.get(v.id) === v.state) continue;
+        this.ventStates.set(v.id, v.state);
+        if (v.state !== 'idle') events.push({ type: 'vent', id: v.id, asset: v.asset, phase: v.state, position: [...v.position] });
+      }
+    }
     if (track.hazards.creatures.length && st.phase !== 'countdown') {
       for (const p of track.hazards.creaturePoses(st.time)) {
         if (this.creatureActions.get(p.id) === p.action) continue;

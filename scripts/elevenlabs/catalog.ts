@@ -64,6 +64,10 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'tailSlap', seconds: 1.5, prompt: `A giant whale tail swooshing through clouds: a big airy whoosh and a soft thunderous slap of wind. ${CARTOON}` },
   // the rescue claw (race-manager respawn.ts)
   { id: 'claw', seconds: 2.2, prompt: `A fairground claw machine: an electric motor whirring as the claw drops on its cable, a clunky metal grab, then a whirring lift. ${CARTOON}` },
+  // launch vents (track-builder hazards.ts, type vent): the warning, then the blast
+  { id: 'ventWarn', seconds: 1.2, prompt: `A hot spring about to erupt: deep bubbling and gurgling rising fast, a low rumble underneath. ${CARTOON}` },
+  { id: 'geyser', seconds: 1.8, prompt: `A geyser erupting: a sudden powerful whoosh of water blasting straight up, then a hissing spray raining down. ${CARTOON}` },
+  { id: 'steamVent', seconds: 1.8, prompt: `A steam vent in the snow blasting open: a sharp loud hiss and roar of steam shooting skyward, then fading. ${CARTOON}` },
   // the loop-the-loop (kart-controller loop.ts): the ride round the neon ring
   { id: 'loop', seconds: 2.4, prompt: `A small go-kart racing round a roller-coaster loop: a rising whoosh up and over, a rattling track, and a crowd going "woooah!" at the top. ${CARTOON}` },
   { id: 'clawDrop', seconds: 0.8, prompt: `A toy claw opening and dropping a small go-kart onto a road: a springy metal clack and a soft rubbery bump. ${CARTOON}` },

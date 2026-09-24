@@ -7,10 +7,10 @@ export type { Surface, Vec3 };
 export type Biome = 'harbour' | 'meadow' | 'canyon' | 'frost' | 'boardwalk' | 'skyline' | 'temple' | 'foundry';
 export type Cup = 'sunrise' | 'summit';
 export type ShiftKind = 'flood' | 'storm' | 'collapse' | 'blizzard' | 'fireworks' | 'sunset' | 'rise' | 'reverse';
-export type HazardKind = 'rolling' | 'crossing' | 'falling' | 'static' | 'gust' | 'creature';
+export type HazardKind = 'rolling' | 'crossing' | 'falling' | 'static' | 'gust' | 'creature' | 'vent';
 /** The course creatures (design §6): one per track. */
 export type CreatureKind = 'rumblesaur' | 'yeti' | 'kraken' | 'crab' | 'goose' | 'whale';
-export type HazardHit = 'spin' | 'slow' | 'bump';
+export type HazardHit = 'spin' | 'slow' | 'bump' | 'launch';
 export type ShortcutRisk = 'jump' | 'narrow' | 'hazard';
 export type DecorBand = 'roadside' | 'far' | 'sky';
 export type GroundKind = 'plane' | 'water' | 'none';
@@ -46,6 +46,10 @@ export interface HazardDef {
   asset?: string;
   /** type 'creature': which one */
   creature?: CreatureKind;
+  /** type 'vent': seconds into its cycle at race time 0 (vents side by side take turns) */
+  offset?: number;
+  /** type 'vent': m/s up it throws a kart */
+  launch?: number;
 }
 
 /** `shortcut` names the branch a feature sits on; t stays main-equivalent. */
@@ -162,6 +166,8 @@ export interface ActiveHazard {
   push?: Vec3;
   /** a shock wave along the ground: a kart in the air (a hop) passes over it */
   ground?: boolean;
+  /** hit 'launch' (an erupting vent): m/s up */
+  launch?: number;
 }
 
 /** Fired once by applyFinalLapShift for art, audio, HUD and the scene layer. */

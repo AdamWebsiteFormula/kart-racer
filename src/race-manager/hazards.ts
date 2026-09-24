@@ -21,6 +21,19 @@ export function stepHazards(
     if (s.status.intangibleRemaining > 0 || isRiding(s)) continue; // the respawn freeze, item shields and a rolling Strike Ball ignore every hazard, gusts too
     if (h.ground && !s.grounded) continue; // hopped over the shock wave
     if (!f || !r) { f = forwardOf(s.heading); r = rightOf(s.heading); } // only when something is in range
+    if (h.hit === 'launch') {
+      // an erupting vent: thrown up like off a ramp, so a trick up there is a boost; never a hit
+      const vy = h.launch ?? 0;
+      if (s.verticalVelocity < vy) {
+        s.verticalVelocity = vy;
+        s.grounded = false;
+        s.airborne.fromJumpId = h.id;
+        s.airborne.seconds = 0;
+        s.airborne.trickQueued = false;
+        kartEvents.push({ type: 'launched', jumpId: h.id });
+      }
+      continue;
+    }
     if (h.type === 'gust') {
       const p = h.push ?? [0, 0, 0];
       s.speed += (p[0] * f[0] + p[2] * f[2]) * dt;

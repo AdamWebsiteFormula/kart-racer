@@ -58,11 +58,13 @@
         "type": "object", "required": ["type", "t"],
         "properties": {
           "id": { "type": "string" },
-          "type": { "type": "string", "enum": ["rolling", "crossing", "falling", "static", "gust", "creature"] },
+          "type": { "type": "string", "enum": ["rolling", "crossing", "falling", "static", "gust", "creature", "vent"] },
           "t": { "type": "number" }, "lateral": { "type": "number", "default": 0 },
           "period": { "type": "number", "description": "Seconds between activations" },
           "speed": { "type": "number", "description": "m/s for rolling/crossing/falling; gust push strength" },
-          "hit": { "type": "string", "enum": ["spin", "slow", "bump"], "default": "spin" },
+          "hit": { "type": "string", "enum": ["spin", "slow", "bump", "launch"], "default": "spin" },
+          "offset": { "type": "number", "description": "type vent: seconds into its cycle at race time 0, so vents side by side take turns" },
+          "launch": { "type": "number", "description": "type vent: m/s up it throws a kart (default builder ventLaunch)" },
           "asset": { "type": "string" },
           "creature": { "type": "string", "enum": ["rumblesaur", "yeti", "kraken", "crab", "goose", "whale"], "description": "type creature: the track's big creature (design §6); lateral's sign picks its side of the road" }
         }
@@ -183,6 +185,10 @@
         "pierLift": { "type": "number", "default": 1.1, "description": "A pier's deck stands this far above the sea (level with a sea track's coast)" },
         "coinRadius": { "type": "number", "default": 0.5 },
         "hazardRadius": { "type": "number", "default": 1.2 },
+        "ventRadius": { "type": "number", "default": 2.2, "description": "a launch vent's mouth, metres (design.md Track thrills)" },
+        "ventWarnSeconds": { "type": "number", "default": 1.0, "description": "a vent glows and bubbles this long before it erupts" },
+        "ventEruptSeconds": { "type": "number", "default": 1.5, "description": "how long a vent erupts; a kart on it then is thrown up" },
+        "ventLaunch": { "type": "number", "default": 14, "description": "m/s up a vent throws a kart, about 4 m high (a ramp is 5 to 6)" },
         "fallingActiveSeconds": { "type": "number", "default": 0.5 },
         "gustWindow": { "type": "number", "default": 6, "description": "metres along the road a gust acts over" },
         "decorBands": {

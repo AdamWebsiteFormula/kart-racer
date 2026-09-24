@@ -120,7 +120,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
     const window = a.rollingLookAhead / len + 0.02;
     for (let i = 0; i < hz.length; i++) {
       const h = hz[i];
-      if (h.type === 'gust') continue;
+      if (h.type === 'gust' || h.type === 'vent') continue; // a gust is steered through; a vent is a free trick
       const reach = h.type === 'rolling' ? a.rollingLookAhead : a.hazardLookAhead;
       const ht = track.nearestT(h.position, s.t, window);
       const d = signedOffset(ht, s.t) * len;

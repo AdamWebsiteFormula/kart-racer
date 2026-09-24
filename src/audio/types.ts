@@ -8,6 +8,7 @@ export type SfxId =
   | 'roar' | 'stomp' | 'yetiThrow' | 'snowThud' | 'krakenRise' | 'krakenSlam' | 'crabClack' | 'honk' | 'whaleSong' | 'tailSlap'
   | 'claw' | 'clawDrop'
   | 'loop'
+  | 'ventWarn' | 'geyser' | 'steamVent'
   | 'hit' | 'spin' | 'boost1' | 'boost2' | 'boost3' | 'boostPad' | 'boostTrick' | 'boostStart'
   | 'tierUp' | 'hop' | 'land' | 'wall' | 'bump' | 'wrongWay' | 'gainPlace' | 'losePlace'
   | 'respawn' | 'uiMove' | 'uiConfirm' | 'uiBack'

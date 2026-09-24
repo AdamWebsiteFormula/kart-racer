@@ -6,6 +6,8 @@
 //             (the drop itself is a visual for the scene layer)
 //   static    always there
 //   gust      for the first half of every period, pushes `speed` m/s² sideways over a gustWindow stretch
+//   vent      a geyser or steam vent: quiet, then glows ventWarnSeconds, then erupts ventEruptSeconds
+//             at the end of every period; erupting, it throws a kart up (hit 'launch')
 import type { Branches } from './branches.ts';
 import { BUILDER } from './constants.ts';
 import { lateralAt } from './features.ts';
@@ -20,6 +22,20 @@ interface Baked {
   position: Vec3;
   enabled: boolean;
 }
+
+export type VentState = 'idle' | 'warn' | 'erupt';
+
+/** Where a vent is in its cycle at race time `time`: the state and how far through it (0..1). Pure. */
+export function ventPhase(def: HazardDef, time: number): { state: VentState; k: number } {
+  const period = Math.max(def.period ?? 5, BUILDER.ventWarnSeconds + BUILDER.ventEruptSeconds + 0.1);
+  const p = (((time + (def.offset ?? 0)) % period) + period) % period;
+  const erupt = period - BUILDER.ventEruptSeconds, warn = erupt - BUILDER.ventWarnSeconds;
+  if (p >= erupt) return { state: 'erupt', k: (p - erupt) / BUILDER.ventEruptSeconds };
+  if (p >= warn) return { state: 'warn', k: (p - warn) / BUILDER.ventWarnSeconds };
+  return { state: 'idle', k: p / warn };
+}
+
+export interface VentView { id: string; position: Vec3; asset: string; state: VentState; k: number }
 
 export class Hazards {
   private readonly items: Baked[] = [];
@@ -38,6 +54,16 @@ export class Hazards {
   }
 
   get ids(): string[] { return [...this.items.map((h) => h.id), ...this.creatures.map((c) => c.id)]; }
+
+  /** Every enabled vent at race time `time`: where it is and what it is doing. */
+  vents(time: number): VentView[] {
+    const out: VentView[] = [];
+    for (const h of this.items) {
+      if (h.def.type !== 'vent' || !h.enabled) continue;
+      out.push({ id: h.id, position: h.position, asset: h.def.asset ?? 'geyser', ...ventPhase(h.def, time) });
+    }
+    return out;
+  }
 
   /** Where to draw every creature at race time `time`. */
   creaturePoses(time: number): CreaturePose[] { return this.creatures.map((c) => c.pose(time)); }
@@ -94,6 +120,12 @@ export class Hazards {
         }
         case 'falling': {
           if (phase < BUILDER.fallingActiveSeconds) out.push({ id: h.id, type: d.type, position: h.position, radius, hit });
+          break;
+        }
+        case 'vent': {
+          if (ventPhase(d, time).state === 'erupt') {
+            out.push({ id: h.id, type: d.type, position: h.position, radius: BUILDER.ventRadius, hit: 'launch', launch: d.launch ?? BUILDER.ventLaunch });
+          }
           break;
         }
         case 'gust': {

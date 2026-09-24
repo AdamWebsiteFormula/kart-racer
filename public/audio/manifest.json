@@ -120,6 +120,15 @@
   "claw": {
    "url": "audio/sfx/claw.mp3"
   },
+  "ventWarn": {
+   "url": "audio/sfx/ventWarn.mp3"
+  },
+  "geyser": {
+   "url": "audio/sfx/geyser.mp3"
+  },
+  "steamVent": {
+   "url": "audio/sfx/steamVent.mp3"
+  },
   "loop": {
    "url": "audio/sfx/loop.mp3"
   },

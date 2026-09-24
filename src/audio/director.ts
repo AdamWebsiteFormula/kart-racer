@@ -100,6 +100,15 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
       case 'respawn': if (e.racerId === me) push('respawn', null); break;
       case 'pickup': push('balloon', e.racerId); break;
       case 'rescue': push(e.phase === 'start' ? 'claw' : 'clawDrop', e.racerId); break;
+      case 'vent': {
+        // heard from where it stands, like a creature
+        const id: SfxId = e.phase === 'warn' ? 'ventWarn' : e.asset === 'steam' ? 'steamVent' : 'geyser';
+        const dx = e.position[0] - l.position[0], dz = e.position[2] - l.position[2], d = Math.hypot(dx, dz);
+        const g = distanceGain(d);
+        const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
+        if (g > 0.01) out.push({ sfx: id, gain: g, pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 });
+        break;
+      }
       case 'creature': {
         const id = CREATURE_SOUND[`${e.kind}:${e.action}`];
         if (!id) break;

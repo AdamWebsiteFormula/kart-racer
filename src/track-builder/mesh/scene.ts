@@ -16,6 +16,7 @@ import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type 
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
 import { buildLoopMeshes } from './loop.ts';
+import { VentView } from './vents.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
@@ -299,7 +300,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const hazardAsset = new Map<string, string>();
   const hazardCapacity = new Map<string, number>();
   (def.hazards ?? []).forEach((h, i) => {
-    if (h.type === 'creature') return; // drawn by the CreatureView below
+    if (h.type === 'creature' || h.type === 'vent') return; // drawn by the CreatureView and the VentView below
     const asset = h.asset ?? h.type;
     hazardAsset.set(h.id ?? `hazard-${i}`, asset);
     hazardCapacity.set(asset, (hazardCapacity.get(asset) ?? 0) + 1);
@@ -338,9 +339,13 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     ? new CreatureView(track, (kind) => geometryFor(assets, kind, 'decor'), (kind) => assets.materials?.[kind], GRADIENT)
     : null;
   if (creatures) group.add(creatures.group);
+  // launch vents: rim, glow and column, posed from race time like the sim
+  const vents = track.hazards.vents(0).length ? new VentView(track, GRADIENT) : null;
+  if (vents) group.add(vents.group);
 
   const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time), live?: LiveFeatures) => {
     creatures?.update(time);
+    vents?.update(time);
     tickPads(time);
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); }
@@ -455,6 +460,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       for (const m of others) { if (jumpMeshes.includes(m)) (m.material as MeshToonMaterial).map?.dispose(); retire(m); }
       for (const c of chunks) c.mesh.geometry.dispose();
       creatures?.dispose();
+      vents?.dispose();
       if (roadMaterial.map && roadMaterial.map !== assets.roadMap) roadMaterial.map.dispose();
       roadMaterial.dispose(); // shared by every chunk: once
       group.clear();
