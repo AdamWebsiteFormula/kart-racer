@@ -59,6 +59,8 @@ export interface KartTracker {
   /** tick the throttle first went above stuckInputMin during the countdown, or -1 */
   throttleHeldSinceTick: number;
   hazardCooldownRemaining: number;
+  /** the hazard that last hit this kart while the kart is still inside it; it cannot hit again until the kart leaves */
+  hazardInside?: string;
   /** seconds before an erupting vent may throw this kart again (one throw per eruption) */
   ventCooldownRemaining: number;
   /** rank last announced by positionChange */
