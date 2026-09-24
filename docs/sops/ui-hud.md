@@ -159,6 +159,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24: The title screen has no tagline under the logo (Adam asked for it to go).
 - 2026-09-24: Detail review, player-facing words: the Credits line names no other company's games (`CREDITS_MADE`: "Every racer, track, item and sound is our own"); the Knockout card says "Eight start. Cuts every race. One wins." (the cut screen crowns one: 8 → 6 → 4 → winner); the touch look-back button reads LOOK, not BACK (beside BRAKE it read as reverse); the CREDITS.md Work column says 85 sounds (the manifest's count, tested) and "modeled".
 - 2026-09-24: Fresh-eyes review: the speedometer reads mph (format.ts `mph`), not km/h; the game is written for US players. Menus, roster, cup select, and the Harbor, Boardwalk and Skyline HUDs otherwise looked clean.
+- 2026-09-24: Phone check (emulated 375x812 portrait and 740x360 landscape, touch): portrait shows "Turn your phone sideways to race"; landscape menus fit, taps walk title → mode → racer → track; the race HUD shows the steering pad, Item, Drift, Look, Brake and pause with no keyboard hints; the gas comes on by itself after the green light. No change needed. Emulation only: not yet run on a real phone.
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-23: **Cup titles drew inside white boxes with borders.** Cause: the cup header used the class `row`, which the results table also styles. Fix: `cup-head`. Rule: in one global stylesheet, name classes after their screen, never generic words like `row`.
