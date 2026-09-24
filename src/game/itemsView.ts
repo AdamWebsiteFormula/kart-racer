@@ -11,8 +11,12 @@ import { bubbleMaterial, itemGeometry, oilSlickMaterial, strikeBallMaterial, ver
 import type { KartState } from '../kart-controller/types.ts';
 import type { Items } from '../items/items.ts';
 import type { Track } from '../track-builder/track.ts';
+import { fadeNearCamera } from '../track-builder/mesh/glow.ts';
+import { CAM } from './camera.ts';
 
 const RIDE_RADIUS = 1.3;
+/** metres behind the kart a held item trails */
+export const TRAIL_BACK = 1.9;
 const LINK = 0.2; // chain link spacing, metres
 
 class Kind {
@@ -53,6 +57,8 @@ export class ItemsView {
 
   constructor() {
     const toon = vertexToon();
+    // an item against the lens (a rival's Strike Ball, a ball trailing the kart in front) dissolves as karts do
+    for (const m of [toon, strikeBallMaterial()]) fadeNearCamera(m, CAM.nearFade);
     const kind = (name: string, cap = 16, material: Material = toon, shadows = true) => new Kind(itemGeometry(name) as BufferGeometry, material, cap, shadows);
     this.kinds = {
       beachBall: kind('beachBall'),
@@ -176,10 +182,10 @@ export class ItemsView {
         const bob = Math.sin(time * 8 + i) * 0.05;
         let p: Vector3;
         switch (s.item.held) {
-          case 'beachBall': p = this.local(r, h, pitch, 0, 0.6 + bob, -1.9); this.put('beachBall', p.x, p.y, p.z, this.yaw(time * 3)); break;
-          case 'oilCan': p = this.local(r, h, pitch, -0.55, bob, -1.9); this.put('oilCan', p.x, p.y, p.z, this.yaw(h + Math.PI / 2)); break;
-          case 'decoyBalloon': p = this.local(r, h, pitch, 0, 1.7 + bob, -1.9); this.put('decoyBalloon', p.x, p.y, p.z, this.yaw(h), 0.8); break;
-          case 'windUpMouse': p = this.local(r, h, pitch, 0, bob, -1.9); this.put('windUpMouse', p.x, p.y, p.z, this.yaw(h)); break;
+          case 'beachBall': p = this.local(r, h, pitch, 0, 0.6 + bob, -TRAIL_BACK); this.put('beachBall', p.x, p.y, p.z, this.yaw(time * 3)); break;
+          case 'oilCan': p = this.local(r, h, pitch, -0.55, bob, -TRAIL_BACK); this.put('oilCan', p.x, p.y, p.z, this.yaw(h + Math.PI / 2)); break;
+          case 'decoyBalloon': p = this.local(r, h, pitch, 0, 1.7 + bob, -TRAIL_BACK); this.put('decoyBalloon', p.x, p.y, p.z, this.yaw(h), 0.8); break;
+          case 'windUpMouse': p = this.local(r, h, pitch, 0, bob, -TRAIL_BACK); this.put('windUpMouse', p.x, p.y, p.z, this.yaw(h)); break;
         }
       }
 

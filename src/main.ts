@@ -23,7 +23,7 @@ import { makeConstants } from './kart-controller/constants.ts';
 import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from './race-manager/series.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
-import { CAM, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
+import { CAM, carry, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, kickedFov, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
@@ -91,6 +91,8 @@ post = new Post(renderer, scene, camera);
 const fxBuf = newEffects();
 const camPos: Vec3 = [0, 20, 40];
 const camLook: Vec3 = [0, 0, 0];
+/** where the chased kart was last frame: the camera rides along by its move before smoothing */
+const camKart: Vec3 = [0, 0, 0];
 const lookTmp = new Vector3();
 let camYaw = 0;
 let camSpeed = 0;
@@ -178,6 +180,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   camSpeed = 0;
   camPos[0] = k.position[0] - Math.sin(k.heading) * 12; camPos[1] = k.position[1] + 6; camPos[2] = k.position[2] - Math.cos(k.heading) * 12;
   camLook[0] = k.position[0]; camLook[1] = k.position[1]; camLook[2] = k.position[2];
+  camKart[0] = k.position[0]; camKart[1] = k.position[1]; camKart[2] = k.position[2];
 }
 
 function startAttract(): void {
@@ -290,12 +293,14 @@ function chaseCamera(frameDt: number): void {
   const k = s.state.karts[i];
   const root = s.views[i].root.position;
   const lookBack = s.inputs[i]?.lookBack ?? false;
+  const at: Vec3 = [root.x, root.y, root.z];
   // on a loop-the-loop: stand back and watch the whole ring
   const loop = k.status.loopIndex >= 0 ? s.track.loops[k.status.loopIndex] : undefined;
   if (loop) {
     const lp = loopCamPose(s.track, loop);
     smoothTo(camPos, lp.position, CAM.loopLag, frameDt);
     smoothTo(camLook, lp.target, CAM.loopLag * 1.5, frameDt);
+    camKart[0] = at[0]; camKart[1] = at[1]; camKart[2] = at[2]; // the side view stands still: nothing to ride along
     camYaw = k.heading;
     camSpeed = easedSpeed(camSpeed, k.speed, frameDt);
     camera.fov = fovFor(camSpeed);
@@ -304,8 +309,12 @@ function chaseCamera(frameDt: number): void {
   const want = travelYaw(s.views[i].root.rotation.y, k.speed, k.lateralVelocity, k.drift.active);
   camYaw = chaseYaw(camYaw, want, lookBack ? CAM.flipLag : CAM.yawLag, frameDt);
   camSpeed = easedSpeed(camSpeed, k.speed, frameDt);
-  const pose = idealPose([root.x, root.y, root.z], camYaw, camSpeed, lookBack);
+  const pose = idealPose(at, camYaw, camSpeed, lookBack);
   const lag = lookBack ? CAM.flipLag : CAM.lag;
+  // ride with the kart, then ease the offset: turns and look-back still swing, speed adds no trail
+  carry(camPos, camKart, at);
+  carry(camLook, camKart, at);
+  camKart[0] = at[0]; camKart[1] = at[1]; camKart[2] = at[2];
   smoothTo(camPos, pose.position, lag, frameDt);
   // over the road under the camera, and under a tunnel's beams: the pose rides the kart's height
   clampToRoad(s.track, camPos, k);
@@ -388,7 +397,7 @@ function step(now: number): void {
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
   const pl = cur.player;
   vfx.frame(frameDt, simDt, nowS, cur.state.karts, attract ? undefined : pl, camPos, reduced);
-  if (!attract) camera.fov += vfx.kick.fov(nowS, reduced);
+  if (!attract) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));
   camera.updateProjectionMatrix();
   const sh = vfx.shake;
   camera.position.set(camPos[0] + sh.x, camPos[1] + sh.y, camPos[2] + sh.z);

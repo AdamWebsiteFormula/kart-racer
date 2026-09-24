@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { BufferGeometry, InstancedMesh } from 'three';
+import type { BufferGeometry, InstancedMesh, Material } from 'three';
 import { ITEM_MODEL_KINDS, itemGeometry } from '../art-pipeline/index.ts';
+import { CAM } from './camera.ts';
 import { ItemsView } from './itemsView.ts';
 
 describe('items view', () => {
@@ -19,5 +20,16 @@ describe('items view', () => {
     expect(own).toHaveLength(2); // the Strike Ball and the Bubble
     for (const g of own) expect(freed.has(g)).toBe(true);
     for (const g of shared) if (g) expect(freed.has(g)).toBe(false);
+  });
+
+  it('every solid item (the Strike Ball too) dissolves within CAM.nearFade of the lens; the see-through slick and bubble are left be', () => {
+    const view = new ItemsView();
+    const key = `|near${CAM.nearFade.toFixed(2)}`;
+    for (const m of view.root.children as InstancedMesh[]) {
+      const mat = m.material as Material;
+      if ((mat as { isShaderMaterial?: boolean }).isShaderMaterial) continue;
+      expect(mat.customProgramCacheKey(), mat.type).toContain(key);
+    }
+    view.dispose();
   });
 });

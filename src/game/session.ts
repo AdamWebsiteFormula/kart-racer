@@ -19,7 +19,7 @@ import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { ItemsView } from './itemsView.ts';
 import { RescueView } from './rescueView.ts';
 import { simTick, type SimParts } from './simtick.ts';
-import { buildKartMesh } from './kartMesh.ts';
+import { buildKartMesh, fadeKartNearCamera, ownKartMaterials } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
 
 export class RaceSession {
@@ -80,6 +80,8 @@ export class RaceSession {
       const mesh = buildRacerMesh(config.racers[i].racerId) ?? buildKartMesh(r.accent, r.secondary);
       const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s);
       this.flames.push(new ExhaustFlames(mesh, config.racers[i].racerId));
+      // a rival against the lens dissolves, flames and all; yours never does
+      if (i === this.playerIndex) ownKartMaterials(mesh); else fadeKartNearCamera(mesh);
       this.group.add(v.root);
       return v;
     });
