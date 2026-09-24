@@ -149,6 +149,11 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
       case 'finish':
         if (e.racerId === me) { out.bursts.push({ kind: 'confetti', racerId: e.racerId }); if (!e.dnf) out.slowMo = true; }
         break;
+      // a bumper car's shove and a rockfall raise no kart event (a spin does, as a 'hit'): they
+      // jolt the player like a wall
+      case 'hazardHit':
+        if (e.racerId === me && (e.hit === 'bump' || e.hit === 'slow')) { out.trauma += JUICE.traumaWall; out.bursts.push({ kind: 'wall', racerId: e.racerId }); }
+        break;
       default: break;
     }
   }
