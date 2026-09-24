@@ -24,7 +24,7 @@ export interface LutOptions {
   closed?: boolean;
 }
 
-const LAND: LandPoint = { top: 0, edge: 0, next: 0, open: false, pieces: 0 };
+const LAND: LandPoint = { top: 0, edge: 0, next: 0, open: false, cover: NaN, lip: NaN, pieces: 0 };
 
 export class Lut {
   readonly n: number;
@@ -52,6 +52,14 @@ export class Lut {
   land: RoadIndex | null = null;
   /** the ground plane under the land (terrain.ts groundPlaneY): the off-road never sinks below it */
   floorY = -Infinity;
+  /** inside a tunnel (tunnel.ts marks it): rock walls at the curb, no off-road */
+  readonly covered: Uint8Array;
+  /** metres of drivable off-road past the curb (offroadReach; narrowing to a tunnel's mouth) */
+  readonly reach: Float32Array;
+  /** a tunnel's own road: the land stands this high above it (the mesa); NaN elsewhere */
+  readonly landAbove: Float32Array;
+  /** a tunnel's own road, and a few metres before its portals: the land keeps this far above the road clear (its bore); NaN elsewhere */
+  readonly bore: Float32Array;
   /** control-point segment the sample lies in */
   readonly seg: Uint16Array;
   /** per-sample grip scale, 1 until a shift multiplies it */
@@ -77,6 +85,10 @@ export class Lut {
     this.open = new Uint8Array(n);
     this.seg = new Uint16Array(n);
     this.grip = new Float64Array(n).fill(1);
+    this.covered = new Uint8Array(n);
+    this.reach = new Float32Array(n).fill(BUILDER.offroadReach);
+    this.landAbove = new Float32Array(n).fill(NaN);
+    this.bore = new Float32Array(n).fill(NaN);
 
     // 1. walk the curve at equal u, then resample at equal arc length
     const arc = spline.walkArcLength(divisions);
@@ -192,7 +204,8 @@ export class Lut {
     out.open = open;
     out.overCliff = false;
     const openSide = (open & (lateral < 0 ? 1 : 2)) !== 0;
-    if (openSide || this.offroad) {
+    const covered = (this.covered[i0] | this.covered[i1]) !== 0;
+    if ((openSide || this.offroad) && !covered) {
       // past the curb, loose ground (off-road: a top-speed cap, kart-controller surfaceSpeed). An open
       // edge's shoulder falls away to the lip as road.ts draws it; elsewhere it is the land, a hair
       // under the road (land.ts), out to the course limit
@@ -234,7 +247,8 @@ export class Lut {
       }
       if (openSide) out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
     }
-    out.wall = this.offroad ? out.halfWidth + BUILDER.kerbWidth + BUILDER.offroadReach : out.halfWidth;
+    out.wall = covered ? out.halfWidth + BUILDER.kerbWidth
+      : this.offroad ? out.halfWidth + BUILDER.kerbWidth + (this.reach[i0] * b + this.reach[i1] * a) : out.halfWidth;
     return out;
   }
 

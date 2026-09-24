@@ -46,11 +46,15 @@
       "entryT": 0.32,
       "exitT": 0.665,
       "risk": "hazard",
+      "tunnel": { "from": 0.16, "to": 0.9 },
       "controlPoints": [
         { "x": 187.27, "y": 3.87, "z": -75.81, "halfWidth": 7, "surface": "road" },
-        { "x": 139.16, "y": -9.3, "z": -40.67, "halfWidth": 5.5, "surface": "road" },
-        { "x": 91.04, "y": -12.11, "z": -5.52, "halfWidth": 5.5, "surface": "road" },
-        { "x": 42.93, "y": -0.28, "z": 29.63, "halfWidth": 5.5, "surface": "road" },
+        { "x": 167.89, "y": 3.3, "z": -61.65, "halfWidth": 6.5, "surface": "road" },
+        { "x": 138.82, "y": 0.9, "z": -40.42, "halfWidth": 5.5, "surface": "road" },
+        { "x": 106.52, "y": 0.6, "z": -16.83, "halfWidth": 5.5, "surface": "road" },
+        { "x": 66.14, "y": 6.4, "z": 12.67, "halfWidth": 5.5, "surface": "road" },
+        { "x": 33.84, "y": 16.4, "z": 36.26, "halfWidth": 5.8, "surface": "road" },
+        { "x": 14.46, "y": 21.2, "z": 50.42, "halfWidth": 6.5, "surface": "road" },
         { "x": -5.19, "y": 21.91, "z": 64.77, "halfWidth": 7, "surface": "road" }
       ]
     }
@@ -107,9 +111,12 @@
         "toT": 0.665,
         "controlPoints": [
           { "x": 187.27, "y": 3.87, "z": -75.81, "halfWidth": 7, "surface": "road" },
-          { "x": 139.16, "y": -9.3, "z": -40.67, "halfWidth": 5.5, "surface": "road" },
-          { "x": 91.04, "y": -12.11, "z": -5.52, "halfWidth": 5.5, "surface": "road" },
-          { "x": 42.93, "y": -0.28, "z": 29.63, "halfWidth": 5.5, "surface": "road" },
+          { "x": 167.89, "y": 3.3, "z": -61.65, "halfWidth": 6.5, "surface": "road" },
+          { "x": 138.82, "y": 0.9, "z": -40.42, "halfWidth": 5.5, "surface": "road" },
+          { "x": 106.52, "y": 0.6, "z": -16.83, "halfWidth": 5.5, "surface": "road" },
+          { "x": 66.14, "y": 6.4, "z": 12.67, "halfWidth": 5.5, "surface": "road" },
+          { "x": 33.84, "y": 16.4, "z": 36.26, "halfWidth": 5.8, "surface": "road" },
+          { "x": 14.46, "y": 21.2, "z": 50.42, "halfWidth": 6.5, "surface": "road" },
           { "x": -5.19, "y": 21.91, "z": 64.77, "halfWidth": 7, "surface": "road" }
         ]
       }

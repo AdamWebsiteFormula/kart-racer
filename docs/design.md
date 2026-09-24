@@ -62,6 +62,9 @@ Mario Kart keeps striped rumble curbs for race circuits, on their corners ([mari
 ### Road edges and off-road (Adam, 23 Sept 2026: "Do what Mario Kart World does")
 No stumps, no painted strips and no walls along the road. On Harbor Loop, Meadow Run, Canyon Rush and Frostbite Pass the land itself (grass, sand, snow) meets the curb; it is drivable, with the off-road top-speed cap (70 %, ignored while boosting or airborne), out to an invisible course limit 12 m past the curb, where the roadside scenery starts, so the scenery lines the course. Water and open cliffs end in the claw (Lakitu's job in Mario Kart). Boardwalk Nights (a pier) and Skyline Circuit (a sky road) have a solid low edge at the curb: a plank kickboard with a neon strip, a gold parapet. The AI releases a drift before it slides off the road.
 
+### The mine (Canyon Rush, 23 Sept 2026)
+The mine shortcut runs through a mesa across the canyon floor, not under the ground: a timber portal in a red-rock cliff face, a rock bore lit by lanterns on alternate walls with timber frames every 8 m, climbing inside the rock to come out on the high road. Rock walls hold the karts in; the sand beside the approach narrows to the mouth over the last 16 m. On the final lap the main road takes the same bore (the bridge is down). (track-builder tunnel.ts, mesh/tunnel.ts; the mesa is the land, terrain.ts.)
+
 ### Course creatures (Adam, 23 Sept 2026)
 Each track has one big original creature at a set spot: a hazard with a readable warning (a shadow, a rumble, a wind-up) that knocks or spins karts, or throws something that does. Skill beats luck: the warning always comes first, and the AI sees and dodges it like any hazard. Deterministic in the sim like every other hazard; animated in code.
 

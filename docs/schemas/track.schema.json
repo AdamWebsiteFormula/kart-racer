@@ -48,7 +48,12 @@
           "id": { "type": "string" }, "entryT": { "type": "number" }, "exitT": { "type": "number" },
           "controlPoints": { "$ref": "#/properties/controlPoints" },
           "risk": { "type": "string", "enum": ["jump", "narrow", "hazard"] },
-          "openOnLaps": { "type": "array", "items": { "type": "integer" }, "description": "Empty = always open" }
+          "openOnLaps": { "type": "array", "items": { "type": "integer" }, "description": "Empty = always open" },
+          "tunnel": {
+            "type": "object", "required": ["from", "to"],
+            "description": "The stretch (fractions of the shortcut's length) that runs through a mine: rock walls at the curb, a timber-framed rock roof with lanterns, and the land rising over it as a mesa (the hill tunnelHill metres above the road, reached tunnelRamp metres in from each portal). Karts are held inside; the off-road beside the approach narrows to the mouth over tunnelFunnel metres.",
+            "properties": { "from": { "type": "number", "minimum": 0, "maximum": 1 }, "to": { "type": "number", "minimum": 0, "maximum": 1 } }
+          }
         }
       }
     },
@@ -163,6 +168,14 @@
         "kerbHeight": { "type": "number", "default": 0.1 },
         "shoulderWidth": { "type": "number", "default": 6.0 },
         "shoulderDrop": { "type": "number", "default": 0.4 },
+        "tunnelWall": { "type": "number", "default": 4.2, "description": "metres: a tunnel's side walls rise this high above the road before the roof arches over" },
+        "tunnelApex": { "type": "number", "default": 6.2, "description": "metres: the top of a tunnel's arched roof above the road" },
+        "tunnelHill": { "type": "number", "default": 9, "description": "metres: the land over a tunnel stands this high above its road (a mesa the mine runs through)" },
+        "tunnelRamp": { "type": "number", "default": 2.5, "description": "metres in from a portal over which the land rises to tunnelHill: the mesa ends in a cliff, and the portal is a rock face in it (mesh/tunnel.ts)" },
+        "tunnelMesaTop": { "type": "number", "default": 3, "description": "metres of the mesa's flat top past where a road's shoulder would end, before its sides fall away (a ridge over the mine, not a plateau)" },
+        "tunnelFunnel": { "type": "number", "default": 16, "description": "metres before a portal over which the off-road beside the approach narrows to the curb, guiding karts into the mouth" },
+        "tunnelFrameSpacing": { "type": "number", "default": 8, "description": "metres between the timber frames inside a tunnel" },
+        "tunnelLanternSpacing": { "type": "number", "default": 12, "description": "metres between lanterns inside a tunnel (alternate walls)" },
         "offroadReach": { "type": "number", "default": 12, "description": "Off-road tracks: metres past the curb the ground is drivable (slowly) before an invisible course limit, just short of the roadside scenery (the Mario Kart World way: no strip, no wall along the road)" },
         "offroadDrop": { "type": "number", "default": 0.12, "description": "Off-road tracks: the ground past the curb sits this far under the road, as the land mesh draws it" },
         "barrierSpacing": { "type": "number", "default": 2.0 },

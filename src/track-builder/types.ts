@@ -33,6 +33,8 @@ export interface ShortcutDef {
   controlPoints: ControlPoint[];
   risk: ShortcutRisk;
   openOnLaps?: number[];
+  /** the stretch (fractions of the shortcut) through a mine: walls, a roof, a mesa over it */
+  tunnel?: { from: number; to: number };
 }
 
 export interface HazardDef {

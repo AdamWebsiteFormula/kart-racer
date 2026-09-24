@@ -29,6 +29,10 @@ export interface LandPoint {
   next: number;
   /** the nearest piece's side is an open edge (a cliff: land.ts drops it sheer) */
   open: boolean;
+  /** over a tunnel (the nearest piece is one, and the point is over its road): the land must stay above this; NaN elsewhere */
+  cover: number;
+  /** the nearest piece is a tunnel's: its land's flat top ends this far past the shoulder line (a ridge); NaN elsewhere */
+  lip: number;
   /** road pieces that shaped this point (0: no road within reach) */
   pieces: number;
 }
@@ -80,7 +84,7 @@ export class RoadIndex {
     const R = this.maxHw + BUILDER.kerbWidth + reach, R2 = R * R;
     const c0 = Math.max(0, Math.floor((x - R - this.x0) / CELL)), c1 = Math.min(this.nx - 1, Math.floor((x + R - this.x0) / CELL));
     const r0 = Math.max(0, Math.floor((z - R - this.z0) / CELL)), r1 = Math.min(this.nz - 1, Math.floor((z + R - this.z0) / CELL));
-    let wSum = 0, hSum = 0, nearest = Infinity, next = Infinity, nearH = NaN, nearOpen = false, pieces = 0;
+    let wSum = 0, hSum = 0, nearest = Infinity, next = Infinity, nearH = NaN, nearOpen = false, nearCover = NaN, nearLip = NaN, pieces = 0;
     for (let r = r0; r <= r1; r++) {
       for (let c = c0; c <= c1; c++) {
         const cell = r * this.nx + c;
@@ -94,7 +98,7 @@ export class RoadIndex {
           const p = piece(L, i, x, z);
           if (!p || p.edge > reach) continue;
           pieces++;
-          if (p.edge < nearest) { next = nearest; nearest = p.edge; nearH = p.h; nearOpen = p.open; } else if (p.edge < next) next = p.edge;
+          if (p.edge < nearest) { next = nearest; nearest = p.edge; nearH = p.h; nearOpen = p.open; nearCover = p.cover; nearLip = p.lip; } else if (p.edge < next) next = p.edge;
           const e = p.edge > 0 ? p.edge : 0;
           const fade = 1 - e / BLEND_REACH;
           if (fade <= 0) continue;
@@ -107,13 +111,15 @@ export class RoadIndex {
     out.edge = nearest;
     out.next = next;
     out.open = nearOpen;
+    out.cover = nearCover;
+    out.lip = nearLip;
     out.pieces = pieces;
     return out;
   }
 }
 
-const SCRATCH: LandPoint = { top: 0, edge: 0, next: 0, open: false, pieces: 0 };
-const PIECE = { h: 0, edge: 0, open: false, fade: 1 };
+const SCRATCH: LandPoint = { top: 0, edge: 0, next: 0, open: false, cover: NaN, lip: NaN, pieces: 0 };
+const PIECE = { h: 0, edge: 0, open: false, fade: 1, cover: NaN, lip: NaN };
 
 function dist2(L: Lut, i: number, x: number, z: number): number {
   const dx = L.px[i] - x, dz = L.pz[i] - z;
@@ -153,8 +159,19 @@ function piece(L: Lut, i: number, x: number, z: number): typeof PIECE | null {
   // flat from the curb out; an open edge's land runs under the ribbon's falling shoulder, as before
   const flatFrom = PIECE.open ? curb + BUILDER.shoulderWidth : curb;
   const latC = lat < -flatFrom ? -flatFrom : lat > flatFrom ? flatFrom : lat;
-  PIECE.h = L.py[i0] * v + L.py[i1] * u - latC * Math.tan(bank) - BUILDER.offroadDrop;
+  const roadY = L.py[i0] * v + L.py[i1] * u;
+  const above = L.landAbove[i0];
   const past = Math.abs(lat) - curb;
+  const bore = L.bore[i0];
+  PIECE.cover = bore === bore && past < 1.5 ? roadY + bore : NaN;
+  if (above === above) {
+    // a tunnel's road: the mesa stands over it, level across, a ridge (tunnel.ts)
+    PIECE.h = roadY + above;
+    PIECE.lip = BUILDER.tunnelMesaTop;
+  } else {
+    PIECE.h = roadY - latC * Math.tan(bank) - BUILDER.offroadDrop;
+    PIECE.lip = NaN;
+  }
   PIECE.edge = past;
   // a shortcut hands the land to the main road near its ends, where the two are welded (branches.ts)
   if (L.closed) PIECE.fade = 1;

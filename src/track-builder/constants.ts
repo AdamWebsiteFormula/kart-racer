@@ -9,7 +9,7 @@ export interface BuilderConstants {
   branchBlendMetres: number; kerbWidth: number; kerbHeight: number; shoulderWidth: number; shoulderDrop: number;
   barrierSpacing: number; roadTileLength: number; chunkCount: number;
   minimapSamples: number; minimapPadding: number;
-  boostPadHalfLength: number; boostPadWidth: number; offroadReach: number; offroadDrop: number; rampRun: number; rampRise: number; humpRun: number; humpRise: number; humpEdge: number; loopRadius: number; loopShift: number; loopSpread: number; loopApproach: number; loopExit: number; loopWidth: number;
+  boostPadHalfLength: number; boostPadWidth: number; offroadReach: number; offroadDrop: number; tunnelWall: number; tunnelApex: number; tunnelHill: number; tunnelRamp: number; tunnelMesaTop: number; tunnelFunnel: number; tunnelFrameSpacing: number; tunnelLanternSpacing: number; rampRun: number; rampRise: number; humpRun: number; humpRise: number; humpEdge: number; loopRadius: number; loopShift: number; loopSpread: number; loopApproach: number; loopExit: number; loopWidth: number;
   balloonHeight: number; balloonRadius: number; coinRadius: number; hazardRadius: number; pierLift: number;
   ventRadius: number; ventWarnSeconds: number; ventEruptSeconds: number; ventLaunch: number;
   fallingActiveSeconds: number; gustWindow: number;

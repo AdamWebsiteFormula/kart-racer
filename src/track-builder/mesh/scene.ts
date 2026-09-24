@@ -19,6 +19,7 @@ import { buildBackdrop } from './backdrop.ts';
 import { buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
 import { buildStartGantry } from './gantry.ts';
+import { buildTunnels } from './tunnel.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
@@ -505,6 +506,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const startLine = buildStartGantry(track, palette, GRADIENT ?? null);
   OWNED.add(startLine.geometry);
   group.add(startLine);
+
+  // a mine (a shortcut's tunnel): rock bore, timber frames, lanterns (tunnel.ts); the mesa over it is the land
+  const tunnels = buildTunnels(track.tunnels, GRADIENT ?? null, groundAt);
+  if (tunnels) { OWNED.add(tunnels.geometry); group.add(tunnels); }
 
   // ground: one plane (or water), none for sky tracks
   if (groundKind !== 'none') {

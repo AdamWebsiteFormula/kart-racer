@@ -26,13 +26,13 @@ describe('the land beside the road (off-road tracks)', () => {
 
   it.each(OFFROAD.map((d) => [d.id, d] as const))('%s: the land meets every curb a hair under its outer edge, on every branch', (_id, def) => {
     const track = buildTrack(def);
-    const q = { top: 0, edge: 0, next: 0, open: false, pieces: 0 };
-    let worst = 0;
+    const q = { top: 0, edge: 0, next: 0, open: false, cover: NaN, lip: NaN, pieces: 0 };
+    let worst = 0, where = '';
     for (const b of track.branches.list) {
       const L = b.lut;
       for (let i = 0; i < L.n; i += 4) {
         for (const side of [-1, 1]) {
-          if (L.open[i] & (side < 0 ? 1 : 2)) continue;
+          if (L.open[i] & (side < 0 ? 1 : 2) || L.covered[i]) continue; // a cliff lip; a tunnel's curb meets its wall
           const curb = side * (L.hw[i] + BUILDER.kerbWidth);
           const edgeY = L.py[i] - curb * Math.tan(L.bank[i]);
           const x = L.px[i] + L.rx[i] * (curb + side * 0.02), z = L.pz[i] + L.rz[i] * (curb + side * 0.02);
@@ -41,11 +41,12 @@ describe('the land beside the road (off-road tracks)', () => {
           track.land!.query(x, z, q);
           if (q.edge < 0 || q.next < 2 || edgeY - BUILDER.offroadDrop < track.groundPlaneY) continue;
           const top = Math.max(track.groundPlaneY, q.top);
-          worst = Math.max(worst, Math.abs(top - (edgeY - BUILDER.offroadDrop)));
+          const err = Math.abs(top - (edgeY - BUILDER.offroadDrop));
+          if (err > worst) { worst = err; where = `${b.id} i ${i}/${L.n} side ${side} covered ${L.covered[i]}`; }
         }
       }
     }
-    expect(worst).toBeLessThan(0.05);
+    expect(worst, where).toBeLessThan(0.05);
   });
 
   it.each(OFFROAD.map((d) => [d.id, d] as const))('%s: the ground plane sits under every curb of the main line', (_id, def) => {

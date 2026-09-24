@@ -41,8 +41,8 @@ const UNDER_ROAD = 0.12;
 /** Metres over which an open edge's cliff falls: near sheer, as the physics has no ground past it. */
 const CLIFF = 2.5;
 
-const LP: LandPoint = { top: 0, edge: 0, next: 0, open: false, pieces: 0 };
-const OUT = { y: 0, mix: 0, under: false };
+const LP: LandPoint = { top: 0, edge: 0, next: 0, open: false, cover: NaN, lip: NaN, pieces: 0 };
+const OUT = { y: 0, mix: 0, under: false, cut: false };
 
 /**
  * The drawn land at (x, z) on an off-road track: terrain.ts's land (what the kart drives on) out to
@@ -53,7 +53,7 @@ export function landAt(land: RoadIndex, o: CoastOptions, x: number, z: number): 
   const q = land.query(x, z, LP, BUILDER.shoulderWidth + o.flat + o.slope + 2);
   if (q.pieces === 0) return null;
   const past = q.edge - BUILDER.shoulderWidth;
-  const lip = q.open ? 0 : o.flat, fall = q.open ? CLIFF : o.slope;
+  const lip = q.open ? 0 : q.lip === q.lip ? q.lip : o.flat, fall = q.open ? CLIFF : o.slope;
   let y = q.top;
   if (past > lip) {
     const k = Math.min(1, (past - lip) / fall);
@@ -61,7 +61,10 @@ export function landAt(land: RoadIndex, o: CoastOptions, x: number, z: number): 
   }
   OUT.y = y;
   OUT.mix = Math.max(0, Math.min(1, (past - lip + 1.5) / 3));
-  OUT.under = q.edge < -0.5;
+  const tunnel = q.cover === q.cover;
+  OUT.under = q.edge < -0.5 && !tunnel;
+  // over a tunnel the land keeps clear of its bore (the mesa's portal notch; mesh/tunnel.ts fills it)
+  OUT.cut = tunnel && y < q.cover;
   return OUT;
 }
 
@@ -97,6 +100,8 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
   const pos = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), col = new Float32Array(nx * nz * 3), blend = new Float32Array(nx * nz);
   /** a vertex wholly under the road surface (a cell of four is never drawn) */
   const under = new Uint8Array(nx * nz);
+  /** a vertex inside a tunnel's bore (a cell with any is never drawn) */
+  const cut = new Uint8Array(nx * nz);
   for (let j = 0; j < nz; j++) {
     for (let i = 0; i < nx; i++) {
       const x = x0 + i * o.cell, z = z0 + j * o.cell, v = j * nx + i;
@@ -113,7 +118,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
       let y = o.waterY - UNDER, mix = 1;
       const at = o.land ? landAt(o.land, o, x, z) : null;
       if (o.land) {
-        if (at) { y = at.y; mix = at.mix; under[v] = at.under ? 1 : 0; }
+        if (at) { y = at.y; mix = at.mix; under[v] = at.under ? 1 : 0; cut[v] = at.cut ? 1 : 0; }
       } else if (bk >= 0) {
         // the road's own height at this lateral (a banked road's low edge is below its middle),
         // and the land a little under it, so no grass ever pokes up through the road
@@ -153,6 +158,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
     for (let i = 0; i < nx - 1; i++) {
       const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
       if (under[a] && under[b] && under[c] && under[d]) continue;
+      if (cut[a] || cut[b] || cut[c] || cut[d]) continue;
       if (Math.max(pos[a * 3 + 1], pos[b * 3 + 1], pos[c * 3 + 1], pos[d * 3 + 1]) < o.waterY - 0.05) continue; // all under the sea
       index.push(a, c, b, b, c, d);
     }

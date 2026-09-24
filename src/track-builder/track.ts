@@ -10,6 +10,7 @@ import { buildMinimap, type Minimap } from './minimap.ts';
 import { buildCheckpoints, buildSpawnGrid } from './race.ts';
 import { applyFinalLapShift, type ShiftKart } from './shift.ts';
 import { RoadIndex, groundPlaneY } from './terrain.ts';
+import { coverTunnels, layTunnel, type TunnelLine } from './tunnel.ts';
 import type { BakedFeature, Checkpoint, ControlPoint, SpawnSlot, TrackChanged, TrackDefinition, Vec3 } from './types.ts';
 import { assertValid } from './validate.ts';
 
@@ -40,6 +41,8 @@ export class Track implements TrackQuery {
   readonly groundPlaneY: number;
   /** an off-road track's land beside the road (terrain.ts), as drawn and as driven; null otherwise */
   readonly land: RoadIndex | null;
+  /** the tunnels (tunnel.ts), laid once on their shortcuts */
+  readonly tunnels: readonly TunnelLine[];
   private readonly listeners: TrackListener[] = [];
 
   constructor(def: TrackDefinition) {
@@ -52,6 +55,7 @@ export class Track implements TrackQuery {
     (def.shortcuts ?? []).forEach((sc, i) => list.push(buildBranch(i + 1, sc, mainLut)));
     this.branches = new Branches(list);
     this.groundPlaneY = groundPlaneY(def, mainLut);
+    this.tunnels = (def.shortcuts ?? []).flatMap((sc, i) => (sc.tunnel ? [layTunnel(list[i + 1].lut, sc.tunnel.from, sc.tunnel.to)] : []));
     this.land = def.offroad === true ? new RoadIndex(list.map((b) => b.lut)) : null;
     this.startT = wrap01(def.startGrid.t);
     this.startPoint = mainLut.sample(this.startT, 0).position;
@@ -122,6 +126,7 @@ export class Track implements TrackQuery {
       b.lut.offroad = this.def.offroad === true;
       b.lut.land = this.land;
       b.lut.floorY = this.groundPlaneY;
+      coverTunnels(b.lut, this.tunnels);
     }
     // open edges (a route change builds a new LUT, so they are laid again here)
     lut.open.fill(0);
