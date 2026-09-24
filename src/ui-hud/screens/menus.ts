@@ -55,7 +55,8 @@ export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: strin
   { cc: 150, label: '150cc', sub: 'Hard' },
 ]);
 
-export function rosterMenu(selectedCc: SpeedClass): RosterVM {
+/** Time Trial and Daily always run at 150cc (the leaderboard replays them so: soloConfig), so they have no class row. */
+export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null): RosterVM {
   const cards = CAST.map((c) => {
     const a = ARCHETYPES[c.archetype];
     return {
@@ -67,9 +68,11 @@ export function rosterMenu(selectedCc: SpeedClass): RosterVM {
       ],
     };
   });
-  const classes = SPEED_CLASSES.map((s) => ({ id: `cc${s.cc}`, label: s.label, sub: s.sub, badge: s.cc === selectedCc ? '●' : undefined }));
+  const solo = mode === 'timeTrial' || mode === 'daily';
+  const classes = solo ? [] : SPEED_CLASSES.map((s) => ({ id: `cc${s.cc}`, label: s.label, sub: s.sub, badge: s.cc === selectedCc ? '●' : undefined }));
   const ids = cards.map((c) => c.id);
-  return { cards, classes, focus: { rows: [ids.slice(0, 4), ids.slice(4, 8), classes.map((c) => c.id)] } };
+  const rows = [ids.slice(0, 4), ids.slice(4, 8)];
+  return { cards, classes, focus: { rows: classes.length ? [...rows, classes.map((c) => c.id)] : rows } };
 }
 
 export interface CupEntry extends Entry { tracks: { id: string; name: string; bg: string; accent: string; built: boolean }[]; plays: string[] }

@@ -494,7 +494,7 @@ export class UiRoot {
     switch (key) {
       case 'title': { const vm = titleMenu(); v.title.render(vm); this.models.set(key, vm.focus); break; }
       case 'modeSelect': { const vm = modeMenu(this.host.availableModes); v.modes.render(vm, MODE_ICONS); this.models.set(key, vm.focus); break; }
-      case 'rosterSelect': { const vm = rosterMenu(s.speedClass); v.roster.render(vm); this.models.set(key, vm.focus); break; }
+      case 'rosterSelect': { const vm = rosterMenu(s.speedClass, s.mode); v.roster.render(vm); this.models.set(key, vm.focus); break; }
       case 'cupSelect': {
         const vm = cupMenu(s.mode === 'knockout' ? 'knockout' : 'grandPrix', built, this.save, s.speedClass);
         v.cups.render(vm);

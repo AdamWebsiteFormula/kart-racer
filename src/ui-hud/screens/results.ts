@@ -47,19 +47,23 @@ export function gpModel(before: GrandPrixState | null, after: GrandPrixState, pl
   return { headline, sub: 'Grand Prix standings', rows, done, stars, thresholds };
 }
 
-export interface CutRow { name: string; accent: string; rank: string; out: boolean; player: boolean; delayMs: number }
+export interface CutRow { name: string; accent: string; rank: string; out: boolean; winner: boolean; player: boolean; delayMs: number }
 export interface CutVM { headline: string; sub: string; rows: CutRow[]; remaining: number; playerOut: boolean; done: boolean; winner: string | null }
 
-/** After a Knockout segment: the racers who ran it, in finish order, the cut ones struck through. */
+/**
+ * After a Knockout segment: the racers who ran it, in finish order, the cut ones struck through.
+ * After the final only the winner goes on: everyone else in it is out.
+ */
 export function knockoutCutModel(res: RaceResults, after: KnockoutState, playerId: string | null, staggerMs = UI.staggerResultsMs): CutVM {
   const out = new Set(after.eliminated);
-  const rows = res.ranks.map((r, i) => ({
-    name: nameOf(r.racerId), accent: accentOf(r.racerId), rank: ordinal(r.rank),
-    out: out.has(r.racerId), player: r.racerId === playerId, delayMs: i * staggerMs,
-  }));
   const remaining = after.racers.filter((r) => !out.has(r.racerId)).length;
   const done = after.segment >= after.trackIds.length;
   const winnerId = done ? Object.entries(after.placings).find(([, p]) => p === 1)?.[0] ?? null : null;
+  const rows = res.ranks.map((r, i) => ({
+    name: nameOf(r.racerId), accent: accentOf(r.racerId), rank: ordinal(r.rank),
+    out: out.has(r.racerId) || (done && r.racerId !== winnerId), winner: r.racerId === winnerId,
+    player: r.racerId === playerId, delayMs: i * staggerMs,
+  }));
   const playerOut = playerId !== null && out.has(playerId);
   const headline = done ? (winnerId === playerId ? 'Knockout champion!' : `${winnerId ? nameOf(winnerId) : '—'} wins`) : playerOut ? 'Knocked out!' : 'Safe!';
   return { headline, sub: done ? 'Final' : `${remaining} remain`, rows, remaining, playerOut, done, winner: winnerId ? nameOf(winnerId) : null };

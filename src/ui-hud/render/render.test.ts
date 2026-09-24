@@ -9,6 +9,7 @@ import { UI } from '../constants.ts';
 import { feedHud, hudModel, newHudMemory } from '../hudModel.ts';
 import { UiRoot, type UiHost } from '../ui.ts';
 import { HudView } from './hud.ts';
+import { ResultsView } from './screens.ts';
 
 const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
 const race = { mode: 'quick', lapsTotal: 3, time: 12.5, phase: 'racing' } as RaceState;
@@ -71,6 +72,19 @@ describe('HUD renderer', () => {
   });
 });
 
+describe('Knockout cut screen', () => {
+  it('after the final the winner row says WINNER and the rest say OUT (bug hunt 2)', () => {
+    document.body.innerHTML = '';
+    const v = new ResultsView(document.body);
+    const row = (name: string, out: boolean, winner: boolean) => ({ name, accent: '#fff', rank: '1st', out, winner, player: false, delayMs: 0 });
+    v.renderCut({
+      headline: 'Big Gus wins', sub: 'Final', remaining: 2, playerOut: false, done: true, winner: 'Big Gus',
+      rows: [row('Big Gus', false, true), row('Boulder', true, false)],
+    }, 'Back to menu');
+    expect([...v.root.querySelectorAll('.row .tm')].map((e) => e.textContent)).toEqual(['WINNER', 'OUT']);
+  });
+});
+
 describe('UiRoot', () => {
   it('SOP test 1 in the DOM: keys alone walk title → mode → roster → track → race, and Escape pauses', () => {
     document.body.innerHTML = '';
@@ -100,6 +114,20 @@ describe('UiRoot', () => {
     expect(h.calls).toContain('restart');
     expect(ui.paused).toBe(false);
     ui.dispose();
+  });
+
+  it('Time Trial and Daily show no 50/100/150cc row: they always run at 150cc (bug hunt 2)', () => {
+    for (const [mode, row] of [['quick', true], ['timeTrial', false], ['daily', false]] as const) {
+      document.body.innerHTML = '';
+      const ui = new UiRoot(document.body, host(), null);
+      ui.dispatch({ type: 'boot' });
+      ui.dispatch({ type: 'start' });
+      ui.dispatch({ type: 'pickMode', mode });
+      expect(ui.app.screen).toBe('rosterSelect');
+      expect(document.querySelector('#ui .roster-screen .classes') !== null, mode).toBe(row);
+      expect(document.querySelector('#ui .roster-screen [data-id="cc50"]') !== null, mode).toBe(row);
+      ui.dispose();
+    }
   });
 
   it('SOP test 16: every screen has a labelled landmark, real buttons, and one focused entry', () => {
