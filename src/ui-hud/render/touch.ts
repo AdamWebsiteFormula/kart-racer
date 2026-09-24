@@ -1,7 +1,8 @@
 // Touch controls for phones and tablets: a steering pad under the left thumb, and Drift, Item,
-// Brake and Look-back buttons under the right, and a pause button up top. The gas is on by itself
-// (let go of nothing), as in mobile kart games. Shown only on a coarse pointer, and only while
-// racing. Multi-touch: every finger is tracked by its pointer id.
+// Brake and Look-back buttons under the right, and a pause button up top. From the green light the
+// gas is on by itself (let go of nothing), as in mobile kart games; before it, a finger anywhere on
+// the screen is the gas, so thumbs down on the 2 make a rocket start, like the gas key. Shown only
+// on a coarse pointer, and only while racing. Multi-touch: every finger is tracked by its pointer id.
 import { h } from './dom.ts';
 
 export interface TouchInput { steer: number; throttle: number; brake: number; drift: boolean; item: boolean; lookBack: boolean }
@@ -12,7 +13,8 @@ export class TouchControls {
   readonly root: HTMLElement;
   private readonly pad: HTMLElement;
   private readonly knob: HTMLElement;
-  private readonly held = new Map<number, Button | 'pad'>();
+  /** every finger down, by pointer id: on the pad, a button, or anywhere else on the screen */
+  private readonly held = new Map<number, Button | 'pad' | 'screen'>();
   private steer = 0;
   private readonly down: Record<Button, number> = { drift: 0, item: 0, brake: 0, lookBack: 0 };
   /** true on a phone or tablet (a coarse pointer) */
@@ -75,6 +77,7 @@ export class TouchControls {
       const b = t.closest('[data-touch]') as HTMLElement | null;
       if (t.closest('.pad')) { this.held.set(id, 'pad'); this.root.setPointerCapture?.(id); this.steerTo(e.clientX); }
       else if (b) { const k = b.dataset.touch as Button; this.held.set(id, k); this.down[k]++; b.classList.add('down'); }
+      else this.held.set(id, 'screen');
       return;
     }
     const what = this.held.get(id);
@@ -82,6 +85,7 @@ export class TouchControls {
     if (e.type === 'pointermove') { if (what === 'pad') this.steerTo(e.clientX); return; }
     // up, cancel, lost
     this.held.delete(id);
+    if (what === 'screen') return;
     if (what === 'pad') { this.steer = 0; this.knob.style.transform = 'translateX(0)'; return; }
     this.down[what] = Math.max(0, this.down[what] - 1);
     if (!this.down[what]) this.root.querySelector(`.tb.${what}`)?.classList.remove('down');
@@ -97,10 +101,12 @@ export class TouchControls {
     this.knob.style.transform = `translateX(${(k * half * 0.8).toFixed(1)}px)`;
   }
 
-  /** What the thumbs say this tick, or null when the touch controls are hidden. */
-  state(): TouchInput | null {
+  /** What the thumbs say this tick, or null when the touch controls are hidden. `countdown`: before
+   *  the green light the gas is on only while a finger is down (the start boost times it, race-manager). */
+  state(countdown = false): TouchInput | null {
     if (!this.shown) return null;
     const brake = this.down.brake > 0;
-    return { steer: this.steer, throttle: brake ? 0 : 1, brake: brake ? 1 : 0, drift: this.down.drift > 0, item: this.down.item > 0, lookBack: this.down.lookBack > 0 };
+    const gas = !brake && (!countdown || this.held.size > 0);
+    return { steer: this.steer, throttle: gas ? 1 : 0, brake: brake ? 1 : 0, drift: this.down.drift > 0, item: this.down.item > 0, lookBack: this.down.lookBack > 0 };
   }
 }

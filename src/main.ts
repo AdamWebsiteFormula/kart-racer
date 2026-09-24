@@ -223,8 +223,9 @@ const host: UiHost = {
 };
 
 const ui = new UiRoot(document.body, host, browserBackend());
-// phones and tablets steer with on-screen thumbs, merged with any keys or gamepad
-input.setVirtual(() => ui.touch.state());
+// phones and tablets steer with on-screen thumbs, merged with any keys or gamepad; in the
+// countdown their gas waits for a finger, so a touch on the 2 is a rocket start
+input.setVirtual(() => ui.touch.state(session?.state.phase === 'countdown'));
 settings = ui.save.settings;
 audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume });
 applyRender();

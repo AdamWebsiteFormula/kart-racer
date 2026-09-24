@@ -66,6 +66,11 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.rotate-hint', 'display', '(orientation: portrait) and (pointer: coarse)')).toBe('flex');
   });
 
+  it('the touch controls, shown, take a touch anywhere (a thumb on the screen is the gas before the green light)', () => {
+    expect(value('.touch', 'pointer-events')).toBe('none');
+    expect(value('.touch.on', 'pointer-events')).toBe('auto');
+  });
+
   it('cups sit side by side and track cards fit the stage', () => {
     expect(value('.cups', 'grid-template-columns', PHONE)).toBe('repeat(auto-fit, minmax(260px, 1fr))');
     expect(value('.track-cards', 'width', PHONE)).toBe('100%');
