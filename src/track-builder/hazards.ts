@@ -65,8 +65,8 @@ export class Hazards {
     return out;
   }
 
-  /** Where to draw every creature at race time `time`. */
-  creaturePoses(time: number): CreaturePose[] { return this.creatures.map((c) => c.pose(time)); }
+  /** Where to draw every creature at race time `time`. One switched off is not there: no pose (and no roar). */
+  creaturePoses(time: number): CreaturePose[] { return this.creatures.filter((c) => this.creatureEnabled(c.id)).map((c) => c.pose(time)); }
 
   setEnabled(id: string, enabled: boolean): void {
     const h = this.items.find((x) => x.id === id);

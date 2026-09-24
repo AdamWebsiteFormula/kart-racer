@@ -80,6 +80,9 @@ export function applyFinalLapShift(track: Track, karts: readonly ShiftKart[] = [
       .filter((e) => !replaced(e.fromT) && !replaced(e.toT))
       .map((e) => ({ ...e, fromT: main.lut.nearestTGlobal(e.fromPoint), toT: main.lut.nearestTGlobal(e.toPoint) }));
     track.loopFeet = track.loopFeet.filter((l) => !replaced(l.t)).map((l) => ({ ...l, t: main.lut.nearestTGlobal(l.point) }));
+    // a creature keeps its t, and on replaced road that t is somewhere else (bug hunt 2, 24 Sept 2026:
+    // Canyon's Rumblesaur stood in the mesa over the mine and its ring spun karts in the bore): it goes too
+    for (const c of track.hazards.creatures) if (replaced(c.t)) track.hazards.setEnabled(c.id, false);
 
     // 2. karts: main-line karts by world position; branch karts keep their local u
     karts.forEach((k, i) => {

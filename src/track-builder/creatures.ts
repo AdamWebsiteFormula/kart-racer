@@ -62,7 +62,10 @@ export class Creature {
   private readonly def: HazardDef;
   private readonly branches: Branches;
   private readonly side: number;
-  private t: number;
+  /** main-line t of its spot (shift.ts switches it off if a route change takes its road) */
+  t: number;
+  /** its spot on the road as a world point, which a route change elsewhere does not move */
+  private readonly spot: Vec3;
 
   constructor(id: string, def: HazardDef, branches: Branches) {
     this.id = id;
@@ -71,10 +74,14 @@ export class Creature {
     this.branches = branches;
     this.side = (def.lateral ?? 1) >= 0 ? 1 : -1;
     this.t = def.t;
+    this.spot = branches.main.sample(def.t, 0).position;
   }
 
-  /** After a main-line rebuild the creature keeps its t (it lives on the course, not at a world point). */
-  rederive(): void { this.t = this.def.t; }
+  /**
+   * After a main-line rebuild the creature stays where it stood, like every hazard (bug hunt 2, 24 Sept
+   * 2026: keeping its t moved Canyon's Rumblesaur 22 m up the road when the collapse shortened the lap).
+   */
+  rederive(): void { this.t = this.branches.main.nearestGlobal(this.spot).t; }
 
   private frame(t: number): Frame {
     const s = this.branches.main.sample(t, 0);

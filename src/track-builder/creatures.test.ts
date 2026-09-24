@@ -2,9 +2,11 @@
 // hit, and hits only where it says. Built on the race-manager OVAL (a flat rounded square).
 import { describe, expect, it } from 'vitest';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
+import { cloneDef } from './__tests__/fixtures.ts';
 import { BUILDER } from './constants.ts';
 import { CREATURE } from './creatures.ts';
 import { buildTrack, type Track } from './track.ts';
+import canyonJson from './tracks/canyon-rush.json';
 import type { ActiveHazard, CreatureKind, TrackDefinition } from './types.ts';
 
 function trackWith(kind: CreatureKind, period: number, lateral = 1): Track {
@@ -96,6 +98,45 @@ describe('course creatures', () => {
     const push = gust[0].push!;
     // across the road, not along it
     expect(Math.abs(push[0] * s.tangent[0] + push[2] * s.tangent[2])).toBeLessThan(1e-6);
+  });
+
+  it('Canyon Rush: the Rumblesaur stomps on the canyon floor, off the road the final lap replaces, and its ring rolls across the whole road every lap', () => {
+    // bug hunt 2 (24 Sept 2026): authored at t 0.58, inside the collapse's route override (0.32-0.665);
+    // on the final lap it moved 69 m into the mesa over the mine and its ring spun karts in the bore
+    const def = cloneDef(canyonJson as TrackDefinition);
+    const spot = def.hazards!.find((h) => h.id === 'rumblesaur')!;
+    for (const ov of def.finalLapShift.routeOverrides!) expect(spot.t < ov.fromT || spot.t > ov.toT).toBe(true);
+    const track = buildTrack(def);
+    const before = pose(track, 1).position;
+    expect(before[1]).toBeLessThan(track.groundPlaneY + 2); // the canyon floor
+    track.applyFinalLapShift([]);
+    const after = pose(track, 1).position;
+    expect(Math.hypot(after[0] - before[0], after[1] - before[1], after[2] - before[2])).toBeLessThan(0.5);
+    const main = track.branches.main.lut, t = track.nearestTGlobal(after);
+    expect(main.covered[Math.round(t * main.n) % main.n]).toBe(0);
+    // over one stomp the ring's hit points reach both curbs
+    const C = CREATURE.rumblesaur, s = track.sample(track.hazards.creatures[0].t, 0), curb = s.halfWidth + BUILDER.kerbWidth;
+    let lo = Infinity, hi = -Infinity;
+    for (let time = C.idle + C.rear; time < spot.period!; time += 0.05) {
+      for (const h of track.activeHazards(time)) {
+        if (h.id !== 'rumblesaur' || !h.ground) continue;
+        const l = (h.position[0] - s.position[0]) * s.tangent[2] - (h.position[2] - s.position[2]) * s.tangent[0];
+        if (Math.abs((h.position[0] - s.position[0]) * s.tangent[0] + (h.position[2] - s.position[2]) * s.tangent[2]) > 2) continue;
+        lo = Math.min(lo, l); hi = Math.max(hi, l);
+      }
+    }
+    expect(lo).toBeLessThan(-curb);
+    expect(hi).toBeGreaterThan(curb);
+  });
+
+  it('a creature on road a route change replaces is switched off with it: no hits, no pose', () => {
+    const def = cloneDef(canyonJson as TrackDefinition);
+    def.hazards!.find((h) => h.id === 'rumblesaur')!.t = 0.58; // where it stood until bug hunt 2
+    const track = buildTrack(def);
+    track.applyFinalLapShift([]);
+    expect(track.hazards.isEnabled('rumblesaur')).toBe(false);
+    expect(track.hazards.creaturePoses(1)).toEqual([]);
+    for (let time = 0; time < 5.6; time += 0.1) expect(track.activeHazards(time).filter((h) => h.id === 'rumblesaur')).toEqual([]);
   });
 
   it('is the same at the same time (a replay sees the same creature), and can be switched off', () => {

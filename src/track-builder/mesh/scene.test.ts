@@ -10,6 +10,7 @@ import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
 import { buildTrackScene, isDrawn } from './scene.ts';
 import boardwalkJson from '../tracks/boardwalk-nights.json';
+import canyonJson from '../tracks/canyon-rush.json';
 
 function collapseDef(): TrackDefinition {
   const d = cloneDef(HARBOUR_LOOP);
@@ -250,6 +251,20 @@ describe('Final Lap Shift swap and hazards', () => {
     s.update(0);
     for (const c of s.chunks) if (c.branch === beach.index) expect(c.mesh.visible).toBe(true);
     expect(s.instancers.get('coins')!.count).toBe(coinsClosed + 1);
+  });
+
+  it('a creature the Final Lap Shift switches off is not drawn any more (bug hunt 2)', () => {
+    const d = cloneDef(canyonJson as TrackDefinition);
+    d.hazards!.find((h) => h.id === 'rumblesaur')!.t = 0.58; // on the road the collapse replaces
+    const track = buildTrack(d);
+    const scene = buildTrackScene(track);
+    const holder = scene.group.getObjectByName('creature:rumblesaur')!.parent!;
+    scene.update(1);
+    expect(holder.visible).toBe(true);
+    track.applyFinalLapShift();
+    scene.update(1);
+    expect(holder.visible).toBe(false);
+    scene.dispose();
   });
 
   it('dispose unsubscribes: a later shift does not touch the group', () => {
