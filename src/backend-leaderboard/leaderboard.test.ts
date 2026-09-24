@@ -151,3 +151,18 @@ describe('red-team hardening (2026-09-23)', () => {
     expect(ipBucket('2001:db8:85a3:1235::1')).not.toBe(a);
   });
 });
+
+describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => {
+  // The Edge Function runs this bundle, not the source. If a sim change lands without
+  // `npm run build:function`, every honest score is rejected. This fails first.
+  it('agrees with the game on real runs: the loop, the vents, the off-road, the claw and all', async () => {
+    const path = '../../supabase/functions/submit-score/core.js';
+    const core = await import(/* @vite-ignore */ path) as { TRACKS: Record<string, TrackDefinition>; verifyRun: typeof verifyRun };
+    for (const id of ['harbour-loop', 'canyon-rush', 'boardwalk-nights']) {
+      const run = clientRun(id, 'timeTrial', 'momo', 0);
+      expect(run.result.dnf, id).toBe(false);
+      const v = core.verifyRun(core.TRACKS[id], 'timeTrial', 'momo', 0, encodeLog(run.log), run.result.timeMs);
+      expect(v, `${id}: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: run.result.timeMs });
+    }
+  }, 120_000);
+});
