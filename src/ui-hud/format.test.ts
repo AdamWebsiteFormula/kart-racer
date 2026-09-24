@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatGap, formatMs, formatTime, kmh, ordinal, ordinalParts } from './format.ts';
+import { formatGap, formatMs, formatTime, mph, ordinal, ordinalParts } from './format.ts';
 
 describe('format', () => {
   it('times are M:SS.ss across a minute boundary, and negative clamps', () => {
@@ -20,6 +20,7 @@ describe('format', () => {
   it('gaps and speed', () => {
     expect(formatGap(1.234)).toBe('+1.23');
     expect(formatGap(-0.5)).toBe('−0.50');
-    expect(kmh(25)).toBe(90);
+    expect(mph(25)).toBe(56);
+    expect(mph(-25)).toBe(56);
   });
 });

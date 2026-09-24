@@ -7,7 +7,7 @@ import { STEP_TICKS } from '../race-manager/countdown.ts';
 import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { formatMs, formatTime, kmh, ordinal, ordinalParts } from './format.ts';
+import { formatMs, formatTime, mph, ordinal, ordinalParts } from './format.ts';
 
 /** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
 export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'shift' | 'finish' | 'strike';
@@ -146,7 +146,7 @@ export function hudModel(
     flourish: m.flourishUntil > clock,
     coins: `${player.coins}`,
     coinsFull: player.coins >= coinCap,
-    speed: `${kmh(player.speed)}`,
+    speed: `${mph(player.speed)}`,
     held: slots.held,
     next: slots.next,
     banner: banner ? { text: banner.text, sub: banner.sub, kind: banner.kind } : null,

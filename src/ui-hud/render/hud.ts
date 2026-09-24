@@ -192,7 +192,7 @@ export class HudView {
 
     const sp = h('div', 'speedo', this.root);
     this.speed = new TextField(h('span', '', sp));
-    h('small', '', sp, ' km/h');
+    h('small', '', sp, ' mph');
 
     this.banner = h('div', 'banner', this.root);
     this.banner.setAttribute('aria-live', 'polite');

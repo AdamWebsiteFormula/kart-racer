@@ -35,6 +35,7 @@ export function formatGap(seconds: number): string {
   return `${sign}${Math.abs(seconds).toFixed(2)}`;
 }
 
-export function kmh(metresPerSecond: number): number {
-  return Math.round(Math.abs(metresPerSecond) * 3.6);
+/** Speed in miles per hour: the game is written for US players (Adam, 24 Sept 2026). */
+export function mph(metresPerSecond: number): number {
+  return Math.round(Math.abs(metresPerSecond) * 2.2369363);
 }

@@ -158,6 +158,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24: Seam review: a Time Trial card grades your best time against the track's medal times now (`trackMenu(…, medalTimes)`, fed by `UiHost.medalTimes` from the track files), and a slower run re-grades the kept best in the save. The card showed the medal stored when the best was set, so after the medal times changed a 2:35 best still read Gold, a 2:00 best read Silver, and a faster new best could lower the card.
 - 2026-09-24: The title screen has no tagline under the logo (Adam asked for it to go).
 - 2026-09-24: Detail review, player-facing words: the Credits line names no other company's games (`CREDITS_MADE`: "Every racer, track, item and sound is our own"); the Knockout card says "Eight start. Cuts every race. One wins." (the cut screen crowns one: 8 → 6 → 4 → winner); the touch look-back button reads LOOK, not BACK (beside BRAKE it read as reverse); the CREDITS.md Work column says 85 sounds (the manifest's count, tested) and "modeled".
+- 2026-09-24: Fresh-eyes review: the speedometer reads mph (format.ts `mph`), not km/h; the game is written for US players. Menus, roster, cup select, and the Harbor, Boardwalk and Skyline HUDs otherwise looked clean.
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-23: **Cup titles drew inside white boxes with borders.** Cause: the cup header used the class `row`, which the results table also styles. Fix: `cup-head`. Rule: in one global stylesheet, name classes after their screen, never generic words like `row`.

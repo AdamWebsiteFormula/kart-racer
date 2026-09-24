@@ -21,7 +21,7 @@ function kart() {
 describe('hud model', () => {
   it('steady readouts come from state', () => {
     const vm = hudModel(race(), kart(), 4, 10, newHudMemory(), 0, defs, 0);
-    expect([vm.timer, vm.lap, vm.lapFinal, vm.coins, vm.coinsFull, vm.speed]).toEqual(['1:05.50', '2/3', false, '3', false, '90']);
+    expect([vm.timer, vm.lap, vm.lapFinal, vm.coins, vm.coinsFull, vm.speed]).toEqual(['1:05.50', '2/3', false, '3', false, '56']);
     expect(vm.position).toEqual({ n: '4', suffix: 'th' });
     expect(vm.banner).toBeNull();
   });
