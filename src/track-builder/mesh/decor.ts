@@ -64,6 +64,28 @@ function nearestXZ(lut: Lut, x: number, z: number): { d2: number; hw: number } {
 
 /** Full envelope past the road edge: kerb + shoulder + 1 m air. */
 export const ENVELOPE_PAD = BUILDER.kerbWidth + BUILDER.shoulderWidth + 1;
+/** Metres along the road past a roadside prop's footprint that must not be an open edge either. */
+const OPEN_CLEAR = 3;
+/** Metres the land as drawn may rise or fall under a prop's footprint (more: it hangs off a lip or straddles a slope). */
+const FOOTING = 0.5;
+
+/** Is the road's `side` (-1 left, 1 right) an open edge within `metres` of main-line t? */
+function openBeside(lut: Lut, t: number, side: number, metres: number): boolean {
+  const bit = side < 0 ? 1 : 2, i = Math.round(t * lut.step), k = Math.ceil(metres / (lut.length / lut.step));
+  for (let d = -k; d <= k; d++) if (lut.open[lut.idx(i + d)] & bit) return true;
+  return false;
+}
+
+/** Does the ground stay within FOOTING under a footprint of radius r at (x, z)? */
+function level(groundAt: (x: number, z: number) => number, x: number, z: number, r: number): boolean {
+  let lo = groundAt(x, z), hi = lo;
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2, g = groundAt(x + Math.cos(a) * r, z + Math.sin(a) * r);
+    if (g < lo) lo = g;
+    if (g > hi) hi = g;
+  }
+  return hi - lo <= FOOTING;
+}
 
 /** Is (x, z) within `pad` metres past any branch's road edge? `except` skips one branch index. */
 export function insideRoadEnvelope(branches: Branches, x: number, z: number, except = -1, pad = ENVELOPE_PAD): boolean {
@@ -87,7 +109,8 @@ export interface DecorPlacement {
 /**
  * Place `instances` of one decor entry in its band. roadside: 8–14 m past the road edge
  * at road height minus the shoulder drop. far: 30–120 m from the centreline at ground
- * height. With `groundAt` (an off-road track's land), both stand on the land as drawn. sky: 25–60 m above the road. Anything inside a road envelope is rejected and
+ * height. With `groundAt` (an off-road track's land), both stand on the land as drawn. sky: 25–60 m above the road. Anything inside a road envelope, a roadside
+ * prop beside an open edge, and a prop whose land is not level under its footprint are rejected and
  * retried; the RNG is shared across entries so order matters and is fixed by the JSON.
  */
 export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef['decor']>[number], rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number, footprint = 0): DecorPlacement {
@@ -111,7 +134,7 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
     const dist = Math.max(band[0], Math.min(band[1], gdist + (rng() - 0.5) * (band[1] - band[0]) * 0.7));
     const yaw = rng() * Math.PI * 2;
     const scale = 0.7 + 0.6 * rng();
-    const c = main.sample(((t % 1) + 1) % 1, 0);
+    const tt = ((t % 1) + 1) % 1, c = main.sample(tt, 0);
     let x: number, y: number, z: number;
     if (entry.band === 'sky') {
       const lateral = side * (c.halfWidth + 10 + 30 * rng());
@@ -127,6 +150,11 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
       y = groundAt ? groundAt(x, z) : entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
       // clear of every road (on an off-road track, of where karts can drive past its curb, footprint and all)
       if (insideRoadEnvelope(branches, x, z, -1, main.offroad ? BUILDER.kerbWidth + BUILDER.offroadReach + 0.5 + footprint * scale : ENVELOPE_PAD)) continue;
+      // bug hunt 3: beside an open edge a roadside prop stood over the drop, in Harbor's sea or over the
+      // water off Boardwalk's pier (placeBarriers skips those sides too); and on the land as drawn a
+      // prop keeps off a cliff's lip and slopes (a mesa hung 24 m over Canyon's chasm)
+      if (entry.band === 'roadside' && openBeside(main, tt, side, footprint * scale + OPEN_CLEAR)) continue;
+      if (groundAt && footprint > 0 && !level(groundAt, x, z, footprint * scale)) continue;
     }
     pushTransform(out, [x, y + (entry.lift ?? 0) * scale, z], yaw, [scale, scale, scale]);
     placed++;

@@ -10,7 +10,9 @@ import { BufferAttribute, BufferGeometry, CylinderGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Branches } from '../branches.ts';
 import { BUILDER } from '../constants.ts';
+import { wrap01 } from '../lut.ts';
 import type { LandPoint, RoadIndex } from '../terrain.ts';
+import type { FinalLapShiftDef } from '../types.ts';
 
 export interface CoastOptions {
   /** the sea plane's height */
@@ -29,6 +31,8 @@ export interface CoastOptions {
   offroad?: boolean;
   /** an off-road track's land (terrain.ts): its flat top is the kart's ground past the curb, exactly */
   land?: RoadIndex | null;
+  /** per branch, 1 at each road sample a race can hide (hideableRoads): the land stays under it */
+  hideable?: readonly Uint8Array[];
 }
 
 /** Strata tints (multiplied over the texture), bottom to top, one band per 2.4 m. */
@@ -42,7 +46,11 @@ const UNDER_ROAD = 0.12;
 const CLIFF = 2.5;
 
 const LP: LandPoint = { top: 0, edge: 0, next: 0, open: false, cover: NaN, lip: NaN, pieces: 0 };
-const OUT = { y: 0, mix: 0, under: false, cut: false };
+/** landAt's `bore` bits: land at a tunnel's road level, the mesa over a tunnel, over a road, the mesa's foot in a bore (brought down to the road's level). */
+const BORE_LOW = 1, BORE_MESA = 2, BORE_ROAD = 4, BORE_PULL = 8;
+/** A cell with low land and the mesa, over the road, would be a sheet across a tunnel's mouth: it is never drawn. */
+const SHEET = BORE_LOW | BORE_MESA | BORE_ROAD;
+const OUT = { y: 0, mix: 0, edge: 0, under: false, bore: 0 };
 
 /**
  * The drawn land at (x, z) on an off-road track: terrain.ts's land (what the kart drives on) out to
@@ -61,23 +69,51 @@ export function landAt(land: RoadIndex, o: CoastOptions, x: number, z: number): 
   }
   OUT.y = y;
   OUT.mix = Math.max(0, Math.min(1, (past - lip + 1.5) / 3));
-  const tunnel = q.cover === q.cover;
+  const tunnel = q.cover === q.cover, mesa = q.lip === q.lip;
+  OUT.edge = q.edge;
   OUT.under = q.edge < -0.5 && !tunnel;
-  // over a tunnel the land keeps clear of its bore (the mesa's portal notch; mesh/tunnel.ts fills it)
-  OUT.cut = tunnel && y < q.cover;
+  // by a tunnel the land keeps out of its bore (bug hunt 3: it used to be cut there, which left holes
+  // beside the road before each portal). Just before a portal it is the road's own, at the curb; the
+  // mesa's foot inside the portal, where it would stand in the bore, comes down to that level too
+  // (buildCoast; the bore and the cliff face hide it). That low land and the mesa above it meet only
+  // beside the road: a cell joining them over the road would be a sheet across the mouth.
+  const low = tunnel ? (!mesa ? BORE_LOW : y < q.cover ? BORE_LOW | BORE_PULL : 0) : 0;
+  OUT.bore = (low || (mesa ? BORE_MESA : 0)) | (q.edge < -0.25 ? BORE_ROAD : 0);
   return OUT;
+}
+
+/**
+ * The roads a race can hide, per branch (1 at each LUT sample): a shortcut closed on some laps or by
+ * the Final Lap Shift, and the main road a route override is still to replace, except where it runs
+ * along an open edge (a bridge that goes leaves its chasm). The land is drawn under them, as the
+ * kart's land (terrain.ts) runs under them, so it is there when they go (bug hunt 3: a closed
+ * shortcut, or Canyon's old road after the collapse, left a road-shaped hole down to the ground).
+ */
+export function hideableRoads(branches: Branches, shift: FinalLapShiftDef, shifted: boolean): Uint8Array[] {
+  const closes = new Set(shift.closesShortcuts ?? []);
+  return branches.list.map((b) => {
+    const L = b.lut, m = new Uint8Array(L.n);
+    if (!b.isMain) { if (b.openOnLaps.length || closes.has(b.id)) m.fill(1); }
+    else if (!shifted) {
+      for (const ov of shift.routeOverrides ?? []) {
+        const span = wrap01(ov.toT - ov.fromT);
+        for (let i = 0; i < L.n; i++) if (!L.open[i] && wrap01(i / L.n - ov.fromT) <= span) m[i] = 1;
+      }
+    }
+    return m;
+  });
 }
 
 export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry | null {
   // road samples (every other LUT sample is plenty at a 2–3 m grid), bucketed for the search
-  const xs: number[] = [], zs: number[] = [], ys: number[] = [], edges: number[] = [], rxs: number[] = [], rzs: number[] = [], opens: number[] = [], tans: number[] = [];
+  const xs: number[] = [], zs: number[] = [], ys: number[] = [], edges: number[] = [], rxs: number[] = [], rzs: number[] = [], opens: number[] = [], tans: number[] = [], fixed: number[] = [];
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, widest = 0;
   for (const b of branches.list) {
     const L = b.lut;
     for (let i = 0; i < L.n; i += 2) {
       const e = L.hw[i] + BUILDER.kerbWidth + BUILDER.shoulderWidth;
       xs.push(L.px[i]); zs.push(L.pz[i]); ys.push(L.py[i]); edges.push(e);
-      rxs.push(L.rx[i]); rzs.push(L.rz[i]); opens.push(L.open[i]); tans.push(Math.tan(L.bank[i]));
+      rxs.push(L.rx[i]); rzs.push(L.rz[i]); opens.push(L.open[i]); tans.push(Math.tan(L.bank[i])); fixed.push(o.hideable?.[b.index]?.[i] ? 0 : 1);
       if (L.px[i] < minX) minX = L.px[i]; if (L.px[i] > maxX) maxX = L.px[i];
       if (L.pz[i] < minZ) minZ = L.pz[i]; if (L.pz[i] > maxZ) maxZ = L.pz[i];
       if (e > widest) widest = e;
@@ -98,27 +134,41 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
   const x0 = minX - reach, z0 = minZ - reach;
   const nx = Math.ceil((maxX - minX + 2 * reach) / o.cell) + 1, nz = Math.ceil((maxZ - minZ + 2 * reach) / o.cell) + 1;
   const pos = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), col = new Float32Array(nx * nz * 3), blend = new Float32Array(nx * nz);
-  /** a vertex wholly under the road surface (a cell of four is never drawn) */
+  /** a vertex wholly under a road that is always drawn (a cell of four is never drawn) */
   const under = new Uint8Array(nx * nz);
-  /** a vertex inside a tunnel's bore (a cell with any is never drawn) */
-  const cut = new Uint8Array(nx * nz);
+  /** landAt's `bore` bits (a SHEET cell is never drawn) */
+  const bore = new Uint8Array(nx * nz);
   for (let j = 0; j < nz; j++) {
     for (let i = 0; i < nx; i++) {
       const x = x0 + i * o.cell, z = z0 + j * o.cell, v = j * nx + i;
       const bx = Math.floor(x / B), bz = Math.floor(z / B);
-      let best = Infinity, bk = -1;
-      if (!o.land) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const at = o.land ? landAt(o.land, o, x, z) : null;
+      let best = Infinity, bk = -1, fixedBest = Infinity, fk = -1;
+      if (!o.land || (at && (at.edge < 0 || at.bore & BORE_PULL))) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
         const list = buckets.get(key(bx + dx, bz + dz));
         if (!list) continue;
         for (const k of list) {
           const d = (xs[k] - x) * (xs[k] - x) + (zs[k] - z) * (zs[k] - z);
           if (d < best) { best = d; bk = k; }
+          if (fixed[k] && d < fixedBest) { fixedBest = d; fk = k; }
         }
       }
+      // a road sample's own land here: its curb's level, banked with it
+      const ownLand = (k: number) => {
+        const curb = edges[k] - BUILDER.shoulderWidth, lat = (x - xs[k]) * rxs[k] + (z - zs[k]) * rzs[k];
+        return ys[k] - Math.max(-curb, Math.min(curb, lat)) * tans[k] - BUILDER.offroadDrop;
+      };
+      // under a road a race can hide the land stays (it lies offroadDrop under it, as beside every curb)
+      const inFixed = fk >= 0 ? edges[fk] - BUILDER.shoulderWidth - Math.sqrt(fixedBest) : -1, onFixed = inFixed > 0.5;
       let y = o.waterY - UNDER, mix = 1;
-      const at = o.land ? landAt(o.land, o, x, z) : null;
       if (o.land) {
-        if (at) { y = at.y; mix = at.mix; under[v] = at.under ? 1 : 0; cut[v] = at.cut ? 1 : 0; }
+        if (at) { y = at.y; mix = at.mix; under[v] = at.under && onFixed ? 1 : 0; bore[v] = at.bore; }
+        // under a road that is always drawn the land never stands above it (at a shortcut's mouth the
+        // two roads' land blend; a kept cell reaching over from the shortcut's side must not show),
+        // unless it is a mesa over a tunnel
+        if (at && inFixed > 0 && !(at.bore & BORE_MESA)) y = Math.min(y, ownLand(fk));
+        // the mesa's foot in a bore: down to its road's own land
+        if (at && at.bore & BORE_PULL && bk >= 0) y = Math.min(y, ownLand(bk));
       } else if (bk >= 0) {
         // the road's own height at this lateral (a banked road's low edge is below its middle),
         // and the land a little under it, so no grass ever pokes up through the road
@@ -136,7 +186,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
           y = top + (o.waterY - UNDER - top) * (k * k * (3 - 2 * k));
         }
         mix = Math.max(0, Math.min(1, (d - lip + 1.5) / 3));
-        under[v] = d < edges[bk] - BUILDER.shoulderWidth - 0.5 ? 1 : 0;
+        under[v] = onFixed ? 1 : 0;
       }
       pos[v * 3] = x; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z;
       uv[v * 2] = x; uv[v * 2 + 1] = z;
@@ -158,9 +208,9 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
     for (let i = 0; i < nx - 1; i++) {
       const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
       if (under[a] && under[b] && under[c] && under[d]) continue;
-      if (cut[a] || cut[b] || cut[c] || cut[d]) continue;
       if (Math.max(pos[a * 3 + 1], pos[b * 3 + 1], pos[c * 3 + 1], pos[d * 3 + 1]) < o.waterY - 0.05) continue; // all under the sea
-      index.push(a, c, b, b, c, d);
+      if (((bore[a] | bore[b] | bore[c]) & SHEET) !== SHEET) index.push(a, c, b);
+      if (((bore[b] | bore[c] | bore[d]) & SHEET) !== SHEET) index.push(b, c, d);
     }
   }
   if (!index.length) return null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InstancedMesh, Mesh, type BufferGeometry, type MeshBasicMaterial, type Texture } from 'three';
+import { InstancedMesh, Matrix4, Mesh, Raycaster, Vector3, type BufferGeometry, type MeshBasicMaterial, type Texture } from 'three';
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
@@ -195,6 +195,72 @@ describe('decor and barriers', () => {
     t.applyFinalLapShift();
     const beach = t.branches.byId('beach')!;
     for (const c of s.chunks) expect(c.mesh.visible).toBe(c.branch !== beach.index);
+  });
+
+  const grounded = (Object.values(import.meta.glob('../tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[]).filter((d) => d.environment?.ground?.kind !== 'none');
+  it.each(grounded.map((d) => [d.id, d] as const))('%s: every prop stands on the ground as drawn, never in the sea, over a drop or off a cliff (bug hunt 3)', (_id, raw) => {
+    // beside an open edge roadside props stood in Harbor's sea and over the water off Boardwalk's pier,
+    // a palm stood on a cliff's lip, and props hung off slopes (Canyon's mesa over its chasm)
+    const def = cloneDef(raw), water = def.environment!.ground!.kind === 'water';
+    const scene = buildTrackScene(buildTrack(def));
+    scene.group.updateMatrixWorld(true);
+    const coast = scene.group.getObjectByName('coast') as Mesh, sea = scene.group.getObjectByName(`ground-${def.environment!.ground!.kind}`) as Mesh;
+    const rc = new Raycaster(), m = new Matrix4(), s = new Vector3();
+    let bad = 0, where = '';
+    for (const p of scene.decor) {
+      const entry = def.environment!.decor!.find((e) => e.asset === p.asset && e.band === p.band)!;
+      expect(p.count, p.asset).toBe(entry.instances);
+      if (p.band === 'sky' || entry.footing === 'pier') continue;
+      // the ground a prop may stand on: the land, the ground plane of a land track, and the sea for a far one (a boat)
+      const ground = [coast, ...(!water || p.band === 'far' ? [sea] : [])];
+      const bb = scene.instancers.get(`decor:${p.asset}`)!.geometry.boundingBox!, foot = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z);
+      for (let i = 0; i < p.count; i++) {
+        m.fromArray(p.matrices, i * 16);
+        s.setFromMatrixScale(m);
+        const x = m.elements[12], y = m.elements[13] - (entry.lift ?? 0) * s.x, z = m.elements[14], r = foot * s.x * 0.7;
+        for (let k = -1; k < 8; k++) {
+          const a = (k / 8) * Math.PI * 2, px = k < 0 ? x : x + Math.cos(a) * r, pz = k < 0 ? z : z + Math.sin(a) * r;
+          rc.set(new Vector3(px, y + 50, pz), new Vector3(0, -1, 0));
+          const under = rc.intersectObjects(ground, false)[0]?.point.y ?? -Infinity;
+          if (y - under > 1) { bad++; where ||= `${p.asset} ${i} at (${x.toFixed(1)}, ${y.toFixed(2)}, ${z.toFixed(1)}): ground ${under.toFixed(2)} under its footprint`; break; }
+        }
+      }
+    }
+    expect(bad, where).toBe(0);
+    scene.dispose();
+  });
+});
+
+describe('boost pads', () => {
+  const tracks = Object.values(import.meta.glob('../tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>);
+
+  it.each(tracks.map((d) => [d.id, d] as const))('%s: every pad lies on the road as drawn, on slopes and banks too (bug hunt 3)', (_id, def) => {
+    // turned by yaw alone, a pad on Canyon's 25 % descent stood 0.53 m over the road at one end and
+    // sank 0.47 m into it at the other (Skyline's steep pad and the banked ones on Meadow and Frostbite too)
+    const track = buildTrack(cloneDef(def));
+    for (const b of track.branches.list) b.forcedOpen = true;
+    const scene = buildTrackScene(track);
+    scene.group.updateMatrixWorld(true);
+    const pads = scene.instancers.get('boostPads')!, a = pads.instanceMatrix.array as Float32Array;
+    const feats = track.features.filter((f) => f.kind === 'boostPad');
+    expect(pads.count).toBe(feats.length);
+    const rc = new Raycaster(), m = new Matrix4(), p = new Vector3();
+    let low = Infinity, high = -Infinity, where = '';
+    feats.forEach((f, k) => {
+      const roads = scene.chunks.filter((c) => c.branch === f.branch).map((c) => c.mesh);
+      m.fromArray(a, k * 16);
+      // its corners, edges and middle over the road
+      for (const u of [-0.5, 0, 0.5]) for (const v of [-0.5, 0, 0.5]) {
+        p.set(u, 0.035, v).applyMatrix4(m);
+        rc.set(new Vector3(p.x, p.y + 2, p.z), new Vector3(0, -1, 0));
+        const over = p.y - (rc.intersectObjects(roads, false)[0]?.point.y ?? -Infinity);
+        if (over < low) { low = over; where = `${f.id} at (${u}, ${v}): ${over.toFixed(3)} over the road`; }
+        high = Math.max(high, over);
+      }
+    });
+    expect(low, where).toBeGreaterThan(0.01);
+    expect(high).toBeLessThan(0.15);
+    scene.dispose();
   });
 });
 
