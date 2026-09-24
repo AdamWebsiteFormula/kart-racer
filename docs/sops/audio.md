@@ -77,6 +77,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Race songs start on the go, not during the countdown. Final lap: the song stops for the fanfare, then comes back from the top at ×1.06 (a semitone up, the classic lift).
 - 2026-09-23: The engine is three recorded loops (idle, mid, high) crossfaded at equal power by rpm, pitched by rpm / band rpm, plus a recorded drift screech (plan §7.4). Rivals use the mid loop, panned.
 - 2026-09-23: Every racer has a hit yelp (design §11): creature noises, never words. Only cast racers yelp.
+- 2026-09-24: The final-lap fanfare and the music lift play on the player's own last lap (their `lap` event with `isFinal`), not on the shift (the leader's): a trailing player used to hear the fanfare up to 4.8 s early and nothing on their real final lap. The two stay together because `SongPlayer.lift` pauses the song for the fanfare.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

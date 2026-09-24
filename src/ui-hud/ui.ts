@@ -12,6 +12,7 @@ import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
 import { ITEM_ICONS, itemArt } from './icons.ts';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
+import { UI } from './constants.ts';
 import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
@@ -103,6 +104,8 @@ export class UiRoot {
   private boardPost: BoardPost = { state: 'idle' };
   private padRepeat = newRepeat();
   private padStartWas = false;
+  /** gamepad buttons still down from the race, ignored by the menus until released */
+  private padSpent: boolean[] = [];
   private osReduced = false;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
 
@@ -117,7 +120,7 @@ export class UiRoot {
     this.root = document.createElement('div');
     this.root.id = 'ui';
     parent.appendChild(this.root);
-    this.touch = new TouchControls(this.root);
+    this.touch = new TouchControls(this.root, () => this.dispatch({ type: 'pause' }));
     // a phone held upright: the race needs it sideways (shown by CSS only, portrait + touch)
     const rotate = document.createElement('div');
     rotate.className = 'rotate-hint';
@@ -239,6 +242,9 @@ export class UiRoot {
     const o = this.lastOver;
     if (!o?.board || this.app.screen !== 'results' || this.app.overlays.length) return;
     this.views.results.updateBoard(boardModel(o.board.mode, o.trackName, o.board.dailySeed, this.boardLoad, this.boardPost));
+    // the rows arriving push the name box down: keep whatever has the focus in sight
+    const id = this.focusBy.get(this.app.screen);
+    if (id) this.views.results.buttons.get(id)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }
 
   /** Post the finished run under the name in the box. The server replays it before saving. */
@@ -285,9 +291,16 @@ export class UiRoot {
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (start && !this.padStartWas) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
+      // every button down in the race (the Start that paused, A held for a drift) is spent:
+      // on the menu that opens next it counts only once let go and pressed again
+      this.padSpent = buttons;
       return;
     }
     this.padStartWas = start;
+    for (let i = 0; i < buttons.length; i++) {
+      if (!buttons[i]) this.padSpent[i] = false;
+      else if (this.padSpent[i]) buttons[i] = false;
+    }
     const a = repeat(this.padRepeat, navFromPad(buttons, pad.axes), nowMs);
     if (a) this.nav(a);
   }
@@ -318,8 +331,17 @@ export class UiRoot {
     const id = b.dataset.id as string;
     if (b.getAttribute('aria-disabled') === 'true') return;
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
-    this.setFocus(id);
-    if (click) { this.host.uiSound?.('confirm'); this.confirm(id); }
+    this.setFocus(id, false); // under the pointer it is already in sight
+    if (!click) return;
+    // a settings row's ◀ or ▶ steps that way, like left and right on the keys
+    const dir = (e.target as HTMLElement).closest?.('[data-dir]')?.getAttribute('data-dir');
+    if (dir && this.active.key === 'settings' && id !== 'done') {
+      this.host.uiSound?.('move');
+      this.changeSetting(id as SettingId, dir === '-1' ? -1 : 1);
+      return;
+    }
+    this.host.uiSound?.('confirm');
+    this.confirm(id);
   }
 
   /** One navigation action on whatever is on top. */
@@ -337,9 +359,25 @@ export class UiRoot {
     }
     if (model && cur) {
       const next = move(model, cur, a);
-      if (next !== cur) this.host.uiSound?.('move');
-      this.setFocus(next);
+      // past the top or bottom stop, a panel taller than the screen (How to Play, Credits, a long
+      // results board) scrolls on before the focus wraps round, so all of it can be read on keys or a pad
+      if (a === 'up' || a === 'down') {
+        const dir = a === 'down' ? 1 : -1;
+        const row = (id: string) => model.rows.findIndex((r) => r.includes(id));
+        const panel = (row(next) - row(cur)) * dir <= 0 ? this.scrollsOn(dir) : null;
+        // a plain jump: a smooth one restarts from where it got to, so quick presses would fall short
+        if (panel) { panel.scrollBy({ top: dir * UI.panelScrollPx }); return; }
+      }
+      if (next !== cur) { this.host.uiSound?.('move'); this.setFocus(next); }
     }
+  }
+
+  /** The panel on top, when it has more to show that way. */
+  private scrollsOn(dir: 1 | -1): HTMLElement | null {
+    const root = this.active?.view.root;
+    const p = root?.querySelector<HTMLElement>('.scroll') ?? root?.querySelector<HTMLElement>('.box');
+    if (!p?.scrollBy) return null;
+    return (dir > 0 ? p.scrollTop + p.clientHeight < p.scrollHeight - 1 : p.scrollTop > 0) ? p : null;
   }
 
   private back(): void {
@@ -403,7 +441,8 @@ export class UiRoot {
   get reducedMotion(): boolean { return reducedMotion(this.save.settings, this.osReduced); }
 
   // ---------------------------------------------------------------- show
-  private setFocus(id: string): void {
+  /** `reveal`: scroll it into sight inside its panel (a long results board, Settings on a phone) */
+  private setFocus(id: string, reveal = true): void {
     if (!this.active) return;
     const { key, view } = this.active;
     const prevId = this.focusBy.get(key);
@@ -417,6 +456,7 @@ export class UiRoot {
       b.classList.add('focused');
       b.tabIndex = 0;
       if (document.activeElement !== b) b.focus({ preventScroll: true });
+      if (reveal) b.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     }
   }
 
@@ -445,7 +485,8 @@ export class UiRoot {
     const remembered = this.focusBy.get(key);
     const ok = remembered && model.rows.flat().includes(remembered) && !model.disabled?.includes(remembered);
     const id = ok ? remembered : entering && key === 'rosterSelect' ? s.racerId : firstFocus(model);
-    if (id) this.setFocus(id);
+    // How to Play and Credits open at the top: their one button, Back, is at the end
+    if (id) this.setFocus(id, key !== 'howTo' && key !== 'credits');
   }
 
   private renderScreen(key: string): void {

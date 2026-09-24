@@ -258,13 +258,14 @@ export class SettingsView implements ScreenView {
       const b = button(list, r.id, 'btn setting');
       h('span', 'label', b, r.label);
       const val = h('span', 'val', b);
-      h('span', 'arrow', val, '◀');
+      // the arrows step that way under a pointer (UiRoot.pointer); the rest of the row steps up
+      h('span', 'arrow', val, '◀').dataset.dir = '-1';
       if (r.fraction !== undefined) {
         const m = h('span', 'meter', val);
         h('i', '', m).style.width = `${Math.round(r.fraction * 100)}%`;
       }
       h('span', '', val, r.value);
-      h('span', 'arrow', val, '▶');
+      h('span', 'arrow', val, '▶').dataset.dir = '1';
       b.setAttribute('aria-label', `${r.label}: ${r.value}. Left and right change it.`);
       this.buttons.set(r.id, b);
     }
@@ -370,18 +371,21 @@ export class ResultsView implements ScreenView {
     this.root.setAttribute('aria-label', 'Results');
   }
 
-  private frame(headline: string, sub: string): { box: HTMLElement; rows: HTMLElement } {
+  /** The panel: everything but the buttons scrolls inside it, so it never runs off the screen. */
+  private frame(headline: string, sub: string): { box: HTMLElement; body: HTMLElement; rows: HTMLElement } {
     clear(this.root);
     this.buttons.clear();
     const st = stage(this.root);
     const box = h('div', 'panel box enter', st);
-    h('h2', '', box, headline);
-    h('div', 'sub', box, sub);
-    const rows = h('div', 'rows', box);
+    const body = h('div', 'scroll', box);
+    h('h2', '', body, headline);
+    h('div', 'sub', body, sub);
+    const rows = h('div', 'rows', body);
     rows.setAttribute('role', 'table');
-    return { box, rows };
+    return { box, body, rows };
   }
 
+  /** The button row, under the scrolling part: always in sight. */
   private actions(box: HTMLElement, label: string): void {
     const a = h('div', 'actions', box);
     const b = button(a, 'continue');
@@ -417,13 +421,12 @@ export class ResultsView implements ScreenView {
     b.status.dataset.kind = vm.statusKind;
   }
 
-  private buildBoard(box: HTMLElement, name: string): void {
-    const sec = h('section', 'board', box);
+  private buildBoard(parent: HTMLElement, name: string): void {
+    const sec = h('section', 'board', parent);
     sec.setAttribute('aria-label', 'Leaderboard');
     h('h3', '', sec, 'Leaderboard');
     const sub = h('div', 'board-sub', sec);
-    const list = h('div', 'board-list', sec);
-    list.setAttribute('role', 'table');
+    // the name box comes before the times, so on a short screen it shows without scrolling
     const form = h('div', 'board-form', sec);
     const input = h('input', 'name-input', form);
     input.type = 'text';
@@ -440,6 +443,8 @@ export class ResultsView implements ScreenView {
     const status = h('div', 'board-status', sec);
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
+    const list = h('div', 'board-list', sec);
+    list.setAttribute('role', 'table');
     this.buttons.set('name', input);
     this.buttons.set('post', btn);
     this.board = { list, sub, btn, status, input };
@@ -447,7 +452,7 @@ export class ResultsView implements ScreenView {
 
   renderResults(vm: ResultsVM, next: string, board?: { name: string }): void {
     this.board = null;
-    const { box, rows } = this.frame(vm.headline, vm.sub);
+    const { box, body, rows } = this.frame(vm.headline, vm.sub);
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.dnf ? ' dnf' : ''} r${i + 1}`, rows);
       e.setAttribute('role', 'row');
@@ -460,21 +465,21 @@ export class ResultsView implements ScreenView {
       h('span', 'gp', e, r.gap);
     });
     if (vm.playerLaps.length) {
-      const laps = h('div', 'laps', box);
+      const laps = h('div', 'laps', body);
       for (const l of vm.playerLaps) h('span', l.best ? 'best' : '', laps, `Lap ${l.lap} ${l.time}`);
     }
-    if (board) this.buildBoard(box, board.name);
+    if (board) this.buildBoard(body, board.name);
     this.actions(box, next);
   }
 
   renderGp(vm: GpVM, next: string): void {
     this.board = null;
-    const { box, rows } = this.frame(vm.headline, vm.sub);
+    const { box, body, rows } = this.frame(vm.headline, vm.sub);
     if (vm.done) {
-      const s = h('div', 'stars', box);
+      const s = h('div', 'stars', body);
       s.innerHTML = [0, 1, 2].map((i) => starSvg(i < vm.stars, i)).join('');
       s.setAttribute('aria-label', `${vm.stars} of 3 stars`);
-      box.insertBefore(s, rows);
+      body.insertBefore(s, rows);
     }
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''} r${i + 1}`, rows);

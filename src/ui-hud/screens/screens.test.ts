@@ -77,6 +77,13 @@ describe('results screens', () => {
     expect(vm.playerLaps.filter((l) => l.best).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('a solo run (the Daily Challenge) is not a win: the headline gives the time', () => {
+    const solo = { ...results(['pip']), mode: 'daily' as const };
+    expect(resultsModel(solo, 'pip', 'Meadow Run').headline).toBe('Finished! 0:50.00');
+    expect(resultsModel(results(['pip', 'gus']), 'pip', 'Meadow Run').headline).toBe('You win!');
+    expect(resultsModel(results(['pip'], ['pip']), 'pip', 'Meadow Run').headline).toBe('Out of time');
+  });
+
   it('SOP test 10: the Grand Prix table has points, gains, and stars once the cup is done', () => {
     const gp: GrandPrixState = createGrandPrix({ id: 'sunrise', trackIds: ['a', 'b', 'c'] }, racers, 150, 1);
     const order = CAST.map((c) => c.id);

@@ -141,8 +141,23 @@ describe('director', () => {
       { type: 'finish', racerId: 'p', rank: 2, tick: 1, dnf: false },
     ];
     const { cues, music } = direct(ev, [], listener());
-    expect(cues.map((c) => c.sfx)).toEqual(['count', 'go', 'lap', 'finalLap', 'balloon', 'coin', 'wrongWay', 'finish']);
-    expect(music).toEqual([{ type: 'drums', on: false }, { type: 'drums', on: true }, { type: 'finalLap' }]);
+    expect(cues.map((c) => c.sfx)).toEqual(['count', 'go', 'lap', 'balloon', 'coin', 'wrongWay', 'finish']);
+    expect(music).toEqual([{ type: 'drums', on: false }, { type: 'drums', on: true }]);
+  });
+
+  it('the final-lap fanfare and the music lift come on the player\'s own last lap, not the leader\'s', () => {
+    // trailing: the leader starts the last lap (the shift) while the player is still on lap 2
+    const shift = direct([{ type: 'lap', racerId: 'x', lap: 3, isFinal: true }, { type: 'phase', phase: 'finalLap' }], [], listener());
+    expect(shift.cues.map((c) => c.sfx)).toEqual([]);
+    expect(shift.music).toEqual([]);
+    // a few seconds later the player crosses into their own last lap
+    const mine = direct([{ type: 'lap', racerId: 'p', lap: 3, isFinal: true }], [], listener());
+    expect(mine.cues.map((c) => c.sfx)).toEqual(['finalLap']);
+    expect(mine.music).toEqual([{ type: 'finalLap' }]);
+    // leading: both on one tick, one fanfare and one lift
+    const lead = direct([{ type: 'lap', racerId: 'p', lap: 3, isFinal: true }, { type: 'phase', phase: 'finalLap' }], [], listener());
+    expect(lead.cues.map((c) => c.sfx)).toEqual(['finalLap']);
+    expect(lead.music).toEqual([{ type: 'finalLap' }]);
   });
 
   it('item events: the player hears their own; someone else only when near, and quieter', () => {
