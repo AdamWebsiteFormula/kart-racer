@@ -29,7 +29,7 @@ _Written 23 Sept 2026 from research plan §4.7 and §7.2 (the 12-item juice chec
 
 **Three layer (smoke-tested):**
 - `particles.ts` — one `InstancedMesh` of camera-facing quads (billboard in the vertex shader), up to 2,048 live, per-instance colour and life, CPU integration with gravity and drag, additive blending. One draw call.
-- `skids.ts` — a ring buffer of tyre-mark quads laid while drifting, fading over 10 s. One draw call.
+- `skids.ts` — a ring buffer of tyre-mark quads laid while drifting, multiplying the road darker and fading over 4 s (`SKID`). One draw call.
 - `speedLines.ts` — thin streaks in camera space while boosting. One draw call.
 - `post.ts` — one `EffectPass`: bloom (high threshold, so only sparks, flames and lamps glow), chromatic aberration (boost only), vignette, ACES tone mapping. Off on `quality: low`.
 
@@ -47,6 +47,8 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Boost flames sit on the pipes (flames.ts): one additive mesh per pipe on the chassis, shown only while boosting, flickering, longer with more boost left; embers stream off the same pipes in the racer's color. Reduced motion holds the flame steady.
 - 2026-09-24: The chase camera (game/camera.ts clampToRoad, after smoothing) keeps `roadClear` 1.2 m over the ground under its own spot, and where that road is a tunnel's (covered or bore) stays `beamClear` 0.45 m under tunnelWall, below the timber beams. The pose rode the kart's height: on the Canyon mine's exit climb, look-back put the camera under the road (the screen went sand) and driving forward it rose past the beams, which hid the kart. Elsewhere it only lifts a camera about to touch the road (Skyline's steepest drop); four tracks are untouched.
 - 2026-09-24: A bumper car's shove and a rockfall's slow jolt the player like a wall (`traumaWall` and the wall dust) from their `hazardHit` race event. They raise no kart event, so they used to land with no shake and no dust (a spin hazard shakes through its kart `hit`).
+- 2026-09-24 (detail review): Particles never fill the screen: every pool fades out between 1.2 and 3.5 m of view depth and draws no bigger than `PARTICLE.maxSize` metres per metre of depth (confetti 0.04, dust 0.3, sparks 0.12); dust and smoke are soft puffs with no hard rim. Confetti is 2:1 paper strips that turn and flip (width through zero, shaded as it turns) in saturated hues (`CONFETTI`, no white or pastels). The player's finish shower falls 4 m plus 0.4 s of speed up the road (`CONFETTI_BURST`) and the STRIKE confetti is thrown forward and out (`STRIKE_BURST`), so neither lands in the chase camera.
+- 2026-09-24 (detail review): Tyre marks multiply the road (Zero, SrcColor blending) by 0.55 fading to 1 over 4 s (`SKID`), so rubber darkens any deck; the old fixed grey over normal blending read as lane paint on Boardwalk's night boards.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

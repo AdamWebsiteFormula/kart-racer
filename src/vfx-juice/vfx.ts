@@ -8,11 +8,21 @@ import { CameraKick, JUICE, TimeScale, Trauma, driftRoll, sparkColour, type Effe
 import { ParticlePool, type SpawnOpts } from './particles.ts';
 import { Skids, SpeedLines } from './trails.ts';
 
-const CORAL: [number, number, number] = [1, 0.44, 0.38], SUN: [number, number, number] = [1, 0.82, 0.25];
+const CORAL: [number, number, number] = [1, 0.44, 0.38];
 const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
 const CHARGE: readonly number[] = [1.1, 1.1, 1.2], FLAME_HOT: readonly number[] = [1.5, 1.2, 0.45];
 const DUST_MUD: readonly number[] = [0.45, 0.33, 0.22], DUST_ICE: readonly number[] = [0.9, 0.95, 1], DUST: readonly number[] = [0.86, 0.77, 0.6];
-const CONFETTI = [CORAL, SUN, TEAL, WHITE, [0.7, 0.62, 0.86] as [number, number, number], [0.39, 0.71, 0.96] as [number, number, number]];
+/** Linear RGB with one channel near zero, so each colour survives the tone mapping as a clear hue (no white, no pastels). */
+export const CONFETTI: readonly (readonly [number, number, number])[] = [
+  [1, 0.04, 0.22], [1, 0.62, 0.02], [0.02, 0.62, 0.48], [0.04, 0.26, 1], [0.42, 0.06, 0.92], [1, 0.2, 0.02],
+];
+/**
+ * The player's finish shower: centred `ahead` metres (plus `lead` seconds of the kart's speed) up
+ * the road, so the kart drives into it and the chase camera, 6 m behind, looks at it, not through it.
+ */
+export const CONFETTI_BURST = Object.freeze({ count: 180, ahead: 4, lead: 0.4, spread: 4, depth: 3, rise: 4.5, riseSpread: 3, size: 0.22 });
+/** The STRIKE burst: thrown up and out to the sides and forward from `ahead` metres in front, never back at the lens. */
+export const STRIKE_BURST = Object.freeze({ count: 140, ahead: 1.5, side: 9, forward: [1, 8] as const, up: [5, 13] as const, size: 0.24 });
 
 /** Visual-only randomness (never touches the sim). */
 let seed = 0x1234567;
@@ -97,9 +107,16 @@ export class Vfx {
             this.spawn(this.glow, x, y + 1.4, z, Math.cos(a) * 3, 3 + rnd() * 2, Math.sin(a) * 3, [1.9, 1.6, 0.3], 0.26, 0.6, 7, 1.5);
           }
           break;
-        case 'confetti':
-          for (let i = 0; i < 180; i++) this.spawn(this.confetti, x + sym() * 4, y + 5 + rnd() * 3, z + sym() * 4, sym() * 4, rnd() * 4, sym() * 4, CONFETTI[i % CONFETTI.length], 0.18, 2.5 + rnd(), 4, 1.2);
+        case 'confetti': {
+          // up the road from the kart (forward = (sin h, 0, cos h), right = (cos h, 0, −sin h))
+          const C = CONFETTI_BURST, s = Math.sin(k.heading), c = Math.cos(k.heading);
+          const ahead = C.ahead + Math.max(0, k.speed) * C.lead;
+          for (let i = 0; i < C.count; i++) {
+            const f = ahead + sym() * C.depth, l = sym() * C.spread;
+            this.spawn(this.confetti, x + s * f + c * l, y + C.rise + rnd() * C.riseSpread, z + c * f - s * l, sym() * 3, rnd() * 3, sym() * 3, CONFETTI[i % CONFETTI.length], C.size, 2.5 + rnd(), 4, 1.2);
+          }
           break;
+        }
         case 'land': case 'wall':
           for (let i = 0; i < 10; i++) this.spawn(this.soft, x + sym() * 0.6, y + 0.2, z + sym() * 0.6, sym() * 2.5, rnd() * 1.5, sym() * 2.5, [0.86, 0.8, 0.7], 0.5, 0.5, 0, 2, 1.5);
           break;
@@ -112,12 +129,19 @@ export class Vfx {
         case 'fog':
           for (let i = 0; i < 40; i++) this.spawn(this.soft, x + sym() * 10, y + 1 + rnd() * 3, z + sym() * 10, sym(), rnd() * 0.3, sym(), [0.72, 0.74, 0.78], 2.2, 2.5, 0, 0.3, 1);
           break;
-        case 'strike':
-          // STRIKE! confetti and white-and-red pin chips thrown up, and a bright flash ring
-          for (let i = 0; i < 140; i++) this.spawn(this.confetti, x + sym() * 2, y + 1.5, z + sym() * 2, sym() * 9, 5 + rnd() * 8, sym() * 9, CONFETTI[i % CONFETTI.length], 0.2, 1.6 + rnd(), 12, 1);
+        case 'strike': {
+          // STRIKE! confetti and white-and-red pin chips thrown up, and a bright flash ring. The
+          // confetti goes up, out and forward: none of it flies back into the chase camera.
+          const S = STRIKE_BURST, s = Math.sin(k.heading), c = Math.cos(k.heading);
+          const ox = x + s * S.ahead, oz = z + c * S.ahead;
+          for (let i = 0; i < S.count; i++) {
+            const f = S.forward[0] + rnd() * (S.forward[1] - S.forward[0]), l = sym() * S.side;
+            this.spawn(this.confetti, ox + sym() * 2, y + 1.5, oz + sym() * 2, s * f + c * l, S.up[0] + rnd() * (S.up[1] - S.up[0]), c * f - s * l, CONFETTI[i % CONFETTI.length], S.size, 1.6 + rnd(), 12, 1);
+          }
           for (let i = 0; i < 24; i++) this.spawn(this.soft, x, y + 1.2, z, sym() * 7, 4 + rnd() * 6, sym() * 7, i % 3 ? WHITE : CORAL, 0.35, 0.9, 16, 0.5);
           for (let i = 0; i < 36; i++) { const a = (i / 36) * Math.PI * 2; this.spawn(this.glow, x, y + 1, z, Math.cos(a) * 16, 0.5, Math.sin(a) * 16, [1.8, 1.3, 1.9], 0.4, 0.4, 0, 1); }
           break;
+        }
         case 'slam':
           // a ring of dust rolling out over the road
           for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; this.spawn(this.soft, x, y + 0.3, z, Math.cos(a) * 11, 0.6 + rnd(), Math.sin(a) * 11, DUST, 0.9, 0.7, 0, 2.2, 1.6); }
