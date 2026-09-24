@@ -86,6 +86,8 @@ export class CreatureView {
   /** Pose every creature for race time `time` (seconds). */
   update(time: number): void {
     for (const p of [this.shadows, this.stripe, this.dust, this.snow, this.arms]) p.begin();
+    // one switched off (a Final Lap Shift took its road) is gone, not frozen where it was
+    for (const [id, b] of this.bodies) b.holder.visible = this.track.hazards.isEnabled(id);
     for (const pose of this.track.hazards.creaturePoses(time)) {
       const b = this.bodies.get(pose.id);
       if (b) this.animate(b.holder, b.body, pose, time);

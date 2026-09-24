@@ -10,6 +10,7 @@ import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
 import { buildTrackScene, isDrawn } from './scene.ts';
 import boardwalkJson from '../tracks/boardwalk-nights.json';
+import canyonJson from '../tracks/canyon-rush.json';
 
 function collapseDef(): TrackDefinition {
   const d = cloneDef(HARBOUR_LOOP);
@@ -250,6 +251,48 @@ describe('Final Lap Shift swap and hazards', () => {
     s.update(0);
     for (const c of s.chunks) if (c.branch === beach.index) expect(c.mesh.visible).toBe(true);
     expect(s.instancers.get('coins')!.count).toBe(coinsClosed + 1);
+  });
+
+  it("Canyon's falling rock is seen dropping onto its spot, its shadow growing, before it can hit (bug hunt 2)", () => {
+    // it used to blink onto the road at 5 s with nothing before, and slow a kart on that very tick
+    const track = buildTrack(cloneDef(canyonJson as TrackDefinition));
+    const scene = buildTrackScene(track);
+    const rock = scene.instancers.get('hazard:rockfall')!, shadow = scene.group.getObjectByName('hazard:shadow') as InstancedMesh;
+    const spot = track.hazards.falling(0)[0].position, P = 5, W = BUILDER.fallingWarnSeconds;
+    const rockY = () => rock.instanceMatrix.array[13];
+    scene.update(P - W - 0.2);
+    expect(rock.count).toBe(0);
+    expect(isDrawn(shadow)).toBe(false);
+    let lastY = Infinity, lastR = 0;
+    for (const k of [0.1, 0.4, 0.7, 0.95]) {
+      scene.update(P - W + k * W);
+      expect(rock.count, `k ${k}`).toBe(1);
+      expect(rockY(), `k ${k}`).toBeLessThan(lastY); // falling
+      expect(rockY(), `k ${k}`).toBeGreaterThan(spot[1] + BUILDER.hazardRadius);
+      expect(shadow.count, `k ${k}`).toBe(1);
+      const r = shadow.instanceMatrix.array[0];
+      expect(r, `k ${k}`).toBeGreaterThan(lastR); // the shadow grows
+      lastY = rockY(); lastR = r;
+    }
+    scene.update(P + 0.1);
+    expect(rock.count).toBe(1);
+    expect(rockY()).toBeCloseTo(spot[1] + BUILDER.hazardRadius, 6);
+    expect(isDrawn(shadow)).toBe(false);
+    scene.dispose();
+  });
+
+  it('a creature the Final Lap Shift switches off is not drawn any more (bug hunt 2)', () => {
+    const d = cloneDef(canyonJson as TrackDefinition);
+    d.hazards!.find((h) => h.id === 'rumblesaur')!.t = 0.58; // on the road the collapse replaces
+    const track = buildTrack(d);
+    const scene = buildTrackScene(track);
+    const holder = scene.group.getObjectByName('creature:rumblesaur')!.parent!;
+    scene.update(1);
+    expect(holder.visible).toBe(true);
+    track.applyFinalLapShift();
+    scene.update(1);
+    expect(holder.visible).toBe(false);
+    scene.dispose();
   });
 
   it('dispose unsubscribes: a later shift does not touch the group', () => {

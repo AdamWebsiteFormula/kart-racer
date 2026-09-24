@@ -448,6 +448,22 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   }
   const hazardMeshById = new Map<string, InstancedMesh>();
   for (const [id, asset] of hazardAsset) hazardMeshById.set(id, hazardMeshes[hazardMeshByAsset.get(asset)!]);
+  // a falling rock drops for fallingWarnSeconds before it lands (hazards.ts fallingPhase), its shadow
+  // growing on the spot: it never blinks onto the road unwarned (bug hunt 2, 24 Sept 2026)
+  const drops = track.hazards.falling(0).length;
+  const dropShadows = drops ? new InstancedMesh(
+    new SphereGeometry(1, 20, 6).scale(1, 0.02, 1),
+    new MeshBasicMaterial({ color: 0x14101c, transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    drops,
+  ) : null;
+  if (dropShadows) {
+    dropShadows.name = 'hazard:shadow';
+    dropShadows.frustumCulled = false;
+    dropShadows.instanceMatrix.setUsage(DynamicDrawUsage);
+    dropShadows.count = 0;
+    OWNED.add(dropShadows.geometry);
+    group.add(dropShadows);
+  }
   const hazardCounts = new Int32Array(hazardMeshes.length);
   const scratch = new Matrix4();
   // rolling hazards keep their own spin between frames (visual only)
@@ -500,6 +516,25 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       } else scratch.makeTranslation(h.position[0], h.position[1] + h.radius, h.position[2]);
       m.setMatrixAt(i, scratch);
       hazardCounts[k] = i + 1;
+    }
+    // falling rocks on their way down: the rock over its spot, gathering speed, its shadow growing under it
+    if (dropShadows) {
+      let shadows = 0;
+      for (const f of track.hazards.falling(time)) {
+        if (f.state !== 'drop') continue;
+        const m = hazardMeshById.get(f.id);
+        if (!m) continue;
+        const k = hazardMeshByAsset.get(hazardAsset.get(f.id)!)!;
+        const i = hazardCounts[k];
+        if (i * 16 >= m.instanceMatrix.array.length) continue;
+        const [x, y, z] = f.position;
+        m.setMatrixAt(i, scratch.makeTranslation(x, y + BUILDER.hazardRadius + BUILDER.fallingHeight * (1 - f.k * f.k), z));
+        hazardCounts[k] = i + 1;
+        const r = BUILDER.hazardRadius * (0.4 + 0.8 * f.k);
+        dropShadows.setMatrixAt(shadows++, scratch.makeScale(r, 1, r).setPosition(x, y + 0.04, z));
+      }
+      dropShadows.count = shadows;
+      dropShadows.instanceMatrix.needsUpdate = true;
     }
     hazardMeshes.forEach((m, k) => {
       m.count = hazardCounts[k];
