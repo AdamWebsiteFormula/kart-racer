@@ -8,7 +8,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { simTick } from '../game/simtick.ts';
 import { decodeLog, encodeLog, quantize } from './inputlog.ts';
-import { CLIENT_VERSION, checkSubmission, cleanName, DAILY_GRACE_MINUTES, dailySeed, dailyTrack, ipBucket, soloConfig, type BoardMode } from './rules.ts';
+import { CLIENT_VERSION, checkSubmission, cleanName, DAILY_GRACE_MINUTES, dailySeed, dailyTrack, ipBucket, restartConfig, soloConfig, type BoardMode } from './rules.ts';
 import { CLAIM_TOLERANCE_MS, verifyRun } from './verify.ts';
 
 const TRACKS = Object.fromEntries(Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>).map((d) => [d.id, d]));
@@ -79,6 +79,18 @@ describe('submission rules', () => {
     expect(checkSubmission(d, IDS, 20261003, 0)).not.toBeNull();
     expect(checkSubmission({ ...d, trackId: IDS.find((x) => x !== track) }, IDS, seed)).not.toBeNull();
     expect(dailyTrack(seed, [...IDS].reverse())).toBe(track); // order-proof
+  });
+  it('a restarted Daily is today\'s race: the old day\'s would be refused after midnight UTC (bug hunt 3)', () => {
+    const yesterday = soloConfig('daily', dailyTrack(20260924, IDS), 'pip', 20260924);
+    const again = restartConfig(yesterday, IDS, 20260925);
+    expect(again).toEqual(soloConfig('daily', dailyTrack(20260925, IDS), 'pip', 20260925));
+    expect(again.trackId).not.toBe(yesterday.trackId);
+    const post = (c: { seed: number; trackId: string }) => checkSubmission({ ...good, mode: 'daily', dailySeed: c.seed, trackId: c.trackId }, IDS, 20260925, DAILY_GRACE_MINUTES + 1);
+    expect(post(yesterday)).toBe('that daily challenge is closed');
+    expect(post(again)).toBeNull();
+    // everything else restarts exactly as it was
+    const tt = soloConfig('timeTrial', 'harbour-loop', 'pip', 0);
+    expect(restartConfig(tt, IDS, 20260925)).toBe(tt);
   });
   it('the word filter sees through spacing and leetspeak but passes normal names', () => {
     expect(cleanName('Rascal_Racer')).toBe(true);

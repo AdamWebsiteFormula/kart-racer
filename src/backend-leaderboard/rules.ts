@@ -64,6 +64,20 @@ export function soloConfig(mode: BoardMode, trackId: string, racerId: string, se
   };
 }
 
+/** Today's Daily: the day's track and seed. */
+export function dailyConfig(racerId: string, trackIds: readonly string[], today = dailySeed()): RaceConfig {
+  return soloConfig('daily', dailyTrack(today, trackIds), racerId, today);
+}
+
+/**
+ * The race a restart reloads: the same one, except a Daily, which is always today's. Yesterday's
+ * closes DAILY_GRACE_MINUTES after midnight UTC, so a run restarted on it could not be posted.
+ */
+export function restartConfig(config: RaceConfig, trackIds: readonly string[], today = dailySeed()): RaceConfig {
+  if (config.mode !== 'daily') return config;
+  return dailyConfig((config.racers.find((r) => r.isPlayer) ?? config.racers[0]).racerId, trackIds, today);
+}
+
 const WORDS = ['fuck', 'shit', 'cunt', 'nigg', 'fag', 'bitch', 'whore', 'slut', 'rape', 'nazi', 'hitler', 'penis', 'vagina', 'cock', 'dick', 'pussy', 'twat', 'wank', 'retard'];
 
 /** Letters only, leetspeak folded, so "sh1t" and "S H I T" both match. */

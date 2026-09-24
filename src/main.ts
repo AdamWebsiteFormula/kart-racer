@@ -8,7 +8,7 @@ import {
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
 import { GameAudio, songForTrack, type Listener } from './audio/index.ts';
-import { dailySeed, dailyTrack, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
+import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
@@ -186,7 +186,7 @@ function startAttract(): void {
 function configFor(p: RacePlan): RaceConfig {
   // leaderboard modes are the exact solo race the server replays (backend-leaderboard/rules.ts)
   if (p.mode === 'timeTrial') return soloConfig('timeTrial', p.tracks[0] ?? FIRST_TRACK, p.racerId, 0);
-  if (p.mode === 'daily') { const seed = dailySeed(); return soloConfig('daily', dailyTrack(seed, [...TRACKS.keys()]), p.racerId, seed); }
+  if (p.mode === 'daily') return dailyConfig(p.racerId, [...TRACKS.keys()]);
   return { mode: p.mode, trackId: p.tracks[0] ?? FIRST_TRACK, speedClass: p.speedClass, seed: Date.now() % 1_000_000, racers: roster(p.racerId) };
 }
 
@@ -208,7 +208,8 @@ const host: UiHost = {
     if (next) load(next, false); else startAttract();
   },
   restartRace() {
-    if (session) load(session.config, false);
+    // a Daily restarts as today's: past midnight UTC the old day's run could not be posted
+    if (session) load(restartConfig(session.config, [...TRACKS.keys()]), false);
   },
   quitRace() { startAttract(); },
   setPaused(p) {
