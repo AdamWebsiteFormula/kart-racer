@@ -147,6 +147,30 @@ describe('UiRoot', () => {
   });
 });
 
+describe('settings by pointer', () => {
+  it('a click on ◀ turns a value down and ▶ turns it up; the row itself still steps up', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'openSettings' });
+    const click = (sel: string) => document.querySelector(`#ui .settings ${sel}`)!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const left = (id: string) => `[data-id="${id}"] .arrow:first-child`, right = (id: string) => `[data-id="${id}"] .arrow:last-child`;
+    const music = ui.save.settings.musicVolume;
+    click(left('musicVolume'));
+    click(left('musicVolume'));
+    expect(ui.save.settings.musicVolume).toBeCloseTo(music - 0.2);
+    click(right('musicVolume'));
+    expect(ui.save.settings.musicVolume).toBeCloseTo(music - 0.1);
+    // Resolution starts at the top: only ◀ can move it
+    click(left('resolutionScale'));
+    expect(ui.save.settings.resolutionScale).toBeCloseTo(0.9);
+    expect(document.activeElement?.getAttribute('data-id')).toBe('resolutionScale');
+    click('[data-id="quality"] .label');
+    expect(ui.save.settings.quality).toBe('high');
+    ui.dispose();
+  });
+});
+
 describe('leaderboard panel', () => {
   const results = {
     mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,

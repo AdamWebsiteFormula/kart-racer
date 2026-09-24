@@ -258,13 +258,14 @@ export class SettingsView implements ScreenView {
       const b = button(list, r.id, 'btn setting');
       h('span', 'label', b, r.label);
       const val = h('span', 'val', b);
-      h('span', 'arrow', val, '◀');
+      // the arrows step that way under a pointer (UiRoot.pointer); the rest of the row steps up
+      h('span', 'arrow', val, '◀').dataset.dir = '-1';
       if (r.fraction !== undefined) {
         const m = h('span', 'meter', val);
         h('i', '', m).style.width = `${Math.round(r.fraction * 100)}%`;
       }
       h('span', '', val, r.value);
-      h('span', 'arrow', val, '▶');
+      h('span', 'arrow', val, '▶').dataset.dir = '1';
       b.setAttribute('aria-label', `${r.label}: ${r.value}. Left and right change it.`);
       this.buttons.set(r.id, b);
     }

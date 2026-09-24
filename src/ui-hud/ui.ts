@@ -328,7 +328,16 @@ export class UiRoot {
     if (b.getAttribute('aria-disabled') === 'true') return;
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
     this.setFocus(id);
-    if (click) { this.host.uiSound?.('confirm'); this.confirm(id); }
+    if (!click) return;
+    // a settings row's ◀ or ▶ steps that way, like left and right on the keys
+    const dir = (e.target as HTMLElement).closest?.('[data-dir]')?.getAttribute('data-dir');
+    if (dir && this.active.key === 'settings' && id !== 'done') {
+      this.host.uiSound?.('move');
+      this.changeSetting(id as SettingId, dir === '-1' ? -1 : 1);
+      return;
+    }
+    this.host.uiSound?.('confirm');
+    this.confirm(id);
   }
 
   /** One navigation action on whatever is on top. */

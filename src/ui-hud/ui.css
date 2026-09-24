@@ -360,8 +360,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .setting { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; padding: 12px 18px !important; border-radius: var(--radius-sm) !important; box-shadow: 0 4px 0 var(--ink) !important; }
 .setting .label { font-size: 20px; }
 .setting .val { display: flex; align-items: center; gap: 10px; font: 700 16px/1 var(--body); }
-.setting .val .arrow { font-size: 18px; opacity: 0.5; }
-.setting.focused .val .arrow { opacity: 1; }
+.setting .val .arrow { font-size: 18px; opacity: 0.5; padding: 8px 6px; margin: -8px -6px; }
+.setting.focused .val .arrow, .setting .val .arrow:hover { opacity: 1; }
 .setting .meter { width: 120px; height: 12px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: #e9e2d0; }
 .setting .meter i { display: block; height: 100%; background: var(--teal); }
 
