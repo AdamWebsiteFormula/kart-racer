@@ -17,14 +17,22 @@ const grid = (rows: Entry[][]): FocusModel => ({
   disabled: rows.flat().filter((e) => e.disabled).map((e) => e.id),
 });
 
-export function titleMenu(): MenuVM {
+/** Two by two on a short screen (UI.shortScreenQuery), as the stylesheet sets the buttons, else one column. */
+const column = (entries: Entry[], twoByTwo: boolean): FocusModel => {
+  const rows: Entry[][] = [];
+  const n = twoByTwo ? 2 : 1;
+  for (let i = 0; i < entries.length; i += n) rows.push(entries.slice(i, i + n));
+  return grid(rows);
+};
+
+export function titleMenu(twoByTwo = false): MenuVM {
   const entries: Entry[] = [
     { id: 'start', label: 'Race!' },
     { id: 'howTo', label: 'How to Play' },
     { id: 'settings', label: 'Settings' },
     { id: 'credits', label: 'Credits' },
   ];
-  return { title: 'Kart Racer', entries, focus: grid(entries.map((e) => [e])) };
+  return { title: 'Kart Racer', entries, focus: column(entries, twoByTwo) };
 }
 
 export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = Object.freeze([
@@ -110,12 +118,12 @@ export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save
   return { title: mode === 'timeTrial' ? 'Time Trial: pick a track' : 'Pick a track', tracks, focus: grid(rows) };
 }
 
-export function pauseMenu(): MenuVM {
+export function pauseMenu(twoByTwo = false): MenuVM {
   const entries: Entry[] = [
     { id: 'resume', label: 'Resume' }, { id: 'restart', label: 'Restart' }, { id: 'howTo', label: 'How to Play' },
     { id: 'settings', label: 'Settings' }, { id: 'credits', label: 'Credits' }, { id: 'quit', label: 'Quit race' },
   ];
-  return { title: 'Paused', entries, focus: grid(entries.map((e) => [e])) };
+  return { title: 'Paused', entries, focus: column(entries, twoByTwo) };
 }
 
 // ---- settings ----

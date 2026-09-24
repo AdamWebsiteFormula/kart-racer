@@ -159,6 +159,32 @@ describe('UiRoot', () => {
     ui.dispose();
   });
 
+  it('the pause opening under a resting mouse stays on Resume; a mouse that moves takes the focus (seam review)', () => {
+    document.body.innerHTML = '';
+    const h = host();
+    const ui = new UiRoot(document.body, h, null);
+    const on = (id: string, type: string, clientX: number, clientY: number) =>
+      document.querySelector(`#ui .screen.on [data-id="${id}"]`)!.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX, clientY }));
+    const focused = () => document.querySelector<HTMLElement>('#ui .pause.on .focused')?.dataset.id;
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    // the track picked with the mouse: the race starts with the cursor resting there
+    on('harbour-loop', 'pointermove', 599, 399);
+    on('harbour-loop', 'click', 599, 399);
+    expect(ui.app.screen).toBe('racing');
+    key('Escape');
+    // the dialog appears under the cursor: the browser sends a pointerover, and may send a move that goes nowhere
+    on('quit', 'pointerover', 599, 399);
+    on('quit', 'pointermove', 599, 399);
+    expect(focused()).toBe('resume');
+    key('Enter');
+    expect([ui.app.screen, ui.paused]).toEqual(['racing', false]);
+    expect(h.calls).not.toContain('quit');
+    key('Escape');
+    on('quit', 'pointermove', 601, 402);
+    expect(focused()).toBe('quit');
+    ui.dispose();
+  });
+
   it('P resumes as well as pauses, and a held P does not flip it back (bug hunt 3)', () => {
     document.body.innerHTML = '';
     const h = host();
@@ -328,6 +354,37 @@ describe('touch', () => {
   });
 });
 
+describe('a short screen (a phone on its side)', () => {
+  it('the title and the pause move two by two on keys, the way their buttons sit there; a taller window goes back to one column (seam review)', () => {
+    const mm = globalThis.matchMedia;
+    let short = true;
+    const changed: (() => void)[] = [];
+    globalThis.matchMedia = ((q: string) => ({
+      get matches() { return q === UI.shortScreenQuery && short; },
+      addEventListener: (_: string, f: () => void) => { if (q === UI.shortScreenQuery) changed.push(f); },
+      removeEventListener: () => {},
+    })) as never;
+    const resize = (on: boolean) => { short = on; for (const f of changed) f(); };
+    const focused = () => document.querySelector<HTMLElement>('#ui .screen.on .focused')?.dataset.id;
+    try {
+      document.body.innerHTML = '';
+      const ui = new UiRoot(document.body, host(), null);
+      ui.dispatch({ type: 'boot' });
+      const walk = (keys: string[]) => keys.map((k) => { key(k); return focused(); });
+      // Race! How to Play / Settings Credits: Right went nowhere, Down went to the button beside it
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'])).toEqual(['howTo', 'credits', 'settings', 'start']);
+      resize(false); // one column again, the focus where it was
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown'])).toEqual(['start', 'howTo', 'settings']);
+      resize(true);
+      ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+      key('Escape');
+      expect(focused()).toBe('resume');
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown', 'ArrowLeft'])).toEqual(['restart', 'settings', 'quit', 'credits']);
+      ui.dispose();
+    } finally { globalThis.matchMedia = mm; }
+  });
+});
+
 describe('Back by pointer', () => {
   it('mode, racer, cup and track screens each have a Back button that goes where Escape goes (bug hunt 3: a phone could not go back)', () => {
     document.body.innerHTML = '';
@@ -351,8 +408,8 @@ describe('Back by pointer', () => {
       key(k);
       expect((document.activeElement as HTMLElement).dataset.id).not.toBe('back');
     }
-    // under the mouse it takes the focus like any button, and Enter then goes back too
-    document.querySelector('#ui .roster-screen [data-id="back"]')!.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    // under a moving mouse it takes the focus like any button, and Enter then goes back too
+    document.querySelector('#ui .roster-screen [data-id="back"]')!.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 900, clientY: 40 }));
     expect((document.activeElement as HTMLElement).dataset.id).toBe('back');
     key('Enter');
     expect(ui.app.screen).toBe('modeSelect');
@@ -382,6 +439,33 @@ describe('settings by pointer', () => {
     expect(ui.save.settings.quality).toBe('high');
     ui.dispose();
   });
+
+  it('a change keeps the panel where it was scrolled and does not pop it in again, so the next tap hits the same row (seam review: a phone on its side)', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'openSettings' });
+    const box = () => document.querySelector<HTMLElement>('#ui .settings.on .box')!;
+    const click = (sel: string) => document.querySelector(`#ui .settings ${sel}`)!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const master = ui.save.settings.masterVolume;
+    expect(box().classList.contains('redraw')).toBe(false); // it pops in when it opens
+    box().scrollTop = 197; // scrolled down by a thumb to Resolution (740x360: 506 px of rows in a 309 px box)
+    click('[data-id="resolutionScale"] .arrow:first-child');
+    expect(box().scrollTop).toBe(197); // a new panel, at the old scroll: it opened at 0, and the next tap hit Master volume
+    expect(box().classList.contains('redraw')).toBe(true);
+    click('[data-id="resolutionScale"] .arrow:first-child');
+    expect(ui.save.settings.resolutionScale).toBeCloseTo(0.8);
+    expect(ui.save.settings.masterVolume).toBe(master);
+    key('ArrowLeft'); // keys too
+    expect(ui.save.settings.resolutionScale).toBeCloseTo(0.7);
+    expect(box().scrollTop).toBe(197);
+    // closed and opened again: it starts at the top and pops in
+    ui.dispatch({ type: 'back' });
+    ui.dispatch({ type: 'openSettings' });
+    expect(box().scrollTop).toBe(0);
+    expect(box().classList.contains('redraw')).toBe(false);
+    ui.dispose();
+  });
 });
 
 describe('leaderboard panel', () => {
@@ -392,7 +476,7 @@ describe('leaderboard panel', () => {
   const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], racerId: 'pip', inputLog: 'AQ==', clientVersion: '1' };
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
-  function setup(board: unknown, postResult: unknown = { ok: true, id: 'new', timeMs: 97000, rank: 2 }) {
+  function setup(board: unknown, postResult: unknown = { ok: true, id: 'new', timeMs: 97000, rank: 2 }, inRace?: (ui: UiRoot) => void) {
     document.body.innerHTML = '';
     const posts: unknown[] = [];
     let fetches = 0;
@@ -405,6 +489,7 @@ describe('leaderboard panel', () => {
     };
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    inRace?.(ui);
     ui.raceOver({ results, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'timeTrial', dailySeed: null, draft } });
     return { ui, posts, fetches: () => fetches };
   }
@@ -458,6 +543,44 @@ describe('leaderboard panel', () => {
     for (const k of ['KeyS', 'KeyD', 'Space', 'Backspace']) input.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: k, bubbles: true }));
     expect((document.activeElement as HTMLElement).dataset.id).toBe('name');
     expect(ui.app.screen).toBe('results');
+    ui.dispose();
+  });
+
+  it('keys held over the line never type into the name box or move the focus; a new press does (seam review)', async () => {
+    const focused = () => (document.activeElement as HTMLElement).dataset.id;
+    // the browser sends a held key's auto-repeats to whatever has the focus; true when the page kept it
+    const send = (code: string, k: string, repeat: boolean) =>
+      !(document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { code, key: k, repeat, bubbles: true, cancelable: true }));
+    // a first-timer holding the gas (W) and the up arrow as the results open, in the name box
+    let { ui, posts } = setup([], undefined, () => { key('KeyW'); key('ArrowUp'); });
+    await flush();
+    expect(focused()).toBe('name');
+    for (let i = 0; i < 8; i++) expect(send('KeyW', 'w', true), `W repeat ${i}`).toBe(true); // 'wwwwwwww' went into the box
+    for (let i = 0; i < 3; i++) expect(send('ArrowUp', 'ArrowUp', true)).toBe(true);
+    expect(focused()).toBe('name'); // it flipped between the box and Back to menu
+    expect(send('KeyW', 'w', false)).toBe(false); // let go and pressed again: it types
+    expect(focused()).toBe('name');
+    ui.dispose();
+    // a known name starts on Post: W held moved it to Back to menu, then into the box
+    ({ ui, posts } = setup([], undefined, (u) => { u.save.playerName = 'Ada'; key('KeyW'); }));
+    await flush();
+    expect(focused()).toBe('post');
+    for (let i = 0; i < 7; i++) send('KeyW', 'w', true);
+    expect(focused()).toBe('post');
+    send('Enter', 'Enter', false);
+    await flush(); await flush();
+    expect(posts).toEqual([{ ...draft, name: 'Ada' }]);
+    ui.dispose();
+  });
+
+  it('a cursor resting where the results open takes no focus from the name box; a moving one does (seam review)', async () => {
+    const { ui } = setup([]);
+    await flush();
+    const next = document.querySelector('#ui .results.on [data-id="continue"]')!;
+    next.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: 683, clientY: 495 })); // the browser's, for the hover state
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('name');
+    next.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 684, clientY: 495 }));
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
     ui.dispose();
   });
 
@@ -547,6 +670,29 @@ describe('gamepad', () => {
     expect(ui.app.screen).toBe('results');
     press(ui, A);
     expect(ui.app.screen).toBe('modeSelect');
+    ui.dispose();
+  });
+
+  it('the stick held from the race (steering on a diagonal) leaves the pause on Resume; centered and pushed again, it moves (seam review)', () => {
+    const { ui, h } = setup();
+    const focused = () => document.querySelector<HTMLElement>('#ui .pause.on .focused')?.dataset.id;
+    for (let i = 0; i < 4; i++) press(ui, A); // Race! → Quick Race → Pip → Harbour Loop
+    expect(ui.app.screen).toBe('racing');
+    pad.axes[0] = -0.8; pad.axes[1] = -0.6; // up past the dead zone as well as left
+    for (let f = 0; f < 60; f++) frame(ui);
+    set(START, true);
+    // held well past the repeat delay: it read as a fresh up, then repeated, onto Quit
+    for (let f = 0; f < 20; f++) { frame(ui); expect(focused(), `frame ${f}`).toBe('resume'); }
+    set(START, false); frame(ui);
+    pad.axes.fill(0); frame(ui); // let go
+    press(ui, A);
+    expect([ui.app.screen, ui.paused]).toEqual(['racing', false]);
+    expect(h.calls).not.toContain('quit');
+    // a fresh push on the pause moves as before
+    press(ui, START);
+    expect(focused()).toBe('resume');
+    pad.axes[1] = 0.9; frame(ui); pad.axes[1] = 0; frame(ui);
+    expect(focused()).toBe('restart');
     ui.dispose();
   });
 });

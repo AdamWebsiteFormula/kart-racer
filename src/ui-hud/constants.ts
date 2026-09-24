@@ -28,4 +28,6 @@ export const UI = Object.freeze({
   stickDeadZone: 0.5,
   /** up or down past the first or last stop scrolls a tall panel this far (px) */
   panelScrollPx: 120,
+  /** the stylesheet's short-screen block (a phone on its side): the title and pause buttons sit two by two there, and so do their focus grids */
+  shortScreenQuery: '(max-height: 500px)',
 });

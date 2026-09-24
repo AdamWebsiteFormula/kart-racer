@@ -262,11 +262,14 @@ export class SettingsView implements ScreenView {
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'Settings');
   }
-  render(rows: SettingRow[]): void {
+  /** `redraw`: a value changed, so the new panel keeps the old one's scroll and does not pop in again:
+   *  the row stays under the finger (a phone on its side: at scroll 0, the next tap changed another setting) */
+  render(rows: SettingRow[], redraw = false): void {
+    const top = redraw ? this.root.querySelector<HTMLElement>('.box')?.scrollTop ?? 0 : 0;
     clear(this.root);
     this.buttons.clear();
     h('div', 'dim', this.root);
-    const box = h('div', 'panel box', this.root);
+    const box = h('div', redraw ? 'panel box redraw' : 'panel box', this.root);
     h('h2', '', box, 'Settings');
     const list = h('div', 'list', box);
     for (const r of rows) {
@@ -287,6 +290,7 @@ export class SettingsView implements ScreenView {
     const done = button(list, 'done');
     h('span', 'label', done, 'Done');
     this.buttons.set('done', done);
+    box.scrollTop = top;
   }
 }
 
