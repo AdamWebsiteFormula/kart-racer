@@ -1,19 +1,32 @@
 // Tyre marks and speed lines. Each is one mesh and one draw call.
 import {
-  AdditiveBlending, BufferAttribute, BufferGeometry, InstancedBufferAttribute, InstancedMesh, Mesh, PlaneGeometry,
-  ShaderMaterial, type Camera,
+  AdditiveBlending, BufferAttribute, BufferGeometry, CustomBlending, InstancedBufferAttribute, InstancedMesh, Mesh, PlaneGeometry,
+  ShaderMaterial, SrcColorFactor, ZeroFactor, type Camera,
 } from 'three';
 
 // ---------------------------------------------------------------- tyre marks
+/**
+ * Rubber darkens whatever it lies on: the marks multiply the road by `shade` when fresh, easing
+ * back to 1 (no mark) over `life` seconds. A fixed grey read as paint on a dark night deck.
+ */
+export const SKID = Object.freeze({ life: 4, shade: 0.55 });
+
+/** What a mark `age` seconds old multiplies the road by (what the shader draws). */
+export function skidShade(age: number): number {
+  const a = Math.min(1, Math.max(0, 1 - age / SKID.life));
+  return 1 + (SKID.shade - 1) * a;
+}
+
 const SKID_VERT = `
 attribute float aBirth; uniform float uTime; varying float vA;
 void main() {
-  vA = clamp(1.0 - (uTime - aBirth) / 10.0, 0.0, 1.0) * 0.55;
+  vA = clamp(1.0 - (uTime - aBirth) / ${SKID.life.toFixed(2)}, 0.0, 1.0);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
-const SKID_FRAG = `varying float vA; void main() { if (vA <= 0.0) discard; gl_FragColor = vec4(0.12, 0.11, 0.14, vA); }`;
+const SKID_FRAG = `varying float vA;
+void main() { if (vA <= 0.0) discard; gl_FragColor = vec4(mix(vec3(1.0), vec3(${SKID.shade.toFixed(2)}), vA), 1.0); }`;
 
-/** A ring buffer of flat quads laid on the road while karts drift; they fade over 10 s. */
+/** A ring buffer of flat quads laid on the road while karts drift; they fade over SKID.life seconds. */
 export class Skids {
   readonly mesh: Mesh;
   private readonly pos: Float32Array;
@@ -41,6 +54,8 @@ export class Skids {
     g.setIndex(new BufferAttribute(idx, 1));
     this.mat = new ShaderMaterial({
       vertexShader: SKID_VERT, fragmentShader: SKID_FRAG, transparent: true, depthWrite: false,
+      // multiply: the result is the road's colour times the mark's
+      blending: CustomBlending, blendSrc: ZeroFactor, blendDst: SrcColorFactor,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, uniforms: { uTime: { value: 0 } },
     });
     this.mesh = new Mesh(g, this.mat);

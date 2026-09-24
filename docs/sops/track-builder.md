@@ -164,6 +164,7 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-24 (detail review): `fadeNearCamera` (mesh/glow.ts) takes any built-in material and a fade distance (props keep 2.6 m), carries its own view-space varying so an unlit flame takes it too, and patches a material once however often it is handed in: game/ fades rival karts, their flames and the items with it.
 - 2026-09-24 (seam review): step 2 of the shift, a kart on a shortcut the new main road now runs under (within its half-width, 3D: `mainUnder`) is on the main road, at the t found there (Canyon's mine, Skyline's rail from its first third on); elsewhere a branch kart still keeps its local `u` and rides the closed shortcut out. Left on branch 1 in the same bore as karts on branch 0, it could not be hit, targeted or hooked by them. items' reseat uses `mainUnder` for shots and drops.
+- 2026-09-24 (detail review): The start lamps count the race down. One round lamp per countdown beat (race-state schema `countdownSteps`, `countdownStepSeconds`), under a visor, as their own unlit instancer ('start-lamps', one draw call) under the gantry: lit red left to right with the HUD's number, all green for one beat on the go, dark after (`startLampsLit`, driven from race time by `TrackScene.update`). Colors are linear with the other channels near zero (`LAMP`), since the old 2.2 red baked into the gantry glowed to five peach squares that never changed.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
