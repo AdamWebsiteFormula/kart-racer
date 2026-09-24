@@ -83,5 +83,5 @@ describe('the land beside the road (off-road tracks)', () => {
       }
     }
     expect(worst, where).toBeLessThan(0.3);
-  }, 60_000);
+  }, 120_000); // CI runs about 3.5x slower than the Mac
 });

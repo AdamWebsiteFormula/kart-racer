@@ -59,6 +59,6 @@ describe('Knockout, end to end', () => {
       expect(winner).toBeDefined();
       expect(series.eliminated).not.toContain(winner);
       expect(raced.size).toBe(8);
-    }, 60_000);
+    }, 120_000); // CI runs about 3.5x slower than the Mac
   }
 });

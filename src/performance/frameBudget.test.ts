@@ -49,5 +49,5 @@ describe('frame budget (performance SOP)', () => {
     expect(c.draws + c.shadow, `${def.id}: ${c.draws} draws + ${c.shadow} shadow`).toBeLessThanOrEqual(SCENE_AND_SHADOW_DRAWS);
     expect(c.tris, def.id).toBeLessThanOrEqual(SCENE_TRIANGLES);
     s.dispose();
-  }, 60_000);
+  }, 120_000); // CI runs about 3.5x slower than the Mac
 });

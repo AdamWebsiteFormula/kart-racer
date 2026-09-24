@@ -36,5 +36,5 @@ describe('the sky change at a Final Lap Shift', () => {
     for (let i = 0; i < before.length; i++) moved = Math.max(moved, Math.abs((col.array as Float32Array)[i] - before[i]));
     expect(moved).toBeGreaterThan(0.1);
     s.dispose();
-  }, 60_000);
+  }, 120_000); // CI runs about 3.5x slower than the Mac
 });

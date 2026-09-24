@@ -191,7 +191,7 @@ describe('AiDriver gates', () => {
     expect(finishes(log).filter((f) => !f.dnf).length).toBe(7);
     expect(bumps.length, bumps.map((b) => `${b.racerId}@${(b.tick / SIM_HZ).toFixed(0)}s`).join(' ')).toBeLessThanOrEqual(2);
     expect(barrels.length).toBeLessThanOrEqual(1);
-  }, 60_000);
+  }, 120_000); // CI runs about 3.5x slower than the Mac
 
   it('8: a kart pinned against nothing reverses out at 1.5 s and the race-manager never has to respawn it', () => {
     const track = buildTrack(OVAL);
@@ -443,5 +443,5 @@ describe('shortcut joins (bug hunt 2, 24 Sept 2026)', () => {
     expect(passes).toBeGreaterThanOrEqual(6);
     // was ~2 s on the sand per pass; the main road through the same stretch never leaves it
     expect(off / SIM_HZ / passes, `${(off / SIM_HZ).toFixed(1)} s on the sand in ${passes} passes`).toBeLessThan(0.3);
-  }, 60_000);
+  }, 120_000); // CI runs about 3.5x slower than the Mac
 });
