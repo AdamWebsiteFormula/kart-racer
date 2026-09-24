@@ -6,8 +6,8 @@ import { CAST } from '../data/cast.ts';
 import { attractTrack, playableTracks } from '../data/catalog.ts';
 import { firstFocus, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
-import { parseCredits } from './credits.ts';
-import { cupMenu, modeMenu, pauseMenu, rosterMenu, settingsMenu, statBar, titleMenu } from './menus.ts';
+import { CREDITS_MADE, parseCredits } from './credits.ts';
+import { cupMenu, MODES, modeMenu, pauseMenu, rosterMenu, settingsMenu, statBar, titleMenu } from './menus.ts';
 import { gpModel, knockoutCutModel, resultsModel } from './results.ts';
 
 const racers: RacerConfig[] = CAST.map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 }));
@@ -128,6 +128,27 @@ describe('results screens', () => {
   it('credits come from the CREDITS.md tables', () => {
     const md = ['# Credits', '', '## Code', '| Work | Author | Licence |', '|---|---|---|', '| three.js | mrdoob | MIT |', '', '## Art', '| Work | Author | Licence |', '|---|---|---|', ''].join('\n');
     expect(parseCredits(md)).toEqual([{ title: 'Code', rows: [{ work: 'three.js', author: 'mrdoob', licence: 'MIT' }] }]);
+  });
+
+  it('the Credits screen says what is ours, in US spelling, with the shipped sound count (detail review)', async () => {
+    const fs = (await import('node:fs' as string)) as { existsSync(p: string): boolean; readFileSync(p: string, enc: 'utf8'): string };
+    const root = decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/src\/ui-hud\/screens\/[^/]+$/, ''));
+    const works = parseCredits(fs.readFileSync(`${root}CREDITS.md`, 'utf8')).flatMap((s) => s.rows.map((r) => r.work));
+    for (const text of [CREDITS_MADE, ...works]) {
+      expect(text, text).not.toMatch(/nintendo|mario/i);
+      expect(text, text).not.toMatch(/modell|colour|\(fallback\)/i); // "karts (fallback)" read as unfinished
+    }
+    const manifest = `${root}public/audio/manifest.json`;
+    if (!fs.existsSync(manifest)) return; // a checkout without recordings
+    const m = JSON.parse(fs.readFileSync(manifest, 'utf8')) as { sfx: object; music: object };
+    expect(works.join('\n')).toContain(`Sound effects: ${Object.keys(m.sfx).length} original sounds`);
+    expect(works.join('\n')).toContain(`Music: ${Object.keys(m.music).length} original songs`);
+  });
+
+  it('the Knockout card promises one winner, as the cut screen crowns (8 → 6 → 4 → winner)', () => {
+    const ko = MODES.find((m) => m.mode === 'knockout')!;
+    expect(ko.sub).toMatch(/one wins/i);
+    expect(ko.sub).not.toMatch(/two/i);
   });
 });
 

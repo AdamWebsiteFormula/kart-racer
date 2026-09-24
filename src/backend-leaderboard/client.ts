@@ -33,6 +33,21 @@ async function call(path: string, body: unknown, f: typeof fetch): Promise<Respo
   }
 }
 
+/**
+ * What the player reads when a post is refused. The server's reasons are for developers
+ * ("claimed N ms but the replay finished in M ms"), so the board shows plain words by status.
+ */
+export function postError(status: number, serverText = ''): string {
+  if (status === 400 && /name/.test(serverText)) return 'That name is taken or not allowed. Try another.';
+  if (status === 400 && /reload/.test(serverText)) return 'The game was updated. Reload the page to post.';
+  if (status === 400 && /daily challenge is closed/.test(serverText)) return "That day's challenge has closed.";
+  if (status === 409) return 'That run is already on the board.';
+  if (status === 422) return 'We could not confirm that run, so it was not posted.';
+  if (status === 429) return 'Too many tries. Wait a minute.';
+  if (status === 503) return 'The leaderboard is busy. Try again in a moment.';
+  return 'That did not work. Try again.';
+}
+
 /** `f` is injectable so tests never touch the network. */
 export function leaderboardClient(f: typeof fetch = (...a) => fetch(...a)): LeaderboardClient {
   return {
@@ -54,8 +69,8 @@ export function leaderboardClient(f: typeof fetch = (...a) => fetch(...a)): Lead
           const timeMs = body.timeMs ?? s.timeMs;
           return { ok: true, id: body.id, timeMs, rank: body.rank ?? null, best: { id: body.bestId ?? body.id, timeMs: body.bestMs ?? timeMs } };
         }
-        if (r.status === 429) return { ok: false, error: 'Too many tries. Wait a minute.' };
-        return { ok: false, error: body.error ?? `The server said no (${r.status}).` };
+        if (body.error) console.warn(`leaderboard: ${r.status} ${body.error}`); // the server's words, for us
+        return { ok: false, error: postError(r.status, body.error) };
       } catch {
         return { ok: false, error: 'Could not reach the leaderboard. Check your connection.' };
       }

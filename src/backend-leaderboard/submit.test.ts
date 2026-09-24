@@ -76,3 +76,25 @@ describe('submit-score: the rank it returns (bug hunt 3)', () => {
     expect(await old.post({ ...draft, name: 'Kit' })).toEqual({ ok: true, id: 'x', timeMs: 150000, rank: 4, best: { id: 'x', timeMs: 150000 } });
   });
 });
+
+describe('submit-score: what the player reads when a post is refused (detail review)', () => {
+  const draft = { name: 'Judge', trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 150000, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION };
+  const refused = (status: number, error: string) => leaderboardClient(async () => new Response(JSON.stringify({ error }), { status }));
+  const cases: [number, string, string][] = [
+    [422, 'claimed 83421 ms but the replay finished in 83433 ms', 'We could not confirm that run, so it was not posted.'],
+    [400, 'please pick another name', 'That name is taken or not allowed. Try another.'],
+    [400, 'please reload the game: new version', 'The game was updated. Reload the page to post.'],
+    [400, 'that daily challenge is closed', "That day's challenge has closed."],
+    [409, 'that exact run is already on the board', 'That run is already on the board.'],
+    [503, 'the leaderboard is busy: try again soon', 'The leaderboard is busy. Try again in a moment.'],
+    [429, 'too many submissions: wait a minute', 'Too many tries. Wait a minute.'],
+    [500, 'could not save the score', 'That did not work. Try again.'],
+    [400, 'unknown track', 'That did not work. Try again.'],
+  ];
+  it.each(cases)('%i "%s" shows a friendly line, never the server text', async (status, server, shown) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await refused(status, server).post(draft)).toEqual({ ok: false, error: shown });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(server));
+    warn.mockRestore();
+  });
+});

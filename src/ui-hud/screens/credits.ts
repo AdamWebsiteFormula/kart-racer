@@ -1,4 +1,7 @@
 // The credits screen, parsed from CREDITS.md tables. Never hand-edited here.
+/** The line under the tables. Says what is ours; names no other company's games. */
+export const CREDITS_MADE = 'An original game, made for fun. Every racer, track, item and sound is our own.';
+
 export interface CreditSection { title: string; rows: { work: string; author: string; licence: string }[] }
 
 export function parseCredits(md: string): CreditSection[] {
