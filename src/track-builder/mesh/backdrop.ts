@@ -75,6 +75,17 @@ const islands = (count: number, minH: number, maxH: number, seed: number): Profi
   };
 };
 
+/** Cumulus: many round puffs of every size, heaped on a low bank (a cloud sea's billows, not dunes). */
+const puffs = (count: number, minR: number, maxR: number, radius: number, seed: number, bank = 6): Profile => {
+  const r = rng(seed);
+  const list = Array.from({ length: count }, () => { const pr = minR + r() * r() * (maxR - minR); return { at: r() * TAU, pr, w: pr / radius, lift: r() * pr * 0.4 }; });
+  return (a) => {
+    let h = bank;
+    for (const p of list) { const d = Math.abs(wrapA(a - p.at)) / p.w; if (d < 1) h = Math.max(h, p.lift + p.pr * Math.sqrt(1 - d * d)); }
+    return h;
+  };
+};
+
 /** City blocks: stepped towers over part of the ring, low elsewhere. */
 const city = (from: number, to: number, seed: number): Profile => {
   const r = rng(seed);
@@ -112,8 +123,9 @@ function layersFor(biome: string): Layer[] {
       { radius: 640, profile: islands(7, 18, 46, 13), foot: hex('#c9b48a'), top: hex('#5f9f44'), haze: 0.3 },
     ];
     case 'skyline': return [
-      { radius: 760, profile: hills(70, 40, 17), foot: hex('#f0c6d6'), top: hex('#fff1e6'), haze: 0.45 },
-      { radius: 640, profile: islands(9, 40, 90, 19), foot: hex('#f6d2dc'), top: hex('#ffffff'), haze: 0.25 },
+      // heaped cumulus: lavender-shadowed feet, sunlit white tops (not a smooth cream bank that reads as dunes)
+      { radius: 760, profile: puffs(90, 14, 60, 760, 17, 10), foot: hex('#b9a6e0'), top: hex('#fff4ec'), haze: 0.4 },
+      { radius: 640, profile: puffs(70, 10, 48, 640, 19, 4), foot: hex('#c8b4ea'), top: hex('#ffffff'), haze: 0.18 },
     ];
     default: return [];
   }
