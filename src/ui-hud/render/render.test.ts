@@ -199,6 +199,38 @@ describe('touch', () => {
   });
 });
 
+describe('Back by pointer', () => {
+  it('mode, racer, cup and track screens each have a Back button that goes where Escape goes (bug hunt 3: a phone could not go back)', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    const back = () => document.querySelector('#ui .screen.on [data-id="back"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' });
+    back();
+    expect(ui.app.screen).toBe('title');
+    ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'grandPrix' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    expect(ui.app.screen).toBe('cupSelect');
+    back();
+    expect(ui.app.screen).toBe('rosterSelect');
+    back();
+    expect(ui.app.screen).toBe('modeSelect');
+    ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    expect(ui.app.screen).toBe('trackSelect');
+    back();
+    expect(ui.app.screen).toBe('rosterSelect');
+    // the keys never land on it (they have Escape): every arrow from the racer cards stays on the picks
+    for (const k of ['ArrowUp', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowRight']) {
+      key(k);
+      expect((document.activeElement as HTMLElement).dataset.id).not.toBe('back');
+    }
+    // under the mouse it takes the focus like any button, and Enter then goes back too
+    document.querySelector('#ui .roster-screen [data-id="back"]')!.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('back');
+    key('Enter');
+    expect(ui.app.screen).toBe('modeSelect');
+    ui.dispose();
+  });
+});
+
 describe('settings by pointer', () => {
   it('a click on ◀ turns a value down and ▶ turns it up; the row itself still steps up', () => {
     document.body.innerHTML = '';

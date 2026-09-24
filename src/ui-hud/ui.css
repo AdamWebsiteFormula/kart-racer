@@ -130,6 +130,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   gap: 24px;
 }
 .heading { font-size: clamp(40px, 6vw, 72px); margin: 0; }
+/* the heading's row: Back at its far end (a mouse or a thumb has no Escape), small enough that
+   the row stays the heading's height */
+.stage-head { display: flex; align-items: center; gap: 16px; }
+.stage-head .back-btn { flex: none; margin-left: auto; padding: 8px 20px; }
+.stage-head .back-btn .label { font-size: 20px; }
 .hint {
   margin-top: auto;
   font: 600 16px/1.4 var(--body);
@@ -515,4 +520,5 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .actions .btn { padding: 10px 24px; }
   .results .actions .btn .label { font-size: 22px; }
 }
-@media (pointer: coarse) { .title .press { display: none; } }
+/* a phone or tablet: no keys to name (Back sits by the heading) */
+@media (pointer: coarse) { .title .press, .hint { display: none; } }

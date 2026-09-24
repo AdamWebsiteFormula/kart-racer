@@ -340,7 +340,7 @@ export class UiRoot {
       this.changeSetting(id as SettingId, dir === '-1' ? -1 : 1);
       return;
     }
-    this.host.uiSound?.('confirm');
+    this.host.uiSound?.(id === 'back' ? 'back' : 'confirm');
     this.confirm(id);
   }
 
@@ -402,6 +402,8 @@ export class UiRoot {
       if (map[id]) this.dispatch(map[id]);
       return;
     }
+    // the menus' own Back button (a tap or a click): the way Escape goes
+    if (id === 'back') { this.back(); return; }
     switch (s.screen) {
       case 'title':
         this.dispatch(id === 'settings' ? { type: 'openSettings' } : id === 'credits' ? { type: 'openCredits' } : id === 'howTo' ? { type: 'openHowTo' } : { type: 'start' });

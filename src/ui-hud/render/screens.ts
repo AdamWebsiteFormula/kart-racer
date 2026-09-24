@@ -25,6 +25,16 @@ function hint(parent: HTMLElement, html = HINT): void {
   e.innerHTML = html;
 }
 
+/** The screen's heading, with a Back button at the far end of its row: a mouse or a thumb has no
+ *  Escape (UiRoot.confirm sends 'back' the way Escape goes). Not in the focus grid: keys have Escape. */
+function heading(st: HTMLElement, title: string, buttons: Map<string, HTMLElement>): void {
+  const row = h('div', 'stage-head', st);
+  h('h2', 'heading display enter', row, title);
+  const back = button(row, 'back', 'btn back-btn enter');
+  h('span', 'label', back, 'Back');
+  buttons.set('back', back);
+}
+
 const delay = (e: HTMLElement, ms: number) => e.style.setProperty('--delay', `${ms}ms`);
 
 /** Relative luminance of a #rrggbb colour, 0 (black) to 1 (white). */
@@ -82,7 +92,7 @@ export class ListView implements ScreenView {
     clear(this.root);
     this.buttons.clear();
     const st = stage(this.root);
-    h('h2', 'heading display enter', st, vm.title);
+    heading(st, vm.title, this.buttons);
     const grid = h('div', 'modes', st);
     vm.entries.forEach((e, i) => {
       const b = button(grid, e.id);
@@ -110,7 +120,7 @@ export class RosterView implements ScreenView {
     clear(this.root);
     this.buttons.clear();
     const st = stage(this.root);
-    h('h2', 'heading display enter', st, 'Pick your racer');
+    heading(st, 'Pick your racer', this.buttons);
     const grid = h('div', 'roster', st);
     vm.cards.forEach((c, i) => {
       const b = button(grid, c.id, 'card enter');
@@ -164,7 +174,7 @@ export class CupView implements ScreenView {
     clear(this.root);
     this.buttons.clear();
     const st = stage(this.root);
-    h('h2', 'heading display enter', st, vm.title);
+    heading(st, vm.title, this.buttons);
     const grid = h('div', 'cups', st);
     vm.cups.forEach((c, i) => {
       const b = button(grid, c.id, 'btn cup enter');
@@ -200,7 +210,7 @@ export class TrackView implements ScreenView {
     clear(this.root);
     this.buttons.clear();
     const st = stage(this.root);
-    h('h2', 'heading display enter', st, vm.title);
+    heading(st, vm.title, this.buttons);
     const grid = h('div', 'track-cards', st);
     vm.tracks.forEach((t, i) => {
       const b = button(grid, t.id, 'btn track-card enter');
