@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 52,
   "medalTimesMs": {
-    "gold": 124000,
-    "silver": 134000,
-    "bronze": 152000
+    "gold": 114000,
+    "silver": 124000,
+    "bronze": 140000
   },
   "voidY": -25,
   "offroad": true,
@@ -46,15 +46,19 @@
       "entryT": 0.32,
       "exitT": 0.665,
       "risk": "hazard",
-      "tunnel": { "from": 0.16, "to": 0.9 },
+      "tunnel": { "from": 0.161, "to": 0.795 },
       "controlPoints": [
         { "x": 187.27, "y": 3.87, "z": -75.81, "halfWidth": 7, "surface": "road" },
-        { "x": 167.89, "y": 3.3, "z": -61.65, "halfWidth": 6.5, "surface": "road" },
-        { "x": 138.82, "y": 0.9, "z": -40.42, "halfWidth": 5.5, "surface": "road" },
-        { "x": 106.52, "y": 0.6, "z": -16.83, "halfWidth": 5.5, "surface": "road" },
-        { "x": 66.14, "y": 6.4, "z": 12.67, "halfWidth": 5.5, "surface": "road" },
-        { "x": 33.84, "y": 16.4, "z": 36.26, "halfWidth": 5.8, "surface": "road" },
-        { "x": 14.46, "y": 21.2, "z": 50.42, "halfWidth": 6.5, "surface": "road" },
+        { "x": 187.78, "y": 5.3, "z": -65.82, "halfWidth": 6.8, "surface": "road" },
+        { "x": 186.38, "y": 6.6, "z": -58.71, "halfWidth": 6.66, "surface": "road" },
+        { "x": 181.82, "y": 7.4, "z": -53.09, "halfWidth": 6.51, "surface": "road" },
+        { "x": 151.26, "y": 7.2, "z": -30.05, "halfWidth": 5.5, "surface": "road" },
+        { "x": 120.7, "y": 7.5, "z": -7.02, "halfWidth": 5.5, "surface": "road" },
+        { "x": 90.14, "y": 17, "z": 16.01, "halfWidth": 5.5, "surface": "road" },
+        { "x": 59.58, "y": 25.8, "z": 39.04, "halfWidth": 5.64, "surface": "road" },
+        { "x": 29.02, "y": 28.64, "z": 62.07, "halfWidth": 6.23, "surface": "road" },
+        { "x": 20.32, "y": 27.73, "z": 66.29, "halfWidth": 6.5, "surface": "road" },
+        { "x": 10.67, "y": 25.81, "z": 66.89, "halfWidth": 6.69, "surface": "road" },
         { "x": -5.19, "y": 21.91, "z": 64.77, "halfWidth": 7, "surface": "road" }
       ]
     }
@@ -74,14 +78,83 @@
     { "t": 0.72, "lateral": 0, "width": 3 }
   ],
   "pickups": [
-    { "t": 0.04, "lateral": -5 },
-    { "t": 0.04, "lateral": 0 },
-    { "t": 0.04, "lateral": 5 },
-    { "t": 0.36, "shortcut": "mine-tunnel", "lateral": 0 },
-    { "t": 0.71, "lateral": -3 },
-    { "t": 0.71, "lateral": 3 },
-    { "t": 0.78, "lateral": -3 },
-    { "t": 0.78, "lateral": 3 }
+    {
+      "t": 0.04,
+      "lateral": 0
+    },
+    {
+      "t": 0.04,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.04,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.04,
+      "lateral": -7.2
+    },
+    {
+      "t": 0.04,
+      "lateral": 7.2
+    },
+    {
+      "t": 0.36,
+      "shortcut": "mine-tunnel",
+      "lateral": -1.8
+    },
+    {
+      "t": 0.36,
+      "shortcut": "mine-tunnel",
+      "lateral": 1.8
+    },
+    {
+      "t": 0.36,
+      "shortcut": "mine-tunnel",
+      "lateral": -5.4
+    },
+    {
+      "t": 0.36,
+      "shortcut": "mine-tunnel",
+      "lateral": 5.4
+    },
+    {
+      "t": 0.71,
+      "lateral": -1.8,
+      "double": true
+    },
+    {
+      "t": 0.71,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.71,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.71,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.78,
+      "lateral": 0
+    },
+    {
+      "t": 0.78,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.78,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.78,
+      "lateral": -7.1
+    },
+    {
+      "t": 0.78,
+      "lateral": 7.1
+    }
   ],
   "coins": [
     { "t": 0.08, "lateral": -3 },
@@ -97,8 +170,8 @@
     { "id": "rumblesaur", "type": "creature", "creature": "rumblesaur", "t": 0.8, "lateral": 1, "period": 5.6, "hit": "spin" },
     { "id": "rockfall-1", "type": "falling", "t": 0.22, "lateral": 2, "period": 5, "hit": "slow", "asset": "rockfall" },
     { "id": "minecart-1", "type": "crossing", "t": 0.74, "lateral": 0, "period": 6, "speed": 1.4, "hit": "spin", "asset": "minecart" },
-    { "id": "geyser-1", "type": "vent", "asset": "geyser", "t": 0.163, "lateral": -4, "period": 4, "offset": 0 },
-    { "id": "geyser-2", "type": "vent", "asset": "geyser", "t": 0.172, "lateral": 4, "period": 4, "offset": 2 }
+    { "id": "geyser-1", "type": "vent", "asset": "geyser", "t": 0.145, "lateral": -4, "period": 4, "offset": 0 },
+    { "id": "geyser-2", "type": "vent", "asset": "geyser", "t": 0.154, "lateral": 4, "period": 4, "offset": 2 }
   ],
   "openEdges": [{"fromT": 0.46, "toT": 0.6, "side": "left"}, {"fromT": 0.51, "toT": 0.56, "side": "right"}],
   "finalLapShift": {
@@ -111,12 +184,16 @@
         "toT": 0.665,
         "controlPoints": [
           { "x": 187.27, "y": 3.87, "z": -75.81, "halfWidth": 7, "surface": "road" },
-          { "x": 167.89, "y": 3.3, "z": -61.65, "halfWidth": 6.5, "surface": "road" },
-          { "x": 138.82, "y": 0.9, "z": -40.42, "halfWidth": 5.5, "surface": "road" },
-          { "x": 106.52, "y": 0.6, "z": -16.83, "halfWidth": 5.5, "surface": "road" },
-          { "x": 66.14, "y": 6.4, "z": 12.67, "halfWidth": 5.5, "surface": "road" },
-          { "x": 33.84, "y": 16.4, "z": 36.26, "halfWidth": 5.8, "surface": "road" },
-          { "x": 14.46, "y": 21.2, "z": 50.42, "halfWidth": 6.5, "surface": "road" },
+          { "x": 187.78, "y": 5.3, "z": -65.82, "halfWidth": 6.8, "surface": "road" },
+          { "x": 186.38, "y": 6.6, "z": -58.71, "halfWidth": 6.66, "surface": "road" },
+          { "x": 181.82, "y": 7.4, "z": -53.09, "halfWidth": 6.51, "surface": "road" },
+          { "x": 151.26, "y": 7.2, "z": -30.05, "halfWidth": 5.5, "surface": "road" },
+          { "x": 120.7, "y": 7.5, "z": -7.02, "halfWidth": 5.5, "surface": "road" },
+          { "x": 90.14, "y": 17, "z": 16.01, "halfWidth": 5.5, "surface": "road" },
+          { "x": 59.58, "y": 25.8, "z": 39.04, "halfWidth": 5.64, "surface": "road" },
+          { "x": 29.02, "y": 28.64, "z": 62.07, "halfWidth": 6.23, "surface": "road" },
+          { "x": 20.32, "y": 27.73, "z": 66.29, "halfWidth": 6.5, "surface": "road" },
+          { "x": 10.67, "y": 25.81, "z": 66.89, "halfWidth": 6.69, "surface": "road" },
           { "x": -5.19, "y": 21.91, "z": 64.77, "halfWidth": 7, "surface": "road" }
         ]
       }

@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 54,
   "medalTimesMs": {
-    "gold": 135000,
-    "silver": 146000,
-    "bronze": 165000
+    "gold": 130000,
+    "silver": 141000,
+    "bronze": 159000
   },
   "voidY": -10,
   "offroad": true,
@@ -51,13 +51,18 @@
       "controlPoints": [
         { "x": -30, "y": 10.5, "z": 36, "halfWidth": 6, "surface": "ice" },
         { "x": -90, "y": 6, "z": 28.8, "halfWidth": 6, "surface": "ice" },
-        { "x": -150, "y": 2.5, "z": 21.6, "halfWidth": 6, "surface": "ice" },
+        { "x": -115.12, "y": 4.93, "z": 34.21, "halfWidth": 6, "surface": "ice" },
+        { "x": -140.24, "y": 3.86, "z": 39.61, "halfWidth": 6, "surface": "ice" },
+        { "x": -165.36, "y": 2.79, "z": 45.02, "halfWidth": 6, "surface": "ice" },
+        { "x": -174.31, "y": 2.41, "z": 44.89, "halfWidth": 6, "surface": "ice" },
+        { "x": -182.32, "y": 2.04, "z": 40.87, "halfWidth": 6, "surface": "ice" },
+        { "x": -187.76, "y": 1.67, "z": 33.76, "halfWidth": 6, "surface": "ice" },
         { "x": -194.4, "y": 1, "z": 19.2, "halfWidth": 6, "surface": "ice" }
       ]
     }
   ],
   "jumps": [
-    { "id": "ski-jump", "t": 0.472, "lateral": 2, "launch": 5.5, "width": 6 },
+    { "id": "ski-jump", "t": 0.472, "lateral": 0, "launch": 5.5, "width": 6 },
     { "id": "mogul-1", "t": 0.335, "launch": 4.5, "shape": "hump" },
     { "id": "mogul-2", "t": 0.348, "launch": 4.5, "shape": "hump" },
     { "id": "mogul-3", "t": 0.361, "launch": 4.5, "shape": "hump" },
@@ -72,17 +77,111 @@
     { "t": 0.69, "lateral": 0, "width": 3, "shortcut": "lake-crossing" }
   ],
   "pickups": [
-    { "t": 0.03, "lateral": -4 },
-    { "t": 0.03, "lateral": 0 },
-    { "t": 0.03, "lateral": 4 },
-    { "t": 0.30, "lateral": -3 },
-    { "t": 0.30, "lateral": 3 },
-    { "t": 0.46, "lateral": 0 },
-    { "t": 0.62, "lateral": -3 },
-    { "t": 0.62, "lateral": 3 },
-    { "t": 0.65, "lateral": 0, "shortcut": "lake-crossing" },
-    { "t": 0.90, "lateral": -3 },
-    { "t": 0.90, "lateral": 3 }
+    {
+      "t": 0.03,
+      "lateral": 0
+    },
+    {
+      "t": 0.03,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.03,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.03,
+      "lateral": -7.2
+    },
+    {
+      "t": 0.03,
+      "lateral": 7.2
+    },
+    {
+      "t": 0.3,
+      "lateral": -1.8,
+      "double": true
+    },
+    {
+      "t": 0.3,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.3,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.3,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.46,
+      "lateral": -1.8
+    },
+    {
+      "t": 0.46,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.46,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.46,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.62,
+      "lateral": -1.8
+    },
+    {
+      "t": 0.62,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.62,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.62,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.65,
+      "shortcut": "lake-crossing",
+      "lateral": 0
+    },
+    {
+      "t": 0.65,
+      "shortcut": "lake-crossing",
+      "lateral": -3.6
+    },
+    {
+      "t": 0.65,
+      "shortcut": "lake-crossing",
+      "lateral": 3.6
+    },
+    {
+      "t": 0.9,
+      "lateral": 0,
+      "double": true
+    },
+    {
+      "t": 0.9,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.9,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.9,
+      "lateral": -7.2
+    },
+    {
+      "t": 0.9,
+      "lateral": 7.2
+    }
   ],
   "coins": [
     { "t": 0.08, "lateral": -2 },
@@ -99,10 +198,10 @@
     { "id": "yeti", "type": "creature", "creature": "yeti", "t": 0.62, "lateral": -1, "period": 3.6, "hit": "spin" },
     { "id": "snowball-1", "type": "rolling", "t": 0.22, "lateral": 3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" },
     { "id": "snowball-2", "type": "rolling", "t": 0.83, "lateral": -3, "period": 8, "speed": 6, "hit": "spin", "asset": "snowball" },
-    { "id": "steam-1", "type": "vent", "asset": "steam", "t": 0.935, "lateral": -3.8, "period": 4.5, "offset": 0 },
-    { "id": "steam-2", "type": "vent", "asset": "steam", "t": 0.944, "lateral": 3.8, "period": 4.5, "offset": 2.25 }
+    { "id": "steam-1", "type": "vent", "asset": "steam", "t": 0.926, "lateral": -3.8, "period": 4.5, "offset": 0 },
+    { "id": "steam-2", "type": "vent", "asset": "steam", "t": 0.935, "lateral": 3.8, "period": 4.5, "offset": 2.25 }
   ],
-  "openEdges": [{"fromT": 0.46, "toT": 0.58, "side": "right"}],
+  "openEdges": [{"fromT": 0.535, "toT": 0.6, "side": "right"}],
   "finalLapShift": {
     "kind": "blizzard",
     "label": "BLIZZARD!",

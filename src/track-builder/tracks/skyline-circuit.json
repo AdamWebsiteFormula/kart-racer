@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 54,
   "medalTimesMs": {
-    "gold": 136000,
-    "silver": 148000,
-    "bronze": 167000
+    "gold": 132000,
+    "silver": 143000,
+    "bronze": 162000
   },
   "voidY": 0,
   "landmark": "airship",
@@ -43,8 +43,15 @@
       "risk": "narrow",
       "controlPoints": [
         { "x": 189.97, "y": 69.98, "z": -0.13, "halfWidth": 4.5, "surface": "rail" },
-        { "x": 126.7, "y": 70.99, "z": 49.92, "halfWidth": 4.5, "surface": "rail" },
-        { "x": 63.43, "y": 76.01, "z": 99.97, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 188.8, "y": 70.74, "z": 15.83, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 186.17, "y": 71.3, "z": 27.43, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 180.25, "y": 71.87, "z": 37.75, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 171.56, "y": 72.43, "z": 45.86, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 136.91, "y": 74.42, "z": 69.68, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 102.25, "y": 76.41, "z": 93.49, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 67.6, "y": 78.41, "z": 117.3, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 32.94, "y": 80.4, "z": 141.11, "halfWidth": 4.5, "surface": "rail" },
+        { "x": 16, "y": 81.26, "z": 147.74, "halfWidth": 4.5, "surface": "rail" },
         { "x": 0.16, "y": 82.02, "z": 150.02, "halfWidth": 4.5, "surface": "rail" }
       ]
     }
@@ -61,13 +68,78 @@
     { "t": 0.6, "lateral": 0, "width": 3, "shortcut": "sky-rail" }
   ],
   "pickups": [
-    { "t": 0.03, "lateral": -4 },
-    { "t": 0.03, "lateral": 0 },
-    { "t": 0.03, "lateral": 4 },
-    { "t": 0.6184, "shortcut": "sky-rail", "lateral": 0 },
-    { "t": 0.8, "lateral": -3 },
-    { "t": 0.8, "lateral": 3 },
-    { "t": 0.95, "lateral": 0 }
+    {
+      "t": 0.03,
+      "lateral": 0
+    },
+    {
+      "t": 0.03,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.03,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.03,
+      "lateral": -7.2
+    },
+    {
+      "t": 0.03,
+      "lateral": 7.2
+    },
+    {
+      "t": 0.6184,
+      "shortcut": "sky-rail",
+      "lateral": 0
+    },
+    {
+      "t": 0.6184,
+      "shortcut": "sky-rail",
+      "lateral": -3.6
+    },
+    {
+      "t": 0.6184,
+      "shortcut": "sky-rail",
+      "lateral": 3.6
+    },
+    {
+      "t": 0.8,
+      "lateral": -1.8,
+      "double": true
+    },
+    {
+      "t": 0.8,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.8,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.8,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.95,
+      "lateral": 0
+    },
+    {
+      "t": 0.95,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.95,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.95,
+      "lateral": -7.2
+    },
+    {
+      "t": 0.95,
+      "lateral": 7.2
+    }
   ],
   "coins": [
     { "t": 0.09, "lateral": -3 },
@@ -94,8 +166,15 @@
         "toT": 0.7578,
         "controlPoints": [
           { "x": 189.97, "y": 69.98, "z": -0.13, "halfWidth": 4.5, "surface": "rail" },
-          { "x": 126.7, "y": 70.99, "z": 49.92, "halfWidth": 4.5, "surface": "rail" },
-          { "x": 63.43, "y": 76.01, "z": 99.97, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 188.8, "y": 70.74, "z": 15.83, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 186.17, "y": 71.3, "z": 27.43, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 180.25, "y": 71.87, "z": 37.75, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 171.56, "y": 72.43, "z": 45.86, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 136.91, "y": 74.42, "z": 69.68, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 102.25, "y": 76.41, "z": 93.49, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 67.6, "y": 78.41, "z": 117.3, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 32.94, "y": 80.4, "z": 141.11, "halfWidth": 4.5, "surface": "rail" },
+          { "x": 16, "y": 81.26, "z": 147.74, "halfWidth": 4.5, "surface": "rail" },
           { "x": 0.16, "y": 82.02, "z": 150.02, "halfWidth": 4.5, "surface": "rail" }
         ]
       }

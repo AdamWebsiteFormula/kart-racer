@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 50,
   "medalTimesMs": {
-    "gold": 126000,
-    "silver": 136000,
-    "bronze": 154000
+    "gold": 123000,
+    "silver": 133000,
+    "bronze": 151000
   },
   "voidY": -12,
   "offroad": true,
@@ -147,41 +147,17 @@
       "exitT": 0.9446,
       "risk": "narrow",
       "controlPoints": [
-        {
-          "x": -95.48,
-          "y": 4.37,
-          "z": 112.9,
-          "halfWidth": 5.5,
-          "surface": "road"
-        },
-        {
-          "x": -108,
-          "y": 3,
-          "z": 60,
-          "halfWidth": 5.5,
-          "surface": "road"
-        },
-        {
-          "x": -115,
-          "y": 1,
-          "z": 0,
-          "halfWidth": 5.5,
-          "surface": "road"
-        },
-        {
-          "x": -125,
-          "y": 0,
-          "z": -55,
-          "halfWidth": 5.5,
-          "surface": "road"
-        },
-        {
-          "x": -133.84,
-          "y": 0,
-          "z": -95.28,
-          "halfWidth": 5.5,
-          "surface": "road"
-        }
+        { "x": -95.48, "y": 4.37, "z": 112.9, "halfWidth": 5.5, "surface": "road" },
+        { "x": -107.56, "y": 4.06, "z": 102.4, "halfWidth": 5.5, "surface": "road" },
+        { "x": -114.81, "y": 3.84, "z": 93.65, "halfWidth": 5.5, "surface": "road" },
+        { "x": -118.88, "y": 3.62, "z": 83.03, "halfWidth": 5.5, "surface": "road" },
+        { "x": -126.59, "y": 2.88, "z": 45.5, "halfWidth": 5.5, "surface": "road" },
+        { "x": -134.31, "y": 2.14, "z": 7.96, "halfWidth": 5.5, "surface": "road" },
+        { "x": -142.02, "y": 1.4, "z": -29.58, "halfWidth": 5.5, "surface": "road" },
+        { "x": -149.73, "y": 0.66, "z": -67.12, "halfWidth": 5.5, "surface": "road" },
+        { "x": -149.23, "y": 0.46, "z": -77.11, "halfWidth": 5.5, "surface": "road" },
+        { "x": -143.96, "y": 0.27, "z": -85.61, "halfWidth": 5.5, "surface": "road" },
+        { "x": -133.84, "y": 0, "z": -95.28, "halfWidth": 5.5, "surface": "road" }
       ]
     }
   ],
@@ -205,43 +181,76 @@
   "pickups": [
     {
       "t": 0.0493,
-      "lateral": -4
-    },
-    {
-      "t": 0.0493,
       "lateral": 0
     },
     {
       "t": 0.0493,
-      "lateral": 4
+      "lateral": -3.6
+    },
+    {
+      "t": 0.0493,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.0493,
+      "lateral": -7.1
+    },
+    {
+      "t": 0.0493,
+      "lateral": 7.1
     },
     {
       "t": 0.3886,
-      "lateral": -3
+      "lateral": -1.8
     },
     {
       "t": 0.3886,
-      "lateral": 3
+      "lateral": 1.8
+    },
+    {
+      "t": 0.3886,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.3886,
+      "lateral": 5.4
     },
     {
       "t": 0.542,
-      "lateral": -4
+      "lateral": -1.8,
+      "double": true
     },
     {
       "t": 0.542,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.542,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.542,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.8028,
       "lateral": 0
     },
     {
-      "t": 0.542,
-      "lateral": 4
+      "t": 0.8028,
+      "lateral": -3.6
     },
     {
       "t": 0.8028,
-      "lateral": -3
+      "lateral": 3.6
     },
     {
       "t": 0.8028,
-      "lateral": 3
+      "lateral": -7.1
+    },
+    {
+      "t": 0.8028,
+      "lateral": 7.1
     }
   ],
   "coins": [

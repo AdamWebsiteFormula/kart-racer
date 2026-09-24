@@ -9,7 +9,7 @@ import { buildTrack } from './track.ts';
 import canyonJson from './tracks/canyon-rush.json';
 import skylineJson from './tracks/skyline-circuit.json';
 import { HARBOUR_WITH_PIER as HARBOUR_LOOP, cloneDef } from './__tests__/fixtures.ts';
-import type { TrackChanged, TrackDefinition } from './types.ts';
+import type { ControlPoint, TrackChanged, TrackDefinition } from './types.ts';
 
 const c = makeConstants('medium', 150);
 /** Canyon Rush or Skyline Circuit on its final lap: the route override has made the shortcut the main road. */
@@ -28,8 +28,9 @@ function collapseDef(): TrackDefinition {
     kind: 'collapse',
     label: 'BRIDGE OUT',
     routeOverrides: [{ fromT: 0.5, toT: 0.58, controlPoints: [
-      { x: 60, y: 8, z: 175, halfWidth: 7 },
-      { x: 20, y: 8, z: 185, halfWidth: 7 },
+      // (smooth enough for the validator's final-lap road check: the old 60,175 / 20,185 folded at 1.17 × halfWidth)
+      { x: 100, y: 8, z: 140, halfWidth: 7 },
+      { x: 50, y: 8, z: 165, halfWidth: 7 },
     ] }],
     surfaceOverrides: [{ fromT: 0.1, toT: 0.15, surface: 'mud' }],
     gripMultiplier: 0.8,
@@ -44,6 +45,14 @@ function collapseDef(): TrackDefinition {
 }
 
 describe('spliceRoute', () => {
+  it('drops a kept point within two half-widths of either end of the route (track review, 24 Sept 2026: Skyline kinked 42° in 2 m)', () => {
+    const pts: ControlPoint[] = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ x: i * 20, y: 0, z: 0, halfWidth: 5 }));
+    const tOf = pts.map((_, i) => i / 8);
+    // the route ends 0.2 m short of point 5, which lies outside [fromT, toT]
+    const out = spliceRoute(pts, tOf, [{ fromT: 0.24, toT: 0.6, controlPoints: [{ x: 60, y: 0, z: 30, halfWidth: 5 }, { x: 99.8, y: 0, z: 0, halfWidth: 5 }] }]);
+    expect(out.map((p) => p.x)).toEqual([0, 20, 60, 99.8, 120, 140]);
+  });
+
   const pts = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ({ x: i, y: 0, z: 0, halfWidth: 5 }));
   const tOf = pts.map((_, i) => i / 8);
   it('replaces the points inside [fromT, toT] with the override points', () => {

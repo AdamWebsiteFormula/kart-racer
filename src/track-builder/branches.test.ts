@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeConstants } from '../kart-controller/constants.ts';
-import { lateralOffset } from '../kart-controller/ground.ts';
+import { jumpLift, lateralOffset } from '../kart-controller/ground.ts';
 import { SIM_DT, stepKart } from '../kart-controller/step.ts';
 import { createKartState, headingOf, NEUTRAL_INPUT, type Vec3 } from '../kart-controller/types.ts';
 import { T_SEARCH_WINDOW } from './constants.ts';
@@ -173,8 +173,10 @@ describe('handing a kart between roads (bug hunt, 24 Sept 2026)', () => {
         past++;
         if (s.branch === mine.index) onMine++;
         // standing on the ground, it stands on the main road's ground under it, not on a plane above it
-        const mt = main.nearestGlobal(s.position).t;
-        const g = canyon.sample(mt, lateralOffset(canyon, mt, s.position, 0).lateral, 0).groundY;
+        const mt = main.nearestGlobal(s.position).t, lat = lateralOffset(canyon, mt, s.position, 0).lateral;
+        // (plus a ramp under it: since the track review, 24 Sept 2026, the mine merges at 15° and a kart held
+        // straight runs on up the side of the outcrop ramp at t 0.70)
+        const smp = canyon.sample(mt, lat, 0), g = smp.groundY + jumpLift(canyon, mt, 0, lat, smp.halfWidth, smp.open ?? 0);
         if (s.grounded) worst = Math.max(worst, Math.abs(s.position[1] - g));
       }
       expect(past, `from u ${u}, turned ${turn}`).toBeGreaterThan(100);
@@ -188,8 +190,9 @@ describe('handing a kart between roads (bug hunt, 24 Sept 2026)', () => {
     // on the sand left of the main road, turned back toward the mine entry: it is taken by the mine,
     // then handed to the main road; that hand-over read the ground 12.5 m away, 1.2 m higher
     const c = makeConstants('light', 150);
-    const p = canyon.sample(0.3075, -17.4, 0);
-    const s = createKartState({ racerId: 'k', position: [...p.position], heading: headingOf(p.tangent) + (3 * Math.PI) / 4, t: 0.3075 });
+    // (t 0.325, not 0.3075: since the track review, 24 Sept 2026, the mine forks off at 25° and runs beside the road first)
+    const p = canyon.sample(0.325, -17.4, 0);
+    const s = createKartState({ racerId: 'k', position: [...p.position], heading: headingOf(p.tangent) + (3 * Math.PI) / 4, t: 0.325 });
     s.speed = 15;
     let switches = 0, worstOff = 0, worstRise = 0;
     for (let k = 0; k < 120; k++) {

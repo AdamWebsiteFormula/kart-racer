@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 48,
   "medalTimesMs": {
-    "gold": 129000,
-    "silver": 140000,
-    "bronze": 158000
+    "gold": 125000,
+    "silver": 135000,
+    "bronze": 153000
   },
   "voidY": -14,
   "landmark": "ferris-wheel",
@@ -66,16 +66,90 @@
     { "t": 0.34, "lateral": 0, "width": 3, "shortcut": "arcade-alley" }
   ],
   "pickups": [
-    { "t": 0.16, "lateral": -4 },
-    { "t": 0.16, "lateral": 0 },
-    { "t": 0.16, "lateral": 4 },
-    { "t": 0.27, "lateral": -3 },
-    { "t": 0.27, "lateral": 3 },
-    { "t": 0.36, "shortcut": "arcade-alley", "lateral": 0 },
-    { "t": 0.58, "lateral": -3 },
-    { "t": 0.58, "lateral": 3 },
-    { "t": 0.90, "lateral": -3 },
-    { "t": 0.90, "lateral": 3 }
+    {
+      "t": 0.16,
+      "lateral": 0
+    },
+    {
+      "t": 0.16,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.16,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.16,
+      "lateral": -7.1
+    },
+    {
+      "t": 0.16,
+      "lateral": 7.1
+    },
+    {
+      "t": 0.27,
+      "lateral": -1.8
+    },
+    {
+      "t": 0.27,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.27,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.27,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.36,
+      "shortcut": "arcade-alley",
+      "lateral": 0
+    },
+    {
+      "t": 0.36,
+      "shortcut": "arcade-alley",
+      "lateral": -3.6
+    },
+    {
+      "t": 0.36,
+      "shortcut": "arcade-alley",
+      "lateral": 3.6
+    },
+    {
+      "t": 0.58,
+      "lateral": -1.8,
+      "double": true
+    },
+    {
+      "t": 0.58,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.58,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.58,
+      "lateral": 5.4
+    },
+    {
+      "t": 0.9,
+      "lateral": -1.8
+    },
+    {
+      "t": 0.9,
+      "lateral": 1.8
+    },
+    {
+      "t": 0.9,
+      "lateral": -5.4
+    },
+    {
+      "t": 0.9,
+      "lateral": 5.4
+    }
   ],
   "coins": [
     { "t": 0.08, "lateral": -2 },
@@ -92,7 +166,7 @@
     { "id": "kraken", "type": "creature", "creature": "kraken", "t": 0.42, "lateral": 1, "period": 7.6, "hit": "spin" },
     { "id": "bumper-cars", "type": "crossing", "t": 0.72, "lateral": 0, "period": 5, "speed": 2, "hit": "bump", "asset": "bumper-car" },
     { "id": "teacup-1", "type": "static", "t": 0.67, "lateral": -4, "hit": "spin", "asset": "teacup" },
-    { "id": "teacup-2", "type": "static", "t": 0.87, "lateral": 4, "hit": "spin", "asset": "teacup" }
+    { "id": "teacup-2", "type": "static", "t": 0.89, "lateral": 4, "hit": "spin", "asset": "teacup" }
   ],
   "loops": [
     { "id": "neon-loop", "t": 0.47 }

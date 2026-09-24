@@ -66,6 +66,43 @@ describe('validate', () => {
     expect(bad((d) => { d.coins![0].shortcut = 'nope'; }).some((e) => e.includes('unknown shortcut'))).toBe(true);
   });
 
+  // track review, 24 Sept 2026
+  it('warns of a shortcut that leaves or rejoins the main line at a T-junction (over 30°); no shipped track has one', () => {
+    // the beach as it was: a straight chord off the main line at 51°, back on at 74°
+    const d = cloneDef(HARBOUR_LOOP);
+    d.shortcuts![0].controlPoints = [[-95.48, 4.37, 112.9], [-108, 3, 60], [-115, 1, 0], [-125, 0, -55], [-133.84, 0, -95.28]]
+      .map(([x, y, z]) => ({ x, y, z, halfWidth: 5.5, surface: 'road' as const }));
+    const w = validateTrack(d).warnings;
+    expect(w.some((e) => e.includes('leaves the main line at'))).toBe(true);
+    expect(w.some((e) => e.includes('rejoins the main line at'))).toBe(true);
+    for (const def of Object.values(import.meta.glob('./tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>)) {
+      const v = validateTrack(def);
+      expect(v.errors, def.id).toEqual([]);
+      expect(v.warnings.filter((x) => x.includes('main line at')), def.id).toEqual([]);
+    }
+  });
+
+  it('rejects control points under 4 m apart and a width that flares faster than 0.25 m per metre', () => {
+    const p = HARBOUR_LOOP.controlPoints[5];
+    expect(bad((d) => { d.controlPoints.splice(6, 0, { ...p, z: p.z + 1 }); }).some((e) => e.includes('m apart'))).toBe(true);
+    expect(bad((d) => { d.controlPoints[3].halfWidth = 16; }).some((e) => e.includes('halfWidth changes'))).toBe(true);
+  });
+
+  it('checks the final-lap road a route override builds, not only the lap-1 main line', () => {
+    const errs = bad((d) => {
+      d.openEdges = [];
+      d.finalLapShift.routeOverrides = [{ fromT: 0.5, toT: 0.58, controlPoints: [{ x: 60, y: 8, z: 175, halfWidth: 7 }, { x: 20, y: 8, z: 185, halfWidth: 7 }] }];
+    });
+    expect(errs.some((e) => e.startsWith('final-lap road: hairpin'))).toBe(true);
+  });
+
+  it('rejects a fixed hazard on or just past a checkpoint (respawns land there); one well behind it is fine', () => {
+    const cp3 = HARBOUR_LOOP.startGrid.t + 3 / HARBOUR_LOOP.checkpointCount;
+    const on = bad((d) => { d.hazards!.push({ id: 'cup', type: 'static', t: cp3 + 0.002, lateral: 3, hit: 'spin' }); });
+    expect(on.some((e) => e.includes('hazard cup (static)') && e.includes('past checkpoint 3'))).toBe(true);
+    expect(bad((d) => { d.hazards!.push({ id: 'cup', type: 'static', t: cp3 - 0.012, lateral: 3, hit: 'spin' }); })).toEqual([]);
+  });
+
   it('warns when the estimated lap is outside 40–65 s', () => {
     const d = cloneDef(HARBOUR_LOOP);
     d.controlPoints = d.controlPoints.map((p) => ({ ...p, x: p.x * 2, z: p.z * 2 }));

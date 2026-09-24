@@ -18,7 +18,7 @@ function collapseDef(): TrackDefinition {
   d.openEdges = [];
   d.finalLapShift = {
     kind: 'collapse', label: 'BRIDGE OUT',
-    routeOverrides: [{ fromT: 0.5, toT: 0.58, controlPoints: [{ x: 60, y: 8, z: 175, halfWidth: 7 }, { x: 20, y: 8, z: 185, halfWidth: 7 }] }],
+    routeOverrides: [{ fromT: 0.5, toT: 0.58, controlPoints: [{ x: 100, y: 8, z: 140, halfWidth: 7 }, { x: 50, y: 8, z: 165, halfWidth: 7 }] }], // smooth: the validator checks the final-lap road
     addsJumps: [{ id: 'gap', t: 0.3, launch: 6 }],
     fogDensity: 0.01,
   };

@@ -188,7 +188,11 @@ function weldEnds(lut: Lut, main: Lut, entryT: number, exitT: number): void {
       // (its height carried the few centimetres along from sample j to beside the shortcut's centre)
       const ahead = ((x - main.px[j]) * main.tx[j] + (z - main.pz[j]) * main.tz[j]) / th;
       const y = main.py[j] + ahead * climb - latC * Math.tan(main.bank[j]);
-      const bank = Math.atan(Math.tan(main.bank[j]) * across - climb * along);
+      // past the curb the land is level, so the main road's bank fades out as the shortcut's ribbon leaves
+      // it (track review, 24 Sept 2026: Canyon's mine, forking at 25° off a banked turn, kept the full bank
+      // with its centre on the level curb height, and its inner edge sat 0.35 m under the main road)
+      const fade = Math.max(0, Math.min(1, 1 - (Math.abs(lat) - curb) / lut.hw[i]));
+      const bank = Math.atan(Math.tan(main.bank[j]) * across * fade - climb * along);
       lut.py[i] += (y - lut.py[i]) * w;
       lut.bank[i] += (bank - lut.bank[i]) * w;
     }

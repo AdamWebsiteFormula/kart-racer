@@ -1,8 +1,10 @@
 // Authoring checks. Runs in tests and at load in dev. Errors block; warnings print.
 import kartSchema from '../../docs/schemas/kart.schema.json';
-import { BUILDER } from './constants.ts';
+import { signedOffset } from './branches.ts';
+import { BUILDER, KART_RADIUS } from './constants.ts';
 import { buildLut, wrap01, type Lut } from './lut.ts';
-import type { ControlPoint, TrackDefinition } from './types.ts';
+import { spliceRoute } from './shift.ts';
+import type { ControlPoint, TrackDefinition, Vec3 } from './types.ts';
 
 const TOP_SPEED: number = kartSchema.properties.base.properties.topSpeed.default;
 /** Design §6: the AI/player averages about 80% of top speed over a lap. */
@@ -11,6 +13,22 @@ const LAP_SPEED_FRACTION = 0.8;
 const BRANCH_END_TOLERANCE = 2;
 /** voidY must sit at least this far under the lowest sample. */
 const VOID_CLEARANCE = 5;
+/**
+ * Neighbouring control points closer than this make a kink the spline cannot round (track review,
+ * 24 Sept 2026: Skyline's final-lap road kept a main point 0.16 m past the rail's end: 42° in 2 m).
+ */
+const MIN_POINT_SPACING = 4;
+/** Half-width may change by at most this many metres per metre of road (a 2.5 m step takes 15 m or more). */
+const MAX_WIDTH_RATE = 0.25;
+/** A shortcut leaves and rejoins the main road at no more than this angle (degrees), never a T-junction. */
+const MAX_JOIN_DEG = 30;
+/**
+ * A fixed hazard (static, vent) keeps this far along the road ahead of every checkpoint (respawns land
+ * there and drive on), and behind it by its own reach plus a kart (one set down facing away is clear).
+ */
+const HAZARD_CHECKPOINT_CLEARANCE = 10;
+const HAZARD_BEHIND_CLEARANCE = Math.max(BUILDER.hazardRadius, BUILDER.ventRadius) + KART_RADIUS + 1;
+const FIXED_HAZARDS = new Set(['static', 'vent']);
 
 export interface Validation {
   ok: boolean;
@@ -40,6 +58,57 @@ function turnRadius(lut: Lut, i: number): number {
   return k > 0 ? 1 / k : Infinity;
 }
 
+/** Control points closer than MIN_POINT_SPACING to the next one (the loop wraps when closed). */
+function checkSpacing(points: readonly ControlPoint[], label: string, errors: string[], closed: boolean): void {
+  const n = points.length;
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const a = points[i], b = points[(i + 1) % n];
+    const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    if (d < MIN_POINT_SPACING) errors.push(`${label}: control points ${i} and ${(i + 1) % n} are ${d.toFixed(2)} m apart (min ${MIN_POINT_SPACING})`);
+  }
+}
+
+/**
+ * The swept road holds together: no sample turns tighter than minTurnRadiusFactor × halfWidth (the inner
+ * edge folds back over itself) and the width never flares faster than MAX_WIDTH_RATE. Every road the
+ * mesh sweeps is checked: the main line, each shortcut and the final-lap road (track review, 24 Sept
+ * 2026: only the lap-1 main line was, and Canyon's mine route turned 94° at 5.7 m on a 14 m road).
+ */
+function checkRoad(lut: Lut, label: string, errors: string[]): void {
+  const ds = lut.length / lut.step;
+  const lo = lut.closed ? 0 : 1, hi = lut.closed ? lut.n : lut.n - 1;
+  let worstRatio = Infinity, worstT = 0, worstRate = 0, rateT = 0;
+  for (let i = lo; i < hi; i++) {
+    const ratio = turnRadius(lut, i) / lut.hw[i];
+    if (ratio < worstRatio) { worstRatio = ratio; worstT = i / lut.step; }
+  }
+  for (let i = 0; i < (lut.closed ? lut.n : lut.n - 1); i++) {
+    const rate = Math.abs(lut.hw[lut.idx(i + 1)] - lut.hw[i]) / ds;
+    if (rate > worstRate) { worstRate = rate; rateT = i / lut.step; }
+  }
+  if (worstRatio < BUILDER.minTurnRadiusFactor) {
+    errors.push(`${label}: hairpin at t=${worstT.toFixed(3)}: turn radius is ${worstRatio.toFixed(2)} × halfWidth, minimum ${BUILDER.minTurnRadiusFactor}`);
+  }
+  if (worstRate > MAX_WIDTH_RATE) {
+    errors.push(`${label}: halfWidth changes ${worstRate.toFixed(2)} m per metre at t=${rateT.toFixed(3)}, max ${MAX_WIDTH_RATE}`);
+  }
+}
+
+/** Plan-view angle in degrees between two tangents. */
+function planAngle(a: Vec3, b: Vec3): number {
+  const c = (a[0] * b[0] + a[2] * b[2]) / (Math.hypot(a[0], a[2]) * Math.hypot(b[0], b[2]) || 1);
+  return (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
+}
+
+/** The main line a route-changing Final Lap Shift builds (shift.ts, bare points: no weld). */
+function shiftedRoad(def: TrackDefinition, lut: Lut): { points: ControlPoint[]; lut: Lut } | null {
+  const overrides = def.finalLapShift.routeOverrides ?? [];
+  if (!overrides.length) return null;
+  const tOf = def.controlPoints.map((p) => lut.nearestTGlobal([p.x, p.y, p.z]));
+  const points = spliceRoute(def.controlPoints, tOf, overrides);
+  return { points, lut: buildLut(points) };
+}
+
 export function validateTrack(def: TrackDefinition): Validation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -62,14 +131,8 @@ export function validateTrack(def: TrackDefinition): Validation {
   const startHw = lut.sample(startT, 0).halfWidth;
   if (startHw < BUILDER.minStartHalfWidth) errors.push(`start line halfWidth ${startHw.toFixed(2)} < ${BUILDER.minStartHalfWidth}`);
 
-  let worstRatio = Infinity, worstT = 0;
-  for (let i = 0; i < lut.n; i++) {
-    const ratio = turnRadius(lut, i) / lut.hw[i];
-    if (ratio < worstRatio) { worstRatio = ratio; worstT = i / lut.n; }
-  }
-  if (worstRatio < BUILDER.minTurnRadiusFactor) {
-    errors.push(`hairpin at t=${worstT.toFixed(3)}: turn radius is ${worstRatio.toFixed(2)} × halfWidth, minimum ${BUILDER.minTurnRadiusFactor}`);
-  }
+  checkSpacing(pts, 'controlPoints', errors, true);
+  checkRoad(lut, 'main', errors);
 
   let minY = lut.minY;
   const shortcutIds = new Set<string>();
@@ -89,6 +152,39 @@ export function validateTrack(def: TrackDefinition): Validation {
     if (dExit > BRANCH_END_TOLERANCE) errors.push(`${label}: last point is ${dExit.toFixed(2)} m from the main line at exitT (max ${BRANCH_END_TOLERANCE})`);
     const bl = buildLut(sc.controlPoints, { closed: false, samples: 256, divisions: 512 });
     if (bl.minY < minY) minY = bl.minY;
+    checkSpacing(sc.controlPoints, label, errors, false);
+    checkRoad(bl, label, errors);
+    // it forks off and merges back in, never a T-junction (track review, 24 Sept 2026: 45-82° joins)
+    const aIn = planAngle(bl.sample(0, 0).tangent, lut.sample(sc.entryT, 0).tangent);
+    const aOut = planAngle(bl.sample(1, 0).tangent, lut.sample(sc.exitT, 0).tangent);
+    // (a warning, so the synthetic test ovals keep their chord shortcuts; validate.test holds the six tracks to it)
+    if (aIn > MAX_JOIN_DEG) warnings.push(`${label}: leaves the main line at ${aIn.toFixed(0)}° (max ${MAX_JOIN_DEG}°)`);
+    if (aOut > MAX_JOIN_DEG) warnings.push(`${label}: rejoins the main line at ${aOut.toFixed(0)}° (max ${MAX_JOIN_DEG}°)`);
+  }
+
+  const shifted = shiftedRoad(def, lut);
+  if (shifted) {
+    checkSpacing(shifted.points, 'final-lap road', errors, true);
+    checkRoad(shifted.lut, 'final-lap road', errors);
+  }
+
+  // respawns land on the checkpoints: a fixed hazard there spins a kart the moment it is set down
+  // (track review, 24 Sept 2026: Boardwalk's teacup-2 sat on checkpoint 9)
+  const hazardClear = (road: Lut, startT: number, where: (h: NonNullable<TrackDefinition['hazards']>[number]) => number, label: string) => {
+    (def.hazards ?? []).forEach((h, i) => {
+      if (!FIXED_HAZARDS.has(h.type)) return;
+      const ht = where(h);
+      for (let c = 0; c < def.checkpointCount; c++) {
+        const d = signedOffset(ht, wrap01(startT + c / def.checkpointCount)) * road.length;
+        if (d >= 0 && d < HAZARD_CHECKPOINT_CLEARANCE) errors.push(`${label}hazard ${h.id ?? i} (${h.type}) is ${d.toFixed(1)} m past checkpoint ${c} (min ${HAZARD_CHECKPOINT_CLEARANCE})`);
+        if (d < 0 && -d < HAZARD_BEHIND_CLEARANCE) errors.push(`${label}hazard ${h.id ?? i} (${h.type}) is ${(-d).toFixed(1)} m before checkpoint ${c} (min ${HAZARD_BEHIND_CLEARANCE.toFixed(1)})`);
+      }
+    });
+  };
+  hazardClear(lut, startT, (h) => h.t, '');
+  if (shifted) {
+    const s = shifted.lut;
+    hazardClear(s, s.nearestTGlobal(lut.sample(startT, 0).position), (h) => s.nearestTGlobal(lut.sample(h.t, h.lateral ?? 0).position), 'final lap: ');
   }
 
   if (def.voidY > minY - VOID_CLEARANCE) errors.push(`voidY ${def.voidY} must be at least ${VOID_CLEARANCE} m below the lowest road sample (${minY.toFixed(2)})`);

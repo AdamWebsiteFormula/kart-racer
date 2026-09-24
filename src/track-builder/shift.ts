@@ -13,6 +13,8 @@ import type { Track } from './track.ts';
 export interface ShiftKart { position: [number, number, number]; t: number; branch: number }
 
 const inRange = (t: number, fromT: number, toT: number) => wrap01(t - fromT) <= wrap01(toT - fromT);
+/** A kept main point within this many half-widths of a route override's end goes too. */
+const SPLICE_CLEAR = 2;
 
 /** Splice override control points into the main list over [fromT, toT]. Pure. */
 export function spliceRoute(points: readonly ControlPoint[], tOf: readonly number[], overrides: readonly RouteOverride[]): ControlPoint[] {
@@ -36,6 +38,15 @@ export function spliceRoute(points: readonly ControlPoint[], tOf: readonly numbe
       }
     }
     insertBefore.set(anchor, [...(insertBefore.get(anchor) ?? []), ...ov.controlPoints]);
+    // a kept point hard by either end of the route kinks the road there (track review, 24 Sept 2026:
+    // Skyline kept a main point 0.16 m past the rail's end: 42° over 2 m, the width 9 to 14 m in 1 m)
+    for (const end of [ov.controlPoints[0], ov.controlPoints[ov.controlPoints.length - 1]]) {
+      if (!end) continue;
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (Math.hypot(p.x - end.x, p.y - end.y, p.z - end.z) < SPLICE_CLEAR * end.halfWidth) removed.add(i);
+      }
+    }
   }
   const out: ControlPoint[] = [];
   for (let i = 0; i < points.length; i++) {

@@ -25,7 +25,11 @@ export const CREATURE = Object.freeze({
     off: 17, idle: 3.4, warn: 1.5, slam: 0.7, retract: 1.2,
     /** the tentacle across the road: circles of this radius */ radius: 1.5,
   },
-  crab: { wait: 1.4, cross: 2.4, radius: 3, /** metres past each road edge it waits */ off: 5 },
+  crab: {
+    wait: 1.4, cross: 2.4, radius: 3, /** metres past each road edge it waits */ off: 5,
+    /** the last seconds of each wait: shadows across the road mark the path it is about to take */ warn: 0.6,
+    /** how many shadows mark it */ warnMarks: 5,
+  },
   goose: {
     wait: 2.2, charge: 3.2, turn: 1.4, speed: 17, radius: 2, off: 7,
     /** its weave down the road: amplitude (m) and period (s) */ weave: 2.2, weavePeriod: 1.1,
@@ -134,7 +138,8 @@ export class Creature {
               const x = m.position[0] + Math.cos(a) * m.radius, z = m.position[2] + Math.sin(a) * m.radius;
               const lat = (x - f.p[0]) * f.right[0] + (z - f.p[2]) * f.right[2];
               if (Math.abs(lat) > Math.max(f.hw + 2, f.reach)) continue;
-              out.push({ id, type: 'creature', position: [x, m.position[1], z], radius: C.ringHalf, hit, ground: true });
+              // the ring bumps (hop to clear it); only the foot spins (design §6; 24 Sept 2026: the ring spun)
+              out.push({ id, type: 'creature', position: [x, m.position[1], z], radius: C.ringHalf, hit: 'bump', ground: true });
             }
           } else if (m.kind === 'shadow' && pose.action === 'stomp') {
             out.push({ id, type: 'creature', position: m.position, radius: C.footRadius, hit });
@@ -249,6 +254,15 @@ export class Creature {
         const from = (back ? -1 : 1) * side * edge, to = -from;
         let lat = from, action = 'wait', ph = leg / C.wait;
         if (leg >= C.wait) { const s = smooth((leg - C.wait) / C.cross); lat = from + (to - from) * s; action = 'cross'; ph = (leg - C.wait) / C.cross; }
+        else if (leg >= C.wait - C.warn) {
+          // the warning (24 Sept 2026: it gave none): a line of shadows across the road where it will
+          // scuttle, darkening from its own side for the last `warn` seconds, like the kraken's
+          const k = (leg - (C.wait - C.warn)) / C.warn;
+          for (let j = 0; j < C.warnMarks; j++) {
+            const u = j / (C.warnMarks - 1), l = from + (to - from) * u;
+            marks.push({ kind: 'shadow', position: this.on(f, l), radius: C.radius * 0.8, strength: Math.max(0, Math.min(1, k * 1.5 - u * 0.5)) });
+          }
+        }
         // a crab walks sideways: it faces along the road
         return { id, kind, position: this.on(f, lat), heading: f.heading + Math.PI, action, phase: ph, marks };
       }

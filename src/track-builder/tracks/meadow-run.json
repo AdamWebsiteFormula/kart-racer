@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 50,
   "medalTimesMs": {
-    "gold": 126000,
-    "silver": 137000,
-    "bronze": 155000
+    "gold": 124000,
+    "silver": 134000,
+    "bronze": 151000
   },
   "voidY": -10,
   "offroad": true,
@@ -48,8 +48,14 @@
       "risk": "narrow",
       "controlPoints": [
         { "x": 210, "y": 2, "z": -77, "halfWidth": 5, "surface": "road" },
-        { "x": 222.7, "y": 2.27, "z": -29.6, "halfWidth": 5, "surface": "road" },
-        { "x": 235.8, "y": 2.56, "z": 19.3, "halfWidth": 5, "surface": "road" },
+        { "x": 223.36, "y": 2.07, "z": -72.81, "halfWidth": 5, "surface": "road" },
+        { "x": 230.08, "y": 2.11, "z": -68.67, "halfWidth": 5, "surface": "road" },
+        { "x": 234, "y": 2.15, "z": -61.81, "halfWidth": 5, "surface": "road" },
+        { "x": 243.5, "y": 2.32, "z": -27.48, "halfWidth": 5, "surface": "road" },
+        { "x": 253, "y": 2.5, "z": 6.86, "halfWidth": 5, "surface": "road" },
+        { "x": 262.51, "y": 2.68, "z": 41.2, "halfWidth": 5, "surface": "road" },
+        { "x": 262.56, "y": 2.72, "z": 49.54, "halfWidth": 5, "surface": "road" },
+        { "x": 258.4, "y": 2.76, "z": 56.78, "halfWidth": 5, "surface": "road" },
         { "x": 248.5, "y": 2.83, "z": 66.68, "halfWidth": 5, "surface": "road" }
       ]
     }
@@ -75,13 +81,82 @@
     { "t": 0.45, "lateral": 0, "width": 3, "shortcut": "hedgerow-cut" }
   ],
   "pickups": [
-    { "t": 0.09, "lateral": -4 },
-    { "t": 0.09, "lateral": 0 },
-    { "t": 0.09, "lateral": 4 },
-    { "t": 0.4765, "shortcut": "hedgerow-cut", "lateral": 0 },
-    { "t": 0.62, "lateral": -3 },
-    { "t": 0.62, "lateral": 3 },
-    { "t": 0.9, "lateral": 0 }
+    {
+      "t": 0.09,
+      "lateral": 0
+    },
+    {
+      "t": 0.09,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.09,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.09,
+      "lateral": -7.2
+    },
+    {
+      "t": 0.09,
+      "lateral": 7.2
+    },
+    {
+      "t": 0.4765,
+      "shortcut": "hedgerow-cut",
+      "lateral": 0
+    },
+    {
+      "t": 0.4765,
+      "shortcut": "hedgerow-cut",
+      "lateral": -3.6
+    },
+    {
+      "t": 0.4765,
+      "shortcut": "hedgerow-cut",
+      "lateral": 3.6
+    },
+    {
+      "t": 0.62,
+      "lateral": 0,
+      "double": true
+    },
+    {
+      "t": 0.62,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.62,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.62,
+      "lateral": -7.1
+    },
+    {
+      "t": 0.62,
+      "lateral": 7.1
+    },
+    {
+      "t": 0.9,
+      "lateral": 0
+    },
+    {
+      "t": 0.9,
+      "lateral": -3.6
+    },
+    {
+      "t": 0.9,
+      "lateral": 3.6
+    },
+    {
+      "t": 0.9,
+      "lateral": -7.2
+    },
+    {
+      "t": 0.9,
+      "lateral": 7.2
+    }
   ],
   "coins": [
     { "t": 0.2, "lateral": -3 },

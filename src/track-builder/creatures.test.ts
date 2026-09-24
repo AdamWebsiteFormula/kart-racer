@@ -48,6 +48,34 @@ describe('course creatures', () => {
     expect(r1).toBeGreaterThan(r0);
   });
 
+  it('the ring bumps (hop it), only the foot spins (items audit, 24 Sept 2026: the ring spun)', () => {
+    const C = CREATURE.rumblesaur, t = trackWith('rumblesaur', 7);
+    const stomp = C.idle + C.rear;
+    expect(mine(t, stomp + 0.05).filter((h) => !h.ground).map((h) => h.hit)).toEqual(['spin']);
+    const ring = mine(t, stomp + 0.6).filter((h) => h.ground);
+    expect(ring.length).toBeGreaterThan(0);
+    for (const h of ring) expect(h.hit).toBe('bump');
+  });
+
+  it('the crab marks its path across the road with shadows before it scuttles (items audit, 24 Sept 2026: no warning)', () => {
+    const C = CREATURE.crab, t = trackWith('crab', 9.2);
+    // early in the wait: nothing; the last `warn` seconds: a row of shadows across the road, darkening
+    expect(pose(t, C.wait - C.warn - 0.1).marks).toEqual([]);
+    for (const leg of [0, C.wait + C.cross]) {
+      const early = pose(t, leg + C.wait - C.warn + 0.05).marks, late = pose(t, leg + C.wait - 0.02).marks;
+      expect(early.length).toBe(C.warnMarks);
+      expect(early.every((m) => m.kind === 'shadow')).toBe(true);
+      const lats = late.map((m) => lateral(t, m.position));
+      const hw = t.sample(0.3, 0).halfWidth;
+      expect(Math.min(...lats)).toBeLessThan(-hw);
+      expect(Math.max(...lats)).toBeGreaterThan(hw);
+      expect(Math.min(...late.map((m) => m.strength))).toBeGreaterThan(Math.min(...early.map((m) => m.strength)));
+      // still nothing that hits while it warns
+      expect(mine(t, leg + C.wait - 0.02)).toEqual([]);
+    }
+    expect(pose(t, C.wait + 0.5).marks).toEqual([]);
+  });
+
   it('the Yeti shows where the snowball lands, then it rolls back down the road at oncoming karts', () => {
     const P = 4.2, C = CREATURE.yeti, t = trackWith('yeti', P, -1);
     // in the air: only a shadow on the road, nothing that hits
