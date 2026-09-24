@@ -1,11 +1,13 @@
 // The far horizon (critique 2026-09-23: "a flat plane meeting the sky in a ruler-straight line"):
 // two rings of distant silhouettes per biome, rolling hills, mesas, snowy peaks, headlands, a lit
-// city across the bay, towers of cloud. The ring rides with the camera like the sky dome (main.ts
-// moves it), so it always stands at the same distance and never crowds a road near the track's
-// edge. Unlit, pre-hazed toward the horizon colour (aerial perspective), no fog, one or two draws.
+// city across the bay (the sky road's clouds are its sky painting's own). The ring rides with the
+// camera like the sky dome (main.ts moves it), so it always stands at the same distance and never
+// crowds a road near the track's edge. Unlit, pre-hazed toward the horizon colour (aerial perspective), no fog, one or two draws.
+// Each flank is baked lit or shaded by where the sun stands (detail review 2026-09-24: flat
+// cut-outs), and a Final Lap Shift recolours the ring for the new sky (recolourBackdrop).
 import {
   BufferGeometry, Color, DataTexture, DoubleSide, Float32BufferAttribute, Group, LinearFilter, LinearMipmapLinearFilter,
-  Mesh, MeshBasicMaterial, RepeatWrapping, RGBAFormat, SRGBColorSpace,
+  Mesh, MeshBasicMaterial, RepeatWrapping, RGBAFormat, SRGBColorSpace, type Object3D,
 } from 'three';
 import type { Rgb } from './palette.ts';
 
@@ -24,6 +26,8 @@ interface Layer {
   top: Rgb;
   /** how far toward the horizon colour this layer is pushed (0 none, 1 all haze) */
   haze: number;
+  /** the colour a flank turned from the sun leans to (cool: blue snow, violet rock) */
+  shade: Rgb;
   /** optional colour by absolute height above the base (snow caps, rock bands) */
   band?: (h: number, k: number) => Rgb | null;
 }
@@ -75,17 +79,6 @@ const islands = (count: number, minH: number, maxH: number, seed: number): Profi
   };
 };
 
-/** Cumulus: many round puffs of every size, heaped on a low bank (a cloud sea's billows, not dunes). */
-const puffs = (count: number, minR: number, maxR: number, radius: number, seed: number, bank = 6): Profile => {
-  const r = rng(seed);
-  const list = Array.from({ length: count }, () => { const pr = minR + r() * r() * (maxR - minR); return { at: r() * TAU, pr, w: pr / radius, lift: r() * pr * 0.4 }; });
-  return (a) => {
-    let h = bank;
-    for (const p of list) { const d = Math.abs(wrapA(a - p.at)) / p.w; if (d < 1) h = Math.max(h, p.lift + p.pr * Math.sqrt(1 - d * d)); }
-    return h;
-  };
-};
-
 /** City blocks: stepped towers over part of the ring, low elsewhere. */
 const city = (from: number, to: number, seed: number): Profile => {
   const r = rng(seed);
@@ -104,46 +97,73 @@ const hex = (h: string): Rgb => { const c = new Color(h); return [c.r, c.g, c.b]
 function layersFor(biome: string): Layer[] {
   switch (biome) {
     case 'meadow': return [
-      { radius: 760, profile: hills(52, 26, 11), foot: hex('#6f9a86'), top: hex('#8fb3a0'), haze: 0.55 },
-      { radius: 640, profile: hills(22, 16, 7), foot: hex('#4f8a3a'), top: hex('#86c25a'), haze: 0.3 },
+      { radius: 760, profile: hills(52, 26, 11), foot: hex('#6f9a86'), top: hex('#8fb3a0'), haze: 0.55, shade: hex('#5f7f96') },
+      { radius: 640, profile: hills(22, 16, 7), foot: hex('#4f8a3a'), top: hex('#86c25a'), haze: 0.3, shade: hex('#3f6a5a') },
     ];
     case 'canyon': return [
-      { radius: 760, profile: peaks(14, 40, 95, 5, 10), foot: hex('#c98a6a'), top: hex('#e0a27c'), haze: 0.5 },
-      { radius: 640, profile: mesas(16, 30, 75, 3), foot: hex('#a8462a'), top: hex('#e27f4e'), haze: 0.25,
+      { radius: 760, profile: peaks(14, 40, 95, 5, 10), foot: hex('#c98a6a'), top: hex('#e0a27c'), haze: 0.5, shade: hex('#8a6a9a') },
+      { radius: 640, profile: mesas(16, 30, 75, 3), foot: hex('#a8462a'), top: hex('#e27f4e'), haze: 0.25, shade: hex('#7a3a52'),
         band: (h) => (Math.floor(h / 9) % 2 ? hex('#f0b48a') : null) },
     ];
     case 'frost': return [
-      { radius: 770, profile: peaks(18, 90, 170, 9, 20), foot: hex('#7f93b8'), top: hex('#eef4ff'), haze: 0.5,
+      { radius: 770, profile: peaks(18, 90, 170, 9, 20), foot: hex('#7f93b8'), top: hex('#eef4ff'), haze: 0.42, shade: hex('#7a8fc8'),
         band: (_h, k) => (k > 0.55 ? hex('#f6f9ff') : null) },
-      { radius: 650, profile: peaks(22, 40, 95, 4, 10), foot: hex('#5e6f8f'), top: hex('#ffffff'), haze: 0.28,
+      { radius: 650, profile: peaks(22, 40, 95, 4, 10), foot: hex('#5e6f8f'), top: hex('#ffffff'), haze: 0.22, shade: hex('#6a80c0'),
         band: (_h, k) => (k > 0.5 ? hex('#fbfdff') : null) },
     ];
     case 'harbour': return [
-      { radius: 780, profile: hills(16, 12, 21), foot: hex('#8fb0a8'), top: hex('#a9c7b8'), haze: 0.6 },
-      { radius: 640, profile: islands(7, 18, 46, 13), foot: hex('#c9b48a'), top: hex('#5f9f44'), haze: 0.3 },
+      { radius: 780, profile: hills(16, 12, 21), foot: hex('#8fb0a8'), top: hex('#a9c7b8'), haze: 0.6, shade: hex('#7f98a8') },
+      { radius: 640, profile: islands(7, 18, 46, 13), foot: hex('#c9b48a'), top: hex('#5f9f44'), haze: 0.3, shade: hex('#4a6f5a') },
     ];
-    case 'skyline': return [
-      // heaped cumulus: lavender-shadowed feet, sunlit white tops (not a smooth cream bank that reads as dunes)
-      { radius: 760, profile: puffs(90, 14, 60, 760, 17, 10), foot: hex('#b9a6e0'), top: hex('#fff4ec'), haze: 0.4 },
-      { radius: 640, profile: puffs(70, 10, 48, 640, 19, 4), foot: hex('#c8b4ea'), top: hex('#ffffff'), haze: 0.18 },
-    ];
+    // no ring: the sky's own painted cloud sea runs on under its horizon (sky.ts panoHorizon), and
+    // flat cut-out puffs in front of it read as cardboard (detail review 2026-09-24)
+    case 'skyline': return [];
     default: return [];
   }
 }
 
-function strip(layer: Layer, baseY: number, horizon: Rgb, out: { pos: number[]; col: number[]; idx: number[] }): void {
+/** How much a flank square to the sun brightens (the one turned away leans SHADE_LEAN times that toward its shade colour). */
+export const FLANK_LIGHT = 0.2;
+/** How much the ring's face brightens opposite the sun, where it is lit head-on (toward the sun it is backlit). */
+export const FACE_LIGHT = 0.08;
+/** A shaded flank leans this many times its shade toward the layer's shade colour (a toon split, not a soft falloff). */
+export const SHADE_LEAN = 3;
+/** The rise over ±1° of ring that counts as a full flank (metres): hills and domes turn gently, peaks and mesas fully. */
+const FLANK_RISE = 2;
+
+/**
+ * Sun and shade on a column of the ring at angle `a` for a sun at azimuth `sunAz` (both measured
+ * as atan2(z, x)): + lit, − shaded. A flank rising with `a` faces back along the ring, so it is lit
+ * when the sun stands on that side (sin(a − sunAz) > 0); a falling flank the other way.
+ */
+export function flankLight(profile: Profile, a: number, sunAz: number): number {
+  const e = TAU / SEG;
+  const rise = profile((a + e) % TAU) - profile((a - e + TAU) % TAU);
+  const flank = Math.max(-1, Math.min(1, rise / FLANK_RISE));
+  return FLANK_LIGHT * flank * Math.sin(a - sunAz) - FACE_LIGHT * Math.cos(a - sunAz);
+}
+
+interface RingBuild { pos: number[]; col: number[]; idx: number[]; base: number[]; haze: number[] }
+
+function strip(layer: Layer, baseY: number, horizon: Rgb, sunAz: number, out: RingBuild): void {
   const rows = 6;
   const start = out.pos.length / 3;
   for (let i = 0; i <= SEG; i++) {
     const a = (i / SEG) * TAU;
     const h = layer.profile(a % TAU);
     const cx = Math.cos(a) * layer.radius, cz = Math.sin(a) * layer.radius;
+    const lit = flankLight(layer.profile, a % TAU, sunAz);
     for (let j = 0; j <= rows; j++) {
       const k = j / rows, y = h * k;
       let c = mixRgb(layer.foot, layer.top, k);
       const b = layer.band?.(y, h > 0 ? y / Math.max(h, 1) : 0);
       if (b) c = b;
-      c = mixRgb(c, horizon, layer.haze + (1 - k) * 0.15);
+      // never past white: the bloom picks out only what is brighter than 1
+      c = lit >= 0 ? [Math.min(1, c[0] * (1 + lit)), Math.min(1, c[1] * (1 + lit)), Math.min(1, c[2] * (1 + lit))] : mixRgb(c, layer.shade, Math.min(1, -SHADE_LEAN * lit));
+      const w = layer.haze + (1 - k) * 0.15;
+      out.base.push(c[0], c[1], c[2]);
+      out.haze.push(w);
+      c = mixRgb(c, horizon, w);
       out.pos.push(cx, baseY + (j === 0 ? -30 : y), cz);
       out.col.push(c[0], c[1], c[2]);
     }
@@ -205,25 +225,47 @@ function cityMesh(baseY: number): Mesh {
 
 /**
  * The horizon for a biome, centred on the origin: the caller moves the group with the camera
- * (x and z only). `baseY` is the ground or sea level, `horizon` the colour the far layers fade to.
+ * (x and z only). `baseY` is the ground or sea level, `horizon` the colour the far layers fade to,
+ * `sunAz` the sun's compass direction as atan2(z, x).
  */
-export function buildBackdrop(biome: string, baseY: number, horizon: Rgb): Group | null {
+export function buildBackdrop(biome: string, baseY: number, horizon: Rgb, sunAz: number): Group | null {
   const layers = layersFor(biome);
   const group = new Group();
   group.name = 'horizon';
   if (layers.length) {
-    const out = { pos: [] as number[], col: [] as number[], idx: [] as number[] };
-    for (const l of layers) strip(l, baseY, horizon, out);
+    const out: RingBuild = { pos: [], col: [], idx: [], base: [], haze: [] };
+    for (const l of layers) strip(l, baseY, horizon, sunAz, out);
     const g = new BufferGeometry();
     g.setAttribute('position', new Float32BufferAttribute(out.pos, 3));
     g.setAttribute('color', new Float32BufferAttribute(out.col, 3));
     g.setIndex(out.idx);
     const m = new Mesh(g, new MeshBasicMaterial({ vertexColors: true, side: DoubleSide, fog: false }));
     m.name = 'horizon-rings';
+    // what recolourBackdrop needs: each vertex's own colour before the haze, and how hazed it is
+    m.userData.base = new Float32Array(out.base);
+    m.userData.haze = new Float32Array(out.haze);
+    m.userData.horizon = horizon;
     group.add(m);
   }
   if (biome === 'boardwalk') group.add(cityMesh(baseY));
   if (!group.children.length) return null;
   for (const c of group.children) { (c as Mesh).frustumCulled = false; c.renderOrder = -1; }
   return group;
+}
+
+/**
+ * Recolour the rings for another sky (a Final Lap Shift): each vertex's own colour times `tint`
+ * (how the new sky's light compares with the old, sky.ts skyIllum), hazed toward the new horizon.
+ */
+export function recolourBackdrop(group: Object3D | undefined, horizon: Rgb, tint: Rgb): void {
+  const m = group?.getObjectByName('horizon-rings') as Mesh | undefined;
+  const base = m?.userData.base as Float32Array | undefined, haze = m?.userData.haze as Float32Array | undefined;
+  if (!m || !base || !haze) return;
+  const col = m.geometry.getAttribute('color');
+  const arr = col.array as Float32Array;
+  for (let v = 0; v < haze.length; v++) {
+    const w = haze[v], o = v * 3;
+    for (let c = 0; c < 3; c++) arr[o + c] = Math.min(1, base[o + c] * tint[c]) * (1 - w) + horizon[c] * w;
+  }
+  col.needsUpdate = true;
 }

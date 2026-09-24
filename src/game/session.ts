@@ -11,10 +11,10 @@ import { Items } from '../items/items.ts';
 import type { ItemEvent } from '../items/types.ts';
 import { RaceManager } from '../race-manager/index.ts';
 import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
-import { buildTrackScene, type TrackScene } from '../track-builder/mesh/index.ts';
+import { buildTrackScene, recolourBackdrop, type Rgb, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, isShared, lightOf, paintSky, SKIES, trackAssets, type SkyLight } from '../art-pipeline/index.ts';
+import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, SKIES, skyTint, trackAssets, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { ItemsView } from './itemsView.ts';
 import { RescueView } from './rescueView.ts';
@@ -38,8 +38,8 @@ export class RaceSession {
   /** index into karts[] of the player, or -1 (attract mode) */
   readonly playerIndex: number;
   readonly inputs: InputState[];
-  /** the painted sky's horizon colour; the fog matches it so the far road melts into the sky */
-  horizon: Color;
+  /** the painted sky's horizon colour; the fog matches it so the far road melts into the sky (eased through a Final Lap Shift) */
+  readonly horizon: Color;
   /** light from below: the sky's lower band on tracks with no ground (sky islands), else null for the earth tone */
   bounce: Color | null;
   /** the sky dome; the game keeps it centred on the camera so the horizon sits at eye level */
@@ -53,6 +53,10 @@ export class RaceSession {
   private readonly parts: SimParts;
   private readonly group = new Group();
   private readonly scene: Scene;
+  /** the lights the race started under: the horizon ring was coloured for them */
+  private readonly startLight: SkyLight;
+  /** a Final Lap Shift's sky change under way: the fog and the horizon ring ease from → to with the dome's fade */
+  private skyChange: { horizon: [Color, Color]; ring: [Rgb, Rgb]; tint: [Rgb, Rgb] } | null = null;
 
   constructor(scene: Scene, def: TrackDefinition, config: RaceConfig) {
     this.scene = scene;
@@ -63,6 +67,8 @@ export class RaceSession {
     this.horizon = paintSky(this.trackScene.group, this.trackScene.sky);
     this.bounce = this.skyBounce(this.trackScene.sky);
     this.skyLight = lightOf(this.trackScene.sky);
+    this.startLight = this.skyLight;
+    this.trackScene.setPickupGlow(this.skyLight.glow ?? 0, true);
     this.dome = this.trackScene.group.getObjectByName('sky');
     this.farRing = this.trackScene.group.getObjectByName('horizon');
     this.manager = new RaceManager(this.track, config);
@@ -86,6 +92,22 @@ export class RaceSession {
     scene.add(this.group);
   }
 
+  /** A Final Lap Shift's new sky: the dome starts its fade, the lights, fog, ring and pickups follow. */
+  changeSky(sky: string): void {
+    const was = this.skyChange;
+    // from wherever the ring stands now (a second change mid-fade starts from its current colours)
+    const k = was ? fadeSky(this.dome, 0) : 1;
+    const to = paintSky(this.trackScene.group, sky);
+    this.bounce = this.skyBounce(sky);
+    this.skyLight = lightOf(sky);
+    this.trackScene.setPickupGlow(this.skyLight.glow ?? 0);
+    const ring = this.farRing?.getObjectByName('horizon-rings')?.userData;
+    const rgb = (c: Color): Rgb => [c.r, c.g, c.b];
+    const ringFrom: Rgb = was ? lerpRgb(was.ring[0], was.ring[1], k) : (ring?.horizon as Rgb | undefined) ?? rgb(this.horizon);
+    const tintFrom: Rgb = was ? lerpRgb(was.tint[0], was.tint[1], k) : [1, 1, 1];
+    this.skyChange = { horizon: [this.horizon.clone(), to], ring: [ringFrom, rgb(to)], tint: [tintFrom, skyTint(this.startLight, this.skyLight)] };
+  }
+
   private skyBounce(sky: string | undefined): Color | null {
     return this.def.environment?.ground?.kind === 'none' && sky && SKIES[sky] ? new Color(SKIES[sky].ground) : null;
   }
@@ -100,9 +122,7 @@ export class RaceSession {
     const st = this.manager.state;
     for (const e of ev.race) {
       if (e.type !== 'trackChanged' || !e.event.sky) continue;
-      this.horizon = paintSky(this.trackScene.group, e.event.sky);
-      this.bounce = this.skyBounce(e.event.sky);
-      this.skyLight = lightOf(e.event.sky);
+      this.changeSky(e.event.sky);
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT);
     if (st.phase === 'finished') this.finishedFor += SIM_DT;
@@ -112,6 +132,13 @@ export class RaceSession {
   /** Interpolated visuals for one rendered frame. */
   frame(alpha: number, frameDt: number, reduced = false): void {
     const st = this.manager.state;
+    const ch = this.skyChange;
+    if (ch) {
+      const k = fadeSky(this.dome, frameDt);
+      if (k < 1) this.horizon.lerpColors(ch.horizon[0], ch.horizon[1], k); else this.horizon.copy(ch.horizon[1]);
+      recolourBackdrop(this.farRing, lerpRgb(ch.ring[0], ch.ring[1], k), lerpRgb(ch.tint[0], ch.tint[1], k));
+      if (k >= 1) this.skyChange = null;
+    }
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt);
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k].boost.remaining, st.time, reduced);
     this.trackScene.update(st.time, this.manager.lastActiveHazards, { pickups: st.pickupStates, coins: st.coinStates });
@@ -141,3 +168,5 @@ export class RaceSession {
     });
   }
 }
+
+const lerpRgb = (a: Rgb, b: Rgb, k: number): Rgb => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];

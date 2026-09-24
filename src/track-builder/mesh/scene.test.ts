@@ -388,3 +388,38 @@ describe('Final Lap Shift swap and hazards', () => {
     expect([...made].filter(([x]) => !freed.has(x)).map(([, name]) => name)).toEqual([]);
   });
 });
+
+describe('pickups after dark (detail review 2026-09-24: near-black balloons on Boardwalk Nights)', () => {
+  // what three does to the material's program: run its patch on a stand-in shader
+  const compile = (m: MeshBasicMaterial) => {
+    const shader = { uniforms: {} as Record<string, { value: number }>, vertexShader: '', fragmentShader: '#include <emissivemap_fragment>\n#include <clipping_planes_fragment>' };
+    m.onBeforeCompile(shader as never, undefined as never);
+    return shader;
+  };
+
+  it("balloons and coins light themselves by the sky's glow, eased and gently pulsing", () => {
+    const scene = buildTrackScene(buildTrack(HARBOUR_LOOP));
+    for (const name of ['balloons', 'coins']) {
+      const m = scene.instancers.get(name)!.material as MeshBasicMaterial;
+      expect(m.customProgramCacheKey(), name).toContain('|pickup');
+      const shader = compile(m);
+      expect(shader.fragmentShader, name).toContain('pickupGlow');
+      const glow = shader.uniforms.pickupGlow;
+      scene.setPickupGlow(0, true);
+      expect(glow.value, name).toBe(0); // by day nothing
+      scene.setPickupGlow(0.5, true);
+      expect(glow.value).toBe(0.5);
+      // a pulse of no more than a fifth either way
+      for (let t = 0; t < 2; t += 0.1) { scene.update(t); expect(glow.value).toBeGreaterThanOrEqual(0.4 - 1e-9); expect(glow.value).toBeLessThanOrEqual(0.6 + 1e-9); }
+      scene.setPickupGlow(0, true);
+    }
+    // a Final Lap Shift's new sky eases in, not a pop
+    scene.update(10);
+    scene.setPickupGlow(0.5);
+    scene.update(10.1);
+    const glow = compile(scene.instancers.get('balloons')!.material as MeshBasicMaterial).uniforms.pickupGlow;
+    expect(glow.value).toBeGreaterThan(0);
+    expect(glow.value).toBeLessThan(0.2);
+    scene.dispose();
+  });
+});

@@ -12,7 +12,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, DAY_GRADE, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { InputSource } from './kart-controller/input.ts';
@@ -26,6 +26,7 @@ import type { TrackDefinition } from './track-builder/types.ts';
 import { CAM, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
+import { setSunShadow } from './game/shadow.ts';
 import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
 
@@ -56,9 +57,7 @@ scene.environment = new PMREMGenerator(renderer).fromScene(new RoomEnvironment()
 scene.environmentIntensity = 0.7;
 const sun = new DirectionalLight(0xfff4e0, 2.2);
 sun.position.set(60, 120, 40);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, far: 400 });
+setSunShadow(sun);
 const hemi = new HemisphereLight(0xcfe8ff, 0x7a6a4f, 0.9);
 const fill = new AmbientLight(0xbcd8ff, 0.5);
 scene.add(sun, sun.target, hemi, fill);
@@ -169,6 +168,8 @@ function load(config: RaceConfig, isAttract: boolean): void {
   if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
   if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
   lightSnap = true; // a new race starts under its own light, no fade from the last one
+  // the Final Lap Shift's painted sky, fetched and uploaded now so the shift fades straight into it
+  void preloadSky(def.finalLapShift?.sky).then((t) => { if (t) renderer.initTexture(t); });
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
@@ -384,6 +385,7 @@ function step(now: number): void {
   cur.frame(acc.alpha, frameDt, reduced);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap);
+  if (post) { post.gradeTo = cur.skyLight.grade ?? DAY_GRADE; if (lightSnap) post.snapGrade(); }
   lightSnap = false;
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
   const pl = cur.player;

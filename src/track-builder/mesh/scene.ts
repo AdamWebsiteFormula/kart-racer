@@ -17,7 +17,7 @@ import { CreatureView } from './creatures.ts';
 import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
 import { buildBoundary } from './boundary.ts';
-import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
+import { fadeNearCamera, glowFromVertexColours, selfLit } from './glow.ts';
 import { buildStartGantry } from './gantry.ts';
 import { buildTunnels } from './tunnel.ts';
 import { buildLoopMeshes } from './loop.ts';
@@ -57,6 +57,11 @@ export interface TrackScene {
   sky: string | undefined;
   /** move hazards to their position at race time `time`; pass race-manager's activeHazards list to avoid computing it twice */
   update(time: number, active?: readonly ActiveHazard[], live?: LiveFeatures): void;
+  /**
+   * How much the balloons and coins light themselves (the sky's SkyLight.glow, 0 by day); update()
+   * eases to it with the lights and pulses it gently. `snap` jumps there (a new race).
+   */
+  setPickupGlow(amount: number, snap?: boolean): void;
   /** Mesh + InstancedMesh objects in the group (draw-call proxy) */
   drawables(): number;
   dispose(): void;
@@ -66,6 +71,10 @@ export interface TrackScene {
 export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[]; coins?: readonly { respawnRemaining: number }[] }
 
 const SKY_RADIUS = 900;
+/** The pickups' glow pulse: ± this share of it, once every PICKUP_PULSE_S seconds. */
+const PICKUP_PULSE = 0.2, PICKUP_PULSE_S = 1.6;
+/** The pickup glow eases at the scene lights' rate (main.ts applyLight), per second. */
+const PICKUP_EASE = 1.6;
 /** Each landmark's target height, metres (scaled up to it where the road leaves room). */
 const LANDMARK_HEIGHT: Readonly<Partial<Record<string, number>>> = Object.freeze({
   lighthouse: 55, windmill: 48, arch: 42, peak: 110, 'ferris-wheel': 60, airship: 34,
@@ -413,6 +422,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     ['boostPads', 'boostPad', 'boostPad', palette.surfaces.boost],
   ];
   const featureSlots = new Map<string, { slots: number[]; mats: Float32Array }>();
+  // one uniform for every balloon and coin material, so a rebuilt instancer keeps the night glow
+  const pickupGlow = { value: 0 };
+  let glowTo = 0, glowNow = 0, glowTime = 0;
   let jumpMeshes: Mesh[] = [];
   const addFeatures = () => {
     for (const [name, kind, geo, colour] of featureNames) {
@@ -430,7 +442,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
         m = instancer(name, panel, colour, mats, undefined, padMaterial());
         m.userData.sharedMaterial = false;
         m.castShadow = false;
-      } else m = instancer(name, geometryFor(assets, geo), colour, mats);
+      } else {
+        m = instancer(name, geometryFor(assets, geo), colour, mats);
+        if (!m.userData.sharedMaterial) selfLit(m.material as MeshToonMaterial, pickupGlow);
+      }
       instancers.set(name, m);
       group.add(m);
     }
@@ -512,6 +527,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     creatures?.update(time);
     vents?.update(time);
     tickPads(time);
+    const dt = Math.min(0.1, Math.max(0, time - glowTime));
+    glowTime = time;
+    glowNow += (glowTo - glowNow) * (1 - Math.exp(-dt * PICKUP_EASE));
+    pickupGlow.value = glowNow * (1 + PICKUP_PULSE * Math.sin((time / PICKUP_PULSE_S) * Math.PI * 2));
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); }
     if (live) { syncLive('balloons', live.pickups); syncLive('coins', live.coins); }
@@ -607,7 +626,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const fogHex = env.fogColor && HEX.test(env.fogColor) ? env.fogColor : null;
     const hz = fogHex ? new Color(fogHex) : new Color().setRGB(palette.background[0], palette.background[1], palette.background[2], SRGBColorSpace);
     const baseY = groundKind === 'none' ? branches.main.lut.minY - 80 : groundY;
-    const horizon = buildBackdrop(def.biome, baseY, [hz.r, hz.g, hz.b]);
+    // the sun's compass direction (main.ts sunOffset, the same default) lights one flank of each peak
+    const sunAz = Math.atan2(env.sunDirection?.[2] ?? 0.3, env.sunDirection?.[0] ?? 0.4);
+    const horizon = buildBackdrop(def.biome, baseY, [hz.r, hz.g, hz.b], sunAz);
     if (horizon) { for (const c of horizon.children) OWNED.add((c as Mesh).geometry); group.add(horizon); }
   }
 
@@ -660,6 +681,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,
+    setPickupGlow: (amount, snap = false) => {
+      glowTo = amount;
+      if (snap) { glowNow = amount; pickupGlow.value = amount; }
+    },
     drawables: () => {
       let n = 0;
       group.traverse((o) => { if (isDrawn(o as Mesh)) n++; });

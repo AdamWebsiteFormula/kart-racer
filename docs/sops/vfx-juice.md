@@ -47,6 +47,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: Boost flames sit on the pipes (flames.ts): one additive mesh per pipe on the chassis, shown only while boosting, flickering, longer with more boost left; embers stream off the same pipes in the racer's color. Reduced motion holds the flame steady.
 - 2026-09-24: The chase camera (game/camera.ts clampToRoad, after smoothing) keeps `roadClear` 1.2 m over the ground under its own spot, and where that road is a tunnel's (covered or bore) stays `beamClear` 0.45 m under tunnelWall, below the timber beams. The pose rode the kart's height: on the Canyon mine's exit climb, look-back put the camera under the road (the screen went sand) and driving forward it rose past the beams, which hid the kart. Elsewhere it only lifts a camera about to touch the road (Skyline's steepest drop); four tracks are untouched.
 - 2026-09-24: A bumper car's shove and a rockfall's slow jolt the player like a wall (`traumaWall` and the wall dust) from their `hazardHit` race event. They raise no kart event, so they used to land with no shake and no dust (a spin hazard shakes through its kart `hit`).
+- 2026-09-24: Detail review: the post chain's saturation lift follows the sky (`Post.gradeTo` = SkyLight.grade, eased like the lights, snapped at a new race): 0.03 under Canyon's dusk, 0.06 under Skyline's night, 0.12 elsewhere.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
