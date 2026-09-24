@@ -145,7 +145,7 @@
         },
         "sunDirection": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
         "palette": { "type": "object", "properties": { "background": { "type": "string" }, "accent": { "type": "string" } } },
-        "decor": { "type": "array", "items": { "type": "object", "properties": { "asset": { "type": "string" }, "instances": { "type": "integer" }, "band": { "type": "string", "enum": ["roadside", "far", "sky"] }, "footing": { "type": "string", "enum": ["pier"], "description": "Out at sea: each one stands on its own wooden pier, raised pierLift above the water" }, "lift": { "type": "number", "description": "Metres above its band's ground: a model centred on its middle (a hazard's) sits on the ground with lift = its radius" } } } },
+        "decor": { "type": "array", "items": { "type": "object", "properties": { "asset": { "type": "string" }, "instances": { "type": "integer" }, "band": { "type": "string", "enum": ["roadside", "verge", "far", "sky"], "description": "verge: an off-road track's small ground cover (flowers, tufts, stones) on the drivable land between the curb and the course limit; visual only, karts drive through it" }, "footing": { "type": "string", "enum": ["pier"], "description": "Out at sea: each one stands on its own wooden pier, raised pierLift above the water" }, "lift": { "type": "number", "description": "Metres above its band's ground: a model centred on its middle (a hazard's) sits on the ground with lift = its radius" } } } },
         "landmarkFooting": { "type": "string", "enum": ["pier"], "description": "The landmark stands on a wooden pier (a sea track)" }
       }
     },
@@ -215,6 +215,7 @@
           "properties": {
             "roadside": { "type": "array", "items": { "type": "number" }, "default": [8, 14] },
             "roadsideOffroad": { "type": "array", "items": { "type": "number" }, "default": [13, 19], "description": "the roadside band on an off-road track: just past the course limit, so the scenery lines the course" },
+            "verge": { "type": "array", "items": { "type": "number" }, "default": [2.5, 11], "description": "metres past the curb for an off-road track's ground cover: past a ramp's skirt (rampSkirt), inside the course limit (offroadReach)" },
             "far": { "type": "array", "items": { "type": "number" }, "default": [30, 120] },
             "sky": { "type": "array", "items": { "type": "number" }, "default": [25, 60] }
           }

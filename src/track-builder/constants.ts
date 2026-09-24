@@ -14,7 +14,7 @@ export interface BuilderConstants {
   balloonHeight: number; balloonRadius: number; coinRadius: number; hazardRadius: number; pierLift: number;
   ventRadius: number; ventWarnSeconds: number; ventEruptSeconds: number; ventLaunch: number;
   fallingActiveSeconds: number; fallingWarnSeconds: number; fallingHeight: number; gustWindow: number;
-  decorBands: { roadside: [number, number]; roadsideOffroad: [number, number]; far: [number, number]; sky: [number, number] };
+  decorBands: { roadside: [number, number]; roadsideOffroad: [number, number]; verge: [number, number]; far: [number, number]; sky: [number, number] };
   lapTimeWarn: [number, number]; trackDrawCallBudget: number;
 }
 

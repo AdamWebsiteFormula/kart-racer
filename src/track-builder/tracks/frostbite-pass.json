@@ -125,11 +125,14 @@
       "accent": "#ff2d95"
     },
     "decor": [
-      { "asset": "pine", "instances": 80, "band": "roadside" },
+      { "asset": "pine", "instances": 120, "band": "roadside" },
       { "asset": "snowman", "instances": 35, "band": "roadside" },
       { "asset": "chalet", "instances": 25, "band": "far" },
-      { "asset": "snowball", "instances": 40, "band": "roadside", "lift": 0.35 },
-      { "asset": "chalet", "instances": 15, "band": "roadside" }
+      { "asset": "snowball", "instances": 80, "band": "roadside", "lift": 0.35 },
+      { "asset": "chalet", "instances": 15, "band": "roadside" },
+      { "asset": "pine", "instances": 60, "band": "far" },
+      { "asset": "sapling", "instances": 180, "band": "verge" },
+      { "asset": "stones", "instances": 160, "band": "verge" }
     ]
   }
 }

@@ -150,6 +150,8 @@ describe('decor and barriers', () => {
       for (let i = 0; i < p.count; i++) {
         const x = p.matrices[i * 16 + 12], y = p.matrices[i * 16 + 13], z = p.matrices[i * 16 + 14];
         if (p.band === 'sky') expect(y).toBeGreaterThan(track.branches.main.lut.minY + BUILDER.decorBands.sky[0] - 1);
+        // ground cover on the drivable verge keeps off the roads and their curbs only
+        else if (p.band === 'verge') expect(insideRoadEnvelope(track.branches, x, z, -1, BUILDER.kerbWidth + 0.5)).toBe(false);
         else expect(insideRoadEnvelope(track.branches, x, z)).toBe(false);
       }
     }

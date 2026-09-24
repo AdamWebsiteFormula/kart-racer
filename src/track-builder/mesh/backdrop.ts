@@ -1,6 +1,6 @@
 // The far horizon (critique 2026-09-23: "a flat plane meeting the sky in a ruler-straight line"):
-// two rings of distant silhouettes per biome, rolling hills, mesas, snowy peaks, headlands, a lit
-// city across the bay, towers of cloud. The ring rides with the camera like the sky dome (main.ts
+// two rings of distant silhouettes per biome (three on the meadow: a tree line in front), rolling
+// hills, mesas, snowy peaks, headlands, a lit city across the bay, towers of cloud. The ring rides with the camera like the sky dome (main.ts
 // moves it), so it always stands at the same distance and never crowds a road near the track's
 // edge. Unlit, pre-hazed toward the horizon colour (aerial perspective), no fog, one or two draws.
 import {
@@ -12,6 +12,8 @@ import type { Rgb } from './palette.ts';
 const TAU = Math.PI * 2;
 /** Segments round a ring. */
 const SEG = 360;
+/** Extra haze at a layer's foot (mist lying in the valleys), fading out up the layer. */
+const FOOT_HAZE = 0.15;
 
 /** A height profile round the ring (metres above the base) for angle a (radians). */
 type Profile = (a: number) => number;
@@ -24,6 +26,8 @@ interface Layer {
   top: Rgb;
   /** how far toward the horizon colour this layer is pushed (0 none, 1 all haze) */
   haze: number;
+  /** extra haze at the foot, fading out up the layer (default FOOT_HAZE); a layer whose foot must meet the ground's own colour has little */
+  footHaze?: number;
   /** optional colour by absolute height above the base (snow caps, rock bands) */
   band?: (h: number, k: number) => Rgb | null;
 }
@@ -103,9 +107,13 @@ const hex = (h: string): Rgb => { const c = new Color(h); return [c.r, c.g, c.b]
 /** The rings for a biome (none for an unknown one). */
 function layersFor(biome: string): Layer[] {
   switch (biome) {
+    // detail review 5: the bright lawn ended in a ruler-straight line under a pale, washed-out hill ring.
+    // Now the near hills keep their green down to a foot the colour of the fogged lawn out there, and a
+    // low line of hedgerow trees at 420 m hides where the lawn ends (the far hills stay hazed)
     case 'meadow': return [
-      { radius: 760, profile: hills(52, 26, 11), foot: hex('#6f9a86'), top: hex('#8fb3a0'), haze: 0.55 },
-      { radius: 640, profile: hills(22, 16, 7), foot: hex('#4f8a3a'), top: hex('#86c25a'), haze: 0.3 },
+      { radius: 760, profile: hills(52, 26, 11), foot: hex('#6f9a86'), top: hex('#8fb3a0'), haze: 0.5 },
+      { radius: 640, profile: hills(22, 16, 7), foot: hex('#5f9c3e'), top: hex('#86c25a'), haze: 0.12, footHaze: 0.2 },
+      { radius: 420, profile: puffs(170, 3, 8, 420, 23, 3), foot: hex('#2f6a2c'), top: hex('#4f9a3c'), haze: 0.1, footHaze: 0.05 },
     ];
     case 'canyon': return [
       { radius: 760, profile: peaks(14, 40, 95, 5, 10), foot: hex('#c98a6a'), top: hex('#e0a27c'), haze: 0.5 },
@@ -143,7 +151,7 @@ function strip(layer: Layer, baseY: number, horizon: Rgb, out: { pos: number[]; 
       let c = mixRgb(layer.foot, layer.top, k);
       const b = layer.band?.(y, h > 0 ? y / Math.max(h, 1) : 0);
       if (b) c = b;
-      c = mixRgb(c, horizon, layer.haze + (1 - k) * 0.15);
+      c = mixRgb(c, horizon, layer.haze + (1 - k) * (layer.footHaze ?? FOOT_HAZE));
       out.pos.push(cx, baseY + (j === 0 ? -30 : y), cz);
       out.col.push(c[0], c[1], c[2]);
     }

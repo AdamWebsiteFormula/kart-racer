@@ -96,19 +96,25 @@ function rampTexture(palette: TrackPalette): DataTexture {
   });
 }
 
-/** Trick bumps by biome: sand dunes, snow moguls, turf humps; elsewhere the shoulder's colour. */
+/** Trick bumps by biome: sand dunes, snow moguls, hay humps (design §6); elsewhere the shoulder's colour. */
 const HUMP_TINT: Readonly<Partial<Record<string, Rgb>>> = Object.freeze({
-  canyon: [0.96, 0.7, 0.46], frost: [0.95, 0.975, 1], meadow: [0.72, 0.52, 0.3], // meadow: dirt mounds (green ones read as grass through the road)
+  // meadow: straw (detail review 5: brown dirt mounds read as plain speed bumps; green ones read as grass through the road)
+  canyon: [0.96, 0.7, 0.46], frost: [0.95, 0.975, 1], meadow: [0.89, 0.76, 0.42],
 });
+/** Biomes whose humps are hay: soft stalk streaks, and a red twine line along the crest (the accent is straw-yellow). */
+const HAY: Readonly<Partial<Record<string, Rgb>>> = Object.freeze({ meadow: [0.85, 0.28, 0.23] });
 
 /** A trick bump: its biome's ground with a dashed accent line along its crest. */
 function humpTexture(palette: TrackPalette, biome: string): DataTexture {
-  const ground = HUMP_TINT[biome] ?? palette.shoulder;
-  // smooth colour (noise shimmers into a carpet at a distance); the crest line is the only mark
+  const ground = HUMP_TINT[biome] ?? palette.shoulder, twine = HAY[biome];
+  // smooth colour (noise shimmers into a carpet at a distance); the crest line is the only mark, and on
+  // hay a few broad soft stalk streaks across it (wide enough to survive the mipmaps)
   return paint(64, 128, (u, v) => {
     if (v < FACE_V0 * 0.5) return scale(ground, 0.8);
-    if (Math.abs(v - 0.5) < 0.035 && u % 0.5 < 0.32) return mix(palette.accent, WHITE, 0.15);
-    return ground;
+    if (Math.abs(v - 0.5) < 0.035 && u % 0.5 < 0.32) return twine ?? mix(palette.accent, WHITE, 0.15);
+    if (!twine) return ground;
+    const s = Math.sin((u * 6 + Math.sin(v * Math.PI * 4) * 0.12) * Math.PI * 2);
+    return scale(ground, 0.93 + 0.07 * s - (s < -0.7 ? 0.08 : 0));
   });
 }
 

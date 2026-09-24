@@ -337,7 +337,7 @@
       },
       {
         "asset": "boat",
-        "instances": 20,
+        "instances": 40,
         "band": "far"
       },
       {
@@ -345,9 +345,15 @@
         "instances": 30,
         "band": "sky"
       },
-      { "asset": "barrel", "instances": 30, "band": "roadside", "lift": 1.2 },
+      { "asset": "barrel", "instances": 30, "band": "roadside", "lift": 1.02 },
       { "asset": "stall", "instances": 16, "band": "roadside" },
-      { "asset": "lamp", "instances": 30, "band": "roadside" }
+      { "asset": "lamp", "instances": 30, "band": "roadside" },
+      { "asset": "crate", "instances": 24, "band": "roadside" },
+      { "asset": "umbrella", "instances": 20, "band": "roadside" },
+      { "asset": "rope-post", "instances": 24, "band": "roadside" },
+      { "asset": "tuft", "instances": 480, "band": "verge" },
+      { "asset": "flowers", "instances": 300, "band": "verge" },
+      { "asset": "bush", "instances": 110, "band": "verge" }
     ]
   }
 }

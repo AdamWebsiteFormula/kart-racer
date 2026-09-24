@@ -38,6 +38,34 @@ export interface RibbonOptions {
 
 const BLEND_SINK = 0.03;
 
+const MUD = SURFACES.indexOf('mud');
+/** Metres into a mud patch over which its ragged edge wanders (the road material draws it from `surf`). */
+export const MUD_EDGE = 6;
+
+/**
+ * Per LUT sample, how deep into a mud patch it is: 0 off the mud, 0.5 on its first sample, rising to 1
+ * MUD_EDGE metres in; and the nearest sample off the mud (itself off it, -1 when the whole road is mud).
+ * Only the mud's own samples change, so a mud patch never repaints the road around it (a surface
+ * shift rebuilds just the chunks it touches).
+ */
+export function mudDepth(lut: Lut): { depth: Float32Array; near: Int32Array } {
+  const n = lut.n, depth = new Float32Array(n), near = new Int32Array(n).fill(-1);
+  const gap = new Float64Array(n).fill(Infinity), metres = lut.length / lut.step;
+  // two sweeps each way (twice round a closed road, so a patch across the seam sees both ends)
+  for (const dir of [1, -1]) {
+    let last = -1, run = Infinity;
+    const laps = lut.closed ? 2 : 1;
+    for (let k = 0; k < n * laps; k++) {
+      const i = dir > 0 ? k % n : n - 1 - (k % n);
+      if (lut.surface[i] !== MUD) { last = i; run = 0; near[i] = i; gap[i] = 0; continue; }
+      run++;
+      if (last >= 0 && run - 1 < gap[i]) { gap[i] = run - 1; near[i] = last; }
+    }
+  }
+  for (let i = 0; i < n; i++) depth[i] = lut.surface[i] !== MUD ? 0 : 0.5 + 0.5 * Math.min(1, (gap[i] * metres) / MUD_EDGE);
+  return { depth, near };
+}
+
 export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPalette, opts: RibbonOptions = {}): BufferGeometry {
   const { kerbWidth: kw, kerbHeight: kh, shoulderWidth: sw, shoulderDrop: drop, roadTileLength: tile } = BUILDER;
   const blend = opts.blend ?? 0;
@@ -45,7 +73,10 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   const stripe = (s: number): Rgb => (Math.floor(s / (tile / 4)) % 2 === 0 ? palette.kerbA : palette.kerbB);
   const roadColour = (i: number) => palette.surfaces[SURFACES[lut.surface[i]]];
   const kerb = (i: number, s: number) => (blended(i) ? roadColour(i) : stripe(s));
-  const road = (i: number) => roadColour(i);
+  // a mud patch is painted over the road by the material (`surf`, scene.ts): under it the ribbon keeps
+  // the road it lies on, so its ragged edge shows that road, not a ruler-straight colour change
+  const mud = mudDepth(lut);
+  const road = (i: number) => roadColour(mud.near[i] >= 0 ? mud.near[i] : i);
   const shoulder = (i: number) => (blended(i) ? roadColour(i) : palette.shoulder);
   const M = ROAD_MARK;
   const strips: Strip[] = [
@@ -69,6 +100,7 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   const uv = new Float32Array(total * 2);
   const mark = new Float32Array(total);
   const bend = new Float32Array(total);
+  const surf = new Float32Array(total);
   // how sharply the road turns here: the heading change across a few samples, per metre, eased
   // from a gentle sweep (radius ~80 m) to a real corner (radius ~40 m)
   const K = 4, ds = (2 * K * lut.length) / lut.step;
@@ -109,6 +141,7 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
           ? (strip.mark === M.shoulder && opts.offroad ? M.shoulder : strip.mark === M.road && !opts.offroad ? M.road : M.plain)
           : strip.mark === M.shoulder && sideOpen ? M.cliffShoulder : strip.mark;
         bend[v] = lut.closed || (i - K >= 0 && i + K <= lut.step) ? bendAt(i) : 0;
+        surf[v] = strip.mark === M.road ? mud.depth[j] : 0;
         v++;
       }
     }
@@ -126,6 +159,7 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   g.setAttribute('uv', new BufferAttribute(uv, 2));
   g.setAttribute('mark', new BufferAttribute(mark, 1));
   g.setAttribute('bend', new BufferAttribute(bend, 1));
+  g.setAttribute('surf', new BufferAttribute(surf, 1));
   g.setIndex(new BufferAttribute(idx, 1));
   g.computeVertexNormals();
   g.computeBoundingSphere();
