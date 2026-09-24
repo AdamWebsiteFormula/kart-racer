@@ -2,7 +2,7 @@
 // Behind the menus an all-AI race runs as the attract mode; picking a race swaps in a new
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
-  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, PCFShadowMap,
+  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, NoToneMapping, PCFShadowMap,
   PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type MeshStandardMaterial,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -15,6 +15,7 @@ import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.
 import { BUBBLE_CLOCK, DAY_GRADE, isBodyId, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
+import { Warmup } from './performance/warmup.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
@@ -44,7 +45,10 @@ const ATTRACT_CC: SpeedClass = 150;
 const RESULTS_AFTER = 2.5;
 
 // ---- renderer, scene, lights ----
-const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+// the canvas's own MSAA only where the post chain would use it too (msaaSamples: none on a sharp
+// screen): at a pixel ratio of 2 the 4x canvas buffer cost a resolve every frame and made each
+// resolution step of the governor a 50 to 150 ms reallocation (2560x1440 at 2, 24 Sept 2026)
+const renderer = new WebGLRenderer({ antialias: msaaSamples(dprCap(devicePixelRatio, matchMedia('(pointer: coarse)').matches)) > 0, powerPreference: 'high-performance' });
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFShadowMap;
 renderer.toneMapping = ACESFilmicToneMapping;
@@ -90,6 +94,8 @@ let lightSnap = true;
 const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
 const vfx = new Vfx(scene, camera);
 post = new Post(renderer, scene, camera);
+/** a race's shaders compile before its countdown runs (performance/warmup.ts) */
+const warmup = new Warmup(renderer);
 const fxBuf = newEffects();
 const camPos: Vec3 = [0, 20, 40];
 const camLook: Vec3 = [0, 0, 0];
@@ -118,6 +124,25 @@ function applyRender(): void {
   post?.setEnabled(!low);
   post?.setSamples(msaaSamples(cap));
   resize();
+}
+/** a governor change waiting to be applied (since when, in seconds), or -1 */
+let pendingQuality = -1;
+/** seconds a change waits for a calm moment at most */
+const CALM_WAIT = 3;
+/**
+ * The governor moved. Low (or back) changes every shader, so they compile in the background first
+ * while the old quality still draws (performance/warmup.ts). Either way the change then waits for
+ * a calm moment: not mid-drift, mid-boost or spinning, so the switch is never felt in the action.
+ */
+function qualityChanged(nowS: number): void {
+  const low = settings?.quality === 'low' || governor.low;
+  if (low !== !renderer.shadowMap.enabled) warmup.prepare(scene, camera, { shadows: !low, toneMapping: low ? ACESFilmicToneMapping : NoToneMapping, intoTarget: !low }, nowS);
+  pendingQuality = nowS;
+}
+/** Nothing is happening to the player's kart that a change of quality could spoil. */
+function calm(): boolean {
+  const p = attract ? undefined : session?.player;
+  return !p || (!p.drift.active && p.boost.remaining <= 0 && p.status.spinRemaining <= 0 && p.grounded);
 }
 function resize(): void {
   renderer.setSize(innerWidth, innerHeight);
@@ -164,7 +189,8 @@ function roster(playerId: string | null): RacerConfig[] {
 }
 
 function load(config: RaceConfig, isAttract: boolean): void {
-  session?.dispose();
+  // the old race is freed once the new one's shaders are compiled, so the shaders both draw with carry over
+  const old = session;
   const base = TRACKS.get(config.trackId) ?? TRACKS.get(FIRST_TRACK)!;
   // Mirror mode races the track reflected left to right (track-builder/mirror.ts); never on a leaderboard mode
   const def = config.mirrored && !isBoardMode(config.mode) ? mirrored(base) : base;
@@ -187,11 +213,12 @@ function load(config: RaceConfig, isAttract: boolean): void {
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
   if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id, session.state.trackers[pi]?.shownRank, finishLine(session.config), session.config.mode !== 'timeTrial');
-  if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
+  // the race starts at the governor's quality (a change still waiting for a calm moment included), applied before its shaders compile
+  if ((governor.newRace(performance.now() / 1000) && autoQuality()) || pendingQuality >= 0) { pendingQuality = -1; applyRender(); }
   if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
   lightSnap = true; // a new race starts under its own light, no fade from the last one
   // the Final Lap Shift's painted sky, fetched and uploaded now so the shift fades straight into it
-  void preloadSky(def.finalLapShift?.sky).then((t) => { if (t) renderer.initTexture(t); });
+  const shiftSky = preloadSky(def.finalLapShift?.sky).then((t) => { if (t) renderer.initTexture(t); });
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
@@ -202,6 +229,12 @@ function load(config: RaceConfig, isAttract: boolean): void {
   camPos[0] = k.position[0] - Math.sin(k.heading) * 12; camPos[1] = k.position[1] + 6; camPos[2] = k.position[2] - Math.cos(k.heading) * 12;
   camLook[0] = k.position[0]; camLook[1] = k.position[1]; camLook[2] = k.position[2];
   camKart[0] = k.position[0]; camKart[1] = k.position[1]; camKart[2] = k.position[2];
+  // every shader this race can draw, hidden and off-screen ones too, compiles now, before the countdown runs
+  warmup.begin(scene, camera, post?.enabled ?? false, performance.now() / 1000);
+  // and its skies' paintings, so neither is decoded and uploaded on the frame it first shows
+  warmup.waitFor(preloadSky(session.trackScene.sky));
+  warmup.waitFor(shiftSky);
+  old?.dispose();
 }
 
 /** A look from the UI's ids (the store has checked them against the unlocks). */
@@ -261,7 +294,13 @@ const host: UiHost = {
     audio.pause(p); // the music drops back under the pause menu
     if (!p) acc.reset();
   },
-  settingsChanged(s) { settings = s; governor.reset(performance.now() / 1000); applyRender(); audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume }); },
+  settingsChanged(s) {
+    const wasLow = !renderer.shadowMap.enabled;
+    settings = s; governor.reset(performance.now() / 1000); pendingQuality = -1; applyRender();
+    // Low (or back) changes every shader: compile them all before the next frame draws (performance/warmup.ts)
+    if (wasLow !== !renderer.shadowMap.enabled) warmup.begin(scene, camera, post?.enabled ?? false, performance.now() / 1000);
+    audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume });
+  },
   uiSound(kind) { audio.ui(kind); },
   screenChanged(app) {
     // leaving the race screens for the menus brings the attract race back
@@ -405,6 +444,13 @@ function step(now: number): void {
   ui.poll(now);
   const s = session;
   if (!s) return;
+  // a new race's shaders still compiling (performance/warmup.ts): nothing ticks or draws, the last
+  // frame stays up; once they are done, one draw of everything, and the countdown starts after it
+  const warmed = warmup.active;
+  if (warmed) {
+    if (!warmup.ready(now / 1000)) return;
+    warmup.finish(scene, () => post!.render(0, false, true));
+  }
 
   const racing = !attract && ui.app.screen === 'racing';
   ui.touch.show(racing && !ui.paused);
@@ -416,9 +462,10 @@ function step(now: number): void {
   const measuring = autoQuality() && !ui.paused && !document.hidden;
   if (measuring && !governing) governor.reset(nowS);
   governing = measuring;
-  if (measuring && governor.sample(rawMs, nowS)) applyRender();
+  if (measuring && pendingQuality < 0 && governor.sample(rawMs, nowS)) qualityChanged(nowS);
+  if (pendingQuality >= 0 && warmup.prepared(nowS) && (calm() || nowS - pendingQuality > CALM_WAIT)) { pendingQuality = -1; applyRender(); governor.reset(nowS); }
   let simDt = 0;
-  if (!ui.paused && (!document.hidden || devStepping)) {
+  if (!ui.paused && (!document.hidden || devStepping) && !warmed) {
     const steps = acc.steps(frameDt * vfx.time.scale(nowS, reduced));
     simDt = steps * SIM_DT;
     for (let i = 0; i < steps; i++) {
@@ -439,6 +486,7 @@ function step(now: number): void {
   else if (!attract && ui.app.screen === 'racing' && (s.finishedFor > RESULTS_AFTER || (skipResults && s.state.phase === 'finished'))) raceOver();
 
   const cur = session!;
+  if (warmup.active) return; // the attract loop just started its next race: compiling
   cur.frame(acc.alpha, frameDt, reduced);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap);
@@ -476,6 +524,8 @@ function step(now: number): void {
   }
   post!.render(frameDt, !attract && !!pl && pl.boost.remaining > 0, reduced);
   if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
+  // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again
+  if (warmed) { last = performance.now(); governor.reset(last / 1000); }
 }
 
 // ---- the racer screen's hero turntable: the focused racer in their paint and body (design §12, §10 rewards) ----
@@ -528,7 +578,7 @@ requestAnimationFrame(frame);
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {
   (globalThis as unknown as Record<string, unknown>).kart = {
-    get session() { return session; }, ui, audio, vfx, post, renderer, governor,
+    get session() { return session; }, ui, audio, vfx, post, renderer, governor, warmup,
     /** dev: run `n` frames of the real loop by hand, `ms` apart (works while the tab is hidden) */
     step: (n = 1, ms = 1000 / 60) => {
       devStepping = true;

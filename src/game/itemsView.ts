@@ -44,6 +44,8 @@ const spread = (id: number) => ((id * 2654435761) >>> 0) / 4294967296;
 export class ItemsView {
   readonly root = new Group();
   private readonly kinds: Record<string, Kind>;
+  /** the kinds as a list, walked twice a frame without making a new array each time */
+  private readonly all: Kind[];
   private readonly roll: number[] = [];
   private readonly spin = new Quaternion();
   private readonly q = new Quaternion();
@@ -74,7 +76,8 @@ export class ItemsView {
       strikeBall: new Kind(new SphereGeometry(RIDE_RADIUS, 40, 28), strikeBallMaterial(), 8),
       bubble: new Kind(new SphereGeometry(1.6, 28, 20), bubbleMaterial(), 8, false),
     };
-    for (const k of Object.values(this.kinds)) this.root.add(k.mesh);
+    this.all = Object.values(this.kinds);
+    for (const k of this.all) this.root.add(k.mesh);
   }
 
   /** Free what this view made: every kind's instance buffer and the two spheres. The item models are shared; the session frees the materials. */
@@ -101,7 +104,7 @@ export class ItemsView {
 
   /** alpha: render interpolation between the previous and the current tick; dt: this frame's seconds. */
   onFrame(items: Items, karts: readonly KartState[], kartRoots: readonly Object3D[], alpha: number, time: number, dt = 0, track?: Track): void {
-    for (const k of Object.values(this.kinds)) k.begin();
+    for (let i = 0; i < this.all.length; i++) this.all[i].begin();
     const st = items.state;
 
     // flying: face the way they travel
@@ -223,7 +226,7 @@ export class ItemsView {
       }
     }
 
-    for (const k of Object.values(this.kinds)) k.end();
+    for (let i = 0; i < this.all.length; i++) this.all[i].end();
   }
 
   /** Karts left inside a Strike Ball when a race ends are shown again. */

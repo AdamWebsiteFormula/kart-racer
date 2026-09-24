@@ -49,12 +49,13 @@ describe('auto quality governor', () => {
       }
       return { seen, g };
     };
-    // a sharp screen never drops below a pixel ratio of 1 (the floor is half its cap of 2)
+    // a sharp screen never drops below a pixel ratio of 1 (the floor is half its cap of 2); far
+    // short of the goal (29 fps) it drops several steps at once, so three changes, not six
     const retina = steps(2);
-    expect(retina.seen).toEqual(['1.8', '1.6', '1.4', '1.2', '1.0', '1.0 low']);
+    expect(retina.seen).toEqual(['1.4', '1.0', '1.0 low']);
     expect(retina.g.scale).toBe(GOVERNOR.min);
     // a pixel ratio 1 screen loses the effects first, then resolution down to half
-    expect(steps(1).seen).toEqual(['1.0 low', '0.9 low', '0.8 low', '0.7 low', '0.6 low', '0.5 low']);
+    expect(steps(1).seen).toEqual(['1.0 low', '0.8 low', '0.7 low', '0.6 low', '0.5 low']);
   });
 
   it('never steps up mid-race; a clean race earns one step back at the next start', () => {
@@ -118,6 +119,47 @@ describe('auto quality governor', () => {
     const h = new Governor(1);
     h.rebase(2);
     expect(h.dpr).toBe(2);
+  });
+
+  it('a stall of a few frames in a steady 60 (a shader, a texture, a GC) is not a reason to step down; a heavier scene is', () => {
+    const g = new Governor(2);
+    let t = run(g, 60, 3, 0).t;
+    // four 200 ms stalls over 8 s: each window still averages under 55 fps with them counted
+    for (let k = 0; k < 4; k++) {
+      t += 0.2;
+      expect(g.sample(200, t)).toBe(false);
+      t = run(g, 60, 1.8, t).t;
+    }
+    expect([g.scale, g.low]).toEqual([1, false]);
+    // a scene that really runs at 11 fps (and faster with less quality) is judged, not skipped as one long hitch
+    run(g, (q) => loaded(q) * 0.4, 6, t);
+    expect(g.scale).toBeLessThan(1);
+  });
+
+  it('one short window (a second of explosions) changes nothing; two in a row do', () => {
+    const g = new Governor(2);
+    let t = run(g, 60, 4, 0).t;
+    t = run(g, 40, 1, t).t;
+    t = run(g, 60, 4, t).t;
+    expect([g.scale, g.low]).toEqual([1, false]);
+    run(g, 40, 2.2, t);
+    expect(g.scale).toBeLessThan(1);
+  });
+
+  it('a race-start step up that fails is never tried again, so quality does not flip-flop race after race', () => {
+    // this machine holds 60 at a pixel ratio of 1.6 and misses at 1.8
+    const fits = (q: Governor) => (q.dpr > 1.7 ? 50 : 60);
+    const g = new Governor(2);
+    let t = 0, midRace = 0;
+    for (let race = 0; race < 8; race++) {
+      g.newRace(t); // a step at the start is not a mid-race change
+      const r = run(g, fits, 60, t);
+      midRace += r.changes;
+      t = r.t;
+    }
+    // steps down to 1.6 in the first race, probes 1.8 once, steps back, and never probes again
+    expect(g.dpr).toBeCloseTo(1.6, 5);
+    expect(midRace).toBe(3);
   });
 
   it('caps the pixel ratio: 2 on desktop, 1.5 on touch', () => {

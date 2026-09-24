@@ -17,6 +17,7 @@ import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
+import { splitShadowDepth } from '../performance/shadowDepth.ts';
 import { GhostView } from './ghostView.ts';
 import { ItemsView } from './itemsView.ts';
 import { RescueView } from './rescueView.ts';
@@ -59,6 +60,9 @@ export class RaceSession {
   /** Time Trial has no items (design §9): every balloon drawn popped (the sim's own pickup timers stay as they are for the replay) */
   private hiddenBalloons: { respawnRemaining: number }[] | null = null;
   private readonly parts: SimParts;
+  /** each kart's view root, and the live pickups and coins, reused every frame (no garbage per frame) */
+  private readonly roots: Object3D[];
+  private readonly live: { pickups: readonly { respawnRemaining: number }[]; coins: RaceSession['state']['coinStates'] } = { pickups: [], coins: [] };
   private readonly group = new Group();
   private readonly scene: Scene;
   /** the lights the race started under: the horizon ring was coloured for them */
@@ -102,6 +106,8 @@ export class RaceSession {
       this.group.add(v.root);
       return v;
     });
+    this.roots = this.views.map((v) => v.root);
+    splitShadowDepth(this.group);
     scene.add(this.group);
   }
 
@@ -134,8 +140,9 @@ export class RaceSession {
     const ev = simTick(this.parts, playerInput);
     const st = this.manager.state;
     for (const e of ev.race) {
-      if (e.type !== 'trackChanged' || !e.event.sky) continue;
-      this.changeSky(e.event.sky);
+      if (e.type !== 'trackChanged') continue;
+      splitShadowDepth(this.group); // the shift's rebuilt instancers
+      if (e.event.sky) this.changeSky(e.event.sky);
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT);
     this.recorder?.record(st.tick, st.karts[this.playerIndex]);
@@ -156,8 +163,11 @@ export class RaceSession {
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k].boost.remaining, st.time, reduced);
-    this.trackScene.update(st.time, this.manager.lastActiveHazards, { pickups: st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates, coins: st.coinStates });
-    this.itemsView.onFrame(this.items, st.karts, this.views.map((v) => v.root as Object3D), alpha, st.time, frameDt, this.track);
+    const live = this.live;
+    live.pickups = st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates;
+    live.coins = st.coinStates;
+    this.trackScene.update(st.time, this.manager.lastActiveHazards, live);
+    this.itemsView.onFrame(this.items, st.karts, this.roots, alpha, st.time, frameDt, this.track);
     this.rescueView.onFrame(st.trackers, (i) => this.views[i].root.position, frameDt, st.time);
   }
 
