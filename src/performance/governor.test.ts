@@ -1,16 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { dprCap, Governor, GOVERNOR } from './governor.ts';
 
-/** Run `seconds` of frames at `fps`; returns how many times the quality changed. */
-function run(g: Governor, fps: number, seconds: number, t0: number): { changes: number; t: number } {
-  let t = t0, changes = 0;
-  const dt = 1000 / fps;
+/**
+ * Run `seconds` of frames at `fps` (or at the rate the governor's current quality allows), each
+ * frame off by up to ±`jitterMs`; returns how many times the quality changed.
+ */
+function run(g: Governor, fps: number | ((g: Governor) => number), seconds: number, t0: number, jitterMs = 0): { changes: number; t: number } {
+  let t = t0, changes = 0, n = 0;
   while (t < t0 + seconds) {
+    const dt = 1000 / (typeof fps === 'number' ? fps : fps(g)) + (n++ % 2 ? jitterMs : -jitterMs);
     t += dt / 1000;
     if (g.sample(dt, t)) changes++;
   }
   return { changes, t };
 }
+
+/** A machine too slow for its screen: each frame 20 ms of fixed work, plus fill that scales with the pixels, plus 5 ms of shadows and post. */
+const loaded = (g: Governor) => 1000 / (20 + 10 * (g.dpr / 2) ** 2 + (g.low ? 0 : 5));
 
 describe('auto quality governor', () => {
   it('leaves a fast machine alone', () => {
@@ -37,7 +43,7 @@ describe('auto quality governor', () => {
       const seen: string[] = [];
       let t = 0;
       for (let k = 0; k < 40; k++) {
-        const r = run(g, 30, 1.6, t);
+        const r = run(g, loaded, 1.6, t);
         t = r.t;
         if (r.changes) seen.push(`${g.dpr.toFixed(1)}${g.low ? ' low' : ''}`);
       }
@@ -63,6 +69,34 @@ describe('auto quality governor', () => {
     t = run(g, 60, 30, t).t;
     expect(g.newRace(t)).toBe(true);
     expect(g.scale).toBeCloseTo(held + GOVERNOR.step, 5);
+  });
+
+  it('a display or browser capped at 30 or 50 fps gets its full quality back once stepping down buys nothing, and keeps it', () => {
+    for (const [hz, base] of [[30, 2], [50, 2], [30, 1], [50, 1]]) {
+      const g = new Governor(base);
+      // the ladder runs once, finds the rate does not move, and puts everything back
+      let t = run(g, hz, 20, 0, 0.3).t;
+      expect([g.scale, g.low, g.ceiling], `${hz} Hz at ${base}x`).toEqual([1, false, hz === 30 ? expect.closeTo(30, 0) : expect.closeTo(50, 0)]);
+      // and never runs again: not in this race, not in the next three
+      for (let race = 0; race < 3; race++) {
+        expect(run(g, hz, 150, t, 0.3).changes, `${hz} Hz race ${race}`).toBe(0);
+        t += 150;
+        g.newRace(t);
+      }
+      expect([g.scale, g.low]).toEqual([1, false]);
+    }
+  });
+
+  it('under a known cap, real load still steps down; a lifted cap is judged against the full target again', () => {
+    const g = new Governor(2);
+    let t = run(g, 30, 20, 0, 0.3).t;
+    expect(g.ceiling).toBeCloseTo(30, 0);
+    // load below 90 % of the cap is a miss: steps down, and they help, so they stay
+    t = run(g, (q) => loaded(q) * 0.6, 12, t).t;
+    expect(g.scale).toBeLessThan(1);
+    // the charger goes in: 60 fps lifts the cap
+    run(g, 60, 3, t);
+    expect(g.ceiling).toBe(Infinity);
   });
 
   it('caps the pixel ratio: 2 on desktop, 1.5 on touch', () => {
