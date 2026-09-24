@@ -89,6 +89,35 @@ export interface FinalLapShiftDef {
   musicVariant?: string;
 }
 
+/**
+ * One kind of scenery and where it goes. Scatter (the default) lays little groups with open ground
+ * between; `row` lays runs of pieces `every` metres apart along the road, turned along it with local +X
+ * pointing away from the road (fences, lamp posts, corner signs, a ski lift, cliff walls); `span` stands
+ * one piece across the road, its legs past the course limit (bunting, a rock arch). `at` keeps group
+ * centres inside a stretch of the lap (t0 > t1 wraps past the line); `side` picks the side (default: the
+ * outside of corners, favoured); `dist` overrides the band's distances; `scale` the random scale range.
+ * `merge`: a code-built model baked into the track's merged dressing chunks (one draw per chunk for
+ * every merged kind) instead of an instancer of its own.
+ */
+export interface DecorEntry {
+  asset: string;
+  instances: number;
+  band: DecorBand;
+  footing?: 'pier';
+  /** metres above its band's ground (a model centred on its middle, like a hazard's, sits on the ground with lift = its radius) */
+  lift?: number;
+  layout?: 'scatter' | 'row' | 'span';
+  /** row: metres between pieces along the road */
+  every?: number;
+  /** row: pieces per run (default 6) */
+  run?: number;
+  at?: [number, number];
+  side?: 'left' | 'right' | 'outside' | 'inside';
+  dist?: [number, number];
+  scale?: [number, number];
+  merge?: boolean;
+}
+
 export interface EnvironmentDef {
   sky?: string;
   lut?: string;
@@ -97,8 +126,8 @@ export interface EnvironmentDef {
   ground?: { kind: GroundKind; y?: number };
   sunDirection?: [number, number, number];
   palette?: { background?: string; accent?: string };
-  /** lift: metres above its band's ground (a model centred on its middle, like a hazard's, sits on the ground with lift = its radius) */
-  decor?: { asset: string; instances: number; band: DecorBand; footing?: 'pier'; lift?: number }[];
+  /** scenery, kind by kind (DecorEntry) */
+  decor?: DecorEntry[];
   /** the landmark stands on a wooden pier (a sea track) */
   landmarkFooting?: 'pier';
 }

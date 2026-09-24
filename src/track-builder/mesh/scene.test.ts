@@ -147,6 +147,7 @@ describe('decor and barriers', () => {
 
   it('ground decor never sits inside any road envelope; sky decor floats above the road', () => {
     for (const p of scene.decor) {
+      if (p.layout === 'span') continue; // across the road, legs past the course limit (dressing.test.ts)
       for (let i = 0; i < p.count; i++) {
         const x = p.matrices[i * 16 + 12], y = p.matrices[i * 16 + 13], z = p.matrices[i * 16 + 14];
         if (p.band === 'sky') expect(y).toBeGreaterThan(track.branches.main.lut.minY + BUILDER.decorBands.sky[0] - 1);
@@ -209,13 +210,13 @@ describe('decor and barriers', () => {
     const coast = scene.group.getObjectByName('coast') as Mesh, sea = scene.group.getObjectByName(`ground-${def.environment!.ground!.kind}`) as Mesh;
     const rc = new Raycaster(), m = new Matrix4(), s = new Vector3();
     let bad = 0, where = '';
-    for (const p of scene.decor) {
-      const entry = def.environment!.decor!.find((e) => e.asset === p.asset && e.band === p.band)!;
+    scene.decor.forEach((p, e) => {
+      const entry = def.environment!.decor![e]; // one placement per entry, in order (an asset may have several)
       expect(p.count, p.asset).toBe(entry.instances);
-      if (p.band === 'sky' || entry.footing === 'pier') continue;
+      if (p.band === 'sky' || entry.footing === 'pier' || p.layout === 'span') return;
       // the ground a prop may stand on: the land, the ground plane of a land track, and the sea for a far one (a boat)
       const ground = [coast, ...(!water || p.band === 'far' ? [sea] : [])];
-      const bb = scene.instancers.get(`decor:${p.asset}`)!.geometry.boundingBox!, foot = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z);
+      const foot = p.footprint;
       for (let i = 0; i < p.count; i++) {
         m.fromArray(p.matrices, i * 16);
         s.setFromMatrixScale(m);
@@ -227,7 +228,7 @@ describe('decor and barriers', () => {
           if (y - under > 1) { bad++; where ||= `${p.asset} ${i} at (${x.toFixed(1)}, ${y.toFixed(2)}, ${z.toFixed(1)}): ground ${under.toFixed(2)} under its footprint`; break; }
         }
       }
-    }
+    });
     expect(bad, where).toBe(0);
     scene.dispose();
   });

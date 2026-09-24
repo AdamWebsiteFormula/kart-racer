@@ -3,12 +3,15 @@
 // placement code never changes. Keyed exactly as TrackAssets expects.
 import type { BufferGeometry } from 'three';
 import { ModelBuilder } from './model.ts';
+import { DRESSING_MODELS } from './dressing.ts';
 
 type Build = (m: ModelBuilder) => void;
 
 const WOOD = '#a0703c', WOOD_DARK = '#7a5230', WHITE = '#fffaf0', CORAL = '#ff6f61', SUN = '#ffd23f', TEAL = '#2ec4b6', INK = '#1b1b2f';
 
 const MODELS: Record<string, { build: Build }> = {
+  // Frostbite Pass and Canyon Rush at Mario Kart World density: fences, lamps, signs, villages, set-pieces, relief (dressing.ts)
+  ...DRESSING_MODELS,
   // ---- decor (placeholder: 2 × 4 × 2 box on the ground)
   palm: {
     build: (m) => {

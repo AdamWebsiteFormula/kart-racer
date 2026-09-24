@@ -13,6 +13,7 @@ import type { Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
 import { hashString, mulberry32, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
+import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
 import { CreatureView } from './creatures.ts';
 import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
@@ -51,6 +52,8 @@ export interface TrackScene {
   palette: TrackPalette;
   chunks: Chunk[];
   decor: DecorPlacement[];
+  /** the merged dressing (merge.ts): one static mesh per slice of the track, near ones casting shadows */
+  dressing: Mesh[];
   /** name → instancer; names: barriers, balloons, coins, boostPads, ramps, hazard:<asset>, decor:<asset> */
   instancers: Map<string, InstancedMesh>;
   fog: { color: Rgb; density: number };
@@ -250,6 +253,48 @@ function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices
   return m;
 }
 
+/**
+ * The merged dressing: each copy goes to the slice of the track round its centre that holds it, near
+ * the road (casting shadows, as the roadside instancers do) or far from it (no shadows), and each
+ * slice is one static mesh with its own toon material; the renderer culls a slice off screen.
+ */
+function buildDressing(items: readonly { item: MergeItem; far: boolean }[], lut: Track['branches']['main']['lut']): Mesh[] {
+  if (items.length === 0) return [];
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (let i = 0; i < lut.n; i++) {
+    minX = Math.min(minX, lut.px[i]); maxX = Math.max(maxX, lut.px[i]);
+    minZ = Math.min(minZ, lut.pz[i]); maxZ = Math.max(maxZ, lut.pz[i]);
+  }
+  const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+  const out: Mesh[] = [];
+  for (const far of [false, true]) {
+    const slices = far ? DRESSING_SLICES.far : DRESSING_SLICES.near;
+    const buckets: MergeItem[][] = Array.from({ length: slices }, () => []);
+    for (const { item, far: f } of items) {
+      if (f !== far) continue;
+      const per: number[][] = Array.from({ length: slices }, () => []);
+      for (let i = 0; i < item.count; i++) per[sliceOf(item.matrices[i * 16 + 12], item.matrices[i * 16 + 14], cx, cz, slices)].push(i);
+      per.forEach((ids, k) => {
+        if (ids.length === 0) return;
+        const mats = new Float32Array(ids.length * 16);
+        ids.forEach((i, n) => mats.set(item.matrices.subarray(i * 16, i * 16 + 16), n * 16));
+        buckets[k].push({ geometry: item.geometry, matrices: mats, count: ids.length });
+      });
+    }
+    buckets.forEach((b, k) => {
+      const g = mergeInstances(b);
+      if (!g) return;
+      OWNED.add(g);
+      const m = new Mesh(g, toon(g, [1, 1, 1], GRADIENT));
+      m.name = `dressing:${far ? 'far' : 'near'}:${k}`;
+      m.castShadow = !far;
+      m.receiveShadow = true;
+      out.push(m);
+    });
+  }
+  return out;
+}
+
 /** Would the renderer issue a draw call for this object? Visible, and for instancers at least one instance. */
 export function isDrawn(m: Mesh): boolean {
   if (!m.isMesh || !m.visible) return false;
@@ -411,13 +456,21 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const groundAt = offLand && coastOpts ? (x: number, z: number) => Math.max(groundY, landAt(offLand, coastOpts, x, z)?.y ?? -Infinity) : undefined;
   const rng = mulberry32(hashString(def.id));
   const decor: DecorPlacement[] = [];
+  const toMerge: { item: MergeItem; far: boolean }[] = [];
   for (const entry of env.decor ?? []) {
     const geo = geometryFor(assets, entry.asset, 'decor');
     // how far the prop reaches from its centre across the ground: a roadside one stands clear of where karts drive
     if (!geo.boundingBox) geo.computeBoundingBox();
     const bb = geo.boundingBox!, footprint = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z, 0);
-    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint);
+    const extent = { across: Math.max(-bb.min.x, bb.max.x, 0), along: Math.max(-bb.min.z, bb.max.z, 0) };
+    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent);
     decor.push(p);
+    // a code-built prop marked `merge` joins the merged dressing: no instancer of its own
+    if (entry.merge && geo.hasAttribute('color') && !assets.materials?.[entry.asset]) {
+      // the roadside band and spans cast shadows, as the roadside instancers do; far scenery and ground cover do not
+      if (p.count > 0) toMerge.push({ item: { geometry: geo, matrices: p.matrices, count: p.count }, far: entry.band === 'far' || entry.band === 'verge' });
+      continue;
+    }
     const m = instancer(`decor:${entry.asset}`, geo, palette.decor, p.matrices, undefined, assets.materials?.[entry.asset]);
     // an instancer is never culled per instance, so every copy is drawn into the shadow map each
     // frame: only the roadside band is near enough for its shadows to be seen
@@ -437,6 +490,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       group.add(pier);
     }
   }
+
+  const dressing = buildDressing(toMerge, branches.main.lut);
+  for (const m of dressing) group.add(m);
 
   // features: balloons, coins, glowing boost pads; ramps and trick bumps are merged meshes
   const featureNames: [string, BakedFeature['kind'], string, Rgb][] = [
@@ -703,7 +759,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   }
 
   const scene: TrackScene = {
-    group, palette, chunks, decor, instancers,
+    group, palette, chunks, decor, dressing, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,
