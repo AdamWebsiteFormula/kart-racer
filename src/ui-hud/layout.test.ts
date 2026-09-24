@@ -60,6 +60,12 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.title .stage', 'justify-content')).toBe('center');
   });
 
+  it('the rotate prompt takes the taps, so none goes through to the buttons hidden under it', () => {
+    expect(value('#ui', 'pointer-events')).toBe('none');
+    expect(value('.rotate-hint', 'pointer-events')).toBe('auto');
+    expect(value('.rotate-hint', 'display', '(orientation: portrait) and (pointer: coarse)')).toBe('flex');
+  });
+
   it('cups sit side by side and track cards fit the stage', () => {
     expect(value('.cups', 'grid-template-columns', PHONE)).toBe('repeat(auto-fit, minmax(260px, 1fr))');
     expect(value('.track-cards', 'width', PHONE)).toBe('100%');

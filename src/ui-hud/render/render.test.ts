@@ -197,6 +197,49 @@ describe('touch', () => {
       ui.dispose();
     } finally { globalThis.matchMedia = mm; }
   });
+
+  it('a phone turned upright mid-race pauses it, and a race begun or resumed upright waits paused (bug hunt 3: it drove on blind under the rotate prompt)', () => {
+    const mm = globalThis.matchMedia;
+    let upright = false;
+    const changed: (() => void)[] = [];
+    const PORTRAIT = '(orientation: portrait) and (pointer: coarse)';
+    globalThis.matchMedia = ((q: string) => ({
+      get matches() { return q === '(pointer: coarse)' || (q === PORTRAIT && upright); },
+      addEventListener: (_: string, f: () => void) => { if (q === PORTRAIT) changed.push(f); },
+      removeEventListener: () => {},
+    })) as never;
+    const turn = (on: boolean) => { upright = on; for (const f of changed) f(); };
+    try {
+      document.body.innerHTML = '';
+      const h = host();
+      const ui = new UiRoot(document.body, h, null);
+      ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+      expect(ui.app.screen).toBe('racing');
+      expect(ui.paused).toBe(false);
+      turn(true);
+      expect(ui.paused).toBe(true);
+      expect(h.calls).toContain('paused:true');
+      // a key resumes it while still upright: it waits again at once
+      ui.dispatch({ type: 'resume' });
+      expect(ui.paused).toBe(true);
+      turn(false); // sideways: nothing changes by itself, Resume goes on
+      expect(ui.paused).toBe(true);
+      ui.dispatch({ type: 'resume' });
+      expect(ui.paused).toBe(false);
+      // a new race picked, then the phone upright before it shows: it starts paused
+      ui.dispatch({ type: 'pause' }); ui.dispatch({ type: 'quit' });
+      expect(ui.app.screen).toBe('modeSelect');
+      upright = true;
+      ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+      expect(ui.app.screen).toBe('racing');
+      expect(ui.paused).toBe(true);
+      // the menus are not touched by it
+      ui.dispatch({ type: 'quit' });
+      expect(ui.app.screen).toBe('modeSelect');
+      expect(ui.app.overlays).toEqual([]);
+      ui.dispose();
+    } finally { globalThis.matchMedia = mm; }
+  });
 });
 
 describe('Back by pointer', () => {
