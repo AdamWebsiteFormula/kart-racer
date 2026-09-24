@@ -22,7 +22,7 @@ What's in it:
 - Plays on keyboard, gamepad, and phone (turn it sideways)
 
 How AI built it:
-- **Claude Code** (Opus): designed and wrote the whole game: physics, AI rivals, items, tracks, UI, tests (569 of them) and deploy. It also ran teams of AI reviewers that hunted bugs and wrote the tests that prove the fixes
+- **Claude Code** (Opus): designed and wrote the whole game: physics, AI rivals, items, tracks, UI, tests (688 of them) and deploy. It also ran teams of AI reviewers that hunted bugs and wrote the tests that prove the fixes
 - **Higgsfield**: every racer, creature, landmark and item model (AI images turned into 3D), the painted skies and the item art
 - **ElevenLabs**: all the music and every sound effect
 - **Supabase**: the leaderboard
@@ -53,7 +53,7 @@ Recording tips:
 
 ## Which prize fits
 
-- **Best Game:** the full package: modes, leaderboard, 569 automated tests, AI bug hunts.
+- **Best Game:** the full package: modes, leaderboard, 688 automated tests, AI bug hunts.
 - **Most Creative:** the Final Lap Shift, the course creatures, the claw rescue, the neon loop, and our own items (Strike Ball, Grapple Anchor, Pogo Spring).
 - **Eye Candy:** AI-made 3D cast and creatures, painted skies, night neon on Boardwalk Nights.
 - **One More Go:** the Daily Challenge seed and its leaderboard.
