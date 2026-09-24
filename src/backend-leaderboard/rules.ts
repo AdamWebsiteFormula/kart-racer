@@ -5,7 +5,7 @@ import { CAST } from '../ui-hud/data/cast.ts';
 
 export type BoardMode = 'timeTrial' | 'daily';
 export const BOARD_MODES: readonly BoardMode[] = ['timeTrial', 'daily'];
-export const CLIENT_VERSION = '3';
+export const CLIENT_VERSION = '4';
 export const MAX_LOG_BYTES = 256 * 1024;
 export const MIN_TIME_MS = 30_000;
 /** Yesterday's Daily still takes posts this long after midnight UTC (a race started just before). */

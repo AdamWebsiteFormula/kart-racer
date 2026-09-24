@@ -147,6 +147,8 @@ export interface LineInfo {
   myLat: number;
   /** on a shortcut, heading into one, or within L of a branch entry or exit */
   nearBranch: boolean;
+  /** a narrow shortcut, or one of its forks, within the look-ahead (or under the kart): no drift there */
+  nearNarrowBranch: boolean;
   /** halfWidth below narrowRoad: no passing, no drifting, short look-ahead */
   narrow: boolean;
   /** a bump or a ramp within the near probe: the kart will be airborne there, and turn with its air steer only */
@@ -166,7 +168,7 @@ export function makeScratch(): Scratch {
 }
 
 export function emptyLine(): LineInfo {
-  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, kappaShort: 0, turnShort: 0, roadErr: 0, course: 0, halfWidth: 1, wall: Infinity, open: 0, bendAngle: Infinity, bendMetres: Infinity, bendStart: 0, bendHalfWidth: Infinity, airMetres: Infinity, hazardInLane: false, dodging: false, hopRing: false, branch: 0, myLat: 0, nearBranch: false, narrow: false, airAhead: false, branchAhead: 0, branchSide: 0 };
+  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, kappaShort: 0, turnShort: 0, roadErr: 0, course: 0, halfWidth: 1, wall: Infinity, open: 0, bendAngle: Infinity, bendMetres: Infinity, bendStart: 0, bendHalfWidth: Infinity, airMetres: Infinity, hazardInLane: false, dodging: false, hopRing: false, branch: 0, myLat: 0, nearBranch: false, nearNarrowBranch: false, narrow: false, airAhead: false, branchAhead: 0, branchSide: 0 };
 }
 
 /** Item roles from item.schema.json; the items session supplies the id → role map. */

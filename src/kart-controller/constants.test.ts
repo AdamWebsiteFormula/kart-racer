@@ -4,7 +4,7 @@ import { ARCHETYPES, BASE, gripFor, makeConstants } from './constants.ts';
 describe('constants', () => {
   it('reads schema defaults', () => {
     expect(BASE.topSpeed).toBe(25);
-    expect(BASE.driftTiers).toEqual([250, 550, 850]);
+    expect(BASE.driftTiers).toEqual([165, 400, 700]);
     expect(BASE.surfaceSpeed.mud).toBe(0.6);
     expect(BASE.coinShield.slowedTo).toBe(0.75);
     expect(BASE.speedClasses['150']).toBe(1);

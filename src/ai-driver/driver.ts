@@ -175,7 +175,7 @@ export class AiDriver {
     out.steer = steerTo(s, aim, m, profile.noise * (1 - m.skill), offroad ? AI.steer.offroadGain : 1, m.lateral - line.myLat, dt);
 
     // 6. throttle
-    const willDrift = !finished && m.driftDir === 0 && m.driftCooldown === 0 && m.driftPlan === 1 && !line.narrow && !line.nearBranch && !line.airAhead
+    const willDrift = !finished && m.driftDir === 0 && m.driftCooldown === 0 && m.driftPlan === 1 && !line.narrow && !line.nearNarrowBranch && !line.airAhead
       && driftWillFire(s, c, profile, line);
     const sp = decideSpeed(s, c, m, line, willDrift, this.speed);
     applyThrottle(s, sp, profile, out);

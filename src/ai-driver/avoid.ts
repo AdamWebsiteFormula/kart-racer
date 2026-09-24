@@ -47,7 +47,7 @@ function dodge(lat: number, obsLat: number, clear: number, myLat: number): numbe
 }
 
 // applyAvoid's scratch, reused every call: the slow karts ahead, and the hazards that stay put with their clearance
-const slowLat: number[] = [];
+const slowLat: number[] = [], slowD: number[] = [];
 const aheadD: number[] = [], aheadLat: number[] = [];
 const hzLat: number[] = [], hzClear: number[] = [];
 const EPS = 1e-6;
@@ -56,19 +56,41 @@ const EPS = 1e-6;
  * The lateral inside ±edge that keeps kartClear from every slow kart ahead at once (or gets
  * furthest from them on a road too narrow for it), still clear of the hazards where there is
  * room for both, and the least move from both `lat` and where the kart is (`myLat`), so the side
- * it passes on does not flip under it. Candidates: each side of every obstacle, and both edges.
+ * it passes on does not flip under it. Candidates: each side of every obstacle, both edges, and the
+ * middle between two slow karts. First of all, never a lateral that crosses the line of a slow kart
+ * the kart cannot get past at crossRate before it reaches it, nor one that squeezes by with less than
+ * a kart's width (24 Sept 2026: a second kart slowing beside Harbour's parked one flipped the pass to
+ * the far side, across the parked kart's nose 15 m short of it, when the gap between the two had room).
  */
-function pastSlowKarts(lat: number, myLat: number, edge: number, kartClear: number, nSlow: number, nHz: number): number {
-  let best = lat, bestGap = -1, bestHit = true, bestD = Infinity;
-  for (let k = 0; k < 2 * (nSlow + nHz + 1); k++) {
-    const i = k >> 1, side = k & 1 ? 1 : -1;
-    const c = clamp(i < nSlow ? slowLat[i] + side * kartClear : i < nSlow + nHz ? hzLat[i - nSlow] + side * hzClear[i - nSlow] : side * edge, -edge, edge);
-    let gap = kartClear, hit = false;
-    for (let j = 0; j < nSlow; j++) gap = Math.min(gap, Math.abs(c - slowLat[j]));
+function pastSlowKarts(lat: number, myLat: number, edge: number, kartClear: number, nSlow: number, nHz: number, v: number): number {
+  let best = lat, bestGap = -1, bestHit = true, bestD = Infinity, bestBad = true;
+  const contact = 2 * BASE.kartRadius;
+  const pairs = (nSlow * (nSlow - 1)) >> 1;
+  const n = 2 * (nSlow + nHz + 1);
+  for (let k = 0; k < n + pairs; k++) {
+    let c: number;
+    if (k < n) {
+      const i = k >> 1, side = k & 1 ? 1 : -1;
+      c = clamp(i < nSlow ? slowLat[i] + side * kartClear : i < nSlow + nHz ? hzLat[i - nSlow] + side * hzClear[i - nSlow] : side * edge, -edge, edge);
+    } else {
+      // the middle of the q-th pair of slow karts
+      let q = k - n, a = 0;
+      while (q >= nSlow - 1 - a) { q -= nSlow - 1 - a; a++; }
+      c = clamp((slowLat[a] + slowLat[a + 1 + q]) / 2, -edge, edge);
+    }
+    let gap = kartClear, hit = false, bad = false;
+    for (let j = 0; j < nSlow; j++) {
+      gap = Math.min(gap, Math.abs(c - slowLat[j]));
+      // crossing its line: bad unless the kart can be past its far side, at crossRate, before it gets there
+      if ((slowLat[j] - myLat) * (slowLat[j] - c) < 0 && Math.abs(slowLat[j] - myLat) + contact > (slowD[j] / Math.max(1, v)) * AI.avoid.crossRate) bad = true;
+    }
+    if (gap < contact) bad = true;
     for (let j = 0; j < nHz; j++) if (Math.abs(c - hzLat[j]) < hzClear[j] - EPS) hit = true;
     const d = Math.abs(c - lat) + Math.abs(c - myLat);
-    if (gap > bestGap + EPS || (gap > bestGap - EPS && (hit !== bestHit ? !hit : d < bestD))) {
-      best = c; bestGap = gap; bestHit = hit; bestD = d;
+    const better = bad !== bestBad ? !bad
+      : gap > bestGap + EPS || (gap > bestGap - EPS && (hit !== bestHit ? !hit : d < bestD));
+    if (better) {
+      best = c; bestGap = gap; bestHit = hit; bestD = d; bestBad = bad;
     }
   }
   return best;
@@ -153,6 +175,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
     if (o.branch !== s.branch) continue;
     const slow = o.speed < a.slowKartSpeed || o.status.spinRemaining > 0 || o.status.intangibleRemaining > 0 || o.finishTick !== undefined;
     if (slow) {
+      slowD[nSlow] = d;
       slowLat[nSlow++] = lateralAt(ctx, o.t, o.branch, o.position);
       continue;
     }
@@ -242,7 +265,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
   // Harbour's barrel dodge steered the field onto a kart stopped 35 m short of the barrels (bug hunt 2,
   // 24 Sept 2026: 30 of 85 passes hit it at 20–35 m/s), and a second slow kart's dodge could undo the first's.
   for (let j = 0; j < nSlow; j++) {
-    if (Math.abs(lat - slowLat[j]) < kartClear - EPS) { line.dodging = true; return pastSlowKarts(lat, line.myLat, edge, kartClear, nSlow, nHz); }
+    if (Math.abs(lat - slowLat[j]) < kartClear - EPS) { line.dodging = true; return pastSlowKarts(lat, line.myLat, edge, kartClear, nSlow, nHz, v); }
   }
   return lat;
 }

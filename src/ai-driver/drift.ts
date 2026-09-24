@@ -102,6 +102,16 @@ export function driftNeedsRoom(s: KartState, c: KartConstants, profile: AiProfil
   return needed < driftYaw(c, 0.5);
 }
 
+/** The bend goes on for at least chainSeconds of travel: long enough to drift from mid-bend or chain another drift. */
+function longBend(s: KartState, line: LineInfo): boolean {
+  return Number.isFinite(line.bendMetres) && line.bendMetres > Math.max(1, Math.abs(s.speed)) * AI.drift.chainSeconds;
+}
+
+/** The chance a racer drifts a bend: its personality's driftUse, or more for a sharp driver (never from 0). */
+export function driftUseFor(driftUse: number, skill: number): number {
+  return driftUse > 0 ? Math.max(driftUse, skill * AI.drift.useBySkill) : 0;
+}
+
 /**
  * Decide each bend's drift once, on the approach, the moment the bend is worth drifting: roll
  * driftUse and keep the answer until the bend is behind (or turns the other way). The wide set-up,
@@ -119,12 +129,14 @@ export function stepDriftPlan(s: KartState, c: KartConstants, m: AiMemory, profi
     // line at the grip speed, not the drift set-up
     else {
       const deep = line.turnShort * m.driftPlanSide * Math.abs(s.speed) * (c.hopSeconds + c.driftYawLag) / AI.line.lookAheadMin > AI.drift.hopMidBend;
-      if (m.driftPlan === 1 && deep && m.driftCooldown === 0) m.driftPlan = -1;
+      // on a long bend the drift may still come from where the kart is (plan 2: no wide set-up, the grip speed
+      // until it does); a short one is gripped
+      if (m.driftPlan === 1 && deep && m.driftCooldown === 0) m.driftPlan = longBend(s, line) ? 2 : -1;
       return;
     }
   }
-  if (line.narrow || line.nearBranch || !driftWorthy(s, c, profile, line, m.skill)) return;
-  m.driftPlan = m.personality.driftUse > 0 && nextDrift(m) < m.personality.driftUse ? 1 : -1;
+  if (line.narrow || line.nearNarrowBranch || !driftWorthy(s, c, profile, line, m.skill)) return;
+  m.driftPlan = nextDrift(m) < driftUseFor(m.personality.driftUse, m.skill) ? 1 : -1;
   m.driftPlanSide = Math.sign(far);
 }
 
@@ -142,7 +154,7 @@ export function stepDriftDecision(
 
   if (m.driftDir === 0) {
     if (m.driftCooldown > 0 || !s.grounded || s.drift.phase !== 'idle') return;
-    if (line.narrow || line.nearBranch) return; // a hop at a fork or on a 3 m road ends in the water
+    if (line.narrow || line.nearNarrowBranch) return; // a hop on a 3 m road or at its fork ends in the water
     if (line.airAhead) return; // bumps or a ramp ahead: a drift thrown into the air slides off the road
     if (line.hazardInLane) return; // a hazard that stays put in the lane the slide sweeps
     if (s.speed < c.driftMinSpeed * legal) return;
@@ -168,7 +180,7 @@ export function stepDriftDecision(
     if (under > 0 ? swing > d.hopMidBend : swing > d.hopMidBend * 0.5) return;
     const reach = Math.min(targetTierFor(m.skill), reachableTier(s, c, line));
     if (reach < minTierFor(m.skill)) return; // the bend is too short or too gentle for the drift to pay
-    if (m.driftPlan !== 1) return; // this bend is gripped (stepDriftPlan)
+    if (m.driftPlan < 1) return; // this bend is gripped (stepDriftPlan)
     m.driftDir = near > 0 ? 1 : -1;
     m.driftTier = reach;
     m.driftHold = 0;
@@ -257,7 +269,12 @@ export function stepDriftDecision(
     // bumps or a ramp coming: let go on the road (the boost fires now), not in the air mid-slide
     : line.airMetres < v * d.airLead ? 'air'
     : 'none';
-  if (why !== 'none') release(m, tier === 0 ? d.abortCooldown : d.cooldown, out, why);
+  if (why !== 'none') {
+    release(m, tier === 0 ? d.abortCooldown : d.cooldown, out, why);
+    // a top-tier mini-turbo with the bend going on: chain another drift at once, from where the kart is
+    // (plan 2: no wide set-up), as Mario Kart players do through a long sweeper
+    if (why === 'tier' && longBend(s, line)) { m.driftPlan = 2; m.driftPlanSide = dir; }
+  }
 }
 
 /**

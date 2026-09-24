@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 54,
   "medalTimesMs": {
-    "gold": 130000,
-    "silver": 141000,
-    "bronze": 159000
+    "gold": 127000,
+    "silver": 137000,
+    "bronze": 155000
   },
   "voidY": -10,
   "offroad": true,

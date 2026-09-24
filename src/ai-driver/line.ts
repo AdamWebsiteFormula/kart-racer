@@ -30,6 +30,17 @@ export function lookAhead(speed: number): number {
 /** Minimum speed used to place the turn samples, so a slow kart still looks ahead. */
 const MIN_PROBE_SPEED = 5;
 
+const NARROW = new WeakMap<Track, boolean[]>();
+/** Per branch index: a shortcut narrower than narrowRoad at its middle (index 0, the main road: false). Cached per track. */
+export function narrowBranches(track: Track): boolean[] {
+  let list = NARROW.get(track);
+  if (!list) {
+    list = track.branches.list.map((b, i) => i > 0 && b.lut.sample(0.5, 0).halfWidth < AI.line.narrowRoad);
+    NARROW.set(track, list);
+  }
+  return list;
+}
+
 /** Fills `out` from three samples. Allocation-free. */
 export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, out: LineInfo, c?: KartConstants): LineInfo {
   const l = AI.line;
@@ -101,6 +112,10 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
   let L = lookAhead(s.speed);
   // a branch entry or exit inside the look-ahead: the road is about to fork or rejoin
   let nearBranch = s.branch !== 0 || m.branchChoice > 0;
+  // a drift is kept off a narrow shortcut and its forks only (24 Sept 2026: the wide ones, Canyon's mine,
+  // Harbour's beach, Meadow's hedgerow, are a third of a Hard lap, and their fork bends are drift bends)
+  const narrowList = narrowBranches(track);
+  let nearNarrow = (s.branch !== 0 && narrowList[s.branch]) || (m.branchChoice > 0 && narrowList[m.branchChoice]);
   out.branchAhead = 0;
   out.branchSide = 0;
   const list = track.branches.list;
@@ -108,7 +123,7 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
     const b = list[i];
     if (!b.open) continue;
     const de = signedOffset(b.entryT, s.t) * len, dx = signedOffset(b.exitT, s.t) * len;
-    if ((de > -L && de < L) || (dx > -L && dx < L)) nearBranch = true;
+    if ((de > -L && de < L) || (dx > -L && dx < L)) { nearBranch = true; if (narrowList[i]) nearNarrow = true; }
     if (s.branch === 0 && de > 0 && de < L && out.branchAhead === 0) {
       // which way does it peel off? Its line a little past the entry, seen from the main line.
       const tPast = wrap01(b.entryT + b.span * 0.25);
@@ -122,6 +137,7 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
   if (out.narrow || nearBranch) L = Math.max(l.lookAheadMin, L * l.narrowLookAhead);
   out.L = L;
   out.nearBranch = nearBranch;
+  out.nearNarrowBranch = nearNarrow;
   out.branch = branch;
   const tg = sc.here.tangent, p = sc.here.position;
   // right = (tangent.z, 0, −tangent.x)

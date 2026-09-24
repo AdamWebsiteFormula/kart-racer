@@ -55,8 +55,8 @@ describe('drift decision', () => {
     const s = kartAt(track, 0.2, 0, 22);
     stepDriftDecision(s, c, m, PROFILES.hard, { ...bend, narrow: true }, 25, out, SIM_DT);
     expect(out.drift).toBe(false);
-    stepDriftDecision(s, c, m, PROFILES.hard, { ...bend, nearBranch: true }, 25, out, SIM_DT);
-    expect(out.drift).toBe(false);
+    stepDriftDecision(s, c, m, PROFILES.hard, { ...bend, nearBranch: true, nearNarrowBranch: true }, 25, out, SIM_DT);
+    expect(out.drift).toBe(false); // a narrow shortcut's fork (a wide one's is a drift bend, 24 Sept 2026)
     stepDriftDecision(s, c, m, PROFILES.hard, fakeLine(0.05), 25, out, SIM_DT);
     expect(out.drift).toBe(false);
     stepDriftDecision(s, c, m, PROFILES.hard, { ...bend, bendStart: 40 }, 25, out, SIM_DT);
@@ -70,6 +70,12 @@ describe('drift decision', () => {
     m.driftCooldown = 1;
     stepDriftDecision(s, c, m, PROFILES.hard, bend, 25, out, SIM_DT);
     expect(out.drift).toBe(false);
+  });
+
+  it('near a wide shortcut fork the hop still comes (24 Sept 2026: the forks of the Canyon mine and the Harbour beach are drift bends)', () => {
+    const out = { ...NEUTRAL_INPUT };
+    stepDriftDecision(kartAt(track, 0.2, 0, 22), c, planned(), PROFILES.hard, { ...bend, nearBranch: true, nearNarrowBranch: false }, 25, out, SIM_DT);
+    expect(out.drift).toBe(true);
   });
 
   it('holds the side through the hop, releases at the target tier, and an aborted drift waits longer', () => {
@@ -181,7 +187,9 @@ describe('drift decision', () => {
     const soft = swingIn(s, c, 1, 25, 1, 0.42, 0, 0.1);
     s.drift.yawK = 1;
     const hard = swingIn(s, c, 1, 25, 1, 0.42, 0, 0.1);
-    expect(soft).toBeGreaterThan(0.1 * 25 * c.driftYawLag);
+    // at least the course's run over half the yaw lag (the whole lag while the widest drift turned 0.24 rad/s;
+    // since 24 Sept 2026 it turns 0.07, so the stick out takes the course back sooner)
+    expect(soft).toBeGreaterThan(0.1 * 25 * c.driftYawLag * 0.5);
     expect(hard).toBeGreaterThan(soft);
     // already heading out: it gets no further in
     expect(swingIn(s, c, 1, 25, 1, 0.42, 2, -0.1)).toBeLessThanOrEqual(2 + 1e-9);

@@ -37,29 +37,30 @@ describe('drift', () => {
     expect(tierFor(900, c.driftTiers, 1)).toBe(1);
   });
 
-  it('tiers fire at 0.83 / 1.83 / 2.83 s with full stick (± 1 tick)', () => {
+  // 24 Sept 2026 (Adam: MKW-level drift reward): blue 0.55 s, orange 1.33 s, purple 2.33 s (were 0.83 / 1.83 / 2.83)
+  it('tiers fire at 0.55 / 1.33 / 2.33 s with full stick (± 1 tick)', () => {
     const s = drifting();
     const t1 = ticksToTier(s, hold, 1);
     const t2 = ticksToTier(s, hold, 2);
     const t3 = ticksToTier(s, hold, 3);
-    expect(Math.abs(t1 - 100)).toBeLessThanOrEqual(1);
-    expect(Math.abs(t1 + t2 - 220)).toBeLessThanOrEqual(1);
-    expect(Math.abs(t1 + t2 + t3 - 340)).toBeLessThanOrEqual(1);
+    expect(Math.abs(t1 - 66)).toBeLessThanOrEqual(1);
+    expect(Math.abs(t1 + t2 - 160)).toBeLessThanOrEqual(1);
+    expect(Math.abs(t1 + t2 + t3 - 280)).toBeLessThanOrEqual(1);
   });
 
   // the whole stick range steers a drift (24 Sept 2026): centred is the medium line and charges at the full rate;
   // pushed out, the wide line, charges at the neutral rate
   it('the stick pushed out of the drift charges slower; centred charges full', () => {
     const t1 = ticksToTier(drifting(), { ...hold, steer: -1 }, 1);
-    expect(Math.abs(t1 - 250)).toBeLessThanOrEqual(1);
+    expect(Math.abs(t1 - 95)).toBeLessThanOrEqual(1);
     const t0 = ticksToTier(drifting(), { ...hold, steer: 0 }, 1);
-    expect(Math.abs(t0 - 100)).toBeLessThanOrEqual(1);
+    expect(Math.abs(t0 - 66)).toBeLessThanOrEqual(1);
   });
 
   it('chargeMultiplier 2 halves the time to tier 1', () => {
     const s = drifting();
     const t1 = ticksToTier(s, hold, 1, 2);
-    expect(Math.abs(t1 - 50)).toBeLessThanOrEqual(1);
+    expect(Math.abs(t1 - 33)).toBeLessThanOrEqual(1);
   });
 
   it('release grants the tier boost; tier 0 grants nothing', () => {

@@ -70,7 +70,9 @@ describe('integration on the flat oval', () => {
   });
 
   it('lap time on the oval is within ±2% of the recorded time', () => {
-    const RECORDED_TICKS = 2185; // re-recorded 21 Sept 2026 at driftSteerMax 0.4 (2160 on 14 Sept), medium 150cc, 18.2 s
+    // re-recorded 24 Sept 2026 for the MKW drift reward (tiers 165/400/700, boosts 0.8/1.5/2.4 s, driftSteerMin 0.03):
+    // the scripted drifter is 3 % faster (2185 on 21 Sept at driftSteerMax 0.4, 2160 on 14 Sept), medium 150cc, 17.7 s
+    const RECORDED_TICKS = 2120;
     const { ticks } = driveLap(spawn(track, 0.01), track, c);
     expect(Math.abs(ticks - RECORDED_TICKS) / RECORDED_TICKS).toBeLessThan(0.02);
   });
@@ -117,7 +119,7 @@ describe('integration on the flat oval', () => {
     }
   });
 
-  it('drift tiers fire at 0.83 / 1.83 / 2.83 s of full-stick drift in a real tick', () => {
+  it('drift tiers fire at 0.55 / 1.33 / 2.33 s of full-stick drift in a real tick', () => {
     const wide = makeOval({ halfWidth: 60 }); // room to hold a full-lock drift circle
     const s = spawn(wide, 0.01);
     s.speed = 25;
@@ -131,7 +133,7 @@ describe('integration on the flat oval', () => {
       if (up) tierTicks.push(i - driftStart);
     }
     expect(driftStart).toBeGreaterThan(0);
-    expect(tierTicks.map((t) => Math.round(t / 1.2) / 100)).toEqual([0.83, 1.83, 2.83]);
+    expect(tierTicks.map((t) => Math.round(t / 1.2) / 100)).toEqual([0.55, 1.33, 2.33]);
   });
 
   it('surface cap: mud settles at 0.6 V over ~0.4 s, dirt at 0.7 V, ice slides more', () => {

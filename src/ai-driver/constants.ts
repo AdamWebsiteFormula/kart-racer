@@ -14,12 +14,12 @@ export interface AiConstants {
   };
   steer: { kP: number; kD: number; dErrMax: number; offroadGain: number; noiseSmoothing: number; kLat: number; kLatMax: number };
   avoid: {
-    hazardLookAhead: number; hazardSeconds: number; rollingLookAhead: number; hazardLateral: number; dodgeClearance: number; avoidLookAhead: number; stoppedLookAhead: number; slowKartSpeed: number; stoppedClearance: number;
+    hazardLookAhead: number; hazardSeconds: number; rollingLookAhead: number; hazardLateral: number; dodgeClearance: number; avoidLookAhead: number; stoppedLookAhead: number; slowKartSpeed: number; stoppedClearance: number; crossRate: number;
     passDistance: number; passClosing: number; touchDistance: number; spawnBehind: number; ringHop: number; ringSkill: number; seekDistance: number; seekLateral: number; seekSlope: number; rowGap: number; claimWidth: number; claimCost: number; pickSpread: number; padSkill: number;
   };
   drift: {
     maxHold: number; cooldown: number; abortCooldown: number; hopCommit: number; hopCommitStick: number; chargeSecondsAhead: number; startYawFraction: number; exitYawFraction: number;
-    overRotate: number; aligned: number; alignedTurn: number; edgeMargin: number; outsideSlack: number; aimGain: number; easeMin: number; swingStep: number; swingSeconds: number; wideLift: number; easePlan: number; sweepRoom: number; latCourseMax: number; apexMargin: number; wallMargin: number; hopRoom: number; hopAlign: number; hopMidBend: number; snapRoom: number; planTop: number; exitLead: number; hopLead: number; airLead: number; minTier: number; hazardMiss: number; hazardSeconds: number; tierBySkill: number[];
+    overRotate: number; aligned: number; alignedTurn: number; edgeMargin: number; outsideSlack: number; aimGain: number; easeMin: number; swingStep: number; swingSeconds: number; wideLift: number; easePlan: number; sweepRoom: number; latCourseMax: number; apexMargin: number; wallMargin: number; hopRoom: number; hopAlign: number; hopMidBend: number; snapRoom: number; planTop: number; exitLead: number; hopLead: number; airLead: number; minTier: number; useBySkill: number; chainSeconds: number; hazardMiss: number; hazardSeconds: number; tierBySkill: number[];
   };
   recover: { stuckSeconds: number; reverseSeconds: number; cooldownSeconds: number };
   rubber: { min: number; max: number; deadZone: number; scale: number; powerFrom: number; skillGain: number; shortcutRb: number; fieldPaceSpread: number };
