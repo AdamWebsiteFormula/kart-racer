@@ -103,6 +103,8 @@ export class UiRoot {
   private boardPost: BoardPost = { state: 'idle' };
   private padRepeat = newRepeat();
   private padStartWas = false;
+  /** gamepad buttons still down from the race, ignored by the menus until released */
+  private padSpent: boolean[] = [];
   private osReduced = false;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
 
@@ -285,9 +287,16 @@ export class UiRoot {
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (start && !this.padStartWas) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
+      // every button down in the race (the Start that paused, A held for a drift) is spent:
+      // on the menu that opens next it counts only once let go and pressed again
+      this.padSpent = buttons;
       return;
     }
     this.padStartWas = start;
+    for (let i = 0; i < buttons.length; i++) {
+      if (!buttons[i]) this.padSpent[i] = false;
+      else if (this.padSpent[i]) buttons[i] = false;
+    }
     const a = repeat(this.padRepeat, navFromPad(buttons, pad.axes), nowMs);
     if (a) this.nav(a);
   }

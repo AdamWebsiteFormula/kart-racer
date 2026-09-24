@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // DOM smoke tests: the renderers build the right nodes, the HUD writes nothing when nothing
 // changed (SOP test 15), and every screen has the accessibility shape (SOP test 16).
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createKartState } from '../../kart-controller/types.ts';
 import { ITEM_DEFINITIONS } from '../../items/data.ts';
 import type { RaceState } from '../../race-manager/types.ts';
@@ -235,6 +235,66 @@ describe('leaderboard panel', () => {
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     ui.raceOver({ results, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false });
     expect(document.querySelector('#ui .board')).toBeNull();
+    ui.dispose();
+  });
+});
+
+describe('gamepad', () => {
+  const pad = { connected: true, buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0, 0, 0] };
+  let t = 0;
+  const frame = (ui: UiRoot) => ui.poll((t += 16));
+  const set = (i: number, on: boolean) => { pad.buttons[i].pressed = on; };
+  const press = (ui: UiRoot, i: number) => { set(i, true); frame(ui); set(i, false); frame(ui); };
+  const A = 0, START = 9;
+  const oneRow = {
+    mode: 'quick', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
+    ranks: [{ racerId: 'pip', rank: 1, finishTick: 12000, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], dnf: false }],
+  } as never;
+  function setup() {
+    document.body.innerHTML = '';
+    for (const b of pad.buttons) b.pressed = false;
+    pad.axes.fill(0);
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
+    const h = host();
+    const ui = new UiRoot(document.body, h, null);
+    ui.dispatch({ type: 'boot' });
+    return { ui, h };
+  }
+  afterEach(() => { delete (navigator as { getGamepads?: unknown }).getGamepads; });
+
+  it('Start pauses and stays paused while held, even when the race was picked with A', () => {
+    const { ui, h } = setup();
+    for (let i = 0; i < 4; i++) press(ui, A); // Race! → Quick Race → Pip → Harbour Loop
+    expect(ui.app.screen).toBe('racing');
+    set(START, true);
+    for (let f = 0; f < 6; f++) { frame(ui); expect(ui.paused, `held frame ${f}`).toBe(true); }
+    set(START, false); frame(ui);
+    expect(ui.paused).toBe(true);
+    expect(h.calls.filter((c) => c.startsWith('paused'))).toEqual(['paused:true']);
+    // Resume with A, then pause again: the same again
+    press(ui, A);
+    expect(ui.paused).toBe(false);
+    set(START, true); frame(ui); frame(ui); frame(ui); set(START, false); frame(ui);
+    expect(ui.paused).toBe(true);
+    // a fresh press on the pause menu still works: B resumes
+    press(ui, 1);
+    expect(ui.paused).toBe(false);
+    ui.dispose();
+  });
+
+  it('A held (a drift) as the results slide in does not skip them; a new press does', () => {
+    const { ui } = setup();
+    ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    set(A, true); pad.axes[0] = -1; frame(ui); frame(ui); // drifting left over the line
+    ui.raceOver({ results: oneRow, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false });
+    for (let f = 0; f < 5; f++) frame(ui);
+    pad.axes[0] = 0; // the stick lets go first, A is still down
+    for (let f = 0; f < 5; f++) frame(ui);
+    expect(ui.app.screen).toBe('results');
+    set(A, false); frame(ui);
+    expect(ui.app.screen).toBe('results');
+    press(ui, A);
+    expect(ui.app.screen).toBe('modeSelect');
     ui.dispose();
   });
 });
