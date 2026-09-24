@@ -8,6 +8,7 @@ import { cancelDrift } from '../kart-controller/drift.ts';
 import { jumpLift, lateralOffset } from '../kart-controller/ground.ts';
 import { radiusOf } from '../kart-controller/powers.ts';
 import { headingOf, type InputState, type KartState, type Vec3 } from '../kart-controller/types.ts';
+import { BUILDER } from '../track-builder/constants.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
 import { RACE } from './constants.ts';
@@ -30,11 +31,30 @@ export function respawnLateral(s: KartState, track: Track, halfWidth: number, me
   return lat < -max ? -max : lat > max ? max : lat;
 }
 
-/** Where a kart goes back to: its last checkpoint, at its own lateral (clamped), facing the road. */
-export function respawnTarget(s: KartState, tr: KartTracker, track: Track, measured?: number): { position: Vec3; heading: number } {
+/**
+ * The main-line t a kart is set down at for a checkpoint at `t`: there, or out in the open before the
+ * covered bore it is in, at the start of the portal's approach (seam review, 24 Sept 2026: on Canyon's
+ * final lap two checkpoints are in the mine, and the claw lowered karts onto them through the mesa and
+ * the bore's roof). The portal is a rock face in the mesa's cliff; tunnelFunnel metres out, a claw
+ * coming in over the mesa clears it. The kart drives into the bore.
+ */
+export function setDownT(track: Track, t: number): number {
+  const lut = track.branches.main.lut;
+  // a sample reads covered when either end of its segment is (Lut.sampleInto)
+  const covered = (i: number) => (lut.covered[lut.idx(i)] | lut.covered[lut.idx(i + 1)]) !== 0;
+  let i = Math.floor(lut.norm(t) * lut.step);
+  if (!covered(i)) return t;
+  for (let k = 0; k < lut.n && covered(i); k++) i--;
+  return wrap01((i - Math.ceil(BUILDER.tunnelFunnel / (lut.length / lut.step))) / lut.step);
+}
+
+/** Where a kart goes back to: its last checkpoint (before a covered bore), at its own lateral (clamped), facing the road. */
+export function respawnTarget(s: KartState, tr: KartTracker, track: Track, measured?: number): { position: Vec3; heading: number; t: number } {
   const cp = track.checkpoints[tr.lastCheckpoint];
-  const p = track.sample(cp.t, respawnLateral(s, track, cp.halfWidth, measured), 0).position;
-  return { position: [p[0], p[1] + RACE.respawnLift, p[2]], heading: headingOf(cp.tangent) };
+  const t = setDownT(track, cp.t);
+  const at = t === cp.t ? cp : track.sample(t, 0, 0);
+  const p = track.sample(t, respawnLateral(s, track, at.halfWidth, measured), 0).position;
+  return { position: [p[0], p[1] + RACE.respawnLift, p[2]], heading: headingOf(at.tangent), t };
 }
 
 const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
@@ -120,11 +140,10 @@ export function stepRescue(s: KartState, tr: KartTracker, track: Track, dt: numb
 }
 
 export function respawnKart(s: KartState, tr: KartTracker, track: Track, events: RaceEvent[], measured?: number): void {
-  const cp = track.checkpoints[tr.lastCheckpoint];
   const target = respawnTarget(s, tr, track, measured);
   s.position = target.position;
   s.heading = target.heading;
-  s.t = cp.t;
+  s.t = target.t;
   s.branch = 0;
   s.speed = 0;
   s.lateralVelocity = 0;
@@ -140,8 +159,9 @@ export function respawnKart(s: KartState, tr: KartTracker, track: Track, events:
   s.status.intangibleRemaining = Math.max(s.status.intangibleRemaining, RACE.respawnFreezeSeconds);
   // A hair behind the checkpoint, so a kart that has never crossed the line (next ===
   // last === 0) can still "cross" the line it now sits on. Any other next checkpoint is
-  // a sector ahead, so the nudge changes nothing for it.
-  tr.prevT = wrap01(cp.t - 1e-7);
+  // a sector ahead, so the nudge changes nothing for it. (Set down before a covered bore,
+  // it crosses its last checkpoint again on the way in, which counts for nothing.)
+  tr.prevT = wrap01(target.t - 1e-7);
   tr.freezeRemaining = RACE.respawnFreezeSeconds;
   tr.stuckSeconds = 0;
   tr.respawnCount++;

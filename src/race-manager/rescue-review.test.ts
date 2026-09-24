@@ -5,6 +5,9 @@
 import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ, stepKart, stepKarts } from '../kart-controller/step.ts';
 import { headingOf, NEUTRAL_INPUT, type InputState, type KartEvent, type KartState } from '../kart-controller/types.ts';
+import { BUILDER } from '../track-builder/constants.ts';
+import { wrap01 } from '../track-builder/lut.ts';
+import type { LandPoint } from '../track-builder/terrain.ts';
 import canyonJson from '../track-builder/tracks/canyon-rush.json';
 import skylineJson from '../track-builder/tracks/skyline-circuit.json';
 import { buildTrack, type Track } from '../track-builder/track.ts';
@@ -13,6 +16,7 @@ import { RACE } from './constants.ts';
 import { GO_TICK } from './countdown.ts';
 import { indexFeatures, initTimers, stepPickups } from './pickups.ts';
 import { RaceManager } from './race.ts';
+import { setDownT } from './respawn.ts';
 import { lookAheadDriver, parkDriver, type Driver } from './__tests__/drivers.ts';
 import { OVAL, cloneDef, placeAt, spawnKart } from './__tests__/fixtures.ts';
 import type { RaceConfig, RaceEvent } from './types.ts';
@@ -273,14 +277,59 @@ describe('claw rescue: the flag and the Final Lap Shift', () => {
       expect(s.status.held, at).toBe(true);
       // the kart that started the last lap was on unchanged road: left alone
       expect(rm.state.trackers[1].rescue, at).toBeUndefined();
-      // carried to its checkpoint on the new road and set down on it
+      // carried to its checkpoint on the new road (out before the mine, if it is in it) and set down on it
       for (let k = 0; k < RESCUE_TICKS + 5 && tr.rescue; k++) rm.step(idle);
       expect(tr.rescue, at).toBeUndefined();
-      const cp = track.checkpoints[tr.lastCheckpoint];
+      const cp = track.sample(setDownT(track, track.checkpoints[tr.lastCheckpoint].t), 0, 0);
       expect(distXZ(s.position, cp.position), at).toBeLessThan(cp.halfWidth);
       for (let k = 0; k < 60; k++) rm.step(idle);
       expect(s.grounded, at).toBe(true);
       expect(Math.abs(s.position[1] - track.sample(s.t, 0, s.branch).groundY), at).toBeLessThan(0.5);
+    }
+  });
+
+  it('the claw never sets a kart down in the covered mine, nor carries it through the mesa: it sets it down before the portal, and the kart drives in (Canyon Rush)', () => {
+    // seam review, 24 Sept 2026: two of Canyon's final-lap checkpoints are in the mine, and a kart the
+    // shift stranded on the old bridge was lowered onto them through the mesa and the bore's roof
+    const land: LandPoint = { top: 0, edge: 0, next: 0, open: false, cover: NaN, lip: NaN, pieces: 0 };
+    for (const t of [0.44, 0.5, 0.53, 0.6]) {
+      const track = buildTrack(cloneDef(canyonJson as TrackDefinition));
+      const rm = new RaceManager(track, config(track, [
+        { racerId: 'slow', archetype: 'medium', isPlayer: false },
+        { racerId: 'lead', archetype: 'medium', isPlayer: false },
+      ], 2));
+      toGo(rm);
+      const idle = [NEUTRAL_INPUT, NEUTRAL_INPUT];
+      const s = rm.state.karts[0], tr = rm.state.trackers[0];
+      const at = `old t ${t}`;
+      const cpi = track.checkpoints.reduce((best, cp, i) => (cp.t <= t && cp.t > track.checkpoints[best].t ? i : best), 0);
+      placeAt(track, s, t, 0);
+      s.speed = 15;
+      tr.lastCheckpoint = cpi; tr.nextCheckpoint = cpi + 1; tr.prevT = t;
+      rm.step(idle);
+      rm.state.karts[1].lap = 2;
+      rm.step(idle);
+      expect(tr.rescue, at).toBeDefined();
+      const main = track.branches.main.lut, cp = track.checkpoints[tr.lastCheckpoint];
+      const covered = (u: number) => { const i = Math.floor(main.norm(u) * main.step); return (main.covered[main.idx(i)] | main.covered[main.idx(i + 1)]) !== 0; };
+      expect(covered(cp.t), `${at}: its checkpoint is in the mine`).toBe(true);
+      // ticks the kart spends under the land's top anywhere but in the open bore
+      let rock = 0;
+      while (tr.rescue) {
+        rm.step(idle);
+        track.land!.query(s.position[0], s.position[2], land);
+        const inBore = land.cover === land.cover && s.position[1] + 1 < land.cover;
+        if (land.top - s.position[1] > 0.5 && !inBore) rock++;
+      }
+      // it came down through 2.6-3 m of rock onto the checkpoint, and spent 0.5 s in the bore under its roof
+      expect(rock, at).toBe(0);
+      expect(covered(s.t), at).toBe(false);
+      expect(wrap01(cp.t - s.t) * track.length, at).toBeGreaterThan(BUILDER.tunnelFunnel);
+      // then it drives into the mine and on through its next checkpoint
+      const drive = lookAheadDriver(20), next = (cp.index + 1) % track.checkpoints.length;
+      for (let k = 0; k < SIM_HZ * 20 && tr.lastCheckpoint !== next; k++) rm.step([drive(s, track), NEUTRAL_INPUT]);
+      expect(tr.lastCheckpoint, `${at}: drove on through the next checkpoint`).toBe(next);
+      expect(tr.respawnCount, at).toBe(1);
     }
   });
 
