@@ -7,9 +7,9 @@
   "laps": 3,
   "targetLapSeconds": 48,
   "medalTimesMs": {
-    "gold": 126000,
-    "silver": 135000,
-    "bronze": 153000
+    "gold": 129000,
+    "silver": 140000,
+    "bronze": 158000
   },
   "voidY": -14,
   "landmark": "ferris-wheel",

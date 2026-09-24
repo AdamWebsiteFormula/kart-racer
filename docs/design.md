@@ -15,7 +15,9 @@ A bright cartoon kart racer where eight original racers drift, boost and trade b
 - Hard IP rules: no Nintendo names, characters, items, sounds, layouts, typography or item-box look-alikes. Pickups are **balloons**, not boxes. See research plan §3.1.
 
 ## 4. The cast (8 racers, 3 archetypes)
-Stats are multipliers on a shared base; totals are equal. Light: accel +12%, handling +12%, speed −8%, weight −15%. Medium: all 0, no hook. Heavy: speed +10%, weight +18%, accel −12%, handling −10%; weight decides kart-to-kart bumps, so heavy pushes harder and resists being pushed.
+Stats are multipliers on a shared base, tuned so the classes race level on the real tracks. Light: accel +12%, handling +12%, speed −1%, weight −15%. Medium: all 0, no hook. Heavy: speed +1%, weight +18%, accel −12%, handling −10%; weight decides kart-to-kart bumps, so heavy pushes harder and resists being pushed.
+
+Why speed is only −1% / +1% (bug hunt 2, 24 Sept 2026; it was −8% / +10%): our tracks are fast and flowing, so top speed sets almost all of a lap time and accel and handling pay about 1%; at −8% / +10% the heavy was 12–20% faster on every track and won 47 of 48 all-AI races, and now the AI's solo times per class are within about 3% at 100cc and 150cc.
 
 Coins are everyone's hit buffer, not a class perk: a hit with coins in hand costs 2 coins and a short slow, and the same hit at zero coins spins you out.
 

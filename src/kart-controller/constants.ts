@@ -40,9 +40,9 @@ export interface ArchetypeStats {
 
 /** design.md §4. Multipliers on the shared base. */
 export const ARCHETYPES: Readonly<Record<Archetype, ArchetypeStats>> = Object.freeze({
-  light: { speed: -0.08, accel: 0.12, handling: 0.12, weight: -0.15, hook: 'none' },
+  light: { speed: -0.01, accel: 0.12, handling: 0.12, weight: -0.15, hook: 'none' },
   medium: { speed: 0, accel: 0, handling: 0, weight: 0, hook: 'none' },
-  heavy: { speed: 0.10, accel: -0.12, handling: -0.10, weight: 0.18, hook: 'hardBump' },
+  heavy: { speed: 0.01, accel: -0.12, handling: -0.10, weight: 0.18, hook: 'hardBump' },
 });
 
 export interface KartConstants extends KartBase {

@@ -75,27 +75,30 @@ describe('integration on the flat oval', () => {
     expect(Math.abs(ticks - RECORDED_TICKS) / RECORDED_TICKS).toBeLessThan(0.02);
   });
 
-  // Fairness is track-shaped: heavy's +10% speed wins long straights, light's
-  // handling wins tight corners. Measured 14 Sept 2026 (see SOP Decisions).
+  // Fairness is track-shaped: heavy's top speed wins long straights, light's
+  // handling wins tight corners. Measured 14 Sept 2026 (see SOP Decisions); re-measured
+  // 24 Sept 2026 when the speed spread narrowed to −1 % / +1 % so the classes race level on
+  // the real tracks (game/balance.e2e.test.ts is the gate now; these ovals keep the trade honest)
   // grip handling only: a scripted driver drifting on a 12–14 m oval is chaos now that a
   // drift starts loose and slides (2026-09-21), and these two tests are about the class trade
   const lapsOn = (oval: ReturnType<typeof makeOval>) =>
     Object.fromEntries((['light', 'medium', 'heavy'] as Archetype[]).map(
-      (a) => [a, driveLap(spawn(oval, 0.01), oval, makeConstants(a, 150), 120 * 60, false).ticks],
+      (a) => [a, driveLap(spawn(oval, 0.01), oval, makeConstants(a, 150), 120 * 90, false).ticks],
     )) as Record<Archetype, number>;
 
-  it('archetype fairness: within 5% on a balanced oval', () => {
-    const laps = lapsOn(makeOval({ straight: 50, radius: 14 }));
+  it('archetype fairness: within 3% on a balanced oval', () => {
+    // L150 R35 measured 2643 / 2646 / 2658 ticks (24 Sept 2026)
+    const laps = lapsOn(makeOval({ straight: 150, radius: 35 }));
     const lo = Math.min(...Object.values(laps)), hi = Math.max(...Object.values(laps));
-    expect((hi - lo) / lo, `balanced ${JSON.stringify(laps)}`).toBeLessThan(0.05);
+    expect((hi - lo) / lo, `balanced ${JSON.stringify(laps)}`).toBeLessThan(0.03);
   });
 
   it('archetype trade: heavy wins the fast oval, light wins the tight oval', () => {
-    const fast = lapsOn(track);
+    // 500 m straights and 80 m bends, all flat out: top speed alone decides (7090 / 7125 / 7166 ticks)
+    const fast = lapsOn(makeOval({ straight: 500, radius: 80 }));
     expect(fast.heavy, `fast ${JSON.stringify(fast)}`).toBeLessThan(fast.medium);
     expect(fast.medium, `fast ${JSON.stringify(fast)}`).toBeLessThan(fast.light);
-    // 12 m is a corner nobody makes flat out: the wall slide decides, and there the heavy's
-    // +10 % speed and −10 % handling cancel against the medium to the tick (wallDeflect, 2026-09-21)
+    // 12 m is a corner nobody makes flat out: the wall slide decides (wallDeflect, 2026-09-21),
     // a no-brake driver on a 12 m oval is wall-limited, so only the ends of the trade are stable
     const tight = lapsOn(makeOval({ straight: 40, radius: 12 }));
     expect(tight.light, `tight ${JSON.stringify(tight)}`).toBeLessThan(tight.heavy);
