@@ -8,6 +8,7 @@ import { CUPS, KNOCKOUT_SETS, playableTracks, trackCard, TRACKS, type CupCard } 
 import { formatMs } from '../format.ts';
 import type { Save, Settings } from '../store.ts';
 import type { FocusModel } from '../types.ts';
+import type { GarageVM } from '../garage.ts';
 
 export interface Entry { id: string; label: string; sub?: string; disabled?: boolean; badge?: string }
 export interface MenuVM { title: string; entries: Entry[]; focus: FocusModel }
@@ -56,7 +57,8 @@ export function statBar(stat: number): number {
 }
 
 export interface RacerCardVM { id: string; name: string; archetype: string; species: string; personality: string; kart: string; accent: string; secondary: string; stats: { label: string; value: number }[] }
-export interface RosterVM { cards: RacerCardVM[]; classes: Entry[]; focus: FocusModel }
+/** `garage`: the paint and body choices for the racer being dressed (garage.ts); a row in the grid only when it has any */
+export interface RosterVM { cards: RacerCardVM[]; classes: Entry[]; focus: FocusModel; garage?: GarageVM }
 
 export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: string }[] = Object.freeze([
   { cc: 50, label: '50cc', sub: 'Easy' },
@@ -64,8 +66,12 @@ export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: strin
   { cc: 150, label: '150cc', sub: 'Hard' },
 ]);
 
-/** Time Trial and Daily always run at 150cc (the leaderboard replays them so: soloConfig), so they have no class row. */
-export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null): RosterVM {
+/**
+ * Time Trial and Daily always run at 150cc (the leaderboard replays them so: soloConfig), so they have no class row.
+ * `extras.garage`: the paint and body choices, a row under the cards when it has any; `extras.mirror`: the
+ * Mirror switch's state, beside the classes, when Mirror is unlocked and the mode takes it (garage.ts mirrorAllowed).
+ */
+export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null, extras: { garage?: GarageVM; mirror?: boolean } = {}): RosterVM {
   const cards = CAST.map((c) => {
     const a = ARCHETYPES[c.archetype];
     return {
@@ -78,10 +84,13 @@ export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null)
     };
   });
   const solo = mode === 'timeTrial' || mode === 'daily';
-  const classes = solo ? [] : SPEED_CLASSES.map((s) => ({ id: `cc${s.cc}`, label: s.label, sub: s.sub, badge: s.cc === selectedCc ? '●' : undefined }));
+  const classes: Entry[] = solo ? [] : SPEED_CLASSES.map((s) => ({ id: `cc${s.cc}`, label: s.label, sub: s.sub, badge: s.cc === selectedCc ? '●' : undefined }));
+  if (!solo && extras.mirror !== undefined) classes.push({ id: 'mirror', label: 'Mirror', sub: extras.mirror ? 'On' : 'Off', badge: extras.mirror ? '●' : undefined });
   const ids = cards.map((c) => c.id);
   const rows = [ids.slice(0, 4), ids.slice(4, 8)];
-  return { cards, classes, focus: { rows: classes.length ? [...rows, classes.map((c) => c.id)] : rows } };
+  const garage = extras.garage;
+  if (garage?.choices.length) rows.push(garage.choices.map((c) => c.id));
+  return { cards, classes, focus: { rows: classes.length ? [...rows, classes.map((c) => c.id)] : rows }, ...(garage ? { garage } : {}) };
 }
 
 export interface CupEntry extends Entry { tracks: { id: string; name: string; bg: string; accent: string; built: boolean }[]; plays: string[] }

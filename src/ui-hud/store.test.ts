@@ -27,13 +27,40 @@ describe('save store', () => {
 
   it('corrupt or hostile blobs fall back field by field without throwing', () => {
     expect(loadSave(fake({ [SAVE_KEY]: '{not json' }))).toEqual(defaultSave());
-    const blob = { settings: { masterVolume: 9, quality: 'ultra', iconLabels: 'yes' }, playerName: 'x'.repeat(40), unlocked: { skins: ['a', 3] } };
+    const blob = { settings: { masterVolume: 9, quality: 'ultra', iconLabels: 'yes' }, playerName: 'x'.repeat(40), unlocked: { skins: ['a', 3, 'pip-alt'] } };
     const odd = loadSave(fake({ [SAVE_KEY]: JSON.stringify(blob) }));
     expect(odd.settings.masterVolume).toBe(1);
     expect(odd.settings.quality).toBe('auto');
     expect(odd.settings.iconLabels).toBe(false);
     expect(odd.playerName.length).toBe(16);
-    expect(odd.unlocked.skins).toEqual(['a']);
+    expect(odd.unlocked.skins).toEqual(['pip-alt']); // only unlocks that exist
+  });
+
+  it('the garage choices round-trip, and an unknown or locked paint or body falls back to the racer\'s own (design §10)', () => {
+    const b = fake({});
+    const s = defaultSave();
+    s.unlocked = { skins: ['pip-alt', 'sprocket-alt'], bodies: ['buggy'], mirror: true };
+    s.settings.selectedBodyId = 'buggy';
+    s.settings.skinByRacer = { pip: 'pip-alt', sprocket: 'sprocket-alt' };
+    s.timeTrial['harbour-loop'] = { bestMs: 95000, medal: 'gold', racerId: 'pip', ghost: 'AAAA', paint: 'pip-alt', body: 'buggy' };
+    writeSave(b, s);
+    expect(loadSave(b)).toEqual(s);
+
+    const hostile = {
+      unlocked: { skins: ['pip-alt', 'pip-alt', 'rainbow'], bodies: ['classic', 'standard', 'hover'], mirror: 'yes' },
+      settings: { selectedBodyId: 'buggy', skinByRacer: { pip: 'pip-alt', boulder: 'boulder-alt', momo: 'pip-alt', nobody: 'pip-alt', __proto__: 'x' } },
+      timeTrial: {
+        'harbour-loop': { bestMs: 95000, medal: 'gold', racerId: 'momo', ghost: 'AAAA', paint: 'pip-alt', body: 'hover' },
+        'meadow-run': { bestMs: 95000, medal: 'gold', racerId: 'pip', paint: 'pip-alt', body: 'classic' },
+      },
+    };
+    const h = loadSave(fake({ [SAVE_KEY]: JSON.stringify(hostile) }));
+    expect(h.unlocked).toEqual({ skins: ['pip-alt'], bodies: ['classic'], mirror: false });
+    expect(h.settings.selectedBodyId).toBe('standard'); // buggy is not unlocked in this save
+    expect(h.settings.skinByRacer).toEqual({ pip: 'pip-alt' }); // Boulder's is locked; Momo has no Berry; nobody is no racer
+    // a ghost keeps only a look that fits it: Pip's paint is not Momo's, a hover body does not exist, and no ghost keeps no look
+    expect(h.timeTrial['harbour-loop']).toEqual({ bestMs: 95000, medal: 'gold', racerId: 'momo', ghost: 'AAAA' });
+    expect(h.timeTrial['meadow-run']).toEqual({ bestMs: 95000, medal: 'gold', racerId: 'pip' });
   });
   it('records are read entry by entry: bad stars, a number for a best time, a prototype key all drop (red-team 2026-09-24)', () => {
     const blob = `{"timeTrial":{"harbour-loop":7,"meadow-run":{"bestMs":91000,"medal":"platinum"},"__proto__":{"bestMs":1}},

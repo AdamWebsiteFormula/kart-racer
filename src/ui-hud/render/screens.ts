@@ -7,6 +7,7 @@ import { CONTROLS, CREATURES, ITEM_LINES, TIPS } from '../data/howto.ts';
 import type { CupVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
 import type { UnlockRow } from '../unlocks.ts';
+import type { GarageVM } from '../garage.ts';
 import { button, clear, h, Markup } from './dom.ts';
 
 export interface ScreenView {
@@ -112,6 +113,10 @@ export class ListView implements ScreenView {
 export class RosterView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
+  /** the garage row (paint and body), when anything is unlocked; its slot the game draws the kart in */
+  private garage: HTMLElement | null = null;
+  /** the canvas the game copies the dressed kart into, turning on its stand (main.ts), or null */
+  turntable: HTMLCanvasElement | null = null;
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen roster-screen', parent);
     this.root.setAttribute('aria-label', 'Pick your racer');
@@ -148,6 +153,11 @@ export class RosterView implements ScreenView {
       });
       this.buttons.set(c.id, b);
     });
+    // always there (hidden while the racer being dressed has nothing unlocked), so focusing another card only redraws it
+    this.garage = h('div', 'garage enter', st);
+    this.turntable = null;
+    if (vm.garage) this.renderGarage(vm.garage);
+    else this.garage.hidden = true;
     if (vm.classes.length) { // Time Trial and Daily have no class row
       const cls = h('div', 'classes', st);
       for (const e of vm.classes) {
@@ -160,6 +170,33 @@ export class RosterView implements ScreenView {
       }
     }
     hint(st);
+  }
+
+  /** The garage alone, drawn again when a choice or the racer being dressed changes (the cards stay put). */
+  renderGarage(g: GarageVM): void {
+    const el = this.garage;
+    if (!el) return;
+    for (const id of ['paint', 'body']) this.buttons.delete(id);
+    clear(el);
+    el.hidden = g.choices.length === 0;
+    this.turntable = null;
+    if (el.hidden) return;
+    // the game draws the kart turning here (main.ts renders it and copies it in, over the menu's dim)
+    this.turntable = h('canvas', 'turntable', el);
+    this.turntable.setAttribute('aria-hidden', 'true');
+    const picks = h('div', 'picks', el);
+    h('div', 'who', picks, `${g.racerName}'s kart`);
+    for (const c of g.choices) {
+      const b = button(picks, c.id, 'btn setting pick');
+      h('span', 'label', b, c.label);
+      const val = h('span', 'val', b);
+      // the arrows step that way under a pointer (UiRoot.pointer), like a settings row
+      h('span', 'arrow', val, '◀').dataset.dir = '-1';
+      h('span', '', val, c.value);
+      h('span', 'arrow', val, '▶').dataset.dir = '1';
+      b.setAttribute('aria-label', `${g.racerName}'s ${c.label.toLowerCase()}: ${c.value}. Left and right change it.`);
+      this.buttons.set(c.id, b);
+    }
   }
 }
 
@@ -398,11 +435,11 @@ export class UnlocksView implements ScreenView {
     const list = h('ul', 'unlock-list', box);
     for (const r of rows) {
       const li = h('li', r.unlocked ? 'unlock on' : 'unlock', list);
-      li.setAttribute('aria-label', `${r.name}: ${r.unlocked ? 'unlocked' : `locked. ${r.how}`}`);
+      li.setAttribute('aria-label', `${r.name}: ${r.unlocked ? `unlocked. ${r.use}` : `locked. ${r.how}`}`);
       h('span', 'mark', li, r.unlocked ? '★' : '🔒');
       const txt = h('div', 'txt', li);
       h('b', '', txt, r.name);
-      h('span', '', txt, r.unlocked ? 'Unlocked!' : r.how);
+      h('span', '', txt, r.unlocked ? `Unlocked! ${r.use}` : r.how);
     }
     const back = button(box, 'back');
     h('span', 'label', back, 'Back');

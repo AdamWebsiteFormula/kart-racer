@@ -3,7 +3,7 @@
 import type { AppAction, AppState, Overlay } from './types.ts';
 
 export function initialApp(): AppState {
-  return { screen: 'boot', overlays: [], mode: null, racerId: 'pip', speedClass: 100, cupId: null, trackId: null, seriesHasNext: false };
+  return { screen: 'boot', overlays: [], mode: null, racerId: 'pip', speedClass: 100, cupId: null, trackId: null, seriesHasNext: false, mirrored: false };
 }
 
 export const needsCup = (s: AppState) => s.mode === 'grandPrix' || s.mode === 'knockout';
@@ -35,6 +35,8 @@ export function reduce(s: AppState, a: AppAction): AppState {
     case 'start': return s.screen === 'title' ? { ...s, screen: 'modeSelect' } : s;
     case 'pickMode': return s.screen === 'modeSelect' ? { ...s, mode: a.mode, cupId: null, trackId: null, screen: 'rosterSelect' } : s;
     case 'setSpeedClass': return { ...s, speedClass: a.speedClass };
+    // the racer screen's Mirror switch (shown only once unlocked, for Quick Race and Grand Prix: ui.ts)
+    case 'toggleMirror': return s.screen === 'rosterSelect' ? { ...s, mirrored: !s.mirrored } : s;
     case 'pickRacer':
       if (s.screen !== 'rosterSelect') return s;
       return { ...s, racerId: a.racerId, screen: needsCup(s) ? 'cupSelect' : needsTrack(s) ? 'trackSelect' : 'racing' };

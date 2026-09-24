@@ -7,7 +7,7 @@ import type { ItemEvent } from '../items/types.ts';
 import type { GrandPrixState, KnockoutState, RaceEvent, RaceMode, RaceResults, RaceState } from '../race-manager/types.ts';
 import type { Minimap } from '../track-builder/minimap.ts';
 import { initialApp, isPaused, needsCup, needsTrack, reduce, topOverlay } from './app.ts';
-import { accentOf, nameOf } from './data/cast.ts';
+import { accentOf, CAST, nameOf } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
@@ -28,9 +28,13 @@ import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
 import { cleanName, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
 import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Settings } from './store.ts';
 import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
-import { grantUnlocks, unlockRows } from './unlocks.ts';
+import { grantAll, grantUnlocks, unlockRows } from './unlocks.ts';
+import { garageModel, lookFor, mirrorAllowed, stepChoice, type ChoiceId } from './garage.ts';
 
-export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[] }
+/** `mirrored`: Mirror mode (Quick Race and Grand Prix only); `look`: the player's paint and body (cosmetic only) */
+export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[]; mirrored?: boolean; look?: KartLookIds }
+/** A kart's look by id: an alt paint (data/cosmetics.ts SKINS) and a body (BODIES); absent = the racer's own. */
+export interface KartLookIds { paint?: string; body?: string }
 
 export interface UiHost {
   readonly builtTracks: ReadonlySet<string>;
@@ -70,6 +74,8 @@ export interface RaceOver {
   board?: { mode: BoardMode; dailySeed: number | null; draft: Omit<Submission, 'name'> };
   /** Time Trial, when the player finished: the run's ghost path (race-manager/ghost.ts), kept if it is a new best */
   ghost?: string;
+  /** the look the player raced in: kept with a new best's ghost, which is drawn in it */
+  look?: KartLookIds;
 }
 
 export interface RaceFrame {
@@ -87,6 +93,7 @@ export { medalFor, type Medal } from './screens/menus.ts';
 const medalName = (m: Medal) => (m === 'none' ? 'No medal this time' : `${m[0].toUpperCase()}${m.slice(1)} medal!`);
 
 const NO_BUTTONS: readonly boolean[] = [];
+const CAST_IDS: ReadonlySet<string> = new Set(CAST.map((c) => c.id));
 const NO_AXES: readonly number[] = [];
 
 const MODE_ICONS: Record<string, string> = { quick: '🏁', grandPrix: '🏆', knockout: '💥', timeTrial: '⏱️', daily: '📅' };
@@ -120,6 +127,8 @@ export class UiRoot {
   private readonly nameNumber = 100 + Math.floor(Math.random() * 900);
   /** the player crossed the line: the save's counters stop (the autopilot drives on under the results) */
   private statsOff = false;
+  /** the racer the garage dresses on the racer screen: the card last focused */
+  private dressing = '';
   /** the unlock reveal (design §10), over whatever screen is up */
   private readonly toast: HTMLElement;
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -251,7 +260,8 @@ export class UiRoot {
     const cup = needsCup(s) ? list.find((c) => c.id === s.cupId) : undefined;
     const vm = cup && (s.mode === 'grandPrix' || s.mode === 'knockout') ? cupMenu(s.mode, built, this.save, s.speedClass).cups.find((c) => c.id === cup.id) : undefined;
     const tracks = needsTrack(s) && s.trackId ? [s.trackId] : vm?.plays ?? [[...built][0]];
-    return { mode: s.mode ?? 'quick', racerId: s.racerId, speedClass: s.speedClass, cupId: s.cupId, tracks };
+    const mode = s.mode ?? 'quick';
+    return { mode, racerId: s.racerId, speedClass: s.speedClass, cupId: s.cupId, tracks, mirrored: s.mirrored && mirrorAllowed(this.save, mode), look: lookFor(this.save, s.racerId) };
   }
 
   /** The race is over: record it and show the results. */
@@ -286,7 +296,8 @@ export class UiRoot {
       const medal = medalFor(me.timeMs, over.medalTimesMs);
       this.ttNote = !tt || me.timeMs < tt.bestMs ? `New best! ${medalName(medal)}` : medalName(medal);
       // the ghost goes with the best it drove, never with a slower run
-      if (!tt || me.timeMs < tt.bestMs) this.save.timeTrial[over.results.trackId] = { bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined, ...(over.ghost ? { ghost: over.ghost } : {}) };
+      const look = over.ghost ? { ...(over.look?.paint ? { paint: over.look.paint } : {}), ...(over.look?.body ? { body: over.look.body } : {}) } : {};
+      if (!tt || me.timeMs < tt.bestMs) this.save.timeTrial[over.results.trackId] = { bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined, ...(over.ghost ? { ghost: over.ghost } : {}), ...look };
       else tt.medal = medalFor(tt.bestMs, over.medalTimesMs); // the kept best, graded against today's times
     } else this.ttNote = '';
     // design §10: anything this race earned is granted now, and shown once
@@ -472,6 +483,11 @@ export class UiRoot {
       this.changeSetting(id as SettingId, dir === '-1' ? -1 : 1);
       return;
     }
+    if (dir && this.active.key === 'rosterSelect' && (id === 'paint' || id === 'body')) {
+      this.host.uiSound?.('move');
+      this.changeLook(id, dir === '-1' ? -1 : 1);
+      return;
+    }
     this.host.uiSound?.(id === 'back' ? 'back' : 'confirm');
     this.confirm(id);
   }
@@ -488,6 +504,23 @@ export class UiRoot {
       this.host.uiSound?.('move');
       this.changeSetting(cur as SettingId, a === 'left' ? -1 : 1);
       return;
+    }
+    // the garage's Paint and Body step left and right, like a setting
+    if (key === 'rosterSelect' && (cur === 'paint' || cur === 'body') && (a === 'left' || a === 'right')) {
+      this.host.uiSound?.('move');
+      this.changeLook(cur, a === 'left' ? -1 : 1);
+      return;
+    }
+    // the garage dresses the racer whose card was focused last: up from the top row of cards reaches it
+    // too (the bottom row reaches it going down), and up from it goes back to that racer's card, so no
+    // other card is passed (and dressed) on the way
+    if (key === 'rosterSelect' && model && cur && (a === 'up' || a === 'down')) {
+      const garage: string[] = model.rows.flat().filter((id) => id === 'paint' || id === 'body');
+      const jump = !garage.length ? null
+        : a === 'up' && model.rows[0].includes(cur) ? garage[0]
+        : a === 'up' && garage.includes(cur) && this.dressing ? this.dressing
+        : null;
+      if (jump) { this.host.uiSound?.('move'); this.setFocus(jump); return; }
     }
     if (model && cur) {
       const next = move(model, cur, a);
@@ -546,6 +579,8 @@ export class UiRoot {
       case 'rosterSelect': {
         const cc = SPEED_CLASSES.find((c) => `cc${c.cc}` === id);
         if (cc) { this.dispatch({ type: 'setSpeedClass', speedClass: cc.cc }); this.show(true); }
+        else if (id === 'mirror') { this.dispatch({ type: 'toggleMirror' }); this.show(true); }
+        else if (id === 'paint' || id === 'body') this.changeLook(id, 1);
         else this.dispatch({ type: 'pickRacer', racerId: id });
         break;
       }
@@ -560,6 +595,47 @@ export class UiRoot {
         break;
       default: break;
     }
+  }
+
+  /** Step the dressed racer's paint or body, save it, and draw the garage again (the cards stay put). */
+  private changeLook(id: ChoiceId, dir: -1 | 1): void {
+    const racerId = this.dressing || this.app.racerId;
+    this.save.settings = stepChoice(this.save, racerId, id, dir);
+    writeSave(this.backend, this.save);
+    this.redrawGarage();
+  }
+
+  /** The garage for the racer being dressed, drawn again; its row in the focus grid follows its choices. */
+  private redrawGarage(): void {
+    if (this.active?.key !== 'rosterSelect') return;
+    const s = this.app;
+    const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras());
+    if (!vm.garage) return;
+    this.views.roster.renderGarage(vm.garage);
+    this.models.set('rosterSelect', vm.focus);
+    // the focused Paint or Body button was drawn again: focus the new one (or its neighbour, if it went)
+    const cur = this.focusBy.get('rosterSelect');
+    if ((cur === 'paint' || cur === 'body') && vm.garage.choices.length) this.setFocus(vm.focus.rows.flat().includes(cur) ? cur : vm.garage.choices[0].id, false);
+  }
+
+  private rosterExtras() {
+    const s = this.app;
+    return { garage: garageModel(this.save, this.dressing || s.racerId), mirror: mirrorAllowed(this.save, s.mode) ? s.mirrored : undefined };
+  }
+
+  /** The racer screen's turntable: the canvas to draw the dressed kart in, turning, and who and how; null when there is none. */
+  turntable(): { canvas: HTMLCanvasElement; racerId: string; look: KartLookIds } | null {
+    const canvas = this.views.roster.turntable;
+    if (this.active?.key !== 'rosterSelect' || !canvas?.isConnected) return null;
+    const racerId = this.dressing || this.app.racerId;
+    return { canvas, racerId, look: lookFor(this.save, racerId) };
+  }
+
+  /** Every unlock at once (the dev console's kart.unlockAll(), for trying the rewards). Saved; the screen on top is drawn again. */
+  grantAllUnlocks(): void {
+    grantAll(this.save);
+    writeSave(this.backend, this.save);
+    this.show(true);
   }
 
   private changeSetting(id: SettingId, dir: -1 | 1): void {
@@ -589,6 +665,11 @@ export class UiRoot {
       if (pb) { pb.classList.remove('focused'); pb.tabIndex = -1; } // one Tab stop per screen
     }
     this.focusBy.set(key, id);
+    // a racer card focused: the garage dresses that racer now
+    if (key === 'rosterSelect' && id !== this.dressing && CAST_IDS.has(id)) {
+      this.dressing = id;
+      this.redrawGarage();
+    }
     const b = view.buttons.get(id);
     if (b) {
       b.classList.add('focused');
@@ -637,7 +718,13 @@ export class UiRoot {
     switch (key) {
       case 'title': { const vm = titleMenu(short); v.title.render(vm); this.models.set(key, vm.focus); break; }
       case 'modeSelect': { const vm = modeMenu(this.host.availableModes); v.modes.render(vm, MODE_ICONS); this.models.set(key, vm.focus); break; }
-      case 'rosterSelect': { const vm = rosterMenu(s.speedClass, s.mode); v.roster.render(vm); this.models.set(key, vm.focus); break; }
+      case 'rosterSelect': {
+        if (entering) this.dressing = s.racerId;
+        const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras());
+        v.roster.render(vm);
+        this.models.set(key, vm.focus);
+        break;
+      }
       case 'cupSelect': {
         const vm = cupMenu(s.mode === 'knockout' ? 'knockout' : 'grandPrix', built, this.save, s.speedClass);
         v.cups.render(vm);

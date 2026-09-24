@@ -23,6 +23,8 @@ export interface AppState {
   trackId: string | null;
   /** a series (Grand Prix or Knockout) has another race after this results screen */
   seriesHasNext: boolean;
+  /** Mirror mode on (design §10): Quick Race and Grand Prix run the track reflected left to right */
+  mirrored: boolean;
 }
 
 export type AppAction =
@@ -31,6 +33,7 @@ export type AppAction =
   | { type: 'pickMode'; mode: RaceMode }
   | { type: 'pickRacer'; racerId: string }
   | { type: 'setSpeedClass'; speedClass: SpeedClass }
+  | { type: 'toggleMirror' }
   | { type: 'pickCup'; cupId: string }
   | { type: 'pickTrack'; trackId: string }
   | { type: 'raceFinished'; seriesHasNext: boolean }

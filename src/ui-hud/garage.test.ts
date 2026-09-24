@@ -1,0 +1,218 @@
+// @vitest-environment jsdom
+// The design §10 rewards in the UI: the garage on the racer screen shows a choice only once something
+// is unlocked, steps with keys, gamepad and pointer alike, saves the choice, and hands the race the
+// look; Mirror shows only when unlocked and only for Quick Race and Grand Prix; the Unlocks list says
+// where to use each reward; a Time Trial best keeps the look its ghost is drawn in.
+import { afterEach, describe, expect, it } from 'vitest';
+import { garageModel, lookFor, mirrorAllowed, stepChoice } from './garage.ts';
+import { rosterMenu } from './screens/menus.ts';
+import { SAVE_KEY, defaultSave, loadSave, type Backend } from './store.ts';
+import { UiRoot, type RacePlan, type UiHost } from './ui.ts';
+import { unlockRows, UNLOCKS } from './unlocks.ts';
+import type { RaceResults } from '../race-manager/types.ts';
+
+const fake = (): Backend & { data: Record<string, string> } => {
+  const data: Record<string, string> = {};
+  return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => { data[k] = v; } };
+};
+
+function host(): UiHost & { plans: RacePlan[] } {
+  const plans: RacePlan[] = [];
+  return {
+    plans,
+    builtTracks: new Set(['harbour-loop', 'meadow-run', 'canyon-rush']),
+    medalTimes: new Map([['harbour-loop', { gold: 126000, silver: 136000, bronze: 154000 }]]),
+    availableModes: new Set(['quick', 'grandPrix', 'knockout', 'timeTrial', 'daily']),
+    creditsMarkdown: '',
+    startRace: (p) => plans.push(p),
+    nextRace: () => {}, restartRace: () => {}, quitRace: () => {}, setPaused: () => {}, settingsChanged: () => {},
+  };
+}
+
+const toRoster = (ui: UiRoot, mode: 'quick' | 'grandPrix' | 'knockout' | 'timeTrial') => {
+  ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode });
+};
+const q = (sel: string) => document.querySelector(`#ui .roster-screen.on ${sel}`) as HTMLElement | null;
+
+afterEach(() => { document.body.innerHTML = ''; });
+
+describe('garage view model (pure)', () => {
+  it('shows nothing on a new save; a paint only for its own racer; a body for anyone once one is unlocked', () => {
+    const s = defaultSave();
+    expect(garageModel(s, 'pip').choices).toEqual([]);
+    expect(rosterMenu(100, 'quick', { garage: garageModel(s, 'pip') }).focus.rows.length).toBe(3); // two card rows and the classes
+
+    s.unlocked.skins.push('pip-alt');
+    expect(garageModel(s, 'pip').choices.map((c) => [c.id, c.options.map((o) => o.name)])).toEqual([['paint', ['Original', 'Berry']]]);
+    expect(garageModel(s, 'momo').choices).toEqual([]); // Momo has no alt paint
+    s.unlocked.bodies.push('buggy');
+    expect(garageModel(s, 'momo').choices.map((c) => [c.id, c.options.map((o) => o.name)])).toEqual([['body', ['Standard', 'Buggy']]]); // Classic still locked
+    const vm = rosterMenu(100, 'quick', { garage: garageModel(s, 'pip') });
+    expect(vm.focus.rows[2]).toEqual(['paint', 'body']);
+  });
+
+  it('steps wrap both ways, save only unlocked looks, and the race gets exactly them', () => {
+    const s = defaultSave();
+    s.unlocked = { skins: ['pip-alt', 'boulder-alt'], bodies: ['classic', 'buggy'], mirror: false };
+    s.settings = stepChoice(s, 'pip', 'paint', 1);
+    expect(s.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
+    s.settings = stepChoice(s, 'pip', 'paint', 1);
+    expect(s.settings.skinByRacer).toEqual({});
+    s.settings = stepChoice(s, 'pip', 'body', -1);
+    expect(s.settings.selectedBodyId).toBe('buggy');
+    s.settings = stepChoice(s, 'boulder', 'paint', -1);
+    expect(lookFor(s, 'boulder')).toEqual({ paint: 'boulder-alt', body: 'buggy' });
+    expect(lookFor(s, 'pip')).toEqual({ body: 'buggy' });
+    // taken away (a hand-edited save): the look falls back to the racer's own
+    s.unlocked.bodies = [];
+    expect(lookFor(s, 'boulder')).toEqual({ paint: 'boulder-alt' });
+  });
+
+  it('Mirror: only once unlocked, and only for Quick Race and Grand Prix', () => {
+    const s = defaultSave();
+    expect(mirrorAllowed(s, 'quick')).toBe(false);
+    s.unlocked.mirror = true;
+    expect(['quick', 'grandPrix', 'knockout', 'timeTrial', 'daily'].filter((m) => mirrorAllowed(s, m as never))).toEqual(['quick', 'grandPrix']);
+    expect(rosterMenu(100, 'quick', { mirror: false }).classes.map((c) => c.id)).toEqual(['cc50', 'cc100', 'cc150', 'mirror']);
+    expect(rosterMenu(100, 'quick').classes.map((c) => c.id)).toEqual(['cc50', 'cc100', 'cc150']);
+    expect(rosterMenu(100, 'timeTrial', { mirror: true }).classes).toEqual([]); // no class row at all in a solo mode
+  });
+
+  it('the Unlocks list says where to use each reward', () => {
+    expect(UNLOCKS.every((u) => u.use.length > 10)).toBe(true);
+    const s = defaultSave();
+    s.unlocked.mirror = true;
+    const row = unlockRows(s).find((r) => r.id === 'mirror')!;
+    expect(row).toMatchObject({ unlocked: true });
+    expect(row.use).toMatch(/Quick Race or Grand Prix/);
+  });
+});
+
+describe('garage on the racer screen (jsdom)', () => {
+  it('nothing unlocked: no garage, no Mirror, and the race gets the plain look', () => {
+    const h = host();
+    const ui = new UiRoot(document.body, h, null);
+    toRoster(ui, 'quick');
+    expect(q('.garage')?.hidden).toBe(true);
+    expect(q('[data-id="paint"]')).toBeNull();
+    expect(q('[data-id="mirror"]')).toBeNull();
+    expect(ui.turntable()).toBeNull();
+    ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    expect(h.plans[0]).toMatchObject({ mirrored: false, look: {} });
+    ui.dispose();
+  });
+
+  it('keys step the focused racer\'s paint and the body, save them, and the race and turntable wear them', () => {
+    const b = fake();
+    const s = defaultSave();
+    s.unlocked = { skins: ['pip-alt', 'sprocket-alt'], bodies: ['classic'], mirror: true };
+    b.setItem(SAVE_KEY, JSON.stringify(s));
+    const h = host();
+    const ui = new UiRoot(document.body, h, b);
+    toRoster(ui, 'quick');
+    // the saved racer (Pip) is dressed: Paint and Body
+    expect(q('.garage')?.hidden).toBe(false);
+    expect(q('.garage .who')?.textContent).toBe("Pip's kart");
+    expect(ui.turntable()).toMatchObject({ racerId: 'pip', look: {} });
+    // up from the top row reaches the garage with Pip still dressed; left and right step his paint
+    ui.nav('up');
+    expect(document.activeElement?.getAttribute('data-id')).toBe('paint');
+    ui.nav('right');
+    expect(ui.save.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
+    expect(ui.turntable()?.look).toEqual({ paint: 'pip-alt' });
+    expect(q('[data-id="paint"] .val')?.textContent).toContain('Berry');
+    ui.nav('left');
+    expect(ui.save.settings.skinByRacer).toEqual({});
+    ui.nav('left'); // wraps: Berry again
+    expect(ui.save.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
+    // up from the garage goes back to Pip's card, not a card in between
+    ui.nav('up');
+    expect(document.activeElement?.getAttribute('data-id')).toBe('pip');
+    // down to Otto's card dresses Otto (no paint of his own: Body only), and down again reaches his garage
+    ui.nav('down');
+    expect(q('.garage .who')?.textContent).toBe("Otto's kart");
+    expect(q('[data-id="paint"]')).toBeNull();
+    ui.nav('down');
+    expect(document.activeElement?.getAttribute('data-id')).toBe('body');
+    ui.nav('right');
+    expect(ui.save.settings.selectedBodyId).toBe('classic');
+    expect(JSON.parse(b.data[SAVE_KEY]).settings.selectedBodyId).toBe('classic');
+    expect(q('[data-id="body"] .val')?.textContent).toContain('Classic');
+    ui.dispose();
+  });
+
+  it('paint by pointer: the arrows step, a click on the row steps on; the turntable follows; Mirror toggles and reaches the plan', () => {
+    const b = fake();
+    const s = defaultSave();
+    s.unlocked = { skins: ['pip-alt'], bodies: [], mirror: true };
+    b.setItem(SAVE_KEY, JSON.stringify(s));
+    const h = host();
+    const ui = new UiRoot(document.body, h, b);
+    toRoster(ui, 'quick');
+    const arrow = q('[data-id="paint"] .arrow[data-dir="1"]')!;
+    arrow.click();
+    expect(ui.save.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
+    expect(ui.turntable()?.look).toEqual({ paint: 'pip-alt' });
+    expect(q('[data-id="paint"] .val')?.textContent).toContain('Berry');
+    q('[data-id="paint"]')!.click(); // the row itself steps on: back to Original
+    expect(ui.save.settings.skinByRacer).toEqual({});
+    q('[data-id="paint"] .arrow[data-dir="-1"]')!.click();
+    expect(q('[data-id="mirror"]')?.getAttribute('aria-pressed')).toBe('false');
+    q('[data-id="mirror"]')!.click();
+    expect(ui.app.mirrored).toBe(true);
+    expect(q('[data-id="mirror"]')?.getAttribute('aria-pressed')).toBe('true');
+    q('[data-id="pip"]')!.click();
+    ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    expect(h.plans[0]).toMatchObject({ mode: 'quick', racerId: 'pip', mirrored: true, look: { paint: 'pip-alt' } });
+    ui.dispose();
+    // a fresh load keeps the paint
+    expect(loadSave(b).settings.skinByRacer).toEqual({ pip: 'pip-alt' });
+  });
+
+  it('Mirror switched on for a Quick Race never reaches a Time Trial', () => {
+    const s = defaultSave();
+    s.unlocked.mirror = true;
+    const b = fake();
+    b.setItem(SAVE_KEY, JSON.stringify(s));
+    const h = host();
+    const ui = new UiRoot(document.body, h, b);
+    toRoster(ui, 'quick');
+    ui.dispatch({ type: 'toggleMirror' });
+    ui.dispatch({ type: 'back' });
+    ui.dispatch({ type: 'pickMode', mode: 'timeTrial' });
+    expect(q('[data-id="mirror"]')).toBeNull();
+    ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    expect(h.plans[0].mirrored).toBe(false);
+    ui.dispose();
+  });
+
+  it('a Time Trial best keeps the look its ghost is drawn in; a slower run in another look changes nothing', () => {
+    const ui = new UiRoot(document.body, host(), null);
+    toRoster(ui, 'timeTrial');
+    ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    const medalTimesMs = { gold: 126000, silver: 136000, bronze: 154000 };
+    const run = (timeMs: number): RaceResults => ({ mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360, ranks: [{ racerId: 'pip', rank: 1, finishTick: 12000, timeMs, lapTimesMs: [timeMs], dnf: false, projectedMs: -1 }] });
+    ui.raceOver({ results: run(130000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'AQQA', look: { paint: 'pip-alt', body: 'buggy' } });
+    expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ ghost: 'AQQA', paint: 'pip-alt', body: 'buggy' });
+    ui.raceOver({ results: run(140000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'BBBB', look: { body: 'classic' } });
+    expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ ghost: 'AQQA', paint: 'pip-alt', body: 'buggy' });
+    ui.raceOver({ results: run(120000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'CCCC', look: {} });
+    expect(ui.save.timeTrial['harbour-loop'].paint).toBeUndefined();
+    expect(ui.save.timeTrial['harbour-loop'].body).toBeUndefined();
+    ui.dispose();
+  });
+
+  it('grantAllUnlocks (the dev helper) unlocks all six and the roster shows the garage at once', () => {
+    const ui = new UiRoot(document.body, host(), null);
+    toRoster(ui, 'grandPrix');
+    expect(q('.garage')?.hidden).toBe(true);
+    ui.grantAllUnlocks();
+    expect(unlockRows(ui.save).every((r) => r.unlocked)).toBe(true);
+    expect(q('.garage')?.hidden).toBe(false);
+    expect(q('[data-id="mirror"]')).not.toBeNull();
+    ui.dispose();
+  });
+});

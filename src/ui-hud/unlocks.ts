@@ -6,18 +6,19 @@ import { medalFor, type MedalTimes } from './screens/menus.ts';
 import type { Save } from './store.ts';
 
 export type UnlockKind = 'skin' | 'body' | 'mirror';
-export interface Unlock { id: string; kind: UnlockKind; name: string; how: string }
+/** `use`: where to use it once unlocked (the Unlocks screen says so) */
+export interface Unlock { id: string; kind: UnlockKind; name: string; how: string; use: string }
 
 /** ultra turbos (tier-3 drift boosts) for Sprocket's alt skin */
 export const ULTRA_TURBOS_FOR_SPROCKET = 10;
 
 export const UNLOCKS: readonly Unlock[] = Object.freeze([
-  { id: 'pip-alt', kind: 'skin', name: 'Pip alt paint', how: 'Gold in Time Trial on every Sunrise Cup track' },
-  { id: 'boulder-alt', kind: 'skin', name: 'Boulder alt paint', how: 'Win a Knockout' },
-  { id: 'sprocket-alt', kind: 'skin', name: 'Sprocket alt paint', how: `Fire ${ULTRA_TURBOS_FOR_SPROCKET} Ultra Turbos (a drift held to its third spark)` },
-  { id: 'classic', kind: 'body', name: 'Classic body', how: 'Finish a Grand Prix' },
-  { id: 'buggy', kind: 'body', name: 'Buggy body', how: 'Race a Knockout to the end' },
-  { id: 'mirror', kind: 'mirror', name: 'Mirror mode', how: 'Gold in Time Trial on every track' },
+  { id: 'pip-alt', kind: 'skin', name: 'Pip alt paint', how: 'Gold in Time Trial on every Sunrise Cup track', use: 'Pick Pip on the racer screen, then Paint: Berry.' },
+  { id: 'boulder-alt', kind: 'skin', name: 'Boulder alt paint', how: 'Win a Knockout', use: 'Pick Boulder on the racer screen, then Paint: Frost.' },
+  { id: 'sprocket-alt', kind: 'skin', name: 'Sprocket alt paint', how: `Fire ${ULTRA_TURBOS_FOR_SPROCKET} Ultra Turbos (a drift held to its third spark)`, use: 'Pick Sprocket on the racer screen, then Paint: Mint.' },
+  { id: 'classic', kind: 'body', name: 'Classic body', how: 'Finish a Grand Prix', use: 'Any racer: Body on the racer screen.' },
+  { id: 'buggy', kind: 'body', name: 'Buggy body', how: 'Race a Knockout to the end', use: 'Any racer: Body on the racer screen.' },
+  { id: 'mirror', kind: 'mirror', name: 'Mirror mode', how: 'Gold in Time Trial on every track', use: 'Quick Race or Grand Prix: turn Mirror on beside the speed classes.' },
 ]);
 
 const SUNRISE = CUPS.find((c) => c.id === 'sunrise')?.trackIds ?? [];
@@ -50,6 +51,15 @@ export function isUnlocked(u: Unlock, save: Save): boolean {
   return (u.kind === 'skin' ? save.unlocked.skins : save.unlocked.bodies).includes(u.id);
 }
 
+/** Grant every unlock at once (the dev console's `kart.unlockAll()`, for testing the rewards). Mutates save.unlocked. */
+export function grantAll(save: Save): void {
+  for (const u of UNLOCKS) {
+    if (isUnlocked(u, save)) continue;
+    if (u.kind === 'mirror') save.unlocked.mirror = true;
+    else (u.kind === 'skin' ? save.unlocked.skins : save.unlocked.bodies).push(u.id);
+  }
+}
+
 /** Grant everything earned and not yet granted. Mutates save.unlocked; returns the new ones (for the reveal). Never takes one back. */
 export function grantUnlocks(save: Save, medalTimes: ReadonlyMap<string, MedalTimes>): Unlock[] {
   const out: Unlock[] = [];
@@ -62,8 +72,8 @@ export function grantUnlocks(save: Save, medalTimes: ReadonlyMap<string, MedalTi
   return out;
 }
 
-export interface UnlockRow { id: string; name: string; how: string; unlocked: boolean }
+export interface UnlockRow { id: string; name: string; how: string; use: string; unlocked: boolean }
 /** The Unlocks list: every unlock, granted or not, with how to get it. */
 export function unlockRows(save: Save): UnlockRow[] {
-  return UNLOCKS.map((u) => ({ id: u.id, name: u.name, how: u.how, unlocked: isUnlocked(u, save) }));
+  return UNLOCKS.map((u) => ({ id: u.id, name: u.name, how: u.how, use: u.use, unlocked: isUnlocked(u, save) }));
 }

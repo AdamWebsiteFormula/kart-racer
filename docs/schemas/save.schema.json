@@ -26,7 +26,9 @@
           "medal": { "type": "string", "enum": ["none", "bronze", "silver", "gold"] },
           "racerId": { "type": "string" },
           "ghost": { "type": "string", "maxLength": 200000, "description": "The best run as a path, not inputs (an input replay drifts: race-manager Decisions 2026-09-21): position, heading and loop angle every 4 sim ticks, varint deltas, base64 (src/race-manager/ghost.ts). Replaced only with a new best." },
-          "submittedToLeaderboard": { "type": "boolean" }
+          "submittedToLeaderboard": { "type": "boolean" },
+          "paint": { "type": "string", "enum": ["pip-alt", "boulder-alt", "sprocket-alt"], "description": "The alt paint the best run was set in (absent: the racer's own colours); the ghost is drawn in it. Kept only with a ghost, and only a paint of that racer." },
+          "body": { "type": "string", "enum": ["classic", "buggy"], "description": "The shared body the best run was set in (absent: the signature kart); the ghost is drawn on it. Kept only with a ghost." }
         }
       }
     },
@@ -50,11 +52,11 @@
       }
     },
     "unlocked": {
-      "description": "Cache of unlockable ids already granted, so the reveal fires once",
+      "description": "Cache of unlockable ids already granted, so the reveal fires once. Unknown ids are dropped on load.",
       "type": "object",
       "properties": {
-        "skins": { "type": "array", "items": { "type": "string" } },
-        "bodies": { "type": "array", "items": { "type": "string" } },
+        "skins": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["pip-alt", "boulder-alt", "sprocket-alt"] } },
+        "bodies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["classic", "buggy"] } },
         "mirror": { "type": "boolean" }
       }
     },
@@ -72,7 +74,9 @@
         "reducedMotion": { "type": "string", "enum": ["auto", "on", "off"], "default": "auto", "description": "auto follows prefers-reduced-motion" },
         "iconLabels": { "type": "boolean", "default": false, "description": "a letter on every item icon, on top of shape and colour" },
         "resolutionScale": { "type": "number", "minimum": 0.5, "maximum": 1, "default": 1, "description": "multiplies the capped DPR" },
-        "selectedRacerId": { "type": "string" }, "selectedBodyId": { "type": "string" }, "selectedSkinId": { "type": "string" }
+        "selectedRacerId": { "type": "string" },
+        "selectedBodyId": { "type": "string", "enum": ["standard", "classic", "buggy"], "default": "standard", "description": "The kart body every racer drives (cosmetic only: the racer owns the class). On load, a body not in unlocked.bodies falls back to standard." },
+        "skinByRacer": { "type": "object", "additionalProperties": { "type": "string", "enum": ["pip-alt", "boulder-alt", "sprocket-alt"] }, "default": {}, "description": "Each racer's alt paint, by racer id (absent: their own colours). On load, an entry is kept only when the racer exists, the paint is theirs and it is in unlocked.skins. Replaces selectedSkinId (one paint could not remember two racers')." }
       }
     }
   }

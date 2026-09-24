@@ -3,7 +3,7 @@
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, PCFShadowMap,
-  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer,
+  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Group, type Material, type Mesh,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
@@ -12,7 +12,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, buildRacerMesh, DAY_GRADE, isBodyId, isShared, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { InputSource } from './kart-controller/input.ts';
@@ -24,11 +24,13 @@ import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from 
 import { decodeGhost } from './race-manager/ghost.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
+import { mirrored } from './track-builder/mirror.ts';
 import { CAM, carry, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, kickedFov, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
-import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
+import { ownKartMaterials } from './game/kartMesh.ts';
+import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
 
 // ---- content: every track file present is a built track ----
@@ -136,6 +138,9 @@ let series: SeriesState | null = null;
 let overSent = false;
 /** the player pressed on over the line: the results come as soon as the field is cut off */
 let skipResults = false;
+/** the player's paint and body, and Mirror mode, for this race and the rest of its series (design §10) */
+let look: KartLook = {};
+let mirror = false;
 let coinCap = 10;
 let topSpeed = 25;
 // ?mute: the game makes no sound at all, however it is played (automated checks in a browser
@@ -160,8 +165,10 @@ function roster(playerId: string | null): RacerConfig[] {
 
 function load(config: RaceConfig, isAttract: boolean): void {
   session?.dispose();
-  const def = TRACKS.get(config.trackId) ?? TRACKS.get(FIRST_TRACK)!;
-  session = new RaceSession(scene, def, { ...config, trackId: def.id });
+  const base = TRACKS.get(config.trackId) ?? TRACKS.get(FIRST_TRACK)!;
+  // Mirror mode races the track reflected left to right (track-builder/mirror.ts); never on a leaderboard mode
+  const def = config.mirrored && !isBoardMode(config.mode) ? mirrored(base) : base;
+  session = new RaceSession(scene, def, { ...config, trackId: def.id, mirrored: def.mirrored === true }, isAttract ? {} : look);
   attract = isAttract;
   overSent = false;
   skipResults = false;
@@ -169,7 +176,8 @@ function load(config: RaceConfig, isAttract: boolean): void {
   if (config.mode === 'timeTrial' && !isAttract) {
     const best = ui.save.timeTrial[def.id];
     const path = best?.ghost && best.racerId ? decodeGhost(best.ghost) : null;
-    if (path && best?.racerId) session.setGhost(path, best.racerId);
+    // drawn in the paint and body the best was set in
+    if (path && best?.racerId) session.setGhost(path, best.racerId, artLook(best));
   }
   const pi = session.playerIndex;
   const kc = makeConstants(session.config.racers[Math.max(0, pi)].archetype, session.config.speedClass);
@@ -196,6 +204,14 @@ function load(config: RaceConfig, isAttract: boolean): void {
   camKart[0] = k.position[0]; camKart[1] = k.position[1]; camKart[2] = k.position[2];
 }
 
+/** A look from the UI's ids (the store has checked them against the unlocks). */
+function artLook(l: KartLookIds | undefined): KartLook {
+  return { ...(l?.paint ? { paint: l.paint } : {}), ...(l?.body && isBodyId(l.body) ? { body: l.body } : {}) };
+}
+
+/** A series race in Mirror mode when the series was started in it. */
+const withMirror = (c: RaceConfig): RaceConfig => (mirror ? { ...c, mirrored: true } : c);
+
 function startAttract(): void {
   series = null;
   const seed = Math.floor(Math.random() * 1e6); // attract only: never recorded, never replayed
@@ -206,7 +222,7 @@ function configFor(p: RacePlan): RaceConfig {
   // leaderboard modes are the exact solo race the server replays (backend-leaderboard/rules.ts)
   if (p.mode === 'timeTrial') return soloConfig('timeTrial', p.tracks[0] ?? FIRST_TRACK, p.racerId, 0);
   if (p.mode === 'daily') return dailyConfig(p.racerId, [...TRACKS.keys()]);
-  return { mode: p.mode, trackId: p.tracks[0] ?? FIRST_TRACK, speedClass: p.speedClass, seed: Date.now() % 1_000_000, racers: roster(p.racerId) };
+  return withMirror({ mode: p.mode, trackId: p.tracks[0] ?? FIRST_TRACK, speedClass: p.speedClass, seed: Date.now() % 1_000_000, racers: roster(p.racerId) });
 }
 
 const host: UiHost = {
@@ -217,15 +233,18 @@ const host: UiHost = {
   leaderboard: leaderboardClient(),
   startRace(p) {
     series = null;
+    look = artLook(p.look);
+    // Mirror runs Quick Race and Grand Prix only (the UI offers it there); a leaderboard mode never
+    mirror = p.mirrored === true && (p.mode === 'quick' || p.mode === 'grandPrix');
     const racers = roster(p.racerId);
     const seed = Date.now() % 1_000_000;
     if (p.mode === 'grandPrix' && p.cupId) series = createGrandPrix({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
     if (p.mode === 'knockout' && p.cupId) series = createKnockout({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
-    load(series ? nextRace(series)! : configFor(p), false);
+    load(series ? withMirror(nextRace(series)!) : configFor(p), false);
   },
   nextRace() {
     const next = series ? nextRace(series) : undefined;
-    if (next) load(next, false); else startAttract();
+    if (next) load(withMirror(next), false); else startAttract();
   },
   restartRace() {
     // a Daily restarts as today's: past midnight UTC the old day's run could not be posted
@@ -292,7 +311,7 @@ function raceOver(): void {
   // Time Trial and Daily runs can go on the leaderboard: the whole input log, from tick 0
   const mode = session.config.mode;
   const mine = results.ranks.find((r) => r.racerId === player?.racerId);
-  const board = isBoardMode(mode) && player && mine && !mine.dnf ? {
+  const board = isBoardMode(mode) && !session.config.mirrored && player && mine && !mine.dnf ? {
     mode, dailySeed: mode === 'daily' ? session.config.seed : null,
     draft: {
       trackId: session.def.id, mode, ...(mode === 'daily' ? { dailySeed: session.config.seed } : {}), speedClass: 150 as const,
@@ -305,6 +324,7 @@ function raceOver(): void {
     gp, ko, seriesHasNext, board,
     medalTimesMs: mode === 'timeTrial' ? session.def.medalTimesMs : undefined,
     ghost: mode === 'timeTrial' && mine && !mine.dnf ? session.ghostPath() : undefined,
+    look,
   });
 }
 
@@ -455,6 +475,64 @@ function step(now: number): void {
     }, now);
   }
   post!.render(frameDt, !attract && !!pl && pl.boost.remaining > 0, reduced);
+  if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
+}
+
+// ---- the racer screen's turntable: the dressed kart turning on its stand (design §12, §10 rewards) ----
+const showroom = new Scene();
+showroom.environment = scene.environment;
+showroom.environmentIntensity = 0.7;
+{
+  const key = new DirectionalLight(0xfff4e0, 2.4);
+  key.position.set(3, 6, 5);
+  showroom.add(key, new HemisphereLight(0xdfeeff, 0x4a4060, 1.3), new AmbientLight(0xbcd8ff, 0.35));
+}
+const showCam = new PerspectiveCamera(28, 5 / 3, 0.5, 60);
+const TURNTABLE_BG = new Color(0x2a2440);
+const clearWas = new Color();
+let onStand: { key: string; root: Group } | null = null;
+
+/** Render the dressed kart into the main canvas under the turntable's box, then copy it into the box's own canvas (over the menu's dim). */
+function drawTurntable(nowS: number, reduced: boolean): void {
+  const t = ui.turntable();
+  if (!t) return;
+  const r = t.canvas.getBoundingClientRect();
+  if (r.width < 8 || r.height < 8) return; // hidden on a short screen
+  const want = artLook(t.look);
+  // built again once the model files arrive (the code-built kart stands in until then)
+  const key = `${t.racerId}|${want.paint ?? ''}|${want.body ?? ''}|${RACER_MODELS.has(t.racerId)}`;
+  if (onStand?.key !== key) {
+    if (onStand) {
+      showroom.remove(onStand.root);
+      onStand.root.traverse((o) => { const m = (o as Mesh).material as Material | undefined; if (m && !isShared(m)) m.dispose(); });
+    }
+    const root = buildRacerMesh(t.racerId, want);
+    if (!root) return;
+    ownKartMaterials(root); // its own copies: never the near-camera fade the rivals' shared ones carry
+    showroom.add(root);
+    onStand = { key, root };
+  }
+  onStand.root.rotation.y = reduced ? 0.7 : nowS * 0.9;
+  showCam.aspect = r.width / r.height;
+  showCam.position.set(0, 2.3, 6.4);
+  showCam.lookAt(0, 0.85, 0);
+  showCam.updateProjectionMatrix();
+  const x = Math.round(r.left), w = Math.round(r.width), h = Math.round(r.height), y = Math.round(innerHeight - r.bottom);
+  const alpha = renderer.getClearAlpha();
+  renderer.getClearColor(clearWas);
+  renderer.setScissorTest(true);
+  renderer.setScissor(x, y, w, h);
+  renderer.setViewport(x, y, w, h);
+  renderer.setClearColor(TURNTABLE_BG, 1);
+  renderer.clear();
+  renderer.render(showroom, showCam);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, innerWidth, innerHeight);
+  renderer.setClearColor(clearWas, alpha);
+  // the box's own canvas, at the drawing buffer's pixels (copied this frame, while the buffer holds them)
+  const dpr = renderer.getPixelRatio(), cw = Math.max(1, Math.round(w * dpr)), ch = Math.max(1, Math.round(h * dpr));
+  if (t.canvas.width !== cw || t.canvas.height !== ch) { t.canvas.width = cw; t.canvas.height = ch; }
+  t.canvas.getContext('2d')?.drawImage(renderer.domElement, Math.round(x * dpr), Math.round(r.top * dpr), cw, ch, 0, 0, cw, ch);
 }
 requestAnimationFrame(frame);
 
@@ -477,6 +555,8 @@ if (import.meta.env.DEV) {
       // from any other screen the menu walk does nothing: load the race directly
       if (ui.app.screen !== 'racing' || session?.def.id !== trackId) load(configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] }), false);
     }, camera, scene, acc,
+    /** dev: grant all six design §10 unlocks (three paints, two bodies, Mirror) to try them; saved like any earned unlock */
+    unlockAll: () => ui.grantAllUnlocks(),
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
   };
 }

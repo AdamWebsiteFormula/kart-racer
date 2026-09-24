@@ -52,7 +52,7 @@ afterEach(() => { document.body.innerHTML = ''; delete (navigator as { getGamepa
 
 describe('pause: no Restart in a Grand Prix or Knockout (it farmed stars and wins)', () => {
   it('the reducer refuses it, and the pause menu does not show it', () => {
-    const racing = (mode: AppState['mode']): AppState => ({ screen: 'racing', overlays: ['pause'], mode, racerId: 'pip', speedClass: 150, cupId: 'sunrise', trackId: null, seriesHasNext: false });
+    const racing = (mode: AppState['mode']): AppState => ({ screen: 'racing', overlays: ['pause'], mode, racerId: 'pip', speedClass: 150, cupId: 'sunrise', trackId: null, seriesHasNext: false, mirrored: false });
     for (const mode of ['grandPrix', 'knockout'] as const) expect(reduce(racing(mode), { type: 'restart' }).overlays).toEqual(['pause']);
     for (const mode of ['quick', 'timeTrial', 'daily'] as const) expect(reduce(racing(mode), { type: 'restart' }).overlays).toEqual([]);
 
