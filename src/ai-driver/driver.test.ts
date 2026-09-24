@@ -170,6 +170,29 @@ describe('AiDriver gates', () => {
     expect(finishes(log).filter((f) => !f.dnf).length).toBe(7);
   });
 
+  it("7b: a kart stopped in the lane of Harbour's rolling barrels is passed on the side clear of both (bug hunt 2)", () => {
+    // the barrel dodge used to win over the stopped-kart dodge and pin the field's target 0.8 m left of
+    // centre, right onto a kart stopped there 35 m short of the barrels: 5–8 bumps a race, and the
+    // barrels hit those that went round it on their side
+    const track = buildTrack(HARBOUR_LOOP);
+    const stopAt = 0.337, toSpot = lookAheadDriver(19, -1.3);
+    let stopped = false, parkedFrom = -1;
+    const parker = (s: KartState, tr: typeof track) => {
+      if (s.lap === 1 && s.t >= stopAt) stopped = true;
+      return stopped ? { ...NEUTRAL_INPUT, brake: s.speed > 0.3 ? 1 : 0 } : toSpot(s, tr); // held brake would reverse
+    };
+    const { rm, log } = runRace(track, config(track, racers(8, 7), 150), {}, { 7: parker }, (tick, _i, rm) => {
+      if (parkedFrom < 0 && stopped && Math.abs(rm.state.karts[7].speed) < 0.5) parkedFrom = tick;
+    }, SIM_HZ * 300);
+    const parkedId = rm.state.karts[7].racerId;
+    const bumps = kartEvents(log, 'bump').filter((x) => x.tick > parkedFrom && x.racerId !== parkedId && (x.event as { otherId?: string }).otherId === parkedId);
+    const barrels = log.filter((x) => x.tick > parkedFrom && x.e.type === 'hazardHit' && x.e.hazardId === 'barrels');
+    expect(parkedFrom).toBeGreaterThan(0);
+    expect(finishes(log).filter((f) => !f.dnf).length).toBe(7);
+    expect(bumps.length, bumps.map((b) => `${b.racerId}@${(b.tick / SIM_HZ).toFixed(0)}s`).join(' ')).toBeLessThanOrEqual(2);
+    expect(barrels.length).toBeLessThanOrEqual(1);
+  }, 60_000);
+
   it('8: a kart pinned against nothing reverses out at 1.5 s and the race-manager never has to respawn it', () => {
     const track = buildTrack(OVAL);
     const pinFrom = SIM_HZ * 8, pinTo = pinFrom + SIM_HZ * 2;

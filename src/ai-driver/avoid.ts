@@ -1,5 +1,5 @@
 // Nudges to the lateral target, lowest priority applied first so the higher one wins:
-// coin → balloon → boost pad → pass → slow or stopped kart → declined fork → hazard → hazard spawn spot.
+// coin → balloon → boost pad → pass → declined fork → hazard → hazard spawn spot → slow or stopped kart.
 // Everything is measured in the track frame: metres ahead along the spline and
 // metres right of the centreline.
 import { BASE } from '../kart-controller/constants.ts';
@@ -45,6 +45,33 @@ function dodge(lat: number, obsLat: number, clear: number, myLat: number): numbe
   return obsLat + awayFrom(obsLat, myLat) * clear;
 }
 
+// applyAvoid's scratch, reused every call: the slow karts ahead, and the hazards that stay put with their clearance
+const slowLat: number[] = [];
+const hzLat: number[] = [], hzClear: number[] = [];
+const EPS = 1e-6;
+
+/**
+ * The lateral inside ±edge that keeps kartClear from every slow kart ahead at once (or gets
+ * furthest from them on a road too narrow for it), still clear of the hazards where there is
+ * room for both, and the least move from both `lat` and where the kart is (`myLat`), so the side
+ * it passes on does not flip under it. Candidates: each side of every obstacle, and both edges.
+ */
+function pastSlowKarts(lat: number, myLat: number, edge: number, kartClear: number, nSlow: number, nHz: number): number {
+  let best = lat, bestGap = -1, bestHit = true, bestD = Infinity;
+  for (let k = 0; k < 2 * (nSlow + nHz + 1); k++) {
+    const i = k >> 1, side = k & 1 ? 1 : -1;
+    const c = clamp(i < nSlow ? slowLat[i] + side * kartClear : i < nSlow + nHz ? hzLat[i - nSlow] + side * hzClear[i - nSlow] : side * edge, -edge, edge);
+    let gap = kartClear, hit = false;
+    for (let j = 0; j < nSlow; j++) gap = Math.min(gap, Math.abs(c - slowLat[j]));
+    for (let j = 0; j < nHz; j++) if (Math.abs(c - hzLat[j]) < hzClear[j] - EPS) hit = true;
+    const d = Math.abs(c - lat) + Math.abs(c - myLat);
+    if (gap > bestGap + EPS || (gap > bestGap - EPS && (hit !== bestHit ? !hit : d < bestD))) {
+      best = c; bestGap = gap; bestHit = hit; bestD = d;
+    }
+  }
+  return best;
+}
+
 export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skill: number, branchChoice: number, lat: number): number {
   const a = AI.avoid;
   const { track, karts } = ctx;
@@ -87,7 +114,8 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
   }
   lat = bestLat;
 
-  // --- other karts: draft, pass, or dodge a slow one ---
+  // --- other karts: draft or pass; a slow one is noted and dodged last ---
+  let nSlow = 0;
   for (let i = 0; i < karts.length; i++) {
     const o = karts[i];
     if (o === s || o.isGhost) continue;
@@ -97,7 +125,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
     if (o.branch !== s.branch) continue;
     const slow = o.speed < a.slowKartSpeed || o.status.spinRemaining > 0 || o.status.intangibleRemaining > 0 || o.finishTick !== undefined;
     if (slow) {
-      lat = dodge(lat, lateralAt(ctx, o.t, o.branch, o.position), kartClear, line.myLat);
+      slowLat[nSlow++] = lateralAt(ctx, o.t, o.branch, o.position);
       continue;
     }
     if (d > a.avoidLookAhead) continue;
@@ -114,7 +142,8 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
     if (lat * -line.branchSide < keep) lat = -line.branchSide * keep;
   }
 
-  // --- hazards (highest priority) ---
+  // --- hazards ---
+  let nHz = 0;
   const hz = ctx.hazards;
   if (hz.length) {
     const window = a.rollingLookAhead / len + 0.02;
@@ -127,7 +156,11 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
       if (d <= 0 || d > reach) continue;
       const hLat = lateralAt(ctx, ht, 0, h.position);
       if (Math.abs(hLat) > hw + h.radius) continue; // off the road
-      lat = dodge(lat, hLat, Math.min(a.dodgeClearance + h.radius, fit), line.myLat);
+      const clear = Math.min(a.dodgeClearance + h.radius, fit);
+      lat = dodge(lat, hLat, clear, line.myLat);
+      // kept clear of when passing a slow kart only if it stays put (a rolling one by its lane, below):
+      // swerving round a stopped kart for a creature or a crossing cart that moves on crosses in front of it
+      if (h.type === 'static' || h.type === 'falling') { hzLat[nHz] = hLat; hzClear[nHz++] = clear; }
     }
   }
 
@@ -139,11 +172,24 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
       const h = defs[i];
       if (h.type !== 'rolling' && h.type !== 'falling') continue;
       const d = signedOffset(h.t, s.t) * len;
+      const clear = Math.min(a.dodgeClearance + BUILDER.hazardRadius, fit);
+      // a rolling hazard's whole lane, its spot back to where it respawns, is kept clear of when passing
+      // a slow kart: which side to pass on must not flip each time a barrel rolls into range
+      if (h.type === 'rolling' && d > 0 && d - (h.speed ?? 0) * (h.period ?? 1) < a.stoppedLookAhead) { hzLat[nHz] = h.lateral ?? 0; hzClear[nHz++] = clear; }
       if (d < -a.spawnBehind || d > a.hazardLookAhead) continue;
-      lat = dodge(lat, h.lateral ?? 0, Math.min(a.dodgeClearance + BUILDER.hazardRadius, fit), line.myLat);
+      lat = dodge(lat, h.lateral ?? 0, clear, line.myLat);
+      hzLat[nHz] = h.lateral ?? 0; hzClear[nHz++] = clear;
     }
   }
 
   const edge = Math.max(0, Math.min(hw - AI.line.edgeMargin, hw - kartR - 0.3));
-  return clamp(lat, -edge, edge);
+  lat = clamp(lat, -edge, edge);
+  // --- slow, spun or stopped karts ahead (highest priority), all at once: a stopped kart is a sure
+  // hit, a hazard lane may be empty when we get there. Dodged before the hazards and one at a time,
+  // Harbour's barrel dodge steered the field onto a kart stopped 35 m short of the barrels (bug hunt 2,
+  // 24 Sept 2026: 30 of 85 passes hit it at 20–35 m/s), and a second slow kart's dodge could undo the first's.
+  for (let j = 0; j < nSlow; j++) {
+    if (Math.abs(lat - slowLat[j]) < kartClear - EPS) return pastSlowKarts(lat, line.myLat, edge, kartClear, nSlow, nHz);
+  }
+  return lat;
 }
