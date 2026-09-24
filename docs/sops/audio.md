@@ -78,6 +78,10 @@ _(append dated one-liners as they are made)_
 - 2026-09-23: The engine is three recorded loops (idle, mid, high) crossfaded at equal power by rpm, pitched by rpm / band rpm, plus a recorded drift screech (plan §7.4). Rivals use the mid loop, panned.
 - 2026-09-23: Every racer has a hit yelp (design §11): creature noises, never words. Only cast racers yelp.
 - 2026-09-24: The final-lap fanfare and the music lift play on the player's own last lap (their `lap` event with `isFinal`), not on the shift (the leader's): a trailing player used to hear the fanfare up to 4.8 s early and nothing on their real final lap. The two stay together because `SongPlayer.lift` pauses the song for the fanfare.
+- 2026-09-24: Race cues stop when the race screen closes (main.ts calls `audio.tick` only while `racing`): the sim keeps the field driving under the results, GP table and Knockout cut, and its bumps, pads and creatures played on over the results song for as long as it stayed open, up to 8 bumps a second (the engines were already quiet there).
+- 2026-09-24: Gained or lost place is measured from the player's grid rank (`newRace(song, trackId, gridRank)` seeds the director from the tracker's `shownRank` at load): with no seed the first pass off the back row played `losePlace` every race.
+- 2026-09-24: One `bump` cue per kart contact: collide.ts raises one on each kart, so the player's partner and the second of two other karts (by racer id) stay quiet. The player's rubs no longer thud twice, and the jostle after the go makes half the bonks (it reached 16-22 a second).
+- 2026-09-24: Hazard hits with no kart event are heard through `hazardHit`: a bumper car's shove plays `bump`, a rockfall's slow plays `hit` (a spin already plays through its kart `hit`, a vent's launch through its own cue). Both used to be silent.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

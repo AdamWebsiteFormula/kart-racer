@@ -97,9 +97,9 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         break;
       case 'finish': if (e.racerId === me) push(e.rank <= 3 && !e.dnf ? 'finish' : 'finishLow', null); break;
       case 'positionChange':
-        // only the player's own place changes, and only once racing has settled (rank 0 is the grid)
-        if (e.racerId === me) push(e.rank < (lastRank.get(me) ?? e.rank) ? 'gainPlace' : 'losePlace', null, 0.6);
-        if (e.racerId === me) lastRank.set(me, e.rank);
+        // only the player's own place changes, measured against the last one (the grid slot at first)
+        if (e.racerId === me) push(e.rank < (lastRank ?? e.rank) ? 'gainPlace' : 'losePlace', null, 0.6);
+        if (e.racerId === me) lastRank = e.rank;
         break;
       case 'wrongWay': if (e.racerId === me && e.on) push('wrongWay', null); break;
       case 'respawn': if (e.racerId === me) push('respawn', null); break;
@@ -128,11 +128,20 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
       case 'kart': {
         if (e.event.type === 'hit' && e.racerId === me) music.push({ type: 'duck' });
         const id = kartCue(e.event);
+        // one thud per contact: both karts get a bump event, so the player's partner and the
+        // second of two other karts stay quiet (the player's own plays at full level)
+        if (e.event.type === 'bump' && e.racerId !== me && (e.event.otherId === me || e.racerId > e.event.otherId)) break;
         // other racers' drift and hop noise is clutter: only walls, bumps and hits carry
         if (id && (e.racerId === me || id === 'wall' || id === 'bump' || id === 'hit' || id === 'spin')) push(id, e.racerId);
         if (e.event.type === 'hit') { const y = yelpFor(e.racerId); if (y) push(y, e.racerId, 0.8); }
         break;
       }
+      // a bumper car's shove and a rockfall's slow raise no kart event (a spin does, as a 'hit';
+      // a vent's launch has its own cue), so they sound here
+      case 'hazardHit':
+        if (e.hit === 'bump') push('bump', e.racerId);
+        else if (e.hit === 'slow') push('hit', e.racerId);
+        break;
       default: break;
     }
   }
@@ -161,9 +170,12 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
   return { cues: out, music };
 }
 
-/** The player's last announced rank, for gain/lose place. Reset per race with `resetDirector`. */
-const lastRank = new Map<string | null, number>();
-export function resetDirector(): void { lastRank.clear(); }
+/**
+ * The player's last announced rank, for gain/lose place. Reset per race with `resetDirector`,
+ * seeded with the player's grid rank so the first pass off the back row is a gain.
+ */
+let lastRank: number | undefined;
+export function resetDirector(gridRank?: number): void { lastRank = gridRank; }
 
 /** The horn for a racer, or a generic one. */
 const RACERS: readonly string[] = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];

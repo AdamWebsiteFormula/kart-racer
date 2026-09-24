@@ -181,15 +181,40 @@ describe('director', () => {
       k('p', { type: 'boostStart', source: 'drift', multiplier: 1.3, seconds: 0.6 }),
       k('p', { type: 'boostStart', source: 'pad', multiplier: 1.4, seconds: 1 }),
       k('n', { type: 'hop' }),
-      k('n', { type: 'bump', otherId: 'p' }),
+      k('n', { type: 'bump', otherId: 'q' }),
     ], [], listener({ n: [2, 0, 0] }));
     expect(cues.map((c) => c.sfx)).toEqual(['boost3', 'boost1', 'boostPad', 'bump']);
   });
 
-  it('position changes say gained or lost; horns exist for every racer', () => {
-    resetDirector();
+  it('one bump per contact: the player\'s own at full level, never doubled by the partner\'s; two others once', () => {
+    const k = (racerId: string, otherId: string) => ({ type: 'kart', racerId, event: { type: 'bump', otherId } }) as RaceEvent;
+    const l = listener({ n: [2, 0, 0], m: [3, 0, 0] });
+    // collide.ts raises a bump on both karts of a contact, in either order
+    const mine = direct([k('p', 'n'), k('n', 'p')], [], l).cues;
+    expect(mine).toEqual([{ sfx: 'bump', gain: 1, pan: 0 }]);
+    expect(direct([k('n', 'p'), k('p', 'n')], [], l).cues.map((c) => c.sfx)).toEqual(['bump']);
+    expect(direct([k('n', 'm'), k('m', 'n')], [], l).cues.map((c) => c.sfx)).toEqual(['bump']);
+    expect(direct([k('m', 'n'), k('n', 'm')], [], l).cues.map((c) => c.sfx)).toEqual(['bump']);
+  });
+
+  it('a bumper car\'s shove and a rockfall are heard; a spin hazard only through its kart hit', () => {
+    const hz = (racerId: string, hit: 'spin' | 'slow' | 'bump'): RaceEvent => ({ type: 'hazardHit', racerId, hazardId: 'h', hit });
+    const l = listener({ n: [5, 0, 0] });
+    expect(direct([hz('p', 'bump')], [], l).cues).toEqual([{ sfx: 'bump', gain: 1, pan: 0 }]);
+    expect(direct([hz('p', 'slow')], [], l).cues).toEqual([{ sfx: 'hit', gain: 1, pan: 0 }]);
+    expect(direct([hz('n', 'bump')], [], l).cues.map((c) => [c.sfx, c.gain])).toEqual([['bump', AUDIO.otherGain]]);
+    expect(direct([hz('p', 'spin')], [], l).cues).toEqual([]); // applyHit's kart 'hit' event plays the spin and the yelp
+  });
+
+  it('position changes say gained or lost, measured from the grid; horns exist for every racer', () => {
     const pc = (rank: number): RaceEvent => ({ type: 'positionChange', racerId: 'p', rank });
-    expect(direct([pc(5)], [], listener()).cues[0].sfx).toBe('losePlace'); // first report: no earlier rank
+    resetDirector(8); // the back of the grid
+    expect(direct([pc(7)], [], listener()).cues[0].sfx).toBe('gainPlace'); // the first pass off the back row
+    expect(direct([pc(8)], [], listener()).cues[0].sfx).toBe('losePlace');
+    resetDirector(1); // a new race from pole
+    expect(direct([pc(2)], [], listener()).cues[0].sfx).toBe('losePlace');
+    resetDirector();
+    expect(direct([pc(5)], [], listener()).cues[0].sfx).toBe('losePlace'); // no grid rank given: nothing to gain against
     expect(direct([pc(3)], [], listener()).cues[0].sfx).toBe('gainPlace');
     expect(direct([pc(4)], [], listener()).cues[0].sfx).toBe('losePlace');
     expect(hornFor('gus')).toBe('horn:gus');
