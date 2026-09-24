@@ -7,6 +7,7 @@ import { BUILDER } from './constants.ts';
 import { CREATURE } from './creatures.ts';
 import { buildTrack, type Track } from './track.ts';
 import canyonJson from './tracks/canyon-rush.json';
+import frostbiteJson from './tracks/frostbite-pass.json';
 import type { ActiveHazard, CreatureKind, TrackDefinition } from './types.ts';
 
 function trackWith(kind: CreatureKind, period: number, lateral = 1): Track {
@@ -127,6 +128,28 @@ describe('course creatures', () => {
     }
     expect(lo).toBeLessThan(-curb);
     expect(hi).toBeGreaterThan(curb);
+  });
+
+  it('on an off-road track the Rumblesaur and the yeti stand wholly past the course limit; the stomping foot lands where it did', () => {
+    // bug hunt 2 (24 Sept 2026): both stood inside the drivable sand and snow, and karts drove through
+    // the Rumblesaur's legs and the yeti's rock ledge with nothing to stop them
+    for (const [json, id, footprint] of [[canyonJson, 'rumblesaur', CREATURE.rumblesaur.footprint], [frostbiteJson, 'yeti', CREATURE.yeti.footprint]] as const) {
+      const track = buildTrack(cloneDef(json as TrackDefinition));
+      const c = track.hazards.creatures.find((x) => x.id === id)!;
+      const s = track.sample(c.t, 0), body = track.hazards.creaturePoses(0.1).find((p) => p.id === id)!.position;
+      const lat = ((body[0] - s.position[0]) * s.tangent[2] - (body[2] - s.position[2]) * s.tangent[0]) / Math.hypot(s.tangent[0], s.tangent[2]);
+      expect(Math.abs(lat) - footprint, id).toBeGreaterThanOrEqual(s.wall! - 1e-6);
+    }
+    const C = CREATURE.rumblesaur;
+    for (const offroad of [false, true]) {
+      const def = structuredClone(OVAL) as TrackDefinition;
+      def.offroad = offroad;
+      def.hazards = [{ id: 'rumblesaur', type: 'creature', creature: 'rumblesaur', t: 0.3, lateral: 1, period: 7, hit: 'spin' }];
+      const t = buildTrack(def), hw = t.sample(0.3, 0).halfWidth;
+      const foot = mine(t, C.idle + C.rear + 0.05).find((h) => h.radius === C.footRadius)!;
+      expect(lateral(t, foot.position)).toBeCloseTo(hw + C.off - C.step, 6);
+      expect(lateral(t, pose(t, 1).position)).toBeCloseTo(offroad ? t.sample(0.3, 0).wall! + C.footprint : hw + C.off, 6);
+    }
   });
 
   it('a creature on road a route change replaces is switched off with it: no hits, no pose', () => {

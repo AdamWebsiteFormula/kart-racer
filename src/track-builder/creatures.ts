@@ -9,7 +9,8 @@ import type { ActiveHazard, CreatureKind, HazardDef, Vec3 } from './types.ts';
 /** The numbers behind each creature. One place, named, so tuning never hunts for a literal. */
 export const CREATURE = Object.freeze({
   rumblesaur: {
-    /** metres off the road edge it stands, on its own side */ off: 9,
+    /** metres off the road edge it stands, on its own side; its foot lands `step` nearer the road */ off: 9, step: 3.5,
+    /** metres its legs and tail reach round it: on an off-road track it stands that far past the course limit */ footprint: 5,
     /** seconds of idle, then rearing up (the warning), then the stomp */ idle: 2.9, rear: 1.2,
     /** the shock ring: rolls out from the foot this fast, this far, this thick */ ringSpeed: 19, ringReach: 30, ringHalf: 1.2,
     /** the stomping foot itself, for this long after it lands */ footRadius: 3, footSeconds: 0.3,
@@ -17,6 +18,7 @@ export const CREATURE = Object.freeze({
   },
   yeti: {
     off: 11, windUp: 0.9, flight: 1.2, roll: 2.2, rollSpeed: 10, radius: 1.6,
+    /** its ledge's reach round it at the ground (mesh/creatures.ts): it stands that far past the course limit */ footprint: 7,
     /** how far down the road (metres) the snowball lands from the yeti */ ahead: 14,
   },
   kraken: {
@@ -89,6 +91,14 @@ export class Creature {
     return { p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: s.wall ?? s.halfWidth, heading: Math.atan2(s.tangent[0], s.tangent[2]) };
   }
 
+  /**
+   * Metres out from the centreline a big creature stands: `off` past the road edge, and on an off-road
+   * track far enough past the course limit that its body clears the sand karts drive on (bug hunt 2,
+   * 24 Sept 2026: karts drove through the Rumblesaur's legs and the yeti's ledge). What it throws or
+   * stomps still lands where it did.
+   */
+  private clear(f: Frame, off: number, footprint: number): number { return Math.max(f.hw + off, f.reach + footprint); }
+
   private at(f: Frame, lateral: number, up = 0): Vec3 {
     return [f.p[0] + f.right[0] * lateral, f.p[1] + up, f.p[2] + f.right[2] * lateral];
   }
@@ -156,11 +166,10 @@ export class Creature {
     switch (kind) {
       case 'rumblesaur': {
         const C = CREATURE.rumblesaur, f = this.frame(this.t);
-        const lat = side * (f.hw + C.off);
-        const body = this.at(f, lat);
+        const body = this.at(f, side * this.clear(f, C.off, C.footprint));
         // it faces the road
         const heading = f.heading - side * Math.PI / 2;
-        const foot = this.at(f, lat - side * 3.5);
+        const foot = this.at(f, side * (f.hw + C.off - C.step));
         const stompAt = C.idle + C.rear;
         let action = 'idle', ph = p / C.idle;
         if (p >= C.idle && p < stompAt) { action = 'rear'; ph = (p - C.idle) / C.rear; marks.push({ kind: 'shadow', position: foot, radius: C.footRadius, strength: ph }); }
@@ -175,8 +184,7 @@ export class Creature {
       }
       case 'yeti': {
         const C = CREATURE.yeti, f = this.frame(this.t);
-        const lat = side * (f.hw + C.off);
-        const body = this.at(f, lat, 3);
+        const body = this.at(f, side * this.clear(f, C.off, C.footprint), 3);
         const heading = f.heading - side * Math.PI / 2;
         const P = this.period(), k = Math.floor(time / P);
         let action = 'idle', ph = 0;
