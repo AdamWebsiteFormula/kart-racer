@@ -116,6 +116,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-21: Codex CLI 0.142.5 cannot use the configured `gpt-6-astra`; `codex review -c model="gpt-5.5" "…"` works on this account. Upgrade the CLI or keep the flag.
 
 - 2026-09-23: **The claw rescue** replaces the instant respawn: a fall or a stuck kart starts a 2.4 s rescue (hold, grab, carry in an arc over the road, set down), frozen and intangible; it lands no further out than `respawnInset` (0.6) of the half-width, never on the lip of an open edge.
+- 2026-09-24: In Knockout the player's grid slot is `playerGridSlot` clamped to the field, not the grid: rounds of 6 and 4 start the player at the back of its own field (slots 5 and 3) instead of in slot 7 behind one or two empty rows. Solo Time Trial and Daily keep slot 7 so stored runs replay unchanged.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
