@@ -896,12 +896,12 @@ var e = {
 		decor: [
 			{
 				asset: "cactus",
-				instances: 40,
+				instances: 70,
 				band: "roadside"
 			},
 			{
 				asset: "rock",
-				instances: 40,
+				instances: 70,
 				band: "roadside"
 			},
 			{
@@ -913,12 +913,27 @@ var e = {
 				asset: "minecart",
 				instances: 10,
 				band: "roadside",
-				lift: 1.2
+				lift: .7
 			},
 			{
 				asset: "arch",
 				instances: 5,
 				band: "far"
+			},
+			{
+				asset: "rock",
+				instances: 40,
+				band: "far"
+			},
+			{
+				asset: "scrub",
+				instances: 200,
+				band: "verge"
+			},
+			{
+				asset: "pebbles",
+				instances: 220,
+				band: "verge"
 			}
 		]
 	}
@@ -1346,7 +1361,7 @@ var e = {
 		decor: [
 			{
 				asset: "pine",
-				instances: 80,
+				instances: 120,
 				band: "roadside"
 			},
 			{
@@ -1361,7 +1376,7 @@ var e = {
 			},
 			{
 				asset: "snowball",
-				instances: 40,
+				instances: 80,
 				band: "roadside",
 				lift: .35
 			},
@@ -1369,6 +1384,21 @@ var e = {
 				asset: "chalet",
 				instances: 15,
 				band: "roadside"
+			},
+			{
+				asset: "pine",
+				instances: 60,
+				band: "far"
+			},
+			{
+				asset: "sapling",
+				instances: 180,
+				band: "verge"
+			},
+			{
+				asset: "stones",
+				instances: 160,
+				band: "verge"
 			}
 		]
 	}
@@ -1739,7 +1769,7 @@ var e = {
 			},
 			{
 				asset: "boat",
-				instances: 20,
+				instances: 40,
 				band: "far"
 			},
 			{
@@ -1751,7 +1781,7 @@ var e = {
 				asset: "barrel",
 				instances: 30,
 				band: "roadside",
-				lift: 1.2
+				lift: 1.02
 			},
 			{
 				asset: "stall",
@@ -1762,6 +1792,36 @@ var e = {
 				asset: "lamp",
 				instances: 30,
 				band: "roadside"
+			},
+			{
+				asset: "crate",
+				instances: 24,
+				band: "roadside"
+			},
+			{
+				asset: "umbrella",
+				instances: 20,
+				band: "roadside"
+			},
+			{
+				asset: "rope-post",
+				instances: 24,
+				band: "roadside"
+			},
+			{
+				asset: "tuft",
+				instances: 480,
+				band: "verge"
+			},
+			{
+				asset: "flowers",
+				instances: 300,
+				band: "verge"
+			},
+			{
+				asset: "bush",
+				instances: 110,
+				band: "verge"
 			}
 		]
 	}
@@ -2134,23 +2194,39 @@ var e = {
 			},
 			{
 				asset: "barn",
-				instances: 15,
+				instances: 30,
 				band: "far"
 			},
 			{
 				asset: "windmill-small",
-				instances: 20,
+				instances: 40,
 				band: "far"
 			},
 			{
 				asset: "haybale",
 				instances: 36,
-				band: "roadside"
+				band: "roadside",
+				lift: 1
 			},
 			{
 				asset: "rock",
 				instances: 20,
 				band: "far"
+			},
+			{
+				asset: "tuft",
+				instances: 520,
+				band: "verge"
+			},
+			{
+				asset: "flowers",
+				instances: 320,
+				band: "verge"
+			},
+			{
+				asset: "bush",
+				instances: 110,
+				band: "verge"
 			}
 		]
 	}
@@ -3613,980 +3689,15 @@ var ot = {
 "hump\"],\"default\":\"ramp\",\"description\":\"ramp: a striped wedge across the road up to a lip at t; hump: a trick bump (dune, mogul) whose crest is at t (design.md Track thrills)\"},\"run\":{\"type\":\"number\",\"description\":\"metres along the road the ramp rises over, or the bump spans (default builder rampRun / humpRun)\"},\"rise\":{\"type\":\"number\",\"description\":\"metres the lip or crest stands above the road (default builder rampRise / humpRise)\"},\"shortcut\":{\"type\":\"string\",\"description\":\"Shortcut id this jump sits on; t stays main-equivalent\"}}}},\"pickups\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"t\"],\"properties\":{\"t\":{\"type\":\"number\"},\"lateral\":{\"type\":\"number\"},\"shortcut\":{\"type\":\"string\"},\"double\":{\"type\":\"boolean\",\"description\":\"A gold double balloon: fills both item slots at once (design §8)\"}}}},\"coins\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"t\"],\"properties\":{\"t\":{\"type\":\"number\"},\"lateral\":{\"type\":\"number\"},\"shortcut\":{\"type\":\"string\"}}}},\"boostPads\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"t\"],\"properties\":{\"" +
 "t\":{\"type\":\"number\"},\"lateral\":{\"type\":\"number\"},\"width\":{\"type\":\"number\"},\"shortcut\":{\"type\":\"string\"}}}},\"finalLapShift\":{\"description\":\"Exactly one readable change on the last lap. Fires once, globally, when the race leader starts the final lap.\",\"type\":\"object\",\"required\":[\"kind\",\"label\"],\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"flood\",\"storm\",\"collapse\",\"blizzard\",\"fireworks\",\"sunset\",\"rise\",\"reverse\"]},\"label\":{\"type\":\"string\",\"description\":\"Banner text, e.g. 'THE TIDE IS IN'\"},\"closesShortcuts\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"opensShortcuts\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"routeOverrides\":{\"description\":\"Replace a t-range of the main spline (bridges retract, rail becomes mandatory). The LUT is rebuilt once when the shift fires.\",\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"fromT\",\"toT\",\"controlPoints\"],\"properties\":{\"fromT\":{\"type\":\"number\"},\"toT\":{\"type\":\"number\"},\"controlPoints\":{\"$ref\":\"#/properties/controlPoints\"}}}},\"surfaceOverrides\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"pro" +
 "perties\":{\"fromT\":{\"type\":\"number\"},\"toT\":{\"type\":\"number\"},\"surface\":{\"type\":\"string\"}}}},\"gripMultiplier\":{\"type\":\"number\",\"default\":1,\"description\":\"Global grip scale, e.g. 0.8 for wet grass\"},\"addsJumps\":{\"$ref\":\"#/properties/jumps\"},\"enablesHazards\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"disablesHazards\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"sky\":{\"type\":\"string\",\"description\":\"Sky preset id\"},\"lut\":{\"type\":\"string\"},\"fogDensity\":{\"type\":\"number\"},\"musicVariant\":{\"type\":\"string\"}}},\"environment\":{\"type\":\"object\",\"properties\":{\"sky\":{\"type\":\"string\"},\"lut\":{\"type\":\"string\"},\"fogColor\":{\"type\":\"string\"},\"fogDensity\":{\"type\":\"number\"},\"ground\":{\"description\":\"One flat plane under the whole track. 'none' for sky tracks; the void is below voidY.\",\"type\":\"object\",\"required\":[\"kind\"],\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"plane\",\"water\",\"none\"],\"default\":\"plane\"},\"y\":{\"type\":\"number\",\"default\":0}}},\"sunDirection\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"minItems\":3,\"maxItems\":3},\"palett" +
-"e\":{\"type\":\"object\",\"properties\":{\"background\":{\"type\":\"string\"},\"accent\":{\"type\":\"string\"}}},\"decor\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"asset\":{\"type\":\"string\"},\"instances\":{\"type\":\"integer\"},\"band\":{\"type\":\"string\",\"enum\":[\"roadside\",\"far\",\"sky\"]},\"footing\":{\"type\":\"string\",\"enum\":[\"pier\"],\"description\":\"Out at sea: each one stands on its own wooden pier, raised pierLift above the water\"},\"lift\":{\"type\":\"number\",\"description\":\"Metres above its band's ground: a model centred on its middle (a hazard's) sits on the ground with lift = its radius\"}}}},\"landmarkFooting\":{\"type\":\"string\",\"enum\":[\"pier\"],\"description\":\"The landmark stands on a wooden pier (a sea track)\"}}},\"music\":{\"type\":\"string\"},\"landmark\":{\"type\":\"string\",\"description\":\"The thing visible from the start line\"},\"builder\":{\"description\":\"Track-builder constants. Never set per track; the defaults are the only values. Code reads them from here (docs/sops/track-builder.md Constants).\",\"type\":\"object\",\"properties\":{\"lutSamples\":{\"type\":\"integer\",\"default\":2048,\"descriptio" +
-"n\":\"Arc-length samples per branch LUT\"},\"arcDivisions\":{\"type\":\"integer\",\"default\":4096,\"description\":\"Fine steps used to walk the curve before resampling\"},\"globalSearchStep\":{\"type\":\"integer\",\"default\":8,\"description\":\"Coarse stride for nearestTGlobal\"},\"branchHysteresis\":{\"type\":\"number\",\"default\":1.0,\"description\":\"metres; another branch must be closer by this much to win\"},\"branchLeaveMargin\":{\"type\":\"number\",\"default\":1.35,\"description\":\"metres inside a road edge a kart still counts as on that road; another branch can only take it once it is past this. Must exceed kartRadius (0.85): the wall holds a kart exactly one radius inside the edge, so at 0.85 nobody could ever leave\"},\"maxBankDeg\":{\"type\":\"number\",\"default\":20},\"minTurnRadiusFactor\":{\"type\":\"number\",\"default\":1.5,\"description\":\"turn radius must be >= factor × halfWidth (hairpin guard)\"},\"minStartHalfWidth\":{\"type\":\"number\",\"default\":4},\"branchBlendMetres\":{\"type\":\"number\",\"default\":14,\"description\":\"a shortcut ribbon loses its kerbs and sinks 3 cm for this long at each end, where it overlaps the main road\"},\"kerbWidth\":{\"type\"" +
-":\"number\",\"default\":1.0},\"kerbHeight\":{\"type\":\"number\",\"default\":0.1},\"shoulderWidth\":{\"type\":\"number\",\"default\":6.0},\"shoulderDrop\":{\"type\":\"number\",\"default\":0.4},\"rampSkirt\":{\"type\":\"number\",\"default\":2.5,\"description\":\"Off-road tracks: metres past the curb over which a ramp's sides slope down to the sand (karts beside a ramp drive up its side instead of popping up a square edge)\"},\"tunnelWall\":{\"type\":\"number\",\"default\":4.2,\"description\":\"metres: a tunnel's side walls rise this high above the road before the roof arches over\"},\"tunnelApex\":{\"type\":\"number\",\"default\":6.2,\"description\":\"metres: the top of a tunnel's arched roof above the road\"},\"tunnelHill\":{\"type\":\"number\",\"default\":9,\"description\":\"metres: the land over a tunnel stands this high above its road (a mesa the mine runs through)\"},\"tunnelRamp\":{\"type\":\"number\",\"default\":2.5,\"description\":\"metres in from a portal over which the land rises to tunnelHill: the mesa ends in a cliff, and the portal is a rock face in it (mesh/tunnel.ts)\"},\"tunnelMesaTop\":{\"type\":\"number\",\"default\":3,\"description\":\"metres of the mesa's flat to" +
-"p past where a road's shoulder would end, before its sides fall away (a ridge over the mine, not a plateau)\"},\"tunnelFunnel\":{\"type\":\"number\",\"default\":16,\"description\":\"metres before a portal over which the off-road beside the approach narrows to the curb, guiding karts into the mouth\"},\"tunnelFrameSpacing\":{\"type\":\"number\",\"default\":8,\"description\":\"metres between the timber frames inside a tunnel\"},\"tunnelLanternSpacing\":{\"type\":\"number\",\"default\":12,\"description\":\"metres between lanterns inside a tunnel (alternate walls)\"},\"offroadReach\":{\"type\":\"number\",\"default\":12,\"description\":\"Off-road tracks: metres past the curb the ground is drivable (slowly) before an invisible course limit, just short of the roadside scenery (the Mario Kart World way: no strip, no wall along the road)\"},\"offroadDrop\":{\"type\":\"number\",\"default\":0.12,\"description\":\"Off-road tracks: the ground past the curb sits this far under the road, as the land mesh draws it\"},\"barrierSpacing\":{\"type\":\"number\",\"default\":2.0},\"roadTileLength\":{\"type\":\"number\",\"default\":10,\"description\":\"metres of road per UV v unit\"},\"chunkCount\":{\"typ" +
-"e\":\"integer\",\"default\":8},\"minimapSamples\":{\"type\":\"integer\",\"default\":200},\"minimapPadding\":{\"type\":\"number\",\"default\":0.06},\"boostPadHalfLength\":{\"type\":\"number\",\"default\":1.75},\"boostPadWidth\":{\"type\":\"number\",\"default\":3.0},\"rampRun\":{\"type\":\"number\",\"default\":5,\"description\":\"metres a ramp rises over to its lip (karts drive up it: kart-controller jumpLift)\"},\"rampRise\":{\"type\":\"number\",\"default\":0.8,\"description\":\"height of a ramp's lip above the road, metres\"},\"humpRun\":{\"type\":\"number\",\"default\":8,\"description\":\"metres along the road a trick bump spans\"},\"humpRise\":{\"type\":\"number\",\"default\":1.0,\"description\":\"height of a trick bump's crest, metres\"},\"loopRadius\":{\"type\":\"number\",\"default\":9,\"description\":\"a loop-the-loop's radius, metres\"},\"loopShift\":{\"type\":\"number\",\"default\":7,\"description\":\"metres the ring moves right in one turn: the way in (left of centre) never meets the way out (right)\"},\"loopSpread\":{\"type\":\"number\",\"default\":1.2,\"description\":\"metres either side of its lane a kart rides round, by where it came in (karts side by side stay side by " +
-"side)\"},\"loopApproach\":{\"type\":\"number\",\"default\":24,\"description\":\"metres before the foot a kart is caught and eased into the entry lane\"},\"loopExit\":{\"type\":\"number\",\"default\":6,\"description\":\"metres after the foot a kart is set down in the exit lane\"},\"loopWidth\":{\"type\":\"number\",\"default\":6,\"description\":\"width of the ring's track, metres\"},\"humpEdge\":{\"type\":\"number\",\"default\":1.6,\"description\":\"metres over which a trick bump rounds off to the road at each kerb\"},\"balloonHeight\":{\"type\":\"number\",\"default\":1.2},\"balloonRadius\":{\"type\":\"number\",\"default\":0.9},\"pierLift\":{\"type\":\"number\",\"default\":1.1,\"description\":\"A pier's deck stands this far above the sea (level with a sea track's coast)\"},\"coinRadius\":{\"type\":\"number\",\"default\":0.5},\"hazardRadius\":{\"type\":\"number\",\"default\":1.2},\"ventRadius\":{\"type\":\"number\",\"default\":2.2,\"description\":\"a launch vent's mouth, metres (design.md Track thrills)\"},\"ventWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a vent glows and bubbles this long before it erupts\"},\"ventEruptSeconds\":{\"type\":\"number\",\"default\"" +
-":1.5,\"description\":\"how long a vent erupts; a kart on it then is thrown up\"},\"ventLaunch\":{\"type\":\"number\",\"default\":14,\"description\":\"m/s up a vent throws a kart, about 4 m high (a ramp is 5 to 6)\"},\"fallingActiveSeconds\":{\"type\":\"number\",\"default\":0.5},\"fallingWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a falling hazard drops this long before it lands (and can hit), its shadow growing on the spot\"},\"fallingHeight\":{\"type\":\"number\",\"default\":14,\"description\":\"metres above the road a falling hazard drops from\"},\"gustWindow\":{\"type\":\"number\",\"default\":6,\"description\":\"metres along the road a gust acts over\"},\"decorBands\":{\"type\":\"object\",\"properties\":{\"roadside\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[8,14]},\"roadsideOffroad\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[13,19],\"description\":\"the roadside band on an off-road track: just past the course limit, so the scenery lines the course\"},\"far\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[30,120]},\"sky\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[25,60" +
-"]}}},\"lapTimeWarn\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[40,65],\"description\":\"seconds; estimated lap outside this warns\"},\"trackDrawCallBudget\":{\"type\":\"integer\",\"default\":40}}}}")
-};
-//#endregion
-//#region src/track-builder/constants.ts
-function st(e) {
-	let t = {};
-	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = st(r.properties));
-	return t;
-}
-var L = Object.freeze(st(ot.properties.builder.properties)), ct = S.properties.base.properties.kartRadius.default;
-S.properties.base.properties.tSearchWindow.default;
-//#endregion
-//#region src/track-builder/spline.ts
-var lt = 1e-4;
-function ut(e, t, n, r, i, a, o, s, c) {
-	let l = (t - e) / i - (n - e) / (i + a) + (n - t) / a, u = (n - t) / a - (r - t) / (a + o) + (r - n) / o;
-	l *= a, u *= a, s[c] = t, s[c + 1] = l, s[c + 2] = -3 * t + 3 * n - 2 * l - u, s[c + 3] = 2 * t - 2 * n + l + u;
-}
-var dt = class {
-	closed = !0;
-	count;
-	c;
-	constructor(e) {
-		if (e.length < 4) throw Error(`ClosedSpline needs at least 4 points, got ${e.length}`);
-		let t = e.length;
-		this.count = t, this.c = new Float64Array(t * 12);
-		for (let n = 0; n < t; n++) {
-			let r = e[(n - 1 + t) % t], i = e[n], a = e[(n + 1) % t], o = e[(n + 2) % t], s = pt(r, i) ** .25, c = pt(i, a) ** .25, l = pt(a, o) ** .25;
-			c < lt && (c = 1), s < lt && (s = c), l < lt && (l = c);
-			let u = n * 12;
-			ut(r.x, i.x, a.x, o.x, s, c, l, this.c, u), ut(r.y, i.y, a.y, o.y, s, c, l, this.c, u + 4), ut(r.z, i.z, a.z, o.z, s, c, l, this.c, u + 8);
-		}
-	}
-	segmentOf(e) {
-		let t = this.count, n = mt(e) * t;
-		return {
-			index: Math.floor(n) % t,
-			local: n - Math.floor(n)
-		};
-	}
-	pointAt(e, t = [
-		0,
-		0,
-		0
-	]) {
-		let { index: n, local: r } = this.segmentOf(e), i = n * 12, a = this.c, o = r * r, s = o * r;
-		return t[0] = a[i] + a[i + 1] * r + a[i + 2] * o + a[i + 3] * s, t[1] = a[i + 4] + a[i + 5] * r + a[i + 6] * o + a[i + 7] * s, t[2] = a[i + 8] + a[i + 9] * r + a[i + 10] * o + a[i + 11] * s, t;
-	}
-	pointIn(e, t, n = [
-		0,
-		0,
-		0
-	]) {
-		return this.pointAt((e + t) / this.count, n);
-	}
-	walkArcLength(e) {
-		let t = new Float64Array(e + 1), n = [
-			0,
-			0,
-			0
-		], r = [
-			0,
-			0,
-			0
-		];
-		this.pointAt(0, n);
-		let i = 0;
-		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += Math.hypot(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
-		return t;
-	}
-}, ft = class {
-	closed = !1;
-	count;
-	c;
-	constructor(e) {
-		if (e.length < 2) throw Error(`OpenSpline needs at least 2 points, got ${e.length}`);
-		let t = e.length;
-		this.count = t;
-		let n = t - 1;
-		this.c = new Float64Array(n * 12);
-		let r = (e, t) => ({
-			x: 2 * e.x - t.x,
-			y: 2 * e.y - t.y,
-			z: 2 * e.z - t.z
-		});
-		for (let i = 0; i < n; i++) {
-			let n = i === 0 ? r(e[0], e[1]) : e[i - 1], a = e[i], o = e[i + 1], s = i + 2 < t ? e[i + 2] : r(e[t - 1], e[t - 2]), c = pt(n, a) ** .25, l = pt(a, o) ** .25, u = pt(o, s) ** .25;
-			l < lt && (l = 1), c < lt && (c = l), u < lt && (u = l);
-			let d = i * 12;
-			ut(n.x, a.x, o.x, s.x, c, l, u, this.c, d), ut(n.y, a.y, o.y, s.y, c, l, u, this.c, d + 4), ut(n.z, a.z, o.z, s.z, c, l, u, this.c, d + 8);
-		}
-	}
-	segmentOf(e) {
-		let t = this.count - 1, n = (e < 0 ? 0 : e > 1 ? 1 : e) * t, r = Math.floor(n);
-		return r >= t && (r = t - 1), {
-			index: r,
-			local: n - r
-		};
-	}
-	pointAt(e, t = [
-		0,
-		0,
-		0
-	]) {
-		let { index: n, local: r } = this.segmentOf(e), i = n * 12, a = this.c, o = r * r, s = o * r;
-		return t[0] = a[i] + a[i + 1] * r + a[i + 2] * o + a[i + 3] * s, t[1] = a[i + 4] + a[i + 5] * r + a[i + 6] * o + a[i + 7] * s, t[2] = a[i + 8] + a[i + 9] * r + a[i + 10] * o + a[i + 11] * s, t;
-	}
-	walkArcLength(e) {
-		let t = new Float64Array(e + 1), n = [
-			0,
-			0,
-			0
-		], r = [
-			0,
-			0,
-			0
-		];
-		this.pointAt(0, n);
-		let i = 0;
-		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += Math.hypot(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
-		return t;
-	}
-};
-function pt(e, t) {
-	let n = e.x - t.x, r = e.y - t.y, i = e.z - t.z;
-	return n * n + r * r + i * i;
-}
-function mt(e) {
-	let t = e % 1;
-	return t < 0 ? t + 1 : t;
-}
-//#endregion
-//#region src/track-builder/types.ts
-var ht = Object.freeze([
-	"road",
-	"dirt",
-	"mud",
-	"ice",
-	"boost",
-	"rail"
-]);
-function gt(e) {
-	let t = ht.indexOf(e ?? "road");
-	return t < 0 ? 0 : t;
-}
-//#endregion
-//#region src/track-builder/lut.ts
-var R = (e) => {
-	let t = e % 1;
-	return t < 0 ? t + 1 : t;
-}, _t = (e) => e < 0 ? 0 : e > 1 ? 1 : e, vt = Math.PI / 180, yt = {
-	top: 0,
-	edge: 0,
-	next: 0,
-	open: !1,
-	cover: NaN,
-	lip: NaN,
-	pieces: 0
-}, bt = class {
-	n;
-	closed;
-	step;
-	length;
-	spline;
-	px;
-	py;
-	pz;
-	tx;
-	ty;
-	tz;
-	rx;
-	rz;
-	bank;
-	hw;
-	surface;
-	open;
-	offroad = !1;
-	land = null;
-	floorY = -Infinity;
-	covered;
-	reach;
-	landAbove;
-	bore;
-	seg;
-	grip;
-	minY;
-	maxY;
-	constructor(e, t = {}) {
-		let n = t.samples ?? L.lutSamples, r = t.divisions ?? L.arcDivisions, i = t.closed ?? !0, a = i ? new dt(e) : new ft(e);
-		this.spline = a, this.n = n, this.closed = i, this.step = i ? n : n - 1, this.px = new Float64Array(n), this.py = new Float64Array(n), this.pz = new Float64Array(n), this.tx = new Float64Array(n), this.ty = new Float64Array(n), this.tz = new Float64Array(n), this.rx = new Float64Array(n), this.rz = new Float64Array(n), this.bank = new Float64Array(n), this.hw = new Float64Array(n), this.surface = new Uint8Array(n), this.open = new Uint8Array(n), this.seg = new Uint16Array(n), this.grip = new Float64Array(n).fill(1), this.covered = new Uint8Array(n), this.reach = new Float32Array(n).fill(L.offroadReach), this.landAbove = new Float32Array(n).fill(NaN), this.bore = new Float32Array(n).fill(NaN);
-		let o = a.walkArcLength(r), s = o[r];
-		this.length = s;
-		let c = [
-			0,
-			0,
-			0
-		], l = 0, u = Infinity, d = -Infinity, f = e.length;
-		for (let t = 0; t < n; t++) {
-			let n = t / this.step * s;
-			for (; l < r - 1 && o[l + 1] < n;) l++;
-			let i = o[l + 1] - o[l], p = i > 0 ? (n - o[l]) / i : 0, m = (l + p) / r;
-			a.pointAt(m, c), this.px[t] = c[0], this.py[t] = c[1], this.pz[t] = c[2], c[1] < u && (u = c[1]), c[1] > d && (d = c[1]);
-			let { index: h, local: g } = a.segmentOf(m), _ = e[h], v = e[(h + 1) % f], y = g * g * (3 - 2 * g);
-			this.seg[t] = h, this.surface[t] = gt(_.surface), this.hw[t] = _.halfWidth + (v.halfWidth - _.halfWidth) * y;
-			let b = (_.bank ?? 0) * vt, x = (v.bank ?? 0) * vt;
-			this.bank[t] = b + (x - b) * y;
-		}
-		this.minY = u, this.maxY = d, this.refreshFrames();
-	}
-	refreshFrames() {
-		for (let e = 0; e < this.n; e++) {
-			let t = this.idx(e + 1), n = this.idx(e - 1), r = this.px[t] - this.px[n], i = this.py[t] - this.py[n], a = this.pz[t] - this.pz[n], o = Math.hypot(r, i, a) || 1;
-			r /= o, i /= o, a /= o, this.tx[e] = r, this.ty[e] = i, this.tz[e] = a;
-			let s = Math.hypot(r, a) || 1;
-			this.rx[e] = a / s, this.rz[e] = -r / s;
-		}
-	}
-	idx(e) {
-		let t = this.n;
-		return this.closed ? (e % t + t) % t : e < 0 ? 0 : e >= t ? t - 1 : e;
-	}
-	norm(e) {
-		return this.closed ? R(e) : _t(e);
-	}
-	sample(e, t) {
-		return this.sampleInto(e, t, {
-			position: [
-				0,
-				0,
-				0
-			],
-			tangent: [
-				0,
-				0,
-				0
-			],
-			normal: [
-				0,
-				0,
-				0
-			],
-			groundY: 0,
-			halfWidth: 0,
-			surface: "road",
-			gripScale: 1
-		});
-	}
-	sampleInto(e, t, n) {
-		let r = this.norm(e) * this.step, i = Math.floor(r), a = this.idx(i), o = this.idx(i + 1), s = r - i, c = 1 - s, l = this.tx[a] * c + this.tx[o] * s, u = this.ty[a] * c + this.ty[o] * s, d = this.tz[a] * c + this.tz[o] * s, f = Math.hypot(l, u, d) || 1;
-		l /= f, u /= f, d /= f;
-		let p = Math.hypot(l, d) || 1, m = d / p, h = -l / p, g = this.bank[a] * c + this.bank[o] * s, _ = -t * Math.tan(g), v = this.px[a] * c + this.px[o] * s + m * t, y = this.py[a] * c + this.py[o] * s + _, b = this.pz[a] * c + this.pz[o] * s + h * t, x = m, S = -Math.tan(g), C = h, w = u * C - d * S, T = d * x - l * C, ee = l * S - u * x, te = Math.hypot(w, T, ee) || 1;
-		w /= te, T /= te, ee /= te;
-		let E = n.position, ne = n.tangent, D = n.normal;
-		E[0] = v, E[1] = y, E[2] = b, ne[0] = l, ne[1] = u, ne[2] = d, D[0] = w, D[1] = T, D[2] = ee, n.groundY = y, n.halfWidth = this.hw[a] * c + this.hw[o] * s, n.surface = ht[this.surface[a]], n.gripScale = this.grip[a] * c + this.grip[o] * s;
-		let re = this.open[a];
-		n.open = re, n.overCliff = !1;
-		let ie = !!(re & (t < 0 ? 1 : 2)), O = (this.covered[a] | this.covered[o]) !== 0;
-		if ((ie || this.offroad) && !O) {
-			let e = Math.abs(t) - n.halfWidth;
-			if (e > L.kerbWidth) {
-				if (n.surface = "dirt", ie) {
-					let t = L.shoulderDrop * Math.min(1, (e - L.kerbWidth) / L.shoulderWidth);
-					n.groundY -= t, E[1] -= t;
-				} else {
-					let r = y + Math.sign(t) * (e - L.kerbWidth) * Math.tan(g) - L.offroadDrop, i = !1;
-					if (this.land) {
-						let e = this.land.query(v, b, yt);
-						e.pieces > 0 && (r = e.top, i = e.pieces > 1);
-					}
-					r < this.floorY && (r = this.floorY);
-					let a = Math.min(1, (e - L.kerbWidth) / .5), o = y + (r - y) * a;
-					if (n.groundY = o, E[1] = o, a >= 1) {
-						let e = 0, t = 0;
-						if (i && this.land) {
-							let n = Math.max(this.floorY, this.land.top(v + .5, b)), i = Math.max(this.floorY, this.land.top(v, b + .5));
-							e = (n - r) / .5, t = (i - r) / .5, D[0] = -e, D[1] = 1, D[2] = -t;
-						} else D[0] = u * h, D[1] = d * m - l * h, D[2] = -u * m;
-						let n = Math.hypot(D[0], D[1], D[2]) || 1;
-						D[0] /= n, D[1] /= n, D[2] /= n;
-					}
-				}
-			}
-			ie && (n.overCliff = e > L.kerbWidth + L.shoulderWidth);
-		}
-		return n.wall = O ? n.halfWidth + L.kerbWidth : this.offroad ? n.halfWidth + L.kerbWidth + (this.reach[a] * c + this.reach[o] * s) : n.halfWidth, n;
-	}
-	dist2XZ(e, t, n) {
-		let r = this.px[e] - t, i = this.pz[e] - n;
-		return r * r + i * i;
-	}
-	dist2XYZ(e, t, n, r) {
-		let i = this.px[e] - t, a = this.py[e] - n, o = this.pz[e] - r;
-		return i * i + a * a + o * o;
-	}
-	nearestT(e, t, n) {
-		let r = Math.round(this.norm(t) * this.step), i = Math.max(1, Math.round(n * this.step)), a = e[0], o = e[2], s = this.idx(r), c = Infinity, l = this.closed ? -i : Math.max(-i, -r), u = this.closed ? i : Math.min(i, this.n - 1 - r);
-		for (let e = l; e <= u; e++) {
-			let t = this.idx(r + e), n = this.dist2XZ(t, a, o);
-			n < c && (c = n, s = t);
-		}
-		return this.refine(s, c, a, 0, o, !1);
-	}
-	nearestTGlobal(e) {
-		let t = this.n, n = L.globalSearchStep, [r, i, a] = e, o = 0, s = Infinity;
-		for (let e = 0; e < t; e += n) {
-			let t = this.dist2XYZ(e, r, i, a);
-			t < s && (s = t, o = e);
-		}
-		if (!this.closed) {
-			let e = this.dist2XYZ(t - 1, r, i, a);
-			e < s && (s = e, o = t - 1);
-		}
-		let c = o;
-		for (let e = -n; e <= n; e++) {
-			let t = this.idx(c + e), n = this.dist2XYZ(t, r, i, a);
-			n < s && (s = n, o = t);
-		}
-		return this.refine(o, s, r, i, a, !0);
-	}
-	refine(e, t, n, r, i, a) {
-		let o = e / this.step, s = t;
-		for (let t = -1; t <= 0; t++) {
-			let c = this.idx(e + t), l = this.idx(c + 1);
-			if (c === l) continue;
-			let u = this.px[c], d = this.py[c], f = this.pz[c], p = this.px[l] - u, m = a ? this.py[l] - d : 0, h = this.pz[l] - f, g = p * p + m * m + h * h;
-			if (g <= 1e-12) continue;
-			let _ = a ? r - d : 0, v = ((n - u) * p + _ * m + (i - f) * h) / g;
-			v = v < 0 ? 0 : v > 1 ? 1 : v;
-			let y = u + p * v - n, b = a ? d + m * v - r : 0, x = f + h * v - i, S = y * y + b * b + x * x;
-			S < s && (s = S, o = (c + v) / this.step);
-		}
-		return this.norm(o);
-	}
-	dist2At(e, t) {
-		let n = this.norm(e) * this.step, r = Math.floor(n), i = this.idx(r), a = this.idx(r + 1), o = n - r, s = 1 - o, c = this.px[i] * s + this.px[a] * o - t[0], l = this.py[i] * s + this.py[a] * o - t[1], u = this.pz[i] * s + this.pz[a] * o - t[2];
-		return c * c + l * l + u * u;
-	}
-};
-function xt(e, t) {
-	return new bt(e, t);
-}
-//#endregion
-//#region src/track-builder/branches.ts
-function z(e, t) {
-	let n = R(e - t);
-	return n > .5 ? n - 1 : n;
-}
-var St = class {
-	index;
-	id;
-	openOnLaps;
-	lut;
-	entryT;
-	exitT;
-	span;
-	entryPoint;
-	exitPoint;
-	forcedOpen;
-	lapOpen = !0;
-	constructor(e, t, n, r, i, a = []) {
-		this.index = e, this.id = t, this.lut = n, this.entryT = r, this.exitT = i, this.span = e === 0 ? 1 : R(i - r), this.openOnLaps = a, this.entryPoint = e === 0 ? [
-			n.px[0],
-			n.py[0],
-			n.pz[0]
-		] : n.sample(0, 0).position, this.exitPoint = e === 0 ? this.entryPoint : n.sample(1, 0).position;
-	}
-	get isMain() {
-		return this.index === 0;
-	}
-	get open() {
-		return this.isMain ? !0 : this.forcedOpen ?? this.lapOpen;
-	}
-	setLap(e) {
-		this.lapOpen = this.openOnLaps.length === 0 || this.openOnLaps.includes(e);
-	}
-	toLocal(e) {
-		if (this.isMain) return R(e);
-		let t = z(e, this.entryT) / this.span;
-		return t < 0 ? 0 : t > 1 ? 1 : t;
-	}
-	toMain(e) {
-		return this.isMain ? R(e) : R(this.entryT + e * this.span);
-	}
-	sample(e, t) {
-		return this.lut.sample(this.toLocal(e), t);
-	}
-	sampleInto(e, t, n) {
-		return this.lut.sampleInto(this.toLocal(e), t, n);
-	}
-	overlaps(e, t) {
-		if (this.isMain) return !0;
-		let n = z(e, this.entryT);
-		return n + t >= 0 && n - t <= this.span;
-	}
-	nearestLocal(e, t, n) {
-		if (this.isMain) {
-			let r = this.lut.nearestT(e, t, n);
-			return {
-				t: r,
-				d2: this.lut.dist2At(r, e)
-			};
-		}
-		let r = this.lut.nearestT(e, this.toLocal(t), n / this.span);
-		return this.pastEnd(r, e) ? {
-			t: this.toMain(r),
-			d2: Infinity
-		} : {
-			t: this.toMain(r),
-			d2: this.lut.dist2At(r, e)
-		};
-	}
-	settle(e, t, n) {
-		for (let r = 0; r < Ct; r++) {
-			let r = this.nearestLocal(e, t, n).t;
-			if (r === t) break;
-			t = r;
-		}
-		return t;
-	}
-	pastEnd(e, t) {
-		if (e > 0 && e < 1) return !1;
-		let n = this.lut, r = e <= 0 ? 0 : n.n - 1, i = (t[0] - n.px[r]) * n.tx[r] + (t[2] - n.pz[r]) * n.tz[r];
-		return e <= 0 ? i < 0 : i > 0;
-	}
-	halfWidthAt(e) {
-		let t = this.toLocal(e);
-		return this.lut.hw[this.lut.idx(Math.round(t * this.lut.step))];
-	}
-	nearestGlobal(e) {
-		let t = this.lut.nearestTGlobal(e);
-		return {
-			t: this.toMain(t),
-			d2: this.lut.dist2At(t, e)
-		};
-	}
-}, Ct = 3;
-function wt(e, t) {
-	return Math.max(64, Math.round(L.lutSamples * e / t));
-}
-function Tt(e, t, n, r = t.controlPoints) {
-	let i = xt(r, {
-		closed: !1,
-		samples: 64,
-		divisions: 256
-	}), a = xt(r, {
-		closed: !1,
-		samples: wt(i.length, n.length),
-		divisions: Math.max(256, Math.round(L.arcDivisions * i.length / n.length))
-	});
-	return Et(a, n, R(t.entryT), R(t.exitT)), new St(e, t.id, a, R(t.entryT), R(t.exitT), t.openOnLaps ?? []);
-}
-function Et(e, t, n, r) {
-	let i = e.length / e.step;
-	for (let a of [!0, !1]) {
-		let o = t.idx(Math.round((a ? n : r) * t.step)), s = -1;
-		for (let n = 0; n < e.n >> 1; n++) {
-			let r = a ? n : e.n - 1 - n, c = e.px[r], l = e.pz[r], u = Infinity, d = o;
-			for (let e = -24; e <= 24; e++) {
-				let n = t.idx(o + e), r = t.px[n] - c, i = t.pz[n] - l, a = r * r + i * i;
-				a < u && (u = a, d = n);
-			}
-			let f = o = d, p = (c - t.px[f]) * t.rx[f] + (l - t.pz[f]) * t.rz[f], m = e.rx[r] * t.rx[f] + e.rz[r] * t.rz[f], h = Math.abs(p) - (t.hw[f] + L.kerbWidth) - (e.hw[r] + L.kerbWidth) * Math.abs(m);
-			s < 0 && h > -1 && (s = n * i);
-			let g = s < 0 ? 0 : Math.min(1, (n * i - s) / 30), _ = 1 - g * g * (3 - 2 * g);
-			if (_ <= 0) break;
-			let v = t.hw[f] + L.kerbWidth, y = Math.max(-v, Math.min(v, p)), b = Math.hypot(t.tx[f], t.tz[f]) || 1, x = t.ty[f] / b, S = (e.rx[r] * t.tx[f] + e.rz[r] * t.tz[f]) / b, C = ((c - t.px[f]) * t.tx[f] + (l - t.pz[f]) * t.tz[f]) / b, w = t.py[f] + C * x - y * Math.tan(t.bank[f]), T = Math.atan(Math.tan(t.bank[f]) * m - x * S);
-			e.py[r] += (w - e.py[r]) * _, e.bank[r] += (T - e.bank[r]) * _;
-		}
-	}
-	e.refreshFrames();
-}
-var Dt = class {
-	list;
-	constructor(e) {
-		this.list = e;
-	}
-	get main() {
-		return this.list[0];
-	}
-	byId(e) {
-		return this.list.find((t) => t.id === e);
-	}
-	setLap(e) {
-		for (let t of this.list) t.setLap(e);
-	}
-	sample(e, t, n = 0) {
-		return this.resolve(e, n).sample(e, t);
-	}
-	sampleInto(e, t, n, r) {
-		return this.resolve(e, n).sampleInto(e, t, r);
-	}
-	resolve(e, t) {
-		let n = this.list[t] ?? this.main;
-		if (!n.isMain) {
-			let t = z(e, n.entryT);
-			if (t < 0 || t > n.span) return this.main;
-		}
-		return n;
-	}
-	nearest(e, t, n) {
-		let r = this.list[t.branch] ?? this.main;
-		!r.open && !r.overlaps(t.t, 0) && (r = this.main);
-		let i = r.nearestLocal(e, t.t, n), a = r.index, o = Math.sqrt(i.d2), s = i.t, c = r.halfWidthAt(s);
-		if (o <= c - L.branchLeaveMargin) return {
-			t: s,
-			branch: r.index
-		};
-		let l = L.branchHysteresis, u = o - c;
-		for (let i of this.list) {
-			if (i === r || !i.open || !i.overlaps(t.t, n)) continue;
-			let o = i.nearestLocal(e, t.t, n), c = Math.sqrt(o.d2) - i.halfWidthAt(o.t);
-			c < u - l && (u = c, a = i.index, s = o.t);
-		}
-		return a !== r.index && (s = this.list[a].settle(e, s, n)), {
-			t: s,
-			branch: a
-		};
-	}
-	nearestGlobal(e) {
-		let t = 0, n = this.main.nearestGlobal(e);
-		for (let r of this.list) {
-			if (r.isMain || !r.open) continue;
-			let i = r.nearestGlobal(e);
-			i.d2 < n.d2 - L.branchHysteresis * L.branchHysteresis && (n = i, t = r.index);
-		}
-		return {
-			t: n.t,
-			branch: t
-		};
-	}
-};
-//#endregion
-//#region src/ai-driver/constants.ts
-function Ot(e) {
-	let t = {};
-	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = Ot(r.properties));
-	return t;
-}
-function kt(e) {
-	if (e && typeof e == "object") for (let t of Object.values(e)) kt(t);
-	return Object.freeze(e);
-}
-var B = kt(Ot(S.properties.ai.properties)), At = B.profiles;
-function jt(e) {
-	return e === 50 ? "easy" : e === 100 ? "normal" : "hard";
-}
-function Mt(e) {
-	let [t, n] = B.drift.tierBySkill;
-	return e < t ? 1 : e < n ? 2 : 3;
-}
-//#endregion
-//#region src/ai-driver/rng.ts
-function Nt(e, t) {
-	return (Math.imul(e | 0, 2654435761) ^ Math.imul(t + 1, 2246822519)) >>> 0;
-}
-function Pt(e) {
-	e.rng = e.rng + 1831565813 >>> 0;
-	let t = e.rng;
-	return t = Math.imul(t ^ t >>> 15, t | 1), t ^= t + Math.imul(t ^ t >>> 7, t | 61), (t ^ t >>> 14) >>> 0;
-}
-function Ft(e) {
-	return Pt(e) / 4294967296;
-}
-function V(e, t, n) {
-	return t + (n - t) * Ft(e);
-}
-//#endregion
-//#region src/ai-driver/drift.ts
-function It(e, t) {
-	let n = e - t;
-	return n > 1e-9 ? n : 0;
-}
-function Lt(e, t) {
-	return e.steerRate * (e.driftSteerMin + (e.driftSteerMax - e.driftSteerMin) * t);
-}
-function Rt(e, t) {
-	let n = B.drift, r = e > 1e-4 ? n.overRotate / e : Infinity;
-	return Math.min(r, n.maxHold, t);
-}
-function zt(e, t, n) {
-	let r = Math.abs(n.turnNear) / B.line.turnNearSeconds, i = B.line.turnFarSeconds, a = e.drift.chargeMultiplierRemaining > 0 ? e.drift.chargeMultiplier : 1, o = t.chargeFull * 60 * a * Math.max(0, Rt(Lt(t, .5) - r, i) - t.hopSeconds), s = t.chargeNeutral * 60 * a * Math.max(0, Rt(Lt(t, 0) - r, i) - t.hopSeconds);
-	return we(Math.max(o, s), t.driftTiers);
-}
-function Bt(e, t, n, r) {
-	let i = r.turnNear, a = r.turnFar;
-	return Math.abs(a) <= n.driftThreshold || Math.abs(i) <= n.driftThreshold * .5 || Math.sign(i) !== Math.sign(a) ? !1 : zt(e, t, r) >= 1;
-}
-function Vt(e, t, n, r) {
-	return Bt(e, t, n, r) && r.kappa * Math.abs(e.speed) >= B.drift.startYawFraction * Lt(t, .5);
-}
-function Ht(e, t, n, r) {
-	return Bt(e, t, n, r) ? Math.abs(r.turnNear) / B.line.turnNearSeconds < Lt(t, .5) : !1;
-}
-function Ut(e, t, n, r, i, a, o, s) {
-	let c = B.drift;
-	if (n.driftCooldown = It(n.driftCooldown, s), o.drift = !1, n.driftDir === 0) {
-		if (n.driftCooldown > 0 || !e.grounded || e.drift.phase !== "idle" || i.narrow || i.nearBranch || i.airAhead || e.speed < t.driftMinSpeed * a) return;
-		let s = i.turnNear, l = i.turnFar;
-		if (!(Math.abs(s) > r.driftThreshold && Math.abs(l) > r.driftThreshold && Math.sign(s) === Math.sign(l)) || i.kappaShort * Math.abs(e.speed) < c.startYawFraction * Lt(t, .5)) return;
-		let u = Math.min(Mt(n.skill), zt(e, t, i));
-		if (u < 1) return;
-		if (Ft(n) >= n.personality.driftUse) {
-			n.driftCooldown = c.cooldown;
-			return;
-		}
-		n.driftDir = s > 0 ? 1 : -1, n.driftTier = u, n.driftHold = 0, o.drift = !0, o.steer = n.driftDir;
-		return;
-	}
-	let l = n.driftDir;
-	n.driftHold += s, o.drift = !0;
-	let u = t.hopSeconds * t.hopLandWindow + s;
-	if (e.drift.phase === "idle" && n.driftHold > u) {
-		Wt(n, c.abortCooldown, o, "abort");
-		return;
-	}
-	if (n.driftHold <= c.hopCommit || e.drift.phase !== "drifting") {
-		o.steer = l * c.hopCommitStick;
-		return;
-	}
-	n.driftTier = Math.max(n.driftTier, Math.min(Mt(n.skill), zt(e, t, i)));
-	let d = i.roadErr, f = H(((i.turnNear / B.line.turnNearSeconds * l + c.aimGain * d * l) / t.steerRate - t.driftSteerMin) / (t.driftSteerMax - t.driftSteerMin), 0, 1);
-	if (f < .5 && e.drift.tier < n.driftTier) {
-		if (f >= .5 - c.chargeSnap) f = .5;
-		else {
-			let n = e.drift.chargeMultiplierRemaining > 0 ? e.drift.chargeMultiplier : 1;
-			(t.driftTiers[Math.min(e.drift.tier, t.driftTiers.length - 1)] - e.drift.charge) / (t.chargeFull * 60 * n) <= c.chargeSecondsAhead && (f = .5);
-		}
-	}
-	o.steer = l * f;
-	let p = e.drift.tier, m = p >= n.driftTier ? "tier" : d * l < -c.overRotate ? "over" : p >= 1 && Math.abs(d) < c.aligned && i.kappaShort * Math.abs(e.speed) < c.exitYawFraction * Lt(t, 0) ? "aligned" : i.myLat * l > i.halfWidth - c.edgeMargin || i.myLat * -l > i.halfWidth + c.outsideSlack ? "edge" : n.driftHold > c.maxHold ? "hold" : i.airAhead ? "air" : "none";
-	m !== "none" && Wt(n, p === 0 ? c.abortCooldown : c.cooldown, o, m);
-}
-function Wt(e, t, n, r) {
-	e.driftDir = 0, e.driftHold = 0, e.driftCooldown = t, e.driftEndReason = r, n.drift = !1;
-}
-function Gt(e, t, n, r, i) {
-	if (e.grounded || e.airborne.fromJumpId === void 0) {
-		t.trickRolled = !1, t.trickDone = !1;
-		return;
-	}
-	if (t.driftDir === 0 && (t.trickRolled || (t.trickRolled = !0, t.trickDone = Ft(t) >= n.trickChance, i && i.airAhead && Math.abs(i.turnNear) > B.line.trickBend && (t.trickDone = !0)), !t.trickDone)) {
-		if (e.prevDrift) {
-			r.drift = !1;
-			return;
-		}
-		r.drift = !0, t.trickDone = !0;
-	}
-}
-//#endregion
-//#region src/ai-driver/line.ts
-function H(e, t, n) {
-	return e < t ? t : e > n ? n : e;
-}
-function U(e) {
-	for (; e > Math.PI;) e -= 2 * Math.PI;
-	for (; e < -Math.PI;) e += 2 * Math.PI;
-	return e;
-}
-function Kt(e) {
-	let t = B.line;
-	return H(Math.abs(e) * t.lookAheadGain, t.lookAheadMin, t.lookAheadMax);
-}
-var qt = 5;
-function Jt(e, t, n, r, i) {
-	let a = B.line, o = t.length, s = n.branchChoice > 0 ? n.branchChoice : e.branch, c = Math.max(Math.abs(e.speed), qt);
-	t.sampleInto(e.t, 0, e.branch, r.here), t.sampleInto(R(e.t + c * a.turnNearSeconds / o), 0, s, r.near), t.sampleInto(R(e.t + c * a.turnFarSeconds / o), 0, s, r.far);
-	let l = j(r.here.tangent);
-	i.turnNear = U(j(r.near.tangent) - l), i.turnFar = U(j(r.far.tangent) - l), i.probeNear = c * a.turnNearSeconds, t.sampleInto(R(e.t + a.lookAheadMin / o), 0, s, r.short);
-	let u = j(r.short.tangent), d = U(u - l);
-	if (i.kappaShort = Math.abs(d) / a.lookAheadMin, i.kappa = Math.max(i.kappaShort, Math.abs(i.turnNear) / i.probeNear), e.branch !== 0 && !e.grounded) {
-		let n = t.branches.list[e.branch], s = z(n.exitT, e.t) * o;
-		if (s > 0) {
-			let o = j(t.sampleInto(n.exitT, 0, e.branch, r.tmp).tangent), c = Math.abs(U(j(t.sampleInto(n.exitT, 0, 0, r.tmp).tangent) - o));
-			i.kappa = Math.max(i.kappa, c / Math.max(a.joinShare * s, a.lookAheadMin));
-		}
-	}
-	i.roadErr = U(u - e.heading), i.halfWidth = r.here.halfWidth, i.narrow = r.here.halfWidth < a.narrowRoad, i.airAhead = !1;
-	for (let n of t.jumps) if (n.rise && (n.branch ?? 0) === s && R(n.t - e.t) * o < i.probeNear + (n.run ?? 0)) {
-		i.airAhead = !0;
-		break;
-	}
-	let f = Kt(e.speed), p = e.branch !== 0 || n.branchChoice > 0;
-	i.branchAhead = 0, i.branchSide = 0;
-	let m = t.branches.list;
-	for (let n = 1; n < m.length; n++) {
-		let a = m[n];
-		if (!a.open) continue;
-		let s = z(a.entryT, e.t) * o, c = z(a.exitT, e.t) * o;
-		if ((s > -f && s < f || c > -f && c < f) && (p = !0), e.branch === 0 && s > 0 && s < f && i.branchAhead === 0) {
-			let e = R(a.entryT + a.span * .25), o = t.sampleInto(e, 0, n, r.tmp).position, s = t.sampleInto(e, 0, 0, r.ahead), c = (o[0] - s.position[0]) * s.tangent[2] - (o[2] - s.position[2]) * s.tangent[0];
-			i.branchAhead = n, i.branchSide = c > .3 ? 1 : c < -.3 ? -1 : 0;
-		}
-	}
-	(i.narrow || p) && (f = Math.max(a.lookAheadMin, f * a.narrowLookAhead)), i.L = f, i.nearBranch = p, i.branch = s;
-	let h = r.here.tangent, g = r.here.position;
-	return i.myLat = (e.position[0] - g[0]) * h[2] - (e.position[2] - g[2]) * h[0], i;
-}
-function Yt(e, t, n, r, i, a) {
-	let o = B.line;
-	if (e.branch !== 0 || i.narrow || n.branchChoice > 0 || e.surface === "dirt" || e.surface === "mud") return 0;
-	let s = i.halfWidth, c = n.personality.lateralBias * o.laneHalfFraction * s;
-	if (n.driftDir === 0 && n.personality.driftUse > 0 && Ht(e, t, r, i)) return -Math.sign(i.turnFar) * o.outsideFraction * s;
-	let l = H(i.turnNear * o.insideGain, -o.insideBiasMax, o.insideBiasMax) * s, u = n.wanderAmp * Math.sin(2 * Math.PI * a / n.wanderPeriod + n.wanderPhase), d = o.lateralMaxFraction * s;
-	return H(c + l + u, -d, d);
-}
-function Xt(e, t, n, r, i, a) {
-	if (e.branch !== 0) {
-		n.branchChoice = 0;
-		return;
-	}
-	let o = t.branches.list, s = t.length;
-	if (n.branchChoice !== 0) {
-		let t = o[Math.abs(n.branchChoice)];
-		if (!t || !t.open) {
-			n.branchChoice = 0;
-			return;
-		}
-		let r = z(t.entryT, e.t) * s;
-		(n.branchChoice > 0 ? r < -B.line.branchCommitMetres : r < 0) && (n.branchChoice = 0);
-		return;
-	}
-	for (let t = 1; t < o.length; t++) {
-		let c = o[t];
-		if (!c.open) continue;
-		let l = z(c.entryT, e.t) * s;
-		if (l <= 0 || l > 2 * i.L) continue;
-		let u = c.lut.sample(.5, 0).halfWidth < B.line.narrowRoad, d = n.skill >= r.shortcutSkill;
-		n.branchChoice = (a === void 0 ? d && (n.rb >= B.rubber.shortcutRb || !u && Ft(n) < n.personality.aggression) : c.id === a) ? t : -t;
-		return;
-	}
-}
-//#endregion
-//#region src/ai-driver/avoid.ts
-function Zt(e, t, n, r) {
-	let i = e.track.sampleInto(t, 0, n, e.sc.tmp), a = i.tangent, o = i.position;
-	return (r[0] - o[0]) * a[2] - (r[2] - o[2]) * a[0];
-}
-function Qt(e, t) {
-	return e > .05 ? -1 : e < -.05 || t >= e ? 1 : -1;
-}
-function $t(e, t, n, r) {
-	return Math.abs(e - t) >= n ? e : t + Qt(t, r) * n;
-}
-var en = [], tn = [], nn = [], rn = 1e-6;
-function an(e, t, n, r, i, a) {
-	let o = e, s = -1, c = !0, l = Infinity;
-	for (let u = 0; u < 2 * (i + a + 1); u++) {
-		let d = u >> 1, f = u & 1 ? 1 : -1, p = H(d < i ? en[d] + f * r : d < i + a ? tn[d - i] + f * nn[d - i] : f * n, -n, n), m = r, h = !1;
-		for (let e = 0; e < i; e++) m = Math.min(m, Math.abs(p - en[e]));
-		for (let e = 0; e < a; e++) Math.abs(p - tn[e]) < nn[e] - rn && (h = !0);
-		let g = Math.abs(p - e) + Math.abs(p - t);
-		(m > s + rn || m > s - rn && (h === c ? g < l : !h)) && (o = p, s = m, c = h, l = g);
-	}
-	return o;
-}
-function on(e, t, n, r, i, a) {
-	let o = B.avoid, { track: s, karts: c } = t, l = s.length, u = n.halfWidth, d = T.kartRadius, f = Math.max(.5, u - d - .2), p = Math.min(o.stoppedClearance, f), m = Math.min(2 * d + .3, f), h = s.features, g = Infinity, _ = a, v = 0;
-	for (let n = 0; n < h.length; n++) {
-		let i = h[n];
-		if (i.branch !== e.branch) continue;
-		let s = 0;
-		if (i.kind === "coin") {
-			if (e.coins >= T.coinCap) continue;
-			let r = n < t.coinOf.length ? t.coinOf[n] : -1;
-			if (r < 0 || t.coinStates[r].respawnRemaining > 0) continue;
-			s = 1;
-		} else if (i.kind === "pickup") {
-			let r = e.item.held !== "none" || e.item.rouletteRemaining > 0, i = e.item.next !== "none" || e.item.nextRouletteRemaining > 0;
-			if (r && i) continue;
-			let a = n < t.pickupOf.length ? t.pickupOf[n] : -1;
-			if (a < 0 || t.pickupStates[a].respawnRemaining > 0) continue;
-			s = 2;
-		} else if (i.kind === "boostPad") {
-			if (r < o.padSkill) continue;
-			s = 3;
-		} else continue;
-		let c = z(i.t, e.t) * l;
-		c <= 0 || c > o.seekDistance || Math.abs(i.lateral - a) > o.seekLateral || (s > v || s === v && c < g) && (v = s, g = c, _ = i.lateral);
-	}
-	a = _;
-	let y = 0;
-	for (let r = 0; r < c.length; r++) {
-		let i = c[r];
-		if (i === e || i.isGhost) continue;
-		let s = z(i.t, e.t) * l;
-		if (s <= 0 || s > o.stoppedLookAhead || i.branch !== e.branch) continue;
-		if (i.speed < o.slowKartSpeed || i.status.spinRemaining > 0 || i.status.intangibleRemaining > 0 || i.finishTick !== void 0) {
-			en[y++] = Zt(t, i.t, i.branch, i.position);
-			continue;
-		}
-		if (s > o.avoidLookAhead) continue;
-		let u = Zt(t, i.t, i.branch, i.position);
-		n.narrow || n.nearBranch || s > o.passDistance || (e.speed - i.speed > o.passClosing || s < o.touchDistance ? a = $t(a, u, m, n.myLat) : s <= T.slipstreamLength && Math.abs(a - u) < T.slipstreamHalfWidth && (a = u));
-	}
-	if (i < 0 && n.branchAhead === -i && n.branchSide !== 0) {
-		let e = B.line.declineFraction * u;
-		a * -n.branchSide < e && (a = -n.branchSide * e);
-	}
-	let b = 0, x = t.hazards;
-	if (x.length) {
-		let r = o.rollingLookAhead / l + .02;
-		for (let i = 0; i < x.length; i++) {
-			let c = x[i];
-			if (c.type === "gust" || c.type === "vent") continue;
-			let d = c.type === "rolling" ? o.rollingLookAhead : o.hazardLookAhead, p = s.nearestT(c.position, e.t, r), m = z(p, e.t) * l;
-			if (m <= 0 || m > d) continue;
-			let h = Zt(t, p, 0, c.position);
-			if (Math.abs(h) > u + c.radius) continue;
-			let g = Math.min(o.dodgeClearance + c.radius, f);
-			a = $t(a, h, g, n.myLat), (c.type === "static" || c.type === "falling") && (tn[b] = h, nn[b++] = g);
-		}
-	}
-	let S = s.def.hazards;
-	if (S) for (let t = 0; t < S.length; t++) {
-		let r = S[t];
-		if (r.type !== "rolling" && r.type !== "falling") continue;
-		let i = z(r.t, e.t) * l, s = Math.min(o.dodgeClearance + L.hazardRadius, f);
-		r.type === "rolling" && i > 0 && i - (r.speed ?? 0) * (r.period ?? 1) < o.stoppedLookAhead && (tn[b] = r.lateral ?? 0, nn[b++] = s), !(i < -o.spawnBehind || i > o.hazardLookAhead) && (a = $t(a, r.lateral ?? 0, s, n.myLat), tn[b] = r.lateral ?? 0, nn[b++] = s);
-	}
-	let C = Math.max(0, Math.min(u - B.line.edgeMargin, u - d - .3));
-	a = H(a, -C, C);
-	for (let e = 0; e < y; e++) if (Math.abs(a - en[e]) < p - rn) return an(a, n.myLat, C, p, y, b);
-	return a;
-}
-//#endregion
-//#region src/ai-driver/items.ts
-function sn(e, t) {
-	return U(Math.atan2(t.position[0] - e.position[0], t.position[2] - e.position[2]) - e.heading);
-}
-function cn(e, t) {
-	return Math.hypot(e.position[0] - t.position[0], e.position[2] - t.position[2]);
-}
-var ln = /* @__PURE__ */ new Set([
-	"forward",
-	"rearDrop",
-	"deception",
-	"runner"
-]);
-function un(e, t, n, r, i, a) {
-	let o = e.item.held;
-	if (o !== t.lastItem) return t.lastItem = o, t.itemHold = 0, t.itemPressed = t.itemTrailing = !1, t.reactionRemaining = o === "none" ? 0 : V(t, n.reactionMin, n.reactionMax) * (1 - t.skill), !1;
-	if (o === "none" || e.item.rouletteRemaining > 0 || e.item.charges <= 0) return t.itemPressed = t.itemTrailing = !1, !1;
-	if (t.itemHold += a, t.reactionRemaining > 0) return t.reactionRemaining -= a, !1;
-	let s = i.roles[o];
-	if (!s) return !1;
-	if (t.itemPressed && !t.itemTrailing) return t.itemPressed = !1, !1;
-	let c = B.items, l = Infinity, u = Infinity, d = Infinity, f = Infinity, p = k(e.heading);
-	for (let t of i.karts) {
-		if (t === e || t.isGhost || t.finishTick !== void 0) continue;
-		let n = cn(e, t);
-		f = Math.min(f, n);
-		let r = t.position[0] - e.position[0], i = t.position[2] - e.position[2];
-		r * p[0] + i * p[2] > 0 ? (l = Math.min(l, n), Math.abs(sn(e, t)) < c.forwardCone && (u = Math.min(u, n))) : d = Math.min(d, n);
-	}
-	let m = Math.abs(r.turnFar) < c.straightTurn, h = e.surface === "dirt" || e.surface === "mud", g;
-	switch (s) {
-		case "forward":
-			g = u <= c.forwardRange;
-			break;
-		case "homing":
-			g = l <= c.homingRange;
-			break;
-		case "rearDrop":
-		case "deception":
-			g = d <= c.rearRange || t.itemHold >= c.holdMax;
-			break;
-		case "defenceArea":
-			g = f <= c.defenceRadius || i.threatened;
-			break;
-		case "defenceHeld":
-			g = i.threatened || d <= c.rearRange;
-			break;
-		case "speed":
-			g = m || h || i.gap > c.speedItemGap;
-			break;
-		case "ride":
-			g = !0;
-			break;
-		case "jump":
-			g = e.grounded ? i.threatened || l <= c.springRange || t.itemHold >= c.holdMax : f <= c.springRange;
-			break;
-		case "tether":
-			g = l >= c.anchorMin && l <= c.anchorMax;
-			break;
-		case "runner":
-			g = l <= c.runnerRange;
-			break;
-		case "equaliser":
-			g = e.rank >= c.equaliserMinRank;
-			break;
-		case "chaos": g = !0;
-	}
-	if (ln.has(s)) {
-		if ((i.threatened || d <= c.rearRange * .5) && !g) return t.itemTrailing = t.itemPressed = !0, !0;
-		if (t.itemTrailing) return t.itemTrailing = t.itemPressed = !1, !1;
-	}
-	return g && (t.itemPressed = !0), g;
-}
-//#endregion
-//#region src/ai-driver/personalities.ts
-var dn = Object.freeze({
-	pip: {
-		lateralBias: -.2,
-		aggression: .7,
-		driftUse: .9
-	},
-	momo: {
-		lateralBias: .1,
-		aggression: .5,
-		driftUse: .8
-	},
-	nova: {
-		lateralBias: .35,
-		aggression: .3,
-		driftUse: .6
-	},
-	juniper: {
-		lateralBias: 0,
-		aggression: .8,
-		driftUse: .7
-	},
-	otto: {
-		lateralBias: -.4,
-		aggression: .2,
-		driftUse: .5
-	},
-	sprocket: {
-		lateralBias: .2,
-		aggression: .4,
-		driftUse: .75
-	},
-	boulder: {
-		lateralBias: -.1,
-		aggression: .3,
-		driftUse: .4
-	},
-	gus: {
-		lateralBias: .4,
-		aggression: .6,
-		driftUse: .5
-	}
-});
-function fn(e, t) {
-	let n = dn[e];
-	return n ? { ...n } : {
-		lateralBias: V(t, -.5, .5),
-		aggression: V(t, .3, .7),
-		driftUse: V(t, .5, .9)
-	};
-}
-//#endregion
-//#region src/ai-driver/rubber.ts
-function pn(e) {
-	let t = B.rubber, n = Math.abs(e);
-	if (n <= t.deadZone) return 1;
-	let r = Math.tanh((n - t.deadZone) / t.scale);
-	return e > 0 ? 1 + (t.max - 1) * r : 1 - (1 - t.min) * r;
-}
-function mn(e, t) {
-	let n = e.skill + (t - 1) * B.rubber.skillGain;
-	return n < 0 ? 0 : n > 1 ? 1 : n;
-}
-function hn(e, t) {
-	let n = t / B.rubber.powerFrom;
-	return e.power * (n < 1 ? n : 1);
-}
-var gn = {
+"e\":{\"type\":\"object\",\"properties\":{\"background\":{\"type\":\"string\"},\"accent\":{\"type\":\"string\"}}},\"decor\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"asset\":{\"type\":\"string\"},\"instances\":{\"type\":\"integer\"},\"band\":{\"type\":\"string\",\"enum\":[\"roadside\",\"verge\",\"far\",\"sky\"],\"description\":\"verge: an off-road track's small ground cover (flowers, tufts, stones) on the drivable land between the curb and the course limit; visual only, karts drive through it\"},\"footing\":{\"type\":\"string\",\"enum\":[\"pier\"],\"description\":\"Out at sea: each one stands on its own wooden pier, raised pierLift above the water\"},\"lift\":{\"type\":\"number\",\"description\":\"Metres above its band's ground: a model centred on its middle (a hazard's) sits on the ground with lift = its radius\"}}}},\"landmarkFooting\":{\"type\":\"string\",\"enum\":[\"pier\"],\"description\":\"The landmark stands on a wooden pier (a sea track)\"}}},\"music\":{\"type\":\"string\"},\"landmark\":{\"type\":\"string\",\"description\":\"The thing visible from the start line\"},\"builder\":{\"description\":\"Track-builder constants. Never set per track; the def" +
+"aults are the only values. Code reads them from here (docs/sops/track-builder.md Constants).\",\"type\":\"object\",\"properties\":{\"lutSamples\":{\"type\":\"integer\",\"default\":2048,\"description\":\"Arc-length samples per branch LUT\"},\"arcDivisions\":{\"type\":\"integer\",\"default\":4096,\"description\":\"Fine steps used to walk the curve before resampling\"},\"globalSearchStep\":{\"type\":\"integer\",\"default\":8,\"description\":\"Coarse stride for nearestTGlobal\"},\"branchHysteresis\":{\"type\":\"number\",\"default\":1.0,\"description\":\"metres; another branch must be closer by this much to win\"},\"branchLeaveMargin\":{\"type\":\"number\",\"default\":1.35,\"description\":\"metres inside a road edge a kart still counts as on that road; another branch can only take it once it is past this. Must exceed kartRadius (0.85): the wall holds a kart exactly one radius inside the edge, so at 0.85 nobody could ever leave\"},\"maxBankDeg\":{\"type\":\"number\",\"default\":20},\"minTurnRadiusFactor\":{\"type\":\"number\",\"default\":1.5,\"description\":\"turn radius must be >= factor × halfWidth (hairpin guard)\"},\"minStartHalfWidth\":{\"type\":\"number\",\"default\":4},\"branchBle" +
+"ndMetres\":{\"type\":\"number\",\"default\":14,\"description\":\"a shortcut ribbon loses its kerbs and sinks 3 cm for this long at each end, where it overlaps the main road\"},\"kerbWidth\":{\"type\":\"number\",\"default\":1.0},\"kerbHeight\":{\"type\":\"number\",\"default\":0.1},\"shoulderWidth\":{\"type\":\"number\",\"default\":6.0},\"shoulderDrop\":{\"type\":\"number\",\"default\":0.4},\"rampSkirt\":{\"type\":\"number\",\"default\":2.5,\"description\":\"Off-road tracks: metres past the curb over which a ramp's sides slope down to the sand (karts beside a ramp drive up its side instead of popping up a square edge)\"},\"tunnelWall\":{\"type\":\"number\",\"default\":4.2,\"description\":\"metres: a tunnel's side walls rise this high above the road before the roof arches over\"},\"tunnelApex\":{\"type\":\"number\",\"default\":6.2,\"description\":\"metres: the top of a tunnel's arched roof above the road\"},\"tunnelHill\":{\"type\":\"number\",\"default\":9,\"description\":\"metres: the land over a tunnel stands this high above its road (a mesa the mine runs through)\"},\"tunnelRamp\":{\"type\":\"number\",\"default\":2.5,\"description\":\"metres in from a portal over which the land ris" +
+"es to tunnelHill: the mesa ends in a cliff, and the portal is a rock face in it (mesh/tunnel.ts)\"},\"tunnelMesaTop\":{\"type\":\"number\",\"default\":3,\"description\":\"metres of the mesa's flat top past where a road's shoulder would end, before its sides fall away (a ridge over the mine, not a plateau)\"},\"tunnelFunnel\":{\"type\":\"number\",\"default\":16,\"description\":\"metres before a portal over which the off-road beside the approach narrows to the curb, guiding karts into the mouth\"},\"tunnelFrameSpacing\":{\"type\":\"number\",\"default\":8,\"description\":\"metres between the timber frames inside a tunnel\"},\"tunnelLanternSpacing\":{\"type\":\"number\",\"default\":12,\"description\":\"metres between lanterns inside a tunnel (alternate walls)\"},\"offroadReach\":{\"type\":\"number\",\"default\":12,\"description\":\"Off-road tracks: metres past the curb the ground is drivable (slowly) before an invisible course limit, just short of the roadside scenery (the Mario Kart World way: no strip, no wall along the road)\"},\"offroadDrop\":{\"type\":\"number\",\"default\":0.12,\"description\":\"Off-road tracks: the ground past the curb sits this far under the road, as the land m" +
+"esh draws it\"},\"barrierSpacing\":{\"type\":\"number\",\"default\":2.0},\"roadTileLength\":{\"type\":\"number\",\"default\":10,\"description\":\"metres of road per UV v unit\"},\"chunkCount\":{\"type\":\"integer\",\"default\":8},\"minimapSamples\":{\"type\":\"integer\",\"default\":200},\"minimapPadding\":{\"type\":\"number\",\"default\":0.06},\"boostPadHalfLength\":{\"type\":\"number\",\"default\":1.75},\"boostPadWidth\":{\"type\":\"number\",\"default\":3.0},\"rampRun\":{\"type\":\"number\",\"default\":5,\"description\":\"metres a ramp rises over to its lip (karts drive up it: kart-controller jumpLift)\"},\"rampRise\":{\"type\":\"number\",\"default\":0.8,\"description\":\"height of a ramp's lip above the road, metres\"},\"humpRun\":{\"type\":\"number\",\"default\":8,\"description\":\"metres along the road a trick bump spans\"},\"humpRise\":{\"type\":\"number\",\"default\":1.0,\"description\":\"height of a trick bump's crest, metres\"},\"loopRadius\":{\"type\":\"number\",\"default\":9,\"description\":\"a loop-the-loop's radius, metres\"},\"loopShift\":{\"type\":\"number\",\"default\":7,\"description\":\"metres the ring moves right in one turn: the way in (left of centre) never meet" +
+"s the way out (right)\"},\"loopSpread\":{\"type\":\"number\",\"default\":1.2,\"description\":\"metres either side of its lane a kart rides round, by where it came in (karts side by side stay side by side)\"},\"loopApproach\":{\"type\":\"number\",\"default\":24,\"description\":\"metres before the foot a kart is caught and eased into the entry lane\"},\"loopExit\":{\"type\":\"number\",\"default\":6,\"description\":\"metres after the foot a kart is set down in the exit lane\"},\"loopWidth\":{\"type\":\"number\",\"default\":6,\"description\":\"width of the ring's track, metres\"},\"humpEdge\":{\"type\":\"number\",\"default\":1.6,\"description\":\"metres over which a trick bump rounds off to the road at each kerb\"},\"balloonHeight\":{\"type\":\"number\",\"default\":1.2},\"balloonRadius\":{\"type\":\"number\",\"default\":0.9},\"pierLift\":{\"type\":\"number\",\"default\":1.1,\"description\":\"A pier's deck stands this far above the sea (level with a sea track's coast)\"},\"coinRadius\":{\"type\":\"number\",\"default\":0.5},\"hazardRadius\":{\"type\":\"number\",\"default\":1.2},\"ventRadius\":{\"type\":\"number\",\"default\":2.2,\"description\":\"a launch vent's mouth, metres (design.md " +
+"Track thrills)\"},\"ventWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a vent glows and bubbles this long before it erupts\"},\"ventEruptSeconds\":{\"type\":\"number\",\"default\":1.5,\"description\":\"how long a vent erupts; a kart on it then is thrown up\"},\"ventLaunch\":{\"type\":\"number\",\"default\":14,\"description\":\"m/s up a vent throws a kart, about 4 m high (a ramp is 5 to 6)\"},\"fallingActiveSeconds\":{\"type\":\"number\",\"default\":0.5},\"fallingWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a falling hazard drops this long before it lands (and can hit), its shadow growing on the spot\"},\"fallingHeight\":{\"type\":\"number\",\"default\":14,\"description\":\"metres above the road a falling hazard drops from\"},\"gustWindow\":{\"type\":\"number\",\"default\":6,\"description\":\"metres along the road a gust acts over\"},\"decorBands\":{\"type\":\"object\",\"properties\":{\"roadside\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[8,14]},\"roadsideOffroad\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[13,19],\"description\":\"the roadside band on an off-road track: just past the course l" +
+"imit, so the scenery lines the course\"},\"verge\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[2.5,11],\"description\":\"metres past the curb for an off-road track's ground cover: past a ramp's skirt (rampSkirt), inside the course limit (offroadReach)\"},\"far\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[30,120]},\"sky\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[25,60]}}},\"lapTimeWarn\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[40,65],\"description\":\"seconds; estimated lap outside this warns\"},\"trackDrawCallBudget\":{\"type\":\"integer\",\"default\":40}}}}")
+}, st = {
 	$schema: "https://json-schema.org/draft/2020-12/schema",
 	$id: "race-state.schema.json",
 	title: "RaceState",
@@ -4997,7 +4108,972 @@ var gn = {
 			}
 		}
 	}
-}, _n = {
+};
+//#endregion
+//#region src/track-builder/constants.ts
+function ct(e) {
+	let t = {};
+	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = ct(r.properties));
+	return t;
+}
+var L = Object.freeze(ct(ot.properties.builder.properties)), lt = S.properties.base.properties.kartRadius.default;
+S.properties.base.properties.tSearchWindow.default, st.properties.constants.properties.countdownSteps.default, st.properties.constants.properties.countdownStepSeconds.default;
+//#endregion
+//#region src/track-builder/spline.ts
+var ut = 1e-4;
+function dt(e, t, n, r, i, a, o, s, c) {
+	let l = (t - e) / i - (n - e) / (i + a) + (n - t) / a, u = (n - t) / a - (r - t) / (a + o) + (r - n) / o;
+	l *= a, u *= a, s[c] = t, s[c + 1] = l, s[c + 2] = -3 * t + 3 * n - 2 * l - u, s[c + 3] = 2 * t - 2 * n + l + u;
+}
+var ft = class {
+	closed = !0;
+	count;
+	c;
+	constructor(e) {
+		if (e.length < 4) throw Error(`ClosedSpline needs at least 4 points, got ${e.length}`);
+		let t = e.length;
+		this.count = t, this.c = new Float64Array(t * 12);
+		for (let n = 0; n < t; n++) {
+			let r = e[(n - 1 + t) % t], i = e[n], a = e[(n + 1) % t], o = e[(n + 2) % t], s = mt(r, i) ** .25, c = mt(i, a) ** .25, l = mt(a, o) ** .25;
+			c < ut && (c = 1), s < ut && (s = c), l < ut && (l = c);
+			let u = n * 12;
+			dt(r.x, i.x, a.x, o.x, s, c, l, this.c, u), dt(r.y, i.y, a.y, o.y, s, c, l, this.c, u + 4), dt(r.z, i.z, a.z, o.z, s, c, l, this.c, u + 8);
+		}
+	}
+	segmentOf(e) {
+		let t = this.count, n = ht(e) * t;
+		return {
+			index: Math.floor(n) % t,
+			local: n - Math.floor(n)
+		};
+	}
+	pointAt(e, t = [
+		0,
+		0,
+		0
+	]) {
+		let { index: n, local: r } = this.segmentOf(e), i = n * 12, a = this.c, o = r * r, s = o * r;
+		return t[0] = a[i] + a[i + 1] * r + a[i + 2] * o + a[i + 3] * s, t[1] = a[i + 4] + a[i + 5] * r + a[i + 6] * o + a[i + 7] * s, t[2] = a[i + 8] + a[i + 9] * r + a[i + 10] * o + a[i + 11] * s, t;
+	}
+	pointIn(e, t, n = [
+		0,
+		0,
+		0
+	]) {
+		return this.pointAt((e + t) / this.count, n);
+	}
+	walkArcLength(e) {
+		let t = new Float64Array(e + 1), n = [
+			0,
+			0,
+			0
+		], r = [
+			0,
+			0,
+			0
+		];
+		this.pointAt(0, n);
+		let i = 0;
+		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += Math.hypot(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
+		return t;
+	}
+}, pt = class {
+	closed = !1;
+	count;
+	c;
+	constructor(e) {
+		if (e.length < 2) throw Error(`OpenSpline needs at least 2 points, got ${e.length}`);
+		let t = e.length;
+		this.count = t;
+		let n = t - 1;
+		this.c = new Float64Array(n * 12);
+		let r = (e, t) => ({
+			x: 2 * e.x - t.x,
+			y: 2 * e.y - t.y,
+			z: 2 * e.z - t.z
+		});
+		for (let i = 0; i < n; i++) {
+			let n = i === 0 ? r(e[0], e[1]) : e[i - 1], a = e[i], o = e[i + 1], s = i + 2 < t ? e[i + 2] : r(e[t - 1], e[t - 2]), c = mt(n, a) ** .25, l = mt(a, o) ** .25, u = mt(o, s) ** .25;
+			l < ut && (l = 1), c < ut && (c = l), u < ut && (u = l);
+			let d = i * 12;
+			dt(n.x, a.x, o.x, s.x, c, l, u, this.c, d), dt(n.y, a.y, o.y, s.y, c, l, u, this.c, d + 4), dt(n.z, a.z, o.z, s.z, c, l, u, this.c, d + 8);
+		}
+	}
+	segmentOf(e) {
+		let t = this.count - 1, n = (e < 0 ? 0 : e > 1 ? 1 : e) * t, r = Math.floor(n);
+		return r >= t && (r = t - 1), {
+			index: r,
+			local: n - r
+		};
+	}
+	pointAt(e, t = [
+		0,
+		0,
+		0
+	]) {
+		let { index: n, local: r } = this.segmentOf(e), i = n * 12, a = this.c, o = r * r, s = o * r;
+		return t[0] = a[i] + a[i + 1] * r + a[i + 2] * o + a[i + 3] * s, t[1] = a[i + 4] + a[i + 5] * r + a[i + 6] * o + a[i + 7] * s, t[2] = a[i + 8] + a[i + 9] * r + a[i + 10] * o + a[i + 11] * s, t;
+	}
+	walkArcLength(e) {
+		let t = new Float64Array(e + 1), n = [
+			0,
+			0,
+			0
+		], r = [
+			0,
+			0,
+			0
+		];
+		this.pointAt(0, n);
+		let i = 0;
+		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += Math.hypot(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
+		return t;
+	}
+};
+function mt(e, t) {
+	let n = e.x - t.x, r = e.y - t.y, i = e.z - t.z;
+	return n * n + r * r + i * i;
+}
+function ht(e) {
+	let t = e % 1;
+	return t < 0 ? t + 1 : t;
+}
+//#endregion
+//#region src/track-builder/types.ts
+var gt = Object.freeze([
+	"road",
+	"dirt",
+	"mud",
+	"ice",
+	"boost",
+	"rail"
+]);
+function _t(e) {
+	let t = gt.indexOf(e ?? "road");
+	return t < 0 ? 0 : t;
+}
+//#endregion
+//#region src/track-builder/lut.ts
+var R = (e) => {
+	let t = e % 1;
+	return t < 0 ? t + 1 : t;
+}, vt = (e) => e < 0 ? 0 : e > 1 ? 1 : e, yt = Math.PI / 180, bt = {
+	top: 0,
+	edge: 0,
+	next: 0,
+	open: !1,
+	cover: NaN,
+	lip: NaN,
+	pieces: 0
+}, xt = class {
+	n;
+	closed;
+	step;
+	length;
+	spline;
+	px;
+	py;
+	pz;
+	tx;
+	ty;
+	tz;
+	rx;
+	rz;
+	bank;
+	hw;
+	surface;
+	open;
+	offroad = !1;
+	land = null;
+	floorY = -Infinity;
+	covered;
+	reach;
+	landAbove;
+	bore;
+	seg;
+	grip;
+	minY;
+	maxY;
+	constructor(e, t = {}) {
+		let n = t.samples ?? L.lutSamples, r = t.divisions ?? L.arcDivisions, i = t.closed ?? !0, a = i ? new ft(e) : new pt(e);
+		this.spline = a, this.n = n, this.closed = i, this.step = i ? n : n - 1, this.px = new Float64Array(n), this.py = new Float64Array(n), this.pz = new Float64Array(n), this.tx = new Float64Array(n), this.ty = new Float64Array(n), this.tz = new Float64Array(n), this.rx = new Float64Array(n), this.rz = new Float64Array(n), this.bank = new Float64Array(n), this.hw = new Float64Array(n), this.surface = new Uint8Array(n), this.open = new Uint8Array(n), this.seg = new Uint16Array(n), this.grip = new Float64Array(n).fill(1), this.covered = new Uint8Array(n), this.reach = new Float32Array(n).fill(L.offroadReach), this.landAbove = new Float32Array(n).fill(NaN), this.bore = new Float32Array(n).fill(NaN);
+		let o = a.walkArcLength(r), s = o[r];
+		this.length = s;
+		let c = [
+			0,
+			0,
+			0
+		], l = 0, u = Infinity, d = -Infinity, f = e.length;
+		for (let t = 0; t < n; t++) {
+			let n = t / this.step * s;
+			for (; l < r - 1 && o[l + 1] < n;) l++;
+			let i = o[l + 1] - o[l], p = i > 0 ? (n - o[l]) / i : 0, m = (l + p) / r;
+			a.pointAt(m, c), this.px[t] = c[0], this.py[t] = c[1], this.pz[t] = c[2], c[1] < u && (u = c[1]), c[1] > d && (d = c[1]);
+			let { index: h, local: g } = a.segmentOf(m), _ = e[h], v = e[(h + 1) % f], y = g * g * (3 - 2 * g);
+			this.seg[t] = h, this.surface[t] = _t(_.surface), this.hw[t] = _.halfWidth + (v.halfWidth - _.halfWidth) * y;
+			let b = (_.bank ?? 0) * yt, x = (v.bank ?? 0) * yt;
+			this.bank[t] = b + (x - b) * y;
+		}
+		this.minY = u, this.maxY = d, this.refreshFrames();
+	}
+	refreshFrames() {
+		for (let e = 0; e < this.n; e++) {
+			let t = this.idx(e + 1), n = this.idx(e - 1), r = this.px[t] - this.px[n], i = this.py[t] - this.py[n], a = this.pz[t] - this.pz[n], o = Math.hypot(r, i, a) || 1;
+			r /= o, i /= o, a /= o, this.tx[e] = r, this.ty[e] = i, this.tz[e] = a;
+			let s = Math.hypot(r, a) || 1;
+			this.rx[e] = a / s, this.rz[e] = -r / s;
+		}
+	}
+	idx(e) {
+		let t = this.n;
+		return this.closed ? (e % t + t) % t : e < 0 ? 0 : e >= t ? t - 1 : e;
+	}
+	norm(e) {
+		return this.closed ? R(e) : vt(e);
+	}
+	sample(e, t) {
+		return this.sampleInto(e, t, {
+			position: [
+				0,
+				0,
+				0
+			],
+			tangent: [
+				0,
+				0,
+				0
+			],
+			normal: [
+				0,
+				0,
+				0
+			],
+			groundY: 0,
+			halfWidth: 0,
+			surface: "road",
+			gripScale: 1
+		});
+	}
+	sampleInto(e, t, n) {
+		let r = this.norm(e) * this.step, i = Math.floor(r), a = this.idx(i), o = this.idx(i + 1), s = r - i, c = 1 - s, l = this.tx[a] * c + this.tx[o] * s, u = this.ty[a] * c + this.ty[o] * s, d = this.tz[a] * c + this.tz[o] * s, f = Math.hypot(l, u, d) || 1;
+		l /= f, u /= f, d /= f;
+		let p = Math.hypot(l, d) || 1, m = d / p, h = -l / p, g = this.bank[a] * c + this.bank[o] * s, _ = -t * Math.tan(g), v = this.px[a] * c + this.px[o] * s + m * t, y = this.py[a] * c + this.py[o] * s + _, b = this.pz[a] * c + this.pz[o] * s + h * t, x = m, S = -Math.tan(g), C = h, w = u * C - d * S, T = d * x - l * C, ee = l * S - u * x, te = Math.hypot(w, T, ee) || 1;
+		w /= te, T /= te, ee /= te;
+		let E = n.position, ne = n.tangent, D = n.normal;
+		E[0] = v, E[1] = y, E[2] = b, ne[0] = l, ne[1] = u, ne[2] = d, D[0] = w, D[1] = T, D[2] = ee, n.groundY = y, n.halfWidth = this.hw[a] * c + this.hw[o] * s, n.surface = gt[this.surface[a]], n.gripScale = this.grip[a] * c + this.grip[o] * s;
+		let re = this.open[a];
+		n.open = re, n.overCliff = !1;
+		let ie = !!(re & (t < 0 ? 1 : 2)), O = (this.covered[a] | this.covered[o]) !== 0;
+		if ((ie || this.offroad) && !O) {
+			let e = Math.abs(t) - n.halfWidth;
+			if (e > L.kerbWidth) {
+				if (n.surface = "dirt", ie) {
+					let t = L.shoulderDrop * Math.min(1, (e - L.kerbWidth) / L.shoulderWidth);
+					n.groundY -= t, E[1] -= t;
+				} else {
+					let r = y + Math.sign(t) * (e - L.kerbWidth) * Math.tan(g) - L.offroadDrop, i = !1;
+					if (this.land) {
+						let e = this.land.query(v, b, bt);
+						e.pieces > 0 && (r = e.top, i = e.pieces > 1);
+					}
+					r < this.floorY && (r = this.floorY);
+					let a = Math.min(1, (e - L.kerbWidth) / .5), o = y + (r - y) * a;
+					if (n.groundY = o, E[1] = o, a >= 1) {
+						let e = 0, t = 0;
+						if (i && this.land) {
+							let n = Math.max(this.floorY, this.land.top(v + .5, b)), i = Math.max(this.floorY, this.land.top(v, b + .5));
+							e = (n - r) / .5, t = (i - r) / .5, D[0] = -e, D[1] = 1, D[2] = -t;
+						} else D[0] = u * h, D[1] = d * m - l * h, D[2] = -u * m;
+						let n = Math.hypot(D[0], D[1], D[2]) || 1;
+						D[0] /= n, D[1] /= n, D[2] /= n;
+					}
+				}
+			}
+			ie && (n.overCliff = e > L.kerbWidth + L.shoulderWidth);
+		}
+		return n.wall = O ? n.halfWidth + L.kerbWidth : this.offroad ? n.halfWidth + L.kerbWidth + (this.reach[a] * c + this.reach[o] * s) : n.halfWidth, n;
+	}
+	dist2XZ(e, t, n) {
+		let r = this.px[e] - t, i = this.pz[e] - n;
+		return r * r + i * i;
+	}
+	dist2XYZ(e, t, n, r) {
+		let i = this.px[e] - t, a = this.py[e] - n, o = this.pz[e] - r;
+		return i * i + a * a + o * o;
+	}
+	nearestT(e, t, n) {
+		let r = Math.round(this.norm(t) * this.step), i = Math.max(1, Math.round(n * this.step)), a = e[0], o = e[2], s = this.idx(r), c = Infinity, l = this.closed ? -i : Math.max(-i, -r), u = this.closed ? i : Math.min(i, this.n - 1 - r);
+		for (let e = l; e <= u; e++) {
+			let t = this.idx(r + e), n = this.dist2XZ(t, a, o);
+			n < c && (c = n, s = t);
+		}
+		return this.refine(s, c, a, 0, o, !1);
+	}
+	nearestTGlobal(e) {
+		let t = this.n, n = L.globalSearchStep, [r, i, a] = e, o = 0, s = Infinity;
+		for (let e = 0; e < t; e += n) {
+			let t = this.dist2XYZ(e, r, i, a);
+			t < s && (s = t, o = e);
+		}
+		if (!this.closed) {
+			let e = this.dist2XYZ(t - 1, r, i, a);
+			e < s && (s = e, o = t - 1);
+		}
+		let c = o;
+		for (let e = -n; e <= n; e++) {
+			let t = this.idx(c + e), n = this.dist2XYZ(t, r, i, a);
+			n < s && (s = n, o = t);
+		}
+		return this.refine(o, s, r, i, a, !0);
+	}
+	refine(e, t, n, r, i, a) {
+		let o = e / this.step, s = t;
+		for (let t = -1; t <= 0; t++) {
+			let c = this.idx(e + t), l = this.idx(c + 1);
+			if (c === l) continue;
+			let u = this.px[c], d = this.py[c], f = this.pz[c], p = this.px[l] - u, m = a ? this.py[l] - d : 0, h = this.pz[l] - f, g = p * p + m * m + h * h;
+			if (g <= 1e-12) continue;
+			let _ = a ? r - d : 0, v = ((n - u) * p + _ * m + (i - f) * h) / g;
+			v = v < 0 ? 0 : v > 1 ? 1 : v;
+			let y = u + p * v - n, b = a ? d + m * v - r : 0, x = f + h * v - i, S = y * y + b * b + x * x;
+			S < s && (s = S, o = (c + v) / this.step);
+		}
+		return this.norm(o);
+	}
+	dist2At(e, t) {
+		let n = this.norm(e) * this.step, r = Math.floor(n), i = this.idx(r), a = this.idx(r + 1), o = n - r, s = 1 - o, c = this.px[i] * s + this.px[a] * o - t[0], l = this.py[i] * s + this.py[a] * o - t[1], u = this.pz[i] * s + this.pz[a] * o - t[2];
+		return c * c + l * l + u * u;
+	}
+};
+function St(e, t) {
+	return new xt(e, t);
+}
+//#endregion
+//#region src/track-builder/branches.ts
+function z(e, t) {
+	let n = R(e - t);
+	return n > .5 ? n - 1 : n;
+}
+var Ct = class {
+	index;
+	id;
+	openOnLaps;
+	lut;
+	entryT;
+	exitT;
+	span;
+	entryPoint;
+	exitPoint;
+	forcedOpen;
+	lapOpen = !0;
+	constructor(e, t, n, r, i, a = []) {
+		this.index = e, this.id = t, this.lut = n, this.entryT = r, this.exitT = i, this.span = e === 0 ? 1 : R(i - r), this.openOnLaps = a, this.entryPoint = e === 0 ? [
+			n.px[0],
+			n.py[0],
+			n.pz[0]
+		] : n.sample(0, 0).position, this.exitPoint = e === 0 ? this.entryPoint : n.sample(1, 0).position;
+	}
+	get isMain() {
+		return this.index === 0;
+	}
+	get open() {
+		return this.isMain ? !0 : this.forcedOpen ?? this.lapOpen;
+	}
+	setLap(e) {
+		this.lapOpen = this.openOnLaps.length === 0 || this.openOnLaps.includes(e);
+	}
+	toLocal(e) {
+		if (this.isMain) return R(e);
+		let t = z(e, this.entryT) / this.span;
+		return t < 0 ? 0 : t > 1 ? 1 : t;
+	}
+	toMain(e) {
+		return this.isMain ? R(e) : R(this.entryT + e * this.span);
+	}
+	sample(e, t) {
+		return this.lut.sample(this.toLocal(e), t);
+	}
+	sampleInto(e, t, n) {
+		return this.lut.sampleInto(this.toLocal(e), t, n);
+	}
+	overlaps(e, t) {
+		if (this.isMain) return !0;
+		let n = z(e, this.entryT);
+		return n + t >= 0 && n - t <= this.span;
+	}
+	nearestLocal(e, t, n) {
+		if (this.isMain) {
+			let r = this.lut.nearestT(e, t, n);
+			return {
+				t: r,
+				d2: this.lut.dist2At(r, e)
+			};
+		}
+		let r = this.lut.nearestT(e, this.toLocal(t), n / this.span);
+		return this.pastEnd(r, e) ? {
+			t: this.toMain(r),
+			d2: Infinity
+		} : {
+			t: this.toMain(r),
+			d2: this.lut.dist2At(r, e)
+		};
+	}
+	settle(e, t, n) {
+		for (let r = 0; r < wt; r++) {
+			let r = this.nearestLocal(e, t, n).t;
+			if (r === t) break;
+			t = r;
+		}
+		return t;
+	}
+	pastEnd(e, t) {
+		if (e > 0 && e < 1) return !1;
+		let n = this.lut, r = e <= 0 ? 0 : n.n - 1, i = (t[0] - n.px[r]) * n.tx[r] + (t[2] - n.pz[r]) * n.tz[r];
+		return e <= 0 ? i < 0 : i > 0;
+	}
+	halfWidthAt(e) {
+		let t = this.toLocal(e);
+		return this.lut.hw[this.lut.idx(Math.round(t * this.lut.step))];
+	}
+	nearestGlobal(e) {
+		let t = this.lut.nearestTGlobal(e);
+		return {
+			t: this.toMain(t),
+			d2: this.lut.dist2At(t, e)
+		};
+	}
+}, wt = 3;
+function Tt(e, t) {
+	return Math.max(64, Math.round(L.lutSamples * e / t));
+}
+function Et(e, t, n, r = t.controlPoints) {
+	let i = St(r, {
+		closed: !1,
+		samples: 64,
+		divisions: 256
+	}), a = St(r, {
+		closed: !1,
+		samples: Tt(i.length, n.length),
+		divisions: Math.max(256, Math.round(L.arcDivisions * i.length / n.length))
+	});
+	return Dt(a, n, R(t.entryT), R(t.exitT)), new Ct(e, t.id, a, R(t.entryT), R(t.exitT), t.openOnLaps ?? []);
+}
+function Dt(e, t, n, r) {
+	let i = e.length / e.step;
+	for (let a of [!0, !1]) {
+		let o = t.idx(Math.round((a ? n : r) * t.step)), s = -1;
+		for (let n = 0; n < e.n >> 1; n++) {
+			let r = a ? n : e.n - 1 - n, c = e.px[r], l = e.pz[r], u = Infinity, d = o;
+			for (let e = -24; e <= 24; e++) {
+				let n = t.idx(o + e), r = t.px[n] - c, i = t.pz[n] - l, a = r * r + i * i;
+				a < u && (u = a, d = n);
+			}
+			let f = o = d, p = (c - t.px[f]) * t.rx[f] + (l - t.pz[f]) * t.rz[f], m = e.rx[r] * t.rx[f] + e.rz[r] * t.rz[f], h = Math.abs(p) - (t.hw[f] + L.kerbWidth) - (e.hw[r] + L.kerbWidth) * Math.abs(m);
+			s < 0 && h > -1 && (s = n * i);
+			let g = s < 0 ? 0 : Math.min(1, (n * i - s) / 30), _ = 1 - g * g * (3 - 2 * g);
+			if (_ <= 0) break;
+			let v = t.hw[f] + L.kerbWidth, y = Math.max(-v, Math.min(v, p)), b = Math.hypot(t.tx[f], t.tz[f]) || 1, x = t.ty[f] / b, S = (e.rx[r] * t.tx[f] + e.rz[r] * t.tz[f]) / b, C = ((c - t.px[f]) * t.tx[f] + (l - t.pz[f]) * t.tz[f]) / b, w = t.py[f] + C * x - y * Math.tan(t.bank[f]), T = Math.atan(Math.tan(t.bank[f]) * m - x * S);
+			e.py[r] += (w - e.py[r]) * _, e.bank[r] += (T - e.bank[r]) * _;
+		}
+	}
+	e.refreshFrames();
+}
+var Ot = class {
+	list;
+	constructor(e) {
+		this.list = e;
+	}
+	get main() {
+		return this.list[0];
+	}
+	byId(e) {
+		return this.list.find((t) => t.id === e);
+	}
+	setLap(e) {
+		for (let t of this.list) t.setLap(e);
+	}
+	sample(e, t, n = 0) {
+		return this.resolve(e, n).sample(e, t);
+	}
+	sampleInto(e, t, n, r) {
+		return this.resolve(e, n).sampleInto(e, t, r);
+	}
+	resolve(e, t) {
+		let n = this.list[t] ?? this.main;
+		if (!n.isMain) {
+			let t = z(e, n.entryT);
+			if (t < 0 || t > n.span) return this.main;
+		}
+		return n;
+	}
+	nearest(e, t, n) {
+		let r = this.list[t.branch] ?? this.main;
+		!r.open && !r.overlaps(t.t, 0) && (r = this.main);
+		let i = r.nearestLocal(e, t.t, n), a = r.index, o = Math.sqrt(i.d2), s = i.t, c = r.halfWidthAt(s);
+		if (o <= c - L.branchLeaveMargin) return {
+			t: s,
+			branch: r.index
+		};
+		let l = L.branchHysteresis, u = o - c;
+		for (let i of this.list) {
+			if (i === r || !i.open || !i.overlaps(t.t, n)) continue;
+			let o = i.nearestLocal(e, t.t, n), c = Math.sqrt(o.d2) - i.halfWidthAt(o.t);
+			c < u - l && (u = c, a = i.index, s = o.t);
+		}
+		return a !== r.index && (s = this.list[a].settle(e, s, n)), {
+			t: s,
+			branch: a
+		};
+	}
+	nearestGlobal(e) {
+		let t = 0, n = this.main.nearestGlobal(e);
+		for (let r of this.list) {
+			if (r.isMain || !r.open) continue;
+			let i = r.nearestGlobal(e);
+			i.d2 < n.d2 - L.branchHysteresis * L.branchHysteresis && (n = i, t = r.index);
+		}
+		return {
+			t: n.t,
+			branch: t
+		};
+	}
+};
+//#endregion
+//#region src/ai-driver/constants.ts
+function kt(e) {
+	let t = {};
+	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = kt(r.properties));
+	return t;
+}
+function At(e) {
+	if (e && typeof e == "object") for (let t of Object.values(e)) At(t);
+	return Object.freeze(e);
+}
+var B = At(kt(S.properties.ai.properties)), jt = B.profiles;
+function Mt(e) {
+	return e === 50 ? "easy" : e === 100 ? "normal" : "hard";
+}
+function Nt(e) {
+	let [t, n] = B.drift.tierBySkill;
+	return e < t ? 1 : e < n ? 2 : 3;
+}
+//#endregion
+//#region src/ai-driver/rng.ts
+function Pt(e, t) {
+	return (Math.imul(e | 0, 2654435761) ^ Math.imul(t + 1, 2246822519)) >>> 0;
+}
+function Ft(e) {
+	e.rng = e.rng + 1831565813 >>> 0;
+	let t = e.rng;
+	return t = Math.imul(t ^ t >>> 15, t | 1), t ^= t + Math.imul(t ^ t >>> 7, t | 61), (t ^ t >>> 14) >>> 0;
+}
+function It(e) {
+	return Ft(e) / 4294967296;
+}
+function V(e, t, n) {
+	return t + (n - t) * It(e);
+}
+//#endregion
+//#region src/ai-driver/drift.ts
+function Lt(e, t) {
+	let n = e - t;
+	return n > 1e-9 ? n : 0;
+}
+function Rt(e, t) {
+	return e.steerRate * (e.driftSteerMin + (e.driftSteerMax - e.driftSteerMin) * t);
+}
+function zt(e, t) {
+	let n = B.drift, r = e > 1e-4 ? n.overRotate / e : Infinity;
+	return Math.min(r, n.maxHold, t);
+}
+function Bt(e, t, n) {
+	let r = Math.abs(n.turnNear) / B.line.turnNearSeconds, i = B.line.turnFarSeconds, a = e.drift.chargeMultiplierRemaining > 0 ? e.drift.chargeMultiplier : 1, o = t.chargeFull * 60 * a * Math.max(0, zt(Rt(t, .5) - r, i) - t.hopSeconds), s = t.chargeNeutral * 60 * a * Math.max(0, zt(Rt(t, 0) - r, i) - t.hopSeconds);
+	return we(Math.max(o, s), t.driftTiers);
+}
+function Vt(e, t, n, r) {
+	let i = r.turnNear, a = r.turnFar;
+	return Math.abs(a) <= n.driftThreshold || Math.abs(i) <= n.driftThreshold * .5 || Math.sign(i) !== Math.sign(a) ? !1 : Bt(e, t, r) >= 1;
+}
+function Ht(e, t, n, r) {
+	return Vt(e, t, n, r) && r.kappa * Math.abs(e.speed) >= B.drift.startYawFraction * Rt(t, .5);
+}
+function Ut(e, t, n, r) {
+	return Vt(e, t, n, r) ? Math.abs(r.turnNear) / B.line.turnNearSeconds < Rt(t, .5) : !1;
+}
+function Wt(e, t, n, r, i, a, o, s) {
+	let c = B.drift;
+	if (n.driftCooldown = Lt(n.driftCooldown, s), o.drift = !1, n.driftDir === 0) {
+		if (n.driftCooldown > 0 || !e.grounded || e.drift.phase !== "idle" || i.narrow || i.nearBranch || i.airAhead || e.speed < t.driftMinSpeed * a) return;
+		let s = i.turnNear, l = i.turnFar;
+		if (!(Math.abs(s) > r.driftThreshold && Math.abs(l) > r.driftThreshold && Math.sign(s) === Math.sign(l)) || i.kappaShort * Math.abs(e.speed) < c.startYawFraction * Rt(t, .5)) return;
+		let u = Math.min(Nt(n.skill), Bt(e, t, i));
+		if (u < 1) return;
+		if (It(n) >= n.personality.driftUse) {
+			n.driftCooldown = c.cooldown;
+			return;
+		}
+		n.driftDir = s > 0 ? 1 : -1, n.driftTier = u, n.driftHold = 0, o.drift = !0, o.steer = n.driftDir;
+		return;
+	}
+	let l = n.driftDir;
+	n.driftHold += s, o.drift = !0;
+	let u = t.hopSeconds * t.hopLandWindow + s;
+	if (e.drift.phase === "idle" && n.driftHold > u) {
+		Gt(n, c.abortCooldown, o, "abort");
+		return;
+	}
+	if (n.driftHold <= c.hopCommit || e.drift.phase !== "drifting") {
+		o.steer = l * c.hopCommitStick;
+		return;
+	}
+	n.driftTier = Math.max(n.driftTier, Math.min(Nt(n.skill), Bt(e, t, i)));
+	let d = i.roadErr, f = H(((i.turnNear / B.line.turnNearSeconds * l + c.aimGain * d * l) / t.steerRate - t.driftSteerMin) / (t.driftSteerMax - t.driftSteerMin), 0, 1);
+	if (f < .5 && e.drift.tier < n.driftTier) {
+		if (f >= .5 - c.chargeSnap) f = .5;
+		else {
+			let n = e.drift.chargeMultiplierRemaining > 0 ? e.drift.chargeMultiplier : 1;
+			(t.driftTiers[Math.min(e.drift.tier, t.driftTiers.length - 1)] - e.drift.charge) / (t.chargeFull * 60 * n) <= c.chargeSecondsAhead && (f = .5);
+		}
+	}
+	o.steer = l * f;
+	let p = e.drift.tier, m = p >= n.driftTier ? "tier" : d * l < -c.overRotate ? "over" : p >= 1 && Math.abs(d) < c.aligned && i.kappaShort * Math.abs(e.speed) < c.exitYawFraction * Rt(t, 0) ? "aligned" : i.myLat * l > i.halfWidth - c.edgeMargin || i.myLat * -l > i.halfWidth + c.outsideSlack ? "edge" : n.driftHold > c.maxHold ? "hold" : i.airAhead ? "air" : "none";
+	m !== "none" && Gt(n, p === 0 ? c.abortCooldown : c.cooldown, o, m);
+}
+function Gt(e, t, n, r) {
+	e.driftDir = 0, e.driftHold = 0, e.driftCooldown = t, e.driftEndReason = r, n.drift = !1;
+}
+function Kt(e, t, n, r, i) {
+	if (e.grounded || e.airborne.fromJumpId === void 0) {
+		t.trickRolled = !1, t.trickDone = !1;
+		return;
+	}
+	if (t.driftDir === 0 && (t.trickRolled || (t.trickRolled = !0, t.trickDone = It(t) >= n.trickChance, i && i.airAhead && Math.abs(i.turnNear) > B.line.trickBend && (t.trickDone = !0)), !t.trickDone)) {
+		if (e.prevDrift) {
+			r.drift = !1;
+			return;
+		}
+		r.drift = !0, t.trickDone = !0;
+	}
+}
+//#endregion
+//#region src/ai-driver/line.ts
+function H(e, t, n) {
+	return e < t ? t : e > n ? n : e;
+}
+function U(e) {
+	for (; e > Math.PI;) e -= 2 * Math.PI;
+	for (; e < -Math.PI;) e += 2 * Math.PI;
+	return e;
+}
+function qt(e) {
+	let t = B.line;
+	return H(Math.abs(e) * t.lookAheadGain, t.lookAheadMin, t.lookAheadMax);
+}
+var Jt = 5;
+function Yt(e, t, n, r, i) {
+	let a = B.line, o = t.length, s = n.branchChoice > 0 ? n.branchChoice : e.branch, c = Math.max(Math.abs(e.speed), Jt);
+	t.sampleInto(e.t, 0, e.branch, r.here), t.sampleInto(R(e.t + c * a.turnNearSeconds / o), 0, s, r.near), t.sampleInto(R(e.t + c * a.turnFarSeconds / o), 0, s, r.far);
+	let l = j(r.here.tangent);
+	i.turnNear = U(j(r.near.tangent) - l), i.turnFar = U(j(r.far.tangent) - l), i.probeNear = c * a.turnNearSeconds, t.sampleInto(R(e.t + a.lookAheadMin / o), 0, s, r.short);
+	let u = j(r.short.tangent), d = U(u - l);
+	if (i.kappaShort = Math.abs(d) / a.lookAheadMin, i.kappa = Math.max(i.kappaShort, Math.abs(i.turnNear) / i.probeNear), e.branch !== 0 && !e.grounded) {
+		let n = t.branches.list[e.branch], s = z(n.exitT, e.t) * o;
+		if (s > 0) {
+			let o = j(t.sampleInto(n.exitT, 0, e.branch, r.tmp).tangent), c = Math.abs(U(j(t.sampleInto(n.exitT, 0, 0, r.tmp).tangent) - o));
+			i.kappa = Math.max(i.kappa, c / Math.max(a.joinShare * s, a.lookAheadMin));
+		}
+	}
+	i.roadErr = U(u - e.heading), i.halfWidth = r.here.halfWidth, i.narrow = r.here.halfWidth < a.narrowRoad, i.airAhead = !1;
+	for (let n of t.jumps) if (n.rise && (n.branch ?? 0) === s && R(n.t - e.t) * o < i.probeNear + (n.run ?? 0)) {
+		i.airAhead = !0;
+		break;
+	}
+	let f = qt(e.speed), p = e.branch !== 0 || n.branchChoice > 0;
+	i.branchAhead = 0, i.branchSide = 0;
+	let m = t.branches.list;
+	for (let n = 1; n < m.length; n++) {
+		let a = m[n];
+		if (!a.open) continue;
+		let s = z(a.entryT, e.t) * o, c = z(a.exitT, e.t) * o;
+		if ((s > -f && s < f || c > -f && c < f) && (p = !0), e.branch === 0 && s > 0 && s < f && i.branchAhead === 0) {
+			let e = R(a.entryT + a.span * .25), o = t.sampleInto(e, 0, n, r.tmp).position, s = t.sampleInto(e, 0, 0, r.ahead), c = (o[0] - s.position[0]) * s.tangent[2] - (o[2] - s.position[2]) * s.tangent[0];
+			i.branchAhead = n, i.branchSide = c > .3 ? 1 : c < -.3 ? -1 : 0;
+		}
+	}
+	(i.narrow || p) && (f = Math.max(a.lookAheadMin, f * a.narrowLookAhead)), i.L = f, i.nearBranch = p, i.branch = s;
+	let h = r.here.tangent, g = r.here.position;
+	return i.myLat = (e.position[0] - g[0]) * h[2] - (e.position[2] - g[2]) * h[0], i;
+}
+function Xt(e, t, n, r, i, a) {
+	let o = B.line;
+	if (e.branch !== 0 || i.narrow || n.branchChoice > 0 || e.surface === "dirt" || e.surface === "mud") return 0;
+	let s = i.halfWidth, c = n.personality.lateralBias * o.laneHalfFraction * s;
+	if (n.driftDir === 0 && n.personality.driftUse > 0 && Ut(e, t, r, i)) return -Math.sign(i.turnFar) * o.outsideFraction * s;
+	let l = H(i.turnNear * o.insideGain, -o.insideBiasMax, o.insideBiasMax) * s, u = n.wanderAmp * Math.sin(2 * Math.PI * a / n.wanderPeriod + n.wanderPhase), d = o.lateralMaxFraction * s;
+	return H(c + l + u, -d, d);
+}
+function Zt(e, t, n, r, i, a) {
+	if (e.branch !== 0) {
+		n.branchChoice = 0;
+		return;
+	}
+	let o = t.branches.list, s = t.length;
+	if (n.branchChoice !== 0) {
+		let t = o[Math.abs(n.branchChoice)];
+		if (!t || !t.open) {
+			n.branchChoice = 0;
+			return;
+		}
+		let r = z(t.entryT, e.t) * s;
+		(n.branchChoice > 0 ? r < -B.line.branchCommitMetres : r < 0) && (n.branchChoice = 0);
+		return;
+	}
+	for (let t = 1; t < o.length; t++) {
+		let c = o[t];
+		if (!c.open) continue;
+		let l = z(c.entryT, e.t) * s;
+		if (l <= 0 || l > 2 * i.L) continue;
+		let u = c.lut.sample(.5, 0).halfWidth < B.line.narrowRoad, d = n.skill >= r.shortcutSkill;
+		n.branchChoice = (a === void 0 ? d && (n.rb >= B.rubber.shortcutRb || !u && It(n) < n.personality.aggression) : c.id === a) ? t : -t;
+		return;
+	}
+}
+//#endregion
+//#region src/ai-driver/avoid.ts
+function Qt(e, t, n, r) {
+	let i = e.track.sampleInto(t, 0, n, e.sc.tmp), a = i.tangent, o = i.position;
+	return (r[0] - o[0]) * a[2] - (r[2] - o[2]) * a[0];
+}
+function $t(e, t) {
+	return e > .05 ? -1 : e < -.05 || t >= e ? 1 : -1;
+}
+function en(e, t, n, r) {
+	return Math.abs(e - t) >= n ? e : t + $t(t, r) * n;
+}
+var tn = [], nn = [], rn = [], an = 1e-6;
+function on(e, t, n, r, i, a) {
+	let o = e, s = -1, c = !0, l = Infinity;
+	for (let u = 0; u < 2 * (i + a + 1); u++) {
+		let d = u >> 1, f = u & 1 ? 1 : -1, p = H(d < i ? tn[d] + f * r : d < i + a ? nn[d - i] + f * rn[d - i] : f * n, -n, n), m = r, h = !1;
+		for (let e = 0; e < i; e++) m = Math.min(m, Math.abs(p - tn[e]));
+		for (let e = 0; e < a; e++) Math.abs(p - nn[e]) < rn[e] - an && (h = !0);
+		let g = Math.abs(p - e) + Math.abs(p - t);
+		(m > s + an || m > s - an && (h === c ? g < l : !h)) && (o = p, s = m, c = h, l = g);
+	}
+	return o;
+}
+function sn(e, t, n, r, i, a) {
+	let o = B.avoid, { track: s, karts: c } = t, l = s.length, u = n.halfWidth, d = T.kartRadius, f = Math.max(.5, u - d - .2), p = Math.min(o.stoppedClearance, f), m = Math.min(2 * d + .3, f), h = s.features, g = Infinity, _ = a, v = 0;
+	for (let n = 0; n < h.length; n++) {
+		let i = h[n];
+		if (i.branch !== e.branch) continue;
+		let s = 0;
+		if (i.kind === "coin") {
+			if (e.coins >= T.coinCap) continue;
+			let r = n < t.coinOf.length ? t.coinOf[n] : -1;
+			if (r < 0 || t.coinStates[r].respawnRemaining > 0) continue;
+			s = 1;
+		} else if (i.kind === "pickup") {
+			let r = e.item.held !== "none" || e.item.rouletteRemaining > 0, i = e.item.next !== "none" || e.item.nextRouletteRemaining > 0;
+			if (r && i) continue;
+			let a = n < t.pickupOf.length ? t.pickupOf[n] : -1;
+			if (a < 0 || t.pickupStates[a].respawnRemaining > 0) continue;
+			s = 2;
+		} else if (i.kind === "boostPad") {
+			if (r < o.padSkill) continue;
+			s = 3;
+		} else continue;
+		let c = z(i.t, e.t) * l;
+		c <= 0 || c > o.seekDistance || Math.abs(i.lateral - a) > o.seekLateral || (s > v || s === v && c < g) && (v = s, g = c, _ = i.lateral);
+	}
+	a = _;
+	let y = 0;
+	for (let r = 0; r < c.length; r++) {
+		let i = c[r];
+		if (i === e || i.isGhost) continue;
+		let s = z(i.t, e.t) * l;
+		if (s <= 0 || s > o.stoppedLookAhead || i.branch !== e.branch) continue;
+		if (i.speed < o.slowKartSpeed || i.status.spinRemaining > 0 || i.status.intangibleRemaining > 0 || i.finishTick !== void 0) {
+			tn[y++] = Qt(t, i.t, i.branch, i.position);
+			continue;
+		}
+		if (s > o.avoidLookAhead) continue;
+		let u = Qt(t, i.t, i.branch, i.position);
+		n.narrow || n.nearBranch || s > o.passDistance || (e.speed - i.speed > o.passClosing || s < o.touchDistance ? a = en(a, u, m, n.myLat) : s <= T.slipstreamLength && Math.abs(a - u) < T.slipstreamHalfWidth && (a = u));
+	}
+	if (i < 0 && n.branchAhead === -i && n.branchSide !== 0) {
+		let e = B.line.declineFraction * u;
+		a * -n.branchSide < e && (a = -n.branchSide * e);
+	}
+	let b = 0, x = t.hazards;
+	if (x.length) {
+		let r = o.rollingLookAhead / l + .02;
+		for (let i = 0; i < x.length; i++) {
+			let c = x[i];
+			if (c.type === "gust" || c.type === "vent") continue;
+			let d = c.type === "rolling" ? o.rollingLookAhead : o.hazardLookAhead, p = s.nearestT(c.position, e.t, r), m = z(p, e.t) * l;
+			if (m <= 0 || m > d) continue;
+			let h = Qt(t, p, 0, c.position);
+			if (Math.abs(h) > u + c.radius) continue;
+			let g = Math.min(o.dodgeClearance + c.radius, f);
+			a = en(a, h, g, n.myLat), (c.type === "static" || c.type === "falling") && (nn[b] = h, rn[b++] = g);
+		}
+	}
+	let S = s.def.hazards;
+	if (S) for (let t = 0; t < S.length; t++) {
+		let r = S[t];
+		if (r.type !== "rolling" && r.type !== "falling") continue;
+		let i = z(r.t, e.t) * l, s = Math.min(o.dodgeClearance + L.hazardRadius, f);
+		r.type === "rolling" && i > 0 && i - (r.speed ?? 0) * (r.period ?? 1) < o.stoppedLookAhead && (nn[b] = r.lateral ?? 0, rn[b++] = s), !(i < -o.spawnBehind || i > o.hazardLookAhead) && (a = en(a, r.lateral ?? 0, s, n.myLat), nn[b] = r.lateral ?? 0, rn[b++] = s);
+	}
+	let C = Math.max(0, Math.min(u - B.line.edgeMargin, u - d - .3));
+	a = H(a, -C, C);
+	for (let e = 0; e < y; e++) if (Math.abs(a - tn[e]) < p - an) return on(a, n.myLat, C, p, y, b);
+	return a;
+}
+//#endregion
+//#region src/ai-driver/items.ts
+function cn(e, t) {
+	return U(Math.atan2(t.position[0] - e.position[0], t.position[2] - e.position[2]) - e.heading);
+}
+function ln(e, t) {
+	return Math.hypot(e.position[0] - t.position[0], e.position[2] - t.position[2]);
+}
+var un = /* @__PURE__ */ new Set([
+	"forward",
+	"rearDrop",
+	"deception",
+	"runner"
+]);
+function dn(e, t, n, r, i, a) {
+	let o = e.item.held;
+	if (o !== t.lastItem) return t.lastItem = o, t.itemHold = 0, t.itemPressed = t.itemTrailing = !1, t.reactionRemaining = o === "none" ? 0 : V(t, n.reactionMin, n.reactionMax) * (1 - t.skill), !1;
+	if (o === "none" || e.item.rouletteRemaining > 0 || e.item.charges <= 0) return t.itemPressed = t.itemTrailing = !1, !1;
+	if (t.itemHold += a, t.reactionRemaining > 0) return t.reactionRemaining -= a, !1;
+	let s = i.roles[o];
+	if (!s) return !1;
+	if (t.itemPressed && !t.itemTrailing) return t.itemPressed = !1, !1;
+	let c = B.items, l = Infinity, u = Infinity, d = Infinity, f = Infinity, p = k(e.heading);
+	for (let t of i.karts) {
+		if (t === e || t.isGhost || t.finishTick !== void 0) continue;
+		let n = ln(e, t);
+		f = Math.min(f, n);
+		let r = t.position[0] - e.position[0], i = t.position[2] - e.position[2];
+		r * p[0] + i * p[2] > 0 ? (l = Math.min(l, n), Math.abs(cn(e, t)) < c.forwardCone && (u = Math.min(u, n))) : d = Math.min(d, n);
+	}
+	let m = Math.abs(r.turnFar) < c.straightTurn, h = e.surface === "dirt" || e.surface === "mud", g;
+	switch (s) {
+		case "forward":
+			g = u <= c.forwardRange;
+			break;
+		case "homing":
+			g = l <= c.homingRange;
+			break;
+		case "rearDrop":
+		case "deception":
+			g = d <= c.rearRange || t.itemHold >= c.holdMax;
+			break;
+		case "defenceArea":
+			g = f <= c.defenceRadius || i.threatened;
+			break;
+		case "defenceHeld":
+			g = i.threatened || d <= c.rearRange;
+			break;
+		case "speed":
+			g = m || h || i.gap > c.speedItemGap;
+			break;
+		case "ride":
+			g = !0;
+			break;
+		case "jump":
+			g = e.grounded ? i.threatened || l <= c.springRange || t.itemHold >= c.holdMax : f <= c.springRange;
+			break;
+		case "tether":
+			g = l >= c.anchorMin && l <= c.anchorMax;
+			break;
+		case "runner":
+			g = l <= c.runnerRange;
+			break;
+		case "equaliser":
+			g = e.rank >= c.equaliserMinRank;
+			break;
+		case "chaos": g = !0;
+	}
+	if (un.has(s)) {
+		if ((i.threatened || d <= c.rearRange * .5) && !g) return t.itemTrailing = t.itemPressed = !0, !0;
+		if (t.itemTrailing) return t.itemTrailing = t.itemPressed = !1, !1;
+	}
+	return g && (t.itemPressed = !0), g;
+}
+//#endregion
+//#region src/ai-driver/personalities.ts
+var fn = Object.freeze({
+	pip: {
+		lateralBias: -.2,
+		aggression: .7,
+		driftUse: .9
+	},
+	momo: {
+		lateralBias: .1,
+		aggression: .5,
+		driftUse: .8
+	},
+	nova: {
+		lateralBias: .35,
+		aggression: .3,
+		driftUse: .6
+	},
+	juniper: {
+		lateralBias: 0,
+		aggression: .8,
+		driftUse: .7
+	},
+	otto: {
+		lateralBias: -.4,
+		aggression: .2,
+		driftUse: .5
+	},
+	sprocket: {
+		lateralBias: .2,
+		aggression: .4,
+		driftUse: .75
+	},
+	boulder: {
+		lateralBias: -.1,
+		aggression: .3,
+		driftUse: .4
+	},
+	gus: {
+		lateralBias: .4,
+		aggression: .6,
+		driftUse: .5
+	}
+});
+function pn(e, t) {
+	let n = fn[e];
+	return n ? { ...n } : {
+		lateralBias: V(t, -.5, .5),
+		aggression: V(t, .3, .7),
+		driftUse: V(t, .5, .9)
+	};
+}
+//#endregion
+//#region src/ai-driver/rubber.ts
+function mn(e) {
+	let t = B.rubber, n = Math.abs(e);
+	if (n <= t.deadZone) return 1;
+	let r = Math.tanh((n - t.deadZone) / t.scale);
+	return e > 0 ? 1 + (t.max - 1) * r : 1 - (1 - t.min) * r;
+}
+function hn(e, t) {
+	let n = e.skill + (t - 1) * B.rubber.skillGain;
+	return n < 0 ? 0 : n > 1 ? 1 : n;
+}
+function gn(e, t) {
+	let n = t / B.rubber.powerFrom;
+	return e.power * (n < 1 ? n : 1);
+}
+var _n = {
 	$schema: "https://json-schema.org/draft/2020-12/schema",
 	$id: "cups.schema.json",
 	title: "Cups, Knockout sets and Grand Prix scoring",
@@ -5105,7 +5181,7 @@ function vn(e) {
 	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = vn(r.properties));
 	return t;
 }
-var W = Object.freeze(vn(gn.properties.constants.properties));
+var W = Object.freeze(vn(st.properties.constants.properties));
 Object.freeze([..._n.properties.gpPointsByRank.default]), Object.freeze([..._n.properties.knockoutSets.items.properties.cutLines.default]), _n.properties.knockoutSets.items.properties.lapsPerSegment.default, Object.freeze([
 	.6,
 	.8,
@@ -5215,13 +5291,13 @@ function kn() {
 //#endregion
 //#region src/ai-driver/driver.ts
 var An = Object.freeze({
-	...At.normal,
+	...jt.normal,
 	skill: B.autopilot.skill,
 	power: B.autopilot.power
 });
 function jn(e, t, n, r, i, a) {
 	let o = {
-		rng: Nt(e, t),
+		rng: Pt(e, t),
 		personality: {
 			lateralBias: 0,
 			aggression: 0,
@@ -5255,7 +5331,7 @@ function jn(e, t, n, r, i, a) {
 		branchChoice: 0,
 		lateral: 0
 	};
-	return o.personality = a ? { ...a } : fn(n, o), o.startPress = r.startPressMean + V(o, -r.startPressSpread, r.startPressSpread), o.wanderAmp = V(o, B.line.wanderAmpMin, B.line.wanderAmpMax), o.wanderPeriod = V(o, B.line.wanderPeriodMin, B.line.wanderPeriodMax), o.wanderPhase = V(o, 0, 2 * Math.PI), o;
+	return o.personality = a ? { ...a } : pn(n, o), o.startPress = r.startPressMean + V(o, -r.startPressSpread, r.startPressSpread), o.wanderAmp = V(o, B.line.wanderAmpMin, B.line.wanderAmpMax), o.wanderPeriod = V(o, B.line.wanderPeriodMin, B.line.wanderPeriodMax), o.wanderPhase = V(o, 0, 2 * Math.PI), o;
 }
 var Mn = class {
 	track;
@@ -5276,12 +5352,12 @@ var Mn = class {
 	itemCtx;
 	threatened = [];
 	constructor(e, t, n, r = {}) {
-		this.track = e, this.profile = r.profile ?? At[jt(t.speedClass)], this.onlyShortcut = r.onlyShortcut;
+		this.track = e, this.profile = r.profile ?? jt[Mt(t.speedClass)], this.onlyShortcut = r.onlyShortcut;
 		let i = new Map(t.racers.map((e) => [e.racerId, e])), a = n.karts;
 		this.consts = a.map((e) => ee(i.get(e.racerId)?.archetype ?? "medium", t.speedClass)), this.outputs = a.map(() => ({ ...O })), this.playerIndex = a.findIndex((e) => e.isPlayer);
-		let o = a.map((e, t) => t).filter((e) => !a[e].isPlayer && !a[e].isGhost), s = o.map((e, t) => 1 - B.rubber.fieldPaceSpread * t / Math.max(1, o.length - 1)), c = { rng: Nt(n.seed, 24301) };
+		let o = a.map((e, t) => t).filter((e) => !a[e].isPlayer && !a[e].isGhost), s = o.map((e, t) => 1 - B.rubber.fieldPaceSpread * t / Math.max(1, o.length - 1)), c = { rng: Pt(n.seed, 24301) };
 		for (let e = s.length - 1; e > 0; e--) {
-			let t = Math.floor(Ft(c) * (e + 1));
+			let t = Math.floor(It(c) * (e + 1));
 			[s[e], s[t]] = [s[t], s[e]];
 		}
 		let l = new Map(o.map((e, t) => [e, s[t]]));
@@ -5330,17 +5406,17 @@ var Mn = class {
 		}
 		if (t.status.spinRemaining > 0) return;
 		let u = r && !c ? r.distanceAlong - t.distanceAlong : 0;
-		a.rb = pn(u), a.skill = mn(l, a.rb), a.powerCap = hn(l, a.rb);
-		let d = Jt(t, this.track, a, this.sc, this.line);
-		Xt(t, this.track, a, l, d, this.onlyShortcut);
-		let f = Yt(t, o, a, l, d, e.tick / 120);
-		f = on(t, this.avoidCtx, d, a.skill, a.branchChoice, f);
+		a.rb = mn(u), a.skill = hn(l, a.rb), a.powerCap = gn(l, a.rb);
+		let d = Yt(t, this.track, a, this.sc, this.line);
+		Zt(t, this.track, a, l, d, this.onlyShortcut);
+		let f = Xt(t, o, a, l, d, e.tick / 120);
+		f = sn(t, this.avoidCtx, d, a.skill, a.branchChoice, f);
 		let p = B.line.laneRate * s, m = f - a.lateral;
 		a.lateral += m > p ? p : m < -p ? -p : m;
 		let h = this.track.sampleInto(R(t.t + d.L / this.track.length), a.lateral, d.branch, this.sc.ahead).position, g = t.surface === "dirt" || t.surface === "mud";
 		i.steer = Tn(t, h, a, l.noise * (1 - a.skill), g ? B.steer.offroadGain : 1, a.lateral - d.myLat, s);
-		let _ = xn(t, o, a, d, !c && a.driftDir === 0 && a.driftCooldown === 0 && a.personality.driftUse > 0 && !d.narrow && !d.nearBranch && !d.airAhead && Vt(t, o, l, d), this.speed);
-		Cn(t, _, l, i), c || (Ut(t, o, a, l, d, _.legal, i, s), Gt(t, a, l, i, d)), c || (this.itemCtx.gap = u, this.itemCtx.threatened = this.threatened[n] === !0, i.item = un(t, a, l, d, this.itemCtx, s)), En(t, a, i, s);
+		let _ = xn(t, o, a, d, !c && a.driftDir === 0 && a.driftCooldown === 0 && a.personality.driftUse > 0 && !d.narrow && !d.nearBranch && !d.airAhead && Ht(t, o, l, d), this.speed);
+		Cn(t, _, l, i), c || (Wt(t, o, a, l, d, _.legal, i, s), Kt(t, a, l, i, d)), c || (this.itemCtx.gap = u, this.itemCtx.threatened = this.threatened[n] === !0, i.item = dn(t, a, l, d, this.itemCtx, s)), En(t, a, i, s);
 	}
 };
 //#endregion
@@ -5452,7 +5528,7 @@ function Un(e, t = []) {
 		]));
 		e.controlPoints = Hn(e.controlPoints, s, o);
 		let c = r.list.map((e) => e.lut);
-		i.lut = xt(e.controlPoints), Wn(i.lut, c);
+		i.lut = St(e.controlPoints), Wn(i.lut, c);
 		for (let e of o) a.push([e.fromT, e.toT]);
 		for (let e of r.list) e.isMain || (e.entryT = i.lut.nearestTGlobal(e.entryPoint), e.exitT = i.lut.nearestTGlobal(e.exitPoint), e.span = R(e.exitT - e.entryT));
 		e.startT = i.lut.nearestTGlobal(e.startPoint);
@@ -5475,7 +5551,7 @@ function Un(e, t = []) {
 		}), Rn(e.features, r), e.hazards.rederive();
 	}
 	for (let e of n.surfaceOverrides ?? []) {
-		let t = gt(e.surface), n = i.lut;
+		let t = _t(e.surface), n = i.lut;
 		for (let r = 0; r < n.n; r++) Vn(r / n.n, e.fromT, e.toT) && (n.surface[r] = t);
 		a.push([e.fromT, e.toT]);
 	}
@@ -8006,7 +8082,7 @@ function Ni(e, t, n) {
 function Pi(e, t, n) {
 	let r = [], { rows: i, columns: a, spacing: o } = n;
 	for (let n = 0; n < i; n++) {
-		let i = R(t - (n + 1) * o / e.length), s = e.sample(i, 0).halfWidth, c = Math.max(0, Math.min(.5 * s, s - ct)), l = a > 1 ? 2 * c / (a - 1) : 0, u = n % 2 == 1 ? l / 4 : 0;
+		let i = R(t - (n + 1) * o / e.length), s = e.sample(i, 0).halfWidth, c = Math.max(0, Math.min(.5 * s, s - lt)), l = a > 1 ? 2 * c / (a - 1) : 0, u = n % 2 == 1 ? l / 4 : 0;
 		for (let t = 0; t < a; t++) {
 			let o = a > 1 ? -c + u + t * (2 * (c - u)) / (a - 1) : n % 2 == 1 ? c / 2 : -c / 2, s = e.sample(i, o);
 			r.push({
@@ -8216,7 +8292,7 @@ function ea(e) {
 		errors: t,
 		warnings: n
 	};
-	let a = xt(r), o = R(e.startGrid.t), s = a.sample(o, 0).halfWidth;
+	let a = St(r), o = R(e.startGrid.t), s = a.sample(o, 0).halfWidth;
 	s < L.minStartHalfWidth && t.push(`start line halfWidth ${s.toFixed(2)} < ${L.minStartHalfWidth}`);
 	let c = Infinity, l = 0;
 	for (let e = 0; e < a.n; e++) {
@@ -8232,7 +8308,7 @@ function ea(e) {
 		if ((r <= 0 || r > .5) && t.push(`${e}: exitT must follow entryT by less than half a lap (span ${r.toFixed(3)})`), !Qi(n.controlPoints, e, t, 2)) continue;
 		let i = a.sample(n.entryT, 0).position, o = a.sample(n.exitT, 0).position, s = n.controlPoints[0], c = n.controlPoints[n.controlPoints.length - 1], l = Math.hypot(s.x - i[0], s.y - i[1], s.z - i[2]), f = Math.hypot(c.x - o[0], c.y - o[1], c.z - o[2]);
 		l > Yi && t.push(`${e}: first point is ${l.toFixed(2)} m from the main line at entryT (max ${Yi})`), f > Yi && t.push(`${e}: last point is ${f.toFixed(2)} m from the main line at exitT (max ${Yi})`);
-		let p = xt(n.controlPoints, {
+		let p = St(n.controlPoints, {
 			closed: !1,
 			samples: 256,
 			divisions: 512
@@ -8298,8 +8374,8 @@ var na = class {
 	listeners = [];
 	constructor(e) {
 		this.def = e, this.voidY = e.voidY, this.controlPoints = e.controlPoints.map((e) => ({ ...e }));
-		let t = xt(this.controlPoints), n = [new St(0, "main", t, 0, 1, [])];
-		(e.shortcuts ?? []).forEach((e, r) => n.push(Tt(r + 1, e, t))), this.branches = new Dt(n), this.groundPlaneY = Hi(e, t), this.tunnels = (e.shortcuts ?? []).flatMap((e, t) => e.tunnel ? [Gi(n[t + 1].lut, e.tunnel.from, e.tunnel.to)] : []), this.land = e.offroad === !0 ? new Ri(n.map((e) => e.lut)) : null, this.startT = R(e.startGrid.t), this.startPoint = t.sample(this.startT, 0).position, this.openEdges = (e.openEdges ?? []).map((e) => ({
+		let t = St(this.controlPoints), n = [new Ct(0, "main", t, 0, 1, [])];
+		(e.shortcuts ?? []).forEach((e, r) => n.push(Et(r + 1, e, t))), this.branches = new Ot(n), this.groundPlaneY = Hi(e, t), this.tunnels = (e.shortcuts ?? []).flatMap((e, t) => e.tunnel ? [Gi(n[t + 1].lut, e.tunnel.from, e.tunnel.to)] : []), this.land = e.offroad === !0 ? new Ri(n.map((e) => e.lut)) : null, this.startT = R(e.startGrid.t), this.startPoint = t.sample(this.startT, 0).position, this.openEdges = (e.openEdges ?? []).map((e) => ({
 			...e,
 			fromPoint: t.sample(e.fromT, 0).position,
 			toPoint: t.sample(e.toT, 0).position
