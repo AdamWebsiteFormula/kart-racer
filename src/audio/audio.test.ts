@@ -183,10 +183,44 @@ describe('director', () => {
     expect(cues.map((c) => c.sfx)).toEqual(['spin', 'spin', 'spin', 'fizz']);
     expect(cues[0].gain).toBe(1); // the player's own hit
     expect(cues[1].gain).toBe(AUDIO.otherGain); // a near opponent: quieter than the player
-    expect(cues[2].gain).toBeLessThan(AUDIO.farGain);
+    expect(cues[2].gain).toBeLessThan(AUDIO.otherGain * 0.5);
     expect(cues[1].pan).toBeLessThan(-0.5); // facing +z, world +x is on the left of the screen
     expect(music).toEqual([{ type: 'duck' }]);
     expect(distanceGain(AUDIO.farMetres + 1)).toBe(0);
+  });
+
+  it('distance fades smoothly from 1 at near to 0 at far: no step anywhere', () => {
+    const { nearMetres: near, farMetres: far } = AUDIO;
+    expect(distanceGain(near)).toBe(1);
+    expect(distanceGain(near + 1e-6)).toBeCloseTo(1, 4); // it used to drop 9 dB right here
+    expect(distanceGain(far - 1e-6)).toBeCloseTo(0, 6);
+    let last = 1;
+    for (let d = near; d <= far; d += 0.05) {
+      const g = distanceGain(d);
+      expect(g).toBeLessThanOrEqual(last + 1e-12);
+      expect(last - g, `step at ${d.toFixed(2)} m`).toBeLessThan(0.01);
+      last = g;
+    }
+  });
+
+  it('the Final Lap Shift is heard by everyone at full level; a trick when it is done; balls bounce and pop where they are', () => {
+    resetDirector();
+    const l = listener({ n: [5, 0, 0] });
+    const shift = direct([{ type: 'trackChanged', event: { label: 'THE TIDE IS IN' } as never }], [], l).cues;
+    expect(shift).toEqual([{ sfx: 'shift', gain: 1, pan: 0 }]);
+    const k = (racerId: string): RaceEvent => ({ type: 'kart', racerId, event: { type: 'trick' } });
+    expect(direct([k('p'), k('n')], [], l).cues).toEqual([{ sfx: 'trick', gain: 1, pan: 0 }]); // a rival's trick is clutter
+    const near: Vec3 = [3, 0, 0], far: Vec3 = [AUDIO.farMetres + 5, 0, 0];
+    const items = direct([], [
+      { type: 'projectileBounce', id: 1, itemId: 'beachBall', position: near, bouncesLeft: 2 },
+      { type: 'projectilePop', id: 1, itemId: 'beachBall', position: near },
+      { type: 'groundPop', id: 2, itemId: 'oilCan', position: far },
+      { type: 'shieldEnd', racerId: 'p' },
+    ], l).cues;
+    expect(items.map((c) => c.sfx)).toEqual(['bounce', 'pop', 'shieldEnd']); // the far pop is out of earshot
+    expect(items[0].gain).toBeLessThan(1);
+    expect(items[1].gain).toBeLessThan(items[0].gain); // pops are quiet
+    expect(items[0].pan).toBeLessThan(-0.5); // world +x is screen left
   });
 
   it('boost sources pick the right whoosh; other karts\' hops are not heard', () => {

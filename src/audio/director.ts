@@ -17,11 +17,23 @@ export interface Listener {
   positionOf(racerId: string): Vec3 | undefined;
 }
 
-/** Gain for a sound at distance d: 1 inside near, 0 beyond far, linear between, scaled by farGain. */
+/**
+ * Gain for a sound at distance d: 1 inside near, 0 from far on, and between them the inverse-distance
+ * fall (near / d) eased to silence by a smoothstep, so it never steps (it used to drop 9 dB at near).
+ */
 export function distanceGain(d: number): number {
-  if (d <= AUDIO.nearMetres) return 1;
-  if (d >= AUDIO.farMetres) return 0;
-  return AUDIO.farGain * (1 - (d - AUDIO.nearMetres) / (AUDIO.farMetres - AUDIO.nearMetres));
+  const { nearMetres: near, farMetres: far } = AUDIO;
+  if (d <= near) return 1;
+  if (d >= far) return 0;
+  const x = (d - near) / (far - near);
+  return (near / d) * (1 - x * x * (3 - 2 * x));
+}
+
+/** A sound heard from a place in the world (a vent, a creature, a ball): gain and pan from the ear. `reach` stretches the distance (2 = heard twice as far). */
+function fromPlace(l: Listener, p: Vec3, reach = 1): { gain: number; pan: number } {
+  const dx = p[0] - l.position[0], dz = p[2] - l.position[2], d = Math.hypot(dx, dz);
+  const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
+  return { gain: distanceGain(d / reach), pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 };
 }
 
 function spatial(l: Listener, racerId: string): { gain: number; pan: number } {
@@ -69,6 +81,8 @@ function kartCue(e: KartEvent): SfxId | null {
         default: return null;
       }
     case 'landed': return 'land';
+    // the trick itself, the moment it is done (its boost whooshes on landing)
+    case 'trick': return 'trick';
     case 'loop': return e.phase === 'start' ? 'loop' : null;
     case 'wall': return 'wall';
     case 'bump': return 'bump';
@@ -82,11 +96,13 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
   out.length = 0;
   music.length = 0;
   const me = l.playerId;
-  const push = (sfx: SfxId, racerId: string | null, gain = 1, rate = 1) => {
-    const sp = racerId ? spatial(l, racerId) : { gain: 1, pan: 0 };
+  const put = (sfx: SfxId, sp: { gain: number; pan: number }, gain: number, rate: number) => {
     const g = sp.gain * gain;
     if (g > 0.01) out.push(rate === 1 ? { sfx, gain: g, pan: sp.pan } : { sfx, gain: g, pan: sp.pan, rate });
   };
+  const push = (sfx: SfxId, racerId: string | null, gain = 1, rate = 1) => put(sfx, racerId ? spatial(l, racerId) : { gain: 1, pan: 0 }, gain, rate);
+  /** heard from where it happens, not from a racer */
+  const at = (sfx: SfxId, p: Vec3, gain = 1, reach = 1) => put(sfx, fromPlace(l, p, reach), gain, 1);
   for (const e of race) {
     switch (e.type) {
       case 'countdown': push('count', null); if (e.stepsLeft === 3) music.push({ type: 'drums', on: false }); break;
@@ -113,27 +129,18 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         break;
       case 'wrongWay': if (e.racerId === me && e.on) push('wrongWay', null); break;
       case 'respawn': if (e.racerId === me) push('respawn', null); break;
-      case 'pickup': push('balloon', e.racerId); break;
+      case 'pickup': if (balloons) push('balloon', e.racerId); break;
       case 'rescue': push(e.phase === 'start' ? 'claw' : 'clawDrop', e.racerId); break;
-      case 'vent': {
-        // heard from where it stands, like a creature
-        const id: SfxId = e.phase === 'warn' ? 'ventWarn' : e.asset === 'steam' ? 'steamVent' : 'geyser';
-        const dx = e.position[0] - l.position[0], dz = e.position[2] - l.position[2], d = Math.hypot(dx, dz);
-        const g = distanceGain(d);
-        const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
-        if (g > 0.01) out.push({ sfx: id, gain: g, pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 });
-        break;
-      }
+      // heard from where it stands, like a creature
+      case 'vent': at(e.phase === 'warn' ? 'ventWarn' : e.asset === 'steam' ? 'steamVent' : 'geyser', e.position); break;
       case 'creature': {
         const id = CREATURE_SOUND[`${e.kind}:${e.action}`];
-        if (!id) break;
         // a creature is big: heard from twice as far, and never quieter than the other racers
-        const dx = e.position[0] - l.position[0], dz = e.position[2] - l.position[2], d = Math.hypot(dx, dz);
-        const g = distanceGain(d / 2);
-        const right = -dx * Math.cos(l.heading) + dz * Math.sin(l.heading);
-        if (g > 0.01) out.push({ sfx: id, gain: g, pan: d > 0.01 ? Math.max(-1, Math.min(1, right / Math.max(d, 1))) : 0 });
+        if (id) at(id, e.position, 1, 2);
         break;
       }
+      // the Final Lap Shift (design §2): the world changes for everyone at once, so everyone hears it, full level
+      case 'trackChanged': push('shift', null); break;
       case 'coin': if (e.racerId === me) push('coin', null); break;
       case 'kart': {
         if (e.event.type === 'hit' && e.racerId === me) music.push({ type: 'duck' });
@@ -177,7 +184,10 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
       case 'trailBlock': push('blocked', e.racerId); break;
       case 'trailStart': if (e.racerId === me) push('trail', null); break;
       case 'itemRefused': if (e.racerId === me && (e.reason === 'noTarget' || e.reason === 'inFlight')) push('denied', null); break;
-      case 'projectilePop': case 'groundPop': break;
+      // a thrown ball off a wall, and a ball or a dropped item popping: small, from where they are
+      case 'projectileBounce': at('bounce', e.position, 0.6); break;
+      case 'projectilePop': case 'groundPop': at('pop', e.position, 0.5); break;
+      case 'shieldEnd': push('shieldEnd', e.racerId, 0.8); break;
       case 'fog': if (e.victims.includes(me ?? '')) push('fog', null); break;
       default: break;
     }
@@ -192,7 +202,9 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
  */
 let lastRank: number | undefined;
 let goodRank: number = AUDIO.podium;
-export function resetDirector(gridRank?: number, line: number = AUDIO.podium): void { lastRank = gridRank; goodRank = line; }
+/** false in Time Trial: no items, its balloons are hidden, so running through one makes no pop */
+let balloons = true;
+export function resetDirector(gridRank?: number, line: number = AUDIO.podium, withBalloons = true): void { lastRank = gridRank; goodRank = line; balloons = withBalloons; }
 
 /**
  * The race's own winning line: a Knockout round's cut line, only 1st in its final (no next round,

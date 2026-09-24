@@ -10,14 +10,29 @@ export const AUDIO = Object.freeze({
   /** final-lap lift: semitones up and tempo factor */
   liftSemitones: 2,
   liftTempo: 1.06,
-  /** other racers' sounds: full within near, silent beyond far (metres) */
+  /** other racers' sounds: full within near, silent beyond far (metres), a smooth fall between (distanceGain) */
   nearMetres: 12,
   farMetres: 45,
-  farGain: 0.35,
   /** other racers are never as loud as the player: their near level */
   otherGain: 0.6,
-  /** pitch variation on repeated sfx (±) */
+  /** pitch variation on repeated sfx (±); musical and menu cues never vary (NO_JITTER in audio.ts) */
   pitchJitter: 0.03,
+  /** each rival's engine sits this far off the others in pitch (±), so three never phase together */
+  racerPitch: 0.02,
+  /** voices: at most this many of one sound at once, and this many sounds in all (priority stings aside) */
+  voicesPerSound: 3,
+  voicesTotal: 24,
+  /** no recording is levelled so loud that its sample peak passes this */
+  peakCeiling: 0.9,
+  /** the music dips by this factor under a big sound: down in `down` s, back over `up` s */
+  musicDuck: Object.freeze({ gain: 0.5, down: 0.05, up: 0.4 }),
+  /** the roulette's ticks: `fast` apart while it spins, slowing to `slow` as its `seconds` run out */
+  roulette: Object.freeze({ seconds: 1.5, fast: 0.06, slow: 0.22 }),
+  /** the recorded engine's low-pass: `base` Hz at idle, opening `perRpm` Hz for every rpm above it */
+  engineCutoff: Object.freeze({ base: 2500, perRpm: 0.9 }),
+  /** equal-power crossfades baked into each loop's wrap (s): engine and rumble loops, songs */
+  loopFade: 0.03,
+  songFade: 0.012,
   /** engine: fake gearbox */
   gears: 4,
   idleRpm: 1400,

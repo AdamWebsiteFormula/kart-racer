@@ -3,6 +3,7 @@
 // The analysis (trim, level, tempo, loop point, engine bands) is pure and tested; the players are
 // thin Web Audio.
 import { AUDIO } from './constants.ts';
+import { engineCutoff } from './engine.ts';
 
 export interface Manifest {
   sfx: Record<string, { url: string; loop?: boolean }>;
@@ -10,7 +11,11 @@ export interface Manifest {
 }
 
 /** What the analysis found in one recording. Times are buffer seconds. */
-export interface Cut { start: number; end: number; gain: number }
+export interface Cut {
+  start: number; end: number; gain: number;
+  /** where a loop wraps (a crossfade is baked in before loopEnd); a one-shot has none */
+  loopStart?: number; loopEnd?: number;
+}
 export interface Sample extends Cut { buffer: AudioBuffer }
 
 /** Music per track (design §11: five race themes; the two cup finales share the orchestral one). */
@@ -23,12 +28,12 @@ export const themeForTrack = (trackId: string): string => RACE_THEME[trackId] ??
 const HOP = 0.01;
 /** loudness targets (RMS): a sound effect at its loudest moment, a loop and a song on average */
 const SFX_RMS = 0.2, LOOP_RMS = 0.16, SONG_RMS = 0.16;
-/** a song's next pass fades in this fast; the pass before rings on this long past the loop point */
+/** a song fades in this fast when it starts; the loop end stays this far inside the file */
 const FADE_IN = 0.008, TAIL = 0.15;
 /** the final-lap fanfare's length: the music waits this long before it comes back faster */
 export const FANFARE_SECONDS = 2.1;
-/** the finish stings' lengths (catalog `finish`, `finishLow`, plus a breath): the results song waits for their last chord */
-export const STING_SECONDS = Object.freeze({ finish: 3.6, finishLow: 2.3 });
+/** the stings' lengths (catalog `finish`, `finishLow`, `koOut`, `koSafe`, plus a breath): the results song waits for their last chord */
+export const STING_SECONDS = Object.freeze({ finish: 3.6, finishLow: 2.3, koOut: 2.3, koSafe: 2.1 });
 
 // ---------------------------------------------------------------- analysis (pure)
 
@@ -75,6 +80,38 @@ export function meanRms(env: Float32Array): number {
 /** Gain that brings `level` to `target`, never more than `max` (so near-silence is not blown up). */
 export const levelGain = (level: number, target: number, max = 6): number => (level > 1e-4 ? Math.min(max, target / level) : 1);
 
+/** The loudest sample, over all channels. */
+export function samplePeak(chs: readonly Float32Array[]): number {
+  let p = 0;
+  for (const ch of chs) for (let i = 0; i < ch.length; i++) { const a = Math.abs(ch[i]); if (a > p) p = a; }
+  return p;
+}
+
+/** A level gain held so the recording's sample peak lands at or under `AUDIO.peakCeiling`. */
+export const peakSafe = (gain: number, peak: number): number => (peak > 0 ? Math.min(gain, AUDIO.peakCeiling / peak) : gain);
+
+/**
+ * Bake a seamless wrap into a loop, in place: the last `fade` seconds before the loop end blend (at
+ * equal power) into the audio just before the loop start, so the wrap from end to start carries on
+ * sample for sample with no click and no overlap. A loop start too close to the file's start moves
+ * later (and the end with it, when the file has room, so a song's loop keeps its bar length).
+ * Returns the loop points in seconds.
+ */
+export function bakeLoop(chs: readonly Float32Array[], rate: number, start: number, end: number, fade: number): { start: number; end: number } {
+  const len = chs[0]?.length ?? 0;
+  const n = Math.max(1, Math.round(fade * rate));
+  let a = Math.max(0, Math.round(start * rate)), b = Math.min(len, Math.round(end * rate));
+  if (a < n) { const shift = n - a; a = n; if (b + shift <= len) b += shift; }
+  if (b - a < 2 * n) return { start: a / rate, end: b / rate }; // too short to fade: leave it
+  for (const ch of chs) {
+    for (let i = 0; i < n; i++) {
+      const th = ((i + 1) / n) * (Math.PI / 2); // the last sample is all loop-start side: the wrap is exact
+      ch[b - n + i] = ch[b - n + i] * Math.cos(th) + ch[a - n + i] * Math.sin(th);
+    }
+  }
+  return { start: a / rate, end: b / rate };
+}
+
 /**
  * The recorded mix: every recording is levelled to the same peak, then set here. Big moments stand
  * out; sounds that fire every few seconds (boosts, hops, ticks) sit back. Missing ids are 0.9.
@@ -83,7 +120,7 @@ const MIX: Readonly<Record<string, number>> = Object.freeze({
   uiMove: 0.5, uiConfirm: 0.7, uiBack: 0.6, rouletteTick: 0.45,
   count: 1, go: 1.2, lap: 0.9, finalLap: 1.2, finish: 1.2, finishLow: 1,
   balloon: 0.8, coin: 0.7, itemReady: 0.8,
-  throw: 0.9, kite: 0.8, drop: 0.8, shieldUp: 0.8, shieldPop: 0.9, airHorn: 1.1, fog: 0.8, rocket: 1,
+  throw: 0.9, kite: 0.8, drop: 0.8, shieldUp: 0.8, shieldPop: 0.9, shieldEnd: 0.6, airHorn: 1.1, fog: 0.8, bounce: 0.7, pop: 0.7,
   fizz: 1, strikeRoll: 1, strike: 1.1, boing: 0.9, slam: 1.1, anchor: 0.9, slingshot: 0.9, mouse: 0.8, blocked: 0.8, denied: 0.6, trail: 0.6,
   roar: 1.2, stomp: 1.2, yetiThrow: 0.9, snowThud: 1, krakenRise: 1, krakenSlam: 1.2, crabClack: 0.9, honk: 1.1, whaleSong: 1, tailSlap: 1.1,
   claw: 1, clawDrop: 0.9, loop: 0.9, ventWarn: 0.7, geyser: 0.9, steamVent: 0.85,
@@ -91,6 +128,7 @@ const MIX: Readonly<Record<string, number>> = Object.freeze({
   boost1: 0.75, boost2: 0.85, boost3: 1, boostPad: 0.85, boostTrick: 0.9, boostStart: 1, slipstream: 0.85, tierUp: 0.5, tierUp2: 0.6, tierUp3: 0.7,
   hop: 0.6, land: 0.7, wall: 0.8, bump: 0.8,
   gainPlace: 0.6, losePlace: 0.5, wrongWay: 0.8, respawn: 0.8,
+  shift: 1.2, koOut: 1.1, koSafe: 1.1, trick: 0.8,
 });
 export const mixLevel = (id: string): number => MIX[id] ?? (id.startsWith('yelp:') ? 1 : 0.9);
 
@@ -191,19 +229,29 @@ function channels(b: AudioBuffer): Float32Array[] {
   return out;
 }
 
-function cutSfx(b: AudioBuffer, loop: boolean): Sample {
+/** Level a sound effect (its peak never past the ceiling); a loop also gets its wrap baked seamless. */
+export function cutSfx(b: AudioBuffer, loop: boolean): Sample {
+  const chs = channels(b), env = envelope(chs, b.sampleRate), peak = samplePeak(chs);
+  if (loop) {
+    const w = bakeLoop(chs, b.sampleRate, 0, b.duration, AUDIO.loopFade);
+    return { buffer: b, start: w.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(meanRms(env), LOOP_RMS), peak) };
+  }
+  return { buffer: b, start: leadIn(chs, b.sampleRate), end: b.duration, gain: peakSafe(levelGain(peakRms(env), SFX_RMS), peak) };
+}
+
+/** Level a song and find its loop; the first pass starts on its first beat, the wrap is baked seamless. */
+export function cutSong(b: AudioBuffer, bpm: number): Sample {
   const chs = channels(b), env = envelope(chs, b.sampleRate);
-  if (loop) return { buffer: b, start: 0, end: b.duration, gain: levelGain(meanRms(env), LOOP_RMS) };
-  return { buffer: b, start: leadIn(chs, b.sampleRate), end: b.duration, gain: levelGain(peakRms(env), SFX_RMS) };
-}
-
-function cutSong(b: AudioBuffer, bpm: number): Sample {
-  const env = envelope(channels(b), b.sampleRate);
   const p = loopPoints(env, bpm);
-  return { buffer: b, start: p.start, end: Math.min(p.end, b.duration - TAIL), gain: levelGain(meanRms(env), SONG_RMS, 3) };
+  const w = bakeLoop(chs, b.sampleRate, p.start, Math.min(p.end, b.duration - TAIL), AUDIO.songFade);
+  return { buffer: b, start: p.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(meanRms(env), SONG_RMS, 3), samplePeak(chs)) };
 }
 
-/** The manifest, every decoded sound effect, and songs decoded on demand (two kept: they are big). */
+/** Songs kept decoded whatever else is asked for: the menus' and the results'. Race songs: the two most recent. */
+const KEEP_SONGS: ReadonlySet<string> = new Set(['title', 'results']);
+const RACE_SONGS_KEPT = 2;
+
+/** The manifest, every decoded sound effect, and songs decoded on demand (title, results and two race songs kept: they are big). */
 export class SampleBank {
   private manifest: Manifest | null = null;
   private readonly sfx = new Map<string, Sample>();
@@ -254,8 +302,10 @@ export class SampleBank {
     if (!p) {
       p = this.decode(ctx, m.url).then((b) => (b ? cutSong(b, m.bpm) : null));
       this.songs.set(key, p);
-      // a decoded song is tens of MB: keep the two most recent
-      while (this.songs.size > 2) this.songs.delete(this.songs.keys().next().value!);
+      // a decoded song is tens of MB: title and results stay (every race comes back to them), and the
+      // two most recent race songs (a Grand Prix's next track, a retry)
+      const race = [...this.songs.keys()].filter((k) => !KEEP_SONGS.has(k));
+      for (let i = 0; i < race.length - RACE_SONGS_KEPT; i++) this.songs.delete(race[i]);
     } else {
       this.songs.delete(key);
       this.songs.set(key, p);
@@ -266,8 +316,11 @@ export class SampleBank {
 
 // ---------------------------------------------------------------- players
 
+/** A playing one-shot that can be cut short (a quick fade, then it stops). */
+export interface Voice { stop(at: number): void }
+
 /** A one-shot from its first sound. */
-export function playSample(ctx: BaseAudioContext, dest: AudioNode, s: Sample, when: number, gain: number, pan: number, rate = 1): void {
+export function playSample(ctx: BaseAudioContext, dest: AudioNode, s: Sample, when: number, gain: number, pan: number, rate = 1): Voice {
   const src = ctx.createBufferSource();
   src.buffer = s.buffer;
   src.playbackRate.value = rate;
@@ -283,17 +336,26 @@ export function playSample(ctx: BaseAudioContext, dest: AudioNode, s: Sample, wh
   tail.connect(dest);
   src.connect(g);
   src.start(when, s.start);
+  return {
+    stop(at: number) {
+      g.gain.cancelScheduledValues(at);
+      g.gain.setTargetAtTime(0, at, 0.004);
+      try { src.stop(at + 0.03); } catch { /* already stopped */ }
+    },
+  };
 }
 
-/** A song looping between its loop points; on the final lap it pauses for the fanfare and comes back faster. */
+/**
+ * A song looping between its loop points, sample-accurately (the source's own loop, with the wrap's
+ * crossfade baked into the buffer by `cutSong`): no second pass to book, nothing to flam. On the
+ * final lap it pauses for the fanfare and comes back from the top faster.
+ */
 export class SongPlayer {
   private readonly ctx: BaseAudioContext;
   private readonly dest: AudioNode;
   private s: Sample | null = null;
   private src: AudioBufferSourceNode | null = null;
   private out: GainNode | null = null;
-  /** context time the current pass reaches the loop end */
-  private nextAt = Infinity;
   private rate = 1;
 
   constructor(ctx: BaseAudioContext, dest: AudioNode) {
@@ -305,33 +367,25 @@ export class SongPlayer {
     this.stop(when, 0.3);
     this.s = s;
     this.rate = 1;
-    this.pass(when);
+    this.play(when);
   }
 
-  /** One pass from the loop start. The pass before keeps ringing a moment past the loop point. */
-  private pass(when: number): void {
+  /** From the first beat, looping for as long as it plays. */
+  private play(when: number): void {
     const s = this.s!;
     const src = this.ctx.createBufferSource();
     src.buffer = s.buffer;
+    src.loop = true;
+    src.loopStart = s.loopStart ?? s.start;
+    src.loopEnd = s.loopEnd ?? s.end;
     src.playbackRate.value = this.rate;
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0, when);
     g.gain.linearRampToValueAtTime(s.gain, when + FADE_IN);
     src.connect(g).connect(this.dest);
     src.start(when, s.start);
-    if (this.src && this.out) {
-      this.out.gain.setValueAtTime(s.gain, when);
-      this.out.gain.linearRampToValueAtTime(0, when + TAIL);
-      this.src.stop(when + TAIL + 0.02);
-    }
     this.src = src;
     this.out = g;
-    this.nextAt = when + (s.end - s.start) / this.rate;
-  }
-
-  /** Book the next pass shortly before it is due (the audio clock, not frames). */
-  pump(now: number): void {
-    if (this.s && this.nextAt - now < 0.3) this.pass(this.nextAt);
   }
 
   /** Final lap: the music stops for the fanfare, then comes back from the top faster and a semitone up. */
@@ -339,13 +393,12 @@ export class SongPlayer {
     if (!this.s) return;
     this.fade(now, 0.25);
     this.rate = AUDIO.liftTempo;
-    this.pass(now + FANFARE_SECONDS);
+    this.play(now + FANFARE_SECONDS);
   }
 
   stop(now: number, fade = 0.4): void {
     this.fade(now, fade);
     this.s = null;
-    this.nextAt = Infinity;
   }
 
   private fade(now: number, seconds: number): void {
@@ -360,29 +413,39 @@ export class SongPlayer {
 
 /**
  * An engine from looped recordings. The player's has three bands crossfaded by rpm (plan §7.4),
- * the drift screech and the off-road rumble; the others' have the mid band only, panned.
+ * the drift screech and the off-road rumble; the others' have the mid band only, panned. The bands
+ * run through a low-pass that opens with the rpm (`engineCutoff`), so a slow kart is not all fizz.
+ * `seed` sets where each loop starts, so no two engines (or bands) ever run in phase.
  */
 export class LoopEngine {
   private readonly bands: { src: AudioBufferSourceNode; g: GainNode; s: Sample; band: number }[] = [];
   private readonly out: GainNode;
+  private readonly lp: BiquadFilterNode;
   private readonly pan: StereoPannerNode | null = null;
   private readonly screech: { g: GainNode; s: Sample } | null = null;
   private readonly rumble: { g: GainNode; s: Sample } | null = null;
 
-  constructor(ctx: BaseAudioContext, dest: AudioNode, loops: readonly (Sample | undefined)[], drift: Sample | undefined, panned: boolean, offroad?: Sample) {
+  constructor(ctx: BaseAudioContext, dest: AudioNode, loops: readonly (Sample | undefined)[], drift: Sample | undefined, panned: boolean, offroad?: Sample, seed = 0) {
     this.out = ctx.createGain();
     this.out.gain.value = 0;
+    this.lp = ctx.createBiquadFilter();
+    this.lp.type = 'lowpass';
+    this.lp.Q.value = 0.7;
+    this.lp.frequency.value = engineCutoff(AUDIO.idleRpm);
+    this.out.connect(this.lp);
     if (panned && 'createStereoPanner' in ctx) {
       this.pan = ctx.createStereoPanner();
-      this.out.connect(this.pan).connect(dest);
-    } else this.out.connect(dest);
+      this.lp.connect(this.pan).connect(dest);
+    } else this.lp.connect(dest);
+    let layers = 0;
     const loop = (s: Sample, into: AudioNode) => {
       const src = ctx.createBufferSource();
       src.buffer = s.buffer;
       src.loop = true;
+      const a = s.loopStart ?? 0, b = s.loopEnd ?? s.buffer.duration;
+      if (s.loopEnd !== undefined) { src.loopStart = a; src.loopEnd = b; }
       src.connect(into);
-      // start each loop at a different point so the bands never phase together
-      src.start(0, (s.buffer.duration * (0.13 + 0.29 * this.bands.length)) % s.buffer.duration);
+      src.start(0, a + (b - a) * loopPhase(layers++, seed));
       return src;
     };
     loops.forEach((s, i) => {
@@ -407,16 +470,26 @@ export class LoopEngine {
   /** Whether this engine plays the recorded off-road rumble (else the synth one stands in). */
   get hasRumble(): boolean { return this.rumble !== null; }
 
-  /** Follow the rpm; `level` is the engine's loudness, `screech` the drift screech's, `rumble` the off-road's, `pan` −1..1. */
-  set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0): void {
+  /**
+   * Follow the rpm; `level` is the engine's loudness, `screech` the drift screech's, `rumble` the
+   * off-road's, `pan` −1..1, `pitch` this racer's own pitch offset (racerPitch).
+   */
+  set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0, pitch = 1): void {
     const w = bandWeights(rpm);
     for (const b of this.bands) {
-      b.src.playbackRate.setTargetAtTime(bandRate(rpm, b.band), t, 0.03);
+      b.src.playbackRate.setTargetAtTime(bandRate(rpm, b.band) * pitch, t, 0.03);
       b.g.gain.setTargetAtTime((this.bands.length === 1 ? 1 : w[b.band]) * b.s.gain, t, 0.05);
     }
+    this.lp.frequency.setTargetAtTime(engineCutoff(rpm), t, 0.05);
     this.out.gain.setTargetAtTime(level, t, 0.05);
     this.pan?.pan.setTargetAtTime(pan, t, 0.1);
     if (this.screech) this.screech.g.gain.setTargetAtTime(screech * this.screech.s.gain, t, 0.05);
     if (this.rumble) this.rumble.g.gain.setTargetAtTime(rumble * this.rumble.s.gain, t, 0.05);
   }
+}
+
+/** Where loop `layer` of the engine with `seed` starts, as a share of the loop (0..1): no two alike. */
+export function loopPhase(layer: number, seed: number): number {
+  const x = 0.13 + 0.29 * layer + 0.37 * seed;
+  return x - Math.floor(x);
 }

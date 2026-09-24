@@ -1,5 +1,6 @@
 // GameAudio on a fake audio clock: what the music does at the finish line and under the pause menu.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createKartState, NEUTRAL_INPUT } from '../kart-controller/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
 import { GameAudio } from './audio.ts';
 import { AudioBus, busGains } from './bus.ts';
@@ -16,7 +17,7 @@ class Param {
   setTargetAtTime(v: number) { this.value = v; return this; }
   cancelScheduledValues() { return this; }
 }
-interface Source { kind: string; startedAt?: number; offset?: number; stoppedAt?: number }
+interface Source { kind: string; startedAt?: number; offset?: number; stoppedAt?: number; buffer?: unknown; frequency?: Param }
 class FakeCtx {
   static last: FakeCtx;
   state = 'running';
@@ -154,5 +155,113 @@ describe('the pause menu', () => {
     bus.unlock();
     expect((bus.musicFilter as unknown as { frequency: Param }).frequency.value).toBe(AUDIO.pause.hz);
     expect(() => AudioBus.silent().setPaused(true)).not.toThrow();
+  });
+});
+
+describe('the Knockout cut', () => {
+  it('plays safe or out, and the results song waits for its last note', async () => {
+    for (const out of [false, true]) {
+      const { audio, ctx, songs } = game(true);
+      audio.newRace('raceSunrise', 'harbour-loop', 8);
+      audio.tick([{ type: 'go' }], [], L);
+      await flush();
+      ctx.currentTime = 50;
+      audio.tick([finish(out ? 7 : 1)], [], L);
+      ctx.currentTime = 52.5; // main.ts raceOver: the cut is shown
+      const before = ctx.sources.length;
+      audio.knockout(out);
+      expect(ctx.sources.length, 'the sting plays').toBeGreaterThan(before);
+      audio.play('results');
+      await flush();
+      expect(songs().at(-1)!.startedAt).toBeCloseTo(52.5 + STING_SECONDS[out ? 'koOut' : 'koSafe'], 6);
+    }
+  });
+});
+
+describe('the sounds on the bus', () => {
+  const oscs = (ctx: FakeCtx, from: number) => ctx.sources.slice(from).filter((x) => x.kind === 'osc');
+
+  it('musical and menu cues play at their written pitch; the rest vary a little', () => {
+    const { audio, ctx } = game(false);
+    const pitches = (id: 'go' | 'uiMove' | 'hop') => [0, 1, 2].map(() => { const n = ctx.sources.length; audio.sfx(id); ctx.currentTime += 1; return oscs(ctx, n)[0].frequency!.value; });
+    expect(new Set(pitches('go'))).toEqual(new Set([1047]));
+    expect(new Set(pitches('uiMove'))).toEqual(new Set([1200]));
+    expect(new Set(pitches('hop')).size).toBe(3);
+  });
+
+  it('a loud big sound dips the music; a quiet one far off does not', () => {
+    const { audio, bus } = game(false);
+    let ducks = 0;
+    bus.musicDuck = () => { ducks++; };
+    audio.sfx('hop');
+    expect(ducks).toBe(0);
+    audio.sfx('go');
+    audio.tick([{ type: 'trackChanged', event: { label: 'X' } as never }], [], L); // the Final Lap Shift
+    expect(ducks).toBe(2);
+    audio.sfx('roar', 0.2);
+    expect(ducks).toBe(2);
+  });
+
+  it('no more than three of one sound at once, and one of each a tick', () => {
+    const { audio, ctx } = game(false);
+    const n = ctx.sources.length;
+    for (let i = 0; i < 5; i++) audio.sfx('bump');
+    expect(oscs(ctx, n)).toHaveLength(3);
+    ctx.currentTime += 5;
+    const m = ctx.sources.length;
+    const k = (other: string): RaceEvent => ({ type: 'kart', racerId: 'p', event: { type: 'bump', otherId: other } });
+    audio.tick([k('a'), k('b')], [], L);
+    expect(oscs(ctx, m)).toHaveLength(1);
+  });
+
+  it('the roulette ticks quick then slow, each tick cutting the one before', () => {
+    const TICK: Sample = { buffer: { duration: 0.5 } as AudioBuffer, start: 0, end: 0.5, gain: 1 };
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, { onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'rouletteTick' ? TICK : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
+    bus.unlock();
+    const ctx = FakeCtx.last;
+    const k = createKartState({ racerId: 'p' });
+    for (let t = 0; t <= 1.5; t += 0.005) {
+      ctx.currentTime = 10 + t;
+      k.item.rouletteRemaining = Math.max(0, 1.5 - t);
+      audio.input(k, NEUTRAL_INPUT);
+    }
+    const ticks = ctx.sources.filter((x) => x.buffer === TICK.buffer);
+    const gaps = ticks.slice(1).map((x, i) => x.startedAt! - ticks[i].startedAt!);
+    expect(gaps[0]).toBeLessThan(0.08);
+    expect(gaps.at(-1)!).toBeGreaterThan(0.15);
+    // every tick but the last was cut when the next began
+    for (let i = 0; i + 1 < ticks.length; i++) expect(ticks[i].stoppedAt!).toBeLessThanOrEqual(ticks[i + 1].startedAt! + 0.03);
+  });
+});
+
+describe('the engines', () => {
+  const LOOP: Sample = { buffer: { duration: 4 } as AudioBuffer, start: 0.03, end: 4, loopStart: 0.03, loopEnd: 4, gain: 1 };
+  function rig() {
+    let recorded = false;
+    const b = { onLoaded: null, load: async () => undefined, get: (id: string) => (recorded && id.startsWith('engine') ? LOOP : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank;
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, b);
+    bus.unlock();
+    return { audio, ctx: FakeCtx.last, record: () => { recorded = true; } };
+  }
+  const me = createKartState({ racerId: 'p' });
+  const rivals = ['pip', 'momo', 'nova'].map((id, i) => { const k = createKartState({ racerId: id }); k.position = [i + 2, 0, 0]; k.speed = 20; return k; });
+
+  it('nothing is built outside a race; the synth stands in, then stops and leaves when the recordings arrive', () => {
+    const { audio, ctx, record } = rig();
+    audio.engines(me, 0, 25, rivals, L, false);
+    expect(ctx.sources).toHaveLength(0);
+    audio.engines(me, 1, 25, [me, ...rivals], L, true);
+    const synth = ctx.sources.slice();
+    expect(synth.length).toBeGreaterThan(0);
+    record();
+    ctx.currentTime = 5;
+    audio.engines(me, 1, 25, [me, ...rivals], L, true);
+    for (const x of synth) expect(x.stoppedAt, x.kind).toBeLessThanOrEqual(5.2);
+    // the recorded rivals each start at their own point in the loop
+    const loops = ctx.sources.filter((x) => x.buffer === LOOP.buffer);
+    expect(loops.length).toBe(3 + 3);
+    expect(new Set(loops.map((x) => x.offset!.toFixed(3))).size).toBe(loops.length);
   });
 });

@@ -1,5 +1,6 @@
 // One AudioContext, created and resumed on the first user gesture (Safari and Chrome both need
-// it). Graph: sfx → master; music → low-pass (the hit duck, the pause) → master; master → compressor → out.
+// it). Graph: sfx → master; music → duck gain (big sounds) → low-pass (the hit duck, the pause) → master;
+// master → compressor → limiter → out.
 import { AUDIO } from './constants.ts';
 
 export interface Volumes { master: number; music: number; sfx: number }
@@ -19,6 +20,8 @@ export class AudioBus {
   music: GainNode | null = null;
   sfx: GainNode | null = null;
   musicFilter: BiquadFilterNode | null = null;
+  /** the music's own dip under a big sound (`musicDuck`), apart from the volume slider and the pause */
+  musicDuckGain: GainNode | null = null;
   private volumes: Volumes = { master: 0.8, music: 0.7, sfx: 0.8 };
   private readonly Ctx: Ctor | undefined;
   private readonly listeners: (() => void)[] = [];
@@ -64,18 +67,29 @@ export class AudioBus {
     comp.ratio.value = 4;
     comp.attack.value = 0.004;
     comp.release.value = 0.2;
-    comp.connect(ctx.destination);
+    // a brick-wall limiter last: a pile of loud sounds at once never clips the output
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -3;
+    lim.knee.value = 0;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.001;
+    lim.release.value = 0.1;
+    comp.connect(lim);
+    lim.connect(ctx.destination);
     const master = ctx.createGain();
     master.connect(comp);
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.value = AUDIO.openHz;
     lp.connect(master);
+    const duck = ctx.createGain();
+    duck.gain.value = 1;
+    duck.connect(lp);
     const music = ctx.createGain();
-    music.connect(lp);
+    music.connect(duck);
     const sfx = ctx.createGain();
     sfx.connect(master);
-    Object.assign(this, { ctx, master, music, sfx, musicFilter: lp });
+    Object.assign(this, { ctx, master, music, sfx, musicFilter: lp, musicDuckGain: duck });
     this.setVolumes(this.volumes);
     if (this.paused) this.setPaused(true);
   }
@@ -97,6 +111,17 @@ export class AudioBus {
     f.frequency.cancelScheduledValues(t);
     f.frequency.setValueAtTime(AUDIO.duckHz, t);
     f.frequency.setTargetAtTime(AUDIO.openHz, t + AUDIO.duckSeconds * 0.4, AUDIO.duckSeconds * 0.4);
+  }
+
+  /** A big sound (the go, a creature's slam, the Final Lap Shift): the music dips about 6 dB for a moment. */
+  musicDuck(): void {
+    const ctx = this.ctx, d = this.musicDuckGain;
+    if (!ctx || !d) return;
+    const t = ctx.currentTime, { gain, down, up } = AUDIO.musicDuck;
+    d.gain.cancelScheduledValues(t);
+    d.gain.setValueAtTime(d.gain.value, t);
+    d.gain.linearRampToValueAtTime(gain, t + down);
+    d.gain.linearRampToValueAtTime(1, t + down + up);
   }
 
   private paused = false;

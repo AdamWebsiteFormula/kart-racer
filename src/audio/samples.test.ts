@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { AUDIO } from './constants.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
 import {
-  bandRate, bandWeights, barLength, ENGINE_BANDS, envelope, FANFARE_SECONDS, leadIn, levelGain, loopPoints, meanRms,
-  mixLevel, onsets, peakRms, RACE_THEME, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample,
+  bakeLoop, bandRate, bandWeights, barLength, cutSfx, ENGINE_BANDS, envelope, FANFARE_SECONDS, leadIn, levelGain, loopPhase, loopPoints, meanRms,
+  mixLevel, onsets, peakRms, peakSafe, RACE_THEME, samplePeak, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample,
 } from './samples.ts';
+import { engineCutoff, racerPitch } from './engine.ts';
 import { PATCHES } from './sfx.ts';
 import { SFX, sfxBody, SONGS, songBody } from '../../scripts/elevenlabs/catalog.ts';
 
@@ -47,6 +48,40 @@ describe('sample analysis', () => {
     for (const id of Object.keys(PATCHES)) { expect(mixLevel(id), id).toBeGreaterThanOrEqual(0.45); expect(mixLevel(id), id).toBeLessThanOrEqual(1.2); }
   });
 
+  it('no recording is levelled past the peak ceiling: a quiet average with a loud click is held down', () => {
+    expect(samplePeak([Float32Array.from([0.1, -0.5]), Float32Array.from([0.3, 0])])).toBe(0.5);
+    expect(peakSafe(6, 0.5)).toBeCloseTo(AUDIO.peakCeiling / 0.5);
+    expect(peakSafe(0.8, 0.5)).toBe(0.8);
+    expect(peakSafe(2, 0)).toBe(2);
+    // a sound whose loudest 50 ms is quiet but whose one sample peaks high (the old drop: × 1.58 over full scale)
+    const rate = 1000, d = new Float32Array(1000).fill(0.02);
+    d[500] = 0.8;
+    const s = cutSfx({ duration: 1, sampleRate: rate, numberOfChannels: 1, getChannelData: () => d } as unknown as AudioBuffer, false);
+    expect(s.gain * 0.8).toBeLessThanOrEqual(AUDIO.peakCeiling + 1e-9);
+  });
+
+  it('bakes a seamless wrap into a loop: the sample before the loop end carries on into the loop start', () => {
+    const rate = 1000, n = 1000;
+    const ch = new Float32Array(n);
+    for (let i = 0; i < n; i++) ch[i] = Math.sin(i * 0.37) * 0.2 + 0.7 * (i / n); // it drifts: the wrap jumps back down, a click
+    let natural = 0;
+    for (let i = 1; i < n; i++) natural = Math.max(natural, Math.abs(ch[i] - ch[i - 1]));
+    expect(Math.abs(ch[n - 1] - ch[0])).toBeGreaterThan(5 * natural);
+    const w = bakeLoop([ch], rate, 0, 1, 0.02);
+    const a = Math.round(w.start * rate), b = Math.round(w.end * rate);
+    expect(a).toBe(20); // a loop from the file's start moves in by the fade (the audio before it is the blend's other side)
+    expect(b).toBe(n);
+    // the wrap is now the step the audio itself takes into the loop start
+    expect(Math.abs(ch[a] - ch[b - 1])).toBeCloseTo(Math.abs(ch[a] - ch[a - 1]), 2);
+    expect(Math.abs(ch[a] - ch[b - 1])).toBeLessThanOrEqual(natural);
+    // a song's loop well inside the file keeps its bar length exactly
+    const song = new Float32Array(5000).map((_, i) => Math.sin(i * 0.1));
+    const s = bakeLoop([song], rate, 0.5, 4.5, 0.012);
+    expect(s).toEqual({ start: 0.5, end: 4.5 });
+    const t = bakeLoop([song], rate, 0.004, 4.004, 0.012); // too near the start: both ends move, the length holds
+    expect(t.end - t.start).toBeCloseTo(4, 9);
+  });
+
   it('finds the real bar length when the song drifts from the tempo it was asked for', () => {
     const env = beatEnv(146, 60);
     expect(barLength(onsets(env), 150)).toBeCloseTo(240 / 146, 2);
@@ -75,6 +110,20 @@ describe('sample analysis', () => {
     expect(bandWeights(AUDIO.idleRpm)).toEqual([1, 0, 0]);
     expect(bandWeights(ENGINE_BANDS[1])[1]).toBeCloseTo(1, 5);
     expect(bandRate(ENGINE_BANDS[2], 2)).toBe(1);
+  });
+
+  it('the engine low-pass opens with the revs; every engine and band starts at its own point, each rival at its own pitch', () => {
+    expect(engineCutoff(AUDIO.idleRpm)).toBe(AUDIO.engineCutoff.base);
+    expect(engineCutoff(AUDIO.redlineRpm)).toBeGreaterThan(engineCutoff(4000));
+    expect(engineCutoff(4000)).toBeGreaterThan(engineCutoff(AUDIO.idleRpm));
+    // the player's five layers (seed 0) and three rivals' mid loops (seeds 1..3): no two alike
+    const phases = [0, 1, 2, 3, 4].map((k) => loopPhase(k, 0)).concat([1, 2, 3].map((seed) => loopPhase(0, seed)));
+    for (const p of phases) { expect(p).toBeGreaterThanOrEqual(0); expect(p).toBeLessThan(1); }
+    for (let i = 0; i < phases.length; i++) for (let j = i + 1; j < phases.length; j++) expect(Math.abs(phases[i] - phases[j]), `${i}/${j}`).toBeGreaterThan(0.02);
+    const pitches = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'].map(racerPitch);
+    for (const p of pitches) { expect(p).toBeGreaterThanOrEqual(1 - AUDIO.racerPitch); expect(p).toBeLessThanOrEqual(1 + AUDIO.racerPitch); }
+    expect(new Set(pitches.map((p) => p.toFixed(4))).size).toBe(pitches.length);
+    expect(racerPitch('pip')).toBe(racerPitch('pip'));
   });
 });
 
@@ -134,6 +183,11 @@ describe('no singing and no human voices (Adam, 24 Sept 2026)', () => {
     expect(ids.get('offroad')?.loop).toBe(true);
     expect(STING_SECONDS.finish).toBeGreaterThanOrEqual(ids.get('finish')!.seconds);
     expect(STING_SECONDS.finishLow).toBeGreaterThanOrEqual(ids.get('finishLow')!.seconds);
+    expect(STING_SECONDS.koOut).toBeGreaterThanOrEqual(ids.get('koOut')!.seconds);
+    expect(STING_SECONDS.koSafe).toBeGreaterThanOrEqual(ids.get('koSafe')!.seconds);
+    // the design has no rockets (design §8): the old firework sound is gone everywhere
+    expect(ids.has('rocket')).toBe(false);
+    expect('rocket' in PATCHES).toBe(false);
     // the drift tiers stand out more as they climb
     expect(mixLevel('tierUp2')).toBeGreaterThan(mixLevel('tierUp'));
     expect(mixLevel('tierUp3')).toBeGreaterThan(mixLevel('tierUp2'));
@@ -151,7 +205,7 @@ describe('hit yelps', () => {
 
 // ---------------------------------------------------------------- players, on a fake audio clock
 
-interface FakeSource { buffer: unknown; loop: boolean; playbackRate: { value: number }; startedAt?: number; offset?: number; stoppedAt?: number }
+interface FakeSource { buffer: unknown; loop: boolean; loopStart?: number; loopEnd?: number; playbackRate: { value: number }; startedAt?: number; offset?: number; stoppedAt?: number }
 function fakeCtx() {
   const sources: FakeSource[] = [];
   const param = () => ({ value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} });
@@ -172,35 +226,28 @@ function fakeCtx() {
 }
 
 describe('song player', () => {
-  const song: Sample = { buffer: { duration: 40 } as AudioBuffer, start: 0.5, end: 32.5, gain: 1 };
+  const song: Sample = { buffer: { duration: 40 } as AudioBuffer, start: 0.5, end: 32.5, loopStart: 0.5, loopEnd: 32.5, gain: 1 };
 
-  it('loops on the audio clock and comes back faster after the final-lap fanfare', () => {
+  it('loops sample-accurately on one source (no second pass to overlap) and comes back faster after the final-lap fanfare', () => {
     const ctx = fakeCtx();
     const p = new SongPlayer(ctx as unknown as BaseAudioContext, {} as AudioNode);
     p.start(song, 1);
     expect(ctx.sources).toHaveLength(1);
-    expect(ctx.sources[0].startedAt).toBe(1);
-    expect(ctx.sources[0].offset).toBe(0.5);
-    p.pump(10);
-    expect(ctx.sources).toHaveLength(1); // not due yet
-    p.pump(32.8); // the loop end is at 1 + 32 = 33
-    expect(ctx.sources).toHaveLength(2);
-    expect(ctx.sources[1].startedAt).toBeCloseTo(33, 6);
-    expect(ctx.sources[1].offset).toBe(0.5);
-    expect(ctx.sources[0].stoppedAt).toBeGreaterThan(33); // the old pass rings on a moment
-    p.pump(33.1);
-    expect(ctx.sources).toHaveLength(2); // booked once
+    const first = ctx.sources[0];
+    expect([first.startedAt, first.offset, first.loop, first.loopStart, first.loopEnd]).toEqual([1, 0.5, true, 0.5, 32.5]);
+    expect(first.stoppedAt).toBeUndefined(); // it wraps on its own, however long it plays
     p.lift(40);
-    expect(ctx.sources[1].stoppedAt).toBeLessThan(40.5);
-    expect(ctx.sources).toHaveLength(3);
-    expect(ctx.sources[2].startedAt).toBeCloseTo(40 + FANFARE_SECONDS, 6);
-    expect(ctx.sources[2].playbackRate.value).toBe(AUDIO.liftTempo);
-    // the faster pass is shorter in real time
-    p.pump(40 + FANFARE_SECONDS + 32 / AUDIO.liftTempo - 0.1);
-    expect(ctx.sources[3].startedAt).toBeCloseTo(40 + FANFARE_SECONDS + 32 / AUDIO.liftTempo, 6);
+    expect(first.stoppedAt).toBeLessThan(40.5);
+    expect(ctx.sources).toHaveLength(2);
+    const lifted = ctx.sources[1];
+    expect(lifted.startedAt).toBeCloseTo(40 + FANFARE_SECONDS, 6);
+    expect(lifted.offset).toBe(0.5); // from the top
+    expect(lifted.loop).toBe(true);
+    expect(lifted.playbackRate.value).toBe(AUDIO.liftTempo);
     p.stop(80);
-    p.pump(200);
-    expect(ctx.sources).toHaveLength(4);
+    expect(lifted.stoppedAt).toBeLessThan(81);
+    p.lift(90); // stopped: nothing comes back
+    expect(ctx.sources).toHaveLength(2);
   });
 });
 
@@ -215,8 +262,9 @@ describe('sample bank', () => {
     const f = (async (u: string) => ({ ok: true, json: async () => manifest, arrayBuffer: async () => new ArrayBuffer(8), url: u })) as unknown as typeof fetch;
     const data = new Float32Array(4410);
     data.fill(0.4, 441);
-    const buffer = { duration: 0.1, sampleRate: 44100, numberOfChannels: 1, getChannelData: () => data } as unknown as AudioBuffer;
-    const ctx = { decodeAudioData: async () => buffer } as unknown as BaseAudioContext;
+    // each decode its own buffer (a loop's wrap is baked into its samples)
+    const decode = () => { const d = data.slice(); return { duration: 0.1, sampleRate: 44100, numberOfChannels: 1, getChannelData: () => d } as unknown as AudioBuffer; };
+    const ctx = { decodeAudioData: async () => decode() } as unknown as BaseAudioContext;
     const bank = new SampleBank('/', f);
     let ready = 0;
     bank.onLoaded = () => ready++;
@@ -226,7 +274,32 @@ describe('sample bank', () => {
     expect(bank.hasSong('title')).toBe(true);
     expect(bank.get('go')!.start).toBeCloseTo(0.006, 3); // the 10 ms of silence is skipped, less pre-roll
     expect(bank.get('go')!.gain).toBeCloseTo(0.2 / 0.4, 3);
-    expect(bank.get('engine-mid')!.start).toBe(0); // loops play whole
+    // a loop plays whole but for the few ms its wrap blends into
+    expect(bank.get('engine-mid')!.start).toBeCloseTo(AUDIO.loopFade, 6);
+    expect(bank.get('engine-mid')!.loopStart).toBeCloseTo(AUDIO.loopFade, 6);
     expect(await bank.song(ctx, 'nope')).toBeNull();
+    // a loop's wrap is baked seamless and its loop points set
+    expect(bank.get('engine-mid')!.loopEnd).toBeCloseTo(0.1, 6);
+  });
+
+  it('keeps title and results decoded always, and the two most recent race songs', async () => {
+    const keys = ['title', 'results', 'race-a', 'race-b', 'race-c'];
+    const manifest = { sfx: {}, music: Object.fromEntries(keys.map((k) => [k, { url: `audio/music/${k}.mp3`, bpm: 120 }])) };
+    let decodes = 0;
+    const f = (async () => ({ ok: true, json: async () => manifest, arrayBuffer: async () => new ArrayBuffer(8) })) as unknown as typeof fetch;
+    const data = new Float32Array(8000);
+    const buffer = { duration: 1, sampleRate: 8000, numberOfChannels: 1, getChannelData: () => data } as unknown as AudioBuffer;
+    const ctx = { decodeAudioData: async () => { decodes++; return buffer; } } as unknown as BaseAudioContext;
+    const bank = new SampleBank('/', f);
+    await bank.load(ctx);
+    for (const k of ['title', 'race-a', 'results', 'race-b', 'race-c']) await bank.song(ctx, k);
+    expect(decodes).toBe(5);
+    await bank.song(ctx, 'title');
+    await bank.song(ctx, 'results');
+    await bank.song(ctx, 'race-b');
+    await bank.song(ctx, 'race-c');
+    expect(decodes).toBe(5); // none of these were dropped
+    await bank.song(ctx, 'race-a'); // the oldest race song was
+    expect(decodes).toBe(6);
   });
 });

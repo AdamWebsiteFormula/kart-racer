@@ -15,6 +15,15 @@
   "finish": {
    "url": "audio/sfx/finish.mp3"
   },
+  "shift": {
+   "url": "audio/sfx/shift.mp3"
+  },
+  "koSafe": {
+   "url": "audio/sfx/koSafe.mp3"
+  },
+  "koOut": {
+   "url": "audio/sfx/koOut.mp3"
+  },
   "finishLow": {
    "url": "audio/sfx/finishLow.mp3"
   },
@@ -45,14 +54,20 @@
   "shieldPop": {
    "url": "audio/sfx/shieldPop.mp3"
   },
+  "shieldEnd": {
+   "url": "audio/sfx/shieldEnd.mp3"
+  },
+  "bounce": {
+   "url": "audio/sfx/bounce.mp3"
+  },
+  "pop": {
+   "url": "audio/sfx/pop.mp3"
+  },
   "airHorn": {
    "url": "audio/sfx/airHorn.mp3"
   },
   "fog": {
    "url": "audio/sfx/fog.mp3"
-  },
-  "rocket": {
-   "url": "audio/sfx/rocket.mp3"
   },
   "fizz": {
    "url": "audio/sfx/fizz.mp3"
@@ -155,6 +170,9 @@
   },
   "boostPad": {
    "url": "audio/sfx/boostPad.mp3"
+  },
+  "trick": {
+   "url": "audio/sfx/trick.mp3"
   },
   "boostTrick": {
    "url": "audio/sfx/boostTrick.mp3"

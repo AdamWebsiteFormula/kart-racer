@@ -27,6 +27,11 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'lap', seconds: 0.8, prompt: 'A short cheerful arcade chime for completing a lap: three quick rising bell and marimba notes. Bright and clean. No voice.' },
   { id: 'finalLap', seconds: 2, prompt: 'A short exciting brass fanfare sting announcing the final lap of a cartoon kart race: quick rising trumpet notes and a cymbal swell. No voice.' },
   { id: 'finish', seconds: 3.5, prompt: 'A triumphant short victory fanfare for winning a cartoon kart race: bright brass section, snare roll and a cymbal crash, joyful ending chord. No voice.' },
+  // the Final Lap Shift (design §2): the whole track changes at once
+  { id: 'shift', seconds: 2.2, prompt: 'A big magical world-changing sting for a cartoon race track transforming: a deep rising rumble swelling into a huge airy whoosh sweep, then a bright sparkly shimmer. Dramatic and exciting, short. No music, no voice.' },
+  // the Knockout cut: through to the next round, or out
+  { id: 'koSafe', seconds: 2, prompt: 'A short bright arcade success sting for making it through to the next round of a cartoon race: a quick rising three-note synth-brass call ending on a sparkly chord. Cheerful. No voice.' },
+  { id: 'koOut', seconds: 2.2, prompt: 'A short gentle arcade sting for being knocked out of a cartoon race: a slow descending four-note muted trombone phrase, a little sad but friendly and funny, soft ending. No voice.' },
   { id: 'finishLow', seconds: 2.2, prompt: 'A short friendly nice-try jingle for finishing a cartoon race in a lower place: soft marimba and muted trumpet, cheerful but modest, gentle ending. No voice.' },
   // pickups and items
   { id: 'balloon', seconds: 0.6, prompt: `A party balloon popping: one crisp rubber pop with a tiny sparkly twinkle after it. ${CARTOON}` },
@@ -38,9 +43,12 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'drop', seconds: 0.6, prompt: `A small object dropped onto a road: soft plop and a little rubbery bounce. ${CARTOON}` },
   { id: 'shieldUp', seconds: 1, prompt: `A magical bubble shield forming: shimmering rising whoosh with a soft glassy ring. ${CARTOON}` },
   { id: 'shieldPop', seconds: 0.8, prompt: `A magical soap bubble shield bursting into sparkles: glassy pop and a glittering shatter. ${CARTOON}` },
+  { id: 'shieldEnd', seconds: 0.8, prompt: `A magical bubble shield fading away on its own: a soft glassy shimmer dissolving downward, gentle and quiet. ${CARTOON}` },
+  // a thrown beach ball off a wall; a ball or a dropped toy popping
+  { id: 'bounce', seconds: 0.5, influence: 0.6, prompt: `A loud inflatable beach ball bouncing hard off a wall, close up: one punchy hollow rubbery boing. ${CARTOON}` },
+  { id: 'pop', seconds: 0.5, influence: 0.5, prompt: `A small toy popping and vanishing: one soft rubbery pop with a tiny puff of air. ${CARTOON}` },
   { id: 'airHorn', seconds: 1.2, prompt: 'A loud comedic stadium air horn: one long cartoon honk blast. No voice.' },
   { id: 'fog', seconds: 1.5, prompt: `A thick cloud of smoke puffing out: soft rushing whoosh and a hissing puff. ${CARTOON}` },
-  { id: 'rocket', seconds: 1.3, prompt: `A firework rocket launching: fizzing sparkly whoosh, then a small crackle. ${CARTOON}` },
   // the new items (design §8, 23 Sept 2026)
   { id: 'fizz', seconds: 1.2, prompt: `A shaken soda bottle cap popping off, then a strong fizzy foam blast spraying out: a pop, then a rushing carbonated fizz whoosh. ${CARTOON}` },
   { id: 'strikeRoll', seconds: 2, prompt: `A giant heavy bowling ball starting to roll fast down a wooden lane: a deep rumbling thunder that builds and speeds up. ${CARTOON}` },
@@ -83,6 +91,8 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'boost2', seconds: 1, prompt: 'A strong turbo boost for a go-kart: rushing jet burst with a rising whoosh. No music, no voice.' },
   { id: 'boost3', seconds: 1.4, prompt: 'A big powerful turbo boost for a go-kart: roaring jet blast with a rising whoosh and a crackling flame. No music, no voice.' },
   { id: 'boostPad', seconds: 0.9, prompt: 'A go-kart driving over a glowing speed boost pad: an electric zap and a fast rising whoosh. Arcade style. No music, no voice.' },
+  // the trick itself, the moment the button is pressed in the air
+  { id: 'trick', seconds: 0.7, prompt: `A go-kart doing a quick mid-air flip trick: a fast spinning air whoosh swish with a tiny sparkle. ${CARTOON}` },
   { id: 'boostTrick', seconds: 0.8, prompt: `A stylish mid-air trick: quick sparkling swoosh with a twinkle chime. ${CARTOON}` },
   { id: 'boostStart', seconds: 1.2, prompt: 'A perfect rocket start in a kart race: a sharp small engine rev, then a turbo whoosh launching forward. No music, no voice.' },
   { id: 'slipstream', seconds: 1, prompt: "A go-kart slingshotting out of another kart's slipstream: a rushing wind whoosh that swells and snaps forward past the listener, airy and fast. No music, no voice." },
@@ -102,7 +112,8 @@ export const SFX: readonly SfxSpec[] = [
   // menus
   { id: 'uiMove', seconds: 0.5, influence: 0.6, prompt: 'A very short soft menu cursor tick: one light plastic click, arcade game menu. No echo, no voice.' },
   { id: 'uiConfirm', seconds: 0.5, influence: 0.5, prompt: 'A bright menu confirm sound: a cheerful two-note chime going up, arcade game menu, short. No voice.' },
-  { id: 'uiBack', seconds: 0.5, influence: 0.5, prompt: 'A soft menu back sound: one short low bubbly pop going down, arcade game menu. No voice.' },
+  // remade 24 Sept 2026: the first came out 27 dB under full scale
+  { id: 'uiBack', seconds: 0.5, influence: 0.5, prompt: 'A clear menu back sound: one short bubbly pop going down, arcade game menu, clean, present and not too quiet. No voice.' },
   // horns, one per racer (design §5)
   { id: 'horn:pip', seconds: 0.7, prompt: 'A cartoon car horn that sounds like a hummingbird: two quick high chirpy honks with a bicycle bell ring. No voice.' },
   { id: 'horn:momo', seconds: 1, prompt: 'A cartoon car horn that is a cat purr blended with a small engine rev: one rolling purr-rev honk. No words.' },

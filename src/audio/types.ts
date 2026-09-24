@@ -3,11 +3,12 @@
 export type SfxId =
   | 'count' | 'go' | 'lap' | 'finalLap' | 'finish' | 'finishLow'
   | 'balloon' | 'coin' | 'rouletteTick' | 'itemReady'
-  | 'throw' | 'kite' | 'drop' | 'shieldUp' | 'shieldPop' | 'airHorn' | 'fog' | 'rocket'
+  | 'throw' | 'kite' | 'drop' | 'shieldUp' | 'shieldPop' | 'airHorn' | 'fog'
   | 'fizz' | 'strikeRoll' | 'strike' | 'boing' | 'slam' | 'anchor' | 'slingshot' | 'mouse' | 'blocked' | 'denied' | 'trail'
   | 'roar' | 'stomp' | 'yetiThrow' | 'snowThud' | 'krakenRise' | 'krakenSlam' | 'crabClack' | 'honk' | 'whaleSong' | 'tailSlap'
   | 'claw' | 'clawDrop'
   | 'loop'
+  | 'shift' | 'koOut' | 'koSafe' | 'trick' | 'bounce' | 'pop' | 'shieldEnd'
   | 'ventWarn' | 'geyser' | 'steamVent'
   | 'hit' | 'hitConfirm' | 'spin' | 'boost1' | 'boost2' | 'boost3' | 'boostPad' | 'boostTrick' | 'boostStart'
   | 'slipstream' | 'tierUp' | 'tierUp2' | 'tierUp3' | 'hop' | 'land' | 'wall' | 'bump' | 'wrongWay' | 'gainPlace' | 'losePlace'

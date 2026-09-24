@@ -5,15 +5,30 @@ import type { RaceEvent } from '../race-manager/types.ts';
 import { AudioBus, type Volumes } from './bus.ts';
 import { AUDIO } from './constants.ts';
 import { direct, hornFor, resetDirector, type Listener } from './director.ts';
-import { engineHz, offroadAmount, rpmFor } from './engine.ts';
+import { engineHz, offroadAmount, racerPitch, rpmFor } from './engine.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
-import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack } from './samples.ts';
-import { noiseBuffer, PATCHES, playPatch } from './sfx.ts';
+import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Voice } from './samples.ts';
+import { noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
 import type { Cue, MusicCue, SfxId, SongId } from './types.ts';
+import { mergeCues, rouletteGap, Voices } from './voices.ts';
 
-interface EngineVoice { o1: OscillatorNode; o2: OscillatorNode; lp: BiquadFilterNode; gain: GainNode; scrub: GainNode; rumble: GainNode | null; pan: StereoPannerNode | null }
+interface EngineVoice {
+  o1: OscillatorNode; o2: OscillatorNode; lp: BiquadFilterNode; gain: GainNode; scrub: GainNode; rumble: GainNode | null; pan: StereoPannerNode | null;
+  /** every source it runs and every node that reaches the bus, to stop and unplug it */
+  srcs: AudioScheduledSourceNode[]; outs: AudioNode[];
+}
+
+/** Musical and menu cues play at their written pitch: no random jitter (a detuned fanfare sounds wrong). */
+export const STEADY: ReadonlySet<SfxId> = new Set<SfxId>([
+  'count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'itemReady', 'uiMove', 'uiConfirm', 'uiBack',
+  'gainPlace', 'losePlace', 'shift', 'koOut', 'koSafe',
+]);
+/** Big sounds the music dips under for a moment (bus.musicDuck), when they play loud. */
+export const DUCKERS: ReadonlySet<SfxId> = new Set<SfxId>(['airHorn', 'strike', 'krakenSlam', 'stomp', 'roar', 'go', 'shift', 'slam']);
+/** Stings that play whatever else is ringing (they still count toward their own voice cap). */
+const PRIORITY: ReadonlySet<SfxId> = new Set<SfxId>(['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'shift', 'koOut', 'koSafe', 'wrongWay']);
 
 export class GameAudio {
   readonly bus: AudioBus;
@@ -42,6 +57,10 @@ export class GameAudio {
   private stingEnds = 0;
   /** the synth off-road rumble, when the engines are recorded but the rumble loop is not */
   private rumble: GainNode | null = null;
+  /** the sounds still ringing: a cap per sound and in all */
+  private readonly voices = new Voices();
+  /** the roulette's last tick, cut when the next one starts so ticks never pile up */
+  private tickVoice: Voice | null = null;
 
   constructor(bus = new AudioBus(), bank = new SampleBank()) {
     this.bus = bus;
@@ -143,8 +162,8 @@ export class GameAudio {
    * (`finishLine`). A recorded race song decodes during the countdown and starts on the go; the
    * synth one plays with its drums muted until the go.
    */
-  newRace(song: SongId, trackId?: string, gridRank?: number, finishLine?: number): void {
-    resetDirector(gridRank, finishLine);
+  newRace(song: SongId, trackId?: string, gridRank?: number, finishLine?: number, balloons = true): void {
+    resetDirector(gridRank, finishLine, balloons);
     this.stingEnds = 0;
     this.songId = null;
     const key = trackId ? themeForTrack(trackId) : song;
@@ -164,7 +183,6 @@ export class GameAudio {
   private pump(): void {
     const ctx = this.bus.ctx, seq = this.seq;
     if (!ctx || ctx.state !== 'running') return;
-    this.song?.pump(ctx.currentTime);
     if (!seq) return;
     const notes = seq.take(ctx.currentTime + AUDIO.scheduleAhead, this.booked);
     for (const n of notes) {
@@ -173,15 +191,26 @@ export class GameAudio {
     }
   }
 
-  /** One sound now; `pitch` scales its playback rate on top of the jitter. */
-  sfx(id: SfxId, gain = 1, pan = 0, pitch = 1): void {
+  /**
+   * One sound now; `pitch` scales its playback rate on top of the jitter (none for musical and menu
+   * cues). Nothing plays past the voice caps; a loud big sound dips the music. Returns the recorded
+   * voice, which can be cut short, when there is one.
+   */
+  sfx(id: SfxId, gain = 1, pan = 0, pitch = 1): Voice | null {
     const ctx = this.bus.ctx;
-    if (!ctx || !this.bus.running) return;
-    this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
-    const rate = pitch * (1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter);
+    if (!ctx || !this.bus.running) return null;
+    let rate = pitch;
+    if (!STEADY.has(id)) {
+      this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
+      rate *= 1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter;
+    }
     const s = this.bank.get(id);
-    if (s) playSample(ctx, this.bus.sfx!, s, ctx.currentTime + 0.005, gain * mixLevel(id), pan, rate);
-    else playPatch(ctx, this.bus.sfx!, PATCHES[id], ctx.currentTime + 0.005, gain, pan, rate);
+    const seconds = (s ? s.buffer.duration - s.start : patchSeconds(PATCHES[id])) / rate;
+    if (!this.voices.admit(id, ctx.currentTime, seconds, PRIORITY.has(id))) return null;
+    if (DUCKERS.has(id) && gain >= 0.5) this.bus.musicDuck();
+    if (s) return playSample(ctx, this.bus.sfx!, s, ctx.currentTime + 0.005, gain * mixLevel(id), pan, rate);
+    playPatch(ctx, this.bus.sfx!, PATCHES[id], ctx.currentTime + 0.005, gain, pan, rate);
+    return null;
   }
 
   ui(kind: 'move' | 'confirm' | 'back'): void {
@@ -192,7 +221,8 @@ export class GameAudio {
   tick(race: readonly RaceEvent[], items: readonly ItemEvent[], l: Listener): void {
     if (!this.bus.running) return;
     const { cues, music } = direct(race, items, l, this.cues, this.music);
-    for (const c of cues) this.sfx(c.sfx, c.gain, c.pan, c.rate);
+    // one of each sound a tick, the loudest (a strike's three spins, a pile-up's bumps)
+    for (const c of mergeCues(cues)) this.sfx(c.sfx, c.gain, c.pan, c.rate);
     for (const m of music) {
       if (m.type === 'finalLap') {
         if (this.songKey) this.song?.lift(this.bus.time); else this.seq?.lift(this.bus.time);
@@ -204,13 +234,30 @@ export class GameAudio {
     }
   }
 
-  /** Player horn on the rising edge of the horn button; the roulette ticks while it rolls. */
+  /**
+   * Player horn on the rising edge of the horn button. The roulette ticks while it rolls, quick at
+   * first and slowing before the chime (`rouletteGap`); each tick cuts the one before.
+   */
   input(player: KartState | undefined, input: InputState | undefined): void {
     if (!player || !input) return;
     if (input.horn && !this.lastHorn) this.sfx(hornFor(player.racerId), 0.8);
     this.lastHorn = input.horn;
-    const rolling = player.item.rouletteRemaining > 0 || player.item.nextRouletteRemaining > 0;
-    if (rolling && this.bus.time - this.lastTick > 0.09) { this.lastTick = this.bus.time; this.sfx('rouletteTick', 0.7); }
+    const left = Math.max(player.item.rouletteRemaining, player.item.nextRouletteRemaining);
+    if (left > 0 && this.bus.time - this.lastTick >= rouletteGap(left)) {
+      this.lastTick = this.bus.time;
+      this.tickVoice?.stop(this.bus.time + 0.004);
+      this.tickVoice = this.sfx('rouletteTick', 0.7);
+    }
+  }
+
+  /**
+   * The Knockout cut is shown (main.ts `raceOver`): through to the next round, or out. The results
+   * song waits for the sting's last note.
+   */
+  knockout(out: boolean): void {
+    const id = out ? 'koOut' : 'koSafe';
+    this.sfx(id);
+    if (this.bus.running) this.stingEnds = Math.max(this.stingEnds, this.bus.time + STING_SECONDS[id]);
   }
 
   private lastTick = 0;
@@ -219,10 +266,11 @@ export class GameAudio {
 
   // ---------------------------------------------------------------- engines
   private voice(ctx: AudioContext, panned: boolean): EngineVoice {
+    const srcs: AudioScheduledSourceNode[] = [], outs: AudioNode[] = [];
     const gain = ctx.createGain();
     gain.gain.value = 0;
     let pan: StereoPannerNode | null = null;
-    if (panned) { pan = ctx.createStereoPanner(); gain.connect(pan).connect(this.bus.sfx!); } else gain.connect(this.bus.sfx!);
+    if (panned) { pan = ctx.createStereoPanner(); gain.connect(pan).connect(this.bus.sfx!); outs.push(pan); } else { gain.connect(this.bus.sfx!); outs.push(gain); }
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.Q.value = 3;
@@ -236,9 +284,11 @@ export class GameAudio {
     o2g.gain.value = panned ? 0 : 0.5;
     o2.connect(o2g).connect(lp);
     o1.start(); o2.start();
+    srcs.push(o1, o2);
     const scrub = ctx.createGain();
     scrub.gain.value = 0;
-    const rumble = panned ? null : this.rumbleVoice(ctx);
+    const rumble = panned ? null : this.rumbleVoice(ctx, srcs);
+    if (rumble) outs.push(rumble);
     if (!panned) {
       const n = ctx.createBufferSource();
       n.buffer = (() => { const b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = b.getChannelData(0); let x = 7; for (let i = 0; i < d.length; i++) { x = (x * 1664525 + 1013904223) >>> 0; d[i] = x / 0x80000000 - 1; } return b; })();
@@ -249,12 +299,21 @@ export class GameAudio {
       bp.Q.value = 1.2;
       n.connect(bp).connect(scrub).connect(this.bus.sfx!);
       n.start();
+      srcs.push(n);
+      outs.push(scrub);
     }
-    return { o1, o2, lp, gain, scrub, rumble, pan };
+    return { o1, o2, lp, gain, scrub, rumble, pan, srcs, outs };
+  }
+
+  /** Stop a synth engine voice and unplug it from the bus (a quick fade first, so it does not click). */
+  private dispose(v: EngineVoice, t: number): void {
+    for (const g of [v.gain, v.scrub, v.rumble]) g?.gain.setTargetAtTime(0, t, 0.02);
+    for (const s of v.srcs) { try { s.stop(t + 0.12); } catch { /* already stopped */ } }
+    v.srcs[0].onended = () => { for (const n of v.outs) n.disconnect(); };
   }
 
   /** The synth off-road rumble: looped noise under a low-pass, silent until the wheels leave the road. */
-  private rumbleVoice(ctx: AudioContext): GainNode {
+  private rumbleVoice(ctx: AudioContext, srcs?: AudioScheduledSourceNode[]): GainNode {
     const n = ctx.createBufferSource();
     n.buffer = noiseBuffer(ctx);
     n.loop = true;
@@ -265,6 +324,7 @@ export class GameAudio {
     g.gain.value = 0;
     n.connect(lp).connect(g).connect(this.bus.sfx!);
     n.start();
+    srcs?.push(n);
     return g;
   }
 
@@ -277,6 +337,8 @@ export class GameAudio {
     if (!ctx || !this.bus.running) return;
     if (this.recordedEngines(ctx, player, throttle, topSpeed, others, l, on)) return;
     const t = ctx.currentTime;
+    // nothing is built outside a race (the menus, the attract loop before a race)
+    if (!this.player && (!on || !player)) return;
     if (!this.player) this.player = this.voice(ctx, false);
     if (this.ai.length === 0) for (let i = 0; i < AUDIO.aiEngines; i++) this.ai.push(this.voice(ctx, true));
     const pv = this.player;
@@ -303,7 +365,7 @@ export class GameAudio {
       const k = near[i], d = this.nearD[i];
       if (!k || d > AUDIO.farMetres) { v.gain.gain.setTargetAtTime(0, t, 0.1); return; }
       const r = rpmFor(k.speed, topSpeed);
-      v.o1.frequency.setTargetAtTime(engineHz(r) * 1.02, t, 0.05);
+      v.o1.frequency.setTargetAtTime(engineHz(r) * 1.02 * racerPitch(k.racerId), t, 0.05);
       v.lp.frequency.setTargetAtTime(300 + r * 0.2, t, 0.05);
       const g = 0.035 * Math.max(0, 1 - d / AUDIO.farMetres);
       v.gain.gain.setTargetAtTime(g, t, 0.1);
@@ -340,14 +402,17 @@ export class GameAudio {
     const idle = this.bank.get('engine-idle'), mid = this.bank.get('engine-mid'), high = this.bank.get('engine-high');
     if (!idle || !mid || !high) return false;
     const t = ctx.currentTime, L = AUDIO.engineLoop;
+    // the synth voices, if they ran before the recordings arrived, stop and leave the graph
+    if (this.player) { this.dispose(this.player, t); this.player = null; }
+    for (const v of this.ai.splice(0)) this.dispose(v, t);
     if (!this.loopPlayer) {
+      // nothing is built outside a race
+      if (!on || !player) return true;
       this.loopPlayer = new LoopEngine(ctx, this.bus.sfx!, [idle, mid, high], this.bank.get('drift'), false, this.bank.get('offroad'));
       // no recorded rumble: the synth one stands in
       if (!this.loopPlayer.hasRumble) this.rumble = this.rumbleVoice(ctx);
-      for (let i = 0; i < AUDIO.aiEngines; i++) this.loopAi.push(new LoopEngine(ctx, this.bus.sfx!, [mid], undefined, true));
-      // the synth voices, if they ran before the recordings arrived, go quiet
-      if (this.player) { this.player.gain.gain.setTargetAtTime(0, t, 0.05); this.player.scrub.gain.setTargetAtTime(0, t, 0.05); this.player.rumble?.gain.setTargetAtTime(0, t, 0.05); }
-      for (const v of this.ai) v.gain.gain.setTargetAtTime(0, t, 0.05);
+      // each rival its own start point in the loop (and its own pitch, below), so none phase together
+      for (let i = 0; i < AUDIO.aiEngines; i++) this.loopAi.push(new LoopEngine(ctx, this.bus.sfx!, [mid], undefined, true, undefined, i + 1));
     }
     if (!on || !player) {
       this.loopPlayer.set(t, AUDIO.idleRpm, 0);
@@ -365,7 +430,7 @@ export class GameAudio {
     this.loopAi.forEach((v, i) => {
       const k = near[i], d = this.nearD[i];
       if (!k || d > AUDIO.farMetres) { v.set(t, AUDIO.idleRpm, 0); return; }
-      v.set(t, rpmFor(k.speed, topSpeed), L.other * Math.max(0, 1 - d / AUDIO.farMetres), 0, panOf(k, l, d));
+      v.set(t, rpmFor(k.speed, topSpeed), L.other * Math.max(0, 1 - d / AUDIO.farMetres), 0, panOf(k, l, d), 0, racerPitch(k.racerId));
     });
     return true;
   }

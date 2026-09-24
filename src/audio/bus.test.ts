@@ -44,7 +44,7 @@ const ALL: SfxId[] = Object.keys(PATCHES) as SfxId[];
 
 describe('sfx patches', () => {
   it('every SfxId has a patch with a sane shape and a length under 2 s', () => {
-    const expected: SfxId[] = ['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'balloon', 'coin', 'rouletteTick', 'itemReady', 'throw', 'kite', 'drop', 'shieldUp', 'shieldPop', 'airHorn', 'fog', 'rocket', 'fizz', 'strikeRoll', 'strike', 'boing', 'slam', 'anchor', 'slingshot', 'mouse', 'blocked', 'denied', 'trail', 'roar', 'stomp', 'yetiThrow', 'snowThud', 'krakenRise', 'krakenSlam', 'crabClack', 'honk', 'whaleSong', 'tailSlap', 'claw', 'clawDrop', 'loop', 'ventWarn', 'geyser', 'steamVent', 'hit', 'hitConfirm', 'spin', 'boost1', 'boost2', 'boost3', 'boostPad', 'boostTrick', 'boostStart', 'slipstream', 'tierUp', 'tierUp2', 'tierUp3', 'hop', 'land', 'wall', 'bump', 'wrongWay', 'gainPlace', 'losePlace', 'respawn', 'uiMove', 'uiConfirm', 'uiBack', 'horn:pip', 'horn:momo', 'horn:nova', 'horn:juniper', 'horn:otto', 'horn:sprocket', 'horn:boulder', 'horn:gus', 'yelp:pip', 'yelp:momo', 'yelp:nova', 'yelp:juniper', 'yelp:otto', 'yelp:sprocket', 'yelp:boulder', 'yelp:gus'];
+    const expected: SfxId[] = ['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'balloon', 'coin', 'rouletteTick', 'itemReady', 'throw', 'kite', 'drop', 'shieldUp', 'shieldPop', 'shieldEnd', 'airHorn', 'fog', 'bounce', 'pop', 'fizz', 'strikeRoll', 'strike', 'boing', 'slam', 'anchor', 'slingshot', 'mouse', 'blocked', 'denied', 'trail', 'roar', 'stomp', 'yetiThrow', 'snowThud', 'krakenRise', 'krakenSlam', 'crabClack', 'honk', 'whaleSong', 'tailSlap', 'claw', 'clawDrop', 'loop', 'shift', 'koOut', 'koSafe', 'trick', 'ventWarn', 'geyser', 'steamVent', 'hit', 'hitConfirm', 'spin', 'boost1', 'boost2', 'boost3', 'boostPad', 'boostTrick', 'boostStart', 'slipstream', 'tierUp', 'tierUp2', 'tierUp3', 'hop', 'land', 'wall', 'bump', 'wrongWay', 'gainPlace', 'losePlace', 'respawn', 'uiMove', 'uiConfirm', 'uiBack', 'horn:pip', 'horn:momo', 'horn:nova', 'horn:juniper', 'horn:otto', 'horn:sprocket', 'horn:boulder', 'horn:gus', 'yelp:pip', 'yelp:momo', 'yelp:nova', 'yelp:juniper', 'yelp:otto', 'yelp:sprocket', 'yelp:boulder', 'yelp:gus'];
     expect(ALL.sort()).toEqual(expected.sort());
     for (const id of ALL) {
       const p = PATCHES[id];
@@ -73,18 +73,35 @@ describe('bus', () => {
     expect(busGains({ master: -1, music: 0, sfx: 0 }).master).toBe(0);
   });
 
-  it('nothing exists until a gesture; then the graph is music → low-pass → master → compressor → out', () => {
+  it('nothing exists until a gesture; then the graph is music → duck → low-pass → master → compressor → limiter → out', () => {
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
     expect(bus.ctx).toBeNull();
     bus.unlock();
     const ctx = FakeCtx.last!;
     expect(ctx.state).toBe('running');
-    const b = bus as unknown as { music: Node_; sfx: Node_; master: Node_; musicFilter: Node_ };
-    expect(b.music.out[0]).toBe(b.musicFilter);
+    const b = bus as unknown as { music: Node_; sfx: Node_; master: Node_; musicFilter: Node_; musicDuckGain: Node_ };
+    expect(b.music.out[0]).toBe(b.musicDuckGain);
+    expect(b.musicDuckGain.out[0]).toBe(b.musicFilter);
     expect(b.musicFilter.out[0]).toBe(b.master);
     expect(b.sfx.out[0]).toBe(b.master);
-    expect(b.master.out[0].kind).toBe('comp');
-    expect(b.master.out[0].out[0]).toBe(ctx.destination);
+    const comp = b.master.out[0] as Node_ & { threshold: Param };
+    expect(comp.kind).toBe('comp');
+    // a brick-wall limiter after the compressor: -3 dB, 20:1, 1 ms
+    const lim = comp.out[0] as Node_ & { threshold: Param; ratio: Param; attack: Param };
+    expect(lim.kind).toBe('comp');
+    expect([lim.threshold.value, lim.ratio.value, lim.attack.value]).toEqual([-3, 20, 0.001]);
+    expect(lim.out[0]).toBe(ctx.destination);
+  });
+
+  it('a big sound dips the music about 6 dB: down in 50 ms, back over 400 ms', () => {
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    bus.unlock();
+    bus.musicDuck();
+    const g = (bus as unknown as { musicDuckGain: { gain: Param } }).musicDuckGain.gain;
+    const ramps = g.calls.filter((c) => c[0] === 'lin');
+    expect(ramps).toEqual([['lin', AUDIO.musicDuck.gain, 1 + AUDIO.musicDuck.down], ['lin', 1, 1 + AUDIO.musicDuck.down + AUDIO.musicDuck.up]]);
+    expect(20 * Math.log10(AUDIO.musicDuck.gain)).toBeCloseTo(-6, 0);
+    expect(() => AudioBus.silent().musicDuck()).not.toThrow();
   });
 
   it('a hidden tab suspends and a visible one resumes; the duck dips the music filter', () => {

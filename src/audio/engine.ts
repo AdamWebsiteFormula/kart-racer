@@ -38,3 +38,19 @@ export function offroadAmount(k: Pick<KartState, 'grounded' | 'surface' | 'speed
   if (!k.grounded || (k.surface !== 'dirt' && k.surface !== 'mud') || !(topSpeed > 0)) return 0;
   return Math.min(1, Math.abs(k.speed) / topSpeed);
 }
+
+/** The recorded engine's low-pass cutoff (Hz) at an rpm: `base` at idle, opening as the revs climb. */
+export function engineCutoff(rpm: number): number {
+  const c = AUDIO.engineCutoff;
+  return c.base + c.perRpm * Math.max(0, rpm - AUDIO.idleRpm);
+}
+
+/**
+ * A racer's own engine pitch, 1 ± `AUDIO.racerPitch`, fixed by their id: three rivals on the same
+ * recording never sit on the same note, and each keeps theirs from frame to frame.
+ */
+export function racerPitch(racerId: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < racerId.length; i++) h = Math.imul(h ^ racerId.charCodeAt(i), 16777619) >>> 0;
+  return 1 + ((h % 2001) / 1000 - 1) * AUDIO.racerPitch;
+}

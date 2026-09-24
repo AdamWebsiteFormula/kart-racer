@@ -36,6 +36,11 @@ export const PATCHES: Readonly<Record<SfxId, Patch>> = Object.freeze({
   finalLap: P({ wave: 'sawtooth', f0: 523, attack: 0.01, hold: 0.05, decay: 0.3, gain: 0.35, steps: [0, 4, 7, 12, 7, 12], stepDur: 0.1, detune: 9, filter: { type: 'lowpass', f0: 1800, f1: 5000 } }),
   finish: P({ wave: 'sawtooth', f0: 523, attack: 0.01, hold: 0.1, decay: 0.8, gain: 0.35, steps: [0, 4, 7, 12, 16, 19, 24], stepDur: 0.09, detune: 8, filter: { type: 'lowpass', f0: 2500, f1: 6000 } }),
   finishLow: P({ wave: 'triangle', f0: 392, attack: 0.01, decay: 0.5, gain: 0.4, steps: [0, 4, 7, 5], stepDur: 0.14 }),
+  // the Final Lap Shift: a deep rising rumble sweep, the world turning over
+  shift: P({ wave: 'sawtooth', f0: 55, f1: 220, glide: 1.1, attack: 0.15, hold: 0.4, decay: 0.9, gain: 0.5, detune: 12, vibrato: [20, 7], filter: { type: 'lowpass', f0: 300, f1: 2400 } }),
+  // Knockout: through to the next round (a bright rising call), or out (a falling one)
+  koSafe: P({ wave: 'square', f0: 523, attack: 0.005, hold: 0.1, decay: 0.4, gain: 0.3, steps: [0, 4, 7, 12], stepDur: 0.11, detune: 8, filter: { type: 'lowpass', f0: 3500 } }),
+  koOut: P({ wave: 'triangle', f0: 392, attack: 0.01, hold: 0.1, decay: 0.6, gain: 0.4, steps: [0, -1, -3, -8], stepDur: 0.18, vibrato: [15, 5] }),
   // pickups and items
   balloon: P({ wave: 'noise', f0: 1, attack: 0.001, decay: 0.12, gain: 0.5, filter: { type: 'bandpass', f0: 2600, f1: 900, q: 1.5 } }),
   coin: P({ wave: 'square', f0: 988, attack: 0.002, decay: 0.16, gain: 0.25, steps: [0, 5], stepDur: 0.06 }),
@@ -46,9 +51,12 @@ export const PATCHES: Readonly<Record<SfxId, Patch>> = Object.freeze({
   drop: P({ wave: 'sine', f0: 420, f1: 160, glide: 0.15, attack: 0.003, decay: 0.2, gain: 0.45 }),
   shieldUp: P({ wave: 'sine', f0: 400, f1: 1200, glide: 0.3, attack: 0.02, decay: 0.3, gain: 0.35, vibrato: [30, 12] }),
   shieldPop: P({ wave: 'noise', f0: 1, attack: 0.001, decay: 0.2, gain: 0.45, filter: { type: 'highpass', f0: 1800 } }),
+  shieldEnd: P({ wave: 'sine', f0: 1200, f1: 500, glide: 0.3, attack: 0.01, decay: 0.3, gain: 0.25, vibrato: [30, 12] }),
+  // a beach ball off a wall, and a ball or a dropped item popping
+  bounce: P({ wave: 'sine', f0: 240, f1: 420, glide: 0.08, attack: 0.002, decay: 0.16, gain: 0.35 }),
+  pop: P({ wave: 'noise', f0: 1, attack: 0.001, decay: 0.1, gain: 0.35, filter: { type: 'bandpass', f0: 1800, f1: 700, q: 1.2 } }),
   airHorn: P({ wave: 'sawtooth', f0: 233, attack: 0.02, hold: 0.45, decay: 0.2, gain: 0.45, detune: 14, filter: { type: 'lowpass', f0: 1400 } }),
   fog: P({ wave: 'noise', f0: 1, attack: 0.25, hold: 0.3, decay: 0.8, gain: 0.35, filter: { type: 'lowpass', f0: 500, f1: 180 } }),
-  rocket: P({ wave: 'noise', f0: 1, attack: 0.01, decay: 0.6, gain: 0.45, filter: { type: 'bandpass', f0: 600, f1: 3500, q: 0.8 } }),
   fizz: P({ wave: 'noise', f0: 1, attack: 0.005, decay: 0.7, gain: 0.45, filter: { type: 'highpass', f0: 2500, f1: 900 } }),
   strikeRoll: P({ wave: 'noise', f0: 1, attack: 0.1, hold: 0.6, decay: 0.6, gain: 0.5, filter: { type: 'lowpass', f0: 180, f1: 320 } }),
   strike: P({ wave: 'noise', f0: 1, attack: 0.002, decay: 0.9, gain: 0.55, filter: { type: 'bandpass', f0: 1400, f1: 500, q: 0.7 } }),
@@ -93,6 +101,8 @@ export const PATCHES: Readonly<Record<SfxId, Patch>> = Object.freeze({
   tierUp: P({ wave: 'square', f0: 1320, attack: 0.002, decay: 0.08, gain: 0.18, steps: [0, 7], stepDur: 0.04 }),
   tierUp2: P({ wave: 'square', f0: 1568, attack: 0.002, decay: 0.1, gain: 0.2, steps: [0, 7, 12], stepDur: 0.04, filter: { type: 'lowpass', f0: 5000 } }),
   tierUp3: P({ wave: 'square', f0: 1760, attack: 0.002, decay: 0.16, gain: 0.22, steps: [0, 4, 7, 12], stepDur: 0.035, detune: 12, filter: { type: 'lowpass', f0: 6000 } }),
+  // a mid-air trick: a quick flip whoosh (its boost whooshes on landing)
+  trick: P({ wave: 'noise', f0: 1, attack: 0.02, decay: 0.3, gain: 0.35, filter: { type: 'bandpass', f0: 900, f1: 3600, q: 1.4 } }),
   hop: P({ wave: 'sine', f0: 260, f1: 520, glide: 0.08, attack: 0.003, decay: 0.1, gain: 0.25 }),
   land: P({ wave: 'noise', f0: 1, attack: 0.002, decay: 0.12, gain: 0.35, filter: { type: 'lowpass', f0: 400 } }),
   wall: P({ wave: 'noise', f0: 1, attack: 0.002, decay: 0.18, gain: 0.45, filter: { type: 'lowpass', f0: 700 } }),
