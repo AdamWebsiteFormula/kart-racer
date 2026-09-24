@@ -109,15 +109,20 @@ const MODELS: Record<string, { build: Build }> = {
   // ---- features, centred as the placeholders are
   balloon: {
     build: (m) => {
-      // striped balloon (radius 0.9): coral, sun and teal gores, a knot and a string
-      const cols = [CORAL, SUN, TEAL, WHITE];
-      for (let k = 0; k < 8; k++) {
-        const a = (k / 8) * Math.PI * 2;
-        m.ball([0.34, 0.88, 0.34], cols[k % cols.length], [Math.cos(a) * 0.56, 0.05, Math.sin(a) * 0.56], [0, -a, 0], 8, false);
+      // party balloon (radius 0.9): one glossy color, a teardrop body, a shine on each face, a
+      // tied knot and a wavy ribbon. Never striped: stripes read as a beach ball (Adam, 24 Sept 2026)
+      const SKIN = '#ff2e63';
+      m.ball([0.78, 0.92, 0.78], SKIN, [0, 0.12, 0], undefined, 18);         // body
+      m.ball([0.5, 0.56, 0.5], SKIN, [0, -0.42, 0], undefined, 12, false);    // the taper to the neck
+      m.cone(0.13, 0.16, SKIN, [0, -0.93, 0], undefined, 8, false);            // knot, flared below the neck
+      for (const z of [0.67, -0.67]) {                                         // shine, seen from either way along the road
+        m.ball([0.13, 0.24, 0.06], '#ffffff', [-0.3, 0.4, z], [0, 0, 0.4], 10, false);
+        m.ball([0.05, 0.05, 0.03], '#ffffff', [-0.44, 0.08, z * 0.93], undefined, 6, false);
       }
-      m.ball([0.82, 0.9, 0.82], WHITE, [0, 0.05, 0], undefined, 16);          // body under the gores (carries the ink)
-      m.cone(0.14, 0.2, CORAL, [0, -0.88, 0], [Math.PI, 0, 0], 8);            // knot
-      m.cyl(0.02, 0.02, 1.2, INK, [0, -1.55, 0], undefined, 4, false);        // string
+      for (let k = 0; k < 4; k++) {                                            // ribbon, gently wavy
+        const x = k % 2 ? 0.05 : -0.05;
+        m.cyl(0.022, 0.022, 0.32, WHITE, [0, -1.18 - k * 0.3, 0], [0, 0, x * 2.5], 4, false);
+      }
     },
   },
   coin: {
