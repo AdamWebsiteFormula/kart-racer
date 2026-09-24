@@ -1,9 +1,12 @@
 // SOP tests 5, 6, 12 (grace and immunity): Beach Ball bounces, Homing Kite, hit rules.
 import { describe, expect, it } from 'vitest';
-import { ITEMS_CONFIG } from './data.ts';
-import { REAL_TRACKS, count, give, go, kart, placeAt, placeOn, press, seconds, setup, tick, trackDef, withBehaviour } from './__tests__/harness.ts';
+import { ITEMS_CONFIG, itemById } from './data.ts';
+import { REAL_TRACKS, count, give, go, kart, placeAt, placeOn, press, seconds, setup, tick, trackDef, withBehaviour, type H, type RealTrack } from './__tests__/harness.ts';
 import { distXZ } from './hits.ts';
+import { spawnProjectile } from './projectiles.ts';
+import type { GroundItem, Projectile } from './types.ts';
 import type { Vec3 } from '../kart-controller/types.ts';
+import { GO_TICK } from '../race-manager/countdown.ts';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
 import meadowJson from '../track-builder/tracks/meadow-run.json';
 import type { TrackDefinition } from '../track-builder/types.ts';
@@ -257,6 +260,58 @@ describe('shots through a shortcut', () => {
       expect(h.items.state.projectiles[0].target, id).toBe(2);
       tick(h, seconds(3));
       expect(h.log.find((e) => e.type === 'hit'), id).toMatchObject({ racerId: 'k2', itemId: 'homingKite' });
+    }
+  });
+});
+
+describe('across the Final Lap Shift', () => {
+  /** A one-lap race fires the shift at GO: put a shot of `item` on the main road at t0 just before it. */
+  function shotBeforeShift(id: RealTrack, item: string, t0: number): { h: H; p: Projectile } {
+    const h = setup({ n: 1, def: trackDef(id), laps: 1 });
+    tick(h, GO_TICK - 3);
+    const p = spawnProjectile(h.items.cfg, h.items.state, h.track, h.rm.state.karts, 150, 0, itemById(h.items.cfg, item)!, false, []);
+    const smp = h.track.sample(t0, 0, 0), flat = Math.hypot(smp.tangent[0], smp.tangent[2]), v = Math.hypot(...p.velocity);
+    p.t = t0; p.branch = 0; p.lateral = 0; p.target = -1;
+    p.position = [smp.position[0], smp.groundY + h.items.cfg.projectileHeight, smp.position[2]];
+    p.velocity = [(smp.tangent[0] / flat) * v, 0, (smp.tangent[2] / flat) * v];
+    return { h, p };
+  }
+
+  /** Metres the shot moved on the tick the shift fired (NaN if it popped). */
+  function shiftStep(h: H, p: Projectile): number {
+    for (let k = 0; k < 10; k++) {
+      const before: Vec3 = [...p.position];
+      tick(h);
+      if (h.race.some((e) => e.type === 'trackChanged')) return h.items.state.projectiles.includes(p) ? distXZ(before, p.position) : NaN;
+    }
+    throw new Error('no shift');
+  }
+
+  it('shots keep flying from where they are (bug hunt: on Canyon and Skyline they jumped up to 34 m along the road)', () => {
+    const cases: [RealTrack, number][] = [['canyon', 0.2], ['canyon', 0.7], ['canyon', 0.85], ['skyline', 0.2], ['skyline', 0.85]];
+    for (const [id, t0] of cases) {
+      for (const item of ['homingKite', 'windUpMouse', 'beachBall']) {
+        const { h, p } = shotBeforeShift(id, item, t0);
+        const bounces = p.bouncesLeft;
+        expect(shiftStep(h, p), `${id} ${t0} ${item}`).toBeLessThan(1);
+        expect(p.bouncesLeft, `${id} ${t0} ${item}`).toBe(bounces);
+      }
+    }
+  });
+
+  it('shots and drops on the road the shift replaced go with it; drops on the rest stay', () => {
+    for (const [id, gone] of [['canyon', 0.5], ['skyline', 0.6]] as [RealTrack, number][]) {
+      const { h, p } = shotBeforeShift(id, 'homingKite', gone);
+      const drop = (t: number): GroundItem => {
+        const g: GroundItem = { id: 90 + h.items.state.groundItems.length, itemId: 'oilCan', owner: 0, ownerId: 'k0', t, branch: 0, position: h.track.sample(t, 0, 0).position, ttl: 20, graceRemaining: 0, radius: 1.2 };
+        h.items.state.groundItems.push(g);
+        return g;
+      };
+      drop(gone);
+      const kept = drop(0.9);
+      expect(shiftStep(h, p), id).toBeNaN();
+      expect(h.items.state.groundItems, id).toEqual([kept]);
+      expect(kept.t, id).toBeCloseTo(h.track.nearestTGlobal(kept.position), 6);
     }
   });
 });

@@ -10,11 +10,17 @@ import { ITEMS_CONFIG, ITEM_ROLES } from './data.ts';
 import { popGround, stepGround } from './ground.ts';
 import { distXZ, hittable, landHit } from './hits.ts';
 import { stepPowers } from './powers.ts';
-import { popProjectile, stepProjectiles } from './projectiles.ts';
+import { lateralOf, popProjectile, stepProjectiles } from './projectiles.ts';
 import { seedFor } from './rng.ts';
 import { onPickup, stepRoulette } from './roulette.ts';
 import type { ItemDefinition, ItemEvent, ItemRole, ItemsConfig, ItemsState, Projectile } from './types.ts';
 import { refusal, spend, useItem } from './use.ts';
+
+/** Wholly past the course limit at t (the land beside an off-road road is course): no kart can reach it there. */
+function offCourse(track: Track, t: number, branch: number, lateral: number, radius: number): boolean {
+  const smp = track.sample(t, 0, branch);
+  return Math.abs(lateral) > (smp.wall ?? smp.halfWidth) + radius;
+}
 
 export interface ItemsHost {
   readonly state: RaceState;
@@ -70,6 +76,9 @@ export class Items {
     if (this.inert) return events;
     const st = this.host.state, consts = this.host.consts, track = this.track, m = this.state, cfg = this.cfg;
     const karts = st.karts;
+
+    // 0. the Final Lap Shift rebuilt the road under the shots and drops
+    for (const e of raceEvents) if (e.type === 'trackChanged') { this.reseat(events); break; }
 
     // 1. timers
     for (let i = 0; i < karts.length; i++) {
@@ -190,6 +199,26 @@ export class Items {
       m.fogHeldBy = fogHolder;
     }
     return events;
+  }
+
+  /**
+   * After the Final Lap Shift: the main road changed length, so an old t is somewhere else along it. Every
+   * shot and drop finds its t again on its own road from where it is (race-manager does the same for karts).
+   * One left past the course limit was on the road the shift replaced, and goes with it.
+   */
+  private reseat(events: ItemEvent[]): void {
+    const track = this.track, m = this.state;
+    for (let k = m.projectiles.length - 1; k >= 0; k--) {
+      const p = m.projectiles[k];
+      p.t = track.branches.list[p.branch].nearestGlobal(p.position).t;
+      p.lateral = lateralOf(track, p.t, p.branch, p.position);
+      if (offCourse(track, p.t, p.branch, p.lateral, p.radius)) popProjectile(m, p, events);
+    }
+    for (let k = m.groundItems.length - 1; k >= 0; k--) {
+      const g = m.groundItems[k];
+      g.t = track.branches.list[g.branch].nearestGlobal(g.position).t;
+      if (offCourse(track, g.t, g.branch, lateralOf(track, g.t, g.branch, g.position), g.radius)) popGround(m, g, events);
+    }
   }
 
   /** A projectile reaching kart s from behind (it would hit the trailed item first). */
