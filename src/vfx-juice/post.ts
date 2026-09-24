@@ -10,6 +10,14 @@ import { DAY_GRADE } from '../art-pipeline/index.ts';
 /** The colour lift eased toward `to` over `dt` seconds, at the rate the scene's lights ease (main.ts applyLight). */
 export const easeGrade = (from: number, to: number, dt: number): number => from + (to - from) * (1 - Math.exp(-dt * 1.6));
 
+/**
+ * MSAA samples for a screen whose pixel-ratio cap is `dprCap`. A Retina screen (cap 1.5 or more)
+ * gets none: its pixels are small enough to hide the steps, and 4x MSAA on the half-float buffer
+ * cost 9.0 ms against 5.2 ms a frame at 3840x2160 on an M4 Pro (2026-09-24). Keyed to the screen, not the
+ * governed ratio, so stepping resolution down never turns MSAA back on and costs more.
+ */
+export const msaaSamples = (dprCap: number): number => (dprCap >= 1.5 ? 0 : 4);
+
 export class Post {
   private readonly composer: EffectComposer;
   private readonly chroma: ChromaticAberrationEffect;
@@ -51,6 +59,9 @@ export class Post {
   snapGrade(): void { this.grade.saturation = this.gradeTo; }
 
   setSize(w: number, h: number): void { this.composer.setSize(w, h); }
+
+  /** Change the MSAA samples (rebuilds the buffers, so only when they differ). */
+  setSamples(n: number): void { if (this.composer.multisampling !== n) this.composer.multisampling = n; }
 
   /** `boost` 0..1 drives the colour fringe; reduced motion keeps it at zero. */
   render(dt: number, boost: boolean, reduced: boolean): void {

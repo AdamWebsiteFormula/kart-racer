@@ -11,7 +11,7 @@ import { AudioBus, finishLine, GameAudio, songForTrack, type Listener } from './
 import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
-import { Post, Vfx, directFx, newEffects } from './vfx-juice/index.ts';
+import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
 import { BUBBLE_CLOCK, DAY_GRADE, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
@@ -112,6 +112,7 @@ function applyRender(): void {
   renderer.setPixelRatio(cap * (settings?.resolutionScale ?? 1) * (auto ? governor.scale : 1));
   renderer.shadowMap.enabled = !low;
   post?.setEnabled(!low);
+  post?.setSamples(msaaSamples(cap));
   resize();
 }
 function resize(): void {
