@@ -76,7 +76,7 @@ export function spawnProjectile(
     bouncesLeft: homing || runner ? 0 : (def.behaviour.bounces ?? 0),
     target: homing ? pickTarget(karts, owner, near.branch) : -1,
     ttl: def.behaviour.lifetimeSeconds ?? 8, graceRemaining: cfg.ownerGraceSeconds, radius: def.behaviour.radius ?? 0.5,
-    hitsLeft: def.behaviour.hits ?? 1, age: 0,
+    hitsLeft: def.behaviour.hits ?? 1, hitMask: 0, age: 0,
     weave: runner ? (def.behaviour.weave ?? 0) : 0, weaveSeconds: def.behaviour.weaveSeconds ?? 1,
   };
   // the Mouse starts its weave from where it was let go

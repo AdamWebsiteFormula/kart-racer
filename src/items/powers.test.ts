@@ -99,6 +99,21 @@ describe('Strike Ball', () => {
     expect(b.status.spinRemaining).toBeGreaterThan(0);
     expect(a.status.spinRemaining).toBe(0);
   });
+
+  it('knocks each kart once: coins in hand cost 2 (bug hunt: it hit every tick of the touch and took all 10)', () => {
+    const h = setup({ n: 2 });
+    go(h);
+    const [a, b] = [kart(h, 0), kart(h, 1)];
+    placeAt(h.track, a, 0.02, 0);
+    placeAt(h.track, b, 0.02 + 30 / h.track.length, 0);
+    b.coins = 10;
+    give(h, 0, 'strikeBall');
+    press(h, 0);
+    tick(h, seconds(2));
+    const hits = h.log.filter((e) => e.type === 'hit' && e.racerId === 'k1');
+    expect(hits).toEqual([expect.objectContaining({ itemId: 'strikeBall', spun: false, coinsLost: 2 })]);
+    expect(b.coins).toBe(8);
+  });
 });
 
 describe('Pogo Spring', () => {
@@ -253,6 +268,23 @@ describe('Wind-Up Mouse', () => {
     tick(h, seconds(2));
     const hit = (id: string) => h.log.some((e) => e.type === 'hit' && e.racerId === id);
     expect([hit('k1'), hit('k2'), hit('k3'), hit('k4')]).toEqual([true, true, true, false]);
+    expect(h.items.state.projectiles.length).toBe(0);
+  });
+
+  it('bumps each kart once, so three karts holding coins each lose 2 (bug hunt: all three bumps went on the first)', () => {
+    const h = setup({ n: 5, cfg: withBehaviour('windUpMouse', { weave: 0 }) });
+    go(h);
+    placeAt(h.track, kart(h, 0), 0.02, 0);
+    for (let k = 1; k <= 4; k++) {
+      placeAt(h.track, kart(h, k), 0.02 + (10 * k) / h.track.length, 0);
+      kart(h, k).coins = 5;
+    }
+    give(h, 0, 'windUpMouse');
+    press(h, 0);
+    tick(h, seconds(2));
+    const hits = (id: string) => h.log.filter((e) => e.type === 'hit' && e.racerId === id).length;
+    expect([hits('k1'), hits('k2'), hits('k3'), hits('k4')]).toEqual([1, 1, 1, 0]);
+    expect([1, 2, 3, 4].map((k) => kart(h, k).coins)).toEqual([3, 3, 3, 5]);
     expect(h.items.state.projectiles.length).toBe(0);
   });
 

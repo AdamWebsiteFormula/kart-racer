@@ -112,6 +112,8 @@ export interface Projectile {
   radius: number;
   /** karts it may still hit (the Wind-Up Mouse passes through; everything else pops on the first) */
   hitsLeft: number;
+  /** karts it has hit, bit i = karts[i]: the Mouse bumps each once (a coin-shielded kart it runs on through is not bumped again) */
+  hitMask: number;
   /** seconds since it was fired (the Mouse's weave) */
   age: number;
   /** Mouse weave amplitude (fraction of the free half width); 0 for everything else */
@@ -146,6 +148,8 @@ export interface ItemsState {
   trailing: boolean[];
   /** per kart: the power running from the first slot ('strikeBall') or '' */
   power: string[];
+  /** per kart: the karts its Strike Ball has knocked this roll, bit j = karts[j]; each is knocked once */
+  knocked: number[];
   /** per kart: Pogo Spring phase: 0 none, 1 in the air (slam ready), 2 slamming */
   pogo: number[];
   /** per kart: a Grapple Anchor pull was live last tick */

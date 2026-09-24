@@ -48,7 +48,7 @@ export class Items {
       rng: seedFor(host.state.seed), nextId: 1,
       prevItem: new Array(n).fill(false), shieldRemaining: new Array(n).fill(0),
       fogHeldBy: '', projectiles: [], groundItems: [],
-      trailing: new Array(n).fill(false), power: new Array(n).fill(''), pogo: new Array(n).fill(0), towing: new Array(n).fill(false),
+      trailing: new Array(n).fill(false), power: new Array(n).fill(''), knocked: new Array(n).fill(0), pogo: new Array(n).fill(0), towing: new Array(n).fill(false),
     };
     this.inert = host.state.mode === 'timeTrial';
     this.doubles = track.features.filter((f) => f.kind === 'pickup').map((f) => f.double === true);
@@ -139,7 +139,7 @@ export class Items {
       if (gone) continue;
       for (let i = 0; i < karts.length && !gone; i++) {
         const s = karts[i];
-        if (s.branch !== p.branch) continue;
+        if (s.branch !== p.branch || (p.hitMask & (1 << i)) !== 0) continue;
         if (i === p.owner && p.graceRemaining > 0) continue;
         if (distXZ(p.position, s.position) > p.radius + consts[i].kartRadius) continue;
         if (s.position[1] - (p.position[1] - cfg.projectileHeight) > cfg.hitHeight) continue; // sprung over it
@@ -155,7 +155,9 @@ export class Items {
         }
         const def = this.defs.get(p.itemId) as ItemDefinition;
         landHit(karts, consts, m, i, p.ownerId, def, 'projectile', events, this.scratch);
-        // the Mouse runs on through the pack until it has bumped its last kart
+        // the Mouse runs on through the pack until it has bumped its last kart, each kart once
+        // (a kart its coins kept from spinning is still in its way next tick)
+        p.hitMask |= 1 << i;
         if (--p.hitsLeft <= 0) { popProjectile(m, p, events); gone = true; }
       }
     }

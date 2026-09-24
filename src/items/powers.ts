@@ -46,12 +46,15 @@ export function stepPowers(
         if (s.item.held === def.id && s.item.charges === 0) promoteNext(s);
         m.power[i] = '';
       } else {
-        // rolling: karts it touches fly up and spin like pins; drops on the road are crushed
+        // rolling: karts it touches fly up and spin like pins, each once (a kart its coins kept from
+        // spinning is still touching it next tick); drops on the road are crushed
         for (let j = 0; j < karts.length; j++) {
           const o = karts[j];
-          if (j === i || !level(s, o)) continue;
+          if (j === i || (m.knocked[i] & (1 << j)) !== 0 || !level(s, o)) continue;
           if (distXZ(o.position, s.position) > radiusOf(s, consts[i]) + radiusOf(o, consts[j]) + 0.3) continue;
-          if (landHit(karts, consts, m, j, s.racerId, def, 'item', events, scratch) && o.status.spinRemaining > 0) {
+          if (!landHit(karts, consts, m, j, s.racerId, def, 'item', events, scratch)) continue;
+          m.knocked[i] |= 1 << j;
+          if (o.status.spinRemaining > 0) {
             o.verticalVelocity = def.behaviour.popSpeed ?? 0;
             o.grounded = false;
           }

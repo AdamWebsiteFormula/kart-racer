@@ -107,6 +107,7 @@ export function useItem(
       s.status.towRemaining = 0;
       s.status.towTarget = -1;
       m.power[i] = def.id;
+      m.knocked[i] = 0;
       m.trailing[i] = false;
       events.push({ type: 'powerStart', racerId: s.racerId, itemId: def.id, seconds });
       keep = true;
