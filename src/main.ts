@@ -192,6 +192,7 @@ function configFor(p: RacePlan): RaceConfig {
 
 const host: UiHost = {
   builtTracks: new Set(TRACKS.keys()),
+  medalTimes: new Map([...TRACKS.values()].map((d) => [d.id, d.medalTimesMs])),
   availableModes: ALL_MODES,
   creditsMarkdown,
   leaderboard: leaderboardClient(),

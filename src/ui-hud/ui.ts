@@ -22,7 +22,7 @@ import {
   BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, type ScreenView,
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
-import { adjustSetting, cupMenu, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type SettingId } from './screens/menus.ts';
+import { adjustSetting, cupMenu, medalFor, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
 import { boardModel, gpModel, knockoutCutModel, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
 import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
 import { cleanName, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
@@ -33,6 +33,8 @@ export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedCl
 
 export interface UiHost {
   readonly builtTracks: ReadonlySet<string>;
+  /** each built track's Time Trial medal times, by track id: a card grades your best against them */
+  readonly medalTimes: ReadonlyMap<string, MedalTimes>;
   readonly availableModes: ReadonlySet<RaceMode>;
   readonly creditsMarkdown: string;
   /** a new race or series begins (from the roster or cup screen) */
@@ -60,7 +62,7 @@ export interface RaceOver {
   ko?: { after: KnockoutState };
   seriesHasNext: boolean;
   /** Time Trial only: the track's medal times */
-  medalTimesMs?: { gold: number; silver: number; bronze: number };
+  medalTimesMs?: MedalTimes;
   /** Time Trial and Daily, when the player finished: the run as the leaderboard wants it, minus the name */
   board?: { mode: BoardMode; dailySeed: number | null; draft: Omit<Submission, 'name'> };
 }
@@ -76,10 +78,7 @@ export interface RaceFrame {
   trailing?: boolean;
 }
 
-export type Medal = 'none' | 'bronze' | 'silver' | 'gold';
-export function medalFor(ms: number, m: { gold: number; silver: number; bronze: number }): Medal {
-  return ms <= m.gold ? 'gold' : ms <= m.silver ? 'silver' : ms <= m.bronze ? 'bronze' : 'none';
-}
+export { medalFor, type Medal } from './screens/menus.ts';
 const medalName = (m: Medal) => (m === 'none' ? 'No medal this time' : `${m[0].toUpperCase()}${m.slice(1)} medal!`);
 
 const MODE_ICONS: Record<string, string> = { quick: '🏁', grandPrix: '🏆', knockout: '💥', timeTrial: '⏱️', daily: '📅' };
@@ -233,6 +232,7 @@ export class UiRoot {
       const medal = medalFor(me.timeMs, over.medalTimesMs);
       this.ttNote = !tt || me.timeMs < tt.bestMs ? `New best! ${medalName(medal)}` : medalName(medal);
       if (!tt || me.timeMs < tt.bestMs) this.save.timeTrial[over.results.trackId] = { bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined };
+      else tt.medal = medalFor(tt.bestMs, over.medalTimesMs); // the kept best, graded against today's times
     } else this.ttNote = '';
     writeSave(this.backend, this.save);
     if (over.board && this.host.leaderboard) {
@@ -522,7 +522,7 @@ export class UiRoot {
         this.models.set(key, vm.focus);
         break;
       }
-      case 'trackSelect': { const vm = trackMenu(s.mode ?? 'quick', built, this.save); v.tracks.render(vm); this.models.set(key, vm.focus); break; }
+      case 'trackSelect': { const vm = trackMenu(s.mode ?? 'quick', built, this.save, this.host.medalTimes); v.tracks.render(vm); this.models.set(key, vm.focus); break; }
       case 'pause': { const vm = pauseMenu(); v.pause.render(vm); this.models.set(key, vm.focus); break; }
       case 'settings': { const vm = settingsMenu(this.save.settings); v.settings.render(vm.rows); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
