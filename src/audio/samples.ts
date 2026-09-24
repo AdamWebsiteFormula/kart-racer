@@ -47,6 +47,14 @@ export const TIGHT: ReadonlySet<string> = new Set([
   'count', 'uiMove', 'uiConfirm', 'uiBack', 'rouletteTick', 'tierUp', 'tierUp2', 'tierUp3', 'boost1', 'boost2', 'boost3', 'boostPad',
   'gainPlace', 'losePlace', 'denied', 'snowThud', 'shieldPop', 'trick',
 ]);
+/**
+ * The boosts' whooshes swell for 100-250 ms before their peak (the air takes a moment to rush), but the
+ * kart jumps forward the instant the boost fires: their start is cut to 12 dB under the peak, so the
+ * sound surges at once and still swells the last stretch (24 Sept 2026, the remade whooshes).
+ */
+export const PUNCH: ReadonlySet<string> = new Set(['boost1', 'boost2', 'boost3', 'slipstream']);
+/** How far under a sound's peak its start is cut (dB): the boosts closest, then the thuds and zaps, then the rest. */
+export const cutDb = (id: string): number => (PUNCH.has(id) ? -12 : TIGHT.has(id) ? -20 : -36);
 /** the final-lap fanfare's length: the music waits this long before it comes back faster */
 export const FANFARE_SECONDS = 2.1;
 /** the stings' lengths (catalog `finish`, `finishLow`, `koOut`, `koSafe`, plus a breath): the results song waits for their last chord */
@@ -223,7 +231,7 @@ const MIX_DB: Readonly<Record<string, number>> = Object.freeze({
   uiMove: -8, uiConfirm: -5, uiBack: -6, rouletteTick: -3, itemReady: -2, coin: 0, balloon: -1,
   gainPlace: -2, losePlace: -3, wrongWay: -2, respawn: -3, denied: -6,
   // items
-  throw: -3, kite: -3, drop: -1, shieldUp: -3, shieldPop: -2, shieldEnd: 0, airHorn: 0, fog: -3, bounce: -5, pop: -5,
+  throw: -3, kite: -3, drop: -1, shieldUp: -3, shieldPop: -2, shieldEnd: -3, airHorn: 0, fog: -3, bounce: -5, pop: -5,
   fizz: -2, strikeRoll: -2, strike: 0, boing: -2, slam: 0, anchor: -2, slingshot: -2, mouse: -3, blocked: -3, trail: -1, hitConfirm: -1,
   hit: 0, spin: 0,
   // boosts and sparks: each tier over the last
@@ -363,7 +371,7 @@ export function evenLoop(chs: readonly Float32Array[], rate: number, amount = 0.
 
 /**
  * Level a sound effect by its loudness as heard (K-weighted, loudest 100 ms), its peak never past
- * the ceiling; its DC taken out, its start cut to the sound (closer for `TIGHT` ids), its edges faded.
+ * the ceiling; its DC taken out, its start cut to the sound (`cutDb`: closer for the thuds and the boosts), its edges faded.
  * A loop is levelled on its K-weighted average and gets its wrap baked seamless.
  */
 export function cutSfx(b: AudioBuffer, loop: boolean, id = ''): Sample {
@@ -376,7 +384,7 @@ export function cutSfx(b: AudioBuffer, loop: boolean, id = ''): Sample {
     return { buffer: b, start: w.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(meanRms(env), LOOP_K), peak) };
   }
   const env = envelope(kWeight(chs, rate), rate), peak = samplePeak(chs);
-  const start = onset(chs, rate, TIGHT.has(id) ? -20 : -36);
+  const start = onset(chs, rate, cutDb(id));
   const end = shapeEdges(chs, rate, start);
   return { buffer: b, start, end, gain: peakSafe(levelGain(peakRms(env, HOP, 0.1), SFX_K, 8), peak) };
 }

@@ -3,7 +3,7 @@ import { AUDIO } from './constants.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
 import {
   bakeLoop, bandRate, bandWeights, barLength, cutSfx, ENGINE_BANDS, envelope, FANFARE_SECONDS, kWeight, leadIn, LEVELS, levelGain, loopPhase, loopPoints, meanRms,
-  evenLoop, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, shapeEdges, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
+  evenLoop, cutDb, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, shapeEdges, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
 } from './samples.ts';
 import { engineCutoff, OFFROAD_BY_TRACK, racerPitch, ROAD_BY_TRACK } from './engine.ts';
 import { PATCHES } from './sfx.ts';
@@ -93,6 +93,12 @@ describe('sample analysis', () => {
     expect(onset([d], rate, -36)).toBeCloseTo(0, 3);
     expect(onset([d], rate, -20)).toBeCloseTo(0.1 - 0.003, 4);
     expect(TIGHT.has('bump') && !TIGHT.has('shift')).toBe(true);
+    // the boosts surge at once: cut closest of all; a swell (the Final Lap Shift) keeps its build
+    expect(cutDb('boost3')).toBe(-12);
+    expect(cutDb('bump')).toBe(-20);
+    expect(cutDb('shift')).toBe(-36);
+    const swell = Float32Array.from({ length: 3000 }, (_, i) => (i % 2 ? 1 : -1) * Math.min(1, Math.pow(10, (-30 + (30 * i) / 2000) / 20)));
+    expect(onset([swell], rate, cutDb('boost3'))).toBeGreaterThan(onset([swell], rate, cutDb('bump')));
     const off = Float32Array.from({ length: 100 }, (_, i) => 0.05 + (i % 2 ? 0.1 : -0.1));
     removeDc([off]);
     expect(off.reduce((a, v) => a + v, 0)).toBeCloseTo(0, 5);
