@@ -12,7 +12,7 @@ import type { KartTracker, RaceEvent } from './types.ts';
 export function createTracker(gridSlot: number, t: number): KartTracker {
   return {
     gridSlot, nextCheckpoint: 0, lastCheckpoint: 0, prevT: t, lapTicks: [],
-    throttleHeldSinceTick: -1, hazardCooldownRemaining: 0, shownRank: 0, rankHeldSeconds: 0,
+    throttleHeldSinceTick: -1, hazardCooldownRemaining: 0, ventCooldownRemaining: 0, shownRank: 0, rankHeldSeconds: 0,
     wrongWayOn: false, wrongWaySeconds: 0, stuckSeconds: 0, freezeRemaining: 0, respawnCount: 0, dnf: false,
   };
 }

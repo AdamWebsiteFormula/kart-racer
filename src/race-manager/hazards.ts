@@ -1,5 +1,6 @@
 // Kart-vs-hazard test and the four hit kinds. Track-builder gives the active list;
 // race-manager owns the kart side. Gusts push every tick; the rest hit once per cooldown.
+import { BUILDER } from '../track-builder/constants.ts';
 import type { KartConstants } from '../kart-controller/constants.ts';
 import { isRiding } from '../kart-controller/powers.ts';
 import { applyHit } from '../kart-controller/step.ts';
@@ -14,6 +15,7 @@ export function stepHazards(
   events: RaceEvent[], kartEvents: KartEvent[],
 ): void {
   tr.hazardCooldownRemaining = countDown(tr.hazardCooldownRemaining, dt);
+  tr.ventCooldownRemaining = countDown(tr.ventCooldownRemaining, dt);
   if (s.isGhost || s.finishTick !== undefined) return;
   let f: Vec3 | undefined, r: Vec3 | undefined;
   for (const h of active) {
@@ -22,16 +24,17 @@ export function stepHazards(
     if (h.ground && !s.grounded) continue; // hopped over the shock wave
     if (!f || !r) { f = forwardOf(s.heading); r = rightOf(s.heading); } // only when something is in range
     if (h.hit === 'launch') {
-      // an erupting vent: thrown up like off a ramp, so a trick up there is a boost; never a hit
+      // an erupting vent: thrown up like off a ramp, so a trick up there is a boost; never a hit.
+      // Once per eruption: rising through the column, or landing back in it, throws nothing more,
+      // and a trick already pressed (off a ramp just before) is kept.
       const vy = h.launch ?? 0;
-      if (s.verticalVelocity < vy) {
-        s.verticalVelocity = vy;
-        s.grounded = false;
-        s.airborne.fromJumpId = h.id;
-        s.airborne.seconds = 0;
-        s.airborne.trickQueued = false;
-        kartEvents.push({ type: 'launched', jumpId: h.id });
-      }
+      if (tr.ventCooldownRemaining > 0 || s.airborne.fromJumpId === h.id || s.verticalVelocity >= vy) continue;
+      s.verticalVelocity = vy;
+      s.grounded = false;
+      s.airborne.fromJumpId = h.id;
+      s.airborne.seconds = 0;
+      tr.ventCooldownRemaining = BUILDER.ventEruptSeconds;
+      kartEvents.push({ type: 'launched', jumpId: h.id });
       continue;
     }
     if (h.type === 'gust') {

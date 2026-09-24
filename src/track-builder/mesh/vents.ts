@@ -44,7 +44,7 @@ function baseGeometry(rim: Rgb, pool: Rgb): BufferGeometry {
     foot.push(v(ca * R * 1.12, 0.02, sa * R * 1.12, rim));
   }
   for (const [a, b] of [[inner, top], [top, outer], [outer, foot]]) {
-    for (let i = 0; i < seg; i++) idx.push(a[i], b[i], a[i + 1], a[i + 1], b[i], b[i + 1]);
+    for (let i = 0; i < seg; i++) idx.push(a[i], a[i + 1], b[i], a[i + 1], b[i + 1], b[i]);
   }
   const g = new BufferGeometry();
   g.setAttribute('position', new Float32BufferAttribute(pos, 3));
@@ -84,7 +84,7 @@ void main() {
   float n = noise(p) * 0.6 + noise(p * 2.3 + 7.0) * 0.4;
   float top = 1.0 - smoothstep(0.55, 1.0, vUv.y);
   float a = smoothstep(0.25, 0.75, n) * top * vFade;
-  gl_FragColor = vec4(colour * (0.55 + 0.6 * n), a * 0.8);
+  gl_FragColor = vec4(colour * (0.55 + 0.6 * n), a * 0.6); // see-through enough to watch your kart ride it
   #include <fog_fragment>
 }`;
 
