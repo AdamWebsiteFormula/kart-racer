@@ -26,13 +26,14 @@ import type { TrackDefinition } from './track-builder/types.ts';
 import { CAM, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
-import { CAST, UiRoot, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
+import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
 
 // ---- content: every track file present is a built track ----
 const TRACK_FILES = import.meta.glob('./track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
 const TRACKS = new Map<string, TrackDefinition>(Object.values(TRACK_FILES).map((d) => [d.id, d]));
 const FIRST_TRACK = [...TRACKS.keys()][0];
+const ATTRACT_TRACK = attractTrack(new Set(TRACKS.keys())) ?? FIRST_TRACK;
 const ALL_MODES: ReadonlySet<RaceMode> = new Set<RaceMode>(['quick', 'grandPrix', 'knockout', 'timeTrial', 'daily']);
 const ATTRACT_CC: SpeedClass = 150;
 /** seconds the finished race stays on screen before the results slide in */
@@ -179,7 +180,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
 function startAttract(): void {
   series = null;
   const seed = Math.floor(Math.random() * 1e6); // attract only: never recorded, never replayed
-  load({ mode: 'quick', trackId: FIRST_TRACK, speedClass: ATTRACT_CC, seed, racers: roster(null) }, true);
+  load({ mode: 'quick', trackId: ATTRACT_TRACK, speedClass: ATTRACT_CC, seed, racers: roster(null) }, true);
 }
 
 function configFor(p: RacePlan): RaceConfig {

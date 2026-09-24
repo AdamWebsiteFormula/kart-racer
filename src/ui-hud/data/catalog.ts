@@ -26,6 +26,14 @@ export const KNOCKOUT_SETS: readonly CupCard[] = Object.freeze([
 export const trackCard = (id: string): TrackCard | undefined => TRACKS.find((t) => t.id === id);
 
 /**
+ * The title screen's attract race: Harbour Loop (design §12), else the first built track in this
+ * order. Not the first track file, which sorts by name, so adding a file never changes the title.
+ */
+export function attractTrack(built: ReadonlySet<string>): string | undefined {
+  return TRACKS.find((t) => built.has(t.id))?.id;
+}
+
+/**
  * The tracks a cup really plays. Unbuilt tracks are skipped and the built ones repeat in order
  * to keep the cup's length, so a Knockout is always three segments (Decisions 2026-09-23).
  * Empty when none of its tracks exist yet.

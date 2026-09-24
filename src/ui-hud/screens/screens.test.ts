@@ -3,7 +3,7 @@ import { applyResults, createGrandPrix, createKnockout } from '../../race-manage
 import type { GrandPrixState, KnockoutState, RaceResults, RacerConfig } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
 import { CAST } from '../data/cast.ts';
-import { playableTracks } from '../data/catalog.ts';
+import { attractTrack, playableTracks } from '../data/catalog.ts';
 import { firstFocus, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { parseCredits } from './credits.ts';
@@ -128,6 +128,18 @@ describe('results screens', () => {
   it('credits come from the CREDITS.md tables', () => {
     const md = ['# Credits', '', '## Code', '| Work | Author | Licence |', '|---|---|---|', '| three.js | mrdoob | MIT |', '', '## Art', '| Work | Author | Licence |', '|---|---|---|', ''].join('\n');
     expect(parseCredits(md)).toEqual([{ title: 'Code', rows: [{ work: 'three.js', author: 'mrdoob', licence: 'MIT' }] }]);
+  });
+});
+
+describe('attract race', () => {
+  it('the title races around Harbor Loop whatever track files sort first (design §12, bug hunt 2)', () => {
+    // the same glob main.ts reads: Boardwalk Nights sorts first and used to take over the title
+    const files = import.meta.glob('../../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, { id: string }>;
+    const ids = Object.values(files).map((d) => d.id);
+    expect(ids).toContain('boardwalk-nights');
+    expect(attractTrack(new Set(ids))).toBe('harbour-loop');
+    expect(attractTrack(new Set(ids.filter((id) => id !== 'harbour-loop')))).toBe('meadow-run'); // else the first in cup order
+    expect(attractTrack(new Set())).toBeUndefined();
   });
 });
 
