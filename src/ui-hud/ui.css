@@ -128,6 +128,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* taller than the screen (a phone on its side, a short window): it scrolls, by a thumb, the
+     wheel or the focus (scrollIntoView); html and body never do. No bar: a game screen, not a page */
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
 }
 .heading { font-size: clamp(40px, 6vw, 72px); margin: 0; }
 /* the heading's row: Back at its far end (a mouse or a thumb has no Escape), small enough that
@@ -507,6 +512,44 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 }
 @media (max-height: 680px) {
   .card .who { display: none; }
+}
+/* a phone on its side (844x390, 740x360): every menu fits one screen, so nothing needs a scroll */
+@media (max-height: 500px) {
+  .stage { gap: 10px; padding-top: calc(12px + var(--safe-t)); padding-bottom: calc(12px + var(--safe-b)); }
+  .heading { font-size: 30px; }
+  .stage-head .back-btn { padding: 6px 16px; }
+  .stage-head .back-btn .label { font-size: 18px; }
+  /* title: the name sized by the height too, the four buttons two by two; still too tall (a smaller
+     phone), it starts at the top and scrolls instead of spilling off both edges */
+  .title .stage { justify-content: safe center; }
+  .logo .l1 { font-size: min(11vw, 17vh); }
+  .logo .l2 { font-size: min(9.5vw, 14.5vh); }
+  .logo .tag { margin-top: 10px; }
+  .title .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 0; }
+  .title .menu .btn { padding: 10px 20px; }
+  .title .press { margin-top: 0; }
+  .modes { gap: 10px; }
+  .modes .btn { min-height: 0; padding: 10px 14px; gap: 4px; }
+  .modes .btn .icon { font-size: 22px; }
+  .modes .btn .label { font-size: 22px; }
+  .modes .btn .sub { font-size: 13px; }
+  /* the roster: all eight on two rows of four, portrait, name and class (the stat bars wait for a bigger screen) */
+  .roster { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .card { padding: 8px 10px; }
+  .card::before { height: 32px; }
+  .card .face.has-portrait { width: 48px; height: 48px; margin: 2px 0; }
+  .card .name { font-size: 18px; }
+  .card .who, .card .stats { display: none; }
+  .classes { gap: 10px; }
+  .classes .btn { padding: 6px 16px; }
+  .classes .btn .label { font-size: 18px; }
+  .cups { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .cup { padding: 12px !important; }
+  .cup .tracks { margin-top: 8px; }
+  .cup .trk { min-height: 60px; }
+  .track-cards { gap: 10px; width: 100%; }
+  .track-card { min-height: 96px; padding: 10px 12px !important; }
+  .track-card .label { font-size: 20px; }
 }
 /* a phone on its side: the results panel gives the rows more of the height */
 @media (max-height: 500px) {
