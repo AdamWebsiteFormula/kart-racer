@@ -4,7 +4,7 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 
 ## Where the game stands
 - Live: https://adamwebsiteformula.github.io/kart-racer/ (GitHub Pages; CI runs `npm run verify`, then publishes main).
-- 784 tests, verify green, at commit bbfa947.
+- 790 tests, verify green, at commit 4ee31a4.
 - Done this month: four AI bug hunts (68 bugs fixed), a seam review, and a 35-point detail review. The review covered:
   - camera: 5.5 m back, 2.4 m up, fov 60-66, and rival karts fade near the lens.
   - effects: start lamps count red, red, red, then green.
@@ -12,10 +12,13 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
   - sky: lit and shaded horizon rings.
   - text: US spelling and credits.
   - audio: 90 sounds and 7 songs.
-- Leaderboard: the submit-score Edge Function is v11 (checker core-d98dd52257a7c509, pinned at commit bbfa947). It refuses a forged time (422). The board is empty: the test scores were deleted.
+- Leaderboard: the submit-score Edge Function is v12 (checker core-64b1850294351a8d, pinned at commit 4ee31a4). It refuses a forged time (422, checked 24 Sept). The board is empty: the test scores were deleted.
+- 24 Sept: pickup balloons redrawn as glossy party balloons (not striped beach balls). Red-team 2 fixed: one drive is one run (canonical log, 3 names per client per board), a tighter name filter, capped body read, save records checked entry by entry. A full Knockout ran with no errors (muted). All racers checked: rated G.
+- Waiting on Adam's OK: a `hidden` column for board rows (database change), and a live test of a spoofed x-real-ip header against the rate limit.
 - The deadline for the "AI Automations with Jack" contest is 30 Sept 2026.
 
 ## Adam's rules (all agents)
+- **Everything rated G.** Female racers (Nova, Juniper, Momo) stay fully dressed and modest. Check all new art and prompts.
 - **No sound on Adam's machine, ever.** Load the game only with `?mute`, close every tab after a check, and stop any dev server you started. A test page once woke his household at night.
 - Music and sound must be at the level of Mario Kart World. **No singing in any song**: ElevenLabs music uses `force_instrumental: true`.
 - Use US English in chat and game text: curb, color, harbor.
@@ -38,6 +41,4 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 
 ## Next ideas (the definition of done in CLAUDE.md)
 - Performance pass: 60 fps on a mid laptop, under 100 draw calls. Measure with `kart.stats()` in a muted page.
-- Red-team the leaderboard and the site.
-- A full Knockout run, end to end, in a muted browser check.
 - Another fresh-eyes detail review of what a player sees and hears (look only; never play the sound).
