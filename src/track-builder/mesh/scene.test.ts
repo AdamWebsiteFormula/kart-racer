@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InstancedMesh, Mesh, type BufferGeometry, type MeshBasicMaterial, type Texture } from 'three';
+import { InstancedMesh, Matrix4, Mesh, Raycaster, Vector3, type BufferGeometry, type MeshBasicMaterial, type Texture } from 'three';
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
@@ -195,6 +195,39 @@ describe('decor and barriers', () => {
     t.applyFinalLapShift();
     const beach = t.branches.byId('beach')!;
     for (const c of s.chunks) expect(c.mesh.visible).toBe(c.branch !== beach.index);
+  });
+});
+
+describe('boost pads', () => {
+  const tracks = Object.values(import.meta.glob('../tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>);
+
+  it.each(tracks.map((d) => [d.id, d] as const))('%s: every pad lies on the road as drawn, on slopes and banks too (bug hunt 3)', (_id, def) => {
+    // turned by yaw alone, a pad on Canyon's 25 % descent stood 0.53 m over the road at one end and
+    // sank 0.47 m into it at the other (Skyline's steep pad and the banked ones on Meadow and Frostbite too)
+    const track = buildTrack(cloneDef(def));
+    for (const b of track.branches.list) b.forcedOpen = true;
+    const scene = buildTrackScene(track);
+    scene.group.updateMatrixWorld(true);
+    const pads = scene.instancers.get('boostPads')!, a = pads.instanceMatrix.array as Float32Array;
+    const feats = track.features.filter((f) => f.kind === 'boostPad');
+    expect(pads.count).toBe(feats.length);
+    const rc = new Raycaster(), m = new Matrix4(), p = new Vector3();
+    let low = Infinity, high = -Infinity, where = '';
+    feats.forEach((f, k) => {
+      const roads = scene.chunks.filter((c) => c.branch === f.branch).map((c) => c.mesh);
+      m.fromArray(a, k * 16);
+      // its corners, edges and middle over the road
+      for (const u of [-0.5, 0, 0.5]) for (const v of [-0.5, 0, 0.5]) {
+        p.set(u, 0.035, v).applyMatrix4(m);
+        rc.set(new Vector3(p.x, p.y + 2, p.z), new Vector3(0, -1, 0));
+        const over = p.y - (rc.intersectObjects(roads, false)[0]?.point.y ?? -Infinity);
+        if (over < low) { low = over; where = `${f.id} at (${u}, ${v}): ${over.toFixed(3)} over the road`; }
+        high = Math.max(high, over);
+      }
+    });
+    expect(low, where).toBeGreaterThan(0.01);
+    expect(high).toBeLessThan(0.15);
+    scene.dispose();
   });
 });
 

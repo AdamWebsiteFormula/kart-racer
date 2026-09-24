@@ -236,6 +236,8 @@ function retire(m: Mesh): void {
   if ((m as InstancedMesh).isInstancedMesh) (m as InstancedMesh).dispose();
 }
 
+const PAD = new Matrix4(), PAD_X = new Vector3(), PAD_Y = new Vector3(), PAD_Z = new Vector3(), PAD_P = new Vector3(), PAD_O = new Vector3();
+
 /** slots[k] = index of the k-th drawn feature among every feature of its kind (closed shortcuts leave gaps) */
 function featureMatrices(track: Track, kind: BakedFeature['kind'], slots?: number[]): Float32Array {
   const out: number[] = [];
@@ -249,8 +251,22 @@ function featureMatrices(track: Track, kind: BakedFeature['kind'], slots?: numbe
     const yaw = headingOf(c.tangent);
     if (kind === 'pickup') pushTransform(out, [f.position[0], f.position[1] + BUILDER.balloonHeight, f.position[2]], yaw);
     else if (kind === 'coin') pushTransform(out, [f.position[0], f.position[1] + BUILDER.coinRadius + 0.2, f.position[2]], yaw);
-    else if (kind === 'boostPad') pushTransform(out, f.position, yaw, [f.width, 1, BUILDER.boostPadHalfLength * 2]);
-    else pushTransform(out, f.position, yaw, [f.width, 1, 1]);
+    else if (kind === 'boostPad') {
+      // a pad lies on the road (bug hunt 3: turned by yaw alone, one end sank into a steep or banked
+      // road and the other stood up to half a metre over it): back to front along its own lane, side
+      // to side across the bank, raised just clear of the road at its edges and corners (a changing
+      // bank twists the road under it, a dip bends it)
+      const b = track.branches.list[f.branch], L = b.lut, u = b.toLocal(f.t), du = BUILDER.boostPadHalfLength / L.length, hw = f.width / 2;
+      const at = (a: number, c: number) => PAD_P.fromArray(L.sample(u + a * du, f.lateral + c * hw).position);
+      PAD_Z.copy(at(1, 0)).sub(at(-1, 0));
+      PAD_X.copy(at(0, 1)).sub(at(0, -1));
+      PAD_Y.crossVectors(PAD_Z, PAD_X).normalize();
+      const mid = PAD_O.copy(at(0, 0));
+      let lift = 0;
+      for (const a of [-1, 0, 1]) for (const c of [-1, 0, 1]) lift = Math.max(lift, at(a, c).sub(mid).addScaledVector(PAD_Z, -a / 2).addScaledVector(PAD_X, -c / 2).dot(PAD_Y));
+      PAD.makeBasis(PAD_X, PAD_Y, PAD_Z).setPosition(mid.addScaledVector(PAD_Y, lift));
+      for (let k = 0; k < 16; k++) out.push(PAD.elements[k]);
+    } else pushTransform(out, f.position, yaw, [f.width, 1, 1]);
   }
   return Float32Array.from(out);
 }
