@@ -21,7 +21,8 @@ export class ExhaustFlames {
     if (!e) return;
     for (const p of e.ports) {
       const d = portDir(e, p);
-      const f = new Mesh(flameGeometry(racerId), flameMaterial());
+      // an alt paint's flame burns in the paint's colour (art-pipeline kart.ts exhaustFor)
+      const f = new Mesh(flameGeometry(racerId, e.flame !== EXHAUST[racerId]?.flame ? e.flame : undefined), flameMaterial());
       f.name = 'exhaust-flame';
       f.position.set(p[0], p[1], p[2]);
       f.quaternion.setFromUnitVectors(DOWN_Z, new Vector3(d[0], d[1], d[2]));

@@ -240,14 +240,58 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .card.focused .face { animation: wobble 0.9s ease-in-out infinite; }
 .classes { display: flex; gap: 14px; flex-wrap: wrap; }
 .classes .btn .badge { background: var(--coral); }
-/* the garage (design §10 rewards): the dressed kart turning on its stand (the game copies it into the
-   canvas), then its Paint and Body, stepped left and right like a setting */
-.garage { display: flex; align-items: center; gap: 18px; max-width: 1180px; width: 100%; }
+/* the racer screen in two columns: the cards, garage and classes; and the hero turntable on the right */
+.roster-body { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 27vw, 460px); gap: 28px; align-items: start; width: 100%; max-width: 1640px; }
+.roster-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.roster-main .roster { max-width: none; }
+/* the hero (design §12 "turntable"): the dressed racer on a pedestal under a spotlight (main.ts draws the
+   canvas), the name and the paint and body under it */
+.hero { position: sticky; top: 0; display: flex; flex-direction: column; overflow: hidden; border: var(--stroke) solid var(--ink); border-radius: var(--radius); background: #211b38; box-shadow: var(--shadow-drop), var(--shadow-soft); }
+.hero-stage { display: block; width: 100%; aspect-ratio: 4 / 5; background: radial-gradient(ellipse at 50% 42%, #5b4b93, #211b38 70%); }
+.hero-cap { padding: 12px 18px 16px; background: var(--paper); border-top: var(--stroke) solid var(--ink); color: var(--ink); }
+.hero-name { font: 400 40px/1 var(--display); }
+.hero-look { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.hero-look .tag { display: inline-flex; align-items: baseline; gap: 7px; padding: 5px 12px; border: 3px solid var(--ink); border-radius: 999px; background: #fff; }
+.hero-look .tag small { font: 700 11px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.6; }
+.hero-look .tag b { font: 400 18px/1 var(--display); }
+/* the garage (design §10 rewards): Paint and Body, each option a swatch; stepped left and right */
+.garage { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .garage[hidden] { display: none; }
-.garage .turntable { flex: none; width: 200px; height: 120px; border: var(--stroke) solid var(--ink); border-radius: var(--radius-sm); background: #2a2440; box-shadow: 0 5px 0 var(--ink); }
-.garage .picks { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.garage .who { font: 400 26px/1 var(--display); text-shadow: 0 3px 0 var(--ink); min-width: 9ch; }
-.garage .pick { min-width: 240px; }
+.pick-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.btn.pick { gap: 10px; padding: 8px 14px; }
+.btn.pick .label { font-size: 22px; min-width: 2.6em; }
+.btn.pick .arrow { font-size: 16px; opacity: 0.45; padding: 8px 4px; }
+.btn.pick.focused .arrow, .btn.pick .arrow:hover { opacity: 1; }
+.btn.pick .opts { display: flex; gap: 8px; }
+.opt { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 6px 3px; border-radius: 12px; border: 3px solid transparent; }
+.opt .sw { position: relative; width: 44px; height: 30px; border: 3px solid var(--ink); border-radius: 9px; background: #fff; }
+.opt .sw.icon { color: var(--ink); display: grid; place-items: center; }
+.opt .sw.icon svg { width: 36px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+.opt .nm { font: 700 12px/1 var(--body); }
+.opt.on { border-color: var(--ink); background: #fff; box-shadow: 0 3px 0 var(--ink); }
+.opt.locked { opacity: 0.55; }
+.opt.locked .sw { filter: grayscale(0.9); }
+.opt .lock { position: absolute; right: -9px; bottom: -9px; font-size: 14px; line-height: 1; filter: drop-shadow(0 1px 0 #fff); }
+.pick-hint { max-width: 520px; font: 600 12.5px/1.35 var(--body); color: var(--paper); text-shadow: 0 1px 0 var(--ink), 0 0 3px var(--ink); }
+/* focus on the racer screen (MKW style): a thick bright ring, a glow and a lift; never a fill, so the
+   chosen class keeps its own look: filled coral with a check */
+.roster-screen .card { transition: transform var(--t-fast) var(--pop), box-shadow var(--t-fast); }
+.roster-screen .card.focused, .roster-screen .card:focus-visible {
+  z-index: 2;
+  transform: translateY(-8px) scale(1.06);
+  box-shadow: 0 0 0 5px #fff, 0 0 0 10px var(--sun), 0 0 34px 14px rgba(255, 210, 63, 0.7), 0 16px 0 var(--ink);
+}
+.roster-screen .card.dressed:not(.focused) { box-shadow: 0 0 0 4px var(--sun), var(--shadow-drop); }
+.roster-screen .classes .btn.focused, .roster-screen .classes .btn:focus-visible,
+.roster-screen .btn.pick.focused, .roster-screen .btn.pick:focus-visible {
+  background: var(--paper);
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 0 0 5px #fff, 0 0 0 10px var(--sun), 0 0 30px 10px rgba(255, 210, 63, 0.65), 0 10px 0 var(--ink);
+}
+.roster-screen .classes .btn[aria-pressed='true'] { background: var(--coral); color: #fff; }
+.roster-screen .classes .btn[aria-pressed='true'] .sub { opacity: 0.95; }
+.roster-screen .classes .btn[aria-pressed='true'] .badge { background: #fff; color: var(--coral); font-weight: 800; }
+.roster-screen .classes .btn[aria-pressed='true'].focused { background: var(--coral); }
 
 /* ---------- cup select ---------- */
 .cups { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; max-width: 1100px; }
@@ -327,6 +371,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .lap .of { font-size: 26px; }
 .lap .word { font-size: 22px; margin-right: 6px; }
 .lap.final { color: var(--coral); }
+/* Mirror mode: a small badge by the lap counter */
+.mirror-badge { display: none; align-self: flex-end; margin-top: 6px; padding: 4px 12px; border: 3px solid var(--ink); border-radius: 999px; background: var(--sky); color: #fff; font: 400 18px/1 var(--display); letter-spacing: 0.08em; box-shadow: 0 3px 0 var(--ink); }
+.mirror-badge.on { display: inline-block; }
 
 .speedo { position: absolute; bottom: calc(26px + var(--safe-b)); left: 50%; transform: translateX(-50%); font: 400 26px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; opacity: 0.85; }
 .speedo small { font-size: 14px; }
@@ -523,8 +570,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .card .stats { gap: 4px; margin-top: 6px; }
   .classes .btn { padding: 10px 22px; }
   .classes .btn .label { font-size: 22px; }
-  .garage .turntable { width: 160px; height: 96px; }
-  .garage .who { font-size: 22px; }
+  .hero-stage { aspect-ratio: 1 / 1; }
+  .hero-name { font-size: 32px; }
 }
 @media (max-height: 900px) {
   .overlay .box { padding: 20px 24px; }
@@ -556,9 +603,10 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .title .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 0; }
   .title .menu .btn { padding: 10px 20px; }
   .title .press { margin-top: 0; }
-  /* a phone on its side: no room for the turntable; the Paint and Body stay */
-  .garage .turntable { display: none; }
-  .garage .pick { min-width: 0; padding: 6px 14px !important; }
+  /* a phone on its side: the Paint and Body stay, their hints go */
+  .pick-hint { display: none; }
+  .btn.pick { padding: 4px 10px; }
+  .opt .sw { width: 34px; height: 22px; }
   .modes { gap: 10px; }
   .modes .btn { min-height: 0; padding: 10px 14px; gap: 4px; }
   .modes .btn .icon { font-size: 22px; }
@@ -605,3 +653,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 }
 /* a phone or tablet: no keys to name (Back sits by the heading) */
 @media (pointer: coarse) { .title .press, .hint { display: none; } }
+
+/* no room for the hero turntable beside the cards (a narrow window, a tablet upright, a phone): one column */
+@media (max-width: 1100px), (max-height: 620px) {
+  .roster-body { grid-template-columns: minmax(0, 1fr); }
+  .hero { display: none; }
+}

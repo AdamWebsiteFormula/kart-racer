@@ -79,6 +79,8 @@ export interface HudVM {
   timer: string;
   lap: string;
   lapFinal: boolean;
+  /** Mirror mode (design §10): a MIRROR badge by the lap counter */
+  mirrored: boolean;
   position: { n: string; suffix: string };
   flourish: boolean;
   coins: string;
@@ -148,6 +150,7 @@ export function hudModel(
     timer: player.finishTick !== undefined ? formatMs(ticksToMs(player.finishTick - state.goTick)) : formatTime(state.time),
     lap: `${lap}/${state.lapsTotal}`,
     lapFinal: lap === state.lapsTotal && state.lapsTotal > 1,
+    mirrored: state.mirrored === true,
     position: ordinalParts(rank),
     flourish: m.flourishUntil > clock,
     coins: `${player.coins}`,

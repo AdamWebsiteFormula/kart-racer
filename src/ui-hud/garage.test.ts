@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-// The design §10 rewards in the UI: the garage on the racer screen shows a choice only once something
-// is unlocked, steps with keys, gamepad and pointer alike, saves the choice, and hands the race the
+// The design §10 rewards in the UI: the garage on the racer screen shows every option, lets only the
+// unlocked be chosen, steps with keys, gamepad and pointer alike, saves the choice, and hands the race the
 // look; Mirror shows only when unlocked and only for Quick Race and Grand Prix; the Unlocks list says
 // where to use each reward; a Time Trial best keeps the look its ghost is drawn in.
 import { afterEach, describe, expect, it } from 'vitest';
-import { garageModel, lookFor, mirrorAllowed, stepChoice } from './garage.ts';
+import { garageModel, lookFor, mirrorAllowed, setChoice, stepChoice } from './garage.ts';
 import { rosterMenu } from './screens/menus.ts';
 import { SAVE_KEY, defaultSave, loadSave, type Backend } from './store.ts';
 import { UiRoot, type RacePlan, type UiHost } from './ui.ts';
@@ -37,16 +37,24 @@ const q = (sel: string) => document.querySelector(`#ui .roster-screen.on ${sel}`
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('garage view model (pure)', () => {
-  it('shows nothing on a new save; a paint only for its own racer; a body for anyone once one is unlocked', () => {
+  it('every option is shown with a swatch; locked ones wear a lock and their hint, and only unlocked ones are chosen', () => {
     const s = defaultSave();
-    expect(garageModel(s, 'pip').choices).toEqual([]);
-    expect(rosterMenu(100, 'quick', { garage: garageModel(s, 'pip') }).focus.rows.length).toBe(3); // two card rows and the classes
-
+    const pip = garageModel(s, 'pip');
+    expect(pip.choices.map((c) => [c.id, c.options.map((o) => `${o.name}${o.locked ? ' (locked)' : ''}`)])).toEqual([
+      ['paint', ['Original', 'Berry (locked)']], ['body', ['Standard', 'Classic (locked)', 'Buggy (locked)']],
+    ]);
+    expect(pip.choices[0].options[1]).toMatchObject({ hint: 'Gold in Time Trial on every Sunrise Cup track', swatch: ['#ce30ba', '#ffca54'] });
+    expect(pip.choices[1].options[1]).toMatchObject({ hint: 'Finish a Grand Prix', swatch: 'classic' });
+    expect([pip.paintName, pip.bodyName]).toEqual(['Original', 'Standard']);
+    expect(garageModel(s, 'momo').choices.map((c) => c.id)).toEqual(['body']); // Momo has no alt paint
+    // nothing to step to while all is locked
+    expect(stepChoice(s, 'pip', 'paint', 1)).toEqual(s.settings);
+    expect(setChoice(s, 'pip', 'body', 'classic')).toEqual(s.settings);
     s.unlocked.skins.push('pip-alt');
-    expect(garageModel(s, 'pip').choices.map((c) => [c.id, c.options.map((o) => o.name)])).toEqual([['paint', ['Original', 'Berry']]]);
-    expect(garageModel(s, 'momo').choices).toEqual([]); // Momo has no alt paint
     s.unlocked.bodies.push('buggy');
-    expect(garageModel(s, 'momo').choices.map((c) => [c.id, c.options.map((o) => o.name)])).toEqual([['body', ['Standard', 'Buggy']]]); // Classic still locked
+    expect(garageModel(s, 'pip').choices[1].options.map((o) => o.locked)).toEqual([false, true, false]);
+    expect(stepChoice(s, 'pip', 'body', 1).selectedBodyId).toBe('buggy'); // Classic, still locked, is skipped
+    expect(setChoice(s, 'pip', 'paint', 'pip-alt').skinByRacer).toEqual({ pip: 'pip-alt' });
     const vm = rosterMenu(100, 'quick', { garage: garageModel(s, 'pip') });
     expect(vm.focus.rows[2]).toEqual(['paint', 'body']);
   });
@@ -89,14 +97,19 @@ describe('garage view model (pure)', () => {
 });
 
 describe('garage on the racer screen (jsdom)', () => {
-  it('nothing unlocked: no garage, no Mirror, and the race gets the plain look', () => {
+  it('nothing unlocked: the garage shows every option locked with how to earn it, no Mirror, and the race gets the plain look', () => {
     const h = host();
     const ui = new UiRoot(document.body, h, null);
     toRoster(ui, 'quick');
-    expect(q('.garage')?.hidden).toBe(true);
-    expect(q('[data-id="paint"]')).toBeNull();
+    expect(q('.garage')?.hidden).toBe(false);
+    expect([...document.querySelectorAll('#ui .roster-screen.on [data-id="paint"] .opt')].map((o) => [o.getAttribute('data-opt'), o.classList.contains('locked')])).toEqual([['default', false], ['pip-alt', true]]);
+    expect(q('[data-id="body"] .opt.locked .lock')?.textContent).toBe('🔒');
+    expect(q('.pick-hint')?.textContent).toContain('Berry: Gold in Time Trial on every Sunrise Cup track');
     expect(q('[data-id="mirror"]')).toBeNull();
-    expect(ui.turntable()).toBeNull();
+    expect(q('.hero-name')?.textContent).toBe('Pip');
+    expect(ui.turntable()).toMatchObject({ racerId: 'pip', look: {} });
+    q('[data-id="body"] [data-opt="classic"]')!.click(); // a locked swatch does nothing
+    expect(ui.save.settings.selectedBodyId).toBe('standard');
     ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
     ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     expect(h.plans[0]).toMatchObject({ mirrored: false, look: {} });
@@ -113,7 +126,7 @@ describe('garage on the racer screen (jsdom)', () => {
     toRoster(ui, 'quick');
     // the saved racer (Pip) is dressed: Paint and Body
     expect(q('.garage')?.hidden).toBe(false);
-    expect(q('.garage .who')?.textContent).toBe("Pip's kart");
+    expect(q('.hero-name')?.textContent).toBe('Pip');
     expect(ui.turntable()).toMatchObject({ racerId: 'pip', look: {} });
     // up from the top row reaches the garage with Pip still dressed; left and right step his paint
     ui.nav('up');
@@ -121,7 +134,8 @@ describe('garage on the racer screen (jsdom)', () => {
     ui.nav('right');
     expect(ui.save.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
     expect(ui.turntable()?.look).toEqual({ paint: 'pip-alt' });
-    expect(q('[data-id="paint"] .val')?.textContent).toContain('Berry');
+    expect(q('[data-id="paint"] .opt.on')?.getAttribute('data-opt')).toBe('pip-alt');
+    expect(q('.hero-look')?.textContent).toContain('Berry');
     ui.nav('left');
     expect(ui.save.settings.skinByRacer).toEqual({});
     ui.nav('left'); // wraps: Berry again
@@ -131,18 +145,19 @@ describe('garage on the racer screen (jsdom)', () => {
     expect(document.activeElement?.getAttribute('data-id')).toBe('pip');
     // down to Otto's card dresses Otto (no paint of his own: Body only), and down again reaches his garage
     ui.nav('down');
-    expect(q('.garage .who')?.textContent).toBe("Otto's kart");
+    expect(q('.hero-name')?.textContent).toBe('Otto');
     expect(q('[data-id="paint"]')).toBeNull();
     ui.nav('down');
     expect(document.activeElement?.getAttribute('data-id')).toBe('body');
     ui.nav('right');
     expect(ui.save.settings.selectedBodyId).toBe('classic');
     expect(JSON.parse(b.data[SAVE_KEY]).settings.selectedBodyId).toBe('classic');
-    expect(q('[data-id="body"] .val')?.textContent).toContain('Classic');
+    expect(q('[data-id="body"] .opt.on')?.getAttribute('data-opt')).toBe('classic');
+    expect(q('.card.dressed')?.getAttribute('data-id')).toBe('otto');
     ui.dispose();
   });
 
-  it('paint by pointer: the arrows step, a click on the row steps on; the turntable follows; Mirror toggles and reaches the plan', () => {
+  it('paint by pointer: a swatch picks itself, the arrows step, a click on the row steps on; the turntable follows; Mirror toggles and reaches the plan', () => {
     const b = fake();
     const s = defaultSave();
     s.unlocked = { skins: ['pip-alt'], bodies: [], mirror: true };
@@ -154,10 +169,10 @@ describe('garage on the racer screen (jsdom)', () => {
     arrow.click();
     expect(ui.save.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
     expect(ui.turntable()?.look).toEqual({ paint: 'pip-alt' });
-    expect(q('[data-id="paint"] .val')?.textContent).toContain('Berry');
-    q('[data-id="paint"]')!.click(); // the row itself steps on: back to Original
+    q('[data-id="paint"] [data-opt="default"] .sw')!.click(); // a swatch picks itself
     expect(ui.save.settings.skinByRacer).toEqual({});
-    q('[data-id="paint"] .arrow[data-dir="-1"]')!.click();
+    q('[data-id="paint"] .label')!.click(); // the row itself steps on
+    expect(ui.save.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
     expect(q('[data-id="mirror"]')?.getAttribute('aria-pressed')).toBe('false');
     q('[data-id="mirror"]')!.click();
     expect(ui.app.mirrored).toBe(true);
@@ -208,10 +223,11 @@ describe('garage on the racer screen (jsdom)', () => {
   it('grantAllUnlocks (the dev helper) unlocks all six and the roster shows the garage at once', () => {
     const ui = new UiRoot(document.body, host(), null);
     toRoster(ui, 'grandPrix');
-    expect(q('.garage')?.hidden).toBe(true);
+    expect(q('.opt.locked')).not.toBeNull();
     ui.grantAllUnlocks();
     expect(unlockRows(ui.save).every((r) => r.unlocked)).toBe(true);
-    expect(q('.garage')?.hidden).toBe(false);
+    expect(q('.opt.locked')).toBeNull();
+    expect(q('.pick-hint')).toBeNull();
     expect(q('[data-id="mirror"]')).not.toBeNull();
     ui.dispose();
   });

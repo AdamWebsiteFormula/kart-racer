@@ -147,6 +147,7 @@ export class HudView {
   private lapN: TextField;
   private lapOf: TextField;
   private lapFinal: Flag;
+  private mirror: Flag;
   private speed: TextField;
   private banner: HTMLElement;
   private bannerBig: TextField;
@@ -191,6 +192,7 @@ export class HudView {
     this.lapN = new TextField(h('span', '', lap));
     this.lapOf = new TextField(h('span', 'of', lap));
     this.lapFinal = new Flag(lap, 'final');
+    this.mirror = new Flag(h('div', 'mirror-badge', br, 'MIRROR'), 'on');
 
     const sp = h('div', 'speedo', this.root);
     this.speed = new TextField(h('span', '', sp));
@@ -228,6 +230,7 @@ export class HudView {
     this.lapN.set(n);
     this.lapOf.set(`/${of}`);
     this.lapFinal.set(vm.lapFinal);
+    this.mirror.set(vm.mirrored);
     this.speed.set(vm.speed);
     const b = vm.banner;
     const key = b ? `${b.kind}|${b.text}|${b.sub}` : '';

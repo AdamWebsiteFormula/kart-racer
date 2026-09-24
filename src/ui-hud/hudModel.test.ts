@@ -24,6 +24,9 @@ describe('hud model', () => {
     expect([vm.timer, vm.lap, vm.lapFinal, vm.coins, vm.coinsFull, vm.speed]).toEqual(['1:05.50', '2/3', false, '3', false, '56']);
     expect(vm.position).toEqual({ n: '4', suffix: 'th' });
     expect(vm.banner).toBeNull();
+    // Mirror mode (design §10): the MIRROR badge by the lap counter, only in a mirrored race
+    expect(vm.mirrored).toBe(false);
+    expect(hudModel(race({ mirrored: true }), kart(), 4, 10, newHudMemory(), 0, defs, 0).mirrored).toBe(true);
   });
 
   it('SOP gate: a rank change shows on the same frame its positionChange arrives', () => {

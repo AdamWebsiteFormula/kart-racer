@@ -29,7 +29,7 @@ import { cleanName, type BoardMode, type Submission } from '../backend-leaderboa
 import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Settings } from './store.ts';
 import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
 import { grantAll, grantUnlocks, unlockRows } from './unlocks.ts';
-import { garageModel, lookFor, mirrorAllowed, stepChoice, type ChoiceId } from './garage.ts';
+import { garageModel, lookFor, mirrorAllowed, setChoice, stepChoice, type ChoiceId } from './garage.ts';
 
 /** `mirrored`: Mirror mode (Quick Race and Grand Prix only); `look`: the player's paint and body (cosmetic only) */
 export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[]; mirrored?: boolean; look?: KartLookIds }
@@ -483,10 +483,21 @@ export class UiRoot {
       this.changeSetting(id as SettingId, dir === '-1' ? -1 : 1);
       return;
     }
-    if (dir && this.active.key === 'rosterSelect' && (id === 'paint' || id === 'body')) {
-      this.host.uiSound?.('move');
-      this.changeLook(id, dir === '-1' ? -1 : 1);
-      return;
+    if (this.active.key === 'rosterSelect' && (id === 'paint' || id === 'body')) {
+      // a swatch picks itself (a locked one does nothing); an arrow steps that way
+      const opt = (e.target as HTMLElement).closest?.('[data-opt]')?.getAttribute('data-opt');
+      if (opt) {
+        this.host.uiSound?.('move');
+        this.save.settings = setChoice(this.save, this.dressing || this.app.racerId, id, opt);
+        writeSave(this.backend, this.save);
+        this.redrawGarage();
+        return;
+      }
+      if (dir) {
+        this.host.uiSound?.('move');
+        this.changeLook(id, dir === '-1' ? -1 : 1);
+        return;
+      }
     }
     this.host.uiSound?.(id === 'back' ? 'back' : 'confirm');
     this.confirm(id);
@@ -612,6 +623,7 @@ export class UiRoot {
     const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras());
     if (!vm.garage) return;
     this.views.roster.renderGarage(vm.garage);
+    this.views.roster.markDressed(vm.garage.racerId);
     this.models.set('rosterSelect', vm.focus);
     // the focused Paint or Body button was drawn again: focus the new one (or its neighbour, if it went)
     const cur = this.focusBy.get('rosterSelect');
@@ -722,6 +734,7 @@ export class UiRoot {
         if (entering) this.dressing = s.racerId;
         const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras());
         v.roster.render(vm);
+        v.roster.markDressed(this.dressing);
         this.models.set(key, vm.focus);
         break;
       }

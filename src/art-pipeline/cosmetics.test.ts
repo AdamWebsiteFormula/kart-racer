@@ -15,7 +15,7 @@ import { UNLOCKS } from '../ui-hud/unlocks.ts';
 import harbour from '../track-builder/tracks/harbour-loop.json';
 import { RaceSession } from '../game/session.ts';
 import { BODY_EXHAUST, BODY_IDS, KART_COLOURS, SEAT } from './bodies.ts';
-import { clipDriver, DRIVER_CUTS, RacerModels } from './glb.ts';
+import { clipDriver, DRIVER_CUTS, RacerModels, textureWithImage } from './glb.ts';
 import { bodyColours, buildRacerMesh, exhaustFor, racerGeometry } from './kart.ts';
 import { PAINTS, paintFor, repaintHex, repaintPixels, repaintRgb } from './paints.ts';
 import { EXHAUST, RACER_IDS } from './racers.ts';
@@ -37,6 +37,8 @@ describe('alt paints: a palette swap, not a tint', () => {
     expect(UNLOCKS.filter((u) => u.kind === 'skin').map((u) => u.id)).toEqual(PAINTS.map((p) => p.id));
     expect(UNLOCKS.filter((u) => u.kind === 'body').map((u) => u.id)).toEqual(BODY_IDS.filter((b) => b !== 'standard'));
     expect(paintFor('pip', 'boulder-alt')).toBeUndefined(); // a paint is its own racer's only
+    // the menu's swatches are the colours a body wears in the paint
+    for (const k of SKINS) expect([...k.swatch], k.id).toEqual(Object.values(bodyColours(k.racerId, k.id)));
   });
 
   it('moves each racer\'s own colour families to new hues and leaves tyres, eyes and whites alone', () => {
@@ -87,7 +89,7 @@ describe('alt paints: a palette swap, not a tint', () => {
     const template = new Group();
     template.add(new Mesh(new BufferGeometry(), base));
     (models as unknown as { templates: Map<string, Group> }).templates.set('pip', template);
-    const repaint = vi.fn((t: Texture, rules) => { const c = t.clone(); const d = new Uint8ClampedArray((t.image as { data: Uint8Array }).data); repaintPixels(d, rules); c.image = { data: d, width: 1, height: 1 }; return c; });
+    const repaint = vi.fn((t: Texture, rules) => { const d = new Uint8ClampedArray((t.image as { data: Uint8Array }).data); repaintPixels(d, rules); return textureWithImage(t, { data: d, width: 1, height: 1 }); });
     models.repaintTexture = repaint;
     const a = models.make('pip', 'pip-alt')!, b = models.make('pip', 'pip-alt')!, own = models.make('pip')!;
     const ma = meshes(a)[0].material as MeshStandardMaterial;
@@ -99,6 +101,9 @@ describe('alt paints: a palette swap, not a tint', () => {
     expect(hue(`#${[...((ma.map!.image as { data: Uint8ClampedArray }).data).slice(0, 3)].map((v) => v.toString(16).padStart(2, '0')).join('')}`)).toBeCloseTo(0.87, 1);
     expect(models.make('pip', 'boulder-alt')).not.toBeNull(); // another racer's paint: their own colours
     expect(meshes(models.make('pip', 'boulder-alt')!)[0].material).toBe(base);
+    // the racer's own texture is untouched: rivals keep their own colours (a shared Source once repainted them all)
+    expect(map.image).not.toBe(ma.map!.image);
+    expect([...(map.image as { data: Uint8Array }).data.slice(0, 3)]).toEqual([0x2e, 0xc4, 0xb6]);
   });
 });
 
@@ -122,6 +127,7 @@ describe('Classic and Buggy bodies', () => {
       expect(root.userData.exhaust).toEqual({ ...BODY_EXHAUST[body], flame: EXHAUST[racerId].flame });
     }
     expect(exhaustFor('pip')).toBe(EXHAUST.pip);
+    expect(exhaustFor('pip', { paint: 'pip-alt' })).toEqual({ ...EXHAUST.pip, flame: repaintHex(EXHAUST.pip.flame, paintFor('pip', 'pip-alt')!.rules) });
     expect(exhaustFor('pip', { body: 'standard' })).toBe(EXHAUST.pip);
   });
 
@@ -177,7 +183,9 @@ describe('a race with the player in a look', () => {
     const s = new RaceSession(new Scene(), def, config, { body: 'buggy', paint: 'pip-alt' });
     const player = s.views[s.playerIndex].root;
     const kart = player.getObjectByName('racer-pip')!;
-    expect(kart.userData.exhaust).toEqual({ ...BODY_EXHAUST.buggy, flame: EXHAUST.pip.flame });
+    // the Buggy's pipes, the flame in Berry's colour (the racer's own teal, repainted)
+    expect(kart.userData.exhaust).toEqual({ ...BODY_EXHAUST.buggy, flame: repaintHex(EXHAUST.pip.flame, paintFor('pip', 'pip-alt')!.rules) });
+    expect(hue(kart.userData.exhaust.flame)).toBeCloseTo(0.87, 1);
     expect(s.views.filter((_, i) => i !== s.playerIndex).every((v) => !v.root.getObjectByName(`racer-${config.racers[0].racerId}`))).toBe(true);
     const shared: Material[] = [];
     s.views.forEach((v) => v.root.traverse((o) => { const m = (o as Mesh).material as Material | undefined; if (m && isShared(m)) shared.push(m); }));

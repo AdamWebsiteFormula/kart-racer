@@ -63,11 +63,14 @@ export function racerGeometry(id: string, look: KartLook = {}, withDriver = true
   return g;
 }
 
-/** The pipes a kart burns from in a look: a shared body's, else the racer's own. The flame colour is always the racer's. */
+/** The pipes a kart burns from in a look: a shared body's, else the racer's own; the flame in the racer's colour, or their alt paint's. */
 export function exhaustFor(racerId: string, look: KartLook = {}): Exhaust | undefined {
   const own = EXHAUST[racerId];
-  if (!own || !look.body || look.body === 'standard') return own;
-  return { ...BODY_EXHAUST[look.body], flame: own.flame };
+  if (!own) return own;
+  const paint = paintFor(racerId, look.paint);
+  const flame = paint ? repaintHex(own.flame, paint.rules) : own.flame;
+  if (!look.body || look.body === 'standard') return paint ? { ...own, flame } : own;
+  return { ...BODY_EXHAUST[look.body], flame };
 }
 
 /**

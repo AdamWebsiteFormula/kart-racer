@@ -110,12 +110,21 @@ export class ListView implements ScreenView {
   }
 }
 
+/** Side views of the three bodies for the Body swatches (the racer's own kart, Classic, Buggy): outline only, currentColor. */
+const BODY_ICONS: Record<string, string> = {
+  standard: '<path d="M6 19h36l-3-7H27l-4-6h-8l-2 6H9z"/><circle cx="13" cy="21" r="4"/><circle cx="35" cy="21" r="4"/><path d="M19 6l2-3h5"/>',
+  classic: '<path d="M3 18h40l-2-4H29l-4-5h-6l-3 5H9z"/><path d="M36 14l2-7h7"/><circle cx="12" cy="20" r="4"/><circle cx="36" cy="20" r="4.5"/>',
+  buggy: '<path d="M6 17h36l-4-6H30l-5-6h-9l-3 6H9z"/><path d="M16 5l4-3h8l3 3"/><circle cx="13" cy="20" r="6"/><circle cx="35" cy="20" r="6"/>',
+};
+
 export class RosterView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
-  /** the garage row (paint and body), when anything is unlocked; its slot the game draws the kart in */
+  /** the Paint and Body rows (garage.ts), drawn again on their own when a choice or the dressed racer changes */
   private garage: HTMLElement | null = null;
-  /** the canvas the game copies the dressed kart into, turning on its stand (main.ts), or null */
+  /** the hero turntable's caption: who, in which paint and body */
+  private heroCap: HTMLElement | null = null;
+  /** the hero canvas the game copies the dressed kart into, turning on its pedestal (main.ts), or null */
   turntable: HTMLCanvasElement | null = null;
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen roster-screen', parent);
@@ -126,7 +135,9 @@ export class RosterView implements ScreenView {
     this.buttons.clear();
     const st = stage(this.root);
     heading(st, 'Pick your racer', this.buttons);
-    const grid = h('div', 'roster', st);
+    const body = h('div', 'roster-body', st);
+    const main = h('div', 'roster-main', body);
+    const grid = h('div', 'roster', main);
     vm.cards.forEach((c, i) => {
       const b = button(grid, c.id, 'card enter');
       delay(b, i * UI.staggerRosterMs);
@@ -153,50 +164,76 @@ export class RosterView implements ScreenView {
       });
       this.buttons.set(c.id, b);
     });
-    // always there (hidden while the racer being dressed has nothing unlocked), so focusing another card only redraws it
-    this.garage = h('div', 'garage enter', st);
-    this.turntable = null;
-    if (vm.garage) this.renderGarage(vm.garage);
-    else this.garage.hidden = true;
+    this.garage = h('div', 'garage enter', main);
     if (vm.classes.length) { // Time Trial and Daily have no class row
-      const cls = h('div', 'classes', st);
+      const cls = h('div', 'classes', main);
       for (const e of vm.classes) {
         const b = button(cls, e.id);
         h('span', 'label', b, e.label);
         if (e.sub) h('span', 'sub', b, e.sub);
-        if (e.badge) h('span', 'badge', b, e.badge);
+        if (e.badge) h('span', 'badge', b, e.id === 'mirror' ? 'ON' : '✓');
         b.setAttribute('aria-pressed', e.badge ? 'true' : 'false');
         this.buttons.set(e.id, b);
       }
     }
+    // the hero: the dressed racer turning on a pedestal under a spotlight (main.ts draws it into the canvas)
+    const hero = h('aside', 'hero enter', body);
+    this.turntable = h('canvas', 'hero-stage', hero);
+    this.turntable.setAttribute('aria-hidden', 'true');
+    this.heroCap = h('div', 'hero-cap', hero);
+    if (vm.garage) this.renderGarage(vm.garage);
+    else this.garage.hidden = true;
     hint(st);
   }
 
-  /** The garage alone, drawn again when a choice or the racer being dressed changes (the cards stay put). */
+  /** The garage and the hero's caption alone, drawn again when a choice or the dressed racer changes (the cards stay put). */
   renderGarage(g: GarageVM): void {
     const el = this.garage;
     if (!el) return;
     for (const id of ['paint', 'body']) this.buttons.delete(id);
     clear(el);
     el.hidden = g.choices.length === 0;
-    this.turntable = null;
-    if (el.hidden) return;
-    // the game draws the kart turning here (main.ts renders it and copies it in, over the menu's dim)
-    this.turntable = h('canvas', 'turntable', el);
-    this.turntable.setAttribute('aria-hidden', 'true');
-    const picks = h('div', 'picks', el);
-    h('div', 'who', picks, `${g.racerName}'s kart`);
     for (const c of g.choices) {
-      const b = button(picks, c.id, 'btn setting pick');
+      const wrap = h('div', 'pick-wrap', el);
+      const b = button(wrap, c.id, 'btn pick');
       h('span', 'label', b, c.label);
-      const val = h('span', 'val', b);
-      // the arrows step that way under a pointer (UiRoot.pointer), like a settings row
-      h('span', 'arrow', val, '◀').dataset.dir = '-1';
-      h('span', '', val, c.value);
-      h('span', 'arrow', val, '▶').dataset.dir = '1';
-      b.setAttribute('aria-label', `${g.racerName}'s ${c.label.toLowerCase()}: ${c.value}. Left and right change it.`);
+      // the arrows step that way under a pointer (UiRoot.pointer); a swatch picks itself
+      h('span', 'arrow', b, '◀').dataset.dir = '-1';
+      const opts = h('span', 'opts', b);
+      c.options.forEach((o, i) => {
+        const chip = h('span', `opt${i === c.index ? ' on' : ''}${o.locked ? ' locked' : ''}`, opts);
+        chip.dataset.opt = o.id;
+        const sw = h('span', 'sw', chip);
+        if (typeof o.swatch === 'string') { sw.classList.add('icon'); sw.innerHTML = `<svg viewBox="0 0 48 28" aria-hidden="true">${BODY_ICONS[o.swatch] ?? ''}</svg>`; }
+        else sw.style.background = `linear-gradient(135deg, ${o.swatch[0]} 0 55%, ${o.swatch[1]} 55% 100%)`;
+        if (o.locked) h('span', 'lock', sw, '🔒');
+        h('span', 'nm', chip, o.name);
+      });
+      h('span', 'arrow', b, '▶').dataset.dir = '1';
+      const locked = c.options.filter((o) => o.locked);
+      b.setAttribute('aria-label', `${g.racerName}'s ${c.label.toLowerCase()}: ${c.value}. Left and right change it.${locked.map((o) => ` ${o.name} is locked: ${o.hint}.`).join('')}`);
+      // how to earn each locked one, under its row
+      if (locked.length) h('div', 'pick-hint', wrap, locked.map((o) => `🔒 ${o.name}: ${o.hint}`).join('   ·   '));
       this.buttons.set(c.id, b);
     }
+    const cap = this.heroCap;
+    if (cap) {
+      clear(cap);
+      h('div', 'hero-name', cap, g.racerName);
+      const look = h('div', 'hero-look', cap);
+      // a racer with no alt paint shows only the body
+      const tags = [...(g.choices.some((c) => c.id === 'paint') ? [['Paint', g.paintName]] : []), ['Body', g.bodyName]];
+      for (const [k, v] of tags) {
+        const t = h('span', 'tag', look);
+        h('small', '', t, k);
+        h('b', '', t, v);
+      }
+    }
+  }
+
+  /** Mark the card the garage dresses (it keeps a ring while the focus is down in the garage). */
+  markDressed(id: string): void {
+    for (const [k, b] of this.buttons) if (b.classList.contains('card')) b.classList.toggle('dressed', k === id);
   }
 }
 

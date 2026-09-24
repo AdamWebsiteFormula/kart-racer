@@ -3,7 +3,7 @@
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, PCFShadowMap,
-  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Group, type Material, type Mesh,
+  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type MeshStandardMaterial,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
@@ -12,7 +12,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, buildRacerMesh, DAY_GRADE, isBodyId, isShared, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, DAY_GRADE, isBodyId, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { InputSource } from './kart-controller/input.ts';
@@ -29,7 +29,7 @@ import { CAM, carry, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, kicke
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
-import { ownKartMaterials } from './game/kartMesh.ts';
+import { Showroom } from './game/showroom.ts';
 import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
 
@@ -280,7 +280,7 @@ startAttract();
 // racer model files, when there are any (fails soft to code-built karts). The title's race started
 // before they arrived: restart it so the first thing a player sees is the modelled cast.
 preloadSurfaces();
-void Promise.all([RACER_MODELS.load(), PROP_MODELS.load()]).then(() => { if (attract) startAttract(); });
+void Promise.all([RACER_MODELS.load(), PROP_MODELS.load()]).then(() => { if (attract) startAttract(); warmLooks(); });
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));
 setTimeout(() => ui.dispatch({ type: 'boot' }), 1500); // never wait on fonts for more than 1.5 s
@@ -478,54 +478,27 @@ function step(now: number): void {
   if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
 }
 
-// ---- the racer screen's turntable: the dressed kart turning on its stand (design §12, §10 rewards) ----
-const showroom = new Scene();
-showroom.environment = scene.environment;
-showroom.environmentIntensity = 0.7;
-{
-  const key = new DirectionalLight(0xfff4e0, 2.4);
-  key.position.set(3, 6, 5);
-  showroom.add(key, new HemisphereLight(0xdfeeff, 0x4a4060, 1.3), new AmbientLight(0xbcd8ff, 0.35));
-}
-const showCam = new PerspectiveCamera(28, 5 / 3, 0.5, 60);
-const TURNTABLE_BG = new Color(0x2a2440);
+// ---- the racer screen's hero turntable: the focused racer in their paint and body (design §12, §10 rewards) ----
+const showroom = new Showroom(scene.environment);
 const clearWas = new Color();
-let onStand: { key: string; root: Group } | null = null;
 
-/** Render the dressed kart into the main canvas under the turntable's box, then copy it into the box's own canvas (over the menu's dim). */
+/** Render the showroom into the main canvas under the hero box, then copy it into the box's own canvas (over the menu's dim). */
 function drawTurntable(nowS: number, reduced: boolean): void {
   const t = ui.turntable();
   if (!t) return;
   const r = t.canvas.getBoundingClientRect();
-  if (r.width < 8 || r.height < 8) return; // hidden on a short screen
-  const want = artLook(t.look);
-  // built again once the model files arrive (the code-built kart stands in until then)
-  const key = `${t.racerId}|${want.paint ?? ''}|${want.body ?? ''}|${RACER_MODELS.has(t.racerId)}`;
-  if (onStand?.key !== key) {
-    if (onStand) {
-      showroom.remove(onStand.root);
-      onStand.root.traverse((o) => { const m = (o as Mesh).material as Material | undefined; if (m && !isShared(m)) m.dispose(); });
-    }
-    const root = buildRacerMesh(t.racerId, want);
-    if (!root) return;
-    ownKartMaterials(root); // its own copies: never the near-camera fade the rivals' shared ones carry
-    showroom.add(root);
-    onStand = { key, root };
-  }
-  onStand.root.rotation.y = reduced ? 0.7 : nowS * 0.9;
-  showCam.aspect = r.width / r.height;
-  showCam.position.set(0, 2.3, 6.4);
-  showCam.lookAt(0, 0.85, 0);
-  showCam.updateProjectionMatrix();
+  if (r.width < 8 || r.height < 8) return; // hidden on a small screen
+  showroom.show(t.racerId, artLook(t.look));
+  showroom.update(nowS, reduced, r.width / r.height);
   const x = Math.round(r.left), w = Math.round(r.width), h = Math.round(r.height), y = Math.round(innerHeight - r.bottom);
   const alpha = renderer.getClearAlpha();
   renderer.getClearColor(clearWas);
   renderer.setScissorTest(true);
   renderer.setScissor(x, y, w, h);
   renderer.setViewport(x, y, w, h);
-  renderer.setClearColor(TURNTABLE_BG, 1);
+  renderer.setClearColor(showroom.background, 1);
   renderer.clear();
-  renderer.render(showroom, showCam);
+  renderer.render(showroom.scene, showroom.camera);
   renderer.setScissorTest(false);
   renderer.setViewport(0, 0, innerWidth, innerHeight);
   renderer.setClearColor(clearWas, alpha);
@@ -533,6 +506,22 @@ function drawTurntable(nowS: number, reduced: boolean): void {
   const dpr = renderer.getPixelRatio(), cw = Math.max(1, Math.round(w * dpr)), ch = Math.max(1, Math.round(h * dpr));
   if (t.canvas.width !== cw || t.canvas.height !== ch) { t.canvas.width = cw; t.canvas.height = ch; }
   t.canvas.getContext('2d')?.drawImage(renderer.domElement, Math.round(x * dpr), Math.round(r.top * dpr), cw, ch, 0, 0, cw, ch);
+}
+
+/**
+ * Once the model files are in, get every look ready a piece at a time while the game idles, so neither
+ * the racer screen nor a race start waits on it: each alt paint's texture repainted and uploaded, each
+ * driver cut for the shared bodies, and the showroom's shaders compiled.
+ */
+function warmLooks(): void {
+  const idle = (f: () => void) => ('requestIdleCallback' in globalThis ? requestIdleCallback(() => f(), { timeout: 2000 }) : setTimeout(f, 60));
+  const jobs: (() => void)[] = [
+    ...PAINTS.map((p) => () => { const m = RACER_MODELS.paintMaterial(p.racerId, p.id) as MeshStandardMaterial | null; if (m?.map) renderer.initTexture(m.map); }),
+    ...CAST.map((c) => () => { RACER_MODELS.driver(c.id); }),
+    () => { void showroom.precompile(renderer, 'pip', { body: 'classic', paint: 'pip-alt' }); },
+  ];
+  const next = () => { const j = jobs.shift(); if (!j) return; j(); idle(next); };
+  idle(next);
 }
 requestAnimationFrame(frame);
 

@@ -2,7 +2,7 @@
 // Loaded once at boot; a racer without a model, or before its model arrives, keeps its
 // code-built kart (racers.ts). Every model is fitted to the kart footprint: facing +Z,
 // centred on the kart, wheels on y = 0, one uniform scale.
-import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, type Material, type MeshStandardMaterial, type Object3D, type Texture } from 'three';
+import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, Source, type Material, type MeshStandardMaterial, type Object3D, type Texture } from 'three';
 import { SEAT } from './bodies.ts';
 import { paintFor, repaintPixels, type PaintRule } from './paints.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -162,8 +162,17 @@ function repaintTextureInCanvas(map: Texture, rules: readonly PaintRule[]): Text
   const data = ctx.getImageData(0, 0, w, h);
   repaintPixels(data.data, rules);
   ctx.putImageData(data, 0, 0);
-  const t = map.clone(); // same sampler, flip and colour space as the model's own
-  t.image = c;
+  return textureWithImage(map, c);
+}
+
+/**
+ * A copy of `map` (same sampler, flip and colour space) showing `image`. A texture's clone shares its
+ * Source with the original, so setting the clone's image repaints the original too (every kart of the
+ * racer wore the alt paint, 24 Sept 2026): the copy gets a Source of its own.
+ */
+export function textureWithImage(map: Texture, image: unknown): Texture {
+  const t = map.clone();
+  t.source = new Source(image);
   t.needsUpdate = true;
   return t;
 }

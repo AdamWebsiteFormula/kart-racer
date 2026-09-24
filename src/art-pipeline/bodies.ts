@@ -36,7 +36,7 @@ const unit = (v: V3): V3 => { const l = Math.hypot(v[0], v[1], v[2]); return [v[
 /** The pipes each body burns from (the flame colour is the racer's: EXHAUST[racerId].flame). */
 export const BODY_EXHAUST: Readonly<Record<Exclude<BodyId, 'standard'>, Omit<Exhaust, 'flame'>>> = Object.freeze({
   classic: { ports: [[-0.2, 0.42, -1.04], [0.2, 0.42, -1.04]], dir: unit([0, 0.3, -1]) },
-  buggy: { ports: [[-0.24, 1.02, -0.98], [0.24, 1.02, -0.98]], dir: unit([0, 0.8, -1]) },
+  buggy: { ports: [[-0.24, 0.92, -0.98], [0.24, 0.92, -0.98]], dir: unit([0, 0.8, -1]) },
 });
 
 function wheel(m: ModelBuilder, x: number, z: number, r: number, w: number, hub: string, seg: number): void {
@@ -102,8 +102,8 @@ function buggy(m: ModelBuilder, a: string, b: string): void {
   m.torus(0.34, 0.075, b, [0, SEAT.y + 0.12, SEAT.z], [Math.PI / 2, 0, 0]);           // padded cockpit rim
   m.cyl(0.02, 0.02, 0.3, INK, [0, 0.76, SEAT.z + 0.46], [-0.9, 0, 0], 6, false);
   m.torus(0.12, 0.022, INK, [0, 0.88, SEAT.z + 0.36], [Math.PI / 2 - 0.9, 0, 0], false);
-  m.box([0.56, 0.3, 0.36], '#5a5a66', [0, 0.8, -0.78]);                               // engine
-  m.cyl(0.13, 0.13, 0.12, CHROME, [0, 1.0, -0.72], undefined, 12);                    // air filter
+  m.box([0.56, 0.24, 0.34], '#5a5a66', [0, 0.72, -0.8]);                              // engine, low so the driver shows over it
+  m.cyl(0.12, 0.12, 0.1, CHROME, [0, 0.88, -0.8], undefined, 12);                     // air filter
   pipes(m, BODY_EXHAUST.buggy, 0.34);
 }
 
