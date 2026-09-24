@@ -5,7 +5,7 @@
 import {
   BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Group,
   InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
-  RepeatWrapping, RGBAFormat, SphereGeometry, Matrix4, type Material, type Texture,
+  RepeatWrapping, RGBAFormat, SphereGeometry, SRGBColorSpace, Matrix4, type Material, type Texture,
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
@@ -15,6 +15,7 @@ import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chu
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
+import { buildBackdrop } from './backdrop.ts';
 import { buildStartGantry } from './gantry.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
@@ -444,6 +445,16 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const sky = new Mesh(new SphereGeometry(SKY_RADIUS, 24, 12), new MeshBasicMaterial({ color: toColor(palette.background), side: BackSide, fog: false }));
   sky.name = 'sky';
   group.add(sky);
+
+  // the far horizon: hills, mesas, peaks, headlands, a city or clouds, riding with the camera
+  // like the dome (main.ts); hazed toward the fog colour
+  {
+    const fogHex = env.fogColor && HEX.test(env.fogColor) ? env.fogColor : null;
+    const hz = fogHex ? new Color(fogHex) : new Color().setRGB(palette.background[0], palette.background[1], palette.background[2], SRGBColorSpace);
+    const baseY = groundKind === 'none' ? branches.main.lut.minY - 80 : groundY;
+    const horizon = buildBackdrop(def.biome, baseY, [hz.r, hz.g, hz.b]);
+    if (horizon) { for (const c of horizon.children) OWNED.add((c as Mesh).geometry); group.add(horizon); }
+  }
 
   // landmark: at the loop's bounding-box centre on the ground
   if (def.landmark) {

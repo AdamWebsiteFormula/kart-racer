@@ -44,6 +44,8 @@ export class RaceSession {
   bounce: Color | null;
   /** the sky dome; the game keeps it centred on the camera so the horizon sits at eye level */
   readonly dome: Object3D | undefined;
+  /** the far horizon ring (track-builder backdrop.ts); the game keeps it round the camera too */
+  readonly farRing: Object3D | undefined;
   /** the lights the current sky wants (a sunset, a night); the game eases towards them */
   skyLight: SkyLight;
   /** seconds since the phase became `finished` */
@@ -62,6 +64,7 @@ export class RaceSession {
     this.bounce = this.skyBounce(this.trackScene.sky);
     this.skyLight = lightOf(this.trackScene.sky);
     this.dome = this.trackScene.group.getObjectByName('sky');
+    this.farRing = this.trackScene.group.getObjectByName('horizon');
     this.manager = new RaceManager(this.track, config);
     this.items = new Items(this.track, this.manager);
     this.ai = new AiDriver(this.track, config, this.manager.state, { itemRoles: this.items.roles });

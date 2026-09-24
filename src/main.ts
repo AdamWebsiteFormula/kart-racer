@@ -377,6 +377,7 @@ function step(now: number): void {
   const sh = vfx.shake;
   camera.position.set(camPos[0] + sh.x, camPos[1] + sh.y, camPos[2] + sh.z);
   cur.dome?.position.copy(camera.position);
+  cur.farRing?.position.set(camera.position.x, 0, camera.position.z);
   camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
   camera.rotateZ(attract ? 0 : vfx.roll(pl, reduced));
   if (photo) { camera.position.set(...photo.pos); camera.lookAt(...photo.look); camera.fov = photo.fov; camera.updateProjectionMatrix(); }
