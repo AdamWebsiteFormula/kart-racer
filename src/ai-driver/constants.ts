@@ -9,24 +9,24 @@ export interface AiConstants {
     lookAheadGain: number; lookAheadMin: number; lookAheadMax: number;
     turnNearSeconds: number; turnFarSeconds: number;
     insideGain: number; insideBiasMax: number; lateralMaxFraction: number; laneHalfFraction: number;
-    edgeMargin: number; aimClampMargin: number; laneRate: number; narrowRoad: number; narrowLookAhead: number; narrowMargin: number; outsideFraction: number; declineFraction: number; branchCommitMetres: number; edgeLift: number; edgeShed: number; airMargin: number; trickBend: number; joinShare: number;
+    edgeMargin: number; aimClampMargin: number; laneRate: number; narrowRoad: number; narrowLookAhead: number; narrowMargin: number; outsideFraction: number; declineFraction: number; branchCommitMetres: number; edgeLift: number; edgeShed: number; airMargin: number; trickBend: number; joinShare: number; bendSeconds: number; bendStep: number; bendBack: number; shortcutSure: number;
     wanderAmpMin: number; wanderAmpMax: number; wanderPeriodMin: number; wanderPeriodMax: number;
   };
   steer: { kP: number; kD: number; dErrMax: number; offroadGain: number; noiseSmoothing: number; kLat: number; kLatMax: number };
   avoid: {
-    hazardLookAhead: number; rollingLookAhead: number; hazardLateral: number; dodgeClearance: number; avoidLookAhead: number; stoppedLookAhead: number; slowKartSpeed: number; stoppedClearance: number;
-    passDistance: number; passClosing: number; touchDistance: number; spawnBehind: number; seekDistance: number; seekLateral: number; padSkill: number;
+    hazardLookAhead: number; hazardSeconds: number; rollingLookAhead: number; hazardLateral: number; dodgeClearance: number; avoidLookAhead: number; stoppedLookAhead: number; slowKartSpeed: number; stoppedClearance: number;
+    passDistance: number; passClosing: number; touchDistance: number; spawnBehind: number; ringHop: number; ringSkill: number; seekDistance: number; seekLateral: number; seekSlope: number; rowGap: number; claimWidth: number; claimCost: number; pickSpread: number; padSkill: number;
   };
   drift: {
-    maxHold: number; cooldown: number; abortCooldown: number; hopCommit: number; hopCommitStick: number; chargeSnap: number; chargeSecondsAhead: number; startYawFraction: number; exitYawFraction: number;
-    overRotate: number; aligned: number; alignedTurn: number; edgeMargin: number; outsideSlack: number; aimGain: number; tierBySkill: number[];
+    maxHold: number; cooldown: number; abortCooldown: number; hopCommit: number; hopCommitStick: number; chargeSecondsAhead: number; startYawFraction: number; exitYawFraction: number;
+    overRotate: number; aligned: number; alignedTurn: number; edgeMargin: number; outsideSlack: number; aimGain: number; easeMin: number; swingStep: number; swingSeconds: number; wideLift: number; easePlan: number; sweepRoom: number; latCourseMax: number; apexMargin: number; wallMargin: number; hopRoom: number; hopAlign: number; hopMidBend: number; snapRoom: number; planTop: number; exitLead: number; hopLead: number; airLead: number; minTier: number; hazardMiss: number; hazardSeconds: number; tierBySkill: number[];
   };
   recover: { stuckSeconds: number; reverseSeconds: number; cooldownSeconds: number };
   rubber: { min: number; max: number; deadZone: number; scale: number; powerFrom: number; skillGain: number; shortcutRb: number; fieldPaceSpread: number };
   items: {
     forwardRange: number; forwardCone: number; homingRange: number; rearRange: number;
-    defenceRadius: number; holdMax: number; speedItemGap: number; straightTurn: number;
-    anchorMin: number; anchorMax: number; runnerRange: number; springRange: number; equaliserMinRank: number;
+    defenceRadius: number; holdMax: number; holdMin: number; speedItemGap: number; straightTurn: number;
+    anchorMin: number; anchorMax: number; anchorAlign: number; runnerRange: number; springRange: number; equaliserMinRank: number;
   };
   autopilot: { skill: number; power: number };
   profiles: Record<AiDifficulty, AiProfile>;

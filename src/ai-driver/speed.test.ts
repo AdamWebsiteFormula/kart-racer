@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { targetSpeed } from '../kart-controller/speed.ts';
+import { driftSpeedScale } from '../kart-controller/steer.ts';
 import { NEUTRAL_INPUT } from '../kart-controller/types.ts';
 import { RACE } from '../race-manager/constants.ts';
 import { buildTrack } from '../track-builder/track.ts';
@@ -17,8 +18,11 @@ describe('speed', () => {
     const gentle = cornerSpeed(1 / 60, 25, c, 1, false);
     const tight = cornerSpeed(1 / 15, 25, c, 1, false);
     expect(gentle).toBeGreaterThan(tight);
-    // a drift turns at steerRate × driftSteerMax whatever the speed
-    expect(cornerSpeed(1 / 15, 25, c, 1, true)).toBeCloseTo(c.steerRate * c.driftSteerMax * 15, 6);
+    // a drift at full inward stick turns at steerRate × driftSteerMax × driftSpeedScale (tighter below V):
+    // at its corner speed that yaw equals curvature × speed, and it holds a bend faster than grip does
+    const drift = cornerSpeed(1 / 15, 25, c, 1, true);
+    expect(c.steerRate * c.driftSteerMax * driftSpeedScale(drift, 25, c)).toBeCloseTo(drift / 15, 6);
+    expect(drift).toBeGreaterThan(tight);
     // at the corner speed, full lock yaw equals curvature × speed
     expect(reachableYaw(tight, 25, c)).toBeCloseTo(tight / 15, 3);
   });
@@ -37,7 +41,8 @@ describe('speed', () => {
     // a planned drift is judged by the drift yaw, not grip
     decideSpeed(s, c, m, fakeLine(1.4), true, out);
     const kappa = 1.4 / 24;
-    expect(out.target).toBeCloseTo(Math.min(0.9 * 0.95 * out.legal, (c.steerRate * c.driftSteerMax * (0.55 + 0.35 * m.skill)) / kappa), 6);
+    expect(out.target).toBeCloseTo(Math.min(0.9 * 0.95 * out.legal, cornerSpeed(kappa, targetSpeed(s, c).base, c, 0.55 + 0.35 * m.skill, true)), 6);
+    expect(out.corner).toBeGreaterThan(cornerSpeed(kappa, targetSpeed(s, c).base, c, 0.55 + 0.35 * m.skill, false));
   });
 
   it('throttle: full below target, coast above, brake well above, never idle at a standstill', () => {

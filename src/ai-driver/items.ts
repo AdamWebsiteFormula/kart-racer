@@ -11,7 +11,10 @@ export interface ItemContext {
   roles: Readonly<Record<string, ItemRole>>;
   /** metres from the player, positive = AI behind; 0 without a player */
   gap: number;
-  /** true when a projectile is homing on this kart (items system, later) */
+  /**
+   * true when a Homing Kite homing on this kart is about to arrive (items: within kiteWarnMetres or
+   * kiteWarnSeconds; 24 Sept 2026: it was true from lock-on, and the AI horned or hopped 80 m early)
+   */
   threatened: boolean;
 }
 
@@ -47,7 +50,7 @@ export function decideItem(s: KartState, m: AiMemory, profile: AiProfile, line: 
   if (m.itemPressed && !m.itemTrailing) { m.itemPressed = false; return false; }
   const it = AI.items;
 
-  let aheadNear = Infinity, aheadInCone = Infinity, behindNear = Infinity, anyNear = Infinity;
+  let aheadNear = Infinity, aheadInCone = Infinity, behindNear = Infinity, anyNear = Infinity, aheadBearing = 0;
   const f = forwardOf(s.heading);
   for (const o of ctx.karts) {
     if (o === s || o.isGhost || o.finishTick !== undefined) continue;
@@ -56,6 +59,7 @@ export function decideItem(s: KartState, m: AiMemory, profile: AiProfile, line: 
     const dx = o.position[0] - s.position[0], dz = o.position[2] - s.position[2];
     const along = dx * f[0] + dz * f[2];
     if (along > 0) {
+      if (dist < aheadNear) aheadBearing = bearing(s, o);
       aheadNear = Math.min(aheadNear, dist);
       if (Math.abs(bearing(s, o)) < it.forwardCone) aheadInCone = Math.min(aheadInCone, dist);
     } else behindNear = Math.min(behindNear, dist);
@@ -63,32 +67,38 @@ export function decideItem(s: KartState, m: AiMemory, profile: AiProfile, line: 
   const straight = Math.abs(line.turnFar) < it.straightTurn;
   const offroad = s.surface === 'dirt' || s.surface === 'mud';
 
+  // a new item is carried a while (Mario Kart World: most racers hold something most of the time);
+  // until holdMin only a threat, a tailgater, a close kart, the grass or a big gap uses it
+  const ready = m.itemHold >= it.holdMin;
   let want: boolean;
   switch (role) {
-    case 'forward': want = aheadInCone <= it.forwardRange; break;
-    case 'homing': want = aheadNear <= it.homingRange; break;
+    case 'forward': want = ready && aheadInCone <= it.forwardRange; break;
+    case 'homing': want = ready && aheadNear <= it.homingRange; break;
+    // a trap trails behind until a kart is on your tail (then it lands in its path) or holdMax is up
     case 'rearDrop':
-    case 'deception': want = behindNear <= it.rearRange || m.itemHold >= it.holdMax; break;
+    case 'deception': want = behindNear <= it.rearRange * 0.5 || m.itemHold >= it.holdMax; break;
     case 'defenceArea': want = anyNear <= it.defenceRadius || ctx.threatened; break;
     case 'defenceHeld': want = ctx.threatened || behindNear <= it.rearRange; break;
-    case 'speed': want = straight || offroad || ctx.gap > it.speedItemGap; break;
-    case 'ride': want = true; break;
+    case 'speed': want = (ready && straight) || offroad || ctx.gap > it.speedItemGap; break;
+    case 'ride': want = ready; break;
     case 'jump':
       // first press: dodge a homing shot or hop a kart; second (in the air): slam onto a kart below
       want = s.grounded
         ? ctx.threatened || aheadNear <= it.springRange || m.itemHold >= it.holdMax
         : anyNear <= it.springRange;
       break;
-    case 'tether': want = aheadNear >= it.anchorMin && aheadNear <= it.anchorMax; break;
-    case 'runner': want = aheadNear <= it.runnerRange; break;
-    case 'equaliser': want = s.rank >= it.equaliserMinRank; break;
+    // lined up with the road and the kart it hooks roughly in front: a hook 10 m across the road pulled
+    // a kart diagonally over Skyline's open final-lap edge (24 Sept 2026)
+    case 'tether': want = ready && aheadNear >= it.anchorMin && aheadNear <= it.anchorMax && Math.abs(line.roadErr) < it.anchorAlign && Math.abs(aheadBearing) < it.anchorAlign; break;
+    case 'runner': want = ready && aheadNear <= it.runnerRange; break;
+    case 'equaliser': want = ready && s.rank >= it.equaliserMinRank; break;
     case 'chaos': want = true; break;
   }
 
   if (TRAIL_ROLES.has(role)) {
-    // Mario Kart habit: keep a trap or a ball behind you while someone is on your tail
-    const guard = ctx.threatened || behindNear <= it.rearRange * 0.5;
-    if (guard && !want) { m.itemTrailing = m.itemPressed = true; return true; }
+    // Mario Kart habit: a ball, trap or mouse rides behind you as a shield until it is used (24 Sept
+    // 2026: the AI used everything at once and held nothing, so its slot sat empty most of the race)
+    if (!want) { m.itemTrailing = m.itemPressed = true; return true; }
     // let go: the item is thrown or dropped on release
     if (m.itemTrailing) { m.itemTrailing = m.itemPressed = false; return false; }
   }

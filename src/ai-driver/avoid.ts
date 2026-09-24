@@ -47,6 +47,7 @@ function dodge(lat: number, obsLat: number, clear: number, myLat: number): numbe
 
 // applyAvoid's scratch, reused every call: the slow karts ahead, and the hazards that stay put with their clearance
 const slowLat: number[] = [];
+const aheadD: number[] = [], aheadLat: number[] = [];
 const hzLat: number[] = [], hzClear: number[] = [];
 const EPS = 1e-6;
 
@@ -72,7 +73,8 @@ function pastSlowKarts(lat: number, myLat: number, edge: number, kartClear: numb
   return best;
 }
 
-export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skill: number, branchChoice: number, lat: number): number {
+/** `pick` (−1..1): where across a balloon row this racer goes for, as a fraction of halfWidth (AiMemory.balloonPick). */
+export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skill: number, branchChoice: number, lat: number, pick = 0): number {
   const a = AI.avoid;
   const { track, karts } = ctx;
   const len = track.length;
@@ -83,9 +85,20 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
   const kartClear = Math.min(a.stoppedClearance, fit);
   const passClear = Math.min(2 * kartR + 0.3, fit);
 
+  // the other karts ahead on this branch: how far, and where across the road (the balloon pick and the passes use them)
+  let nAhead = 0;
+  for (let i = 0; i < karts.length; i++) {
+    const o = karts[i];
+    if (o === s || o.isGhost || o.branch !== s.branch) continue;
+    const d = signedOffset(o.t, s.t) * len;
+    if (d <= 0 || d > a.seekDistance) continue;
+    aheadD[nAhead] = d; aheadLat[nAhead++] = lateralAt(ctx, o.t, o.branch, o.position);
+  }
+
   // --- seek: coins, balloons, boost pads (lowest priority) ---
   const feats = track.features;
-  let bestD = Infinity, bestLat = lat, bestKind = 0; // 1 coin, 2 balloon, 3 pad
+  let bestD = Infinity, bestLat = lat, bestKind = 0; // 1 coin, 3 pad
+  let bD = Infinity, bOff = Infinity, bLat = lat; // the balloon picked
   for (let i = 0; i < feats.length; i++) {
     const f = feats[i];
     if (f.branch !== s.branch) continue;
@@ -108,10 +121,24 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
     } else continue;
     const d = signedOffset(f.t, s.t) * len;
     if (d <= 0 || d > a.seekDistance) continue;
+    if (kind === 2) {
+      // a balloon: any free one in the row the kart can still steer to (reach grows with the distance
+      // left), the one nearest this racer's own pick across the row. Only the one on its line, it was
+      // before 24 Sept 2026: under the 3.6 m spacing, so the whole pack aimed at one balloon.
+      if (Math.abs(f.lateral - line.myLat) > Math.max(a.seekLateral, d * a.seekSlope)) continue;
+      if (Math.abs(f.lateral) > hw - kartR) continue;
+      // a kart between us and the row, lined up on this balloon, pops it first
+      let claimed = false;
+      for (let j = 0; j < nAhead; j++) if (aheadD[j] < d && Math.abs(aheadLat[j] - f.lateral) < a.claimWidth) { claimed = true; break; }
+      const off = Math.abs(f.lateral - pick * hw) + (claimed ? a.claimCost : 0);
+      if (bD === Infinity || d < bD - a.rowGap || (d <= bD + a.rowGap && off < bOff)) { bD = d; bOff = off; bLat = f.lateral; }
+      continue;
+    }
     if (Math.abs(f.lateral - lat) > a.seekLateral) continue;
     // a pad beats a balloon beats a coin; nearer wins inside a kind
     if (kind > bestKind || (kind === bestKind && d < bestD)) { bestKind = kind; bestD = d; bestLat = f.lateral; }
   }
+  if (bD < Infinity && bestKind < 3) bestLat = bLat;
   lat = bestLat;
 
   // --- other karts: draft or pass; a slow one is noted and dodged last ---
@@ -133,7 +160,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
     if (line.narrow || line.nearBranch || d > a.passDistance) continue;
     const closing = s.speed - o.speed;
     if (closing > a.passClosing || d < a.touchDistance) lat = dodge(lat, oLat, passClear, line.myLat);
-    else if (d <= BASE.slipstreamLength && Math.abs(lat - oLat) < BASE.slipstreamHalfWidth) lat = oLat; // sit in the wake
+    else if (bD === Infinity && d <= BASE.slipstreamLength && Math.abs(lat - oLat) < BASE.slipstreamHalfWidth) lat = oLat; // sit in the wake (not when going for a balloon)
   }
 
   // --- a declined fork ahead: keep to the far side so the controller does not switch us onto it ---
@@ -143,24 +170,47 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
   }
 
   // --- hazards ---
+  // dodged from hazardSeconds of travel (a lane change takes time), and the drift's lane checked further
+  const v = Math.abs(s.speed);
+  const hzReach = Math.max(a.hazardLookAhead, v * a.hazardSeconds);
+  const laneReach = v * AI.drift.hazardSeconds;
+  // the lane a drift sweeps: from where the kart is to its apex on the inside
+  const apex = Math.sign(line.turnNear) * Math.max(0, hw - AI.drift.apexMargin);
+  const laneLo = Math.min(line.myLat, apex), laneHi = Math.max(line.myLat, apex);
+  line.hazardInLane = false;
+  line.dodging = false;
+  line.hopRing = false;
+  const before = lat;
   let nHz = 0;
   const hz = ctx.hazards;
   if (hz.length) {
-    const window = a.rollingLookAhead / len + 0.02;
+    const window = Math.max(a.rollingLookAhead, hzReach, laneReach) / len + 0.02;
     for (let i = 0; i < hz.length; i++) {
       const h = hz[i];
       if (h.type === 'gust' || h.type === 'vent') continue; // a gust is steered through; a vent is a free trick
-      const reach = h.type === 'rolling' ? a.rollingLookAhead : a.hazardLookAhead;
+      if (h.ground) {
+        // a shock wave along the ground (the Rumblesaur's footstep ring): hop it, as a player would, when
+        // it is about to reach the kart. Steering round a ring of points swerved the pack into the foot.
+        const gap = Math.hypot(h.position[0] - s.position[0], h.position[2] - s.position[2]) - h.radius - kartR;
+        if (gap < v * a.ringHop) line.hopRing = true;
+        continue;
+      }
+      // one that stays put is dodged from hazardSeconds of travel; a creature or a crossing cart moves on,
+      // so where it is now only matters close by
+      const stays = h.type === 'static' || h.type === 'falling';
+      const reach = h.type === 'rolling' ? a.rollingLookAhead : stays ? hzReach : a.hazardLookAhead;
       const ht = track.nearestT(h.position, s.t, window);
       const d = signedOffset(ht, s.t) * len;
-      if (d <= 0 || d > reach) continue;
+      if (d <= 0 || d > (stays ? Math.max(reach, laneReach) : reach)) continue;
       const hLat = lateralAt(ctx, ht, 0, h.position);
       if (Math.abs(hLat) > hw + h.radius) continue; // off the road
       const clear = Math.min(a.dodgeClearance + h.radius, fit);
+      if (stays && hLat > laneLo - clear && hLat < laneHi + clear) line.hazardInLane = true;
+      if (d > reach) continue;
       lat = dodge(lat, hLat, clear, line.myLat);
       // kept clear of when passing a slow kart only if it stays put (a rolling one by its lane, below):
       // swerving round a stopped kart for a creature or a crossing cart that moves on crosses in front of it
-      if (h.type === 'static' || h.type === 'falling') { hzLat[nHz] = hLat; hzClear[nHz++] = clear; }
+      if (stays) { hzLat[nHz] = hLat; hzClear[nHz++] = clear; }
     }
   }
 
@@ -176,6 +226,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
       // a rolling hazard's whole lane, its spot back to where it respawns, is kept clear of when passing
       // a slow kart: which side to pass on must not flip each time a barrel rolls into range
       if (h.type === 'rolling' && d > 0 && d - (h.speed ?? 0) * (h.period ?? 1) < a.stoppedLookAhead) { hzLat[nHz] = h.lateral ?? 0; hzClear[nHz++] = clear; }
+      if (h.type === 'falling' && d > 0 && d < laneReach && (h.lateral ?? 0) > laneLo - clear && (h.lateral ?? 0) < laneHi + clear) line.hazardInLane = true;
       if (d < -a.spawnBehind || d > a.hazardLookAhead) continue;
       lat = dodge(lat, h.lateral ?? 0, clear, line.myLat);
       hzLat[nHz] = h.lateral ?? 0; hzClear[nHz++] = clear;
@@ -183,13 +234,14 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
   }
 
   const edge = Math.max(0, Math.min(hw - AI.line.edgeMargin, hw - kartR - 0.3));
+  if (Math.abs(lat - before) > EPS) line.dodging = true;
   lat = clamp(lat, -edge, edge);
   // --- slow, spun or stopped karts ahead (highest priority), all at once: a stopped kart is a sure
   // hit, a hazard lane may be empty when we get there. Dodged before the hazards and one at a time,
   // Harbour's barrel dodge steered the field onto a kart stopped 35 m short of the barrels (bug hunt 2,
   // 24 Sept 2026: 30 of 85 passes hit it at 20–35 m/s), and a second slow kart's dodge could undo the first's.
   for (let j = 0; j < nSlow; j++) {
-    if (Math.abs(lat - slowLat[j]) < kartClear - EPS) return pastSlowKarts(lat, line.myLat, edge, kartClear, nSlow, nHz);
+    if (Math.abs(lat - slowLat[j]) < kartClear - EPS) { line.dodging = true; return pastSlowKarts(lat, line.myLat, edge, kartClear, nSlow, nHz); }
   }
   return lat;
 }

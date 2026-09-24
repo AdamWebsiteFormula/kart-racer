@@ -430,7 +430,10 @@ describe('shortcut joins (bug hunt 2, 24 Sept 2026)', () => {
     const mine = track.branches.byId('mine-tunnel')!;
     let off = 0, passes = 0;
     const was: number[] = [];
-    runRace(track, config(track, racers(8), 150, 3), {}, {}, (_t, _i, rm) => {
+    // every kart takes the mine every lap (onlyShortcut): how many choose it by their rolls is not what
+    // this measures, and a race with 5 passes said too little (24 Sept 2026, when the drift plan's roll
+    // moved the rng streams)
+    runRace(track, config(track, racers(8), 150, 3), { onlyShortcut: 'mine-tunnel' }, {}, (_t, _i, rm) => {
       rm.state.karts.forEach((k, i) => {
         if (k.branch === mine.index && was[i] !== mine.index) passes++;
         was[i] = k.branch;

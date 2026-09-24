@@ -23,12 +23,13 @@ export function cornerMargin(skill: number): number {
 /**
  * The fastest speed at which full lock still follows curvature κ (rad/m). Grip steering:
  * yaw = rate × (1 − falloff × v/V) must be ≥ κ v → v ≤ rate / (κ + rate × falloff / V).
- * Drifting: yaw = rate × driftSteerMax, speed-independent → v ≤ that / κ.
+ * Drifting: full inward stick, yaw = rate × driftSteerMax × driftSpeedScale, which tightens below V the
+ * way the grip turn does: the same law with rate × driftSteerMax / (1 − falloff). (It was taken as
+ * speed-independent, so the AI braked for its drifts: 17 m/s where 22 holds a 20 m bend.)
  */
 export function cornerSpeed(kappa: number, V: number, c: KartConstants, margin: number, drifting: boolean): number {
   if (kappa <= 1e-6) return Infinity;
-  if (drifting) return (c.steerRate * c.driftSteerMax * margin) / kappa;
-  const r = c.steerRate * margin;
+  const r = c.steerRate * margin * (drifting ? c.driftSteerMax / (1 - c.steerFalloff) : 1);
   return r / (kappa + (r * c.steerFalloff) / V);
 }
 

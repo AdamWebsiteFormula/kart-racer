@@ -32,11 +32,15 @@ export interface AiPersonality {
 }
 
 export type RecoveryPhase = 'none' | 'reverse' | 'cooldown';
-export type DriftEndReason = 'none' | 'tier' | 'over' | 'aligned' | 'edge' | 'hold' | 'abort' | 'air';
+export type DriftEndReason = 'none' | 'tier' | 'over' | 'aligned' | 'edge' | 'wall' | 'hold' | 'abort' | 'air' | 'hazard';
 
 export interface AiMemory {
+  /** this racer's seed (seedFor(race seed, grid slot)), for stateless rolls (rng.ts rollAt) */
+  seed: number;
   /** mulberry32 state, uint32 */
   rng: number;
+  /** the drift plan's own mulberry32 stream (rng.ts nextDrift), uint32 */
+  driftRng: number;
   personality: AiPersonality;
   /** seeded per-race pace governor, 1 − fieldPaceSpread .. 1 */
   fieldPace: number;
@@ -60,6 +64,10 @@ export interface AiMemory {
   driftDir: number;
   /** tier this drift lets go at: the target for the skill, capped by what the bend allows */
   driftTier: number;
+  /** this bend's drift, decided once on the approach: 1 drift it, −1 grip it, 0 no bend decided yet */
+  driftPlan: number;
+  /** side of the bend the plan was made for (sign of turnFar) */
+  driftPlanSide: number;
   /** why the last drift ended (tests and tuning) */
   driftEndReason: DriftEndReason;
   /** the trick roll for the current jump has been made */
@@ -79,6 +87,8 @@ export interface AiMemory {
   itemTrailing: boolean;
   /** branch index chosen for the next shortcut entry, 0 = none */
   branchChoice: number;
+  /** where across a balloon row this racer goes for (−1..1 of halfWidth): its lane plus a seeded spread */
+  balloonPick: number;
   /** lateral target from last tick, for smoothing */
   lateral: number;
 }
@@ -106,9 +116,31 @@ export interface LineInfo {
   kappa: number;
   /** curvature right under the nose (rad/m), from the lookAheadMin probe */
   kappaShort: number;
+  /** the signed heading change over that probe (rad, positive = right) */
+  turnShort: number;
   /** heading error to the road direction lookAheadMin ahead (rad, positive = road bends right of the nose) */
   roadErr: number;
+  /** where the kart is going (its velocity, not its nose) against the road here, rad, positive = right of it */
+  course: number;
   halfWidth: number;
+  /** lateral of the boundary wall here (TrackSample.wall), and the open edges (bit 1 left, bit 2 right: no wall) */
+  wall: number;
+  open: number;
+  /** how much further (rad) the road turns the way it turns now, over the bend scan, and the metres to where it stops */
+  bendAngle: number;
+  bendMetres: number;
+  /** metres ahead the bend first gets tight enough for the hop (a drift starts there), Infinity if it never does */
+  bendStart: number;
+  /** the road's halfWidth where the bend gets tight (a narrow one there is not drifted) */
+  bendHalfWidth: number;
+  /** metres to the foot of the next bump or ramp on this branch (Infinity past the scan) */
+  airMetres: number;
+  /** a hazard that stays put (static, falling, a rolling one's lane) inside the drift's lane within hazardSeconds: no drift */
+  hazardInLane: boolean;
+  /** the lateral target applyAvoid moved for a hazard or a slow kart this tick (the drift steers for it) */
+  dodging: boolean;
+  /** a shock wave along the ground is about to reach the kart: hop it */
+  hopRing: boolean;
   /** branch the look-ahead samples on: the chosen shortcut or the kart's own */
   branch: number;
   /** the kart's own signed lateral, metres right of its centreline */
@@ -134,7 +166,7 @@ export function makeScratch(): Scratch {
 }
 
 export function emptyLine(): LineInfo {
-  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, kappaShort: 0, roadErr: 0, halfWidth: 1, branch: 0, myLat: 0, nearBranch: false, narrow: false, airAhead: false, branchAhead: 0, branchSide: 0 };
+  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, kappaShort: 0, turnShort: 0, roadErr: 0, course: 0, halfWidth: 1, wall: Infinity, open: 0, bendAngle: Infinity, bendMetres: Infinity, bendStart: 0, bendHalfWidth: Infinity, airMetres: Infinity, hazardInLane: false, dodging: false, hopRing: false, branch: 0, myLat: 0, nearBranch: false, narrow: false, airAhead: false, branchAhead: 0, branchSide: 0 };
 }
 
 /** Item roles from item.schema.json; the items session supplies the id → role map. */

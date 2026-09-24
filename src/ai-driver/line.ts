@@ -6,8 +6,8 @@ import { signedOffset } from '../track-builder/branches.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
 import { AI } from './constants.ts';
-import { driftNeedsRoom } from './drift.ts';
-import { next } from './rng.ts';
+import { driftNeedsRoom, driftYaw } from './drift.ts';
+import { rollAt } from './rng.ts';
 import type { AiMemory, AiProfile, LineInfo, Scratch } from './types.ts';
 
 export function clamp(x: number, lo: number, hi: number): number {
@@ -30,7 +30,7 @@ export function lookAhead(speed: number): number {
 const MIN_PROBE_SPEED = 5;
 
 /** Fills `out` from three samples. Allocation-free. */
-export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, out: LineInfo): LineInfo {
+export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, out: LineInfo, c?: KartConstants): LineInfo {
   const l = AI.line;
   const len = track.length;
   const branch = m.branchChoice > 0 ? m.branchChoice : s.branch;
@@ -47,6 +47,7 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
   const hShort = headingOf(sc.short.tangent);
   const turnShort = wrapAngle(hShort - h);
   out.kappaShort = Math.abs(turnShort) / l.lookAheadMin;
+  out.turnShort = turnShort;
   out.kappa = Math.max(out.kappaShort, Math.abs(out.turnNear) / out.probeNear);
   // a shortcut's end meets the main road at an angle, and a kart in the air cannot turn for it (air
   // steer only): it lands pointing off the road (bug hunt 2, 24 Sept 2026: off Canyon's mine portal
@@ -63,14 +64,39 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
     }
   }
   out.roadErr = wrapAngle(hShort - s.heading);
+  out.course = wrapAngle(s.heading + Math.atan2(s.lateralVelocity, Math.max(1, Math.abs(s.speed))) - h);
   out.halfWidth = sc.here.halfWidth;
+  out.wall = sc.here.wall ?? sc.here.halfWidth;
+  out.open = sc.here.open ?? 0;
   out.narrow = sc.here.halfWidth < l.narrowRoad;
   out.airAhead = false;
+  out.airMetres = Infinity;
   for (const j of track.jumps) {
     if (!j.rise || (j.branch ?? 0) !== branch) continue;
     const d = wrap01(j.t - s.t) * len;
-    if (d < out.probeNear + (j.run ?? 0)) { out.airAhead = true; break; }
+    if (d < out.probeNear + (j.run ?? 0)) out.airAhead = true;
+    out.airMetres = Math.min(out.airMetres, Math.max(0, d - (j.run ?? 0)));
   }
+  // the bend ahead, scanned bendStep metres at a time over bendSeconds of travel: how much further the
+  // road turns the way it turns now, and where it stops turning. A drift plans its tier from it.
+  // With the kart constants, also where it first gets tight enough for the drift hop (drift.ts start rule).
+  const dirB = Math.sign(out.turnNear !== 0 ? out.turnNear : out.turnFar);
+  let maxA = 0, endM = 0, prevA = 0;
+  out.bendStart = Infinity;
+  const hopKappa = c ? (AI.drift.startYawFraction * driftYaw(c, 0.5)) / Math.min(v, c.topSpeed * AI.drift.planTop) : Infinity;
+  out.bendHalfWidth = sc.here.halfWidth;
+  if (out.kappaShort >= hopKappa) out.bendStart = 0;
+  const scan = v * l.bendSeconds;
+  if (dirB !== 0) {
+    for (let d = l.bendStep; d <= scan; d += l.bendStep) {
+      const a = wrapAngle(headingOf(track.sampleInto(wrap01(s.t + d / len), 0, branch, sc.tmp).tangent) - h) * dirB;
+      if (out.bendStart === Infinity && (a - prevA) / l.bendStep >= hopKappa) { out.bendStart = d - l.bendStep / 2; out.bendHalfWidth = sc.tmp.halfWidth; }
+      prevA = a;
+      if (a > maxA + 1e-3) { maxA = a; endM = d; } else if (a < maxA - l.bendBack) break;
+    }
+  }
+  out.bendAngle = maxA;
+  out.bendMetres = endM;
   let L = lookAhead(s.speed);
   // a branch entry or exit inside the look-ahead: the road is about to fork or rejoin
   let nearBranch = s.branch !== 0 || m.branchChoice > 0;
@@ -111,7 +137,7 @@ export function lateralTarget(s: KartState, c: KartConstants, m: AiMemory, profi
   const hw = line.halfWidth;
   const lane = m.personality.lateralBias * l.laneHalfFraction * hw;
   // a drift-worthy bend coming and this racer drifts: set up wide so the drift has room
-  if (m.driftDir === 0 && m.personality.driftUse > 0 && driftNeedsRoom(s, c, profile, line)) {
+  if (m.driftDir === 0 && m.driftPlan === 1 && driftNeedsRoom(s, c, profile, line)) {
     return -Math.sign(line.turnFar) * l.outsideFraction * hw;
   }
   // positive turn = right turn = inside on the right = positive lateral
@@ -148,7 +174,9 @@ export function chooseBranch(s: KartState, track: Track, m: AiMemory, profile: A
     const able = m.skill >= profile.shortcutSkill;
     const take = onlyShortcut !== undefined
       ? b.id === onlyShortcut
-      : able && (m.rb >= AI.rubber.shortcutRb || (!narrow && next(m) < m.personality.aggression));
+      // a wide one: a sure thing for a sharp driver (side paths help, gate 16), a roll of the racer's
+      // aggression for the rest
+      : able && (m.rb >= AI.rubber.shortcutRb || (!narrow && (m.skill >= AI.line.shortcutSure || rollAt(m.seed, i, s.lap) < m.personality.aggression)));
     m.branchChoice = take ? i : -i;
     return;
   }

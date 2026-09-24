@@ -10,7 +10,7 @@ import type { Track } from '../track-builder/track.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
 import { applyAvoid, type AvoidContext } from './avoid.ts';
 import { AI, PROFILES, difficultyFor } from './constants.ts';
-import { driftWillFire, stepDriftDecision, stepTrick } from './drift.ts';
+import { driftWillFire, stepDriftDecision, stepDriftPlan, stepTrick } from './drift.ts';
 import { decideItem, type ItemContext } from './items.ts';
 import { chooseBranch, lateralTarget, readLine } from './line.ts';
 import { personalityFor } from './personalities.ts';
@@ -32,27 +32,33 @@ export interface AiDriverOptions {
   onlyShortcut?: string;
 }
 
+/** Salt for the drift plan's own rng stream (AiMemory.driftRng). */
+const DRIFT_STREAM = 0x2545f491;
+
 const AUTOPILOT: AiProfile = Object.freeze({ ...PROFILES.normal, skill: AI.autopilot.skill, power: AI.autopilot.power });
 
 export function createMemory(seed: number, slot: number, racerId: string, profile: AiProfile, fieldPace: number, override?: AiPersonality): AiMemory {
   const m: AiMemory = {
+    seed: seedFor(seed, slot),
     rng: seedFor(seed, slot),
+    driftRng: seedFor(seed, slot) ^ DRIFT_STREAM,
     personality: { lateralBias: 0, aggression: 0, driftUse: 0 },
     fieldPace,
     startPress: 0,
     wanderAmp: 0, wanderPeriod: 1, wanderPhase: 0,
     prevErr: 0, noise: 0,
     rb: 1, skill: profile.skill, powerCap: profile.power,
-    driftHold: 0, driftCooldown: 0, driftDir: 0, driftTier: 0, driftEndReason: 'none', trickRolled: false, trickDone: false,
+    driftHold: 0, driftCooldown: 0, driftDir: 0, driftTier: 0, driftPlan: 0, driftPlanSide: 0, driftEndReason: 'none', trickRolled: false, trickDone: false,
     recovery: 'none', recoverTimer: 0, stuckSeconds: 0,
     reactionRemaining: 0, lastItem: 'none', itemHold: 0, itemPressed: false, itemTrailing: false,
-    branchChoice: 0, lateral: 0,
+    branchChoice: 0, lateral: 0, balloonPick: 0,
   };
   m.personality = override ? { ...override } : personalityFor(racerId, m);
   m.startPress = profile.startPressMean + range(m, -profile.startPressSpread, profile.startPressSpread);
   m.wanderAmp = range(m, AI.line.wanderAmpMin, AI.line.wanderAmpMax);
   m.wanderPeriod = range(m, AI.line.wanderPeriodMin, AI.line.wanderPeriodMax);
   m.wanderPhase = range(m, 0, 2 * Math.PI);
+  m.balloonPick = Math.max(-1, Math.min(1, m.personality.lateralBias + range(m, -AI.avoid.pickSpread, AI.avoid.pickSpread)));
   return m;
 }
 
@@ -151,12 +157,13 @@ export class AiDriver {
     m.powerCap = powerCapFor(profile, m.rb);
 
     // 3. line
-    const line = readLine(s, this.track, m, this.sc, this.line);
+    const line = readLine(s, this.track, m, this.sc, this.line, c);
     chooseBranch(s, this.track, m, profile, line, this.onlyShortcut);
+    if (!finished) stepDriftPlan(s, c, m, profile, line);
     let lat = lateralTarget(s, c, m, profile, line, state.tick / SIM_HZ);
 
     // 4. avoid and seek
-    lat = applyAvoid(s, this.avoidCtx, line, m.skill, m.branchChoice, lat);
+    lat = applyAvoid(s, this.avoidCtx, line, m.skill, m.branchChoice, lat, m.balloonPick);
     // smooth the target so a nudge that flickers does not saw the wheel
     const maxStep = AI.line.laneRate * dt;
     const dl = lat - m.lateral;
@@ -168,7 +175,7 @@ export class AiDriver {
     out.steer = steerTo(s, aim, m, profile.noise * (1 - m.skill), offroad ? AI.steer.offroadGain : 1, m.lateral - line.myLat, dt);
 
     // 6. throttle
-    const willDrift = !finished && m.driftDir === 0 && m.driftCooldown === 0 && m.personality.driftUse > 0 && !line.narrow && !line.nearBranch && !line.airAhead
+    const willDrift = !finished && m.driftDir === 0 && m.driftCooldown === 0 && m.driftPlan === 1 && !line.narrow && !line.nearBranch && !line.airAhead
       && driftWillFire(s, c, profile, line);
     const sp = decideSpeed(s, c, m, line, willDrift, this.speed);
     applyThrottle(s, sp, profile, out);
@@ -177,6 +184,8 @@ export class AiDriver {
     if (!finished) {
       stepDriftDecision(s, c, m, profile, line, sp.legal, out, dt);
       stepTrick(s, m, profile, out, line);
+      // hop a shock wave: one press on the ground, not drifting (landing without the button cancels it)
+      if (line.hopRing && m.driftDir === 0 && s.grounded && s.drift.phase === 'idle' && !s.prevDrift && m.skill >= AI.avoid.ringSkill) out.drift = true;
     }
 
     // 9. items

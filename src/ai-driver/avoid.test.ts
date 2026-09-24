@@ -84,23 +84,60 @@ describe('avoid and seek', () => {
     expect(Math.abs(lat)).toBeGreaterThanOrEqual(AI.avoid.dodgeClearance + BUILDER.hazardRadius - 1e-6);
   });
 
-  it('seeks a coin when short of coins and a balloon when empty-handed, inside seekLateral only', () => {
+  it('seeks a coin when short of coins and a balloon when a slot is free: the one in the row nearest its own pick, not one a kart ahead is lined up on', () => {
     const s = kartAt(track, 0.33);
     const line = lineFor(track, s, memory());
     expect(applyAvoid(s, ctx([s], []), line, 1, 0, 1.5)).toBeCloseTo(0); // coin at 0.35 lateral 0
     s.coins = BASE.coinCap;
     expect(applyAvoid(s, ctx([s], []), line, 1, 0, 1.5)).toBeCloseTo(1.5);
-    const b = kartAt(track, 0.28);
+    // the row at 0.3 has balloons at lateral 0 and 4; the pick is a fraction of halfWidth
+    const b = kartAt(track, 0.28, 2); // both balloons within reach of where it is
     const bl = lineFor(track, b, memory());
-    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3)).toBeCloseTo(4); // balloon at lateral 4 is within 2.5 m
+    const right = 4 / bl.halfWidth;
+    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, right)).toBeCloseTo(4);
+    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, 0)).toBeCloseTo(0); // another racer, another balloon
     b.item.held = 'ball'; // one slot full: still seeks (two slots since items 2026-09-22)
-    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3)).toBeCloseTo(4);
+    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, right)).toBeCloseTo(4);
     b.item.next = 'ball'; // both full: stops seeking
-    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3)).toBeCloseTo(3);
+    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, right)).toBeCloseTo(3);
     b.item.held = 'none'; b.item.next = 'none';
     const cx = ctx([b], []);
-    cx.pickupStates[1].respawnRemaining = 2; // popped: not there
-    expect(applyAvoid(b, cx, bl, 1, 0, 3)).toBeCloseTo(3);
+    cx.pickupStates[1].respawnRemaining = 2; // popped: not there, so the other one
+    expect(applyAvoid(b, cx, bl, 1, 0, 3, right)).toBeCloseTo(0);
+    // a kart between us and the row, lined up on the right balloon, will pop it first
+    const o = kartAt(track, 0.29, 4, 20, 'o');
+    expect(applyAvoid(b, ctx([b, o], []), bl, 1, 0, 3, right)).toBeCloseTo(0);
+    // out of reach: a balloon far across the road with the row close ahead is not chased
+    const near = kartAt(track, 0.3 - 5 / track.length, -1.5);
+    const nl = lineFor(track, near, memory());
+    expect(applyAvoid(near, ctx([near], []), nl, 1, 0, -1.5, right)).toBeCloseTo(0);
+  });
+
+  it('a hazard that stays put is dodged from hazardSeconds of travel, and marks the lane a drift would sweep', () => {
+    // 40 m short of the spinner at 25 m/s: past the old 25 m look, inside 1.8 s of travel
+    const s = kartAt(track, 0.5 - 40 / track.length, 0, 25);
+    const line = lineFor(track, s, memory());
+    const spinner = track.activeHazards(0).find((h) => h.id === 'spinner')!;
+    expect(40).toBeGreaterThan(AI.avoid.hazardLookAhead);
+    expect(40).toBeLessThan(25 * AI.avoid.hazardSeconds);
+    expect(Math.abs(applyAvoid(s, ctx([s]), line, 1, 0, 0))).toBeGreaterThanOrEqual(AI.avoid.dodgeClearance + spinner.radius - 1e-6);
+    expect(line.hazardInLane).toBe(true);
+    // slow, the same 40 m is further than it looks: not yet
+    const slow = kartAt(track, 0.5 - 40 / track.length, 0, 10);
+    const sl = lineFor(track, slow, memory());
+    expect(applyAvoid(slow, ctx([slow]), sl, 1, 0, 0)).toBeCloseTo(0);
+  });
+
+  it('a shock wave along the ground is hopped, not steered round', () => {
+    const s = kartAt(track, 0.12, 0, 25);
+    const line = lineFor(track, s, memory());
+    const ahead = track.sample(0.12 + 2 / track.length, 0, 0).position;
+    const ring = { id: 'ring', type: 'creature' as const, position: [ahead[0], ahead[1], ahead[2]] as [number, number, number], radius: 1, hit: 'bump' as const, ground: true };
+    expect(applyAvoid(s, ctx([s], [ring]), line, 1, 0, 0.5)).toBeCloseTo(0.5);
+    expect(line.hopRing).toBe(true);
+    const far = track.sample(0.12 + 20 / track.length, 0, 0).position;
+    applyAvoid(s, ctx([s], [{ ...ring, position: [far[0], far[1], far[2]] }]), line, 1, 0, 0.5);
+    expect(line.hopRing).toBe(false);
   });
 
   it('never targets outside the road edge', () => {

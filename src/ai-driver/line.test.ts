@@ -71,16 +71,20 @@ describe('line', () => {
     s.branch = 1;
     expect(lat({ lateralBias: 1 })).toBe(0);
     s.branch = 0;
-    // a tight bend at 20 m/s: the drift reaches a tier, so a drifter sets up wide
+    // a tight bend at 20 m/s whose drift is planned (stepDriftPlan): the drifter sets up wide
     const tight = { ...fakeLine(0.6, 0.8), probeNear: 20 }; // asks for 0.5 rad/s: less than a half-stick drift gives, so the drift will swing and needs room
-    expect(lat({ lateralBias: 1, driftUse: 1 }, tight)).toBeCloseTo(-AI.line.outsideFraction * wide.halfWidth);
+    const planned = (plan: number) => { const m = memory(PROFILES.hard, { lateralBias: 1, driftUse: 1 }); m.driftPlan = plan; return lateralTarget(s, c, m, PROFILES.hard, tight, 0); };
+    expect(planned(1)).toBeCloseTo(-AI.line.outsideFraction * wide.halfWidth);
+    // the same bend with the drift declined on the approach, or not yet decided: the ordinary lane, no set-up
+    expect(planned(-1)).toBeGreaterThan(0);
+    expect(planned(0)).toBeGreaterThan(0);
     // a bend that asks for more yaw than a half-stick drift gives needs no room: the ordinary lane, inside bias and all
     expect(lat({ lateralBias: 0, driftUse: 1 }, { ...fakeLine(1.6, 1.8), probeNear: 20, kappaShort: 0.08 })).toBeGreaterThan(0);
     // a very gentle bend: no drift pays, so the ordinary lane applies too
     expect(lat({ lateralBias: 0, driftUse: 1 }, { ...fakeLine(0.1, 0.15), probeNear: 30 })).toBeGreaterThan(0);
   });
 
-  it('a closed shortcut is never chosen; an open one depends on skill, width and the aggression roll', () => {
+  it('a closed shortcut is never chosen; an open one depends on skill, width and the aggression roll (a sure thing for a sharp driver)', () => {
     const t2 = buildTrack(AI_OVAL);
     const sc = makeScratch();
     const at = () => kartAt(t2, 0.265);
@@ -93,12 +97,19 @@ describe('line', () => {
     s = at();
     chooseBranch(s, t2, m, PROFILES.hard, readLine(s, t2, m, sc, emptyLine()));
     expect(m.branchChoice).toBe(1);
-    const shy = memory(PROFILES.hard, { aggression: 0 });
-    chooseBranch(s, t2, shy, PROFILES.hard, readLine(s, t2, shy, sc, emptyLine()));
+    // a sharp driver (skill at shortcutSure) takes a wide one whatever its aggression; below that, the roll
+    const sure = memory(PROFILES.hard, { aggression: 0 });
+    chooseBranch(s, t2, sure, PROFILES.hard, readLine(s, t2, sure, sc, emptyLine()));
+    expect(sure.branchChoice).toBe(1);
+    const shy = memory(PROFILES.normal, { aggression: 0 });
+    chooseBranch(s, t2, shy, PROFILES.normal, readLine(s, t2, shy, sc, emptyLine()));
     expect(shy.branchChoice).toBe(-1);
+    const bold = memory(PROFILES.normal, { aggression: 1 });
+    chooseBranch(s, t2, bold, PROFILES.normal, readLine(s, t2, bold, sc, emptyLine()));
+    expect(bold.branchChoice).toBe(1);
     // past the entry the choice clears
     s = kartAt(t2, 0.30);
-    chooseBranch(s, t2, shy, PROFILES.hard, readLine(s, t2, shy, sc, emptyLine()));
+    chooseBranch(s, t2, shy, PROFILES.normal, readLine(s, t2, shy, sc, emptyLine()));
     expect(shy.branchChoice).toBe(0);
     // easy never has the skill
     const easy = memory(PROFILES.easy, { aggression: 1 });
