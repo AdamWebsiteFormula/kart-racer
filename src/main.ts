@@ -7,7 +7,7 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
-import { GameAudio, songForTrack, type Listener } from './audio/index.ts';
+import { finishLine, GameAudio, songForTrack, type Listener } from './audio/index.ts';
 import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
@@ -162,7 +162,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   indexOf.clear();
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
-  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id, session.state.trackers[pi]?.shownRank);
+  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id, session.state.trackers[pi]?.shownRank, finishLine(session.config));
   if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
   if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
   lightSnap = true; // a new race starts under its own light, no fade from the last one
@@ -192,6 +192,7 @@ function configFor(p: RacePlan): RaceConfig {
 
 const host: UiHost = {
   builtTracks: new Set(TRACKS.keys()),
+  medalTimes: new Map([...TRACKS.values()].map((d) => [d.id, d.medalTimesMs])),
   availableModes: ALL_MODES,
   creditsMarkdown,
   leaderboard: leaderboardClient(),

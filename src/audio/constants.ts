@@ -31,4 +31,6 @@ export const AUDIO = Object.freeze({
   /** the recorded engine (samples.ts): loop levels by throttle and boost, the drift screech, a near rival */
   engineLoop: Object.freeze({ base: 0.15, throttle: 0.22, boost: 0.08, screech: 0.4, other: 0.18 }),
   master: 0.9,
+  /** the worst place that still earns the finish fanfare outside a Knockout (the podium) */
+  podium: 3,
 });

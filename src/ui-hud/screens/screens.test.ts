@@ -150,12 +150,34 @@ describe('track select', () => {
     const built = new Set(['skyline-circuit', 'harbour-loop', 'canyon-rush', 'meadow-run']);
     const save = defaultSave();
     save.timeTrial['canyon-rush'] = { bestMs: 131240, medal: 'gold' };
-    const quick = trackMenu('quick', built, save);
+    const times = new Map([['canyon-rush', { gold: 132000, silver: 140000, bronze: 150000 }]]);
+    const quick = trackMenu('quick', built, save, times);
     expect(quick.tracks.map((t) => t.id)).toEqual(['harbour-loop', 'meadow-run', 'canyon-rush', 'skyline-circuit']);
     expect(quick.focus.rows).toEqual([['harbour-loop', 'meadow-run', 'canyon-rush'], ['skyline-circuit']]);
     expect(quick.tracks.every((t) => t.sub === undefined)).toBe(true);
-    const tt = trackMenu('timeTrial', built, save);
+    const tt = trackMenu('timeTrial', built, save, times);
     expect(tt.title).toMatch(/Time Trial/);
     expect(tt.tracks.find((t) => t.id === 'canyon-rush')!.sub).toBe('Best 2:11.24 · Gold');
+  });
+
+  it('a card grades the best time against the medal times now, not the medal saved under older ones', async () => {
+    const { trackMenu } = await import('./menus.ts');
+    const { defaultSave } = await import('../store.ts');
+    const built = new Set(['harbour-loop', 'canyon-rush', 'skyline-circuit']);
+    const save = defaultSave();
+    // saved when gold was 150-162 s: today's times make them no medal and bronze
+    save.timeTrial['canyon-rush'] = { bestMs: 155000, medal: 'gold' };
+    save.timeTrial['skyline-circuit'] = { bestMs: 161000, medal: 'gold' };
+    // saved under tighter times: silver then, gold now
+    save.timeTrial['harbour-loop'] = { bestMs: 120000, medal: 'silver' };
+    const times = new Map([
+      ['harbour-loop', { gold: 126000, silver: 136000, bronze: 154000 }],
+      ['canyon-rush', { gold: 124000, silver: 134000, bronze: 152000 }],
+      ['skyline-circuit', { gold: 136000, silver: 148000, bronze: 167000 }],
+    ]);
+    const sub = (id: string) => trackMenu('timeTrial', built, save, times).tracks.find((t) => t.id === id)!.sub;
+    expect(sub('canyon-rush')).toBe('Best 2:35.00');
+    expect(sub('skyline-circuit')).toBe('Best 2:41.00 · Bronze');
+    expect(sub('harbour-loop')).toBe('Best 2:00.00 · Gold');
   });
 });

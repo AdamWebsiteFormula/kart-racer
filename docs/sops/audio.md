@@ -82,6 +82,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24: Gained or lost place is measured from the player's grid rank (`newRace(song, trackId, gridRank)` seeds the director from the tracker's `shownRank` at load): with no seed the first pass off the back row played `losePlace` every race.
 - 2026-09-24: One `bump` cue per kart contact: collide.ts raises one on each kart, so the player's partner and the second of two other karts (by racer id) stay quiet. The player's rubs no longer thud twice, and the jostle after the go makes half the bonks (it reached 16-22 a second).
 - 2026-09-24: Hazard hits with no kart event are heard through `hazardHit`: a bumper car's shove plays `bump`, a rockfall's slow plays `hit` (a spin already plays through its kart `hit`, a vent's launch through its own cue). Both used to be silent.
+- 2026-09-24: Seam review: the finish fanfare follows the race's own winning line (`finishLine(config)`, passed by main.ts through `newRace(…, finishLine)`): a Knockout round's cut line, only 1st in its final (the HUD's WIN THE FINAL), else the podium (`AUDIO.podium`, 3). It was top 3 everywhere, so 2nd in the Knockout final heard the victory fanfare and was then shown OUT, and a safe 4th to 6th heard the nice-try jingle before "Safe!". A solo run's one racer is 1st, so Time Trial and Daily keep the fanfare.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

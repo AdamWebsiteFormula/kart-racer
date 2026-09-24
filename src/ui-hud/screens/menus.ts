@@ -106,11 +106,23 @@ export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<strin
 export interface TrackEntry extends Entry { biome: string; bg: string; accent: string }
 export interface TrackVM { title: string; tracks: TrackEntry[]; focus: FocusModel }
 
-/** Every built track in cup order, three to a row; a Time Trial card shows your best time and medal. */
-export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save): TrackVM {
+/** A track's Time Trial medal times (its track file's `medalTimesMs`). */
+export interface MedalTimes { gold: number; silver: number; bronze: number }
+export type Medal = 'none' | 'bronze' | 'silver' | 'gold';
+export function medalFor(ms: number, m: MedalTimes): Medal {
+  return ms <= m.gold ? 'gold' : ms <= m.silver ? 'silver' : ms <= m.bronze ? 'bronze' : 'none';
+}
+
+/**
+ * Every built track in cup order, three to a row; a Time Trial card shows your best time and its
+ * medal, graded against the track's medal times now (a medal saved under older times goes stale).
+ */
+export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save, medalTimes: ReadonlyMap<string, MedalTimes>): TrackVM {
   const tracks: TrackEntry[] = TRACKS.filter((t) => built.has(t.id)).map((t) => {
     const best = mode === 'timeTrial' ? save.timeTrial[t.id] : undefined;
-    const medal = best && best.medal !== 'none' ? ` · ${best.medal[0].toUpperCase()}${best.medal.slice(1)}` : '';
+    const times = medalTimes.get(t.id);
+    const m = best && times ? medalFor(best.bestMs, times) : 'none';
+    const medal = m !== 'none' ? ` · ${m[0].toUpperCase()}${m.slice(1)}` : '';
     return { id: t.id, label: t.name, biome: t.biome, bg: t.bg, accent: t.accent, sub: best ? `Best ${formatMs(best.bestMs)}${medal}` : undefined };
   });
   const rows: TrackEntry[][] = [];

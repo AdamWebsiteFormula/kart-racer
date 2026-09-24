@@ -26,6 +26,7 @@ function host(): UiHost & { calls: string[] } {
   return {
     calls,
     builtTracks: new Set(['harbour-loop']),
+    medalTimes: new Map([['harbour-loop', { gold: 126000, silver: 136000, bronze: 154000 }]]),
     availableModes: new Set(['quick', 'grandPrix', 'knockout', 'timeTrial', 'daily']),
     creditsMarkdown: '## Code\n| Work | Author | Licence |\n|---|---|---|\n| three.js | mrdoob | MIT |\n',
     startRace: (p) => calls.push(`start:${p.mode}:${p.racerId}:${p.tracks.join('+')}`),
@@ -610,6 +611,28 @@ describe('leaderboard panel', () => {
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     ui.raceOver({ results, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false });
     expect(document.querySelector('#ui .board')).toBeNull();
+    ui.dispose();
+  });
+});
+
+describe('Time Trial medals', () => {
+  const medalTimesMs = { gold: 126000, silver: 136000, bronze: 154000 }; // host().medalTimes
+  const run = (timeMs: number) => ({
+    mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
+    ranks: [{ racerId: 'pip', rank: 1, finishTick: 12000, timeMs, lapTimesMs: [50000, 50000, timeMs - 100000], dnf: false }],
+  }) as never;
+
+  it('a best saved under older medal times is graded again: its card, and its save when a slower run keeps it', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    ui.save.timeTrial['harbour-loop'] = { bestMs: 149000, medal: 'gold' }; // gold when gold was 150 s
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    expect(ui.app.screen).toBe('trackSelect');
+    expect(document.querySelector('#ui [data-id="harbour-loop"] .sub')?.textContent).toBe('Best 2:29.00 · Bronze');
+    ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    ui.raceOver({ results: run(152000), trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
+    expect(document.querySelector('#ui .results h2')?.textContent).toBe('Bronze medal!');
+    expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ bestMs: 149000, medal: 'bronze' });
     ui.dispose();
   });
 });

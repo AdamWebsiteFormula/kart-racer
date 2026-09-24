@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Vec3 } from '../kart-controller/types.ts';
-import type { RaceEvent } from '../race-manager/types.ts';
+import { KNOCKOUT_CUT_LINES } from '../race-manager/constants.ts';
+import { createGrandPrix, createKnockout, nextRace } from '../race-manager/series.ts';
+import type { RaceEvent, RacerConfig } from '../race-manager/types.ts';
 import { AUDIO } from './constants.ts';
-import { direct, distanceGain, hornFor, resetDirector, type Listener } from './director.ts';
+import { direct, distanceGain, finishLine, hornFor, resetDirector, type Listener } from './director.ts';
 import { engineHz, gearFor, rpmFor } from './engine.ts';
 import { DRUMS, SONGS, keyPcs, line, songForTrack } from './music/patterns.ts';
 import { Sequencer } from './music/sequencer.ts';
@@ -219,5 +221,24 @@ describe('director', () => {
     expect(direct([pc(4)], [], listener()).cues[0].sfx).toBe('losePlace');
     expect(hornFor('gus')).toBe('horn:gus');
     expect(hornFor('nobody')).toBe('horn:pip');
+  });
+
+  it('the finish fanfare follows the race\'s own winning line: the Knockout cut, only 1st in its final, else the podium', () => {
+    const racers: RacerConfig[] = ['p', 'a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id) => ({ racerId: id, archetype: 'medium', isPlayer: id === 'p' }));
+    const ko = createKnockout({ id: 'k', trackIds: ['t0', 't1', 't2'] }, racers, 150, 1);
+    const koLine = (segment: number) => { ko.segment = segment; return finishLine(nextRace(ko)!); };
+    // the final has no next round: only its winner goes on (the HUD's WIN THE FINAL)
+    expect([0, 1, 2].map(koLine)).toEqual([KNOCKOUT_CUT_LINES[0], KNOCKOUT_CUT_LINES[1], 1]);
+    expect(finishLine(nextRace(createGrandPrix({ id: 'c', trackIds: ['t0'] }, racers, 150, 1))!)).toBe(AUDIO.podium);
+    const sting = (rank: number) => direct([{ type: 'finish', racerId: 'p', rank, tick: 1, dnf: false }], [], listener()).cues[0].sfx;
+    resetDirector(4, koLine(2));
+    expect(sting(2)).toBe('finishLow'); // 2nd in the final is out
+    expect(sting(1)).toBe('finish');
+    resetDirector(8, koLine(0));
+    expect(sting(KNOCKOUT_CUT_LINES[0])).toBe('finish'); // the last place through is safe
+    expect(sting(KNOCKOUT_CUT_LINES[0] + 1)).toBe('finishLow');
+    resetDirector(8); // a Quick Race or a Grand Prix: the podium
+    expect(sting(AUDIO.podium)).toBe('finish');
+    expect(sting(AUDIO.podium + 1)).toBe('finishLow');
   });
 });
