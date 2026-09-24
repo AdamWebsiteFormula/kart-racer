@@ -138,14 +138,16 @@ export class RosterView implements ScreenView {
       });
       this.buttons.set(c.id, b);
     });
-    const cls = h('div', 'classes', st);
-    for (const e of vm.classes) {
-      const b = button(cls, e.id);
-      h('span', 'label', b, e.label);
-      if (e.sub) h('span', 'sub', b, e.sub);
-      if (e.badge) h('span', 'badge', b, e.badge);
-      b.setAttribute('aria-pressed', e.badge ? 'true' : 'false');
-      this.buttons.set(e.id, b);
+    if (vm.classes.length) { // Time Trial and Daily have no class row
+      const cls = h('div', 'classes', st);
+      for (const e of vm.classes) {
+        const b = button(cls, e.id);
+        h('span', 'label', b, e.label);
+        if (e.sub) h('span', 'sub', b, e.sub);
+        if (e.badge) h('span', 'badge', b, e.badge);
+        b.setAttribute('aria-pressed', e.badge ? 'true' : 'false');
+        this.buttons.set(e.id, b);
+      }
     }
     hint(st);
   }
@@ -504,7 +506,7 @@ export class ResultsView implements ScreenView {
       h('span', 'rk', e, r.rank);
       h('span', 'sw', e);
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
-      h('span', 'tm', e, r.out ? 'OUT' : 'THROUGH');
+      h('span', 'tm', e, r.out ? 'OUT' : r.winner ? 'WINNER' : 'THROUGH');
       h('span', 'gp', e, '');
     });
     this.actions(box, next);

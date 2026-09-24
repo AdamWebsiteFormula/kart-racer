@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { SIM_DT } from '../kart-controller/step.ts';
-import type { KartEvent } from '../kart-controller/types.ts';
+import { SIM_DT, stepKart } from '../kart-controller/step.ts';
+import { NEUTRAL_INPUT, type KartEvent } from '../kart-controller/types.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
 import { RACE } from './constants.ts';
 import { stepHazards } from './hazards.ts';
 import { OVAL, placeAt, spawnKart } from './__tests__/fixtures.ts';
 import type { RaceEvent } from './types.ts';
+import { dist3 } from './util.ts';
 
 const track = buildTrack(OVAL);
 const active = track.activeHazards(0);
@@ -73,10 +74,52 @@ describe('hazards', () => {
   it('cooldown expires after hazardCooldownSeconds', () => {
     const k = onHazard('spinner');
     const ticks = Math.round(RACE.hazardCooldownSeconds / SIM_DT);
-    for (let i = 0; i < ticks; i++) stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    k.s.status.spinRemaining = 0; // the spin is over
+    k.s.position = [...byId('bumper').position]; // out of the spinner (the bumper waits on the cooldown too)
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    k.s.position = [...k.h.position]; // and back in
+    for (let i = 2; i < ticks; i++) stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
     expect(k.events.length).toBe(1);
     stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
     expect(k.events.length).toBe(2);
+  });
+
+  it('a spinning kart is not hit, and a hazard does not hit again until the kart has left it', () => {
+    const k = onHazard('spinner');
+    k.s.status.spinRemaining = 0.5; // spun by an item on the way in
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect(k.events).toEqual([]);
+    k.s.status.spinRemaining = 0;
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect(k.events.length).toBe(1);
+    k.s.status.spinRemaining = 0;
+    k.tr.hazardCooldownRemaining = 0;
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect(k.events.length).toBe(1); // still inside it
+    k.s.position = [...byId('gust').position];
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect(k.tr.hazardInside).toBeUndefined();
+    k.s.position = [...k.h.position];
+    k.tr.hazardCooldownRemaining = 0;
+    stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    expect(k.events.length).toBe(2); // came back: a new hit
+  });
+
+  it('a coinless kart stopped in a static hazard is spun once and drives out (bug hunt 2: the Boardwalk teacups)', () => {
+    // the race order: the kart steps, then the hazards. The spin bleeds speed to 0 and used to end on
+    // the tick the cooldown did (both 1 s), so the teacup spun it again every second for the rest of the race
+    const k = onHazard('spinner');
+    const tan = track.sample(k.s.t, 0, 0).tangent;
+    k.s.heading = Math.atan2(tan[0], tan[2]);
+    const gas = { ...NEUTRAL_INPUT, throttle: 1 };
+    for (let i = 0; i < Math.round(5 / SIM_DT); i++) {
+      stepKart(k.s, gas, track, k.c, SIM_DT);
+      stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
+    }
+    expect(k.events.map((e) => e.type)).toEqual(['hazardHit']);
+    expect(dist3(k.s.position, k.h.position)).toBeGreaterThan(k.h.radius + k.c.kartRadius);
+    expect(k.s.speed).toBeGreaterThan(RACE.stuckSpeed);
   });
 
   it('slow sets the slow status; bump adds lateral away from the centre; intangible karts are skipped', () => {

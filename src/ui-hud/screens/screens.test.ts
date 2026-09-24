@@ -3,7 +3,7 @@ import { applyResults, createGrandPrix, createKnockout } from '../../race-manage
 import type { GrandPrixState, KnockoutState, RaceResults, RacerConfig } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
 import { CAST } from '../data/cast.ts';
-import { playableTracks } from '../data/catalog.ts';
+import { attractTrack, playableTracks } from '../data/catalog.ts';
 import { firstFocus, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { parseCredits } from './credits.ts';
@@ -27,7 +27,7 @@ describe('menus', () => {
     const save = defaultSave();
     const built = new Set(['harbour-loop']);
     const models = [
-      titleMenu().focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu(100).focus,
+      titleMenu().focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu(100).focus, rosterMenu(100, 'timeTrial').focus,
       cupMenu('grandPrix', built, save, 100).focus, cupMenu('knockout', built, save, 100).focus,
       pauseMenu().focus, settingsMenu(save.settings).focus,
     ];
@@ -108,9 +108,38 @@ describe('results screens', () => {
     expect(vm.sub).toBe('6 remain');
   });
 
+  it('after the Knockout final only the winner goes on: 2nd is out too, not THROUGH (bug hunt 2)', () => {
+    const ko: KnockoutState = createKnockout({ id: 'coastline', trackIds: ['a', 'b', 'c'] }, racers, 150, 1);
+    let field = CAST.map((c) => c.id);
+    for (let seg = 0; seg < 2; seg++) {
+      applyResults(ko, results(field));
+      field = field.filter((id) => !ko.eliminated.includes(id));
+    }
+    const final = [field[1], field[0], ...field.slice(2)]; // pip (field[0]) 2nd
+    const r = results(final);
+    applyResults(ko, r);
+    const vm = knockoutCutModel(r, ko, 'pip');
+    expect(vm.done).toBe(true);
+    expect(vm.headline).toBe(`${vm.winner} wins`);
+    expect(vm.rows.map((x) => [x.out, x.winner])).toEqual([[false, true], [true, false], [true, false], [true, false]]);
+    expect(vm.rows[1]).toMatchObject({ player: true, out: true });
+  });
+
   it('credits come from the CREDITS.md tables', () => {
     const md = ['# Credits', '', '## Code', '| Work | Author | Licence |', '|---|---|---|', '| three.js | mrdoob | MIT |', '', '## Art', '| Work | Author | Licence |', '|---|---|---|', ''].join('\n');
     expect(parseCredits(md)).toEqual([{ title: 'Code', rows: [{ work: 'three.js', author: 'mrdoob', licence: 'MIT' }] }]);
+  });
+});
+
+describe('attract race', () => {
+  it('the title races around Harbor Loop whatever track files sort first (design §12, bug hunt 2)', () => {
+    // the same glob main.ts reads: Boardwalk Nights sorts first and used to take over the title
+    const files = import.meta.glob('../../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, { id: string }>;
+    const ids = Object.values(files).map((d) => d.id);
+    expect(ids).toContain('boardwalk-nights');
+    expect(attractTrack(new Set(ids))).toBe('harbour-loop');
+    expect(attractTrack(new Set(ids.filter((id) => id !== 'harbour-loop')))).toBe('meadow-run'); // else the first in cup order
+    expect(attractTrack(new Set())).toBeUndefined();
   });
 });
 

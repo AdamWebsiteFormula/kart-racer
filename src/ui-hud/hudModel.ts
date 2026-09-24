@@ -126,8 +126,10 @@ export function hudModel(
     : null;
   let knockout: HudVM['knockout'] = null;
   if (state.knockout && state.mode === 'knockout') {
+    // the final has no next round: only 1st wins the Knockout, so 2nd is in danger too
+    const final = state.knockout.segment >= KNOCKOUT_CUT_LINES.length - 1;
     const cut = KNOCKOUT_CUT_LINES[state.knockout.segment] ?? KNOCKOUT_CUT_LINES[KNOCKOUT_CUT_LINES.length - 1];
-    knockout = { text: `TOP ${cut} GO THROUGH`, danger: rank > cut };
+    knockout = final ? { text: 'WIN THE FINAL', danger: rank > 1 } : { text: `TOP ${cut} GO THROUGH`, danger: rank > cut };
   }
   const slots = itemSlots(player, defs, nowMs, trailing);
   return {

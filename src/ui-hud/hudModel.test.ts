@@ -109,6 +109,12 @@ describe('hud model', () => {
     expect(hudModel(st, kart(), 7, 10, newHudMemory(), 0, defs, 0).knockout?.danger).toBe(true);
     expect(hudModel(race(), kart(), 7, 10, newHudMemory(), 0, defs, 0).knockout).toBeNull();
   });
+
+  it('in the Knockout final the strip says only 1st wins, and 2nd is in danger (bug hunt 2)', () => {
+    const st = race({ mode: 'knockout', knockout: { setId: 'k', segment: 2, cutLineAt: 2, eliminated: [] } });
+    expect(hudModel(st, kart(), 1, 10, newHudMemory(), 0, defs, 0).knockout).toEqual({ text: 'WIN THE FINAL', danger: false });
+    expect(hudModel(st, kart(), 2, 10, newHudMemory(), 0, defs, 0).knockout).toEqual({ text: 'WIN THE FINAL', danger: true });
+  });
 });
 
 describe('controls strip', () => {

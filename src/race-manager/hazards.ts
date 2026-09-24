@@ -1,5 +1,6 @@
 // Kart-vs-hazard test and the four hit kinds. Track-builder gives the active list;
-// race-manager owns the kart side. Gusts push every tick; the rest hit once per cooldown.
+// race-manager owns the kart side. Gusts push every tick; the rest hit once per cooldown,
+// never a spinning kart, and never again from the same hazard until the kart has left it.
 import { BUILDER } from '../track-builder/constants.ts';
 import type { KartConstants } from '../kart-controller/constants.ts';
 import { isRiding } from '../kart-controller/powers.ts';
@@ -17,6 +18,10 @@ export function stepHazards(
   tr.hazardCooldownRemaining = countDown(tr.hazardCooldownRemaining, dt);
   tr.ventCooldownRemaining = countDown(tr.ventCooldownRemaining, dt);
   if (s.isGhost || s.finishTick !== undefined) return;
+  if (tr.hazardInside !== undefined) {
+    const last = active.find((h) => h.id === tr.hazardInside);
+    if (!last || dist3(s.position, last.position) > last.radius + c.kartRadius) tr.hazardInside = undefined; // out of it (or it is gone)
+  }
   let f: Vec3 | undefined, r: Vec3 | undefined;
   for (const h of active) {
     if (dist3(s.position, h.position) > h.radius + c.kartRadius) continue;
@@ -43,7 +48,9 @@ export function stepHazards(
       s.lateralVelocity += (p[0] * r[0] + p[2] * r[2]) * dt;
       continue;
     }
-    if (tr.hazardCooldownRemaining > 0) continue;
+    // a kart stopped in a static teacup was spun again on the tick each spin ended (the cooldown
+    // equals hitSpinSeconds), never got a free tick and never counted as stuck (bug hunt 2)
+    if (tr.hazardCooldownRemaining > 0 || s.status.spinRemaining > 0 || h.id === tr.hazardInside) continue;
     switch (h.hit) {
       case 'spin':
         applyHit(s, c, 'hazard', kartEvents);
@@ -60,6 +67,7 @@ export function stepHazards(
       }
     }
     tr.hazardCooldownRemaining = RACE.hazardCooldownSeconds;
+    tr.hazardInside = h.id;
     events.push({ type: 'hazardHit', racerId: s.racerId, hazardId: h.id, hit: h.hit });
   }
 }
