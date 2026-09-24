@@ -109,6 +109,9 @@ export class UiRoot {
   private padSpent: boolean[] = [];
   private osReduced = false;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
+  /** a phone or tablet held upright: the rotate prompt covers the screen (CSS, same query) */
+  private readonly upright: MediaQueryList | undefined;
+  private readonly onUpright = () => this.holdIfUpright();
 
   /** on-screen thumbs for phones and tablets (shown only there, only while racing) */
   readonly touch: TouchControls;
@@ -128,6 +131,8 @@ export class UiRoot {
     rotate.setAttribute('role', 'status');
     rotate.innerHTML = '<div class="phone" aria-hidden="true"></div><p>Turn your phone sideways to race</p>';
     this.root.appendChild(rotate);
+    this.upright = globalThis.matchMedia?.('(orientation: portrait) and (pointer: coarse)');
+    this.upright?.addEventListener?.('change', this.onUpright);
     // the item roulette flicks through every painted item: have them all in the cache first
     for (const id of Object.keys(ITEM_ICONS)) new Image().src = itemArt(id);
     const r = this.root;
@@ -150,6 +155,7 @@ export class UiRoot {
 
   dispose(): void {
     removeEventListener('keydown', this.onKey);
+    this.upright?.removeEventListener?.('change', this.onUpright);
     this.root.remove();
   }
 
@@ -164,6 +170,13 @@ export class UiRoot {
     this.effects(prev, next, a);
     this.show();
     this.host.screenChanged?.(next);
+    this.holdIfUpright(); // a race begun or resumed with the phone upright
+  }
+
+  /** Under the rotate prompt no race runs: turned upright mid-race, it pauses (as a hidden tab does),
+   *  so the touch gas stops and the kart waits. */
+  private holdIfUpright(): void {
+    if (this.upright?.matches && this.app.screen === 'racing' && !this.app.overlays.length) this.dispatch({ type: 'pause' });
   }
 
   private effects(prev: AppState, next: AppState, a: AppAction): void {
@@ -346,7 +359,7 @@ export class UiRoot {
       this.changeSetting(id as SettingId, dir === '-1' ? -1 : 1);
       return;
     }
-    this.host.uiSound?.('confirm');
+    this.host.uiSound?.(id === 'back' ? 'back' : 'confirm');
     this.confirm(id);
   }
 
@@ -408,6 +421,8 @@ export class UiRoot {
       if (map[id]) this.dispatch(map[id]);
       return;
     }
+    // the menus' own Back button (a tap or a click): the way Escape goes
+    if (id === 'back') { this.back(); return; }
     switch (s.screen) {
       case 'title':
         this.dispatch(id === 'settings' ? { type: 'openSettings' } : id === 'credits' ? { type: 'openCredits' } : id === 'howTo' ? { type: 'openHowTo' } : { type: 'start' });

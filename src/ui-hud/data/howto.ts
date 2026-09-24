@@ -40,7 +40,7 @@ export const CREATURES: readonly { name: string; track: string; line: string }[]
 
 export const TIPS: readonly string[] = Object.freeze([
   'Hold drift through a turn: the sparks go blue, orange, then rainbow. Let go for a boost.',
-  'Press the gas the moment the 2 appears for a rocket start.',
+  'Press the gas the moment the 2 appears for a rocket start. On a phone, put your thumbs on the screen then.',
   'Pop a balloon for an item. You can hold two. Gold balloons give you both at once.',
   'Off a ramp, press drift in the air for a trick boost when you land.',
   'On the last lap every track changes. Watch for the banner.',

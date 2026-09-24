@@ -283,6 +283,81 @@ describe('touch', () => {
       ui.dispose();
     } finally { globalThis.matchMedia = mm; }
   });
+
+  it('a phone turned upright mid-race pauses it, and a race begun or resumed upright waits paused (bug hunt 3: it drove on blind under the rotate prompt)', () => {
+    const mm = globalThis.matchMedia;
+    let upright = false;
+    const changed: (() => void)[] = [];
+    const PORTRAIT = '(orientation: portrait) and (pointer: coarse)';
+    globalThis.matchMedia = ((q: string) => ({
+      get matches() { return q === '(pointer: coarse)' || (q === PORTRAIT && upright); },
+      addEventListener: (_: string, f: () => void) => { if (q === PORTRAIT) changed.push(f); },
+      removeEventListener: () => {},
+    })) as never;
+    const turn = (on: boolean) => { upright = on; for (const f of changed) f(); };
+    try {
+      document.body.innerHTML = '';
+      const h = host();
+      const ui = new UiRoot(document.body, h, null);
+      ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+      expect(ui.app.screen).toBe('racing');
+      expect(ui.paused).toBe(false);
+      turn(true);
+      expect(ui.paused).toBe(true);
+      expect(h.calls).toContain('paused:true');
+      // a key resumes it while still upright: it waits again at once
+      ui.dispatch({ type: 'resume' });
+      expect(ui.paused).toBe(true);
+      turn(false); // sideways: nothing changes by itself, Resume goes on
+      expect(ui.paused).toBe(true);
+      ui.dispatch({ type: 'resume' });
+      expect(ui.paused).toBe(false);
+      // a new race picked, then the phone upright before it shows: it starts paused
+      ui.dispatch({ type: 'pause' }); ui.dispatch({ type: 'quit' });
+      expect(ui.app.screen).toBe('modeSelect');
+      upright = true;
+      ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+      expect(ui.app.screen).toBe('racing');
+      expect(ui.paused).toBe(true);
+      // the menus are not touched by it
+      ui.dispatch({ type: 'quit' });
+      expect(ui.app.screen).toBe('modeSelect');
+      expect(ui.app.overlays).toEqual([]);
+      ui.dispose();
+    } finally { globalThis.matchMedia = mm; }
+  });
+});
+
+describe('Back by pointer', () => {
+  it('mode, racer, cup and track screens each have a Back button that goes where Escape goes (bug hunt 3: a phone could not go back)', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    const back = () => document.querySelector('#ui .screen.on [data-id="back"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' });
+    back();
+    expect(ui.app.screen).toBe('title');
+    ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'grandPrix' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    expect(ui.app.screen).toBe('cupSelect');
+    back();
+    expect(ui.app.screen).toBe('rosterSelect');
+    back();
+    expect(ui.app.screen).toBe('modeSelect');
+    ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    expect(ui.app.screen).toBe('trackSelect');
+    back();
+    expect(ui.app.screen).toBe('rosterSelect');
+    // the keys never land on it (they have Escape): every arrow from the racer cards stays on the picks
+    for (const k of ['ArrowUp', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowRight']) {
+      key(k);
+      expect((document.activeElement as HTMLElement).dataset.id).not.toBe('back');
+    }
+    // under the mouse it takes the focus like any button, and Enter then goes back too
+    document.querySelector('#ui .roster-screen [data-id="back"]')!.dispatchEvent(new MouseEvent('pointerover', { bubbles: true }));
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('back');
+    key('Enter');
+    expect(ui.app.screen).toBe('modeSelect');
+    ui.dispose();
+  });
 });
 
 describe('settings by pointer', () => {
