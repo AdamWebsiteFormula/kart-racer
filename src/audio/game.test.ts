@@ -202,6 +202,21 @@ describe('the sounds on the bus', () => {
     expect(ducks).toBe(2);
   });
 
+  it('the Final Lap Shift holds the music down for most of its length; a slam dips it for a moment', () => {
+    const SHIFT: Sample = { buffer: { duration: 3.5 } as AudioBuffer, start: 0, end: 3.4, gain: 1 };
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, { onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'shift' ? SHIFT : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
+    bus.unlock();
+    const calls: [number, number][] = [];
+    bus.musicDuck = (hold = 0, depth = AUDIO.musicDuck.gain) => { calls.push([hold, depth]); };
+    audio.sfx('shift');
+    expect(calls[0][0]).toBeCloseTo(3.4 * AUDIO.shiftDuck.hold, 6);
+    expect(calls[0][1]).toBe(AUDIO.shiftDuck.gain);
+    expect(20 * Math.log10(AUDIO.shiftDuck.gain)).toBeLessThan(20 * Math.log10(AUDIO.musicDuck.gain));
+    audio.sfx('slam');
+    expect(calls[1]).toEqual([0, AUDIO.musicDuck.gain]);
+  });
+
   it('no more than three of one sound at once, and one of each a tick', () => {
     const { audio, ctx } = game(false);
     const n = ctx.sources.length;

@@ -208,7 +208,11 @@ export class GameAudio {
     const s = this.bank.get(id);
     const seconds = (s ? s.end - s.start : patchSeconds(PATCHES[id])) / rate;
     if (!this.voices.admit(id, ctx.currentTime, seconds, PRIORITY.has(id))) return null;
-    if (DUCKERS.has(id) && gain >= 0.5) this.bus.musicDuck();
+    // the Final Lap Shift is the game's big moment: the music stays down under most of it
+    if (DUCKERS.has(id) && gain >= 0.5) {
+      if (id === 'shift') this.bus.musicDuck(seconds * AUDIO.shiftDuck.hold, AUDIO.shiftDuck.gain);
+      else this.bus.musicDuck();
+    }
     if (s) return playSample(ctx, this.bus.sfx!, s, ctx.currentTime + 0.005, gain * mixLevel(id), pan, rate);
     playPatch(ctx, this.bus.sfx!, PATCHES[id], ctx.currentTime + 0.005, gain, pan, rate);
     return null;

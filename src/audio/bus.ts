@@ -133,15 +133,19 @@ export class AudioBus {
     f.frequency.setTargetAtTime(AUDIO.openHz, t + AUDIO.duckSeconds * 0.4, AUDIO.duckSeconds * 0.4);
   }
 
-  /** A big sound (the go, a creature's slam, the Final Lap Shift): the music dips about 6 dB for a moment. */
-  musicDuck(): void {
+  /**
+   * A big sound (the go, a creature's slam, the Final Lap Shift): the music dips (about 6 dB, or `depth`)
+   * and stays down for `hold` seconds before it comes back, so a long sting is framed from start to end.
+   */
+  musicDuck(hold = 0, depth: number = AUDIO.musicDuck.gain): void {
     const ctx = this.ctx, d = this.musicDuckGain;
     if (!ctx || !d) return;
-    const t = ctx.currentTime, { gain, down, up } = AUDIO.musicDuck;
+    const t = ctx.currentTime, { down, up } = AUDIO.musicDuck;
     d.gain.cancelScheduledValues(t);
     d.gain.setValueAtTime(d.gain.value, t);
-    d.gain.linearRampToValueAtTime(gain, t + down);
-    d.gain.linearRampToValueAtTime(1, t + down + up);
+    d.gain.linearRampToValueAtTime(depth, t + down);
+    if (hold > 0) d.gain.setValueAtTime(depth, t + down + hold);
+    d.gain.linearRampToValueAtTime(1, t + down + hold + up);
   }
 
   private paused = false;

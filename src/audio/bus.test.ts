@@ -113,6 +113,13 @@ describe('bus', () => {
     expect(ramps).toEqual([['lin', AUDIO.musicDuck.gain, 1 + AUDIO.musicDuck.down], ['lin', 1, 1 + AUDIO.musicDuck.down + AUDIO.musicDuck.up]]);
     expect(20 * Math.log10(AUDIO.musicDuck.gain)).toBeCloseTo(-6, 0);
     expect(() => AudioBus.silent().musicDuck()).not.toThrow();
+    // a long sting holds the dip: down, held for its length, then back
+    const long = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    long.unlock();
+    long.musicDuck(2, 0.35);
+    const h = (long as unknown as { musicDuckGain: { gain: Param } }).musicDuckGain.gain.calls;
+    expect(h.filter((c) => c[0] === 'lin')).toEqual([['lin', 0.35, 1 + AUDIO.musicDuck.down], ['lin', 1, 1 + AUDIO.musicDuck.down + 2 + AUDIO.musicDuck.up]]);
+    expect(h).toContainEqual(['set', 0.35, 1 + AUDIO.musicDuck.down + 2]);
   });
 
   it('a hidden tab suspends and a visible one resumes; the duck dips the music filter', () => {

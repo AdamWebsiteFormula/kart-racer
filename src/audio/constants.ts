@@ -28,6 +28,8 @@ export const AUDIO = Object.freeze({
   musicPocket: Object.freeze({ hz: 2500, q: 0.8, db: -3 }),
   /** the music dips by this factor under a big sound: down in `down` s, back over `up` s */
   musicDuck: Object.freeze({ gain: 0.5, down: 0.05, up: 0.4 }),
+  /** the Final Lap Shift holds the music down (about 9 dB) for this share of its own length, then lets it back under the shimmer */
+  shiftDuck: Object.freeze({ gain: 0.35, hold: 0.6 }),
   /** the roulette's ticks: `fast` apart while it spins, slowing to `slow` as its `seconds` run out */
   roulette: Object.freeze({ seconds: 1.5, fast: 0.06, slow: 0.22 }),
   /** the recorded engine's low-pass: `base` Hz at idle, opening `perRpm` Hz for every rpm above it */

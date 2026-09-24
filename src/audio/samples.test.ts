@@ -7,7 +7,7 @@ import {
 } from './samples.ts';
 import { engineCutoff, OFFROAD_BY_TRACK, racerPitch, ROAD_BY_TRACK } from './engine.ts';
 import { PATCHES } from './sfx.ts';
-import { SFX, sfxBody, SONGS, songBody } from '../../scripts/elevenlabs/catalog.ts';
+import { MOMENT, SFX, sfxBody, SONG_MOMENT, SONGS, songBody } from '../../scripts/elevenlabs/catalog.ts';
 
 const HOP = 0.01;
 /** the loops the wheels can ask for (engine.ts wheelSound, sparkLayer) */
@@ -278,6 +278,9 @@ describe('no singing and no human voices (Adam, 24 Sept 2026)', () => {
     expect(ids.get('offroad')?.loop).toBe(true);
     // every loop under the wheels (each course's surfaces, the sparks) is made as a loop
     for (const id of LOOPS_UNDER_WHEELS) expect(ids.get(id)?.loop, id).toBe(true);
+    // every sound and song says where it plays: the brief the ears judge a recording against
+    for (const x of SFX) expect(MOMENT[x.id]?.length, x.id).toBeGreaterThan(20);
+    for (const x of SONGS) expect(SONG_MOMENT[x.id]?.length, x.id).toBeGreaterThan(20);
     expect(STING_SECONDS.finish).toBeGreaterThanOrEqual(ids.get('finish')!.seconds);
     expect(STING_SECONDS.finishLow).toBeGreaterThanOrEqual(ids.get('finishLow')!.seconds);
     expect(STING_SECONDS.koOut).toBeGreaterThanOrEqual(ids.get('koOut')!.seconds);
