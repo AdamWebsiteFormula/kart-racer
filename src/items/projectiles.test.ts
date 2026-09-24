@@ -225,5 +225,39 @@ describe('shots through a shortcut', () => {
       }
     }
   });
+
+  it('a Kite or a Mouse fired in a shortcut hits a kart on the main road past its exit (bug hunt: it flew through it)', () => {
+    for (const id of REAL_TRACKS) {
+      for (const item of ['homingKite', 'windUpMouse']) {
+        const h = setup({ n: 2, def: trackDef(id), cfg: withBehaviour('windUpMouse', { weave: 0 }) });
+        h.track.branches.list[1].forcedOpen = true; // Frostbite's lake opens on lap 3 only
+        go(h);
+        placeOn(h, 0, 1, 0.9);
+        placeAt(h.track, kart(h, 1), h.track.branches.list[1].exitT + 25 / h.track.length, 0);
+        give(h, 0, item);
+        press(h, 0);
+        if (item === 'homingKite') expect(h.items.state.projectiles[0].target, id).toBe(1);
+        tick(h, seconds(3));
+        expect(h.log.find((e) => e.type === 'hit'), `${id} ${item}`).toMatchObject({ racerId: 'k1', itemId: item });
+      }
+    }
+  });
+
+  it('a Kite from the main road chases a kart on it, not a nearer one in the shortcut beside it', () => {
+    for (const id of REAL_TRACKS) {
+      const h = setup({ n: 3, def: trackDef(id) });
+      go(h);
+      const sc = h.track.branches.list[1], L = h.track.length;
+      const t0 = sc.toMain(0.3);
+      placeAt(h.track, kart(h, 0), t0, 0);
+      placeOn(h, 1, 1, sc.toLocal(t0 + 15 / L));
+      placeAt(h.track, kart(h, 2), t0 + 40 / L, 3); // off the centreline: only a Kite homing on it hits
+      give(h, 0, 'homingKite');
+      press(h, 0);
+      expect(h.items.state.projectiles[0].target, id).toBe(2);
+      tick(h, seconds(3));
+      expect(h.log.find((e) => e.type === 'hit'), id).toMatchObject({ racerId: 'k2', itemId: 'homingKite' });
+    }
+  });
 });
 

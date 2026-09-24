@@ -5,6 +5,7 @@
 import { jumpLift } from '../kart-controller/ground.ts';
 import { BASE } from '../kart-controller/constants.ts';
 import { forwardOf, type KartState, type Vec3 } from '../kart-controller/types.ts';
+import { signedOffset } from '../track-builder/branches.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
 import type { ItemDefinition, ItemEvent, ItemsConfig, ItemsState, Projectile } from './types.ts';
@@ -34,13 +35,18 @@ export function inFlightFor(m: ItemsState, owner: number): number {
   return n;
 }
 
-/** Nearest kart physically ahead of `owner` along the spline (less than half a lap), or -1. */
-export function pickTarget(karts: readonly KartState[], owner: number): number {
+/** Can a shot riding `branch` reach a kart on `kartBranch`? On its own road, or on the main road every shortcut rejoins. */
+function reaches(branch: number, kartBranch: number): boolean {
+  return kartBranch === branch || kartBranch === 0;
+}
+
+/** Nearest kart physically ahead of `owner` along the spline (less than half a lap) that a shot on `branch` can reach, or -1. */
+export function pickTarget(karts: readonly KartState[], owner: number, branch: number): number {
   const me = karts[owner];
   let best = -1, bestGap = 0.5;
   for (let i = 0; i < karts.length; i++) {
     const o = karts[i];
-    if (i === owner || o.isGhost || o.finishTick !== undefined) continue;
+    if (i === owner || o.isGhost || o.finishTick !== undefined || !reaches(branch, o.branch)) continue;
     const gap = wrap01(o.t - me.t);
     if (gap > 0 && gap < bestGap) { bestGap = gap; best = i; }
   }
@@ -68,7 +74,7 @@ export function spawnProjectile(
     speed: homing ? speed : runner ? speed * dir : 0,
     position: pos, prevPosition: [...pos],
     bouncesLeft: homing || runner ? 0 : (def.behaviour.bounces ?? 0),
-    target: homing ? pickTarget(karts, owner) : -1,
+    target: homing ? pickTarget(karts, owner, near.branch) : -1,
     ttl: def.behaviour.lifetimeSeconds ?? 8, graceRemaining: cfg.ownerGraceSeconds, radius: def.behaviour.radius ?? 0.5,
     hitsLeft: def.behaviour.hits ?? 1, age: 0,
     weave: runner ? (def.behaviour.weave ?? 0) : 0, weaveSeconds: def.behaviour.weaveSeconds ?? 1,
@@ -110,13 +116,20 @@ export function stepProjectiles(
     if (p.speed !== 0) {
       // Homing Kite and Wind-Up Mouse: ride the spline (the Mouse either way)
       const tgt = p.target >= 0 ? karts[p.target] : undefined;
-      if (tgt && (tgt.finishTick !== undefined || tgt.isGhost || tgt.status.intangibleRemaining > 0 || tgt.branch !== p.branch)) p.target = -1;
+      // a kart on the other road is still chased: the Kite lines up on it again where the roads meet
+      if (tgt && (tgt.finishTick !== undefined || tgt.isGhost || tgt.status.intangibleRemaining > 0)) p.target = -1;
       p.t = wrap01(p.t + (p.speed * dt) / L);
+      if (p.branch > 0) {
+        // past either end of its shortcut it rides the main road that end joins (and hits karts there)
+        const b = track.branches.list[p.branch], d = signedOffset(p.t, b.entryT);
+        if (d < 0 || d > b.span) p.branch = 0;
+      }
       let want = 0;
       if (p.target >= 0) {
         const o = karts[p.target];
         const ahead = wrap01(o.t - p.t) * L;
-        if (ahead <= cfg.homingSnapDistance) want = lateralOf(track, o.t, o.branch, o.position);
+        // it lines up on its kart only on the same road (out of a shortcut, once it is on the main road)
+        if (o.branch === p.branch && ahead <= cfg.homingSnapDistance) want = lateralOf(track, o.t, o.branch, o.position);
       }
       const smp = track.sample(p.t, 0, p.branch);
       if (p.weave > 0) {
