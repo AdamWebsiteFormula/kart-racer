@@ -362,7 +362,10 @@
       { "asset": "rope-post", "instances": 24, "band": "roadside" },
       { "asset": "tuft", "instances": 480, "band": "verge" },
       { "asset": "flowers", "instances": 300, "band": "verge" },
-      { "asset": "bush", "instances": 110, "band": "verge" }
+      { "asset": "bush", "instances": 110, "band": "verge" },
+      { "asset": "harbour-sign", "instances": 12, "band": "roadside", "layout": "row", "every": 6, "run": 4, "side": "outside", "dist": [13, 13.5], "at": [0.205, 0.245], "merge": true },
+      { "asset": "harbour-bunting", "instances": 2, "band": "roadside", "layout": "span", "at": [0.05, 0.13], "merge": true },
+      { "asset": "harbour-bunting", "instances": 1, "band": "roadside", "layout": "span", "at": [0.12, 0.2], "merge": true }
     ]
   }
 }

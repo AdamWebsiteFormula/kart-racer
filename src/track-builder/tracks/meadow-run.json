@@ -211,7 +211,16 @@
       { "asset": "rock", "instances": 20, "band": "far" },
       { "asset": "tuft", "instances": 520, "band": "verge" },
       { "asset": "flowers", "instances": 320, "band": "verge" },
-      { "asset": "bush", "instances": 110, "band": "verge" }
+      { "asset": "bush", "instances": 110, "band": "verge" },
+      { "asset": "ranch-fence", "instances": 100, "band": "roadside", "layout": "row", "every": 4, "run": 8, "dist": [13, 13.3], "merge": true },
+      { "asset": "sunflowers", "instances": 50, "band": "roadside", "merge": true },
+      { "asset": "meadow-sign", "instances": 12, "band": "roadside", "layout": "row", "every": 6, "run": 4, "side": "outside", "dist": [13, 13.5], "at": [0.955, 0.995], "merge": true },
+      { "asset": "water-tower", "instances": 2, "band": "roadside", "merge": true },
+      { "asset": "windpump", "instances": 4, "band": "roadside", "merge": true },
+      { "asset": "signpost", "instances": 3, "band": "roadside", "merge": true },
+      { "asset": "meadow-bunting", "instances": 1, "band": "roadside", "layout": "span", "at": [0.09, 0.14], "merge": true },
+      { "asset": "meadow-bunting", "instances": 1, "band": "roadside", "layout": "span", "at": [0.58, 0.68], "merge": true },
+      { "asset": "knoll", "instances": 40, "band": "far", "dist": [40, 180], "scale": [0.6, 1.5], "merge": true }
     ]
   }
 }

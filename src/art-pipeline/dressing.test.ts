@@ -77,27 +77,6 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
     expect(bad).toBe('');
   });
 
-  it('a span crosses high over the road, its legs past the course limit on both sides', () => {
-    const spans = scene.decor.filter((p) => p.layout === 'span');
-    expect(spans.reduce((n, p) => n + p.count, 0)).toBeGreaterThanOrEqual(2);
-    const m = new Matrix4(), v = new Vector3();
-    for (const p of spans) {
-      const g = trackAssets(def.biome).geometries![p.asset], pos = g.getAttribute('position');
-      for (let i = 0; i < p.count; i++) {
-        m.fromArray(p.matrices, i * 16);
-        const roadY = p.matrices[i * 16 + 13];
-        let legs = 0;
-        for (let j = 0; j < pos.count; j++) {
-          v.fromBufferAttribute(pos, j).applyMatrix4(m);
-          // over the drivable ground it stays well above a kart in the air; near the ground it is only its legs, past the limit
-          if (insideRoadEnvelope(track.branches, v.x, v.z, -1, limit)) expect(v.y - roadY, `${p.asset} over the road`).toBeGreaterThan(5.5);
-          else if (v.y - roadY < 1) legs++;
-        }
-        expect(legs).toBeGreaterThan(0);
-      }
-    }
-  });
-
   it('something stands near the road all the way round, and a middle and far layer frame every quarter of the lap', () => {
     const near = scene.decor.filter((p) => p.band === 'roadside');
     const far = scene.decor.filter((p) => p.band === 'far');
@@ -133,6 +112,34 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
     expect(mats).toBe(s.dressing.length);
     expect(s.group.children.length).toBe(0);
   });
+});
+
+const spanned = all.filter((d) => (d.environment?.decor ?? []).some((e) => e.layout === 'span'));
+describe.each(spanned.map((d) => [d.id, d] as const))('%s: spans', (_id, raw) => {
+  const def = cloneDef(raw), track = buildTrack(def), scene = buildTrackScene(track, trackAssets(def.biome));
+  const limit = BUILDER.kerbWidth + BUILDER.offroadReach;
+
+  it('a span crosses high over the road, its legs past the course limit on both sides', () => {
+    const spans = scene.decor.filter((p) => p.layout === 'span');
+    expect(spans.reduce((n, p) => n + p.count, 0)).toBeGreaterThanOrEqual(2);
+    const m = new Matrix4(), v = new Vector3();
+    for (const p of spans) {
+      const g = trackAssets(def.biome).geometries![p.asset], pos = g.getAttribute('position');
+      for (let i = 0; i < p.count; i++) {
+        m.fromArray(p.matrices, i * 16);
+        const roadY = p.matrices[i * 16 + 13];
+        let legs = 0;
+        for (let j = 0; j < pos.count; j++) {
+          v.fromBufferAttribute(pos, j).applyMatrix4(m);
+          // over the drivable ground it stays well above a kart in the air; near the ground it is only its legs, past the limit
+          if (insideRoadEnvelope(track.branches, v.x, v.z, -1, limit)) expect(v.y - roadY, `${p.asset} over the road`).toBeGreaterThan(5.5);
+          else if (v.y - roadY < 1) legs++;
+        }
+        expect(legs).toBeGreaterThan(0);
+      }
+    }
+  });
+
 });
 
 it('only off-road tracks take spans (their legs stand past a course limit)', () => {

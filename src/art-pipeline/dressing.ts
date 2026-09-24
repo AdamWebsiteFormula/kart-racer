@@ -423,4 +423,46 @@ export const DRESSING_MODELS: Record<string, { build: Build }> = {
       }
     },
   },
+
+  // ================================================================ lighter pass: Meadow Run and Harbor Loop
+  'meadow-bunting': {
+    build: (m) => {
+      spanPoles(m, 9.2, FENCE_WOOD, '#e8384f');
+      bunting(m, SPAN_HALF - 0.3, 8.9, 1.2, [SUN, '#e8384f', '#7fc8ff', '#ffffff'], 26);
+      m.cyl(1.1, 1.1, 0.12, SUN, [0, 7.3, 0], [Math.PI / 2, 0, 0], 12, false);
+      m.cyl(0.55, 0.55, 0.16, '#7a4a1e', [0, 7.3, 0], [Math.PI / 2, 0, 0], 10, false);   // a sunflower badge
+    },
+  },
+  'harbour-bunting': {
+    build: (m) => {
+      spanPoles(m, 9.2, '#fffaf0', CORAL);
+      bunting(m, SPAN_HALF - 0.3, 8.9, 1.2, [CORAL, '#ffffff', TURQ, SUN], 26);
+      m.cyl(1.1, 1.1, 0.12, TURQ, [0, 7.3, 0], [Math.PI / 2, 0, 0], 12, false);
+      m.cyl(0.72, 0.72, 0.16, '#ffffff', [0, 7.3, 0], [Math.PI / 2, 0, 0], 12, false);     // a life ring badge
+      m.cyl(0.42, 0.42, 0.2, TURQ, [0, 7.3, 0], [Math.PI / 2, 0, 0], 10, false);
+    },
+  },
+  'meadow-sign': { build: (m) => chevronSign(m, SUN, '#e8384f', FENCE_WOOD, false) },
+  'harbour-sign': { build: (m) => chevronSign(m, CORAL, '#ffffff', '#fffaf0', false) },
+  sunflowers: {
+    // a clump of sunflowers taller than a kart, heads turned every which way
+    build: (m) => {
+      const stalks: [number, number, number, number][] = [[0, 0, 2.1, 0], [0.7, 0.3, 1.7, 1.2], [-0.5, 0.5, 1.9, 2.4], [0.2, -0.7, 1.5, 3.8], [-0.7, -0.4, 1.3, 5.1]];
+      for (const [x, z, h, a] of stalks) {
+        m.cyl(0.05, 0.07, h, '#3f8f3a', [x, h / 2, z], undefined, 4, false);
+        m.box([0.4, 0.05, 0.18], '#4fa34a', [x + 0.15, h * 0.5, z], [0, a, 0.3], false);
+        // the head's axis points out along (sin a, 0.3, cos a): Euler XYZ as in rod()
+        const dx = Math.sin(a) * 0.95, dz = Math.cos(a) * 0.95, face: V3 = [Math.atan2(dz, 0.3), 0, -Math.asin(dx)];
+        m.cyl(0.36, 0.36, 0.08, SUN, [x + dx * 0.1, h, z + dz * 0.1], face, 7, false);
+        m.cyl(0.17, 0.17, 0.1, '#6b3f1d', [x + dx * 0.13, h, z + dz * 0.13], face, 5, false);
+      }
+    },
+  },
+  knoll: {
+    // ground relief: a low grassy knoll that rolls the flat farmland (half of it under the ground)
+    build: (m) => {
+      m.ball([12, 2.6, 8], '#6bab33', [0, 0, 0], [0, 0.3, 0], 10, false);
+      m.ball([7, 1.5, 4.5], '#7fbf45', [2, 1.4, 1], [0, 0.3, 0], 8, false);
+    },
+  },
 };
