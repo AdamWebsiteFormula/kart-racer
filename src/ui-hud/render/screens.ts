@@ -1,6 +1,6 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
-import { GAME_TAGLINE, GAME_TITLE, UI } from '../constants.ts';
+import { GAME_TITLE, UI } from '../constants.ts';
 import { iconMarkup, SHAPE_PATHS } from '../icons.ts';
 import type { CreditSection } from '../screens/credits.ts';
 import { CONTROLS, CREATURES, ITEM_LINES, TIPS } from '../data/howto.ts';
@@ -68,7 +68,6 @@ export class TitleView implements ScreenView {
     const logo = h('h1', 'logo', st);
     h('span', 'l1 display', logo, GAME_TITLE[0]);
     h('span', 'l2 display', logo, GAME_TITLE[1]);
-    h('span', 'tag', logo, GAME_TAGLINE);
     const menu = h('div', 'menu', st);
     vm.entries.forEach((e, i) => {
       const b = button(menu, e.id);
