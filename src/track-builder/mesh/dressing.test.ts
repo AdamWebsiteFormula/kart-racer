@@ -158,7 +158,7 @@ describe('Meadow Run: hay humps and the horizon', () => {
 
   it('a low tree line at 420 m hides where the lawn ends, not hazed toward the sky; still one draw for every ring', () => {
     const horizon: [number, number, number] = [0.83, 0.92, 0.7];
-    const group = buildBackdrop('meadow', 0, horizon)!;
+    const group = buildBackdrop('meadow', 0, horizon, 0)!;
     const meshes = group.children as Mesh[];
     expect(meshes).toHaveLength(1);
     const pos = meshes[0].geometry.getAttribute('position'), col = meshes[0].geometry.getAttribute('color');

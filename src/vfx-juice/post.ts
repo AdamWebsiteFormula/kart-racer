@@ -5,10 +5,17 @@ import {
   BloomEffect, BrightnessContrastEffect, ChromaticAberrationEffect, HueSaturationEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
 } from 'postprocessing';
 import { ACESFilmicToneMapping, HalfFloatType, NoToneMapping, Vector2, type Camera, type Scene, type WebGLRenderer } from 'three';
+import { DAY_GRADE } from '../art-pipeline/index.ts';
+
+/** The colour lift eased toward `to` over `dt` seconds, at the rate the scene's lights ease (main.ts applyLight). */
+export const easeGrade = (from: number, to: number, dt: number): number => from + (to - from) * (1 - Math.exp(-dt * 1.6));
 
 export class Post {
   private readonly composer: EffectComposer;
   private readonly chroma: ChromaticAberrationEffect;
+  private readonly grade: HueSaturationEffect;
+  /** the colour lift the current sky wants (SkyLight.grade); render() eases to it with the lights */
+  gradeTo = DAY_GRADE;
   private readonly renderer: WebGLRenderer;
   private readonly scene: Scene;
   private readonly camera: Camera;
@@ -27,9 +34,10 @@ export class Post {
     const vignette = new VignetteEffect({ darkness: 0.32, offset: 0.4 });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
     // the filmic curve flattens colour a little: give it back, cartoon-bright but not garish
-    const grade = new HueSaturationEffect({ saturation: 0.12 });
+    // (less under a sunset or a night: warm light on warm ground is saturated enough already)
+    this.grade = new HueSaturationEffect({ saturation: DAY_GRADE });
     const punch = new BrightnessContrastEffect({ contrast: 0.07 });
-    this.composer.addPass(new EffectPass(camera, bloom, this.chroma, vignette, tone, grade, punch));
+    this.composer.addPass(new EffectPass(camera, bloom, this.chroma, vignette, tone, this.grade, punch));
     this.setEnabled(true);
   }
 
@@ -38,6 +46,9 @@ export class Post {
     // the tone map lives in the effect chain when it is on, in the renderer when it is off
     this.renderer.toneMapping = on ? NoToneMapping : ACESFilmicToneMapping;
   }
+
+  /** Jump straight to the sky's colour lift (a new race, not a Final Lap Shift). */
+  snapGrade(): void { this.grade.saturation = this.gradeTo; }
 
   setSize(w: number, h: number): void { this.composer.setSize(w, h); }
 
@@ -48,6 +59,7 @@ export class Post {
     // a hint of fringe on boost, never enough to split palms and roofs into red and cyan
     this.offset.set(0.0012 * this.level, 0.0006 * this.level);
     this.chroma.offset = this.offset;
+    this.grade.saturation = easeGrade(this.grade.saturation, this.gradeTo, dt);
     this.composer.render(dt);
   }
 

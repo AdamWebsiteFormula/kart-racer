@@ -18,6 +18,27 @@ export function glowFromVertexColours(m: MeshToonMaterial): void {
 }
 
 /**
+ * Pickups that light themselves after dark (detail review 2026-09-24: on Boardwalk Nights the
+ * balloons and coins read as near-black blobs): their own colour, times `amount.value`, as
+ * emission. The scene sets it from the sky (SkyLight.glow: 0 by day) and pulses it gently.
+ */
+export function selfLit(m: MeshToonMaterial, amount: { value: number }): void {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, renderer) => {
+    prev.call(m, shader, renderer);
+    shader.uniforms.pickupGlow = amount;
+    shader.fragmentShader = `uniform float pickupGlow;\n${shader.fragmentShader}`.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      #ifdef USE_COLOR
+        totalEmissiveRadiance += vColor.rgb * pickupGlow;
+      #else
+        totalEmissiveRadiance += diffuse * pickupGlow;
+      #endif`);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => `${key()}|pickup`;
+}
+
+/**
  * A prop the chase camera brushes past (a hay bale, a balloon, a palm at the roadside) dissolves
  * within NEAR_FADE metres of the lens instead of filling the screen: an ordered dither, no sorting.
  * A rival's kart, its flames or an item pressed against the lens passes its own `fade` (game/camera.ts).
