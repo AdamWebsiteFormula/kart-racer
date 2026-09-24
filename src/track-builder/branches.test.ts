@@ -205,4 +205,23 @@ describe('handing a kart between roads (bug hunt, 24 Sept 2026)', () => {
     expect(worstOff).toBeLessThan(0.5);
     expect(worstRise).toBeLessThan(0.3);
   });
+
+  it('every welded shortcut end is a smooth road, not a saw: the weld reads the main road where it really is nearest', () => {
+    // bug hunt 2 (24 Sept 2026): the weld's nearest-sample walk moved its window mid-scan and read the
+    // main road up to 4 samples off; out of Canyon's mine the road sawed ±0.45 m from one sample to the
+    // next (second difference 0.86 m; Skyline's rail 0.56, Frostbite 0.15, Harbor 0.13)
+    const defs = Object.values(import.meta.glob('./tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>);
+    for (const def of defs) {
+      for (const b of buildTrack(def).branches.list) {
+        if (b.isMain) continue;
+        const L = b.lut;
+        let worst = 0, at = 0;
+        for (let i = 1; i < L.n - 1; i++) {
+          const d2 = Math.abs(L.py[i + 1] - 2 * L.py[i] + L.py[i - 1]);
+          if (d2 > worst) { worst = d2; at = i; }
+        }
+        expect(worst, `${def.id} ${b.id} at sample ${at} of ${L.n}`).toBeLessThan(0.1);
+      }
+    }
+  });
 });

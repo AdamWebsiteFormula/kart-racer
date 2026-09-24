@@ -162,13 +162,15 @@ function weldEnds(lut: Lut, main: Lut, entryT: number, exitT: number): void {
     for (let s = 0; s < lut.n >> 1; s++) {
       const i = fromStart ? s : lut.n - 1 - s;
       const x = lut.px[i], z = lut.pz[i];
-      // the main road's nearest sample, walked along from the last one
-      let best = Infinity;
+      // the main road's nearest sample, walked along from the last one (the window holds still while it
+      // is scanned: bug hunt 2, 24 Sept 2026, moving it mid-scan read a sample up to 4 off, and where the
+      // mine leaves Canyon's steep main road that sawed the welded road ±0.45 m from sample to sample)
+      let best = Infinity, near = hint;
       for (let k = -24; k <= 24; k++) {
         const j = main.idx(hint + k), dx = main.px[j] - x, dz = main.pz[j] - z, d = dx * dx + dz * dz;
-        if (d < best) { best = d; hint = j; }
+        if (d < best) { best = d; near = j; }
       }
-      const j = hint;
+      const j = hint = near;
       const lat = (x - main.px[j]) * main.rx[j] + (z - main.pz[j]) * main.rz[j];
       // how far across the main road the shortcut's ribbon reaches (it may leave at any angle)
       const across = lut.rx[i] * main.rx[j] + lut.rz[i] * main.rz[j];
@@ -183,7 +185,9 @@ function weldEnds(lut: Lut, main: Lut, entryT: number, exitT: number): void {
       const curb = main.hw[j] + BUILDER.kerbWidth, latC = Math.max(-curb, Math.min(curb, lat));
       const th = Math.hypot(main.tx[j], main.tz[j]) || 1, climb = main.ty[j] / th;
       const along = (lut.rx[i] * main.tx[j] + lut.rz[i] * main.tz[j]) / th;
-      const y = main.py[j] - latC * Math.tan(main.bank[j]);
+      // (its height carried the few centimetres along from sample j to beside the shortcut's centre)
+      const ahead = ((x - main.px[j]) * main.tx[j] + (z - main.pz[j]) * main.tz[j]) / th;
+      const y = main.py[j] + ahead * climb - latC * Math.tan(main.bank[j]);
       const bank = Math.atan(Math.tan(main.bank[j]) * across - climb * along);
       lut.py[i] += (y - lut.py[i]) * w;
       lut.bank[i] += (bank - lut.bank[i]) * w;
@@ -192,8 +196,8 @@ function weldEnds(lut: Lut, main: Lut, entryT: number, exitT: number): void {
   lut.refreshFrames();
 }
 
-/** Metres over which a welded shortcut eases from the main road's surface back to its own line. */
-const WELD_EASE = 30;
+/** Metres over which a welded shortcut eases from the main road's surface back to its own line (shift.ts too). */
+export const WELD_EASE = 30;
 
 export class Branches {
   readonly list: Branch[];
