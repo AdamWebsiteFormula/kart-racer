@@ -47,6 +47,7 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-23: Red-team fixes: the stored log is canonical (cut at the finish, horn cleared) with a unique index per board, so one drive is one row; get_ghost is revoked (unused, and it let strangers copy the top run); the rate limit is one atomic SQL step (take_submit_slot: advisory lock per client, 10 a minute, 60 accepted runs a day) that fails closed (503); IPv6 counts by its /64; oversized bodies are refused before reading; yesterday's Daily closes 15 minutes after midnight UTC. Migration 20260923000003 is written but NOT applied yet: the live change needs the user's OK. Deploy order: migration first, then the function (the function calls take_submit_slot).
 - 2026-09-23: Known limits, by design: a bot that drives well passes verification (it checks physics, not humans), and CORS stays open until the production origin exists. The board is for fun; review stored logs before any prize.
+- 2026-09-23: **Deployed** (Adam's OK in chat): submit-score v1, verify_jwt on, through the Supabase connector. The entry imports the published core pinned to a commit on jsDelivr (`node scripts/fn-deploy-entry.mjs`); the bundler refuses a github.io import. Live check: CORS 200, bad body 400, a time 5 s faster than the run 422 with the replay time equal to the local replay (131892 ms), no row saved. After every `npm run build:function` that changes the hash: push, then redeploy with the new entry.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
