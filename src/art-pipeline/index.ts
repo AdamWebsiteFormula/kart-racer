@@ -6,8 +6,10 @@ import { PROP_MODELS } from './glb.ts';
 import { coastMaterial, groundMaterial, roadGrain } from './surfaces.ts';
 import { toonRamp } from './toon.ts';
 
-export { buildRacerMesh, racerGeometry } from './kart.ts';
-export { fitToBox, fitToKart, KART_FIT, PROP_MODELS, PropModels, RACER_MODELS, RacerModels, type ModelManifest } from './glb.ts';
+export { bodyColours, buildRacerMesh, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
+export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } from './bodies.ts';
+export { PAINTS, paintFor, repaintHex, repaintPixels, repaintRgb, type Paint, type PaintRule } from './paints.ts';
+export { clipDriver, DRIVER_CUTS, fitToBox, fitToKart, KART_FIT, PROP_MODELS, PropModels, RACER_MODELS, RacerModels, type DriverCut, type ModelManifest } from './glb.ts';
 export { EXHAUST, portDir, RACER_IDS, racerModel, type Exhaust } from './racers.ts';
 export { flameColour, flameGeometry } from './flames.ts';
 export { ModelBuilder } from './model.ts';

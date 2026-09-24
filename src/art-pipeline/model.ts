@@ -71,10 +71,16 @@ export class ModelBuilder {
   private readonly parts: PartSpec[] = [];
   /** outline width in metres at scale 1 */
   readonly ink: number;
+  /** moves every part added from now on (a driver seated on another body) */
+  shift: V3 = [0, 0, 0];
+  /** repaints every part's colour as it is added (an alt paint on a code-built kart) */
+  recolor: ((c: Color) => Color) | null = null;
   constructor(ink = 0.045) { this.ink = ink; }
 
   private push(geo: BufferGeometry, colour: Paint, pos: V3, rot: V3 = [0, 0, 0], scale: V3 = [1, 1, 1], outline = true): this {
-    this.parts.push({ geo, colour: toColor(colour), pos, rot, scale, outline });
+    const c = toColor(colour);
+    const at: V3 = [pos[0] + this.shift[0], pos[1] + this.shift[1], pos[2] + this.shift[2]];
+    this.parts.push({ geo, colour: this.recolor ? this.recolor(c) : c, pos: at, rot, scale, outline });
     return this;
   }
 

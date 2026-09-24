@@ -9,7 +9,7 @@
  },
  "juniper": {
   "url": "models/juniper.glb",
-  "yaw": -1.5708
+  "yaw": 3.1416
  },
  "momo": {
   "url": "models/momo.glb",
@@ -21,7 +21,7 @@
  },
  "otto": {
   "url": "models/otto.glb",
-  "yaw": -1.5708
+  "yaw": 0
  },
  "pip": {
   "url": "models/pip.glb",
@@ -29,6 +29,6 @@
  },
  "sprocket": {
   "url": "models/sprocket.glb",
-  "yaw": -1.5708
+  "yaw": 0
  }
 }

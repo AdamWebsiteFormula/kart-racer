@@ -51,6 +51,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24 (detail review): Particles never fill the screen: every pool fades out between 1.2 and 3.5 m of view depth and draws no bigger than `PARTICLE.maxSize` metres per metre of depth (confetti 0.04, dust 0.3, sparks 0.12); dust and smoke are soft puffs with no hard rim. Confetti is 2:1 paper strips that turn and flip (width through zero, shaded as it turns) in saturated hues (`CONFETTI`, no white or pastels). The player's finish shower falls 4 m plus 0.4 s of speed up the road (`CONFETTI_BURST`) and the STRIKE confetti is thrown forward and out (`STRIKE_BURST`), so neither lands in the chase camera.
 - 2026-09-24 (detail review): Tyre marks multiply the road (Zero, SrcColor blending) by 0.55 fading to 1 over 4 s (`SKID`), so rubber darkens any deck; the old fixed grey over normal blending read as lane paint on Boardwalk's night boards.
 - 2026-09-24: Detail review: the post chain's saturation lift follows the sky (`Post.gradeTo` = SkyLight.grade, eased like the lights, snapped at a new race): 0.03 under Canyon's dusk, 0.06 under Skyline's night, 0.12 elsewhere.
+- 2026-09-24: Exhaust flames burn from the kart's own `userData.exhaust` when it has one (art-pipeline kart.ts: a Classic or Buggy body's pipes), else from the racer's `EXHAUST`; the flame colour stays the racer's.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

@@ -15,7 +15,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, recolourBackdrop, type Rgb, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, SKIES, skyTint, trackAssets, type SkyLight } from '../art-pipeline/index.ts';
+import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { GhostView } from './ghostView.ts';
 import { ItemsView } from './itemsView.ts';
@@ -66,7 +66,8 @@ export class RaceSession {
   /** a Final Lap Shift's sky change under way: the fog and the horizon ring ease from → to with the dome's fade */
   private skyChange: { horizon: [Color, Color]; ring: [Rgb, Rgb]; tint: [Rgb, Rgb] } | null = null;
 
-  constructor(scene: Scene, def: TrackDefinition, config: RaceConfig) {
+  /** `look`: the player's paint and body (design §10, cosmetic only); rivals always wear their own */
+  constructor(scene: Scene, def: TrackDefinition, config: RaceConfig, look: KartLook = {}) {
     this.scene = scene;
     this.def = def;
     this.config = config;
@@ -93,7 +94,7 @@ export class RaceSession {
     this.group.add(this.itemsView.root);
     this.views = this.manager.state.karts.map((s, i) => {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
-      const mesh = buildRacerMesh(config.racers[i].racerId) ?? buildKartMesh(r.accent, r.secondary);
+      const mesh = buildRacerMesh(config.racers[i].racerId, config.racers[i].isPlayer ? look : {}) ?? buildKartMesh(r.accent, r.secondary);
       const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s);
       this.flames.push(new ExhaustFlames(mesh, config.racers[i].racerId));
       // a rival against the lens dissolves, flames and all; yours never does
@@ -161,9 +162,9 @@ export class RaceSession {
   }
 
   /** Time Trial: race against this recorded run (a picture only: it never touches the race). */
-  setGhost(path: GhostPath, racerId: string): void {
+  setGhost(path: GhostPath, racerId: string, look: KartLook = {}): void {
     if (this.ghost) this.group.remove(this.ghost.root);
-    this.ghost = new GhostView(path, racerId);
+    this.ghost = new GhostView(path, racerId, look);
     this.ghost.place(0);
     this.group.add(this.ghost.root);
   }

@@ -2,7 +2,7 @@
 // longer while more boost is left. Parented to the kart's chassis so they lean and bounce with it.
 // One small mesh per pipe, drawn only while it burns.
 import { Mesh, Vector3, type Object3D } from 'three';
-import { EXHAUST, flameGeometry, flameMaterial, portDir } from '../art-pipeline/index.ts';
+import { EXHAUST, flameGeometry, flameMaterial, portDir, type Exhaust } from '../art-pipeline/index.ts';
 
 const DOWN_Z = new Vector3(0, 0, -1);
 
@@ -12,7 +12,8 @@ export class ExhaustFlames {
   private readonly phase: number;
 
   constructor(chassis: Object3D, racerId: string) {
-    const e = EXHAUST[racerId];
+    // a shared body (art-pipeline kart.ts) burns from its own pipes
+    const e = (chassis.userData.exhaust as Exhaust | undefined) ?? EXHAUST[racerId];
     this.size = e?.size ?? 1;
     let h = 7;
     for (let i = 0; i < racerId.length; i++) h = (h * 31 + racerId.charCodeAt(i)) >>> 0;

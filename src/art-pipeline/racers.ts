@@ -1,7 +1,7 @@
 // The eight racers and their signature karts (design §4, §5), modelled from primitives.
 // Origin on the ground, facing +Z, sized to the collision circle (kartRadius 0.85).
 // Each racer is one vertex-coloured mesh plus one ink hull: two draw calls per kart.
-import { Euler, Quaternion, Vector3 } from 'three';
+import { Euler, Quaternion, Vector3, type Color } from 'three';
 import { ModelBuilder, type V3 } from './model.ts';
 
 const INK = '#1b1b2f';
@@ -258,12 +258,30 @@ const DRIVERS: Record<string, Driver> = {
 
 export const RACER_IDS = Object.freeze(Object.keys(KARTS));
 
+/**
+ * How far each code-built driver moves to sit in a shared body's cockpit (bodies.ts SEAT): most sit
+ * at the standard spot already; Boulder rides high in his truck and Gus stands in his food truck.
+ */
+const SEATED: Readonly<Record<string, V3>> = Object.freeze({ boulder: [0, -0.62, 0], gus: [0, -0.5, -0.2], sprocket: [0, -0.04, 0] });
+
+/** Options for a racer's code-built model: an alt paint's recolour, and a shared body in place of the signature kart. */
+export interface RacerModelOptions {
+  recolor?: (c: Color) => Color;
+  /** builds the shared body (bodies.ts) in place of the signature kart; the driver is seated in it */
+  body?: (m: ModelBuilder) => void;
+}
+
 /** The builder for one racer, or null for an unknown id. */
-export function racerModel(id: string): ModelBuilder | null {
+export function racerModel(id: string, opts: RacerModelOptions = {}): ModelBuilder | null {
   const k = KARTS[id], d = DRIVERS[id];
   if (!k || !d) return null;
   const m = new ModelBuilder();
-  k(m);
+  m.recolor = opts.recolor ?? null;
+  if (opts.body) {
+    opts.body(m);
+    m.shift = SEATED[id] ?? [0, 0, 0];
+  } else k(m);
   d(m);
+  m.shift = [0, 0, 0];
   return m;
 }

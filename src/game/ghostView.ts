@@ -2,7 +2,7 @@
 // recorded path (race-manager/ghost.ts) at the same race time as the live kart. It is only a picture:
 // never in the race manager, so it cannot collide, rank, pop a balloon or trigger anything.
 import { Group, type Material, type Mesh, type Object3D } from 'three';
-import { buildRacerMesh } from '../art-pipeline/index.ts';
+import { buildRacerMesh, type KartLook } from '../art-pipeline/index.ts';
 import { ghostPose, type GhostPath, type GhostPose } from '../race-manager/ghost.ts';
 import { buildKartMesh } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
@@ -19,10 +19,11 @@ export class GhostView {
   private readonly mats: Material[] = [];
   private shown = GHOST_OPACITY;
 
-  constructor(path: GhostPath, racerId: string) {
+  /** `look`: the paint and body the run was set with (the save keeps them with the ghost) */
+  constructor(path: GhostPath, racerId: string, look: KartLook = {}) {
     this.path = path;
     const r = ROSTER.find((x) => x.id === racerId) ?? ROSTER[0];
-    const mesh = buildRacerMesh(racerId) ?? buildKartMesh(r.accent, r.secondary);
+    const mesh = buildRacerMesh(racerId, look) ?? buildKartMesh(r.accent, r.secondary);
     // its own see-through copies of the materials (the racer's are shared with the live karts), freed with the session
     mesh.traverse((o) => {
       const m = o as Mesh;

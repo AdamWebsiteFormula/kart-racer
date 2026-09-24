@@ -2,7 +2,9 @@
 // Loaded once at boot; a racer without a model, or before its model arrives, keeps its
 // code-built kart (racers.ts). Every model is fitted to the kart footprint: facing +Z,
 // centred on the kart, wheels on y = 0, one uniform scale.
-import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, type Material, type MeshStandardMaterial, type Object3D } from 'three';
+import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, type Material, type MeshStandardMaterial, type Object3D, type Texture } from 'three';
+import { SEAT } from './bodies.ts';
+import { paintFor, repaintPixels, type PaintRule } from './paints.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
 import type { V3 } from './model.ts';
@@ -80,14 +82,145 @@ export class RacerModels {
 
   has(racerId: string): boolean { return this.templates.has(racerId); }
 
-  /** A fresh copy of a racer's model (geometry and materials shared), or null when there is none. */
-  make(racerId: string): Group | null {
+  /**
+   * A fresh copy of a racer's model (geometry and materials shared), or null when there is none. With
+   * an alt paint (paints.ts), it wears that paint's material: the colour texture repainted once, shared.
+   */
+  make(racerId: string, paintId?: string): Group | null {
     const t = this.templates.get(racerId);
     if (!t) return null;
     const g = t.clone(true);
     g.name = `racer-${racerId}`;
+    const alt = this.paintMaterial(racerId, paintId);
+    if (alt) g.traverse((o) => { if ((o as Mesh).isMesh) (o as Mesh).material = alt; });
     return g;
   }
+
+  /**
+   * The driver alone, cut out of the racer's model (DRIVER_CUTS) and seated at bodies.ts SEAT, for a
+   * shared body; null when the racer has no model file. The cut geometry is made once and shared.
+   */
+  driver(racerId: string, paintId?: string): Mesh | null {
+    const t = this.templates.get(racerId), cut = DRIVER_CUTS[racerId];
+    if (!t || !cut) return null;
+    let geo = this.drivers.get(racerId);
+    if (!geo) {
+      let src: Mesh | undefined;
+      t.updateMatrixWorld(true);
+      t.traverse((o) => { if (!src && (o as Mesh).isMesh) src = o as Mesh; });
+      if (!src) return null;
+      geo = clipDriver(bakedGeometry(src), cut);
+      this.drivers.set(racerId, geo);
+      this.driverMaterial.set(racerId, src.material as Material);
+    }
+    const m = new Mesh(geo, this.paintMaterial(racerId, paintId) ?? this.driverMaterial.get(racerId)!);
+    m.name = `driver-${racerId}`;
+    m.castShadow = true;
+    return m;
+  }
+
+  private readonly drivers = new Map<string, BufferGeometry>();
+  private readonly driverMaterial = new Map<string, Material>();
+  private readonly paints = new Map<string, Material | null>();
+  /** repaints a colour texture (browser: through a canvas); tests put a fake here */
+  repaintTexture: (map: Texture, rules: readonly PaintRule[]) => Texture | null = repaintTextureInCanvas;
+
+  /** The racer's material in an alt paint (made once, shared by every kart and race), or null for their own colours. */
+  paintMaterial(racerId: string, paintId: string | undefined): Material | null {
+    const paint = paintFor(racerId, paintId);
+    const t = this.templates.get(racerId);
+    if (!paint || !t) return null;
+    const key = `${racerId}|${paint.id}`;
+    if (this.paints.has(key)) return this.paints.get(key)!;
+    let base: Material | undefined;
+    t.traverse((o) => { if (!base && (o as Mesh).isMesh) base = (o as Mesh).material as Material; });
+    const std = base as MeshStandardMaterial | undefined;
+    const map = std?.map ? this.repaintTexture(std.map, paint.rules) : null;
+    let out: Material | null = null;
+    if (std && map) {
+      const m = std.clone();
+      m.map = map;
+      m.userData.shared = true; // every race's kart shares it: a finished race must not dispose it
+      m.userData.paint = paint.id;
+      out = m;
+    }
+    this.paints.set(key, out);
+    return out;
+  }
+}
+
+/** Repaint a texture's pixels through a canvas (once); null where there is no 2D canvas (tests, very old browsers). */
+function repaintTextureInCanvas(map: Texture, rules: readonly PaintRule[]): Texture | null {
+  const img = map.image as { width?: number; height?: number } | null;
+  const w = img?.width ?? 0, h = img?.height ?? 0;
+  if (!w || !h || typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext?.('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(img as CanvasImageSource, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h);
+  repaintPixels(data.data, rules);
+  ctx.putImageData(data, 0, 0);
+  const t = map.clone(); // same sampler, flip and colour space as the model's own
+  t.image = c;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * Where each racer's driver is, in the fitted kart frame (glb.ts fitToKart): triangles whose centre
+ * is above `y`, within `x` of the centre line and between `z[0]` and `z[1]`, and in none of the
+ * `drop` boxes ([x0, x1, y0, y1, z0, z1]: a food-truck awning, a roll cage over a head), are the
+ * driver. `at` is the driver's middle along z, which lands on bodies.ts SEAT.z. Tuned by eye
+ * against front, back and side renders (24 Sept 2026); the cut sits under the cockpit rim.
+ */
+export interface DriverCut { y: number; x: number; z: readonly [number, number]; at: number; drop?: readonly (readonly [number, number, number, number, number, number])[] }
+export const DRIVER_CUTS: Readonly<Record<string, DriverCut>> = Object.freeze({
+  pip: { y: 0.62, x: 0.6, z: [-0.45, 0.9], at: -0.2 },
+  momo: { y: 0.58, x: 0.34, z: [-0.55, 0.45], at: -0.1, drop: [[-1, 1, 1.38, 3, -1, 1]] },
+  nova: { y: 0.66, x: 0.9, z: [-0.7, 0.4], at: -0.1 },
+  juniper: { y: 0.66, x: 0.45, z: [-0.45, 0.45], at: 0 },
+  otto: { y: 0.56, x: 0.5, z: [-0.5, 0.5], at: 0 },
+  sprocket: { y: 0.55, x: 0.45, z: [-0.5, 0.5], at: 0 },
+  boulder: { y: 0.8, x: 0.66, z: [-0.55, 0.6], at: 0 },
+  gus: { y: 0.82, x: 0.6, z: [-0.75, 0.8], at: 0.1, drop: [[0.3, 1, 0.8, 3, -1, 0.1], [-1, 1, 0.8, 1.05, -1, -0.45]] },
+});
+
+/**
+ * Keep only the driver's triangles (by their centres, see DriverCut), then move them so the cut sits
+ * at SEAT. `g` is in the fitted kart frame (bakedGeometry of a fitted template). Pure: returns a new
+ * geometry that shares nothing with `g`.
+ */
+export function clipDriver(g: BufferGeometry, cut: DriverCut): BufferGeometry {
+  const pos = g.getAttribute('position');
+  const src = g.index ? Array.from(g.index.array) : Array.from({ length: pos.count }, (_, i) => i);
+  const keep: number[] = [];
+  const inDrop = (x: number, y: number, z: number) => (cut.drop ?? []).some((b) => x >= b[0] && x <= b[1] && y >= b[2] && y <= b[3] && z >= b[4] && z <= b[5]);
+  for (let i = 0; i + 2 < src.length; i += 3) {
+    const a = src[i], b = src[i + 1], c = src[i + 2];
+    const x = (pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3, y = (pos.getY(a) + pos.getY(b) + pos.getY(c)) / 3, z = (pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3;
+    if (y < cut.y || Math.abs(x) > cut.x || z < cut.z[0] || z > cut.z[1] || inDrop(x, y, z)) continue;
+    keep.push(a, b, c);
+  }
+  // compact: only the vertices the kept triangles use
+  const remap = new Map<number, number>();
+  const order: number[] = [];
+  const idx = new Uint32Array(keep.length);
+  keep.forEach((v, i) => { let n = remap.get(v); if (n === undefined) { n = order.length; remap.set(v, n); order.push(v); } idx[i] = n; });
+  const out = new BufferGeometry();
+  for (const name of ['position', 'normal', 'uv']) {
+    const a = g.getAttribute(name);
+    if (!a) continue;
+    const size = a.itemSize, arr = new Float32Array(order.length * size);
+    order.forEach((v, i) => { for (let k = 0; k < size; k++) arr[i * size + k] = a.getComponent(v, k); });
+    out.setAttribute(name, new BufferAttribute(arr, size));
+  }
+  out.setIndex(new BufferAttribute(idx, 1));
+  out.translate(0, SEAT.y - cut.y, SEAT.z - cut.at);
+  out.computeBoundingBox();
+  out.computeBoundingSphere();
+  return out;
 }
 
 /** The game's one set of racer models. main.ts starts the load at boot. */
