@@ -71,6 +71,13 @@ export class ItemsView {
     for (const k of Object.values(this.kinds)) this.root.add(k.mesh);
   }
 
+  /** Free what this view made: every kind's instance buffer and the two spheres. The item models are shared; the session frees the materials. */
+  dispose(): void {
+    for (const k of Object.values(this.kinds)) k.mesh.dispose();
+    this.kinds.strikeBall.mesh.geometry.dispose();
+    this.kinds.bubble.mesh.geometry.dispose();
+  }
+
   private put(kind: string, x: number, y: number, z: number, q: Quaternion, scale = 1, sy = scale): void {
     this.m.compose(this.v.set(x, y, z), q, this.s.set(scale, sy, scale));
     this.kinds[kind].add(this.m);

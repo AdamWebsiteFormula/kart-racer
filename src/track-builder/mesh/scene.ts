@@ -225,9 +225,10 @@ export function isDrawn(m: Mesh): boolean {
   return !im.isInstancedMesh || im.count > 0;
 }
 
-/** Free everything a mesh owns: its material, its geometry if the scene made it, its instance buffer. */
+/** Free everything a mesh owns: its material (and a texture made for it alone), its geometry if the scene made it, its instance buffer. */
 function retire(m: Mesh): void {
   m.removeFromParent();
+  if (m.userData.ownMap) (m.material as MeshBasicMaterial).map?.dispose();
   if (!m.userData.sharedMaterial) (m.material as MeshToonMaterial).dispose();
   const hull = m.userData.hull as Mesh | undefined;
   if (hull) { hull.parent?.remove(hull); retire(hull); }
@@ -379,6 +380,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       const box = m.geometry.boundingBox ?? (m.geometry.computeBoundingBox(), m.geometry.boundingBox!);
       const radius = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 0.55 + 0.6;
       const pier = new InstancedMesh(buildPier(radius, BUILDER.pierLift), new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null }), p.count);
+      OWNED.add(pier.geometry);
       pier.instanceMatrix.set(p.matrices.subarray(0, p.count * 16));
       pier.name = `pier:${entry.asset}`;
       pier.receiveShadow = true;
@@ -520,6 +522,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const own = assets.ground?.(groundKind, GROUND_SIZE);
     const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), own ?? new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
     if (own) ground.userData.sharedMaterial = true;
+    OWNED.add(ground.geometry);
     ground.name = `ground-${groundKind}`;
     ground.position.y = groundY;
     ground.receiveShadow = true;
@@ -528,6 +531,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // roadside prop stands on ground and no road floats
     const coastGeo = coastOpts ? buildCoast(branches, coastOpts) : null;
     if (coastGeo) {
+      OWNED.add(coastGeo);
       const own = assets.coast?.();
       const coast = new Mesh(coastGeo, own ?? new MeshToonMaterial({ color: toColor(palette.shoulder), vertexColors: true, gradientMap: GRADIENT ?? null }));
       if (own) coast.userData.sharedMaterial = true;
@@ -540,6 +544,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // sky: one dome
   // unlit: a toon sky would shade darker away from the sun
   const sky = new Mesh(new SphereGeometry(SKY_RADIUS, 24, 12), new MeshBasicMaterial({ color: toColor(palette.background), side: BackSide, fog: false }));
+  OWNED.add(sky.geometry);
   sky.name = 'sky';
   group.add(sky);
 
@@ -586,6 +591,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       lg.computeBoundingBox();
       const b = lg.boundingBox!;
       const pier = new Mesh(buildPier(Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.5 * landmark.scale.x + 2, BUILDER.pierLift), new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null }));
+      OWNED.add(pier.geometry);
       pier.position.copy(landmark.position);
       pier.name = 'pier:landmark';
       pier.receiveShadow = true;
