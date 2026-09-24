@@ -86,6 +86,9 @@ export function stepPowers(
       let slingshot = false, done = !isTowed(s) || !o || !def;
       if (!done && o && def) {
         if (o.finishTick !== undefined || o.isGhost || o.status.intangibleRemaining > 0 || isRiding(o)) done = true;
+        // it turned into a shortcut you are not on: the pull would drag you off the road at it. (One that
+        // left your shortcut ahead of you, onto the main road, you follow out.)
+        else if (o.branch !== s.branch && o.branch !== 0) done = true;
         else if (distXZ(s.position, o.position) <= (def.behaviour.releaseMetres ?? 0)) {
           // reeled in: fly past with a boost, and tug the hooked kart
           done = slingshot = true;

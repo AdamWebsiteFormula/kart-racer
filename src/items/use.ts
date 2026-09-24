@@ -36,13 +36,16 @@ export function refusal(st: RaceState, s: KartState): RefuseReason | null {
   return null;
 }
 
-/** Grapple Anchor: the nearest kart physically ahead within `range` metres along the road, or -1. */
+/**
+ * Grapple Anchor: the nearest kart physically ahead within `range` metres along the road you are on, or -1.
+ * A kart in a shortcut beside you (or on the main road beside yours) is behind rock, hedge or sea wall.
+ */
 export function anchorTarget(karts: readonly KartState[], owner: number, trackLength: number, range: number): number {
   const me = karts[owner];
   let best = -1, bestGap = range / trackLength;
   for (let i = 0; i < karts.length; i++) {
     const o = karts[i];
-    if (i === owner || o.isGhost || o.finishTick !== undefined || o.status.intangibleRemaining > 0 || isRiding(o)) continue;
+    if (i === owner || o.branch !== me.branch || o.isGhost || o.finishTick !== undefined || o.status.intangibleRemaining > 0 || isRiding(o)) continue;
     const gap = wrap01(o.t - me.t);
     if (gap > 0 && gap <= bestGap) { bestGap = gap; best = i; }
   }
