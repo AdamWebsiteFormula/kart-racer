@@ -139,7 +139,7 @@
         },
         "sunDirection": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
         "palette": { "type": "object", "properties": { "background": { "type": "string" }, "accent": { "type": "string" } } },
-        "decor": { "type": "array", "items": { "type": "object", "properties": { "asset": { "type": "string" }, "instances": { "type": "integer" }, "band": { "type": "string", "enum": ["roadside", "far", "sky"] }, "footing": { "type": "string", "enum": ["pier"], "description": "Out at sea: each one stands on its own wooden pier, raised pierLift above the water" } } } },
+        "decor": { "type": "array", "items": { "type": "object", "properties": { "asset": { "type": "string" }, "instances": { "type": "integer" }, "band": { "type": "string", "enum": ["roadside", "far", "sky"] }, "footing": { "type": "string", "enum": ["pier"], "description": "Out at sea: each one stands on its own wooden pier, raised pierLift above the water" }, "lift": { "type": "number", "description": "Metres above its band's ground: a model centred on its middle (a hazard's) sits on the ground with lift = its radius" } } } },
         "landmarkFooting": { "type": "string", "enum": ["pier"], "description": "The landmark stands on a wooden pier (a sea track)" }
       }
     },

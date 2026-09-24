@@ -126,7 +126,9 @@
     "decor": [
       { "asset": "pine", "instances": 80, "band": "roadside" },
       { "asset": "snowman", "instances": 35, "band": "roadside" },
-      { "asset": "chalet", "instances": 25, "band": "far" }
+      { "asset": "chalet", "instances": 25, "band": "far" },
+      { "asset": "snowball", "instances": 40, "band": "roadside", "lift": 0.35 },
+      { "asset": "chalet", "instances": 15, "band": "roadside" }
     ]
   }
 }

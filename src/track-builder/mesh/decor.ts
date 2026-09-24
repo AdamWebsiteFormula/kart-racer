@@ -96,13 +96,22 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
   const out: number[] = [];
   let placed = 0;
   const maxTries = entry.instances * 20;
+  // props come in little groups (a row of cottages, a stand of pines, a flock of gulls) with open
+  // ground between, not one every so many metres; each group has its own spot and spread
+  let left = 0, gt = 0, gside = 1, gdist = 0;
+  const spread = entry.band === 'roadside' ? 8 : entry.band === 'far' ? 22 : 30;
   for (let tries = 0; placed < entry.instances && tries < maxTries; tries++) {
-    const t = rng();
-    const side = rng() < 0.5 ? -1 : 1;
-    const dist = band[0] + (band[1] - band[0]) * rng();
+    if (left <= 0) {
+      gt = rng(); gside = rng() < 0.5 ? -1 : 1; gdist = band[0] + (band[1] - band[0]) * rng();
+      left = 1 + Math.floor(rng() * (entry.band === 'roadside' ? 4 : 5));
+    }
+    left--;
+    const t = gt + ((rng() - 0.5) * spread) / main.length;
+    const side = gside;
+    const dist = Math.max(band[0], Math.min(band[1], gdist + (rng() - 0.5) * (band[1] - band[0]) * 0.7));
     const yaw = rng() * Math.PI * 2;
-    const scale = 0.85 + 0.3 * rng();
-    const c = main.sample(t, 0);
+    const scale = 0.7 + 0.6 * rng();
+    const c = main.sample(((t % 1) + 1) % 1, 0);
     let x: number, y: number, z: number;
     if (entry.band === 'sky') {
       const lateral = side * (c.halfWidth + 10 + 30 * rng());
@@ -116,7 +125,7 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
       y = entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
       if (insideRoadEnvelope(branches, x, z)) continue;
     }
-    pushTransform(out, [x, y, z], yaw, [scale, scale, scale]);
+    pushTransform(out, [x, y + (entry.lift ?? 0) * scale, z], yaw, [scale, scale, scale]);
     placed++;
   }
   return { asset: entry.asset, band: entry.band, matrices: Float32Array.from(out), count: placed };

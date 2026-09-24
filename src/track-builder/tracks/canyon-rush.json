@@ -127,7 +127,9 @@
     "decor": [
       { "asset": "cactus", "instances": 40, "band": "roadside" },
       { "asset": "rock", "instances": 40, "band": "roadside" },
-      { "asset": "mesa", "instances": 20, "band": "far" }
+      { "asset": "mesa", "instances": 20, "band": "far" },
+      { "asset": "minecart", "instances": 10, "band": "roadside", "lift": 1.2 },
+      { "asset": "arch", "instances": 5, "band": "far" }
     ]
   }
 }

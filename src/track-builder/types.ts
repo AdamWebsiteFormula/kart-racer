@@ -94,7 +94,8 @@ export interface EnvironmentDef {
   ground?: { kind: GroundKind; y?: number };
   sunDirection?: [number, number, number];
   palette?: { background?: string; accent?: string };
-  decor?: { asset: string; instances: number; band: DecorBand; footing?: 'pier' }[];
+  /** lift: metres above its band's ground (a model centred on its middle, like a hazard's, sits on the ground with lift = its radius) */
+  decor?: { asset: string; instances: number; band: DecorBand; footing?: 'pier'; lift?: number }[];
   /** the landmark stands on a wooden pier (a sea track) */
   landmarkFooting?: 'pier';
 }
