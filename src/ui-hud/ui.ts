@@ -176,6 +176,8 @@ export class UiRoot {
     if (a.type === 'restart' && prev.screen === 'racing') { this.hudMem = newHudMemory(); this.host.restartRace(); }
     if (a.type === 'quit' && prev.screen === 'racing') this.host.quitRace();
     if (wasPaused !== nowPaused) this.host.setPaused(nowPaused);
+    // every pause opens on Resume: a Quit or Restart remembered from the last one ended the race on Enter (bug hunt 3)
+    if (wasPaused && !nowPaused) this.focusBy.delete('pause');
     if (a.type === 'pickRacer' || a.type === 'setSpeedClass') {
       this.save.settings.selectedRacerId = next.racerId;
       writeSave(this.backend, this.save);
@@ -315,7 +317,8 @@ export class UiRoot {
       else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); this.nav(e.key === 'ArrowUp' ? 'up' : 'down'); }
       return;
     }
-    const a = navFromKey(e.code, e.key);
+    // P pauses, so on the pause dialog it resumes too, like Escape
+    const a = navFromKey(e.code, e.key) ?? (topOverlay(this.app) === 'pause' && isPauseKey(e.code, e.key) ? 'back' : null);
     if (e.repeat && (a === 'confirm' || a === 'back')) return;
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (isPauseKey(e.code, e.key)) { e.preventDefault(); this.dispatch({ type: 'pause' }); }

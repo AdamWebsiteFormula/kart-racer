@@ -116,6 +116,69 @@ describe('UiRoot', () => {
     ui.dispose();
   });
 
+  it('every pause opens on Resume, whatever was picked in the last one (bug hunt 3)', () => {
+    document.body.innerHTML = '';
+    const h = host();
+    const ui = new UiRoot(document.body, h, null);
+    const toRace = () => {
+      ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' });
+      ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+      expect(ui.app.screen).toBe('racing');
+    };
+    const focused = () => document.querySelector<HTMLElement>('#ui .pause.on .focused')?.dataset.id;
+    ui.dispatch({ type: 'boot' });
+    toRace();
+    key('Escape');
+    key('ArrowDown'); // Restart
+    key('Enter');
+    expect(h.calls.filter((c) => c === 'restart')).toHaveLength(1);
+    key('Escape');
+    expect(focused()).toBe('resume');
+    key('Enter'); // resumes: no second restart
+    expect(ui.paused).toBe(false);
+    expect(h.calls.filter((c) => c === 'restart')).toHaveLength(1);
+    // Quit, then the next race: Enter on its first pause resumes, it does not quit again
+    key('Escape');
+    for (let i = 0; i < 5; i++) key('ArrowDown');
+    expect(focused()).toBe('quit');
+    key('Enter');
+    expect(ui.app.screen).toBe('modeSelect');
+    ui.dispatch({ type: 'back' }); // to the title, and in again
+    toRace();
+    key('Escape');
+    expect(focused()).toBe('resume');
+    key('Enter');
+    expect([ui.app.screen, ui.paused]).toEqual(['racing', false]);
+    expect(h.calls.filter((c) => c === 'quit')).toHaveLength(1);
+    // How to Play from the pause still comes back to its own row
+    key('Escape');
+    key('ArrowDown'); key('ArrowDown'); // How to Play
+    key('Enter');
+    key('Escape');
+    expect(focused()).toBe('howTo');
+    ui.dispose();
+  });
+
+  it('P resumes as well as pauses, and a held P does not flip it back (bug hunt 3)', () => {
+    document.body.innerHTML = '';
+    const h = host();
+    const ui = new UiRoot(document.body, h, null);
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' });
+    ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    key('KeyP');
+    expect(ui.paused).toBe(true);
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP', key: 'p', repeat: true }));
+    expect(ui.paused).toBe(true);
+    key('KeyP');
+    expect(ui.paused).toBe(false);
+    expect(h.calls.filter((c) => c.startsWith('paused'))).toEqual(['paused:true', 'paused:false']);
+    // by key too, for events with no code (some virtual keyboards)
+    dispatchEvent(new KeyboardEvent('keydown', { code: '', key: 'p' }));
+    dispatchEvent(new KeyboardEvent('keydown', { code: '', key: 'p' }));
+    expect(ui.paused).toBe(false);
+    ui.dispose();
+  });
+
   it('while racing the driving keys never reach the browser (Space scrolls, Ctrl+D bookmarks); the rest do (bug hunt 3)', () => {
     document.body.innerHTML = '';
     const ui = new UiRoot(document.body, host(), null);

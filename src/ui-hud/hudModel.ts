@@ -3,6 +3,7 @@
 import type { KartState } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import { KNOCKOUT_CUT_LINES } from '../race-manager/constants.ts';
+import { STEP_TICKS } from '../race-manager/countdown.ts';
 import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
@@ -20,7 +21,7 @@ export interface HudMemory {
   shiftLabel: string;
   /** the player has started their own last lap */
   finalLap: boolean;
-  /** the controls strip shows through the countdown and a moment after the go */
+  /** the controls strip shows a moment after the go (through the countdown it shows from state) */
   hintUntil: number;
 }
 
@@ -37,7 +38,6 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
   const hold = clock + UI.bannerHoldSeconds;
   for (const e of race) {
     switch (e.type) {
-      case 'countdown': show(m, 'countdown', `${e.stepsLeft}`, '', clock + 1, clock); m.hintUntil = clock + 1.5; break;
       case 'go': show(m, 'go', 'GO!', '', clock + 1, clock); m.hintUntil = clock + UI.keysHintSeconds; break;
       case 'trackChanged': m.shiftLabel = e.event.label; break;
       // FINAL LAP is the player's own last lap; the shift fires on the leader's. A leading player
@@ -121,7 +121,12 @@ export function hudModel(
 ): HudVM {
   const rank = shownRank > 0 ? shownRank : player.rank;
   const lap = Math.min(Math.max(player.lap, 1), state.lapsTotal);
-  const banner = m.banner && m.banner.until > clock ? m.banner
+  // the countdown runs on sim ticks, so its number and the controls strip come from the sim: a pause
+  // (or a hidden tab) holds them, where a wall-clock hold ran out under the pause (bug hunt 3)
+  const counting = state.phase === 'countdown' && state.tick > 0;
+  // steps left as of the last tick stepped (tick − 1): 3 from the first tick, 2 from STEP_TICKS on, …
+  const banner = counting ? { text: `${Math.ceil((state.goTick - (state.tick - 1)) / STEP_TICKS)}`, sub: '', kind: 'countdown' as const }
+    : m.banner && m.banner.until > clock ? m.banner
     : m.wrongWay && player.finishTick === undefined ? { text: 'WRONG WAY', sub: '', kind: 'wrongWay' as const, until: Infinity }
     : null;
   let knockout: HudVM['knockout'] = null;
@@ -147,6 +152,6 @@ export function hudModel(
     banner: banner ? { text: banner.text, sub: banner.sub, kind: banner.kind } : null,
     flash: m.flashUntil > clock,
     knockout,
-    keysHint: m.hintUntil > clock,
+    keysHint: counting || m.hintUntil > clock,
   };
 }

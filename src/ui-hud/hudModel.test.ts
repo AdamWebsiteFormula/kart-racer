@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createKartState } from '../kart-controller/types.ts';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
+import { GO_TICK, STEP_TICKS } from '../race-manager/countdown.ts';
+import { RACE } from '../race-manager/constants.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
 import { feedHud, hudModel, newHudMemory } from './hudModel.ts';
@@ -39,8 +41,7 @@ describe('hud model', () => {
     const m = newHudMemory();
     const k = kart();
     const ev = (e: RaceEvent[], t: number) => feedHud(m, e, [], 'p', t);
-    ev([{ type: 'countdown', stepsLeft: 3 }], 0);
-    expect(hudModel(race(), k, 4, 10, m, 0.5, defs, 0).banner?.text).toBe('3');
+    expect(hudModel(race({ phase: 'countdown', tick: 1, goTick: GO_TICK }), k, 4, 10, m, 0.5, defs, 0).banner?.text).toBe('3');
     expect(hudModel(race(), k, 4, 10, m, 1.01, defs, 0).banner).toBeNull();
     ev([{ type: 'wrongWay', racerId: 'p', on: true }], 2);
     expect(hudModel(race(), k, 4, 10, m, 2, defs, 0).banner?.kind).toBe('wrongWay');
@@ -48,7 +49,7 @@ describe('hud model', () => {
     ev([{ type: 'lap', racerId: 'p', lap: 3, isFinal: true }, { type: 'trackChanged', event: { label: 'THE TIDE IS IN' } as never }, { type: 'phase', phase: 'finalLap' }], 3);
     const fl = hudModel(race(), k, 4, 10, m, 3, defs, 0).banner!;
     expect([fl.kind, fl.text, fl.sub]).toEqual(['finalLap', 'FINAL LAP', 'THE TIDE IS IN']);
-    ev([{ type: 'countdown', stepsLeft: 1 }], 3.1); // lower priority: ignored while final lap holds
+    ev([{ type: 'go' }], 3.1); // lower priority: ignored while final lap holds
     expect(hudModel(race(), k, 4, 10, m, 3.2, defs, 0).banner?.kind).toBe('finalLap');
     expect(hudModel(race(), k, 4, 10, m, 3 + UI.bannerHoldSeconds + 0.01, defs, 0).banner?.kind).toBe('wrongWay');
     ev([{ type: 'finish', racerId: 'p', rank: 2, tick: 9, dnf: false }], 6);
@@ -120,12 +121,35 @@ describe('hud model', () => {
 describe('controls strip', () => {
   it('shows through the countdown and a moment after the go, then hides', () => {
     const m = newHudMemory();
-    const at = (clock: number) => hudModel(race(), kart(), 4, 10, m, clock, defs, 0).keysHint;
+    const at = (clock: number, st = race()) => hudModel(st, kart(), 4, 10, m, clock, defs, 0).keysHint;
     expect(at(0)).toBe(false);
-    feedHud(m, [{ type: 'countdown', stepsLeft: 3 } as never], [], 'p', 1);
-    expect(at(1.2)).toBe(true);
+    expect(at(1.2, race({ phase: 'countdown', tick: 1, goTick: GO_TICK }))).toBe(true);
     feedHud(m, [{ type: 'go' } as never], [], 'p', 4);
     expect(at(4 + UI.keysHintSeconds - 0.1)).toBe(true);
     expect(at(4 + UI.keysHintSeconds + 0.1)).toBe(false);
+  });
+});
+
+describe('countdown', () => {
+  const counting = (tick: number) => race({ phase: 'countdown', tick, goTick: GO_TICK });
+
+  it('each number shows from the tick race-manager announces it until the next one (bug hunt 3)', () => {
+    const m = newHudMemory();
+    // tick is the next tick to step: nothing has been announced before the first
+    expect(hudModel(counting(0), kart(), 4, 10, m, 0, defs, 0).banner).toBeNull();
+    for (let stepped = 0; stepped < GO_TICK; stepped++) {
+      const want = `${RACE.countdownSteps - Math.floor(stepped / STEP_TICKS)}`; // countdown.ts: stepsLeft on each step tick
+      const vm = hudModel(counting(stepped + 1), kart(), 4, 10, m, 0, defs, 0);
+      expect([vm.banner?.kind, vm.banner?.text, vm.keysHint], `tick ${stepped}`).toEqual(['countdown', want, true]);
+    }
+  });
+
+  it('a pause (or a hidden tab) holds the number and the controls strip: the wall clock runs on, the sim does not (bug hunt 3)', () => {
+    const m = newHudMemory();
+    const at = (tick: number, clock: number) => { const vm = hudModel(counting(tick), kart(), 4, 10, m, clock, defs, 0); return [vm.banner?.text, vm.keysHint]; };
+    expect(at(41, 0.33)).toEqual(['3', true]); // paused here
+    expect(at(41, 3.33)).toEqual(['3', true]); // three seconds later, still paused
+    expect(at(43, 3.35)).toEqual(['3', true]); // resumed: the 3 runs out its own second
+    expect(at(STEP_TICKS + 1, 4)).toEqual(['2', true]);
   });
 });
