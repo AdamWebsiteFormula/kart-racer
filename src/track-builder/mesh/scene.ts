@@ -15,6 +15,7 @@ import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chu
 import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
+import { buildStartGantry } from './gantry.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
@@ -70,7 +71,6 @@ const LAND: Readonly<Partial<Record<string, { slope: number; strata: boolean }>>
 });
 /** A land track gets hills only where its road rises this far above the ground plane. */
 const LAND_MIN_RISE = 2.5;
-const START_LINE_LENGTH = 1.5;
 
 function toColor(c: Rgb): Color { return new Color(c[0], c[1], c[2]); }
 
@@ -407,15 +407,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   };
   update(0);
 
-  // start line: one quad, polygon offset so it never z-fights the road
-  const start = track.sample(track.startT, 0);
-  const startLine = new Mesh(
-    new PlaneGeometry(start.halfWidth * 2, START_LINE_LENGTH).rotateX(-Math.PI / 2),
-    new MeshToonMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
-  );
-  startLine.name = 'start-line';
-  startLine.position.set(start.position[0], start.position[1] + 0.01, start.position[2]);
-  startLine.rotation.y = headingOf(start.tangent);
+  // start/finish: a checkered band across the road under an arch (gantry.ts)
+  const startLine = buildStartGantry(track, palette, GRADIENT ?? null);
+  OWNED.add(startLine.geometry);
   group.add(startLine);
 
   // ground: one plane (or water), none for sky tracks
