@@ -78,16 +78,38 @@ export function restartConfig(config: RaceConfig, trackIds: readonly string[], t
   return dailyConfig((config.racers.find((r) => r.isPlayer) ?? config.racers[0]).racerId, trackIds, today);
 }
 
-const WORDS = ['fuck', 'shit', 'cunt', 'nigg', 'fag', 'bitch', 'whore', 'slut', 'rape', 'nazi', 'hitler', 'penis', 'vagina', 'cock', 'dick', 'pussy', 'twat', 'wank', 'retard'];
+/** Rude wherever they turn up, even across the gaps ("F U C K", "Dick Head"). */
+const ANYWHERE = ['fuck', 'cunt', 'nigg', 'bitch', 'whore', 'retard', 'hitler', 'penis', 'vagina', 'pussy', 'faggot', 'wanker', 'dickhead', 'shithead', 'cocksuck'];
+/**
+ * Rude only as a whole word or its plural: the same letters sit inside ordinary names and tags
+ * (Dickson, Hancock, Nazim, Fagan, Draper, Swanky, Atwater, Matsushita, Josh17).
+ */
+const WHOLE = ['shit', 'shitty', 'dick', 'cock', 'fag', 'slut', 'slutty', 'rape', 'rapist', 'nazi', 'twat', 'wank'];
 
 /** Letters only, leetspeak folded, so "sh1t" and "S H I T" both match. */
 function fold(s: string): string {
   return s.toLowerCase().replace(/[013457@$]/g, (c) => ({ 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's' } as Record<string, string>)[c]).replace(/[^a-z]/g, '');
 }
 
+/** The words of a name: split at spaces, _ and - and at camelCase ("BigDick"), runs of single letters joined ("S H I T"). */
+function words(name: string): string[] {
+  const out: string[] = [];
+  let run = '';
+  for (const w of name.split(/[ _-]+/)) {
+    if (w.length === 1) { run += w; continue; }
+    if (run) out.push(run);
+    run = '';
+    if (w) out.push(w, ...w.split(/(?<=[a-z])(?=[A-Z])/));
+  }
+  if (run) out.push(run);
+  return out;
+}
+
 export function cleanName(name: string): boolean {
-  const f = fold(name);
-  return !WORDS.some((w) => f.includes(w));
+  if (ANYWHERE.some((w) => fold(name).includes(w))) return false;
+  // each word read as leetspeak ("sh1t") and with its digits dropped ("shit1", while "Josh17" stays "josh")
+  const whole = (f: string) => WHOLE.some((w) => f === w || f === `${w}s`);
+  return !words(name).some((w) => whole(fold(w)) || whole(w.toLowerCase().replace(/[^a-z]/g, '')));
 }
 
 /** Field checks. Returns the first problem, or null when the payload is well formed. */
