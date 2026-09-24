@@ -106,27 +106,61 @@ export interface DecorPlacement {
   count: number;
 }
 
+/** Metres along the road over which the heading change is read for a corner's outside. */
+const BEND_SPAN = 12;
+/** Chance a roadside or verge group takes a sharp corner's outside (where the eye looks across it); 0.5 on a straight. */
+const OUTSIDE_BIAS = 0.8;
+
+/**
+ * Which side (-1 left, 1 right) is the outside of the road's turn at main-line t, and how sharp the
+ * turn is (0 a straight or a gentle sweep, 1 a real corner of radius about 40 m, as road.ts `bend` reads it).
+ */
+export function outsideOf(lut: Lut, t: number): { side: number; bend: number } {
+  const i = Math.round(t * lut.step), k = Math.max(1, Math.round(BEND_SPAN / 2 / (lut.length / lut.step)));
+  const a = lut.idx(i - k), b = lut.idx(i + k), j = lut.idx(i);
+  // the tangent turns toward the inside; right is (tz, -tx), as placeDecor lays a prop out
+  const dx = lut.tx[b] - lut.tx[a], dz = lut.tz[b] - lut.tz[a];
+  const inside = dx * lut.tz[j] - dz * lut.tx[j];
+  const turn = Math.hypot(dx, dz) / BEND_SPAN; // radians a metre, near enough
+  const x = Math.max(0, Math.min(1, (turn - 0.012) / 0.013));
+  return { side: inside > 0 ? -1 : 1, bend: x * x * (3 - 2 * x) };
+}
+
 /**
  * Place `instances` of one decor entry in its band. roadside: 8–14 m past the road edge
- * at road height minus the shoulder drop. far: 30–120 m from the centreline at ground
- * height. With `groundAt` (an off-road track's land), both stand on the land as drawn. sky: 25–60 m above the road. Anything inside a road envelope, a roadside
+ * at road height minus the shoulder drop (13–19 m on an off-road track: past the course limit).
+ * verge (off-road tracks only): small ground cover 2.5–11 m past the curb on the drivable land, which
+ * karts drive through (visual only: decor never collides). far: 30–120 m from the centreline at ground
+ * height. With `groundAt` (an off-road track's land), all three stand on the land as drawn. sky: 25–60 m above the road. Anything inside a road envelope, a roadside
  * prop beside an open edge, and a prop whose land is not level under its footprint are rejected and
- * retried; the RNG is shared across entries so order matters and is fixed by the JSON.
+ * retried; roadside and verge groups favour the outside of corners. The RNG is shared across entries
+ * so order matters and is fixed by the JSON.
  */
 export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef['decor']>[number], rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number, footprint = 0): DecorPlacement {
   const main = branches.main.lut;
+  const verge = entry.band === 'verge';
+  // a verge lies on an off-road track's drivable land; a pier or a sky road has none
+  if (verge && !main.offroad) return { asset: entry.asset, band: entry.band, matrices: new Float32Array(0), count: 0 };
+  const edge = entry.band === 'roadside' || verge; // laid out from the curb, not the centreline
   const band = entry.band === 'roadside' && main.offroad ? BUILDER.decorBands.roadsideOffroad : BUILDER.decorBands[entry.band];
   const out: number[] = [];
   let placed = 0;
   const maxTries = entry.instances * 20;
-  // props come in little groups (a row of cottages, a stand of pines, a flock of gulls) with open
-  // ground between, not one every so many metres; each group has its own spot and spread
+  // props come in little groups (a row of cottages, a stand of pines, a flock of gulls, a patch of
+  // flowers) with open ground between, not one every so many metres; each group has its own spot and spread
   let left = 0, gt = 0, gside = 1, gdist = 0;
-  const spread = entry.band === 'roadside' ? 8 : entry.band === 'far' ? 22 : 30;
+  const spread = entry.band === 'roadside' ? 8 : verge ? 10 : entry.band === 'far' ? 22 : 30;
   for (let tries = 0; placed < entry.instances && tries < maxTries; tries++) {
     if (left <= 0) {
-      gt = rng(); gside = rng() < 0.5 ? -1 : 1; gdist = band[0] + (band[1] - band[0]) * rng();
-      left = 1 + Math.floor(rng() * (entry.band === 'roadside' ? 4 : 5));
+      gt = rng();
+      const r = rng();
+      if (edge) {
+        // on a corner the eye looks across its outside, so that is where the dressing goes
+        const o = outsideOf(main, gt);
+        gside = r < 0.5 + (OUTSIDE_BIAS - 0.5) * o.bend ? o.side : -o.side;
+      } else gside = r < 0.5 ? -1 : 1;
+      gdist = band[0] + (band[1] - band[0]) * rng();
+      left = verge ? 2 + Math.floor(rng() * 6) : 1 + Math.floor(rng() * (entry.band === 'roadside' ? 4 : 5));
     }
     left--;
     const t = gt + ((rng() - 0.5) * spread) / main.length;
@@ -142,19 +176,24 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
       z = c.position[2] - c.tangent[0] * lateral;
       y = c.position[1] + dist;
     } else {
+      const j = main.idx(Math.round(tt * main.step)), foot = footprint * scale;
+      // a verge prop stays on the drivable land, footprint and all (which narrows to nothing at a tunnel's mouth)
+      if (verge && (main.covered[j] || dist + foot > main.reach[j])) continue;
       // a roadside prop on an off-road track stands wholly past the course limit (its footprint too), where karts cannot reach it
-    const clear = entry.band === 'roadside' && main.offroad ? Math.max(dist, BUILDER.offroadReach + 0.5 + footprint * scale) : dist;
-    const lateral = side * (entry.band === 'roadside' ? c.halfWidth + BUILDER.kerbWidth + clear : dist);
+      const clear = entry.band === 'roadside' && main.offroad ? Math.max(dist, BUILDER.offroadReach + 0.5 + foot) : dist;
+      const lateral = side * (edge ? c.halfWidth + BUILDER.kerbWidth + clear : dist);
       x = c.position[0] + c.tangent[2] * lateral;
       z = c.position[2] - c.tangent[0] * lateral;
       y = groundAt ? groundAt(x, z) : entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
-      // clear of every road (on an off-road track, of where karts can drive past its curb, footprint and all)
-      if (insideRoadEnvelope(branches, x, z, -1, main.offroad ? BUILDER.kerbWidth + BUILDER.offroadReach + 0.5 + footprint * scale : ENVELOPE_PAD)) continue;
+      // clear of every road (on an off-road track, of where karts can drive past its curb, footprint
+      // and all; ground cover, which karts drive through, keeps off the roads and their curbs only)
+      const pad = verge ? BUILDER.kerbWidth + 0.5 + foot : main.offroad ? BUILDER.kerbWidth + BUILDER.offroadReach + 0.5 + foot : ENVELOPE_PAD;
+      if (insideRoadEnvelope(branches, x, z, -1, pad)) continue;
       // bug hunt 3: beside an open edge a roadside prop stood over the drop, in Harbor's sea or over the
       // water off Boardwalk's pier (placeBarriers skips those sides too); and on the land as drawn a
       // prop keeps off a cliff's lip and slopes (a mesa hung 24 m over Canyon's chasm)
-      if (entry.band === 'roadside' && openBeside(main, tt, side, footprint * scale + OPEN_CLEAR)) continue;
-      if (groundAt && footprint > 0 && !level(groundAt, x, z, footprint * scale)) continue;
+      if (edge && openBeside(main, tt, side, foot + OPEN_CLEAR)) continue;
+      if (groundAt && footprint > 0 && !level(groundAt, x, z, foot)) continue;
     }
     pushTransform(out, [x, y + (entry.lift ?? 0) * scale, z], yaw, [scale, scale, scale]);
     placed++;

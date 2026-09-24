@@ -133,11 +133,14 @@
     "sunDirection": [0.5, 0.75, 0.3],
     "palette": { "background": "#d97a4a", "accent": "#3ec9c0" },
     "decor": [
-      { "asset": "cactus", "instances": 40, "band": "roadside" },
-      { "asset": "rock", "instances": 40, "band": "roadside" },
+      { "asset": "cactus", "instances": 70, "band": "roadside" },
+      { "asset": "rock", "instances": 70, "band": "roadside" },
       { "asset": "mesa", "instances": 20, "band": "far" },
-      { "asset": "minecart", "instances": 10, "band": "roadside", "lift": 1.2 },
-      { "asset": "arch", "instances": 5, "band": "far" }
+      { "asset": "minecart", "instances": 10, "band": "roadside", "lift": 0.7 },
+      { "asset": "arch", "instances": 5, "band": "far" },
+      { "asset": "rock", "instances": 40, "band": "far" },
+      { "asset": "scrub", "instances": 200, "band": "verge" },
+      { "asset": "pebbles", "instances": 220, "band": "verge" }
     ]
   }
 }

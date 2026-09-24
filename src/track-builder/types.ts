@@ -12,7 +12,8 @@ export type HazardKind = 'rolling' | 'crossing' | 'falling' | 'static' | 'gust' 
 export type CreatureKind = 'rumblesaur' | 'yeti' | 'kraken' | 'crab' | 'goose' | 'whale';
 export type HazardHit = 'spin' | 'slow' | 'bump' | 'launch';
 export type ShortcutRisk = 'jump' | 'narrow' | 'hazard';
-export type DecorBand = 'roadside' | 'far' | 'sky';
+/** verge: an off-road track's ground cover on the drivable land inside the course limit (visual only) */
+export type DecorBand = 'roadside' | 'verge' | 'far' | 'sky';
 export type GroundKind = 'plane' | 'water' | 'none';
 
 /** One authored control point. halfWidth and surface run from this point to the next. */

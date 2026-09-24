@@ -130,10 +130,13 @@
     "decor": [
       { "asset": "oak", "instances": 50, "band": "roadside" },
       { "asset": "fence", "instances": 60, "band": "roadside" },
-      { "asset": "barn", "instances": 15, "band": "far" },
-      { "asset": "windmill-small", "instances": 20, "band": "far" },
-      { "asset": "haybale", "instances": 36, "band": "roadside" },
-      { "asset": "rock", "instances": 20, "band": "far" }
+      { "asset": "barn", "instances": 30, "band": "far" },
+      { "asset": "windmill-small", "instances": 40, "band": "far" },
+      { "asset": "haybale", "instances": 36, "band": "roadside", "lift": 1.0 },
+      { "asset": "rock", "instances": 20, "band": "far" },
+      { "asset": "tuft", "instances": 520, "band": "verge" },
+      { "asset": "flowers", "instances": 320, "band": "verge" },
+      { "asset": "bush", "instances": 110, "band": "verge" }
     ]
   }
 }

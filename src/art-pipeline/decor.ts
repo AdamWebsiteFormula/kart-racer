@@ -73,6 +73,39 @@ const MODELS: Record<string, { build: Build }> = {
       m.cone(0.28, 0.14, CORAL, [0, 0.87, 0], undefined, 6, false);
     },
   },
+  // ---- Harbor Loop's seaside clutter along the course limit (the roadside band, past where karts drive)
+  crate: {
+    build: (m) => {
+      m.box([1.1, 1.0, 1.1], '#c08a4f', [0, 0.5, 0]);
+      for (const y of [0.12, 0.88]) m.box([1.14, 0.12, 1.14], WOOD_DARK, [0, y, 0], undefined, false);  // bands
+      m.box([0.8, 0.7, 0.8], '#d9a066', [0.2, 1.35, -0.1], [0, 0.5, 0]);                                // a smaller one on top
+      m.box([0.84, 0.1, 0.84], TEAL, [0.2, 1.62, -0.1], [0, 0.5, 0], false);                            // its painted lid
+    },
+  },
+  umbrella: {
+    build: (m) => {
+      // a beach umbrella: coral and white gores (two four-sided canopies a quarter turn apart), a towel under it
+      m.cyl(0.05, 0.05, 2.3, WHITE, [0, 1.15, 0], [0.08, 0, 0], 5, false);
+      m.cone(1.45, 0.5, CORAL, [0, 2.35, 0.1], [0.08, 0, 0], 4);
+      m.cone(1.42, 0.52, WHITE, [0, 2.36, 0.1], [0.08, Math.PI / 4, 0], 4);
+      m.ball([0.09, 0.09, 0.09], SUN, [0, 2.64, 0.12], undefined, 5, false);
+      m.box([0.9, 0.03, 1.7], TEAL, [0.7, 0.015, 0.4], [0, 0.3, 0], false);
+    },
+  },
+  'rope-post': {
+    build: (m) => {
+      // two dock posts with a thick rope sagging between them
+      for (const x of [-1.3, 1.3]) {
+        m.cyl(0.14, 0.17, 1.1, WOOD, [x, 0.55, 0], undefined, 6);
+        m.cyl(0.18, 0.18, 0.08, WOOD_DARK, [x, 1.1, 0], undefined, 6, false);
+      }
+      const rope: [number, number][] = [[-1.3, 0.92], [-0.5, 0.7], [0.5, 0.7], [1.3, 0.92]];
+      for (let k = 0; k < 3; k++) {
+        const [x0, y0] = rope[k], [x1, y1] = rope[k + 1], dx = x1 - x0, dy = y1 - y0;
+        m.cyl(0.045, 0.045, Math.hypot(dx, dy) + 0.04, '#e8d9a8', [(x0 + x1) / 2, (y0 + y1) / 2, 0], [0, 0, Math.atan2(-dx, dy)], 5, false);
+      }
+    },
+  },
   // ---- features, centred as the placeholders are
   balloon: {
     build: (m) => {
@@ -157,6 +190,39 @@ const MODELS: Record<string, { build: Build }> = {
       for (const x of [-0.35, 0.35]) m.cyl(1.02, 1.02, 0.08, '#a0703c', [x, 0, 0], [0, 0, Math.PI / 2], 12, false);
     },
   },
+  // ---- verge ground cover (Meadow Run, Harbor Loop): hundreds of them on the drivable grass between the
+  // curb and the course limit, which karts drive through, so they are small, low and a few dozen triangles
+  flowers: {
+    build: (m) => {
+      m.ball([0.5, 0.16, 0.5], '#4f9e3c', [0, 0.04, 0], undefined, 5, false);            // the leaves
+      const heads: [number, number, string][] = [[0.18, 0.1, WHITE], [-0.2, 0.16, SUN], [0.05, -0.22, '#ff6f91'], [-0.1, -0.02, WHITE]];
+      heads.forEach(([x, z, c], k) => {
+        const h = 0.26 + (k % 3) * 0.08;
+        m.cyl(0.018, 0.022, h, '#3f8a34', [x, h / 2, z], undefined, 3, false);          // stem
+        m.cyl(0.13, 0.09, 0.05, c, [x, h, z], undefined, 5, false);                     // petals
+        m.box([0.08, 0.04, 0.08], '#f2a31b', [x, h + 0.03, z], undefined, false);       // its eye
+      });
+    },
+  },
+  tuft: {
+    build: (m) => {
+      // a clump of grass blades leaning out from the middle, a little brighter than the lawn so it reads
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + (k % 2) * 0.4, lean = 0.3 + (k % 3) * 0.14, h = 0.42 + ((k * 7) % 5) * 0.06;
+        const cx = Math.cos(a), cz = Math.sin(a), up = h / 2;
+        m.cone(0.07, h, k % 2 ? '#7ccc52' : '#5cae3f', [cx * (0.06 + Math.sin(lean) * up), Math.cos(lean) * up, cz * (0.06 + Math.sin(lean) * up)], [lean * cz, 0, -lean * cx], 3, false);
+      }
+    },
+  },
+  bush: {
+    build: (m) => {
+      // a low round shrub with a few red berries, knee-high to a kart
+      m.ball([0.7, 0.36, 0.62], '#3f8f3a', [0, 0.26, 0], undefined, 7);
+      m.ball([0.46, 0.3, 0.46], '#52a845', [0.42, 0.34, 0.18], undefined, 6);
+      m.ball([0.42, 0.28, 0.42], '#5cb84d', [-0.38, 0.32, -0.14], undefined, 6);
+      for (const [x, y, z] of [[0.3, 0.6, 0.32], [-0.26, 0.56, 0.24], [0.08, 0.6, -0.44]] as const) m.box([0.09, 0.09, 0.09], '#ff5d73', [x, y, z], [0.6, 0.6, 0], false);
+    },
+  },
   // ================================================================ Canyon Rush
   arch: {
     build: (m) => {
@@ -184,6 +250,23 @@ const MODELS: Record<string, { build: Build }> = {
     build: (m) => {
       m.rock(1.3, '#c8553d', [0, 0.9, 0], [0.3, 0.7, 0], [1.2, 0.8, 1]);
       m.rock(0.8, '#d9734f', [1.1, 0.5, 0.4], [0.9, 0.1, 0.4], [1, 0.7, 1]);
+    },
+  },
+  // ---- Canyon Rush's verge: dry desert scrub and scattered red stones on the drivable sand
+  scrub: {
+    build: (m) => {
+      // a sagebrush: dusty olive puffs on dry twigs
+      for (const [x, y, z, r, c] of [[0, 0.32, 0, 0.42, '#9aa55a'], [0.34, 0.26, 0.2, 0.3, '#b5b86a'], [-0.3, 0.24, 0.24, 0.28, '#8a9448'], [0.06, 0.22, -0.34, 0.28, '#a3ad62']] as const) {
+        m.ball([r, r * 0.72, r], c, [x, y, z], undefined, 5);
+      }
+      m.cyl(0.03, 0.05, 0.4, '#8a6a44', [0.1, 0.12, 0.05], [0.3, 0, -0.4], 3, false);
+    },
+  },
+  pebbles: {
+    build: (m) => {
+      m.rock(0.35, '#b8452f', [0, 0.16, 0], [0.4, 0.2, 0], [1.3, 0.7, 1]);
+      m.rock(0.22, '#d9734f', [0.46, 0.1, 0.2], [0.1, 0.9, 0.3], [1, 0.7, 1.1]);
+      m.rock(0.18, '#e8a36b', [-0.36, 0.08, 0.3], [0.7, 0.3, 0.1], [1.1, 0.6, 1]);
     },
   },
   mesa: {
@@ -261,6 +344,25 @@ const MODELS: Record<string, { build: Build }> = {
       m.ball([1.2, 1.2, 1.2], '#fbfdff', [0, 0, 0], undefined, 12);
       m.ball([0.4, 0.3, 0.4], '#e3eef7', [0.7, 0.6, 0.3], undefined, 7, false);
       m.ball([0.35, 0.3, 0.35], '#e3eef7', [-0.5, -0.4, 0.8], undefined, 7, false);
+    },
+  },
+  // ---- Frostbite Pass's verge: young firs and snow-capped stones (white cover would vanish on the snow)
+  sapling: {
+    build: (m) => {
+      m.ball([0.42, 0.12, 0.42], '#f4f8ff', [0, 0.02, 0], undefined, 5, false);   // a drift at its foot
+      m.cyl(0.05, 0.06, 0.2, '#6b4a2b', [0, 0.1, 0], undefined, 4, false);
+      m.cone(0.44, 0.56, '#2f6b4f', [0, 0.42, 0], undefined, 6);
+      m.cone(0.3, 0.44, '#3a7d5c', [0, 0.72, 0], undefined, 6);
+      m.cone(0.15, 0.2, '#fbfdff', [0, 0.95, 0], undefined, 6, false);              // snowy tip
+    },
+  },
+  stones: {
+    build: (m) => {
+      // blue-grey stones with caps of snow
+      m.rock(0.34, '#7d8ea3', [0, 0.16, 0], [0.3, 0.4, 0], [1.3, 0.75, 1]);
+      m.ball([0.38, 0.1, 0.3], '#fbfdff', [0, 0.38, 0], undefined, 5, false);
+      m.rock(0.22, '#95a4b8', [0.5, 0.1, 0.18], [0.8, 0.2, 0.3], [1, 0.7, 1.1]);
+      m.ball([0.2, 0.06, 0.18], '#fbfdff', [0.5, 0.24, 0.18], undefined, 5, false);
     },
   },
   'frost-barrier': {

@@ -123,8 +123,9 @@ const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
 
 /**
  * The road edge in each track's style (EDGES), and painted road lines: an edge line inside each
- * edge and a dashed centre line (asphalt only). Reads the ribbon's `mark` and `bend` attributes
- * (road.ts); vertex colours still tint everything else.
+ * edge and a dashed centre line (asphalt only), and mud patches with ragged edges, wet blotches and
+ * ruts, where the lines stop. Reads the ribbon's `mark`, `bend` and `surf` attributes (road.ts);
+ * vertex colours still tint everything else.
  */
 function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle, offroad: boolean): void {
   const kerbA = new Color(...palette.kerbA), kerbB = new Color(...palette.kerbB);
@@ -143,11 +144,12 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
     shader.uniforms.uOffroad = { value: offroad ? 1 : 0 };
     shader.uniforms.uOffA = { value: new Color(...off[0]) };
     shader.uniforms.uOffB = { value: new Color(...off[1]) };
+    shader.uniforms.uMud = { value: new Color(...palette.surfaces.mud) };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nvarying float vMark;\nvarying float vBend;\nvarying vec2 vRoad;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvRoad = uv;');
+      .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nattribute float surf;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvSurf = surf;\nvRoad = uv;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nvarying float vMark;\nvarying float vBend;\nvarying vec2 vRoad;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nuniform vec3 uMud;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         if (vMark > 0.5 && vMark < 1.5) {
           // a neon line along the edge (Boardwalk): it lights itself
@@ -155,6 +157,7 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           totalEmissiveRadiance += uNeon * line;
         }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
+        float mudMask = 0.0;
         // after the vertex colours (the ribbon's old two-colour curb), so the edge is exactly its own colour
         if (vMark > 0.5 && vMark < 1.5) {
           // striped curb: hard stripes, anti-aliased so they do not shimmer far away
@@ -177,6 +180,25 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           float n = sin(vRoad.y * 1.7 + vRoad.x * 5.0) * sin(vRoad.y * 0.63 - vRoad.x * 2.1) * 0.5 + 0.5;
           diffuseColor.rgb *= 0.93 + 0.12 * n;
           diffuseColor.rgb *= 1.0 - 0.07 * (1.0 - smoothstep(0.1, 0.32, abs(vRoad.x - 0.5)));
+          if (vSurf > 0.01) {
+            // a mud patch (road.ts surf: 0.5 at its first sample, 1 six metres in): a ragged edge that
+            // wanders a few metres in, darker wet blotches and two wheel ruts, and no tarmac grain
+            vec2 m = vec2(vRoad.x * 16.0, vRoad.y * 10.0);
+            float n = sin(m.x * 0.9 + m.y * 0.45) * 0.5 + sin(m.x * 2.3 - m.y * 1.1) * 0.3 + sin(m.y * 2.9 + m.x * 0.7) * 0.2;
+            float s = vSurf + 0.2 * n, ws = fwidth(s) + 0.01;
+            mudMask = smoothstep(0.55 - ws, 0.55 + ws, s);
+            // a few irregular puddles (warped, so they never line up in rows of dots)
+            float blot = sin(m.y * 0.37 + sin(m.x * 0.8 + m.y * 0.21) * 1.7) * sin(m.x * 0.61 - m.y * 0.19) + 0.3 * sin(m.y * 1.3 - m.x * 1.1);
+            float ww = fwidth(blot) + 0.03, wet = smoothstep(0.62 - ww, 0.62 + ww, blot);
+            float rx = abs(abs(vRoad.x - 0.5 + 0.012 * sin(m.y * 0.4)) - 0.17), wr = fwidth(vRoad.x) + 0.003;
+            float rut = 1.0 - smoothstep(0.018 - wr, 0.018 + wr, rx);
+            float clod = sin(m.x * 5.1 + m.y * 3.7) * sin(m.y * 4.3 - m.x * 2.9);
+            vec3 mud = uMud * 0.72 * (1.0 + 0.08 * clod) * (1.0 - 0.3 * rut);
+            // puddles: darker, with a little of the sky in them; a lip of lighter drying mud along the edge
+            mud = mix(mud, uMud * vec3(0.55, 0.6, 0.72), wet);
+            mud *= 1.0 + 0.12 * (1.0 - smoothstep(0.0, 0.1, s - 0.55));
+            diffuseColor.rgb = mix(diffuseColor.rgb, mud, mudMask);
+          }
         }
         if (vMark < 0.5 && uLines > 0.5) {
           // painted lines: an edge line just inside each kerb, a dashed centre line
@@ -186,7 +208,8 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           float c = abs(x - 0.5);
           float dash = step(fract(vRoad.y * 0.6), 0.45);
           float centre = (1.0 - smoothstep(0.006, 0.006 + wx, c)) * dash;
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.88), max(edge, centre) * 0.9);
+          // the lines stop at a mud patch (no paint on mud)
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.88), max(edge, centre) * 0.9 * (1.0 - mudMask));
         }`);
   };
   m.customProgramCacheKey = () => `road-lines-${lines ? 1 : 0}`;
