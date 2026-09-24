@@ -161,6 +161,8 @@ export interface TrackDefinition {
   environment?: EnvironmentDef;
   music?: string;
   landmark?: string;
+  /** built by mirror.ts, never authored: this is a track reflected left to right (Mirror mode) */
+  mirrored?: boolean;
 }
 
 // ---- built objects (sim layer) ----

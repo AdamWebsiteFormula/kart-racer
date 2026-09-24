@@ -145,7 +145,9 @@ export class Track implements TrackQuery {
     this.jumps = jumpView(this.features).map((j) => (skirt && j.shape !== 'hump' && j.rise ? { ...j, skirt } : j));
     this.boostPads = boostPadView(this.features);
     this.loops = this.loopFeet.map((l) => ({
-      id: l.id, t: l.t, radius: l.radius ?? BUILDER.loopRadius, shift: BUILDER.loopShift, spread: BUILDER.loopSpread,
+      id: l.id, t: l.t, radius: l.radius ?? BUILDER.loopRadius, spread: BUILDER.loopSpread,
+      // a mirrored track's loop shifts the other way (mirror.ts)
+      shift: this.def.mirrored ? -BUILDER.loopShift : BUILDER.loopShift,
       approach: BUILDER.loopApproach, exit: BUILDER.loopExit, width: BUILDER.loopWidth,
     }));
   }
