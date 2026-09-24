@@ -67,6 +67,12 @@ export interface VistaContext {
   sun: [number, number, number];
   /** Mirror mode: the vista is reflected with the track */
   mirrored: boolean;
+  /** the main line at t: its centre on the road, which way it runs and which way is its +lateral (level, unit), and how far out from the centre the course limit (or the road's edge) stands */
+  road?: (t: number) => { p: [number, number, number]; along: [number, number]; right: [number, number]; limit: number };
+  /** the ground's height at (x, z) (the land as drawn on an off-road track, else the ground plane) */
+  groundAt?: (x: number, z: number) => number;
+  /** whether no prop of the scenery stands within r metres of (x, z) */
+  clear?: (x: number, z: number, r: number) => boolean;
 }
 
 /** A far vista's parts. */
@@ -79,6 +85,12 @@ export interface VistaParts {
   ring?: Mesh[];
   /** the far landmark ahead of the start line (world metres) */
   landmark?: [number, number, number];
+  /** per frame, with the camera's place, the clock the movers read and the detail level (1 full, 0 the governor's Low) */
+  tick?: (camera: [number, number, number], clock: number, detail: number) => void;
+  /** the Final Lap Shift has come (its new sky, if it brings one) */
+  shift?: (sky: string | undefined) => void;
+  /** the sky life, for checks: its fliers, its trigger slots and where a flier is at a given clock second */
+  life?: { fliers: readonly unknown[]; trig: Float32Array; flierAt: (f: never, time: number, trig: Float32Array) => [number, number, number] | null };
 }
 
 export interface TrackScene {
@@ -90,6 +102,8 @@ export interface TrackScene {
   dressing: Mesh[];
   /** the far vista's landmark ahead of the start line, when the track has a vista */
   farLandmark?: [number, number, number];
+  /** the far vista's parts (its sky life's controls), when the track has one */
+  vista?: VistaParts;
   /** name → instancer; names: barriers, balloons, coins, boostPads, ramps, hazard:<asset>, decor:<asset> */
   instancers: Map<string, InstancedMesh>;
   fog: { color: Rgb; density: number };
@@ -526,6 +540,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const decor: DecorPlacement[] = [];
   const toMerge: { item: MergeItem; far: boolean }[] = [];
   let farLandmark: [number, number, number] | undefined;
+  let vistaParts: VistaParts | undefined;
   const occupied = new Occupancy();
   for (const entry of env.decor ?? []) {
     const geo = geometryFor(assets, entry.asset, 'decor');
@@ -801,8 +816,16 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       biome: def.biome, centre: [cx, cz], radius, start: [st.position[0], st.position[2]], forward: [st.tangent[0] / fl, st.tangent[2] / fl],
       groundY: groundKind === 'none' ? NaN : groundY, roadMinY: lut.minY, roadMaxY: lut.maxY,
       sun: [sd[0] / sl, sd[1] / sl, sd[2] / sl], mirrored: def.mirrored === true,
+      road: (t) => {
+        const c = lut.sample(t, 0), h = Math.hypot(c.tangent[0], c.tangent[2]) || 1;
+        const limit = c.halfWidth + BUILDER.kerbWidth + (def.offroad === true ? BUILDER.offroadReach : 0);
+        return { p: [c.position[0], c.position[1], c.position[2]], along: [c.tangent[0] / h, c.tangent[2] / h], right: [c.tangent[2] / h, -c.tangent[0] / h], limit };
+      },
+      groundAt: (x, z) => (groundAt ? groundAt(x, z) : groundY),
+      clear: (x, z, r) => !occupied.hits(x, z, r),
     });
     farLandmark = vista?.landmark;
+    vistaParts = vista ?? undefined;
     if (vista?.solid) {
       OWNED.add(vista.solid);
       const m = new Mesh(vista.solid, toon(vista.solid, [1, 1, 1], GRADIENT));
@@ -862,7 +885,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   }
 
   const scene: TrackScene = {
-    group, palette, chunks, decor, dressing, farLandmark, instancers,
+    group, palette, chunks, decor, dressing, farLandmark, vista: vistaParts, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,
@@ -907,6 +930,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     addFeatures();
     if (e.fogDensity !== undefined) scene.fog.density = e.fogDensity;
     if (e.sky !== undefined) scene.sky = e.sky;
+    // the far vista's sky life hears the Final Lap Shift (the blizzard sends the eagles off, the finale starts the fireworks)
+    vistaParts?.shift?.(e.sky);
   });
 
   return scene;

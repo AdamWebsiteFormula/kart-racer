@@ -23,30 +23,50 @@ import { WATER_CLOCK } from './surfaces.ts';
 
 /** How a mover moves (its vertex shader's `kind`). */
 export const MOVE = Object.freeze({
-  still: 0, orbit: 1, drift: 2, shuttle: 3, spinY: 4, spinZ: 5, burst: 6, rise: 7, beam: 8, shimmer: 9, blink: 10, glow: 11,
+  still: 0, orbit: 1, drift: 2, shuttle: 3, spinY: 4, spinZ: 5, burst: 6, rise: 7, beam: 8, shimmer: 9, blink: 10, glow: 11, perch: 12, flyby: 13,
 });
+
+/** Trigger slots per track (perched birds, flybys, the weather sending fliers off, the fireworks finale). */
+export const TRIGGERS = 16;
 
 const VERT = `
 uniform float time;
 uniform vec3 sunDir;
+uniform float uTrig[${TRIGGERS}];
+uniform float uDetail;
+uniform float uNight;
 attribute vec3 aAnchor;
 attribute vec4 aMove;
 attribute vec4 aDir;
 attribute float aYaw;
+attribute vec3 aWing;
+attribute float aGroup;
 varying vec3 vColor;
 varying float vAlpha;
 #include <fog_pars_vertex>
+const float PI = 3.14159265;
 vec3 yawed(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c); }
+float turn(float a) { return mod(a + PI, 2.0 * PI) - PI; }
+// a group's trigger: the clock second it fired, or -1 while it waits (no group: fired at 0)
+float fired() { return aGroup < -0.5 ? 0.0 : uTrig[int(aGroup + 0.5)]; }
 void main() {
   float kind = aMove.x, t = time * aMove.z + aMove.y, amt = aMove.w;
   vec3 p = position, n = normal, base = aAnchor;
-  float yaw = aYaw, a = 1.0;
+  float yaw = aYaw, a = 1.0, size = 1.0, fly = 1.0, fold = 0.0, bank = 0.0;
   if (kind > 0.5 && kind < 1.5) {
-    // orbit: round a circle of radius amt, facing along it, riding a slow swell
+    // orbit: round a circle of radius amt, facing along it, banked into the turn (aDir.x), riding a
+    // slow swell; a group's trigger (the weather turning) sends it away outward and up, fading out
     base += vec3(cos(t) * amt, 0.3 * sin(time * 1.1 + aMove.y), -sin(t) * amt);
-    yaw += t + 3.14159265;
-  } else if (kind < 2.5 && kind > 1.5) {
-    // drift and bob: a balloon on the breeze
+    yaw += t + PI;
+    bank = aDir.x;
+    float t0 = fired();
+    if (aGroup > -0.5 && t0 >= 0.0) {
+      float k = max(0.0, time - t0);
+      base += vec3(cos(t), 0.0, -sin(t)) * 0.7 * k * k + vec3(0.0, 1.6 * k, 0.0);
+      size = 1.0 - smoothstep(12.0, 18.0, k);
+    }
+  } else if (kind > 1.5 && kind < 2.5) {
+    // drift and bob on the breeze
     base += vec3(sin(t * 0.21) * amt, sin(t) * 1.6, cos(t * 0.17) * amt);
   } else if (kind > 2.5 && kind < 3.5) {
     // shuttle there and back along aDir (a cable car, a train)
@@ -59,18 +79,20 @@ void main() {
     p.xy = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
     n.xy = vec2(n.x * c - n.y * s, n.x * s + n.y * c);
   } else if (kind > 5.5 && kind < 6.5) {
-    // a firework spark: out along aDir, falling, shrinking, gone before the next burst
-    float k = fract(t);
+    // a firework spark: out along aDir, falling, shrinking, gone before the next burst; a gated
+    // centre (the finale) is dark until its trigger and bursts on its own beat from then
+    float t0 = fired();
+    float k = fract((time - max(t0, 0.0)) * aMove.z + aMove.y);
     float r = aDir.w * (1.0 - pow(1.0 - min(k / 0.4, 1.0), 3.0));
     base += aDir.xyz * r + vec3(0.0, -9.0 * k * k, 0.0);
     p *= max(0.0, 1.0 - k * 1.2);
-    a = k < 0.75 ? smoothstep(0.0, 0.03, k) * (1.0 - k / 0.75) : 0.0;
+    a = t0 < 0.0 ? 0.0 : (k < 0.75 ? smoothstep(0.0, 0.03, k) * (1.0 - k / 0.75) : 0.0);
   } else if (kind > 6.5 && kind < 7.5) {
     // a puff of smoke: rises amt metres, swells, leans downwind, fades in and out
     float k = fract(t);
     base += vec3(sin(t * 0.7) * 2.0 + k * amt * 0.35, k * amt, k * amt * 0.1);
     p *= 0.5 + 1.8 * k;
-    a = sin(k * 3.14159265) * 0.7;
+    a = sin(k * PI) * 0.7;
   } else if (kind > 7.5 && kind < 8.5) {
     // a lighthouse beam: sweeps round, fading along its length
     yaw += t;
@@ -81,9 +103,55 @@ void main() {
     a = amt * (0.35 + 0.65 * smoothstep(0.5, 0.95, band));
   } else if (kind > 9.5 && kind < 10.5) {
     a = step(0.5, fract(t));
-  } else if (kind > 10.5) {
+  } else if (kind > 10.5 && kind < 11.5) {
     a = amt * (0.85 + 0.15 * sin(t));
+  } else if (kind > 11.5 && kind < 12.5) {
+    // perched, wings folded, until its group's trigger; then off along aDir.xz at aDir.w m/s from rest,
+    // climbing amt metres, turning over half a second to face the way it goes, gone once far
+    float t0 = fired();
+    float k = t0 < 0.0 ? -1.0 : time - t0;
+    if (k < 0.0) { fly = 0.0; fold = 1.0; }
+    else {
+      float v = aDir.w;
+      float d = k < 1.5 ? 0.5 * (v / 1.5) * k * k : v * (k - 0.75);
+      base += vec3(aDir.x, 0.0, aDir.z) * d + vec3(0.0, amt * (1.0 - exp(-0.6 * k)) + 0.6 * k, 0.0);
+      yaw = aYaw + turn(atan(aDir.x, aDir.z) - aYaw) * smoothstep(0.0, 0.6, k);
+      fold = 1.0 - smoothstep(0.0, 0.25, k);
+      size = 1.0 - smoothstep(10.0, 14.0, k);
+    }
+  } else if (kind > 12.5 && kind < 13.5) {
+    // a flyby from its trigger: straight along aDir.xyz at aDir.w m/s for amt seconds, easing in and out of sight
+    float t0 = fired();
+    float k = t0 < 0.0 ? -1.0 : time - t0;
+    if (k < 0.0 || k > amt) size = 0.0;
+    else {
+      base += aDir.xyz * aDir.w * k;
+      yaw = atan(aDir.x, aDir.z);
+      size = smoothstep(0.0, 2.5, k) * (1.0 - smoothstep(amt - 2.5, amt, k));
+    }
   }
+  // wings (whatever lies past aWing.z from the body's axis): folded on a perch, else flapping aWing.y
+  // radians at aWing.x beats a second, the slow flappers gliding between bursts with their wings lifted
+  if (aWing.x > 0.0) {
+    float dx = abs(p.x) - aWing.z;
+    if (dx > 0.0) {
+      float glide = aWing.x < 4.0 ? smoothstep(-0.1, 0.5, sin(time * 0.45 + aMove.y * 3.0)) : 0.0;
+      float ang = fly * (aWing.y * (1.0 - 0.85 * glide) * sin(time * aWing.x * 6.2831853 + aMove.y * 7.0) + 0.14 * glide);
+      float sg = sign(p.x), c = cos(ang), sn = sin(ang);
+      vec2 w = mix(vec2(dx * c, dx * sn), vec2(dx * 0.18, -0.02 * dx), fold);
+      p.x = sg * (aWing.z + w.x);
+      p.y += w.y;
+      n.xy = vec2(n.x * c - sg * n.y * sn, n.y * c + sg * n.x * sn);
+    }
+    // the governor at Low: the fliers go first
+    if (uDetail < 0.5) size = 0.0;
+  }
+  if (bank != 0.0) {
+    float c = cos(bank), sb = sin(bank);
+    p.xy = vec2(p.x * c - p.y * sb, p.x * sb + p.y * c);
+    n.xy = vec2(n.x * c - n.y * sb, n.x * sb + n.y * c);
+  }
+  p *= size;
   vec3 world = base + yawed(p, yaw);
   #ifdef GLOW
     vColor = color;
@@ -91,6 +159,8 @@ void main() {
     // two toon steps, like the scenery's ramp
     float l = dot(normalize(yawed(n, yaw)), sunDir);
     vColor = color * (l > 0.25 ? 1.0 : (l > -0.2 ? 0.8 : 0.64));
+    // lit windows (colours past white) glow by night; by day they are dark glass
+    if (max(color.r, max(color.g, color.b)) > 1.01) vColor = mix(vec3(0.16, 0.17, 0.22), color, uNight);
   #endif
   vAlpha = a;
   vec4 mvPosition = viewMatrix * modelMatrix * vec4(world, 1.0);
@@ -120,10 +190,13 @@ void main() {
   gl_FragColor = vec4(vColor * vAlpha * (1.0 - f), 1.0);
 }`;
 
-function vistaMaterial(sun: V3, glow: boolean, fog = true): ShaderMaterial {
+/** The uniforms every vista material of a track shares: its triggers, the detail level, the night. */
+interface LifeUniforms { uTrig: { value: Float32Array }; uDetail: { value: number }; uNight: { value: number } }
+
+function vistaMaterial(sun: V3, glow: boolean, life: LifeUniforms, fog = true): ShaderMaterial {
   return new ShaderMaterial({
     vertexShader: VERT, fragmentShader: glow ? GLOW_FRAG : SOLID_FRAG,
-    uniforms: { ...UniformsUtils.clone(UniformsLib.fog), time: WATER_CLOCK, sunDir: { value: new Vector3(...sun) } },
+    uniforms: { ...UniformsUtils.clone(UniformsLib.fog), time: WATER_CLOCK, sunDir: { value: new Vector3(...sun) }, ...life },
     defines: glow ? { GLOW: '' } : {},
     vertexColors: true, fog, transparent: glow, depthWrite: !glow, blending: glow ? AdditiveBlending : NormalBlending,
   });
@@ -146,16 +219,33 @@ function placed(g: BufferGeometry, pos: V3, yaw = 0, scale: number | V3 = 1): Bu
   return g.clone().applyMatrix4(M.compose(P.set(...pos), Q.setFromAxisAngle(UP, yaw), S.set(...s)));
 }
 
-/** A copy of `g` carrying its mover attributes: posed on the GPU about `anchor`. */
-function mover(g: BufferGeometry, anchor: V3, yaw: number, move: [number, number, number, number], dir: [number, number, number, number] = [0, 0, 0, 0]): BufferGeometry {
+type V4 = [number, number, number, number];
+
+/** A copy of `g` carrying its mover attributes: posed on the GPU about `anchor`. `wing` (beats a second, radians, the body's half-width) flaps what lies past the body; `group` is its trigger slot. */
+function mover(g: BufferGeometry, anchor: V3, yaw: number, move: V4, dir: V4 = [0, 0, 0, 0], wing: V3 = [0, 0, 0], group = -1): BufferGeometry {
   const c = g.clone(), n = c.getAttribute('position').count;
   const fill = (size: number, v: number[]) => { const a = new Float32Array(n * size); for (let i = 0; i < n; i++) a.set(v, i * size); return new BufferAttribute(a, size); };
   c.setAttribute('aAnchor', fill(3, anchor));
   c.setAttribute('aMove', fill(4, move));
   c.setAttribute('aDir', fill(4, dir));
   c.setAttribute('aYaw', fill(1, [yaw]));
+  c.setAttribute('aWing', fill(3, wing));
+  c.setAttribute('aGroup', fill(1, [group]));
   return c;
 }
+
+/**
+ * Boardwalk's fireworks: where each point is, its beat and when it first bursts; the finale's points
+ * are dark until the Final Lap Shift. Laps one and two: a burst every period/2 s from the two that
+ * take turns; the finale adds three more (WCAG 2.3.1: under three flashes a second, all far and small).
+ */
+export const FIREWORKS: readonly { deg: number; period: number; phase: number; finaleOnly: boolean }[] = Object.freeze([
+  { deg: -40, period: 10, phase: 0, finaleOnly: false },
+  { deg: 55, period: 10, phase: 0.5, finaleOnly: false },
+  { deg: 18, period: 3.2, phase: 0, finaleOnly: true },
+  { deg: 205, period: 3.7, phase: 0.33, finaleOnly: true },
+  { deg: 262, period: 4.1, phase: 0.66, finaleOnly: true },
+]);
 
 /** A small glowing blob (a spark, a beacon) with the attributes ModelBuilder parts carry. */
 function spark(r: number, colour: Paint): BufferGeometry {
@@ -163,6 +253,52 @@ function spark(r: number, colour: Paint): BufferGeometry {
 }
 
 /** Everything a biome's vista puts out, gathered. */
+/**
+ * A flier, for the checks (vista.test.ts): how it moves, as its mover attributes say, and what sets it
+ * off. `home` is where it lives (its circle's middle, its perch, where it crosses the road).
+ */
+export interface Flier {
+  what: string;
+  kind: 'orbit' | 'perch' | 'flyby';
+  anchor: V3;
+  move: V4;
+  dir: V4;
+  group: number;
+  span: number;
+  home: V3;
+  colours: BufferGeometry;
+  /** a flyby: the road spot whose passing sets it off */
+  trip?: V3;
+}
+
+/** How a trigger slot is set off: a perch when the camera comes near (it settles back unseen once the camera is far), a flyby when the camera passes a spot on the road (once until it has been far), or only by the Final Lap Shift. */
+interface Trigger { group: number; kind: 'perch' | 'flyby' | 'shift'; at: V3; near: number; far: number; lasts: number; armed: boolean }
+
+/** Where a flier is at clock second `time`, as the vertex shader puts it (null: not in the sky). Pure, for the checks. */
+export function flierAt(f: Flier, time: number, trig: Float32Array): V3 | null {
+  const [kind, phase, speed, amt] = f.move, t = time * speed + phase, t0 = f.group < 0 ? 0 : trig[f.group];
+  const [ax, ay, az] = f.anchor;
+  if (f.kind === 'orbit') {
+    let x = ax + Math.cos(t) * amt, y = ay + 0.3 * Math.sin(time * 1.1 + phase), z = az - Math.sin(t) * amt;
+    if (f.group >= 0 && t0 >= 0) {
+      const k = Math.max(0, time - t0);
+      if (k > 18) return null;
+      x += Math.cos(t) * 0.7 * k * k; z -= Math.sin(t) * 0.7 * k * k; y += 1.6 * k;
+    }
+    return [x, y, z];
+  }
+  if (kind === MOVE.perch) {
+    const k = t0 < 0 ? -1 : time - t0;
+    if (k < 0) return [ax, ay, az];
+    if (k > 14) return null;
+    const v = f.dir[3], d = k < 1.5 ? 0.5 * (v / 1.5) * k * k : v * (k - 0.75);
+    return [ax + f.dir[0] * d, ay + amt * (1 - Math.exp(-0.6 * k)) + 0.6 * k, az + f.dir[2] * d];
+  }
+  const k = t0 < 0 ? -1 : time - t0;
+  if (k < 0 || k > amt) return null;
+  return [ax + f.dir[0] * f.dir[3] * k, ay + f.dir[1] * f.dir[3] * k, az + f.dir[2] * f.dir[3] * k];
+}
+
 class Vista {
   readonly solids: BufferGeometry[] = [];
   readonly movers: BufferGeometry[] = [];
@@ -173,9 +309,67 @@ class Vista {
   landmark?: V3;
   /** the ground under the far set-pieces (the sea on a sea track); on a sky track, the roads' lowest point */
   readonly floor: number;
+  /** the sky life: its trigger slots, what sets each off, and the fliers (for the checks) */
+  readonly life: LifeUniforms = { uTrig: { value: new Float32Array(TRIGGERS).fill(-1) }, uDetail: { value: 1 }, uNight: { value: 0 } };
+  readonly triggers: Trigger[] = [];
+  readonly fliers: Flier[] = [];
+  /** what the Final Lap Shift does out here (its new sky) */
+  readonly onShift: ((sky: string | undefined, clock: number) => void)[] = [];
+  /** the weather has turned: nothing perches or flies by any more */
+  quiet = false;
+  nightTo = 0;
+  private lastClock = NaN;
   constructor(ctx: VistaContext) {
     this.ctx = ctx;
     this.floor = Number.isFinite(ctx.groundY) ? ctx.groundY : ctx.roadMinY;
+  }
+  /** A new trigger slot. */
+  trigger(kind: Trigger['kind'], at: V3 = [0, 0, 0], near = 0, far = 0, lasts = 0): number {
+    const group = this.triggers.length;
+    if (group >= TRIGGERS) throw new Error('vista: out of trigger slots');
+    this.triggers.push({ group, kind, at, near, far, lasts, armed: true });
+    return group;
+  }
+  /** A flier: its mover, and its record for the checks. */
+  flier(what: string, kind: Flier['kind'], g: BufferGeometry, anchor: V3, yaw: number, move: V4, dir: V4, wing: V3, group: number, home: V3): void {
+    g.computeBoundingBox();
+    const b = g.boundingBox!;
+    this.movers.push(mover(g, anchor, yaw, move, dir, wing, group));
+    const trip = group >= 0 ? this.triggers[group]?.at : undefined;
+    this.fliers.push({ what, kind, anchor, move, dir, group, span: Math.max(b.max.x - b.min.x, b.max.z - b.min.z), home, colours: g, trip: kind === 'flyby' ? trip : undefined });
+  }
+  /** A road spot: the main line at t, which way it runs, which way is away from the track's middle, and how far out the course limit stands. */
+  road(t: number): { p: V3; along: [number, number]; out: [number, number]; limit: number } | null {
+    const r = this.ctx.road?.(t);
+    if (!r) return null;
+    const [cx, cz] = this.ctx.centre, toMid = (cx - r.p[0]) * r.right[0] + (cz - r.p[2]) * r.right[1];
+    const s = toMid > 0 ? -1 : 1;
+    return { p: r.p, along: r.along, out: [r.right[0] * s, r.right[1] * s], limit: r.limit };
+  }
+  /** Per frame: the camera's place sets the perched birds and flybys off; the detail level; the night's glow. */
+  tick(cam: V3, clock: number, detail: number): void {
+    const trig = this.life.uTrig.value;
+    this.life.uDetail.value = detail;
+    const dt = Number.isFinite(this.lastClock) ? Math.max(0, Math.min(0.25, clock - this.lastClock)) : 0;
+    this.lastClock = clock;
+    const n = this.life.uNight;
+    n.value += (this.nightTo - n.value) * Math.min(1, dt * 0.8);
+    for (const tr of this.triggers) {
+      const t0 = trig[tr.group], d = Math.hypot(cam[0] - tr.at[0], cam[1] - tr.at[1], cam[2] - tr.at[2]);
+      // the clock wraps every hour: a trigger from before the wrap is long done
+      const since = t0 < 0 ? -1 : clock >= t0 ? clock - t0 : Infinity;
+      if (tr.kind === 'perch') {
+        if (t0 < 0) { if (d < tr.near) trig[tr.group] = clock; }
+        else if (!this.quiet && since > 16 && d > tr.far) trig[tr.group] = -1; // back on its perch, unseen
+      } else if (tr.kind === 'flyby') {
+        if (tr.armed && !this.quiet && d < tr.near) { trig[tr.group] = clock; tr.armed = false; }
+        else if (!tr.armed && d > tr.far && since > tr.lasts) tr.armed = true;
+      }
+    }
+  }
+  /** The Final Lap Shift: whatever this vista does about it. */
+  shift(sky: string | undefined, clock: number): void {
+    for (const f of this.onShift) f(sky, clock);
   }
   /** A point `d` metres out from the track's middle, `deg` round from straight ahead of the start (to the right), at height y above the floor. */
   at(deg: number, d: number, y = 0): V3 {
@@ -197,13 +391,18 @@ class Vista {
   }
   parts(): VistaParts {
     const sun = this.ctx.sun;
-    const out: VistaParts = { world: [], ring: [], landmark: this.landmark };
+    const out: VistaParts = {
+      world: [], ring: [], landmark: this.landmark,
+      tick: (cam, clock, detail) => this.tick(cam, clock, detail),
+      shift: (sky) => this.shift(sky, WATER_CLOCK.value),
+      life: { fliers: this.fliers, trig: this.life.uTrig.value, flierAt },
+    };
     if (this.solids.length) out.solid = mergeGeometries(this.solids, false) ?? undefined;
     const mesh = (list: BufferGeometry[], glow: boolean, name: string, fog = true): Mesh | null => {
       if (!list.length) return null;
       const g = mergeGeometries(list, false);
       if (!g) return null;
-      const m = new Mesh(g, vistaMaterial(sun, glow, fog));
+      const m = new Mesh(g, vistaMaterial(sun, glow, this.life, fog));
       m.name = name;
       // posed in the vertex shader: its geometry's own bounds say nothing about where it draws
       m.frustumCulled = false;
@@ -211,10 +410,18 @@ class Vista {
       return m;
     };
     const mv = mesh(this.movers, false, 'vista-movers'), gl = mesh(this.glows, true, 'vista-glow'), rg = mesh(this.ringGlows, true, 'vista-ring-glow', false);
-    if (mv) out.world!.push(mv);
+    if (mv) {
+      // the camera each frame sets the sky life going (no game code: the movers draw every frame);
+      // the governor at Low (no shadow map) drops the fliers first
+      mv.onBeforeRender = (renderer, _scene, camera) => {
+        this.tick([camera.position.x, camera.position.y, camera.position.z], WATER_CLOCK.value, renderer.shadowMap.enabled ? 1 : 0);
+      };
+      out.world!.push(mv);
+    }
     if (gl) out.world!.push(gl);
     if (rg) out.ring!.push(rg);
     for (const g of [...this.solids, ...this.movers, ...this.glows, ...this.ringGlows]) g.dispose();
+    for (const f of this.fliers) f.colours.dispose();
     return out;
   }
 }
@@ -256,17 +463,106 @@ function sailboat(sail: Paint): BufferGeometry {
   });
 }
 
-/** A hot-air balloon in bands of two colours, a basket under it; about 22 m tall. */
-function hotAirBalloon(a: Paint, b: Paint): BufferGeometry {
+// ---------------------------------------------------------------- sky life (Adam, 24 Sept 2026)
+// Researched against Mario Kart World: one kind of ambient sky life a course, sometimes two; far, slow
+// and small; anything low is a hazard, never scenery. So: no shadows, fogged, low saturation, never an
+// item's or a track's accent colour, never bigger on screen than a pickup balloon, at least 25 m over
+// the road or 30 m past the course limit (a perched bird excepted, and it flies away from the road),
+// crossing the road only high and sideways. Every flier is its own original design: body along +Z,
+// wings out along X past the body's half-width (the shader flaps whatever lies past it).
+
+/** Body half-widths: the shader flaps what lies past them. */
+const ROOT = Object.freeze({ gull: 0.13, goose: 0.17, songbird: 0.05, pterosaur: 0.37, eagle: 0.19 });
+
+/** A gull: white, grey wings with dark tips, a muted yellow bill; wings 1.7 m tip to tip. */
+function gull(): BufferGeometry {
   return model((m) => {
-    const rings: [number, number][] = [[3.6, 0], [6.4, 3.2], [7.4, 6.4], [7.0, 9.6], [5.2, 12.8]];
-    for (let i = 0; i < rings.length; i++) {
-      const [r, y] = rings[i], rTop = rings[i + 1]?.[0] ?? 2.2;
-      m.cyl(rTop, r, 3.2, i % 2 ? a : b, [0, 6 + y + 1.6, 0], undefined, 10, false);
+    m.ball([0.12, 0.12, 0.36], '#f1f1ec', [0, 0, 0], undefined, 8, false);
+    m.ball([0.09, 0.09, 0.1], '#f1f1ec', [0, 0.06, 0.33], undefined, 7, false);
+    m.cone(0.028, 0.12, '#cdb97e', [0, 0.05, 0.46], [Math.PI / 2, 0, 0], 4, false);
+    m.box([0.13, 0.03, 0.16], '#c3c9d1', [0, 0.02, -0.4], undefined, false);
+    for (const x of [-0.05, 0.05]) m.box([0.025, 0.14, 0.025], '#b9a98a', [x, -0.17, 0.02], undefined, false);
+    for (const s of [-1, 1]) {
+      m.box([0.57, 0.035, 0.2], '#c3c9d1', [s * (ROOT.gull + 0.285), 0.04, 0.02], undefined, false);
+      m.box([0.18, 0.036, 0.15], '#5b6068', [s * (ROOT.gull + 0.57 + 0.09), 0.04, -0.01], undefined, false);
     }
-    m.ball([2.3, 1.4, 2.3], a, [0, 6 + 16, 0], undefined, 8, false);
-    m.box([2.2, 1.6, 2.2], '#a0703c', [0, 0.8, 0], undefined, false);
-    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) m.cyl(0.05, 0.05, 5, '#5a3a22', [x * 1.4, 3.8, z * 1.4], undefined, 3, false);
+  });
+}
+
+/** A goose in flight: grey-brown, a long dark neck stretched ahead, a pale cheek; wings 1.9 m. */
+function goose(): BufferGeometry {
+  return model((m) => {
+    m.ball([0.16, 0.15, 0.44], '#8b8278', [0, 0, 0], undefined, 8, false);
+    m.ball([0.14, 0.08, 0.3], '#c9c2b8', [0, -0.07, 0.02], undefined, 6, false);
+    m.cyl(0.05, 0.06, 0.42, '#3b3734', [0, 0.04, 0.52], [Math.PI / 2 - 0.2, 0, 0], 5, false);
+    m.ball([0.07, 0.07, 0.11], '#3b3734', [0, 0.1, 0.76], undefined, 6, false);
+    m.ball([0.04, 0.03, 0.05], '#e1ddd6', [0, 0.09, 0.78], undefined, 4, false);
+    m.box([0.14, 0.03, 0.14], '#3b3734', [0, 0.02, -0.46], undefined, false);
+    for (const s of [-1, 1]) {
+      m.box([0.52, 0.035, 0.26], '#766d64', [s * (ROOT.goose + 0.26), 0.03, 0], undefined, false);
+      m.box([0.28, 0.034, 0.18], '#4f4943', [s * (ROOT.goose + 0.52 + 0.14), 0.03, -0.03], undefined, false);
+    }
+  });
+}
+
+/** A little songbird: brown, a muted rust breast; wings 0.34 m. Perched on a fence, then off. */
+function songbird(): BufferGeometry {
+  return model((m) => {
+    m.ball([0.045, 0.045, 0.08], '#8a6f55', [0, 0, 0], undefined, 6, false);
+    m.ball([0.038, 0.034, 0.05], '#b08a6e', [0, -0.012, 0.03], undefined, 5, false);
+    m.ball([0.034, 0.034, 0.036], '#8a6f55', [0, 0.035, 0.07], undefined, 5, false);
+    m.cone(0.01, 0.03, '#3a3430', [0, 0.034, 0.115], [Math.PI / 2, 0, 0], 3, false);
+    m.box([0.05, 0.012, 0.07], '#5f4c3a', [0, 0.01, -0.1], [0.3, 0, 0], false);
+    for (const s of [-1, 1]) m.box([0.12, 0.012, 0.06], '#6a5541', [s * (ROOT.songbird + 0.06), 0.015, 0], undefined, false);
+  });
+}
+
+/**
+ * A pterosaur of our own: long narrow sandy wings in two panels with a darker leading edge, a long
+ * beak and a short swept crest, earthy all over; wings about 9 m. Circles high over the far buttes.
+ */
+function pterosaur(): BufferGeometry {
+  return model((m) => {
+    m.ball([0.34, 0.3, 1.1], '#a3865e', [0, 0, 0], undefined, 8, false);
+    m.ball([0.2, 0.2, 0.55], '#a3865e', [0, 0.1, 1.2], undefined, 7, false);
+    m.cone(0.12, 1.2, '#c4ad86', [0, 0.06, 2.3], [Math.PI / 2, 0, 0], 5, false);
+    m.cone(0.08, 0.9, '#8c6a4a', [0, 0.32, 0.95], [-Math.PI / 2 - 0.35, 0, 0], 4, false);
+    m.cone(0.1, 0.7, '#8f7453', [0, 0, -1.3], [-Math.PI / 2, 0, 0], 4, false);
+    for (const s of [-1, 1]) {
+      m.box([1.9, 0.08, 1.15], '#bb9c74', [s * (ROOT.pterosaur + 0.95), 0.04, -0.1], [0, s * -0.12, 0], false);
+      m.box([2.1, 0.07, 0.62], '#aa8b63', [s * (ROOT.pterosaur + 1.9 + 1.0), 0.04, -0.45], [0, s * -0.3, 0], false);
+      m.box([4, 0.11, 0.14], '#6f553c', [s * (ROOT.pterosaur + 2), 0.07, 0.38], [0, s * -0.16, 0], false);
+    }
+  });
+}
+
+/** An eagle: dark brown, a paler head, a muted gold beak, fingered wingtips; wings 2.4 m. */
+function eagle(): BufferGeometry {
+  return model((m) => {
+    m.ball([0.18, 0.17, 0.52], '#3e3329', [0, 0, 0], undefined, 8, false);
+    m.ball([0.11, 0.11, 0.13], '#6b5b49', [0, 0.06, 0.52], undefined, 6, false);
+    m.cone(0.04, 0.12, '#a08a5a', [0, 0.04, 0.68], [Math.PI / 2, 0, 0], 4, false);
+    m.box([0.3, 0.04, 0.26], '#4a3d31', [0, 0.02, -0.6], undefined, false);
+    for (const s of [-1, 1]) {
+      m.box([0.72, 0.05, 0.38], '#3a3027', [s * (ROOT.eagle + 0.36), 0.03, 0], undefined, false);
+      for (let f = 0; f < 3; f++) m.box([0.3, 0.03, 0.07], '#2f2721', [s * (ROOT.eagle + 0.72 + 0.14), 0.03, 0.11 - f * 0.11], [0, s * (f - 1) * 0.18, 0], false);
+    }
+  });
+}
+
+/** A short weathered post a gull stands on (1.2 m). */
+function perchPost(): BufferGeometry {
+  return model((m) => {
+    m.cyl(0.13, 0.16, 1.2, '#8a6a44', [0, 0.6, 0], undefined, 6, false);
+    m.cyl(0.17, 0.17, 0.08, '#6b4a2b', [0, 1.2, 0], undefined, 6, false);
+  });
+}
+
+/** Four metres of rail fence along Z, its top rail at 1.05 m (songbirds perch on it). */
+function railFence(): BufferGeometry {
+  return model((m) => {
+    for (const z of [-1.95, 1.95]) m.cyl(0.08, 0.1, 1.2, '#9a7a56', [0, 0.6, z], undefined, 5, false);
+    for (const y of [0.55, 1.05]) m.box([0.08, 0.12, 4], '#a8875f', [0, y, 0], undefined, false);
   });
 }
 
@@ -381,6 +677,34 @@ function harbour(v: Vista): void {
     const c = v.at(deg, v.out(95 + (i % 3) * 35), 0.2);
     v.movers.push(mover(sailboat(sails[i]), c, 0, [MOVE.orbit, i * 1.7, 0.035 + (i % 2) * 0.012, 30 + (i % 3) * 14]));
   });
+
+  // gulls wheeling over the water: five on two wide circles, 28 to 44 m up, flapping and gliding
+  const g = gull();
+  for (const [deg, d, r, h, n] of [[35, 95, 22, 30, 3], [235, 110, 26, 40, 2]] as const) {
+    const c = v.at(deg, v.out(d), h);
+    for (let i = 0; i < n; i++) {
+      const home: V3 = [c[0], c[1] + (i % 2) * 3, c[2]];
+      v.flier('gull', 'orbit', g, home, 0, [MOVE.orbit, (i / n) * Math.PI * 2 + deg, 8 / r, r + i * 3], [-0.32, 0, 0, 0], [2.4, 0.55, ROOT.gull], -1, c);
+    }
+  }
+  // three more on posts at the sea's edge along the start straight: each flies off out to sea as the
+  // camera comes by, and is back on its post, unseen, by the next lap
+  const post = perchPost();
+  let placed = 0;
+  for (let k = 0; k < 40 && placed < 3; k++) {
+    const r = v.road(0.1 + k * 0.004);
+    if (!r) break;
+    const past = r.limit + 1.6, x = r.p[0] + r.out[0] * past, z = r.p[2] + r.out[1] * past;
+    if (!(v.ctx.clear?.(x, z, 1.4) ?? true)) continue;
+    const y = v.ctx.groundAt?.(x, z) ?? r.p[1];
+    v.movers.push(mover(post, [x, y, z], 0, [MOVE.still, 0, 0, 0]));
+    const at: V3 = [x, y + 1.43, z], face = Math.atan2(r.along[0], r.along[1]) + (placed % 2 ? Math.PI : 0);
+    const spread = (placed - 1) * 0.3, ox = r.out[0] * Math.cos(spread) - r.out[1] * Math.sin(spread), oz = r.out[1] * Math.cos(spread) + r.out[0] * Math.sin(spread);
+    const grp = v.trigger('perch', at, 30, 160);
+    v.flier('gull', 'perch', g, at, face, [MOVE.perch, placed * 1.3, 1, 16], [ox, 0, oz, 9], [2.8, 0.6, ROOT.gull], grp, at);
+    placed++;
+    k += 3; // a few metres between posts
+  }
 }
 
 // ================================================================ Meadow Run: hills and a valley
@@ -453,10 +777,55 @@ function meadow(v: Vista): void {
   v.solid(fields, -30, v.out(115), -0.2);
   v.solid(fields, 125, v.out(105), -0.2, [0.8, 1, 1.2], 0.6);
 
-  // hot-air balloons drifting over it all
-  const colours: [Paint, Paint][] = [['#ff5a5f', SUN], ['#3a86ff', WHITE], ['#8338ec', '#ffbe0b'], [TEAL, '#ff006e'], ['#fb5607', WHITE]];
-  [-30, 20, 60, 150, 230].forEach((deg, i) => {
-    v.movers.push(mover(hotAirBalloon(...colours[i]), v.at(deg, v.out(60 + i * 18), 55 + (i % 3) * 22), 0, [MOVE.drift, i * 2.1, 0.35 + i * 0.05, 18]));
+  // (no hot-air balloons: our pickups are balloons, and a balloon in the sky read as an item)
+
+  // five songbirds on a fence beside the long start straight (past the haybale, well short of the
+  // goose): they flutter off one after another as the camera comes by, and are back, unseen, by the next lap
+  const bird = songbird(), fence = railFence();
+  let spot: { p: V3; along: [number, number]; out: [number, number] } | null = null;
+  for (let k = 0; k < 80 && !spot; k++) {
+    // the outer side first, then the inner; a stretch of the straight where nothing else stands
+    const r = v.road(0.18 + (k % 40) * 0.0025);
+    if (!r) break;
+    const out: [number, number] = k < 40 ? r.out : [-r.out[0], -r.out[1]];
+    const past = r.limit + 1.4, x = r.p[0] + out[0] * past, z = r.p[2] + out[1] * past;
+    const clear = [-3, 0, 3].every((o) => v.ctx.clear?.(x + r.along[0] * o, z + r.along[1] * o, 1.2) ?? true);
+    if (clear) spot = { p: [x, v.ctx.groundAt?.(x, z) ?? r.p[1], z], along: r.along, out };
+  }
+  if (spot) {
+    const yaw = Math.atan2(spot.along[0], spot.along[1]);
+    for (const o of [-2, 2]) v.movers.push(mover(fence, [spot.p[0] + spot.along[0] * o, spot.p[1], spot.p[2] + spot.along[1] * o], yaw, [MOVE.still, 0, 0, 0]));
+    for (let i = 0; i < 5; i++) {
+      const o = -3.2 + i * 1.55, at: V3 = [spot.p[0] + spot.along[0] * o, spot.p[1] + 1.16, spot.p[2] + spot.along[1] * o];
+      const a = (i - 2) * 0.35, ox = spot.out[0] * Math.cos(a) - spot.out[1] * Math.sin(a), oz = spot.out[1] * Math.cos(a) + spot.out[0] * Math.sin(a);
+      const grp = v.trigger('perch', at, 36 - i * 3, 150);
+      v.flier('songbird', 'perch', bird, at, yaw + (i % 2 ? Math.PI : 0), [MOVE.perch, i * 0.9, 1, 9], [ox, 0, oz, 6], [9, 0.8, ROOT.songbird], grp, at);
+    }
+  }
+
+  // a V of five geese crossing the quiet north straight high up, once a lap: it sets off as the camera
+  // comes out of the far hairpin, rises into view over the fields and crosses sideways, 70 m over the
+  // road, just ahead of the karts, then away out over the far fields and gone before the next straight
+  const cross = v.road(0.72), trip = v.road(0.6);
+  if (cross && trip) {
+    const d: V3 = [cross.out[0], 0, cross.out[1]], speed = 14, lead = 60;
+    const start: V3 = [cross.p[0] - d[0] * lead, cross.p[1] + 70, cross.p[2] - d[2] * lead];
+    const lasts = (lead + 100) / speed, grp = v.trigger('flyby', trip.p, 45, 300, lasts);
+    const gz = goose(), yaw = Math.atan2(d[0], d[2]);
+    const home: V3 = [cross.p[0], cross.p[1] + 70, cross.p[2]];
+    for (let i = 0; i < 5; i++) {
+      // the V: each goose back and out to one side of the one ahead of it
+      const rank = Math.ceil(i / 2), side = i === 0 ? 0 : i % 2 ? 1 : -1;
+      const back = rank * 3.4, across = side * rank * 3;
+      const at: V3 = [start[0] - d[0] * back + cross.along[0] * across, start[1] - rank * 0.4, start[2] - d[2] * back + cross.along[1] * across];
+      v.flier('goose', 'flyby', gz, at, yaw, [MOVE.flyby, i * 0.7, 1, lasts], [d[0], 0, d[2], speed], [3.1, 0.5, ROOT.goose], grp, home);
+    }
+  }
+  // the storm: the songbirds take cover and the geese stay away
+  v.onShift.push((_sky, clock) => {
+    v.quiet = true;
+    const trig = v.life.uTrig.value;
+    for (const tr of v.triggers) if (tr.kind === 'perch' && trig[tr.group] < 0) trig[tr.group] = clock;
   });
 }
 
@@ -539,6 +908,12 @@ function canyon(v: Vista): void {
   });
   v.solid(buttes, -118, v.out(170));
   v.solid(buttes, 178, v.out(190), 0, 1.15, 2.1);
+  // pterosaurs of our own circling high over the far buttes, gliding with a slow beat now and then
+  const pt = pterosaur();
+  for (const [deg, d, h, r, ph] of [[-118, 170, 88, 40, 0], [178, 190, 76, 34, 2.1], [88, 230, 96, 44, 4.2]] as const) {
+    const c = v.at(deg, v.out(d), h);
+    v.flier('pterosaur', 'orbit', pt, c, 0, [MOVE.orbit, ph, 8 / r, r], [-0.3, 0, 0, 0], [0.9, 0.34, ROOT.pterosaur], -1, c);
+  }
   v.solid(buttes, 88, v.out(230), 0, 0.9, 0.7);
 }
 
@@ -561,6 +936,12 @@ function frost(v: Vista): void {
   });
   const pk = v.solid(peak, 6, v.out(330));
   v.landmark = [pk[0], pk[1] + 200, pk[2]];
+  // a pair of dark eagles gliding round the peak, far from the Yeti's ledge; the blizzard sends them off
+  const ea = eagle(), eg = v.trigger('shift'), ec: V3 = [pk[0], pk[1] + 150, pk[2]];
+  for (const [ph, lift] of [[0, 0], [0.42, 4]] as const) {
+    v.flier('eagle', 'orbit', ea, [ec[0], ec[1] + lift, ec[2]], 0, [MOVE.orbit, ph, 7 / 78, 78], [-0.22, 0, 0, 0], [1.1, 0.3, ROOT.eagle], eg, ec);
+  }
+  v.onShift.push((_sky, clock) => { v.quiet = true; v.life.uTrig.value[eg] = clock; });
 
   // long snowy ridges dark with firs, round the sides and back of the valley
   const ridge = model((m) => {
@@ -673,16 +1054,19 @@ function boardwalk(v: Vista): void {
     v.glows.push(mover(spark(1.6, [3, 0.2, 0.3]), [tp[0] + off[0], tp[1] + h + 12, tp[2] + off[2]], 0, [MOVE.blink, dx * 0.1, 0.6, 0]));
   }
 
-  // fireworks over the sea: bursts of sparks, each centre on its own beat
+  // fireworks far over the sea: laps one and two, two points taking turns, a burst every 5 s; the
+  // finale (the Final Lap Shift) opens three more, still well under three flashes a second
   const colours: Paint[][] = [[[3, 0.5, 1.6], [3, 1.6, 0.4]], [[0.4, 2.2, 3], [2.6, 2.6, 2.6]], [[3, 2.2, 0.4], [3, 0.4, 0.4]], [[1.2, 3, 0.8], [0.6, 1.4, 3]], [[3, 0.6, 2.6], [0.4, 2.8, 2.4]]];
-  [-40, 18, 55, 205, 262].forEach((deg, b) => {
+  const finale = v.trigger('shift');
+  FIREWORKS.forEach(({ deg, period, phase, finaleOnly }, b) => {
     const c = v.at(deg, v.out(150 + (b % 3) * 40), 95 + (b % 2) * 30), n = 30;
     for (let i = 0; i < n; i++) {
       // a sphere of directions, spread evenly (golden spiral)
       const y = 1 - (2 * (i + 0.5)) / n, r = Math.sqrt(1 - y * y), a = i * 2.39996;
-      v.glows.push(mover(spark(1.1, colours[b][i % 2]), c, 0, [MOVE.burst, b * 0.37, 1 / (3.4 + b * 0.45), 0], [Math.cos(a) * r, y, Math.sin(a) * r, 26 + (b % 2) * 8]));
+      v.glows.push(mover(spark(1.1, colours[b][i % 2]), c, 0, [MOVE.burst, phase, 1 / period, 0], [Math.cos(a) * r, y, Math.sin(a) * r, 26 + (b % 2) * 8], [0, 0, 0], finaleOnly ? finale : -1));
     }
   });
+  v.onShift.push((_sky, clock) => { v.life.uTrig.value[finale] = clock; });
 
   // the moon, ahead and to the left of the start, riding with the far ring round the camera: a pale
   // face and two rings of halo
@@ -737,10 +1121,12 @@ function skyline(v: Vista): void {
   const cp = v.solid(city, 8, v.out(300), 70);
   v.landmark = [cp[0], cp[1] + 55, cp[2]];
 
-  // airships cruising in wide circles
-  [[40, 140, 120], [160, 120, 150], [-100, 160, 135]].forEach(([deg, d, y], i) => {
+  // three airships cruising in wide circles, never nearer the road than 120 m; their windows light
+  // when the sky turns to night (the Final Lap Shift)
+  [[40, 250, 125], [160, 235, 150], [-100, 265, 138]].forEach(([deg, d, y], i) => {
     v.movers.push(mover(blimp([SUN, CORAL, TEAL][i]), v.at(deg, v.out(d), y), 0, [MOVE.orbit, i * 2, 0.03 + i * 0.008, 60 + i * 15]));
   });
+  v.onShift.push((sky) => { if (sky) v.nightTo = 1; });
 }
 
 /** A thin rod from a to b on a ModelBuilder (cables, braces, beams). */

@@ -349,11 +349,6 @@
         "instances": 40,
         "band": "far"
       },
-      {
-        "asset": "gull",
-        "instances": 30,
-        "band": "sky"
-      },
       { "asset": "barrel", "instances": 30, "band": "roadside", "lift": 1.02 },
       { "asset": "stall", "instances": 16, "band": "roadside" },
       { "asset": "lamp", "instances": 30, "band": "roadside" },
