@@ -6,7 +6,7 @@ export type Screen =
   | 'boot' | 'title' | 'modeSelect' | 'rosterSelect' | 'cupSelect' | 'trackSelect'
   | 'racing' | 'results' | 'gpTable' | 'knockoutCut';
 
-export type Overlay = 'pause' | 'settings' | 'credits' | 'howTo';
+export type Overlay = 'pause' | 'settings' | 'credits' | 'howTo' | 'unlocks';
 
 /** The six navigation actions every input maps onto. */
 export type NavAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back';
@@ -42,6 +42,7 @@ export type AppAction =
   | { type: 'quit' }
   | { type: 'openSettings' }
   | { type: 'openCredits' }
+  | { type: 'openUnlocks' }
   | { type: 'openHowTo' };
 
 /** A screen's focusable entries as rows of ids. Disabled ids are skipped by movement. */

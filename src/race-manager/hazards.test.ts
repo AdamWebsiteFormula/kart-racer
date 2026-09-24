@@ -56,7 +56,8 @@ describe('hazards', () => {
     expect(k.events).toEqual([]);
   });
 
-  it('spin hits a coinless kart once per cooldown, and only slows a kart with coins', () => {
+  // coin buffer off (Adam, 24 Sept 2026): a kart with coins spins too, and loses hitCoinsLost
+  it('spin hits a kart once per cooldown, coins or not', () => {
     const k = onHazard('spinner');
     stepHazards(k.s, k.tr, k.c, active, SIM_DT, k.events, k.kartEvents);
     expect(k.s.status.spinRemaining).toBe(k.c.hitSpinSeconds);
@@ -66,9 +67,8 @@ describe('hazards', () => {
     expect(k.events.length).toBe(1);
     const rich = onHazard('spinner', 5);
     stepHazards(rich.s, rich.tr, rich.c, active, SIM_DT, rich.events, rich.kartEvents);
-    expect(rich.s.status.spinRemaining).toBe(0);
+    expect(rich.s.status.spinRemaining).toBe(rich.c.hitSpinSeconds);
     expect(rich.s.coins).toBe(5 - rich.c.hitCoinsLost);
-    expect(rich.s.status.slowedTo).toBe(rich.c.coinShield.slowedTo);
   });
 
   it('cooldown expires after hazardCooldownSeconds', () => {

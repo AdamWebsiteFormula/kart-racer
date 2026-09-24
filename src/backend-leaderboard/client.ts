@@ -18,16 +18,33 @@ export interface LeaderboardClient {
 
 const TIMEOUT_MS = 12_000;
 
-async function call(path: string, body: unknown, f: typeof fetch): Promise<Response> {
+/** A response read to the end: the body is part of the call, so the timeout covers it too. */
+interface Reply { ok: boolean; status: number; body: unknown }
+
+/**
+ * One POST, headers and body inside the same 12 s. The timer used to stop at the headers, so a
+ * server that sent them and then stalled left the board on "Loading" for good (audit 24 Sept 2026).
+ * Throws on network failure or timeout; a body that is not JSON reads as null.
+ */
+async function call(path: string, body: unknown, f: typeof fetch): Promise<Reply> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   try {
-    return await f(`${SUPABASE_URL}${path}`, {
+    const r = await f(`${SUPABASE_URL}${path}`, {
       method: 'POST',
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: ctl.signal,
     });
+    // a stalled body must still time out: race it against the abort, in case the fetch ignores the signal once headers are in
+    const aborted = new Promise<never>((_, reject) => {
+      if (ctl.signal.aborted) reject(new Error('timed out'));
+      ctl.signal.addEventListener('abort', () => reject(new Error('timed out')), { once: true });
+    });
+    const text = await Promise.race([r.text(), aborted]);
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(text); } catch { parsed = null; }
+    return { ok: r.ok, status: r.status, body: parsed };
   } finally {
     clearTimeout(timer);
   }
@@ -55,8 +72,8 @@ export function leaderboardClient(f: typeof fetch = (...a) => fetch(...a)): Lead
     async fetchBoard(trackId, mode, dailySeed, limit = 10) {
       try {
         const r = await call('/rest/v1/rpc/get_leaderboard', { p_track_id: trackId, p_mode: mode, p_daily_seed: mode === 'daily' ? dailySeed : null, p_limit: limit }, f);
-        if (!r.ok) return null;
-        const rows = (await r.json()) as { id: string; name: string; racer_id: string; time_ms: number; lap_times_ms: number[]; created_at: string }[];
+        if (!r.ok || !Array.isArray(r.body)) return null;
+        const rows = r.body as { id: string; name: string; racer_id: string; time_ms: number; lap_times_ms: number[]; created_at: string }[];
         return rows.map((x) => ({ id: x.id, name: x.name, racerId: x.racer_id, timeMs: x.time_ms, lapTimesMs: x.lap_times_ms, createdAt: x.created_at }));
       } catch {
         return null;
@@ -65,7 +82,7 @@ export function leaderboardClient(f: typeof fetch = (...a) => fetch(...a)): Lead
     async post(s) {
       try {
         const r = await call('/functions/v1/submit-score', s, f);
-        const body = (await r.json().catch(() => ({}))) as { id?: string; timeMs?: number; rank?: number | null; bestId?: string | null; bestMs?: number | null; error?: string };
+        const body = (r.body && typeof r.body === 'object' ? r.body : {}) as { id?: string; timeMs?: number; rank?: number | null; bestId?: string | null; bestMs?: number | null; error?: string };
         if (r.status === 201 && body.id) {
           const timeMs = body.timeMs ?? s.timeMs;
           return { ok: true, id: body.id, timeMs, rank: body.rank ?? null, best: { id: body.bestId ?? body.id, timeMs: body.bestMs ?? timeMs } };

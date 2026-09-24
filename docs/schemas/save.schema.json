@@ -17,7 +17,7 @@
       }
     },
     "timeTrial": {
-      "description": "Keyed by trackId. Best time at 150cc, its medal, and the ghost input log.",
+      "description": "Keyed by trackId. Best time at 150cc, its medal, and the best run's ghost path.",
       "type": "object",
       "additionalProperties": {
         "type": "object", "required": ["bestMs", "medal"],
@@ -25,7 +25,7 @@
           "bestMs": { "type": "integer" },
           "medal": { "type": "string", "enum": ["none", "bronze", "silver", "gold"] },
           "racerId": { "type": "string" },
-          "ghostInputLog": { "type": "string", "description": "Compressed, same format as score.inputLog" },
+          "ghost": { "type": "string", "maxLength": 200000, "description": "The best run as a path, not inputs (an input replay drifts: race-manager Decisions 2026-09-21): position, heading and loop angle every 4 sim ticks, varint deltas, base64 (src/race-manager/ghost.ts). Replaced only with a new best." },
           "submittedToLeaderboard": { "type": "boolean" }
         }
       }

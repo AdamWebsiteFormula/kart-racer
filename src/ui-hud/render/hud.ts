@@ -156,11 +156,13 @@ export class HudView {
   private flash: Flag;
   private keysHint: Flag;
   private lastFlourish = false;
+  private readonly slots: HTMLElement;
 
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen hud', parent);
     this.root.setAttribute('aria-label', 'Race');
     const tl = h('div', 'tl', this.root);
+    this.slots = tl;
     this.held = new SlotView(tl, false);
     this.next = new SlotView(tl, true);
 
@@ -206,6 +208,9 @@ export class HudView {
   }
 
   render(vm: HudVM): void {
+    // the stylesheet's display beats the hidden attribute, so hide by style
+    const show = vm.items ? '' : 'none';
+    if (this.slots.style.display !== show) this.slots.style.display = show;
     this.held.render(vm.held);
     this.next.render(vm.next);
     this.timer.set(vm.timer);

@@ -160,6 +160,17 @@ _(append dated one-liners as they are made)_
 - 2026-09-24: Detail review, player-facing words: the Credits line names no other company's games (`CREDITS_MADE`: "Every racer, track, item and sound is our own"); the Knockout card says "Eight start. Cuts every race. One wins." (the cut screen crowns one: 8 → 6 → 4 → winner); the touch look-back button reads LOOK, not BACK (beside BRAKE it read as reverse); the CREDITS.md Work column says 85 sounds (the manifest's count, tested) and "modeled".
 - 2026-09-24: Fresh-eyes review: the speedometer reads mph (format.ts `mph`), not km/h; the game is written for US players. Menus, roster, cup select, and the Harbor, Boardwalk and Skyline HUDs otherwise looked clean.
 - 2026-09-24: Phone check (emulated 375x812 portrait and 740x360 landscape, touch): portrait shows "Turn your phone sideways to race"; landscape menus fit, taps walk title → mode → racer → track; the race HUD shows the steering pad, Item, Drift, Look, Brake and pause with no keyboard hints; the gas comes on by itself after the green light. No change needed. Emulation only: not yet run on a real phone.
+- 2026-09-24 (audit): Post works in any board state (a failed read no longer blocks it for good); a failed read shows Try again (`retry`), and the board is read again after any post while it was offline.
+- 2026-09-24 (audit): no Restart in the pause menu of a Grand Prix or Knockout (the reducer refuses it too): it redid finished races for stars and wins.
+- 2026-09-24 (audit): a save's racer id that is no cast member falls back to Pip (`sanitiseSettings`); the roster opens on the first card for a stale id.
+- 2026-09-24 (audit): a Knockout placing is saved when the player is cut, not only at the final; `finished` means the player raced the whole Knockout (design §10 Buggy).
+- 2026-09-24 (audit): over the line, Enter, a fresh pad A or a tap (not Space, not A held, not the pause button) calls `host.skipToResults`; the finish banner says so.
+- 2026-09-24 (audit): a first-timer's name box is prefilled with the racer's name and a 3-digit number, selected so typing replaces it; pad A in the box moves to Post; a click in it only focuses it.
+- 2026-09-24 (audit): the Daily reads "Sep 25" (US order) and says when the next one starts, midnight UTC on the player's clock (`nextDailyAt`).
+- 2026-09-24 (audit): every new end screen ignores confirms for `UI.endScreenGuardMs` (300 ms): a double click on Continue skipped the Grand Prix standings.
+- 2026-09-24 (audit): Time Trial keeps the best run's ghost in `save.timeTrial[track].ghost` (schema: `ghost` replaced the unused `ghostInputLog`), replaced only by a new best.
+- 2026-09-24 (audit): design §10 unlocks (`unlocks.ts`): counters `ultraTurbos` (the player's tier-3 drift releases) and `itemsHit` counted until the player's line; unlocks granted once into `save.unlocked` with a toast, and listed locked/unlocked on the title's Unlocks screen. Paints, bodies and Mirror are recorded but not yet selectable or drawn (no alt art; Mirror needs mirrored tracks).
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-23: **Cup titles drew inside white boxes with borders.** Cause: the cup header used the class `row`, which the results table also styles. Fix: `cup-head`. Rule: in one global stylesheet, name classes after their screen, never generic words like `row`.

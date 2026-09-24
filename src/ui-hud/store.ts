@@ -1,5 +1,7 @@
 // The local save (docs/schemas/save.schema.json) through an injected backend, so tests use a fake.
 // Bad or missing data never throws: it falls back to defaults field by field.
+import { CAST } from './data/cast.ts';
+
 export interface Settings {
   quality: 'low' | 'high' | 'auto';
   masterVolume: number;
@@ -15,7 +17,8 @@ export interface Save {
   version: number;
   playerName: string;
   stats: { ultraTurbos: number; racesFinished: number; itemsHit: number };
-  timeTrial: Record<string, { bestMs: number; medal: 'none' | 'bronze' | 'silver' | 'gold'; racerId?: string }>;
+  /** `ghost`: the best run's path (race-manager/ghost.ts), kept only with the best time it drove */
+  timeTrial: Record<string, { bestMs: number; medal: 'none' | 'bronze' | 'silver' | 'gold'; racerId?: string; ghost?: string }>;
   grandPrix: Record<string, Record<string, { finished: boolean; stars: number; bestPoints?: number }>>;
   knockout: Record<string, { finished: boolean; won: boolean; bestPlacing?: number }>;
   unlocked: { skins: string[]; bodies: string[]; mirror: boolean };
@@ -57,6 +60,9 @@ function entries<T>(v: unknown, f: (x: Record<string, unknown>) => T | undefined
 }
 const int = (v: unknown, lo: number, hi: number): number | undefined => (Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi ? (v as number) : undefined);
 const MEDALS = ['none', 'bronze', 'silver', 'gold'] as const;
+const isRacer = (id: string) => CAST.some((c) => c.id === id);
+/** save.schema.json timeTrial.ghost maxLength */
+const GHOST_MAX_CHARS = 200_000;
 
 /**
  * The records, entry by entry: a hand-edited or foreign save (every Pages site on the account shares
@@ -66,7 +72,10 @@ function sanitiseRecords(r: Record<string, unknown>): Pick<Save, 'timeTrial' | '
   return {
     timeTrial: entries(r.timeTrial, (x) => {
       if (typeof x.bestMs !== 'number' || !(x.bestMs > 0) || !Number.isFinite(x.bestMs)) return undefined;
-      return { bestMs: x.bestMs, medal: oneOf(x.medal, MEDALS, 'none'), ...(typeof x.racerId === 'string' ? { racerId: x.racerId } : {}) };
+      const racerId = typeof x.racerId === 'string' && isRacer(x.racerId) ? x.racerId : undefined;
+      // a ghost is kept only with the racer who drove it (the ghost kart is drawn as them)
+      const ghost = racerId && typeof x.ghost === 'string' && x.ghost.length <= GHOST_MAX_CHARS && /^[A-Za-z0-9+/]*={0,2}$/.test(x.ghost) ? x.ghost : undefined;
+      return { bestMs: x.bestMs, medal: oneOf(x.medal, MEDALS, 'none'), ...(racerId ? { racerId } : {}), ...(ghost ? { ghost } : {}) };
     }),
     grandPrix: entries(r.grandPrix, (cup) => entries(cup, (x) => {
       const stars = int(x.stars, 0, 3);
@@ -91,7 +100,8 @@ function sanitiseSettings(raw: unknown): Settings {
     reducedMotion: oneOf(r.reducedMotion, ['auto', 'on', 'off'] as const, d.reducedMotion),
     iconLabels: typeof r.iconLabels === 'boolean' ? r.iconLabels : d.iconLabels,
     resolutionScale: num(r.resolutionScale, 0.5, 1, d.resolutionScale),
-    selectedRacerId: typeof r.selectedRacerId === 'string' ? r.selectedRacerId : d.selectedRacerId,
+    // an id that is no racer (a foreign save, a renamed cast) would start a race with no player (audit 24 Sept 2026)
+    selectedRacerId: typeof r.selectedRacerId === 'string' && isRacer(r.selectedRacerId) ? r.selectedRacerId : d.selectedRacerId,
   };
 }
 

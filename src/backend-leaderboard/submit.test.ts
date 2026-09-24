@@ -127,3 +127,26 @@ describe('submit-score: what the player reads when a post is refused (detail rev
     warn.mockRestore();
   });
 });
+
+describe('client: the 12 s timeout covers the body too (audit 24 Sept 2026)', () => {
+  /** headers arrive at once; the body never does (a stalled server or proxy) */
+  const stalled = (async () => ({ ok: true, status: 200, text: () => new Promise<string>(() => {}) }) as unknown as Response) as typeof fetch;
+
+  it('a board whose body stalls after the headers reads as offline, not "Loading" for ever', async () => {
+    vi.useFakeTimers();
+    try {
+      const got = leaderboardClient(stalled).fetchBoard('harbour-loop', 'timeTrial', null);
+      await vi.advanceTimersByTimeAsync(12_001);
+      expect(await got).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('a post whose body stalls fails with the connection line', async () => {
+    vi.useFakeTimers();
+    try {
+      const got = leaderboardClient(stalled).post({ name: 'Kit', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 60000, racerId: 'pip', inputLog: 'x', clientVersion: CLIENT_VERSION });
+      await vi.advanceTimersByTimeAsync(12_001);
+      expect(await got).toEqual({ ok: false, error: 'Could not reach the leaderboard. Check your connection.' });
+    } finally { vi.useRealTimers(); }
+  });
+});

@@ -71,3 +71,24 @@ describe('save store', () => {
     expect(reducedMotion({ ...s, reducedMotion: 'off' }, true)).toBe(false);
   });
 });
+
+describe('save store: audit fixes (24 Sept 2026)', () => {
+  it('an unknown racer id falls back to the first card, so no race starts without a player', () => {
+    const s = loadSave(fake({ [SAVE_KEY]: JSON.stringify({ settings: { selectedRacerId: 'mario' } }) }));
+    expect(s.settings.selectedRacerId).toBe('pip');
+    expect(loadSave(fake({ [SAVE_KEY]: JSON.stringify({ settings: { selectedRacerId: 'boulder' } }) })).settings.selectedRacerId).toBe('boulder');
+  });
+
+  it('a Time Trial ghost survives a save and a load; a malformed or racer-less one is dropped', () => {
+    const b = fake();
+    const s = defaultSave();
+    s.timeTrial['harbour-loop'] = { bestMs: 120000, medal: 'gold', racerId: 'nova', ghost: 'AQQAAAAAAA==' };
+    writeSave(b, s);
+    expect(loadSave(fake(b.data)).timeTrial['harbour-loop']).toEqual(s.timeTrial['harbour-loop']);
+    const bad = { timeTrial: { a: { bestMs: 1, medal: 'none', racerId: 'nova', ghost: '<script>' }, b: { bestMs: 1, medal: 'none', ghost: 'AQQA' }, c: { bestMs: 1, medal: 'none', racerId: 'nova', ghost: 'A'.repeat(200_004) } } };
+    const t = loadSave(fake({ [SAVE_KEY]: JSON.stringify(bad) })).timeTrial;
+    expect(t.a.ghost).toBeUndefined();
+    expect(t.b.ghost).toBeUndefined();
+    expect(t.c.ghost).toBeUndefined();
+  });
+});

@@ -217,6 +217,33 @@ describe('RaceManager', () => {
     expect(dnfFinish.map((x) => (x.e as { racerId: string }).racerId)).toEqual(['r3']);
   });
 
+  it('endRace: a finished player skips the rest of the grace; the field is cut off on the next tick with projected times (24 Sept 2026)', () => {
+    const t2 = buildTrack(OVAL);
+    const rm = new RaceManager(t2, config(t2, racers(4, 1)));
+    // before the player finishes it does nothing
+    rm.endRace();
+    const log = run(rm, [lookAheadDriver(23, -2), lookAheadDriver(22, 2), lookAheadDriver(21, -2), lookAheadDriver(8, 0)], (tick) => {
+      if (rm.state.playerFinishTick >= 0 && tick === rm.state.playerFinishTick + 30) rm.endRace();
+    });
+    expect(rm.state.phase).toBe('finished');
+    const endTick = log.at(-1)!.tick;
+    expect(endTick).toBe(rm.state.playerFinishTick + 30);
+    const res = rm.results();
+    const cut = res.ranks.filter((r) => r.dnf);
+    expect(cut.length).toBeGreaterThan(0);
+    for (const r of cut) expect(r.projectedMs).toBeGreaterThan(res.ranks.find((x) => x.racerId === 'r1')!.timeMs);
+  });
+
+  it('the input log ends on the player\'s finish tick, not behind the results screens (24 Sept 2026)', () => {
+    const track = buildTrack(OVAL);
+    const rm = new RaceManager(track, config(track, racers(2, 0)));
+    run(rm, [lookAheadDriver(22, -2), lookAheadDriver(8, 2)]);
+    expect(rm.state.playerFinishTick).toBeGreaterThan(0);
+    expect(rm.state.inputLog.length).toBe(rm.state.playerFinishTick + 1);
+    for (let i = 0; i < 200; i++) rm.step([{ ...rm.state.inputLog[0] }, { ...rm.state.inputLog[0] }]);
+    expect(rm.state.inputLog.length).toBe(rm.state.playerFinishTick + 1);
+  });
+
   it('a finished kart keeps taking its input and rolls on past the line', () => {
     const track = buildTrack(OVAL);
     const rm = new RaceManager(track, config(track, racers(2, 1)));

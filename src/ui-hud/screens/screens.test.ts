@@ -8,7 +8,7 @@ import { firstFocus, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { CREDITS_MADE, parseCredits } from './credits.ts';
 import { cupMenu, MODES, modeMenu, pauseMenu, rosterMenu, settingsMenu, statBar, titleMenu } from './menus.ts';
-import { gpModel, knockoutCutModel, resultsModel } from './results.ts';
+import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, seedDate } from './results.ts';
 
 const racers: RacerConfig[] = CAST.map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 }));
 
@@ -17,7 +17,7 @@ function results(order: string[], dnf: string[] = []): RaceResults {
     mode: 'quick', trackId: 'harbour-loop', speedClass: 150, seed: 1, goTick: 360,
     ranks: order.map((id, i) => ({
       racerId: id, rank: i + 1, finishTick: 1000 + i * 60, timeMs: dnf.includes(id) ? -1 : 50000 + i * 500,
-      lapTimesMs: [17000, 16500, 16500 + i * 500], dnf: dnf.includes(id),
+      lapTimesMs: [17000, 16500, 16500 + i * 500], dnf: dnf.includes(id), projectedMs: -1,
     })),
   };
 }
@@ -200,5 +200,41 @@ describe('track select', () => {
     expect(sub('canyon-rush')).toBe('Best 2:35.00');
     expect(sub('skyline-circuit')).toBe('Best 2:41.00 · Bronze');
     expect(sub('harbour-loop')).toBe('Best 2:00.00 · Gold');
+  });
+});
+
+describe('results: rivals cut off at the grace', () => {
+  it('shows a projected time and gap for a rival, DNF for the player', () => {
+    const res = results(['pip', 'momo', 'nova'], ['momo', 'nova']);
+    res.ranks[1].projectedMs = 52000;
+    res.ranks[2].projectedMs = 53000;
+    const vm = resultsModel(res, 'nova', 'Harbor Loop');
+    expect(vm.rows[1].time).toBe('0:52.00');
+    expect(vm.rows[1].gap).not.toBe('');
+    expect(vm.rows[2].time).toBe('DNF');
+  });
+});
+
+describe('leaderboard panel model (audit 24 Sept 2026)', () => {
+  it('a Daily date reads in US order, and the next one starts at midnight UTC on the player\'s clock', () => {
+    expect(seedDate(20260925)).toBe('Sep 25');
+    expect(seedDate(20261201)).toBe('Dec 1');
+    const noonUtc = new Date(Date.UTC(2026, 8, 24, 12));
+    expect(nextDailyAt(noonUtc, 'America/New_York')).toBe('8:00 PM');
+    expect(nextDailyAt(noonUtc, 'America/Los_Angeles')).toBe('5:00 PM');
+    expect(nextDailyAt(noonUtc, 'UTC')).toBe('12:00 AM');
+    const vm = boardModel('daily', 'Harbor Loop', 20260925, [], { state: 'idle' }, '8:00 PM');
+    expect(vm.sub).toBe('Daily Challenge · Sep 25 · Harbor Loop');
+    expect(vm.note).toBe('Next challenge at 8:00 PM your time (midnight UTC)');
+    expect(boardModel('timeTrial', 'Harbor Loop', null, [], { state: 'idle' }, '8:00 PM').note).toBe('');
+  });
+
+  it('Post is live whatever the board read did; Try again shows only when the read failed', () => {
+    const off = boardModel('timeTrial', 'Harbor Loop', null, 'offline', { state: 'idle' });
+    expect([off.buttonDisabled, off.retry]).toEqual([false, true]);
+    const loading = boardModel('timeTrial', 'Harbor Loop', null, 'loading', { state: 'idle' });
+    expect([loading.buttonDisabled, loading.retry]).toEqual([false, false]);
+    expect(boardModel('timeTrial', 'Harbor Loop', null, 'offline', { state: 'posting' }).buttonDisabled).toBe(true);
+    expect(boardModel('timeTrial', 'Harbor Loop', null, [], { state: 'posted', id: 'x', rank: 3 }).buttonDisabled).toBe(true);
   });
 });

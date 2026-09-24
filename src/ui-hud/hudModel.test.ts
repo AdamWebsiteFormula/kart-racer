@@ -55,7 +55,7 @@ describe('hud model', () => {
     ev([{ type: 'finish', racerId: 'p', rank: 2, tick: 9, dnf: false }], 6);
     k.finishTick = 9;
     const fin = hudModel(race(), k, 2, 10, m, 999, defs, 0).banner!;
-    expect([fin.kind, fin.text, fin.sub]).toEqual(['finish', 'FINISH!', '2nd']);
+    expect([fin.kind, fin.text, fin.sub]).toEqual(['finish', 'FINISH!', '2nd · Enter, A or tap for results']);
   });
 
   it('FINAL LAP waits for the player\'s own last lap; the leader\'s shows only the shift\'s label', () => {
@@ -151,5 +151,12 @@ describe('countdown', () => {
     expect(at(41, 3.33)).toEqual(['3', true]); // three seconds later, still paused
     expect(at(43, 3.35)).toEqual(['3', true]); // resumed: the 3 runs out its own second
     expect(at(STEP_TICKS + 1, 4)).toEqual(['2', true]);
+  });
+});
+
+describe('Time Trial HUD', () => {
+  it('hides the item slots: Time Trial has no items', () => {
+    expect(hudModel(race({ mode: 'timeTrial' }), kart(), 1, 10, newHudMemory(), 0, defs, 0).items).toBe(false);
+    expect(hudModel(race(), kart(), 1, 10, newHudMemory(), 0, defs, 0).items).toBe(true);
   });
 });

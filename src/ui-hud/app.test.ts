@@ -28,9 +28,10 @@ describe('app flow', () => {
     ]).trail);
     // Quick Race through the track screen
     add(walk([{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'gus' }, { type: 'pickTrack', trackId: 'meadow-run' }]).trail);
-    // credits from the title
+    // credits and unlocks from the title
     add(walk([{ type: 'boot' }, { type: 'openCredits' }, { type: 'back' }]).trail);
-    const all: string[] = ['title', 'modeSelect', 'rosterSelect', 'cupSelect', 'trackSelect', 'racing', 'results', 'gpTable', 'knockoutCut', 'pause', 'settings', 'credits'];
+    add(walk([{ type: 'boot' }, { type: 'openUnlocks' }, { type: 'back' }]).trail);
+    const all: string[] = ['title', 'modeSelect', 'rosterSelect', 'cupSelect', 'trackSelect', 'racing', 'results', 'gpTable', 'knockoutCut', 'pause', 'settings', 'credits', 'unlocks'];
     for (const x of all) expect(seen, x).toContain(x);
   });
 

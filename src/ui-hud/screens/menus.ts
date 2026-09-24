@@ -29,6 +29,7 @@ export function titleMenu(twoByTwo = false): MenuVM {
   const entries: Entry[] = [
     { id: 'start', label: 'Race!' },
     { id: 'howTo', label: 'How to Play' },
+    { id: 'unlocks', label: 'Unlocks' },
     { id: 'settings', label: 'Settings' },
     { id: 'credits', label: 'Credits' },
   ];
@@ -130,9 +131,10 @@ export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save
   return { title: mode === 'timeTrial' ? 'Time Trial: pick a track' : 'Pick a track', tracks, focus: grid(rows) };
 }
 
-export function pauseMenu(twoByTwo = false): MenuVM {
+/** `canRestart`: false in a Grand Prix or Knockout, where a restart would redo a finished race for its points or its win (audit 24 Sept 2026) */
+export function pauseMenu(twoByTwo = false, canRestart = true): MenuVM {
   const entries: Entry[] = [
-    { id: 'resume', label: 'Resume' }, { id: 'restart', label: 'Restart' }, { id: 'howTo', label: 'How to Play' },
+    { id: 'resume', label: 'Resume' }, ...(canRestart ? [{ id: 'restart', label: 'Restart' }] : []), { id: 'howTo', label: 'How to Play' },
     { id: 'settings', label: 'Settings' }, { id: 'credits', label: 'Credits' }, { id: 'quit', label: 'Quit race' },
   ];
   return { title: 'Paused', entries, focus: column(entries, twoByTwo) };

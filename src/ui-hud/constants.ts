@@ -29,4 +29,6 @@ export const UI = Object.freeze({
   panelScrollPx: 120,
   /** the stylesheet's short-screen block (a phone on its side): the title and pause buttons sit two by two there, and so do their focus grids */
   shortScreenQuery: '(max-height: 500px)',
+  /** a new end screen (results, standings, the cut) ignores confirms this long: a double click on Continue skipped the Grand Prix standings (audit 24 Sept 2026) */
+  endScreenGuardMs: 300,
 });

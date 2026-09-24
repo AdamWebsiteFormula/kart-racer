@@ -39,6 +39,8 @@ export class RaceManager {
   private readonly kartEvents: KartEvent[][];
   /** karts that crossed the finish this tick; reused, never reallocated */
   private readonly finishedNow: number[] = [];
+  /** the player asked to skip the rest of the grace (endRace) */
+  private endRequested = false;
 
   constructor(track: Track, config: RaceConfig) {
     this.track = track;
@@ -137,8 +139,9 @@ export class RaceManager {
       }
     }
     // the log starts at tick 0: the countdown throttle decides the start boost, so a
-    // replay needs it too
-    if (this.playerIndex >= 0) st.inputLog.push({ ...inputs[this.playerIndex] });
+    // replay needs it too. It ends on the player's finish tick (the server's replay stops
+    // there, backend-leaderboard/verify.ts), so it does not grow behind the results screens
+    if (this.playerIndex >= 0 && st.playerFinishTick < 0) st.inputLog.push({ ...inputs[this.playerIndex] });
 
     // 2. karts
     const stepped = stepKarts(karts, this.effective, track, this.consts, dt);
@@ -200,7 +203,7 @@ export class RaceManager {
       // 6. finish
       let allDone = true;
       for (let i = 0; i < karts.length; i++) if (!karts[i].isGhost && karts[i].finishTick === undefined) { allDone = false; break; }
-      const graceUp = st.playerFinishTick >= 0 && tick - st.playerFinishTick >= Math.round(RACE.finishGraceSeconds / dt);
+      const graceUp = st.playerFinishTick >= 0 && (this.endRequested || tick - st.playerFinishTick >= Math.round(RACE.finishGraceSeconds / dt));
       if (allDone || graceUp) {
         for (const i of this.order) {
           const s = karts[i];
@@ -233,6 +236,15 @@ export class RaceManager {
     return out;
   }
 
+  /**
+   * The player has finished and pressed on to the results: on the next tick the rest of the field
+   * is cut off exactly as at the end of the grace (dnf, projected times in results()). Does
+   * nothing before the player's finish, so a solo leaderboard run is never touched by it.
+   */
+  endRace(): void {
+    if (this.state.playerFinishTick >= 0) this.endRequested = true;
+  }
+
   private fireShift(tick: number, events: RaceEvent[]): void {
     const st = this.state;
     if (st.finalLapShiftFired) return;
@@ -257,15 +269,19 @@ export class RaceManager {
   /** Rank table. Complete once phase is `finished`; before that unfinished rows carry -1 and dnf. */
   results(): RaceResults {
     const st = this.state;
+    const raceLength = st.lapsTotal * this.track.length;
+    let floorMs = 0; // projections run in rank order, each after the row above
     const ranks = this.order.map((i) => {
       const s = st.karts[i], tr = st.trackers[i];
       const finishTick = s.finishTick ?? -1;
       const lapTimesMs = tr.lapTicks.map((t, k) => ticksToMs(t - (k === 0 ? st.goTick : tr.lapTicks[k - 1])));
-      return {
-        racerId: s.racerId, rank: s.rank, finishTick,
-        timeMs: finishTick < 0 ? -1 : ticksToMs(finishTick - st.goTick),
-        lapTimesMs, dnf: finishTick < 0 || tr.dnf,
-      };
+      const timeMs = finishTick < 0 ? -1 : ticksToMs(finishTick - st.goTick);
+      const dnf = finishTick < 0 || tr.dnf;
+      // cut off before the line: its average pace so far carries it home (the results table shows a time, not "DNF")
+      let projectedMs = -1;
+      if (dnf && timeMs > 0 && s.distanceAlong > 0) projectedMs = Math.max(floorMs + 100, Math.round(timeMs * Math.max(1, raceLength / s.distanceAlong)));
+      floorMs = Math.max(floorMs, dnf ? projectedMs : timeMs);
+      return { racerId: s.racerId, rank: s.rank, finishTick, timeMs, lapTimesMs, dnf, projectedMs };
     });
     return { mode: st.mode, trackId: st.trackId, speedClass: st.speedClass, seed: st.seed, goTick: st.goTick, ranks };
   }

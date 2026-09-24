@@ -134,6 +134,8 @@ export interface RaceResultRow {
   timeMs: number;
   lapTimesMs: number[];
   dnf: boolean;
+  /** a kart still racing at the cut-off: the time its pace so far says it would have finished in (display only; -1 when finished or unknown) */
+  projectedMs: number;
 }
 
 export interface RaceResults {

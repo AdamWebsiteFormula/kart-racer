@@ -51,6 +51,14 @@ export function stepHazards(
     // a kart stopped in a static teacup was spun again on the tick each spin ended (the cooldown
     // equals hitSpinSeconds), never got a free tick and never counted as stuck (bug hunt 2)
     if (tr.hazardCooldownRemaining > 0 || s.status.spinRemaining > 0 || h.id === tr.hazardInside) continue;
+    // a Bubble absorbs one hit of any kind (design §8): a spin or slow pops it instead, with no hit to
+    // sound or shake (items sees it go and sends shieldPop); the kart is inside the hazard all the same
+    if (s.status.shield && (h.hit === 'spin' || h.hit === 'slow')) {
+      s.status.shield = false;
+      tr.hazardCooldownRemaining = RACE.hazardCooldownSeconds;
+      tr.hazardInside = h.id;
+      continue;
+    }
     switch (h.hit) {
       case 'spin':
         applyHit(s, c, 'hazard', kartEvents);

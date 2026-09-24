@@ -7,7 +7,7 @@ import type { ItemEvent } from '../items/types.ts';
 import type { GrandPrixState, KnockoutState, RaceEvent, RaceMode, RaceResults, RaceState } from '../race-manager/types.ts';
 import type { Minimap } from '../track-builder/minimap.ts';
 import { initialApp, isPaused, needsCup, needsTrack, reduce, topOverlay } from './app.ts';
-import { accentOf } from './data/cast.ts';
+import { accentOf, nameOf } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
@@ -19,15 +19,16 @@ import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
 import { TouchControls } from './render/touch.ts';
 import {
-  BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, type ScreenView,
+  BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, UnlocksView, type ScreenView,
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
 import { adjustSetting, cupMenu, medalFor, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
-import { boardModel, gpModel, knockoutCutModel, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
+import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
 import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
 import { cleanName, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
 import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Settings } from './store.ts';
 import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
+import { grantUnlocks, unlockRows } from './unlocks.ts';
 
 export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[] }
 
@@ -52,6 +53,8 @@ export interface UiHost {
   uiSound?(kind: 'move' | 'confirm' | 'back'): void;
   /** the global leaderboard; absent means no board on the results screen */
   readonly leaderboard?: LeaderboardClient;
+  /** the player has finished and pressed on (Enter, pad A or a tap): end the grace and show the results now */
+  skipToResults?(): void;
 }
 
 export interface RaceOver {
@@ -65,6 +68,8 @@ export interface RaceOver {
   medalTimesMs?: MedalTimes;
   /** Time Trial and Daily, when the player finished: the run as the leaderboard wants it, minus the name */
   board?: { mode: BoardMode; dailySeed: number | null; draft: Omit<Submission, 'name'> };
+  /** Time Trial, when the player finished: the run's ghost path (race-manager/ghost.ts), kept if it is a new best */
+  ghost?: string;
 }
 
 export interface RaceFrame {
@@ -94,7 +99,7 @@ export class UiRoot {
   private readonly backend: Backend | null;
   private readonly views: {
     boot: BootView; title: TitleView; modes: ListView; roster: RosterView; cups: CupView; tracks: TrackView; hud: HudView; results: ResultsView;
-    pause: OverlayMenuView; settings: SettingsView; credits: CreditsView; howTo: HowToView;
+    pause: OverlayMenuView; settings: SettingsView; credits: CreditsView; howTo: HowToView; unlocks: UnlocksView;
   };
   private readonly models = new Map<string, FocusModel>();
   private readonly focusBy = new Map<string, string>();
@@ -105,6 +110,21 @@ export class UiRoot {
   private ttNote = '';
   private boardLoad: BoardLoad = 'loading';
   private boardPost: BoardPost = { state: 'idle' };
+  /** the player crossed the line in the race on screen: a fresh confirm skips to the results */
+  private playerDone = false;
+  /** gamepad A last frame, for a fresh press in the race */
+  private padAWas = true;
+  /** confirms on a new end screen wait until then (UI.endScreenGuardMs) */
+  private endGuardUntil = 0;
+  /** a number for the suggested leaderboard name ("Pip 427"), fixed for the session */
+  private readonly nameNumber = 100 + Math.floor(Math.random() * 900);
+  /** the player crossed the line: the save's counters stop (the autopilot drives on under the results) */
+  private statsOff = false;
+  /** the unlock reveal (design §10), over whatever screen is up */
+  private readonly toast: HTMLElement;
+  private toastTimer: ReturnType<typeof setTimeout> | undefined;
+  /** the UI's clock (ms); tests replace it */
+  clock: () => number = () => performance.now();
   private padRepeat = newRepeat();
   private padStartWas = false;
   /** gamepad buttons still down from the race, ignored by the menus until released */
@@ -118,6 +138,7 @@ export class UiRoot {
   private osReduced = false;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
   private readonly onMove = (e: PointerEvent) => this.hover(e);
+  private readonly onDown = (e: PointerEvent) => this.tapInRace(e);
   /** a phone or tablet held upright: the rotate prompt covers the screen (CSS, same query) */
   private readonly upright: MediaQueryList | undefined;
   private readonly onUpright = () => this.holdIfUpright();
@@ -143,6 +164,11 @@ export class UiRoot {
     rotate.setAttribute('role', 'status');
     rotate.innerHTML = '<div class="phone" aria-hidden="true"></div><p>Turn your phone sideways to race</p>';
     this.root.appendChild(rotate);
+    this.toast = document.createElement('div');
+    this.toast.className = 'toast';
+    this.toast.setAttribute('role', 'status');
+    this.toast.setAttribute('aria-live', 'polite');
+    this.root.appendChild(this.toast);
     this.upright = globalThis.matchMedia?.('(orientation: portrait) and (pointer: coarse)');
     this.upright?.addEventListener?.('change', this.onUpright);
     this.short = globalThis.matchMedia?.(UI.shortScreenQuery);
@@ -153,12 +179,13 @@ export class UiRoot {
     this.views = {
       boot: new BootView(r), title: new TitleView(r), modes: new ListView(r, 'mode-screen', 'Pick a mode'),
       roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r),
-      pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r), howTo: new HowToView(r),
+      pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r), howTo: new HowToView(r), unlocks: new UnlocksView(r),
     };
     for (const v of Object.values(this.views)) v.root.addEventListener('click', (e) => this.pointer(e, true));
     // hover takes the focus only from a pointer that moves: a dialog opening under a resting cursor
     // gets a pointerover and no pointermove, and the pause opened on Quit under it (seam review)
     addEventListener('pointermove', this.onMove);
+    addEventListener('pointerdown', this.onDown);
     const mq = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
     this.osReduced = mq?.matches ?? false;
     mq?.addEventListener?.('change', (e) => { this.osReduced = e.matches; this.applyTheme(); });
@@ -170,6 +197,8 @@ export class UiRoot {
   dispose(): void {
     removeEventListener('keydown', this.onKey);
     removeEventListener('pointermove', this.onMove);
+    removeEventListener('pointerdown', this.onDown);
+    clearTimeout(this.toastTimer);
     this.upright?.removeEventListener?.('change', this.onUpright);
     this.short?.removeEventListener?.('change', this.onShort);
     this.root.remove();
@@ -199,10 +228,13 @@ export class UiRoot {
     const wasPaused = isPaused(prev), nowPaused = isPaused(next);
     if (next.screen === 'racing' && prev.screen !== 'racing') {
       this.hudMem = newHudMemory();
+      this.playerDone = false;
+      this.statsOff = false;
       if (prev.screen === 'gpTable' || prev.screen === 'knockoutCut') this.host.nextRace();
       else this.host.startRace(this.plan(next));
     }
-    if (a.type === 'restart' && prev.screen === 'racing') { this.hudMem = newHudMemory(); this.host.restartRace(); }
+    if (a.type === 'restart' && prev.screen === 'racing') { this.hudMem = newHudMemory(); this.playerDone = false; this.statsOff = false; this.host.restartRace(); }
+    if (a.type === 'quit' && prev.screen === 'racing') writeSave(this.backend, this.save); // the race's counters (ultra turbos, hits)
     if (a.type === 'quit' && prev.screen === 'racing') this.host.quitRace();
     if (wasPaused !== nowPaused) this.host.setPaused(nowPaused);
     // every pause opens on Resume: a Quit or Restart remembered from the last one ended the race on Enter (bug hunt 3)
@@ -235,12 +267,17 @@ export class UiRoot {
       const mine = vm.rows.find((r) => r.player)?.points ?? 0;
       byCc[key] = { finished: true, stars: Math.max(old?.stars ?? 0, vm.stars), bestPoints: Math.max(old?.bestPoints ?? 0, mine) };
     }
-    if (ko && ko.after.segment >= ko.after.trackIds.length && over.playerId) {
+    // the placing is saved when it is decided: at the final, or when the player is cut (audit 24 Sept 2026).
+    // `finished` means the player raced the whole Knockout (design §10: Buggy)
+    const koDone = !!ko && ko.after.segment >= ko.after.trackIds.length;
+    const koOut = !!ko && !!over.playerId && ko.after.eliminated.includes(over.playerId);
+    if (ko && over.playerId && (koDone || koOut)) {
       const placing = ko.after.placings[over.playerId];
       const old = this.save.knockout[ko.after.setId];
+      const best = Math.min(old?.bestPlacing ?? 99, placing ?? 99);
       this.save.knockout[ko.after.setId] = {
-        finished: true, won: (old?.won ?? false) || placing === 1,
-        bestPlacing: Math.min(old?.bestPlacing ?? 99, placing ?? 99),
+        finished: (old?.finished ?? false) || koDone, won: (old?.won ?? false) || (koDone && placing === 1),
+        ...(best <= 8 ? { bestPlacing: best } : {}),
       };
     }
     const me = over.results.ranks.find((r) => r.racerId === over.playerId);
@@ -248,9 +285,13 @@ export class UiRoot {
       const tt = this.save.timeTrial[over.results.trackId];
       const medal = medalFor(me.timeMs, over.medalTimesMs);
       this.ttNote = !tt || me.timeMs < tt.bestMs ? `New best! ${medalName(medal)}` : medalName(medal);
-      if (!tt || me.timeMs < tt.bestMs) this.save.timeTrial[over.results.trackId] = { bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined };
+      // the ghost goes with the best it drove, never with a slower run
+      if (!tt || me.timeMs < tt.bestMs) this.save.timeTrial[over.results.trackId] = { bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined, ...(over.ghost ? { ghost: over.ghost } : {}) };
       else tt.medal = medalFor(tt.bestMs, over.medalTimesMs); // the kept best, graded against today's times
     } else this.ttNote = '';
+    // design §10: anything this race earned is granted now, and shown once
+    const fresh = grantUnlocks(this.save, this.host.medalTimes);
+    if (fresh.length) this.showToast(`Unlocked: ${fresh.map((u) => u.name).join(', ')}!`);
     writeSave(this.backend, this.save);
     if (over.board && this.host.leaderboard) {
       this.boardLoad = 'loading';
@@ -264,6 +305,8 @@ export class UiRoot {
   private refreshBoard(): void {
     const o = this.lastOver, lb = this.host.leaderboard;
     if (!o?.board || !lb) return;
+    // a read that failed shows Loading again while it retries
+    if (this.boardLoad === 'offline') { this.boardLoad = 'loading'; this.paintBoard(); }
     void lb.fetchBoard(o.results.trackId, o.board.mode, o.board.dailySeed).then((rows) => {
       if (this.lastOver !== o) return; // a newer race finished meanwhile
       this.boardLoad = rows ?? 'offline';
@@ -274,7 +317,11 @@ export class UiRoot {
   private paintBoard(): void {
     const o = this.lastOver;
     if (!o?.board || this.app.screen !== 'results' || this.app.overlays.length) return;
-    this.views.results.updateBoard(boardModel(o.board.mode, o.trackName, o.board.dailySeed, this.boardLoad, this.boardPost));
+    const vm = boardModel(o.board.mode, o.trackName, o.board.dailySeed, this.boardLoad, this.boardPost, o.board.mode === 'daily' ? nextDailyAt() : '');
+    this.views.results.updateBoard(vm);
+    // Try again sits between the name box and Continue while the board cannot be read
+    this.models.set('results', { rows: vm.retry ? [['name', 'post'], ['retry'], ['continue']] : [['name', 'post'], ['continue']] });
+    if (this.focusBy.get('results') === 'retry') this.setFocus(vm.retry ? 'retry' : 'post', false); // the button was drawn again
     // the rows arriving push the name box down: keep whatever has the focus in sight
     const id = this.focusBy.get(this.app.screen);
     if (id) this.views.results.buttons.get(id)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
@@ -283,7 +330,8 @@ export class UiRoot {
   /** Post the finished run under the name in the box. The server replays it before saving. */
   private async postRun(): Promise<void> {
     const o = this.lastOver, lb = this.host.leaderboard;
-    if (!o?.board || !lb || this.boardPost.state === 'posting' || this.boardPost.state === 'posted' || this.boardLoad === 'offline') return;
+    // posting works whatever the board read did: a failed read is often a blip, and the post fails soft on its own
+    if (!o?.board || !lb || this.boardPost.state === 'posting' || this.boardPost.state === 'posted') return;
     const name = this.views.results.nameValue.trim();
     const bad = !/^[A-Za-z0-9 _-]{1,16}$/.test(name) ? 'Use 1 to 16 letters, digits, spaces, _ or -.' : !cleanName(name) ? 'Please pick another name.' : '';
     if (bad) { this.boardPost = { state: 'failed', error: bad }; this.paintBoard(); return; }
@@ -296,7 +344,10 @@ export class UiRoot {
       this.save.playerName = name;
       writeSave(this.backend, this.save);
       this.refreshBoard();
-    } else this.boardPost = { state: 'failed', error: r.error };
+    } else {
+      this.boardPost = { state: 'failed', error: r.error };
+      if (this.boardLoad === 'offline') this.refreshBoard(); // the network may be back for the times too
+    }
     this.paintBoard();
   }
 
@@ -304,11 +355,26 @@ export class UiRoot {
   /** Once per sim tick with that tick's events. */
   feed(race: readonly RaceEvent[], items: readonly ItemEvent[], playerId: string): void {
     feedHud(this.hudMem, race, items, playerId, performance.now() / 1000);
+    if (this.statsOff) return;
+    // the save's counters (design §10): the player's own Ultra Turbos and item hits, until the line
+    for (const e of race) {
+      if (e.type === 'kart' && e.racerId === playerId && e.event.type === 'driftEnd' && e.event.tier >= 3) this.save.stats.ultraTurbos++;
+      else if (e.type === 'finish' && e.racerId === playerId) this.statsOff = true;
+    }
+    for (const e of items) if (e.type === 'hit' && e.byRacerId === playerId && e.racerId !== playerId) this.save.stats.itemsHit++;
+  }
+
+  private showToast(text: string): void {
+    this.toast.textContent = text;
+    this.toast.classList.add('on');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.toast.classList.remove('on'), 5000);
   }
 
   /** Once per rendered frame while racing (paused or not). */
   race(f: RaceFrame, nowMs: number): void {
     if (this.app.screen !== 'racing') return;
+    this.playerDone = f.player.finishTick !== undefined;
     const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing);
     this.views.hud.render(vm);
     minimapDots(f.state.karts, f.map, accentOf, this.dots);
@@ -325,6 +391,10 @@ export class UiRoot {
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (start && !this.padStartWas) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
+      // over the line, a fresh A goes straight to the results (A held for a drift across it does not)
+      const a = buttons[0] ?? false;
+      if (a && !this.padAWas && this.playerDone) this.host.skipToResults?.();
+      this.padAWas = a;
       // every button down in the race (the Start that paused, A held for a drift) is spent:
       // on the menu that opens next it counts only once let go and pressed again. So is the stick
       // (steering on a diagonal read as a fresh up or down, and moved the pause off Resume): it
@@ -335,6 +405,7 @@ export class UiRoot {
       return;
     }
     this.padStartWas = start;
+    this.padAWas = true; // back in a race, A counts only once let go
     for (let i = 0; i < buttons.length; i++) {
       if (!buttons[i]) this.padSpent[i] = false;
       else if (this.padSpent[i]) buttons[i] = false;
@@ -367,6 +438,8 @@ export class UiRoot {
     if (e.repeat && (a === 'confirm' || a === 'back')) return;
     if (racing) {
       if (isPauseKey(e.code, e.key)) { e.preventDefault(); this.dispatch({ type: 'pause' }); }
+      // over the line, Enter goes straight to the results (Space, the drift key, does not)
+      else if (this.playerDone && !e.repeat && (e.code === 'Enter' || e.code === 'NumpadEnter' || (!e.code && e.key === 'Enter'))) { e.preventDefault(); this.host.skipToResults?.(); }
       // the driving keys are the game's while racing: the browser does not scroll on Space or bookmark on Ctrl+D
       else if (isRaceKey(e.code)) e.preventDefault();
       return;
@@ -391,7 +464,7 @@ export class UiRoot {
     if (b.getAttribute('aria-disabled') === 'true') return;
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
     this.setFocus(id, false); // under the pointer it is already in sight
-    if (!click) return;
+    if (!click || id === 'name') return; // a click in the name box is for typing
     // a settings row's ◀ or ▶ steps that way, like left and right on the keys
     const dir = (e.target as HTMLElement).closest?.('[data-dir]')?.getAttribute('data-dir');
     if (dir && this.active.key === 'settings' && id !== 'done') {
@@ -451,11 +524,13 @@ export class UiRoot {
     const top = topOverlay(s);
     const btn = this.active?.view.buttons.get(id);
     if (btn?.getAttribute('aria-disabled') === 'true') return;
+    const endScreen = s.screen === 'results' || s.screen === 'gpTable' || s.screen === 'knockoutCut';
+    if (endScreen && !top && this.clock() < this.endGuardUntil) return;
     if (top === 'settings') {
       if (id === 'done') this.dispatch({ type: 'back' }); else this.changeSetting(id as SettingId, 1);
       return;
     }
-    if (top === 'credits' || top === 'howTo') { this.dispatch({ type: 'back' }); return; }
+    if (top === 'credits' || top === 'howTo' || top === 'unlocks') { this.dispatch({ type: 'back' }); return; }
     if (top === 'pause') {
       const map: Record<string, AppAction> = { resume: { type: 'resume' }, restart: { type: 'restart' }, howTo: { type: 'openHowTo' }, settings: { type: 'openSettings' }, credits: { type: 'openCredits' }, quit: { type: 'quit' } };
       if (map[id]) this.dispatch(map[id]);
@@ -465,7 +540,7 @@ export class UiRoot {
     if (id === 'back') { this.back(); return; }
     switch (s.screen) {
       case 'title':
-        this.dispatch(id === 'settings' ? { type: 'openSettings' } : id === 'credits' ? { type: 'openCredits' } : id === 'howTo' ? { type: 'openHowTo' } : { type: 'start' });
+        this.dispatch(id === 'settings' ? { type: 'openSettings' } : id === 'credits' ? { type: 'openCredits' } : id === 'howTo' ? { type: 'openHowTo' } : id === 'unlocks' ? { type: 'openUnlocks' } : { type: 'start' });
         break;
       case 'modeSelect': this.dispatch({ type: 'pickMode', mode: id as RaceMode }); break;
       case 'rosterSelect': {
@@ -478,7 +553,9 @@ export class UiRoot {
       case 'trackSelect': this.dispatch({ type: 'pickTrack', trackId: id }); break;
       case 'results': case 'gpTable': case 'knockoutCut':
         if (id === 'post') { void this.postRun(); break; }
-        if (id === 'name') break; // the box takes focus; Enter inside it posts
+        if (id === 'retry') { this.refreshBoard(); break; }
+        // a pad's A in the name box moves on to Post (Enter typed inside the box posts)
+        if (id === 'name') { this.setFocus('post'); break; }
         this.dispatch({ type: 'continue' });
         break;
       default: break;
@@ -531,7 +608,7 @@ export class UiRoot {
       racing: v.hud, results: v.results, gpTable: v.results, knockoutCut: v.results,
     };
     const baseView = base[s.screen];
-    const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : top === 'howTo' ? v.howTo : null;
+    const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : top === 'howTo' ? v.howTo : top === 'unlocks' ? v.unlocks : null;
     for (const x of Object.values(v)) x.root.classList.toggle('on', x === baseView || x === overlayView);
     // a dialog on top makes everything under it unreachable, by Tab and by pointer
     for (const x of Object.values(v)) x.root.inert = overlayView !== null && x !== overlayView;
@@ -540,14 +617,17 @@ export class UiRoot {
     if (!force && this.active?.key === key) return;
     const entering = this.active?.key !== key;
     this.active = { key, view };
+    if (entering && (key === 'results' || key === 'gpTable' || key === 'knockoutCut')) this.endGuardUntil = this.clock() + UI.endScreenGuardMs;
     this.renderScreen(key, entering);
     const model = this.models.get(key);
     if (!model) return;
     const remembered = this.focusBy.get(key);
     const ok = remembered && model.rows.flat().includes(remembered) && !model.disabled?.includes(remembered);
-    const id = ok ? remembered : entering && key === 'rosterSelect' ? s.racerId : firstFocus(model);
+    // the saved racer, when it is still a card (a stale id falls back to the first card)
+    const racer = entering && key === 'rosterSelect' && model.rows.flat().includes(s.racerId) ? s.racerId : undefined;
+    const id = ok ? remembered : racer ?? firstFocus(model);
     // How to Play and Credits open at the top: their one button, Back, is at the end
-    if (id) this.setFocus(id, key !== 'howTo' && key !== 'credits');
+    if (id) this.setFocus(id, key !== 'howTo' && key !== 'credits' && key !== 'unlocks');
   }
 
   /** `entering`: false when the screen on top is drawn again (a setting changed) */
@@ -565,9 +645,10 @@ export class UiRoot {
         break;
       }
       case 'trackSelect': { const vm = trackMenu(s.mode ?? 'quick', built, this.save, this.host.medalTimes); v.tracks.render(vm); this.models.set(key, vm.focus); break; }
-      case 'pause': { const vm = pauseMenu(short); v.pause.render(vm); this.models.set(key, vm.focus); break; }
+      case 'pause': { const vm = pauseMenu(short, this.canRestart); v.pause.render(vm); this.models.set(key, vm.focus); break; }
       case 'settings': { const vm = settingsMenu(this.save.settings); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
+      case 'unlocks': { v.unlocks.render(unlockRows(this.save)); this.models.set(key, { rows: [['back']] }); break; }
       case 'howTo': { v.howTo.render(ITEM_DEFINITIONS); this.models.set(key, { rows: [['back']] }); break; }
       case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key); break;
       default: break;
@@ -578,7 +659,17 @@ export class UiRoot {
   private setGrids(): void {
     const short = this.short?.matches ?? false;
     if (this.models.has('title')) this.models.set('title', titleMenu(short).focus);
-    if (this.models.has('pause')) this.models.set('pause', pauseMenu(short).focus);
+    if (this.models.has('pause')) this.models.set('pause', pauseMenu(short, this.canRestart).focus);
+  }
+
+  /** A Grand Prix or Knockout race cannot be run again from the pause (it farmed stars and wins; Mario Kart hides it too) */
+  private get canRestart(): boolean { return this.app.mode !== 'grandPrix' && this.app.mode !== 'knockout'; }
+
+  /** A tap or click anywhere once the player has finished goes straight to the results (not the pause button). */
+  private tapInRace(e: PointerEvent): void {
+    if (this.app.screen !== 'racing' || this.app.overlays.length || !this.playerDone) return;
+    if ((e.target as HTMLElement | null)?.closest?.('[data-pause]')) return;
+    this.host.skipToResults?.();
   }
 
   private renderEnd(key: string): void {
@@ -591,11 +682,14 @@ export class UiRoot {
       const vm = resultsModel(o.results, o.playerId, o.trackName);
       if (this.ttNote) vm.headline = this.ttNote;
       const withBoard = !!o.board && !!this.host.leaderboard;
-      this.views.results.renderResults(vm, nextLabel, withBoard ? { name: this.save.playerName === 'Player' ? '' : this.save.playerName } : undefined);
+      // a first-timer gets a friendly name to post under (a pad has no keys to type one), selected so typing replaces it
+      const known = !!this.save.playerName && this.save.playerName !== 'Player';
+      const name = known ? this.save.playerName : o.playerId ? `${nameOf(o.playerId)} ${this.nameNumber}`.slice(0, 16) : '';
+      this.views.results.renderResults(vm, nextLabel, withBoard ? { name, suggested: !known } : undefined);
       if (withBoard) {
         this.models.set(key, { rows: [['name', 'post'], ['continue']] });
         // a known name goes straight to Post; a first-timer starts in the name box
-        this.focusBy.set(key, this.save.playerName && this.save.playerName !== 'Player' ? 'post' : 'name');
+        this.focusBy.set(key, known ? 'post' : 'name');
         this.paintBoard();
         return;
       }

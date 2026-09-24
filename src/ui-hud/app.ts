@@ -22,8 +22,10 @@ export function reduce(s: AppState, a: AppAction): AppState {
       case 'back': case 'resume': return a.type === 'resume' ? { ...s, overlays: [] } : pop(s);
       case 'openSettings': return push(s, 'settings');
       case 'openCredits': return push(s, 'credits');
+      case 'openUnlocks': return s.screen === 'title' ? push(s, 'unlocks') : s;
       case 'openHowTo': return push(s, 'howTo');
-      case 'restart': return s.screen === 'racing' ? { ...s, overlays: [] } : s;
+      // no restart in a Grand Prix or Knockout: it redid a finished race for its points or its win
+      case 'restart': return s.screen === 'racing' && s.mode !== 'grandPrix' && s.mode !== 'knockout' ? { ...s, overlays: [] } : s;
       case 'quit': return { ...s, overlays: [], screen: 'modeSelect', seriesHasNext: false };
       default: return s;
     }
@@ -52,6 +54,7 @@ export function reduce(s: AppState, a: AppAction): AppState {
     case 'pause': return s.screen === 'racing' ? push(s, 'pause') : s;
     case 'openSettings': return s.screen === 'title' || s.screen === 'modeSelect' ? push(s, 'settings') : s;
     case 'openCredits': return s.screen === 'title' ? push(s, 'credits') : s;
+    case 'openUnlocks': return s.screen === 'title' ? push(s, 'unlocks') : s;
     case 'openHowTo': return s.screen === 'title' ? push(s, 'howTo') : s;
     case 'back':
       switch (s.screen) {

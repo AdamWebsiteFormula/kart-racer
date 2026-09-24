@@ -10,12 +10,14 @@ import { KartView } from '../kart-controller/view.ts';
 import { Items } from '../items/items.ts';
 import type { ItemEvent } from '../items/types.ts';
 import { RaceManager } from '../race-manager/index.ts';
+import { GhostRecorder, type GhostPath } from '../race-manager/ghost.ts';
 import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, recolourBackdrop, type Rgb, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, SKIES, skyTint, trackAssets, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
+import { GhostView } from './ghostView.ts';
 import { ItemsView } from './itemsView.ts';
 import { RescueView } from './rescueView.ts';
 import { simTick, type SimParts } from './simtick.ts';
@@ -50,6 +52,12 @@ export class RaceSession {
   skyLight: SkyLight;
   /** seconds since the phase became `finished` */
   finishedFor = 0;
+  /** Time Trial: the player's run as a ghost path, recorded to the finish (race-manager/ghost.ts) */
+  private readonly recorder: GhostRecorder | null;
+  /** Time Trial: the best run to race against, drawn see-through */
+  private ghost: GhostView | null = null;
+  /** Time Trial has no items (design §9): every balloon drawn popped (the sim's own pickup timers stay as they are for the replay) */
+  private hiddenBalloons: { respawnRemaining: number }[] | null = null;
   private readonly parts: SimParts;
   private readonly group = new Group();
   private readonly scene: Scene;
@@ -75,6 +83,8 @@ export class RaceSession {
     this.items = new Items(this.track, this.manager);
     this.ai = new AiDriver(this.track, config, this.manager.state, { itemRoles: this.items.roles });
     this.playerIndex = this.manager.state.karts.findIndex((k) => k.isPlayer);
+    this.recorder = config.mode === 'timeTrial' && this.playerIndex >= 0 ? new GhostRecorder() : null;
+    this.recorder?.record(0, this.manager.state.karts[this.playerIndex]);
     this.inputs = this.manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
     this.parts = { manager: this.manager, items: this.items, ai: this.ai, inputs: this.inputs, playerIndex: this.playerIndex, playerSlot: { ...NEUTRAL_INPUT } };
     this.group.add(this.trackScene.group);
@@ -127,6 +137,7 @@ export class RaceSession {
       this.changeSky(e.event.sky);
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT);
+    this.recorder?.record(st.tick, st.karts[this.playerIndex]);
     if (st.phase === 'finished') this.finishedFor += SIM_DT;
     return ev;
   }
@@ -142,10 +153,24 @@ export class RaceSession {
       if (k >= 1) this.skyChange = null;
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt);
+    this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k].boost.remaining, st.time, reduced);
-    this.trackScene.update(st.time, this.manager.lastActiveHazards, { pickups: st.pickupStates, coins: st.coinStates });
+    this.trackScene.update(st.time, this.manager.lastActiveHazards, { pickups: st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates, coins: st.coinStates });
     this.itemsView.onFrame(this.items, st.karts, this.views.map((v) => v.root as Object3D), alpha, st.time, frameDt, this.track);
     this.rescueView.onFrame(st.trackers, (i) => this.views[i].root.position, frameDt, st.time);
+  }
+
+  /** Time Trial: race against this recorded run (a picture only: it never touches the race). */
+  setGhost(path: GhostPath, racerId: string): void {
+    if (this.ghost) this.group.remove(this.ghost.root);
+    this.ghost = new GhostView(path, racerId);
+    this.ghost.place(0);
+    this.group.add(this.ghost.root);
+  }
+
+  /** Time Trial: this run's ghost path so far ('' when not recording). Complete once the player has finished. */
+  ghostPath(): string {
+    return this.recorder?.encode() ?? '';
   }
 
   /** The kart index leading the race (for the attract camera). */

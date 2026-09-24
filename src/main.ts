@@ -21,6 +21,7 @@ import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
 import { ITEMS_CONFIG } from './items/data.ts';
 import { makeConstants } from './kart-controller/constants.ts';
 import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from './race-manager/series.ts';
+import { decodeGhost } from './race-manager/ghost.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { CAM, carry, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, kickedFov, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
@@ -95,6 +96,7 @@ const camKart: Vec3 = [0, 0, 0];
 const lookTmp = new Vector3();
 let camYaw = 0;
 let camSpeed = 0;
+let camRide = 0; // 0..1, eased: how far the camera has lifted over a Strike Ball
 let orbit = 0;
 
 let settings: Settings | null = null;
@@ -132,6 +134,8 @@ let session: RaceSession | null = null;
 let attract = true;
 let series: SeriesState | null = null;
 let overSent = false;
+/** the player pressed on over the line: the results come as soon as the field is cut off */
+let skipResults = false;
 let coinCap = 10;
 let topSpeed = 25;
 // ?mute: the game makes no sound at all, however it is played (automated checks in a browser
@@ -160,6 +164,13 @@ function load(config: RaceConfig, isAttract: boolean): void {
   session = new RaceSession(scene, def, { ...config, trackId: def.id });
   attract = isAttract;
   overSent = false;
+  skipResults = false;
+  // Time Trial: race the saved best as a ghost (a picture only; it never touches the race)
+  if (config.mode === 'timeTrial' && !isAttract) {
+    const best = ui.save.timeTrial[def.id];
+    const path = best?.ghost && best.racerId ? decodeGhost(best.ghost) : null;
+    if (path && best?.racerId) session.setGhost(path, best.racerId);
+  }
   const pi = session.playerIndex;
   const kc = makeConstants(session.config.racers[Math.max(0, pi)].archetype, session.config.speedClass);
   coinCap = kc.coinCap;
@@ -167,7 +178,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   indexOf.clear();
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
-  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id, session.state.trackers[pi]?.shownRank, finishLine(session.config));
+  if (isAttract) audio.play('title'); else audio.newRace(songForTrack(def.id), def.id, session.state.trackers[pi]?.shownRank, finishLine(session.config), session.config.mode !== 'timeTrial');
   if (governor.newRace(performance.now() / 1000) && autoQuality()) applyRender();
   if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
   lightSnap = true; // a new race starts under its own light, no fade from the last one
@@ -221,6 +232,12 @@ const host: UiHost = {
     if (session) load(restartConfig(session.config, [...TRACKS.keys()]), false);
   },
   quitRace() { startAttract(); },
+  skipToResults() {
+    // over the line and pressed on: the rest of the field is cut off now (projected times), no 12 s wait
+    if (!session || attract || !session.player || session.player.finishTick === undefined) return;
+    session.manager.endRace();
+    skipResults = true;
+  },
   setPaused(p) {
     audio.pause(p); // the music drops back under the pause menu
     if (!p) acc.reset();
@@ -268,6 +285,7 @@ function raceOver(): void {
     if (series.kind === 'grandPrix') gp = { before, after: series };
     else ko = { after: series };
     const playerOut = series.kind === 'knockout' && player !== undefined && series.eliminated.includes(player.racerId);
+    if (series.kind === 'knockout') audio.knockout(playerOut);
     seriesHasNext = !isDone(series) && !playerOut;
   }
   audio.play('results');
@@ -286,6 +304,7 @@ function raceOver(): void {
     results, trackName: trackCard(session.def.id)?.name ?? session.def.name, playerId: player?.racerId ?? null,
     gp, ko, seriesHasNext, board,
     medalTimesMs: mode === 'timeTrial' ? session.def.medalTimesMs : undefined,
+    ghost: mode === 'timeTrial' && mine && !mine.dnf ? session.ghostPath() : undefined,
   });
 }
 
@@ -313,6 +332,13 @@ function chaseCamera(frameDt: number): void {
   camYaw = chaseYaw(camYaw, want, lookBack ? CAM.flipLag : CAM.yawLag, frameDt);
   camSpeed = easedSpeed(camSpeed, k.speed, frameDt);
   const pose = idealPose(at, camYaw, camSpeed, lookBack);
+  // inside a Strike Ball: lift the camera over the ball
+  camRide += ((k.status.rideRemaining > 0 ? 1 : 0) - camRide) * (1 - Math.exp(-CAM.rideEase * frameDt));
+  if (camRide > 0.001) {
+    const dir = lookBack ? -1 : 1, fx = Math.sin(camYaw) * dir, fz = Math.cos(camYaw) * dir;
+    pose.position[0] -= fx * CAM.rideBack * camRide; pose.position[2] -= fz * CAM.rideBack * camRide;
+    pose.position[1] += CAM.rideUp * camRide; pose.target[1] += CAM.rideUp * 0.5 * camRide;
+  }
   const lag = lookBack ? CAM.flipLag : CAM.lag;
   // ride with the kart, then ease the offset: turns and look-back still swing, speed adds no trail
   carry(camPos, camKart, at);
@@ -390,7 +416,7 @@ function step(now: number): void {
   }
 
   if (attract && s.finishedFor > 4) startAttract();
-  else if (!attract && s.finishedFor > RESULTS_AFTER && ui.app.screen === 'racing') raceOver();
+  else if (!attract && ui.app.screen === 'racing' && (s.finishedFor > RESULTS_AFTER || (skipResults && s.state.phase === 'finished'))) raceOver();
 
   const cur = session!;
   cur.frame(acc.alpha, frameDt, reduced);

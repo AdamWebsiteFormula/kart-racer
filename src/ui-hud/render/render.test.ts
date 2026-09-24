@@ -39,6 +39,8 @@ function host(): UiHost & { calls: string[] } {
 }
 
 const key = (code: string) => dispatchEvent(new KeyboardEvent('keydown', { code, key: code }));
+/** past the new end screen's input guard (UI.endScreenGuardMs) */
+const pastGuard = (ui: UiRoot) => { const now = ui.clock() + UI.endScreenGuardMs + 1; ui.clock = () => now; };
 
 describe('HUD renderer', () => {
   it('SOP test 15: a second render with the same state writes nothing to the DOM', () => {
@@ -372,10 +374,10 @@ describe('a short screen (a phone on its side)', () => {
       const ui = new UiRoot(document.body, host(), null);
       ui.dispatch({ type: 'boot' });
       const walk = (keys: string[]) => keys.map((k) => { key(k); return focused(); });
-      // Race! How to Play / Settings Credits: Right went nowhere, Down went to the button beside it
-      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'])).toEqual(['howTo', 'credits', 'settings', 'start']);
+      // Race! How to Play / Unlocks Settings / Credits: Right went nowhere, Down went to the button beside it
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'])).toEqual(['howTo', 'settings', 'unlocks', 'start']);
       resize(false); // one column again, the focus where it was
-      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown'])).toEqual(['start', 'howTo', 'settings']);
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown'])).toEqual(['start', 'howTo', 'unlocks']);
       resize(true);
       ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
       key('Escape');
@@ -477,14 +479,14 @@ describe('leaderboard panel', () => {
   const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], racerId: 'pip', inputLog: 'AQ==', clientVersion: '1' };
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
-  function setup(board: unknown, postResult: unknown = { ok: true, id: 'new', timeMs: 97000, rank: 2 }, inRace?: (ui: UiRoot) => void) {
+  function setup(board: unknown, postResult: unknown = { ok: true, id: 'new', timeMs: 97000, rank: 2 }, inRace?: (ui: UiRoot) => void, boardNow?: () => unknown) {
     document.body.innerHTML = '';
     const posts: unknown[] = [];
     let fetches = 0;
     const h = {
       ...host(),
       leaderboard: {
-        fetchBoard: async () => { fetches++; return board as never; },
+        fetchBoard: async () => { fetches++; return (boardNow ? boardNow() : board) as never; },
         post: async (s: unknown) => { posts.push(s); return postResult as never; },
       },
     };
@@ -566,6 +568,7 @@ describe('leaderboard panel', () => {
     ({ ui, posts } = setup([], undefined, (u) => { u.save.playerName = 'Ada'; key('KeyW'); }));
     await flush();
     expect(focused()).toBe('post');
+    pastGuard(ui);
     for (let i = 0; i < 7; i++) send('KeyW', 'w', true);
     expect(focused()).toBe('post');
     send('Enter', 'Enter', false);
@@ -597,11 +600,77 @@ describe('leaderboard panel', () => {
     ui.dispose();
   });
 
-  it('offline: the board says so and the post button is disabled', async () => {
-    const { ui } = setup(null);
+  it('offline: the board says so, Post still posts, and Try again reads the board again (audit 24 Sept 2026)', async () => {
+    let board: unknown = null;
+    const { ui, posts, fetches } = setup(null, undefined, undefined, () => board);
     await flush();
+    pastGuard(ui);
     expect(document.querySelector('#ui .board-empty')?.textContent).toMatch(/offline/);
-    expect(document.querySelector('#ui [data-id="post"]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(document.querySelector('#ui [data-id="post"]')?.getAttribute('aria-disabled')).toBe('false');
+    const retry = document.querySelector('#ui [data-id="retry"]') as HTMLElement;
+    expect(retry?.textContent).toBe('Try again');
+    // the network comes back: Try again shows the times, and the button goes
+    board = [{ id: 'a', name: 'Ada', racerId: 'gus', timeMs: 95000 }];
+    retry.click();
+    expect(document.querySelector('#ui .board-empty')?.textContent).toMatch(/Loading/);
+    await flush();
+    expect(fetches()).toBe(2);
+    expect(document.querySelectorAll('#ui .board-row').length).toBe(1);
+    expect(document.querySelector('#ui [data-id="retry"]')).toBeNull();
+    // and a post goes through
+    (document.querySelector('#ui .name-input') as HTMLInputElement).value = 'Kit';
+    (document.querySelector('#ui [data-id="post"]') as HTMLElement).click();
+    await flush(); await flush();
+    expect(posts.length).toBe(1);
+    ui.dispose();
+  });
+
+  it('offline, a post still goes out; the board is read again after it', async () => {
+    const { ui, posts, fetches } = setup(null, { ok: false, error: 'Could not reach the leaderboard. Check your connection.' });
+    await flush();
+    pastGuard(ui);
+    (document.querySelector('#ui .name-input') as HTMLInputElement).value = 'Kit';
+    (document.querySelector('#ui [data-id="post"]') as HTMLElement).click();
+    await flush(); await flush();
+    expect(posts.length).toBe(1);
+    expect(fetches()).toBe(2);
+    expect(document.querySelector('#ui .board-status')?.getAttribute('data-kind')).toBe('error');
+    ui.dispose();
+  });
+
+  it('a first-timer gets a friendly name; on a pad, A in the name box moves to Post, and A there posts it (audit 24 Sept 2026)', async () => {
+    const { ui, posts } = setup([]);
+    await flush();
+    pastGuard(ui);
+    const input = document.querySelector('#ui .name-input') as HTMLInputElement;
+    expect(input.value).toMatch(/^Pip \d{3}$/);
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('name');
+    ui.nav('confirm');
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('post');
+    ui.nav('confirm');
+    await flush(); await flush();
+    expect(posts).toEqual([{ ...draft, name: input.value }]);
+    ui.dispose();
+  });
+
+  it('a click in the name box is for typing: it never jumps to Post', async () => {
+    const { ui } = setup([]);
+    await flush();
+    pastGuard(ui);
+    (document.querySelector('#ui .name-input') as HTMLElement).click();
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('name');
+    ui.dispose();
+  });
+
+  it('a Daily shows its date in US order and when the next one starts in the player\'s time', async () => {
+    document.body.innerHTML = '';
+    const h = { ...host(), leaderboard: { fetchBoard: async () => [] as never, post: async () => ({ ok: false, error: '' }) as never } };
+    const ui = new UiRoot(document.body, h, null);
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'daily' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    ui.raceOver({ results: { ...(results as object), mode: 'daily', seed: 20260925 } as never, trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'daily', dailySeed: 20260925, draft: { ...draft, mode: 'daily', dailySeed: 20260925 } } });
+    await flush();
+    expect(document.querySelector('#ui .board-sub')?.textContent).toBe('Daily Challenge · Sep 25 · Harbor Loop');
+    expect(document.querySelector('#ui .board-note')?.textContent).toMatch(/^Next challenge at \d{1,2}:\d{2} (AM|PM) your time \(midnight UTC\)$/);
     ui.dispose();
   });
 
@@ -691,6 +760,7 @@ describe('gamepad', () => {
     expect(ui.app.screen).toBe('results');
     set(A, false); frame(ui);
     expect(ui.app.screen).toBe('results');
+    pastGuard(ui);
     press(ui, A);
     expect(ui.app.screen).toBe('modeSelect');
     ui.dispose();

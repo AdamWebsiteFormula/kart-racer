@@ -8,7 +8,7 @@ const racers: RacerConfig[] = Array.from({ length: 8 }, (_, i) => ({ racerId: `r
 function results(order: string[], trackId = 't'): RaceResults {
   return {
     mode: 'quick', trackId, speedClass: 150, seed: 1, goTick: 360,
-    ranks: order.map((id, i) => ({ racerId: id, rank: i + 1, finishTick: 1000 + i, timeMs: 60000 + i, lapTimesMs: [], dnf: false })),
+    ranks: order.map((id, i) => ({ racerId: id, rank: i + 1, finishTick: 1000 + i, timeMs: 60000 + i, lapTimesMs: [], dnf: false, projectedMs: -1 })),
   };
 }
 

@@ -10,6 +10,9 @@ import { UI } from './constants.ts';
 import { formatMs, formatTime, mph, ordinal, ordinalParts } from './format.ts';
 
 /** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
+/** the finish banner's second line: how to go on to the results */
+export const SKIP_HINT = 'Enter, A or tap for results';
+
 export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'shift' | 'finish' | 'strike';
 const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, strike: 2, wrongWay: 2, finalLap: 3, shift: 3, finish: 4 };
 
@@ -53,7 +56,8 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
       case 'wrongWay': if (e.racerId === playerId) m.wrongWay = e.on; break;
       case 'positionChange': if (e.racerId === playerId) m.flourishUntil = clock + 0.4; break;
       case 'finish':
-        if (e.racerId === playerId) show(m, 'finish', e.dnf ? 'TIME!' : 'FINISH!', ordinal(e.rank), Infinity, clock);
+        // over the line, a press skips the wait for the field (UiRoot: Enter, pad A or a tap)
+        if (e.racerId === playerId) show(m, 'finish', e.dnf ? 'TIME!' : 'FINISH!', e.dnf ? ordinal(e.rank) : `${ordinal(e.rank)} · ${SKIP_HINT}`, Infinity, clock);
         break;
       case 'kart':
         if (e.racerId === playerId && e.event.type === 'hit') m.flashUntil = clock + UI.flashMs / 1000;
@@ -87,6 +91,8 @@ export interface HudVM {
   knockout: { text: string; danger: boolean } | null;
   /** show the controls strip */
   keysHint: boolean;
+  /** show the item slots (Time Trial has no items) */
+  items: boolean;
 }
 
 type Def = { id: string; name: string };
@@ -153,5 +159,6 @@ export function hudModel(
     flash: m.flashUntil > clock,
     knockout,
     keysHint: counting || m.hintUntil > clock,
+    items: state.mode !== 'timeTrial',
   };
 }

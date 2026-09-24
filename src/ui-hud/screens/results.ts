@@ -12,8 +12,9 @@ export function resultsModel(res: RaceResults, playerId: string | null, trackNam
   const winner = res.ranks.find((r) => !r.dnf)?.timeMs ?? -1;
   const rows = res.ranks.map((r, i) => ({
     rank: ordinal(r.rank), racerId: r.racerId, name: nameOf(r.racerId), accent: accentOf(r.racerId),
-    time: r.dnf ? 'DNF' : formatMs(r.timeMs),
-    gap: r.dnf || i === 0 || winner < 0 ? '' : formatGap((r.timeMs - winner) / 1000),
+    time: r.dnf ? (r.projectedMs > 0 && r.racerId !== playerId ? formatMs(r.projectedMs) : 'DNF') : formatMs(r.timeMs),
+    gap: i === 0 || winner < 0 ? '' : !r.dnf ? formatGap((r.timeMs - winner) / 1000)
+      : r.projectedMs > 0 && r.racerId !== playerId ? formatGap((r.projectedMs - winner) / 1000) : '',
     dnf: r.dnf, player: r.racerId === playerId, delayMs: i * staggerMs,
   }));
   const me = res.ranks.find((r) => r.racerId === playerId);
@@ -76,10 +77,14 @@ export type BoardLoad = 'loading' | 'offline' | readonly BoardRowIn[];
 export interface BoardVM {
   title: string;
   sub: string;
+  /** Daily: when the next challenge starts, in the player's own time ('' otherwise) */
+  note: string;
   state: 'loading' | 'offline' | 'empty' | 'rows';
   rows: { rank: string; name: string; racer: string; accent: string; time: string; me: boolean }[];
   button: string;
   buttonDisabled: boolean;
+  /** the board could not be read: a Try again control reads it again */
+  retry: boolean;
   status: string;
   statusKind: 'info' | 'error' | 'ok';
 }
@@ -89,14 +94,25 @@ export interface BoardPost { state: 'idle' | 'posting' | 'posted' | 'failed'; id
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** "23 Sep" from a YYYYMMDD seed. */
+/** "Sep 23" from a YYYYMMDD seed (US order). */
 export function seedDate(seed: number): string {
-  return `${seed % 100} ${MONTHS[(Math.floor(seed / 100) % 100) - 1] ?? ''}`.trim();
+  return `${MONTHS[(Math.floor(seed / 100) % 100) - 1] ?? ''} ${seed % 100}`.trim();
 }
 
-/** The leaderboard panel of the results screen. Pure. */
-export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, dailySeed: number | null, load: BoardLoad, post: BoardPost): BoardVM {
+/** The next Daily starts at midnight UTC: that moment on the player's clock ("8:00 PM"). `timeZone` for tests. */
+export function nextDailyAt(now = new Date(), timeZone?: string): string {
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return next.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', ...(timeZone ? { timeZone } : {}) });
+}
+
+/**
+ * The leaderboard panel of the results screen. Pure. Post works whatever the board read did: a
+ * failed read is often a blip, and the post fails soft on its own (audit 24 Sept 2026).
+ * `nextDaily`: nextDailyAt(), for a Daily.
+ */
+export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, dailySeed: number | null, load: BoardLoad, post: BoardPost, nextDaily = ''): BoardVM {
   const sub = mode === 'daily' ? `Daily Challenge · ${seedDate(dailySeed ?? 0)} · ${trackName}` : `Time Trial · ${trackName} · 150cc`;
+  const note = mode === 'daily' && nextDaily ? `Next challenge at ${nextDaily} your time (midnight UTC)` : '';
   // the board shows each name's best run: the player's row is that one, not always this run's
   const best = post.best && post.best.id !== post.id ? post.best : null;
   const mine = best?.id ?? post.id;
@@ -109,11 +125,12 @@ export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, daily
     : post.state === 'posted' ? (!post.rank ? 'Saved. You are outside the top 50 for now.'
       : best ? `Saved. Your best, ${formatMs(best.timeMs)}, is still ${ordinal(post.rank)} on this board.`
       : `You are ${ordinal(post.rank)} on this board.`)
-    : state === 'offline' ? 'The leaderboard is offline right now.'
+    : state === 'offline' ? 'Could not load the times. You can still post, or try again.'
     : 'Pick a name, then post your time. The server replays your run to check it.';
   return {
-    title: 'Leaderboard', sub, state, rows, button,
-    buttonDisabled: post.state === 'posting' || post.state === 'posted' || state === 'offline',
+    title: 'Leaderboard', sub, note, state, rows, button,
+    buttonDisabled: post.state === 'posting' || post.state === 'posted',
+    retry: state === 'offline',
     status, statusKind: post.state === 'failed' ? 'error' : post.state === 'posted' ? 'ok' : 'info',
   };
 }

@@ -6,6 +6,7 @@ import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { CONTROLS, CREATURES, ITEM_LINES, TIPS } from '../data/howto.ts';
 import type { CupVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
+import type { UnlockRow } from '../unlocks.ts';
 import { button, clear, h, Markup } from './dom.ts';
 
 export interface ScreenView {
@@ -377,6 +378,39 @@ export class CreditsView implements ScreenView {
   }
 }
 
+/** Design §10: every unlock, granted or locked, and how to earn it. */
+export class UnlocksView implements ScreenView {
+  readonly root: HTMLElement;
+  readonly buttons = new Map<string, HTMLElement>();
+  constructor(parent: HTMLElement) {
+    this.root = h('section', 'screen overlay credits unlocks', parent);
+    this.root.setAttribute('role', 'dialog');
+    this.root.setAttribute('aria-modal', 'true');
+    this.root.setAttribute('aria-label', 'Unlocks');
+  }
+  render(rows: readonly UnlockRow[]): void {
+    clear(this.root);
+    this.buttons.clear();
+    h('div', 'dim', this.root);
+    const box = h('div', 'panel box', this.root);
+    h('h2', '', box, 'Unlocks');
+    h('p', 'made', box, `${rows.filter((r) => r.unlocked).length} of ${rows.length} unlocked`);
+    const list = h('ul', 'unlock-list', box);
+    for (const r of rows) {
+      const li = h('li', r.unlocked ? 'unlock on' : 'unlock', list);
+      li.setAttribute('aria-label', `${r.name}: ${r.unlocked ? 'unlocked' : `locked. ${r.how}`}`);
+      h('span', 'mark', li, r.unlocked ? '★' : '🔒');
+      const txt = h('div', 'txt', li);
+      h('b', '', txt, r.name);
+      h('span', '', txt, r.unlocked ? 'Unlocked!' : r.how);
+    }
+    const back = button(box, 'back');
+    h('span', 'label', back, 'Back');
+    back.style.marginTop = '16px';
+    this.buttons.set('back', back);
+  }
+}
+
 function starSvg(on: boolean, i: number): string {
   return `<svg class="star${on ? ' on' : ''}" style="--delay:${600 + i * 180}ms" viewBox="-2 -2 28 28" aria-hidden="true"><path d="${SHAPE_PATHS.star}"/></svg>`;
 }
@@ -411,7 +445,7 @@ export class ResultsView implements ScreenView {
     this.buttons.set('continue', b);
   }
 
-  private board: { list: HTMLElement; sub: HTMLElement; btn: HTMLElement; status: HTMLElement; input: HTMLInputElement } | null = null;
+  private board: { list: HTMLElement; sub: HTMLElement; note: HTMLElement; btn: HTMLElement; status: HTMLElement; input: HTMLInputElement } | null = null;
 
   /** What the player typed in the name box ('' when there is no board on screen). */
   get nameValue(): string { return this.board?.input.value ?? ''; }
@@ -421,8 +455,17 @@ export class ResultsView implements ScreenView {
     const b = this.board;
     if (!b) return;
     b.sub.textContent = vm.sub;
+    b.note.textContent = vm.note;
+    b.note.hidden = !vm.note;
     clear(b.list);
+    this.buttons.delete('retry');
     if (vm.state !== 'rows') h('div', 'board-empty', b.list, vm.state === 'loading' ? 'Loading the best times…' : vm.state === 'offline' ? 'Leaderboard offline' : 'No times yet. Be the first!');
+    if (vm.retry) {
+      // the board could not be read: read it again (UiRoot re-reads on 'retry')
+      const r = button(b.list, 'retry', 'btn retry-btn');
+      h('span', 'label', r, 'Try again');
+      this.buttons.set('retry', r);
+    }
     for (const r of vm.rows) {
       const e = h('div', `board-row${r.me ? ' me' : ''}`, b.list);
       e.setAttribute('role', 'row');
@@ -439,11 +482,14 @@ export class ResultsView implements ScreenView {
     b.status.dataset.kind = vm.statusKind;
   }
 
-  private buildBoard(parent: HTMLElement, name: string): void {
+  /** `suggested`: the name is ours, not the player's: the first focus selects it, so typing replaces it */
+  private buildBoard(parent: HTMLElement, name: string, suggested = false): void {
     const sec = h('section', 'board', parent);
     sec.setAttribute('aria-label', 'Leaderboard');
     h('h3', '', sec, 'Leaderboard');
     const sub = h('div', 'board-sub', sec);
+    const note = h('div', 'board-note', sec);
+    note.hidden = true;
     // the name box comes before the times, so on a short screen it shows without scrolling
     const form = h('div', 'board-form', sec);
     const input = h('input', 'name-input', form);
@@ -453,6 +499,7 @@ export class ResultsView implements ScreenView {
     input.spellcheck = false;
     input.placeholder = 'Your name';
     input.value = name;
+    if (suggested) input.addEventListener('focus', () => input.select(), { once: true });
     input.dataset.id = 'name';
     input.tabIndex = -1;
     input.setAttribute('aria-label', 'Your name for the leaderboard, 1 to 16 letters, digits, spaces, underscores or dashes');
@@ -465,10 +512,10 @@ export class ResultsView implements ScreenView {
     list.setAttribute('role', 'table');
     this.buttons.set('name', input);
     this.buttons.set('post', btn);
-    this.board = { list, sub, btn, status, input };
+    this.board = { list, sub, note, btn, status, input };
   }
 
-  renderResults(vm: ResultsVM, next: string, board?: { name: string }): void {
+  renderResults(vm: ResultsVM, next: string, board?: { name: string; suggested?: boolean }): void {
     this.board = null;
     const { box, body, rows } = this.frame(vm.headline, vm.sub);
     vm.rows.forEach((r, i) => {
@@ -486,7 +533,7 @@ export class ResultsView implements ScreenView {
       const laps = h('div', 'laps', body);
       for (const l of vm.playerLaps) h('span', l.best ? 'best' : '', laps, `Lap ${l.lap} ${l.time}`);
     }
-    if (board) this.buildBoard(body, board.name);
+    if (board) this.buildBoard(body, board.name, board.suggested);
     this.actions(box, next);
   }
 
