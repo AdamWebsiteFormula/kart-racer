@@ -178,6 +178,7 @@ export class CupView implements ScreenView {
         const e = h('div', t.built ? 'trk' : 'trk soon', tracks);
         e.style.setProperty('--bg', t.bg);
         e.style.setProperty('--accent', t.accent);
+        if (t.built) e.style.setProperty('--shot', `url("${import.meta.env.BASE_URL}art/tracks/${t.id}.webp")`);
         h('span', '', e, t.name);
         if (!t.built) h('span', 'soon-tag', e, 'Soon');
       }
