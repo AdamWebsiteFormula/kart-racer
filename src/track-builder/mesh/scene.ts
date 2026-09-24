@@ -126,7 +126,14 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           float w = fwidth(p) * 1.5;
           float t = abs(fract(p) - 0.5) * 2.0;
           diffuseColor.rgb = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
-        } else if (vMark < 0.5 && uLines > 0.5) {
+        } else if (vMark < 0.5) {
+          // the surface itself: big soft patches of lighter and darker tarmac, and the middle a
+          // little darker where the karts run (it is never one flat sheet)
+          float n = sin(vRoad.y * 1.7 + vRoad.x * 5.0) * sin(vRoad.y * 0.63 - vRoad.x * 2.1) * 0.5 + 0.5;
+          diffuseColor.rgb *= 0.93 + 0.12 * n;
+          diffuseColor.rgb *= 1.0 - 0.07 * (1.0 - smoothstep(0.1, 0.32, abs(vRoad.x - 0.5)));
+        }
+        if (vMark < 0.5 && uLines > 0.5) {
           // painted lines: an edge line just inside each kerb, a dashed centre line
           float x = vRoad.x, wx = fwidth(x);
           float e = min(x, 1.0 - x);
