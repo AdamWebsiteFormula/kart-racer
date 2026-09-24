@@ -2,6 +2,7 @@
 // The stylesheet's rules for a phone on its side. jsdom has no layout, so these pin the rules; the
 // sizes they give were measured in the browser at 844x390 and 740x360 (docs/sops/ui-hud.md Decisions).
 import { beforeAll, describe, expect, it } from 'vitest';
+import { UI } from './constants.ts';
 
 let css = '';
 beforeAll(async () => {
@@ -74,5 +75,22 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
   it('cups sit side by side and track cards fit the stage', () => {
     expect(value('.cups', 'grid-template-columns', PHONE)).toBe('repeat(auto-fit, minmax(260px, 1fr))');
     expect(value('.track-cards', 'width', PHONE)).toBe('100%');
+  });
+
+  it('the pause fits without a scroll, its six buttons two by two, under the query the focus grids use (seam review)', () => {
+    // at 740x360 its content was 536 px in a 309 px box: Credits and Quit sat below the panel
+    expect(UI.shortScreenQuery).toBe(PHONE);
+    expect(value('.pause .list', 'display', PHONE)).toBe('grid');
+    expect(value('.pause .list', 'grid-template-columns', PHONE)).toBe('1fr 1fr');
+    expect(value('.pause .btn', 'padding', PHONE)).toBe('10px 18px');
+    expect(value('.overlay h2', 'font-size', PHONE)).toBe('28px');
+    // the desktop pause is as it was: one column
+    expect(value('.overlay .list', 'flex-direction')).toBe('column');
+    expect(value('.pause .list', 'display')).toBe('');
+  });
+
+  it('Settings drawn again after a change does not pop in again (seam review)', () => {
+    expect(value('.overlay .box', 'animation')).toMatch(/pop-in/);
+    expect(value('.overlay .box.redraw', 'animation')).toBe('none');
   });
 });

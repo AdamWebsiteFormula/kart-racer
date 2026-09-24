@@ -82,6 +82,9 @@ export function medalFor(ms: number, m: { gold: number; silver: number; bronze: 
 }
 const medalName = (m: Medal) => (m === 'none' ? 'No medal this time' : `${m[0].toUpperCase()}${m.slice(1)} medal!`);
 
+const NO_BUTTONS: readonly boolean[] = [];
+const NO_AXES: readonly number[] = [];
+
 const MODE_ICONS: Record<string, string> = { quick: '🏁', grandPrix: '🏆', knockout: '💥', timeTrial: '⏱️', daily: '📅' };
 
 export class UiRoot {
@@ -107,11 +110,21 @@ export class UiRoot {
   private padStartWas = false;
   /** gamepad buttons still down from the race, ignored by the menus until released */
   private padSpent: boolean[] = [];
+  /** the stick still pushed from the race (steering on a diagonal), ignored by the menus until centered */
+  private padStickSpent = false;
+  /** keys (by code) down in the race: their auto-repeats never reach the menus; a new press does */
+  private readonly keySpent = new Set<string>();
+  /** where the pointer last moved, anywhere on the page: a move that goes nowhere (a browser's synthetic one) is no hover */
+  private readonly pointerAt = { x: NaN, y: NaN };
   private osReduced = false;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
+  private readonly onMove = (e: PointerEvent) => this.hover(e);
   /** a phone or tablet held upright: the rotate prompt covers the screen (CSS, same query) */
   private readonly upright: MediaQueryList | undefined;
   private readonly onUpright = () => this.holdIfUpright();
+  /** a phone on its side (the stylesheet's short-screen block): the title and pause buttons sit two by two */
+  private readonly short: MediaQueryList | undefined;
+  private readonly onShort = () => this.setGrids();
 
   /** on-screen thumbs for phones and tablets (shown only there, only while racing) */
   readonly touch: TouchControls;
@@ -133,6 +146,8 @@ export class UiRoot {
     this.root.appendChild(rotate);
     this.upright = globalThis.matchMedia?.('(orientation: portrait) and (pointer: coarse)');
     this.upright?.addEventListener?.('change', this.onUpright);
+    this.short = globalThis.matchMedia?.(UI.shortScreenQuery);
+    this.short?.addEventListener?.('change', this.onShort);
     // the item roulette flicks through every painted item: have them all in the cache first
     for (const id of Object.keys(ITEM_ICONS)) new Image().src = itemArt(id);
     const r = this.root;
@@ -141,10 +156,10 @@ export class UiRoot {
       roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r),
       pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r), howTo: new HowToView(r),
     };
-    for (const v of Object.values(this.views)) {
-      v.root.addEventListener('pointerover', (e) => this.pointer(e, false));
-      v.root.addEventListener('click', (e) => this.pointer(e, true));
-    }
+    for (const v of Object.values(this.views)) v.root.addEventListener('click', (e) => this.pointer(e, true));
+    // hover takes the focus only from a pointer that moves: a dialog opening under a resting cursor
+    // gets a pointerover and no pointermove, and the pause opened on Quit under it (seam review)
+    addEventListener('pointermove', this.onMove);
     const mq = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
     this.osReduced = mq?.matches ?? false;
     mq?.addEventListener?.('change', (e) => { this.osReduced = e.matches; this.applyTheme(); });
@@ -155,7 +170,9 @@ export class UiRoot {
 
   dispose(): void {
     removeEventListener('keydown', this.onKey);
+    removeEventListener('pointermove', this.onMove);
     this.upright?.removeEventListener?.('change', this.onUpright);
+    this.short?.removeEventListener?.('change', this.onShort);
     this.root.remove();
   }
 
@@ -304,12 +321,17 @@ export class UiRoot {
     if (!pad) return;
     const buttons = pad.buttons.map((b) => b.pressed);
     const start = buttons[9] ?? false;
+    const stickOut = navFromPad(NO_BUTTONS, pad.axes) !== null;
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (start && !this.padStartWas) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
       // every button down in the race (the Start that paused, A held for a drift) is spent:
-      // on the menu that opens next it counts only once let go and pressed again
+      // on the menu that opens next it counts only once let go and pressed again. So is the stick
+      // (steering on a diagonal read as a fresh up or down, and moved the pause off Resume): it
+      // counts once back inside the dead zone
       this.padSpent = buttons;
+      this.padStickSpent = stickOut;
+      this.padRepeat.held = null;
       return;
     }
     this.padStartWas = start;
@@ -317,12 +339,22 @@ export class UiRoot {
       if (!buttons[i]) this.padSpent[i] = false;
       else if (this.padSpent[i]) buttons[i] = false;
     }
-    const a = repeat(this.padRepeat, navFromPad(buttons, pad.axes), nowMs);
+    if (!stickOut) this.padStickSpent = false;
+    const a = repeat(this.padRepeat, navFromPad(buttons, this.padStickSpent ? NO_AXES : pad.axes), nowMs);
     if (a) this.nav(a);
   }
 
   // ---------------------------------------------------------------- input
   private key(e: KeyboardEvent): void {
+    const racing = this.app.screen === 'racing' && !this.app.overlays.length;
+    const code = e.code || e.key;
+    if (racing) this.keySpent.add(code);
+    else if (this.keySpent.has(code)) {
+      // a key held from the race (gas over the line, the Escape that paused): its auto-repeats never
+      // type into the name box or move the focus on the dialog that opened; a new press counts
+      if (e.repeat) { e.preventDefault(); return; }
+      this.keySpent.delete(code);
+    }
     // typing in the name box: letters stay in the box; only Enter, Escape and up/down navigate
     if ((e.target as HTMLElement | null)?.tagName === 'INPUT') {
       if (e.key === 'Enter') { e.preventDefault(); this.host.uiSound?.('confirm'); void this.postRun(); }
@@ -333,7 +365,7 @@ export class UiRoot {
     // P pauses, so on the pause dialog it resumes too, like Escape
     const a = navFromKey(e.code, e.key) ?? (topOverlay(this.app) === 'pause' && isPauseKey(e.code, e.key) ? 'back' : null);
     if (e.repeat && (a === 'confirm' || a === 'back')) return;
-    if (this.app.screen === 'racing' && !this.app.overlays.length) {
+    if (racing) {
       if (isPauseKey(e.code, e.key)) { e.preventDefault(); this.dispatch({ type: 'pause' }); }
       // the driving keys are the game's while racing: the browser does not scroll on Space or bookmark on Ctrl+D
       else if (isRaceKey(e.code)) e.preventDefault();
@@ -342,6 +374,14 @@ export class UiRoot {
     if (!a) return;
     e.preventDefault();
     this.nav(a);
+  }
+
+  /** Every pointer move on the page (over the race too, so a move in place is known as one wherever it lands). */
+  private hover(e: PointerEvent): void {
+    const moved = e.clientX !== this.pointerAt.x || e.clientY !== this.pointerAt.y;
+    this.pointerAt.x = e.clientX;
+    this.pointerAt.y = e.clientY;
+    if (moved) this.pointer(e, false);
   }
 
   private pointer(e: Event, click: boolean): void {
@@ -500,7 +540,7 @@ export class UiRoot {
     if (!force && this.active?.key === key) return;
     const entering = this.active?.key !== key;
     this.active = { key, view };
-    this.renderScreen(key);
+    this.renderScreen(key, entering);
     const model = this.models.get(key);
     if (!model) return;
     const remembered = this.focusBy.get(key);
@@ -510,10 +550,12 @@ export class UiRoot {
     if (id) this.setFocus(id, key !== 'howTo' && key !== 'credits');
   }
 
-  private renderScreen(key: string): void {
+  /** `entering`: false when the screen on top is drawn again (a setting changed) */
+  private renderScreen(key: string, entering: boolean): void {
     const s = this.app, v = this.views, built = this.host.builtTracks;
+    const short = this.short?.matches ?? false;
     switch (key) {
-      case 'title': { const vm = titleMenu(); v.title.render(vm); this.models.set(key, vm.focus); break; }
+      case 'title': { const vm = titleMenu(short); v.title.render(vm); this.models.set(key, vm.focus); break; }
       case 'modeSelect': { const vm = modeMenu(this.host.availableModes); v.modes.render(vm, MODE_ICONS); this.models.set(key, vm.focus); break; }
       case 'rosterSelect': { const vm = rosterMenu(s.speedClass, s.mode); v.roster.render(vm); this.models.set(key, vm.focus); break; }
       case 'cupSelect': {
@@ -523,13 +565,20 @@ export class UiRoot {
         break;
       }
       case 'trackSelect': { const vm = trackMenu(s.mode ?? 'quick', built, this.save); v.tracks.render(vm); this.models.set(key, vm.focus); break; }
-      case 'pause': { const vm = pauseMenu(); v.pause.render(vm); this.models.set(key, vm.focus); break; }
-      case 'settings': { const vm = settingsMenu(this.save.settings); v.settings.render(vm.rows); this.models.set(key, vm.focus); break; }
+      case 'pause': { const vm = pauseMenu(short); v.pause.render(vm); this.models.set(key, vm.focus); break; }
+      case 'settings': { const vm = settingsMenu(this.save.settings); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
       case 'howTo': { v.howTo.render(ITEM_DEFINITIONS); this.models.set(key, { rows: [['back']] }); break; }
       case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key); break;
       default: break;
     }
+  }
+
+  /** The screen height crossed the short-screen line (a window resized): the title and pause grids follow the buttons. */
+  private setGrids(): void {
+    const short = this.short?.matches ?? false;
+    if (this.models.has('title')) this.models.set('title', titleMenu(short).focus);
+    if (this.models.has('pause')) this.models.set('pause', pauseMenu(short).focus);
   }
 
   private renderEnd(key: string): void {

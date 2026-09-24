@@ -27,9 +27,9 @@ describe('menus', () => {
     const save = defaultSave();
     const built = new Set(['harbour-loop']);
     const models = [
-      titleMenu().focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu(100).focus, rosterMenu(100, 'timeTrial').focus,
+      titleMenu().focus, titleMenu(true).focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu(100).focus, rosterMenu(100, 'timeTrial').focus,
       cupMenu('grandPrix', built, save, 100).focus, cupMenu('knockout', built, save, 100).focus,
-      pauseMenu().focus, settingsMenu(save.settings).focus,
+      pauseMenu().focus, pauseMenu(true).focus, settingsMenu(save.settings).focus,
     ];
     for (const m of models) {
       const start = firstFocus(m)!;
