@@ -73,7 +73,7 @@
         "hazardSlowSeconds": { "type": "number", "default": 1.0 },
         "hazardBumpLateral": { "type": "number", "default": 4, "description": "m/s added away from the hazard centre" },
         "hazardCooldownSeconds": { "type": "number", "default": 1.0 },
-        "pickupRespawnSeconds": { "type": "number", "default": 3.0 },
+        "pickupRespawnSeconds": { "type": "number", "default": 0.5, "description": "a popped balloon is back this soon, so the karts right behind the one that took it still find one (24 Sept 2026: at 3.0 places 2-8 rolled 0.9-1.8 items a minute and sat with an empty slot about 90% of the race; 1.0 still left the middle of the pack empty 60% of the time, 0.5 carries an item about half of it, like Mario Kart World)" },
         "coinRespawnSeconds": { "type": "number", "default": 5.0 }
       }
     }

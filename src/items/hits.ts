@@ -1,6 +1,8 @@
 // One path for every hit. Immunity, the Bubble, and the two hit shapes (spin via
 // the controller's applyHit, or a plain slow) all live here so no item has a private rule.
 import type { KartConstants } from '../kart-controller/constants.ts';
+import { clearBoost } from '../kart-controller/boost.ts';
+import { cancelDrift } from '../kart-controller/drift.ts';
 import { isRiding } from '../kart-controller/powers.ts';
 import { applyHit } from '../kart-controller/step.ts';
 import type { HitKind, KartEvent, KartState, Vec3 } from '../kart-controller/types.ts';
@@ -39,7 +41,12 @@ export function landHit(
     applyHit(s, consts[i], kind, scratch);
     for (const e of scratch) if (e.type === 'hit') { spun = e.spun; coinsLost = e.coinsLost; }
   } else if (fx.slowTo !== undefined) {
-    // a plain slow: stack with a live slow by taking the stronger, longer one
+    // a plain slow (Oil Can: 50% speed for 1 s, design §8). The speed drops at once and the drift and
+    // boost go (24 Sept 2026: capping only the top speed let a kart coast down to it, 0.41 s lost in all);
+    // a live slow stacks by taking the stronger, longer one
+    s.speed = Math.min(s.speed, consts[i].topSpeed * fx.slowTo);
+    cancelDrift(s);
+    clearBoost(s);
     s.status.slowedTo = Math.min(s.status.slowRemaining > 0 ? s.status.slowedTo : 1, fx.slowTo);
     s.status.slowRemaining = Math.max(s.status.slowRemaining, fx.slowSeconds ?? 0);
   }

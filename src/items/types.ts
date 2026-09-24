@@ -81,7 +81,16 @@ export interface ItemsConfig {
   projectileHeight: number;
   homingSnapDistance: number;
   homingLateralRate: number;
+  /** Beach Balls and Wind-Up Mice in flight per kart */
   maxProjectilesPerOwner: number;
+  /** Homing Kites in flight per kart, counted apart */
+  maxKitesPerOwner: number;
+  /** a Kite homing on a kart is a threat (items.threatened) inside this many metres ... */
+  kiteWarnMetres: number;
+  /** ... or this many seconds at its closing speed */
+  kiteWarnSeconds: number;
+  /** a shot, drop and kart on two roads that cross at one level touch within this height */
+  crossHitHeight: number;
   maxGroundPerOwner: number;
   /** metres behind the kart a trailed item rides */
   trailBehindMetres: number;

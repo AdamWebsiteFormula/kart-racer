@@ -35,8 +35,10 @@ export class Items {
   state: ItemsState;
   /** id → role, for ai-driver's itemRoles */
   readonly roles: Readonly<Record<string, ItemRole>>;
-  /** per kart, true while a Homing Kite targets it; recomputed every tick */
+  /** per kart, true while a Homing Kite homing on it is within kiteWarnMetres or kiteWarnSeconds; recomputed every tick */
   readonly threatened: boolean[];
+  /** per kart, metres to the nearest Homing Kite homing on it (Infinity when none) */
+  readonly threatDistance: number[];
   private readonly defs = new Map<string, ItemDefinition>();
   private readonly scratch: KartEvent[] = [];
   private readonly inert: boolean;
@@ -51,6 +53,7 @@ export class Items {
     this.roles = cfg === ITEMS_CONFIG ? ITEM_ROLES : Object.fromEntries(cfg.items.map((d) => [d.id, d.role]));
     const n = host.state.karts.length;
     this.threatened = new Array(n).fill(false);
+    this.threatDistance = new Array(n).fill(Infinity);
     this.state = {
       rng: seedFor(host.state.seed), nextId: 1,
       prevItem: new Array(n).fill(false), shieldRemaining: new Array(n).fill(0),
@@ -85,6 +88,11 @@ export class Items {
     for (let i = 0; i < karts.length; i++) {
       const s = karts[i];
       stepRoulette(s, dt, events);
+      if (m.shieldRemaining[i] > 0 && !s.status.shield) {
+        // a hazard or creature hit popped it (race-manager hazards.ts: the Bubble absorbs one hit of any kind)
+        m.shieldRemaining[i] = 0;
+        events.push({ type: 'shieldPop', racerId: s.racerId });
+      }
       if (m.shieldRemaining[i] > 0) {
         m.shieldRemaining[i] = Math.max(0, m.shieldRemaining[i] - dt);
         if (m.shieldRemaining[i] === 0 && s.status.shield) { s.status.shield = false; events.push({ type: 'shieldEnd', racerId: s.racerId }); }
@@ -128,28 +136,29 @@ export class Items {
     stepProjectiles(cfg, m, track, karts, dt, events);
     stepGround(m, track, karts, dt, events);
 
-    // 5. overlaps: projectile × projectile, projectile × ground, projectile × kart, ground × kart
+    // 5. overlaps: projectile × projectile, projectile × ground, projectile × kart, ground × kart.
+    // Two things touch on one road, or where two roads cross at one level (`meets`)
     const ps = m.projectiles, gs = m.groundItems;
     for (let a = ps.length - 1; a >= 0; a--) {
       const p = ps[a];
       let gone = false;
       for (let b = a - 1; b >= 0 && !gone; b--) {
         const q = ps[b];
-        if (q.branch === p.branch && distXZ(p.position, q.position) <= p.radius + q.radius) {
+        if (this.meets(p.branch, p.position[1], q.branch, q.position[1]) && distXZ(p.position, q.position) <= p.radius + q.radius) {
           popProjectile(m, p, events); popProjectile(m, q, events); gone = true; a--;
         }
       }
       if (gone) continue;
       for (let b = gs.length - 1; b >= 0 && !gone; b--) {
         const g = gs[b];
-        if (g.branch === p.branch && distXZ(p.position, g.position) <= p.radius + g.radius) {
+        if (this.meets(p.branch, p.position[1] - cfg.projectileHeight, g.branch, g.position[1]) && distXZ(p.position, g.position) <= p.radius + g.radius) {
           popProjectile(m, p, events); popGround(m, g, events); gone = true;
         }
       }
       if (gone) continue;
       for (let i = 0; i < karts.length && !gone; i++) {
         const s = karts[i];
-        if (s.branch !== p.branch || (p.hitMask & (1 << i)) !== 0) continue;
+        if ((p.hitMask & (1 << i)) !== 0 || !this.meets(p.branch, p.position[1] - cfg.projectileHeight, s.branch, s.position[1])) continue;
         if (i === p.owner && p.graceRemaining > 0) continue;
         if (distXZ(p.position, s.position) > p.radius + consts[i].kartRadius) continue;
         if (s.position[1] - (p.position[1] - cfg.projectileHeight) > cfg.hitHeight) continue; // sprung over it
@@ -175,7 +184,7 @@ export class Items {
       const g = gs[b];
       for (let i = 0; i < karts.length; i++) {
         const s = karts[i];
-        if (s.branch !== g.branch || !hittable(s)) continue;
+        if (!hittable(s) || !this.meets(g.branch, g.position[1], s.branch, s.position[1])) continue;
         if (i === g.owner && g.graceRemaining > 0) continue;
         if (distXZ(g.position, s.position) > g.radius + consts[i].kartRadius) continue;
         if (s.position[1] - g.position[1] > cfg.hitHeight) continue; // sprung over it
@@ -191,7 +200,17 @@ export class Items {
 
     // 7. AI threat flags and the leader warning
     this.threatened.fill(false);
-    for (const p of m.projectiles) if (p.target >= 0) this.threatened[p.target] = true;
+    this.threatDistance.fill(Infinity);
+    for (const p of m.projectiles) {
+      if (p.target < 0) continue;
+      const o = karts[p.target];
+      const d = distXZ(p.position, o.position);
+      if (d < this.threatDistance[p.target]) this.threatDistance[p.target] = d;
+      // a threat only once it is about to arrive (24 Sept 2026: the AI horned or hopped the moment a Kite
+      // locked on, 80 m back, and had nothing left when it got there)
+      const closing = Math.abs(p.speed) - o.speed;
+      if (d <= cfg.kiteWarnMetres || (closing > 0 && d / closing <= cfg.kiteWarnSeconds)) this.threatened[p.target] = true;
+    }
     let fogHolder = '';
     for (const s of karts) if (this.defs.get(s.item.held)?.role === 'equaliser' || this.defs.get(s.item.next)?.role === 'equaliser') { fogHolder = s.racerId; break; }
     if (fogHolder !== m.fogHeldBy) {
@@ -232,6 +251,15 @@ export class Items {
     const branches = this.track.branches;
     const on = it.branch > 0 ? mainUnder(branches, it.position) : -1;
     if (on >= 0) { it.t = on; it.branch = 0; } else it.t = branches.list[it.branch].nearestGlobal(it.position).t;
+  }
+
+  /**
+   * Can things on these two roads at these heights (ground level) touch? On one road, always (the hit
+   * height rules decide the rest); on two roads, only where they cross at one level (24 Sept 2026:
+   * at Boardwalk's crossing a ball passed through a kart on the other road).
+   */
+  private meets(branchA: number, yA: number, branchB: number, yB: number): boolean {
+    return branchA === branchB || Math.abs(yA - yB) <= this.cfg.crossHitHeight;
   }
 
   /** A projectile reaching kart s from behind (it would hit the trailed item first). */

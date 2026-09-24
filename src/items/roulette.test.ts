@@ -55,7 +55,8 @@ describe('roll', () => {
   it('the Knockout pool shrinks with the racers left', () => {
     const four = setup({ n: 4, mode: 'knockout' });
     go(four); tick(four, seconds(16));
-    expect(weightsFor(ITEMS_CONFIG, four.rm.state, four.rm.consts, four.track, 4).fogBank).toBeUndefined();
+    // last of four draws the last row (items audit, 24 Sept 2026), with the 4-racer pool's masks
+    expect(weightsFor(ITEMS_CONFIG, four.rm.state, four.rm.consts, four.track, 4).fogBank).toBe(0);
     const st = four.rm.state; st.karts[3].rank = 8;
     expect(weightsFor(ITEMS_CONFIG, st, four.rm.consts, four.track, 8).fogBank).toBe(0);
     const two = setup({ n: 2, mode: 'knockout' });

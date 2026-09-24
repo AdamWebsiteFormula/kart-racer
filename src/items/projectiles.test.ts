@@ -130,10 +130,22 @@ describe('Homing Kite', () => {
       give(h, 0, 'homingKite');
       press(h, 0);
       expect(h.items.state.projectiles[0].target).toBe(1);
-      expect(h.items.threatened[1]).toBe(true);
+      // locked on, but a threat (the AI's cue to horn or hop) only once it is about to arrive
+      expect(h.items.threatened[1]).toBe(false);
+      expect(h.items.threatDistance[1]).toBeGreaterThan(ITEMS_CONFIG.kiteWarnMetres);
       give(h, 0, 'homingKite');
       expect(press(h, 0).some((e) => e.type === 'itemRefused' && e.reason === 'inFlight')).toBe(true);
-      tick(h, seconds(6));
+      let warned = false;
+      for (let k = 0; k < seconds(6) && !h.log.some((e) => e.type === 'hit'); k++) {
+        tick(h, 1);
+        const p = h.items.state.projectiles.find((q) => q.itemId === 'homingKite');
+        if (h.items.threatened[1] && !warned && p) {
+          warned = true;
+          expect(h.items.threatDistance[1]).toBeLessThanOrEqual(Math.max(ITEMS_CONFIG.kiteWarnMetres, p.speed * ITEMS_CONFIG.kiteWarnSeconds));
+        }
+      }
+      expect(warned, `ahead ${ahead}`).toBe(true);
+      tick(h, seconds(1));
       expect(h.log.find((e) => e.type === 'hit'), `ahead ${ahead}`).toMatchObject({ racerId: 'k1', itemId: 'homingKite' });
       expect(h.items.threatened[1]).toBe(false);
     }

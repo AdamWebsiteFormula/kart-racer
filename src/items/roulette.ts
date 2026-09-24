@@ -30,14 +30,35 @@ export function racersRemaining(st: RaceState): number {
   return n;
 }
 
+/**
+ * The table row (1-based) for `rank` in a field of `field` racers: the rows stretch over the field, so
+ * last place always draws the last row (24 Sept 2026: Knockout's 6 and 4 racer segments read the raw
+ * place, and last of 4 drew the 4th-place row, with no comeback power in it).
+ */
+export function rowFor(rank: number, field: number, rows: number): number {
+  const r = Math.min(Math.max(rank, 1), Math.max(field, 1));
+  if (field <= 1) return 1;
+  return Math.min(rows, 1 + Math.round(((r - 1) * (rows - 1)) / (field - 1)));
+}
+
+/** Knockout's pool for `n` racers: the entry for n, else the nearest smaller one (a 3-racer field uses the 2-racer pool). */
+export function knockoutPool(cfg: ItemsConfig, n: number): readonly string[] | undefined {
+  let best = -1;
+  for (const k of Object.keys(cfg.knockoutPoolByRacers)) { const v = Number(k); if (v <= n && v > best) best = v; }
+  return best < 0 ? undefined : cfg.knockoutPoolByRacers[String(best)];
+}
+
 /** The weights a kart of `rank` draws from right now, after every mask. */
 export function weightsFor(cfg: ItemsConfig, st: RaceState, consts: readonly KartConstants[], track: Track, rank: number): Record<string, number> {
-  const row = cfg.table[Math.min(Math.max(rank, 1), cfg.table.length) - 1];
+  const field = racersRemaining(st);
+  const row = cfg.table[rowFor(rank, field, cfg.table.length) - 1];
   const out: Record<string, number> = { ...row };
   const locked = st.time < cfg.lockoutSeconds || leaderSecondsToFinish(st, consts, track) <= cfg.finalLapLockoutSeconds;
   if (locked) for (const id of cfg.lockedDuringLockout) out[id] = 0;
+  // never an item this place could not use (the Fog Bank at 4th of 6 draws row 5)
+  for (const d of cfg.items) if (out[d.id] && rank < (d.behaviour.minPosition ?? 1)) out[d.id] = 0;
   if (st.mode === 'knockout') {
-    const pool = cfg.knockoutPoolByRacers[String(racersRemaining(st))];
+    const pool = knockoutPool(cfg, field);
     if (pool) for (const id of Object.keys(out)) if (!pool.includes(id)) out[id] = 0;
   }
   return out;

@@ -70,7 +70,10 @@ export function useItem(
     case 'forward':
     case 'homing':
     case 'runner': {
-      if (inFlightFor(m, i) >= cfg.maxProjectilesPerOwner) return refuse(events, s, 'inFlight');
+      // one Kite at a time; up to maxProjectilesPerOwner Balls and Mice besides it (24 Sept 2026: one shot of
+      // any kind refused a Beach Ball for the whole 10 s a Kite flew)
+      const kite = def.role === 'homing';
+      if (inFlightFor(cfg, m, i, kite) >= (kite ? cfg.maxKitesPerOwner : cfg.maxProjectilesPerOwner)) return refuse(events, s, 'inFlight');
       spawnProjectile(cfg, m, track, karts, st.speedClass, i, def, def.role !== 'homing' && input.lookBack, events);
       break;
     }

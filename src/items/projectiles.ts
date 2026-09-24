@@ -29,9 +29,13 @@ export function classScale(cc: 50 | 100 | 150): number {
   return BASE.speedClasses[String(cc) as '50' | '100' | '150'];
 }
 
-export function inFlightFor(m: ItemsState, owner: number): number {
+/** Shots `owner` has in flight: its homing ones (`homing` true) or the rest. */
+export function inFlightFor(cfg: ItemsConfig, m: ItemsState, owner: number, homing: boolean): number {
   let n = 0;
-  for (const p of m.projectiles) if (p.owner === owner) n++;
+  for (const p of m.projectiles) {
+    if (p.owner !== owner) continue;
+    if ((cfg.items.find((d) => d.id === p.itemId)?.behaviour.homing === true) === homing) n++;
+  }
   return n;
 }
 
@@ -40,17 +44,29 @@ function reaches(branch: number, kartBranch: number): boolean {
   return kartBranch === branch || kartBranch === 0;
 }
 
-/** Nearest kart physically ahead of `owner` along the spline (less than half a lap) that a shot on `branch` can reach, or -1. */
-export function pickTarget(karts: readonly KartState[], owner: number, branch: number): number {
-  const me = karts[owner];
+/** A kart a Kite can chase: racing, solid (not respawning), not a ghost. */
+function chaseable(o: KartState): boolean {
+  return !o.isGhost && o.finishTick === undefined && o.status.intangibleRemaining <= 0;
+}
+
+/**
+ * Nearest kart physically ahead of t `from` along the spline (less than half a lap) that a shot on `branch`
+ * can reach and that can be hit, never `owner`, or -1.
+ */
+export function nearestAhead(karts: readonly KartState[], owner: number, from: number, branch: number): number {
   let best = -1, bestGap = 0.5;
   for (let i = 0; i < karts.length; i++) {
     const o = karts[i];
-    if (i === owner || o.isGhost || o.finishTick !== undefined || !reaches(branch, o.branch)) continue;
-    const gap = wrap01(o.t - me.t);
+    if (i === owner || !chaseable(o) || !reaches(branch, o.branch)) continue;
+    const gap = wrap01(o.t - from);
     if (gap > 0 && gap < bestGap) { bestGap = gap; best = i; }
   }
   return best;
+}
+
+/** Nearest kart physically ahead of `owner` (less than half a lap) that a shot on `branch` can reach, or -1. */
+export function pickTarget(karts: readonly KartState[], owner: number, branch: number): number {
+  return nearestAhead(karts, owner, karts[owner].t, branch);
 }
 
 export function spawnProjectile(
@@ -76,7 +92,8 @@ export function spawnProjectile(
     bouncesLeft: homing || runner ? 0 : (def.behaviour.bounces ?? 0),
     target: homing ? pickTarget(karts, owner, near.branch) : -1,
     ttl: def.behaviour.lifetimeSeconds ?? 8, graceRemaining: cfg.ownerGraceSeconds, radius: def.behaviour.radius ?? 0.5,
-    hitsLeft: def.behaviour.hits ?? 1, hitMask: 0, age: 0,
+    // the Mouse never bumps its own kart (24 Sept 2026: an owner boosting past it was spun by it)
+    hitsLeft: def.behaviour.hits ?? 1, hitMask: runner ? 1 << owner : 0, age: 0,
     weave: runner ? (def.behaviour.weave ?? 0) : 0, weaveSeconds: def.behaviour.weaveSeconds ?? 1,
   };
   // the Mouse starts its weave from where it was let go
@@ -120,8 +137,10 @@ export function stepProjectiles(
     if (p.speed !== 0) {
       // Homing Kite and Wind-Up Mouse: ride the spline (the Mouse either way)
       const tgt = p.target >= 0 ? karts[p.target] : undefined;
-      // a kart on the other road is still chased: the Kite lines up on it again where the roads meet
-      if (tgt && (tgt.finishTick !== undefined || tgt.isGhost || tgt.status.intangibleRemaining > 0)) p.target = -1;
+      // a kart on the other road is still chased: the Kite lines up on it again where the roads meet.
+      // One that finishes or respawns is let go, and the Kite takes the next kart ahead of it (24 Sept
+      // 2026: it flew on blind for the rest of its life)
+      if (tgt && !chaseable(tgt)) p.target = nearestAhead(karts, p.owner, p.t, p.branch);
       p.t = wrap01(p.t + (p.speed * dt) / L);
       if (p.branch > 0) {
         // past either end of its shortcut it rides the main road that end joins (and hits karts there)

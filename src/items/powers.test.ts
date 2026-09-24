@@ -112,7 +112,8 @@ describe('Strike Ball', () => {
     press(h, 0);
     tick(h, seconds(2));
     const hits = h.log.filter((e) => e.type === 'hit' && e.racerId === 'k1');
-    expect(hits).toEqual([expect.objectContaining({ itemId: 'strikeBall', spun: false, coinsLost: 2 })]);
+    // coin buffer off (Adam, 24 Sept 2026): the knock spins even with coins in hand
+    expect(hits).toEqual([expect.objectContaining({ itemId: 'strikeBall', spun: true, coinsLost: 2 })]);
     expect(b.coins).toBe(8);
   });
 
@@ -263,12 +264,14 @@ describe('Grapple Anchor', () => {
     expect(end?.type === 'tetherEnd' && !end.slingshot).toBe(true);
     expect(a.status.towTarget).toBe(-1);
 
-    // both in the cut, b driving out ahead: a is pulled out after it and flies past
+    // both in the cut, b driving out ahead: a is pulled out after it and flies past. 25 m back, not 40:
+    // since the cut's exit curves (24 Sept 2026) b, with no steer, scrubs speed there, and from a standstill
+    // a hooked 40 m back ran out the 3 s pull 8 m short (25 m reels in with 0.5 s to spare)
     const o = setup({ n: 2, def: trackDef('meadow') });
     go(o);
     const [c, d] = [kart(o, 0), kart(o, 1)];
     placeOn(o, 1, 1, 0.97);
-    placeOn(o, 0, 1, 0.97 - 40 / (o.track.length * o.track.branches.list[1].span));
+    placeOn(o, 0, 1, 0.97 - 25 / (o.track.length * o.track.branches.list[1].span));
     d.speed = 25;
     o.inputs[1].throttle = 1;
     give(o, 0, 'grappleAnchor');
