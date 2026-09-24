@@ -103,7 +103,11 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
         // a branch's blended ends are plain: no stripes, no lines where it slides under the main road
         // a shoulder on an open edge (a cliff lip) is drawn; on an off-road track a walled one is not (scene.ts discards it)
         const sideOpen = (lut.open[j] & (l < 0 ? 1 : 2)) !== 0;
-        mark[v] = inBlend && strip.mark !== M.road ? M.plain : strip.mark === M.shoulder && sideOpen ? M.cliffShoulder : strip.mark;
+        // on an off-road track the blended ends have no shoulder either (grass meets their edge) and no
+        // lane lines (under the main road they only flicker through it)
+        mark[v] = inBlend
+          ? (strip.mark === M.shoulder && opts.offroad ? M.shoulder : strip.mark === M.road && !opts.offroad ? M.road : M.plain)
+          : strip.mark === M.shoulder && sideOpen ? M.cliffShoulder : strip.mark;
         bend[v] = lut.closed || (i - K >= 0 && i + K <= lut.step) ? bendAt(i) : 0;
         v++;
       }

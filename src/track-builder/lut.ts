@@ -5,6 +5,7 @@
 // sampleInto() fills a caller-owned one.
 import type { TrackSample } from '../kart-controller/types.ts';
 import { BUILDER } from './constants.ts';
+import type { LandPoint, RoadIndex } from './terrain.ts';
 import { ClosedSpline, OpenSpline, type Spline } from './spline.ts';
 import { SURFACES, surfaceId, type ControlPoint, type Vec3 } from './types.ts';
 
@@ -22,6 +23,8 @@ export interface LutOptions {
   /** false builds an open branch LUT. Default true. */
   closed?: boolean;
 }
+
+const LAND: LandPoint = { top: 0, edge: 0, next: 0, open: false, pieces: 0 };
 
 export class Lut {
   readonly n: number;
@@ -45,6 +48,10 @@ export class Lut {
   readonly open: Uint8Array;
   /** an off-road track (Track.rebuildDerived sets it): past the curb, loose ground to a wall past the shoulder */
   offroad = false;
+  /** an off-road track's land (terrain.ts, Track sets it): the ground past the curb, as drawn */
+  land: RoadIndex | null = null;
+  /** the ground plane under the land (terrain.ts groundPlaneY): the off-road never sinks below it */
+  floorY = -Infinity;
   /** control-point segment the sample lies in */
   readonly seg: Uint16Array;
   /** per-sample grip scale, 1 until a shift multiplies it */
@@ -103,9 +110,12 @@ export class Lut {
     }
     this.minY = minY;
     this.maxY = maxY;
+    this.refreshFrames();
+  }
 
-    // 3. tangents from central differences (one-sided at open ends); right is horizontal
-    for (let i = 0; i < n; i++) {
+  /** Tangents from central differences (one-sided at open ends); right is horizontal. Again after a weld (branches.ts). */
+  refreshFrames(): void {
+    for (let i = 0; i < this.n; i++) {
       const ip = this.idx(i + 1), im = this.idx(i - 1);
       let dx = this.px[ip] - this.px[im];
       let dy = this.py[ip] - this.py[im];
@@ -189,11 +199,38 @@ export class Lut {
       const off = Math.abs(lateral) - out.halfWidth;
       if (off > BUILDER.kerbWidth) {
         out.surface = 'dirt';
-        const drop = openSide
-          ? BUILDER.shoulderDrop * Math.min(1, (off - BUILDER.kerbWidth) / BUILDER.shoulderWidth)
-          : BUILDER.offroadDrop * Math.min(1, (off - BUILDER.kerbWidth) / 0.5);
-        out.groundY -= drop;
-        p[1] -= drop;
+        if (openSide) {
+          const drop = BUILDER.shoulderDrop * Math.min(1, (off - BUILDER.kerbWidth) / BUILDER.shoulderWidth);
+          out.groundY -= drop;
+          p[1] -= drop;
+        } else {
+          // the land as drawn (terrain.ts): flat from the curb out, one smooth slope to any other
+          // road near; the first half metre past the curb eases down onto it
+          const flat = y + Math.sign(lateral) * (off - BUILDER.kerbWidth) * Math.tan(bank) - BUILDER.offroadDrop;
+          let top = flat, blended = false;
+          if (this.land) {
+            const q = this.land.query(x, z, LAND);
+            if (q.pieces > 0) { top = q.top; blended = q.pieces > 1; }
+          }
+          if (top < this.floorY) top = this.floorY;
+          const k = Math.min(1, (off - BUILDER.kerbWidth) / 0.5);
+          const gy = y + (top - y) * k;
+          out.groundY = gy;
+          p[1] = gy;
+          if (k >= 1) {
+            // level across; where two roads' land blends, the slope between them
+            let gx = 0, gz = 0;
+            if (blended && this.land) {
+              const ax = Math.max(this.floorY, this.land.top(x + 0.5, z)), az = Math.max(this.floorY, this.land.top(x, z + 0.5));
+              gx = (ax - top) / 0.5; gz = (az - top) / 0.5;
+              nm[0] = -gx; nm[1] = 1; nm[2] = -gz;
+            } else {
+              nm[0] = ty * rz; nm[1] = tz * rx - tx * rz; nm[2] = -ty * rx;
+            }
+            const l = Math.hypot(nm[0], nm[1], nm[2]) || 1;
+            nm[0] /= l; nm[1] /= l; nm[2] /= l;
+          }
+        }
       }
       if (openSide) out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
     }

@@ -192,14 +192,15 @@ describe('off-road (Adam, 23 Sept 2026: the Mario Kart way)', () => {
   const hw = track.sample(T, 0).halfWidth;
   const { kerbWidth: kw, shoulderWidth: sw, shoulderDrop: drop } = BUILDER;
 
-  it('past the curb on a walled side: loose ground (dirt) a hair under the road, as the land draws it, out to an invisible course limit', () => {
+  it('past the curb on a walled side: loose ground (dirt), level from the curb a hair under it, as the land draws it, out to an invisible course limit', () => {
     expect(track.sample(T, 0).open ?? 0).toBe(0);
     expect(track.sample(T, hw + kw * 0.5).surface).toBe('road'); // the curb
     const mid = track.sample(T, hw + kw + sw * 0.5);
     expect(mid.surface).toBe('dirt');
-    // against the same road with a wall at its edge (the banked plane carried on), a hair lower
-    const plane = buildTrack(walledCanyon()).sample(T, hw + kw + sw * 0.5);
-    expect(plane.groundY - mid.groundY).toBeCloseTo(BUILDER.offroadDrop, 6);
+    // the land (terrain.ts): level from the curb's outer edge out, a hair under it
+    const curb = track.sample(T, hw + kw);
+    expect(curb.groundY - mid.groundY).toBeCloseTo(BUILDER.offroadDrop, 2);
+    expect(track.sample(T, hw + kw + sw).groundY).toBeCloseTo(mid.groundY, 2);
     expect(mid.overCliff).toBe(false);
     expect(mid.wall).toBeCloseTo(hw + kw + BUILDER.offroadReach, 6);
     void drop;

@@ -9,6 +9,7 @@ import { buildLut, wrap01 } from './lut.ts';
 import { buildMinimap, type Minimap } from './minimap.ts';
 import { buildCheckpoints, buildSpawnGrid } from './race.ts';
 import { applyFinalLapShift, type ShiftKart } from './shift.ts';
+import { RoadIndex, groundPlaneY } from './terrain.ts';
 import type { BakedFeature, Checkpoint, ControlPoint, SpawnSlot, TrackChanged, TrackDefinition, Vec3 } from './types.ts';
 import { assertValid } from './validate.ts';
 
@@ -35,6 +36,10 @@ export class Track implements TrackQuery {
   /** open edges and loops as laid now: t re-derived from world points after a route change; dropped if their road was replaced */
   openEdges: { fromT: number; toT: number; side: 'left' | 'right' | 'both'; fromPoint: Vec3; toPoint: Vec3 }[];
   loopFeet: { id: string; t: number; radius?: number; point: Vec3 }[];
+  /** the ground plane's height (terrain.ts): the scene draws it there, the off-road never sinks below it */
+  readonly groundPlaneY: number;
+  /** an off-road track's land beside the road (terrain.ts), as drawn and as driven; null otherwise */
+  readonly land: RoadIndex | null;
   private readonly listeners: TrackListener[] = [];
 
   constructor(def: TrackDefinition) {
@@ -46,6 +51,8 @@ export class Track implements TrackQuery {
     const list = [main];
     (def.shortcuts ?? []).forEach((sc, i) => list.push(buildBranch(i + 1, sc, mainLut)));
     this.branches = new Branches(list);
+    this.groundPlaneY = groundPlaneY(def, mainLut);
+    this.land = def.offroad === true ? new RoadIndex(list.map((b) => b.lut)) : null;
     this.startT = wrap01(def.startGrid.t);
     this.startPoint = mainLut.sample(this.startT, 0).position;
     this.openEdges = (def.openEdges ?? []).map((e) => ({ ...e, fromPoint: mainLut.sample(e.fromT, 0).position, toPoint: mainLut.sample(e.toT, 0).position }));
@@ -111,7 +118,11 @@ export class Track implements TrackQuery {
   rebuildDerived(): void {
     const lut = this.branches.main.lut;
     // off-road past the curb on every branch (a route change builds a new LUT, so it is set again here)
-    for (const b of this.branches.list) b.lut.offroad = this.def.offroad === true;
+    for (const b of this.branches.list) {
+      b.lut.offroad = this.def.offroad === true;
+      b.lut.land = this.land;
+      b.lut.floorY = this.groundPlaneY;
+    }
     // open edges (a route change builds a new LUT, so they are laid again here)
     lut.open.fill(0);
     for (const e of this.openEdges) {

@@ -14,7 +14,7 @@ import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
 import { hashString, mulberry32, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { CreatureView } from './creatures.ts';
-import { buildCoast, buildPier } from './land.ts';
+import { buildCoast, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
 import { buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
@@ -345,11 +345,22 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   addBarriers();
 
   // decor: one instancer per asset, seeded by the track id
-  const groundY = env.ground?.y ?? 0;
+  // the ground plane (terrain.ts): on an off-road track it sits under the lowest curb
+  const groundY = Number.isFinite(track.groundPlaneY) ? track.groundPlaneY : env.ground?.y ?? 0;
+  const groundKind = env.ground?.kind ?? 'plane';
+  // the land around the road: a sea track's coast, a land track's hills under its raised road
+  const land = LAND[def.biome];
+  const rises = branches.main.lut.maxY - groundY > LAND_MIN_RISE;
+  const coastOpts: CoastOptions | null = groundKind === 'none' ? null
+    : groundKind === 'water' ? { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell, wet: true, offroad: def.offroad === true, land: track.land }
+    : land && rises ? { waterY: groundY, flat: COAST.flat, slope: land.slope, cell: COAST.cell, strata: land.strata, offroad: def.offroad === true, land: track.land } : null;
+  // an off-road track's scenery stands on the land as drawn (a banked corner's low side is lower)
+  const offLand = track.land && coastOpts ? track.land : null;
+  const groundAt = offLand && coastOpts ? (x: number, z: number) => Math.max(groundY, landAt(offLand, coastOpts, x, z)?.y ?? -Infinity) : undefined;
   const rng = mulberry32(hashString(def.id));
   const decor: DecorPlacement[] = [];
   for (const entry of env.decor ?? []) {
-    const p = placeDecor(branches, entry, rng, groundY);
+    const p = placeDecor(branches, entry, rng, groundY, groundAt);
     decor.push(p);
     const m = instancer(`decor:${entry.asset}`, geometryFor(assets, entry.asset, 'decor'), palette.decor, p.matrices, undefined, assets.materials?.[entry.asset]);
     // an instancer is never culled per instance, so every copy is drawn into the shadow map each
@@ -496,7 +507,6 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   group.add(startLine);
 
   // ground: one plane (or water), none for sky tracks
-  const groundKind = env.ground?.kind ?? 'plane';
   if (groundKind !== 'none') {
     const own = assets.ground?.(groundKind, GROUND_SIZE);
     const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), own ?? new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
@@ -507,11 +517,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     group.add(ground);
     // a sea track gets a coast along the road, a land track hills under its raised road, so every
     // roadside prop stands on ground and no road floats
-    const land = LAND[def.biome];
-    const rises = branches.main.lut.maxY - groundY > LAND_MIN_RISE;
-    const coastGeo = groundKind === 'water'
-      ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: COAST.slope, cell: COAST.cell, wet: true, offroad: def.offroad === true })
-      : land && rises ? buildCoast(branches, { waterY: groundY, flat: COAST.flat, slope: land.slope, cell: COAST.cell, strata: land.strata, offroad: def.offroad === true }) : null;
+    const coastGeo = coastOpts ? buildCoast(branches, coastOpts) : null;
     if (coastGeo) {
       const own = assets.coast?.();
       const coast = new Mesh(coastGeo, own ?? new MeshToonMaterial({ color: toColor(palette.shoulder), vertexColors: true, gradientMap: GRADIENT ?? null }));

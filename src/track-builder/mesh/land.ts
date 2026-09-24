@@ -10,6 +10,7 @@ import { BufferAttribute, BufferGeometry, CylinderGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Branches } from '../branches.ts';
 import { BUILDER } from '../constants.ts';
+import type { LandPoint, RoadIndex } from '../terrain.ts';
 
 export interface CoastOptions {
   /** the sea plane's height */
@@ -26,6 +27,8 @@ export interface CoastOptions {
   strata?: boolean;
   /** off-road track: the land meets the curb (offroadDrop under the road), no shoulder strip between */
   offroad?: boolean;
+  /** an off-road track's land (terrain.ts): its flat top is the kart's ground past the curb, exactly */
+  land?: RoadIndex | null;
 }
 
 /** Strata tints (multiplied over the texture), bottom to top, one band per 2.4 m. */
@@ -37,6 +40,30 @@ const UNDER = 1.2;
 const UNDER_ROAD = 0.12;
 /** Metres over which an open edge's cliff falls: near sheer, as the physics has no ground past it. */
 const CLIFF = 2.5;
+
+const LP: LandPoint = { top: 0, edge: 0, next: 0, open: false, pieces: 0 };
+const OUT = { y: 0, mix: 0, under: false };
+
+/**
+ * The drawn land at (x, z) on an off-road track: terrain.ts's land (what the kart drives on) out to
+ * `flat` past where the old shoulder ended, then the eased fall to below the ground plane. Null with
+ * no road within reach (the far ground).
+ */
+export function landAt(land: RoadIndex, o: CoastOptions, x: number, z: number): typeof OUT | null {
+  const q = land.query(x, z, LP, BUILDER.shoulderWidth + o.flat + o.slope + 2);
+  if (q.pieces === 0) return null;
+  const past = q.edge - BUILDER.shoulderWidth;
+  const lip = q.open ? 0 : o.flat, fall = q.open ? CLIFF : o.slope;
+  let y = q.top;
+  if (past > lip) {
+    const k = Math.min(1, (past - lip) / fall);
+    y = q.top + (o.waterY - UNDER - q.top) * (k * k * (3 - 2 * k));
+  }
+  OUT.y = y;
+  OUT.mix = Math.max(0, Math.min(1, (past - lip + 1.5) / 3));
+  OUT.under = q.edge < -0.5;
+  return OUT;
+}
 
 export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry | null {
   // road samples (every other LUT sample is plenty at a 2–3 m grid), bucketed for the search
@@ -75,7 +102,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
       const x = x0 + i * o.cell, z = z0 + j * o.cell, v = j * nx + i;
       const bx = Math.floor(x / B), bz = Math.floor(z / B);
       let best = Infinity, bk = -1;
-      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      if (!o.land) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
         const list = buckets.get(key(bx + dx, bz + dz));
         if (!list) continue;
         for (const k of list) {
@@ -84,7 +111,10 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
         }
       }
       let y = o.waterY - UNDER, mix = 1;
-      if (bk >= 0) {
+      const at = o.land ? landAt(o.land, o, x, z) : null;
+      if (o.land) {
+        if (at) { y = at.y; mix = at.mix; under[v] = at.under ? 1 : 0; }
+      } else if (bk >= 0) {
         // the road's own height at this lateral (a banked road's low edge is below its middle),
         // and the land a little under it, so no grass ever pokes up through the road
         const lat = (x - xs[bk]) * rxs[bk] + (z - zs[bk]) * rzs[bk];

@@ -87,10 +87,10 @@ export interface DecorPlacement {
 /**
  * Place `instances` of one decor entry in its band. roadside: 8–14 m past the road edge
  * at road height minus the shoulder drop. far: 30–120 m from the centreline at ground
- * height. sky: 25–60 m above the road. Anything inside a road envelope is rejected and
+ * height. With `groundAt` (an off-road track's land), both stand on the land as drawn. sky: 25–60 m above the road. Anything inside a road envelope is rejected and
  * retried; the RNG is shared across entries so order matters and is fixed by the JSON.
  */
-export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef['decor']>[number], rng: () => number, groundY: number): DecorPlacement {
+export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef['decor']>[number], rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number): DecorPlacement {
   const main = branches.main.lut;
   const band = entry.band === 'roadside' && main.offroad ? BUILDER.decorBands.roadsideOffroad : BUILDER.decorBands[entry.band];
   const out: number[] = [];
@@ -122,7 +122,7 @@ export function placeDecor(branches: Branches, entry: NonNullable<EnvironmentDef
       const lateral = side * (entry.band === 'roadside' ? c.halfWidth + BUILDER.kerbWidth + dist : dist);
       x = c.position[0] + c.tangent[2] * lateral;
       z = c.position[2] - c.tangent[0] * lateral;
-      y = entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
+      y = groundAt ? groundAt(x, z) : entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
       if (insideRoadEnvelope(branches, x, z)) continue;
     }
     pushTransform(out, [x, y + (entry.lift ?? 0) * scale, z], yaw, [scale, scale, scale]);

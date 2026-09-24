@@ -113,8 +113,57 @@ export function buildBranch(index: number, def: ShortcutDef, main: Lut, points: 
   // build once at a small size to learn the length, then at the real size
   const probe = buildLut(points, { closed: false, samples: 64, divisions: 256 });
   const lut = buildLut(points, { closed: false, samples: branchSampleCount(probe.length, main.length), divisions: Math.max(256, Math.round(BUILDER.arcDivisions * probe.length / main.length)) });
+  weldEnds(lut, main, wrap01(def.entryT), wrap01(def.exitT));
   return new Branch(index, def.id, lut, wrap01(def.entryT), wrap01(def.exitT), def.openOnLaps ?? []);
 }
+
+/**
+ * Weld a shortcut's ends onto the main road (review, 23 Sept 2026). At a mouth the two ribbons
+ * overlap for metres while they part; each had its own height and bank there, so one poked through
+ * the other (grey slabs in the grass) and a kart handed from one to the other jumped up to 0.4 m.
+ * Where they overlap the shortcut now takes the main road's surface (its height under the shortcut's
+ * centre, and its bank), easing back to its own as the two pull clear of each other.
+ */
+function weldEnds(lut: Lut, main: Lut, entryT: number, exitT: number): void {
+  const ds = lut.length / lut.step;
+  for (const fromStart of [true, false]) {
+    let hint = main.idx(Math.round((fromStart ? entryT : exitT) * main.step));
+    let parted = -1; // metres along the shortcut where the two ribbons stopped overlapping
+    for (let s = 0; s < lut.n >> 1; s++) {
+      const i = fromStart ? s : lut.n - 1 - s;
+      const x = lut.px[i], z = lut.pz[i];
+      // the main road's nearest sample, walked along from the last one
+      let best = Infinity;
+      for (let k = -24; k <= 24; k++) {
+        const j = main.idx(hint + k), dx = main.px[j] - x, dz = main.pz[j] - z, d = dx * dx + dz * dz;
+        if (d < best) { best = d; hint = j; }
+      }
+      const j = hint;
+      const lat = (x - main.px[j]) * main.rx[j] + (z - main.pz[j]) * main.rz[j];
+      // how far across the main road the shortcut's ribbon reaches (it may leave at any angle)
+      const across = lut.rx[i] * main.rx[j] + lut.rz[i] * main.rz[j];
+      const gap = Math.abs(lat) - (main.hw[j] + BUILDER.kerbWidth) - (lut.hw[i] + BUILDER.kerbWidth) * Math.abs(across);
+      if (parted < 0 && gap > -1) parted = s * ds;
+      // welded while they overlap, then eased back to its own line over WELD_EASE metres
+      const k = parted < 0 ? 0 : Math.min(1, (s * ds - parted) / WELD_EASE);
+      const w = 1 - k * k * (3 - 2 * k);
+      if (w <= 0) break;
+      // the main road's surface under the shortcut's centre (level from its curb out, as the land
+      // is), and the tilt it has along the shortcut's own lateral (its bank and climb, seen sideways)
+      const curb = main.hw[j] + BUILDER.kerbWidth, latC = Math.max(-curb, Math.min(curb, lat));
+      const th = Math.hypot(main.tx[j], main.tz[j]) || 1, climb = main.ty[j] / th;
+      const along = (lut.rx[i] * main.tx[j] + lut.rz[i] * main.tz[j]) / th;
+      const y = main.py[j] - latC * Math.tan(main.bank[j]);
+      const bank = Math.atan(Math.tan(main.bank[j]) * across - climb * along);
+      lut.py[i] += (y - lut.py[i]) * w;
+      lut.bank[i] += (bank - lut.bank[i]) * w;
+    }
+  }
+  lut.refreshFrames();
+}
+
+/** Metres over which a welded shortcut eases from the main road's surface back to its own line. */
+const WELD_EASE = 30;
 
 export class Branches {
   readonly list: Branch[];
@@ -161,7 +210,8 @@ export class Branches {
    * Current branch first (even if it has closed: a kart mid-branch rides it to the
    * exit). While the kart is still inside that road (its edge less branchLeaveMargin)
    * it stays there. Off it, every other open branch overlapping the window competes,
-   * and one wins only when it is closer by more than branchHysteresis metres in 3D. A closed hint
+   * and one wins only when the kart is further inside its edge (3D distance less half-width)
+   * by more than branchHysteresis metres. A closed hint
    * branch whose range does not contain hint.t is stale and counts as main.
    */
   nearest(position: Vec3, hint: TrackHint, window: number): TrackHint {
@@ -173,14 +223,19 @@ export class Branches {
     let bestT = best.t;
     // still on the road you are on? Then you are on it, however close another line runs.
     // Two roads overlap for metres at a fork; the nearer centreline is not the one you chose.
-    if (bestDist <= cur.halfWidthAt(bestT) - BUILDER.branchLeaveMargin) return { t: bestT, branch: cur.index };
+    const curHw = cur.halfWidthAt(bestT);
+    if (bestDist <= curHw - BUILDER.branchLeaveMargin) return { t: bestT, branch: cur.index };
+    // Off it, the road whose edge the kart is furthest inside (or least outside) wins, by more than
+    // branchHysteresis: a kart on the grass drives onto the other road's asphalt and is on that road,
+    // however its centreline lies (review, 23 Sept 2026: it sank into the asphalt until then)
     const hyst = BUILDER.branchHysteresis;
+    let bestPast = bestDist - curHw;
     for (const b of this.list) {
       if (b === cur || !b.open || !b.overlaps(hint.t, window)) continue;
       const cand = b.nearestLocal(position, hint.t, window);
-      const dist = Math.sqrt(cand.d2);
-      if (dist < bestDist - hyst) {
-        bestDist = dist;
+      const past = Math.sqrt(cand.d2) - b.halfWidthAt(cand.t);
+      if (past < bestPast - hyst) {
+        bestPast = past;
         bestBranch = b.index;
         bestT = cand.t;
       }

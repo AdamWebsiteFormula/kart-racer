@@ -15,7 +15,7 @@ const TRACKS = Object.fromEntries(Object.values(import.meta.glob('../track-build
 const IDS = Object.keys(TRACKS);
 
 /** A "client" run exactly as the game plays it: the shared sim tick, a scripted player, the race's own input log. */
-function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number) {
+function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0) {
   const config = soloConfig(mode, trackId, racerId, seed);
   const track = buildTrack(TRACKS[trackId]);
   const manager = new RaceManager(track, config);
@@ -23,7 +23,7 @@ function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: numb
   const ai = new AiDriver(track, config, manager.state, { itemRoles: items.roles });
   const inputs = manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
   const parts = { manager, items, ai, inputs, playerIndex: 0, playerSlot: { ...NEUTRAL_INPUT } };
-  const drive = lookAheadDriver(26, 0);
+  const drive = lookAheadDriver(26, lane);
   let wobble = 0;
   while (manager.state.phase !== 'finished' && manager.state.tick < 120 * 400) {
     const i = drive(manager.state.karts[0], track);
@@ -158,11 +158,12 @@ describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => 
   it('agrees with the game on real runs: the loop, the vents, the off-road, the claw and all', async () => {
     const path = '../../supabase/functions/submit-score/core.js';
     const core = await import(/* @vite-ignore */ path) as { TRACKS: Record<string, TrackDefinition>; verifyRun: typeof verifyRun };
-    for (const id of ['harbour-loop', 'canyon-rush', 'boardwalk-nights']) {
-      const run = clientRun(id, 'timeTrial', 'momo', 0);
+    // two of them on the grass beside the road the whole way (the land, the shortcut mouths)
+    for (const [id, lane] of [['harbour-loop', 0], ['canyon-rush', 0], ['boardwalk-nights', 0], ['meadow-run', -11], ['frostbite-pass', 11]] as const) {
+      const run = clientRun(id, 'timeTrial', 'momo', 0, lane);
       expect(run.result.dnf, id).toBe(false);
       const v = core.verifyRun(core.TRACKS[id], 'timeTrial', 'momo', 0, encodeLog(run.log), run.result.timeMs);
-      expect(v, `${id}: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: run.result.timeMs });
+      expect(v, `${id} lane ${lane}: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: run.result.timeMs });
     }
   }, 120_000);
 });
