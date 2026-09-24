@@ -206,6 +206,8 @@ export class TrackView implements ScreenView {
       delay(b, i * 70);
       b.style.setProperty('--bg', t.bg);
       b.style.setProperty('--accent', t.accent);
+      // the start grid on that track, shot in the game (public/art/tracks); the colours show under it until it loads
+      b.style.setProperty('--shot', `url("${import.meta.env.BASE_URL}art/tracks/${t.id}.webp")`);
       h('span', 'swatch', b);
       h('span', 'label', b, t.label);
       h('span', 'biome', b, t.biome);

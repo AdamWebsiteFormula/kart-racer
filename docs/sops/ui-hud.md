@@ -143,6 +143,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24: Bug hunt 2: the Knockout final has no next round, so its HUD strip reads WIN THE FINAL with danger from 2nd down (it read TOP 2 GO THROUGH, and a player running 2nd saw no warning), and after the final the cut screen marks the winner WINNER and everyone else OUT (the runner-up read THROUGH under "Big Gus wins", with the save recording a loss).
 - 2026-09-24: Bug hunt 2: the roster screen has no 50/100/150cc row in Time Trial and Daily (`rosterMenu(cc, mode)`): those runs are always 150cc (`soloConfig`, the race the leaderboard replays), and a player who picked 50cc raced at 150cc anyway.
 - 2026-09-24: Bug hunt 2: the title's attract race is `attractTrack(built)`: Harbour Loop (design §12), else the first built track in catalog order. main.ts used the first track file by name, so Boardwalk Nights took over the title when its file was added.
+- 2026-09-24: Track cards show each track's start grid, shot in the game at 960x540 (public/art/tracks/<id>.webp, about 55 KB each; the card colors show under them until they load, and a gradient keeps the name readable); the title tagline sits on a dark pill so it reads over the attract race.
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-23: **Cup titles drew inside white boxes with borders.** Cause: the cup header used the class `row`, which the results table also styles. Fix: `cup-head`. Rule: in one global stylesheet, name classes after their screen, never generic words like `row`.
