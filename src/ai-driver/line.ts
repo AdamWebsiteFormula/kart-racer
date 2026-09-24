@@ -51,6 +51,12 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
   out.roadErr = wrapAngle(hShort - s.heading);
   out.halfWidth = sc.here.halfWidth;
   out.narrow = sc.here.halfWidth < l.narrowRoad;
+  out.airAhead = false;
+  for (const j of track.jumps) {
+    if (!j.rise || (j.branch ?? 0) !== branch) continue;
+    const d = wrap01(j.t - s.t) * len;
+    if (d < out.probeNear + (j.run ?? 0)) { out.airAhead = true; break; }
+  }
   let L = lookAhead(s.speed);
   // a branch entry or exit inside the look-ahead: the road is about to fork or rejoin
   let nearBranch = s.branch !== 0 || m.branchChoice > 0;

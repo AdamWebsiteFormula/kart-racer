@@ -380,3 +380,20 @@ describe('AiDriver gates', () => {
     expect(perAi).toBeLessThan(50);
   });
 });
+
+describe('bumps on a bend (review, 23 Sept 2026)', () => {
+  it('the Frostbite moguls and the Canyon dunes: the field rides them without being thrown onto the snow or sand', () => {
+    // a drift carried into the moguls, or trick boosts chained over the dunes, flew karts 10 m past
+    // the curb; now no drift and no trick over bumps on a bend, and a little less corner speed there
+    for (const [id, from, to] of [['frostbite-pass', 0.33, 0.39], ['canyon-rush', 0.915, 0.97]] as const) {
+      const def = TRACKS.find((d) => d.id === id)!;
+      const track = buildTrack(def);
+      let off = 0;
+      runRace(track, config(track, racers(8), 150, 3), {}, {}, (_t, _i, rm) => {
+        for (const k of rm.state.karts) if (k.finishTick === undefined && k.grounded && k.surface === 'dirt' && k.branch === 0 && k.t > from && k.t < to) off++;
+      });
+      // the whole field, three laps: under a second on the snow or sand there in all
+      expect(off / SIM_HZ, id).toBeLessThan(1);
+    }
+  }, 120_000);
+});

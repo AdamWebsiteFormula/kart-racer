@@ -142,6 +142,7 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-21 (items session): `AiDriver.threatened: boolean[]` is public; the game loop copies `items.threatened[k]` into it after `items.step`, and `decideItem` reads it through `ItemContext.threatened`. No other AI change.
 
+- 2026-09-23: Bumps on a bend (review): no drift starts with a bump or a ramp within the near probe (LineInfo.airAhead), a drift already on lets go before them ('air'), no tricks over bumps on a bend sharper than trickBend, and the corner margin shrinks by airMargin there; the wheel keeps steering in the air (the kart has air steer). A grip-driving AI lifts once past the outside edge (edgeLift -0.4 m) while pointing off the road: at +1.2 m it lifted at every corner exit (a racing line touches the edge) and lost ~2.5 s a lap on Harbor. Frostbite snow time 4.8 % to 2.1 %, Canyon sand 2.7 % to 0.9 % (8 AI, 150cc).
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-21: **Open.** With `driftSteerMin` 0.2 the Hard AI's drifts cost it ~0.7 s a lap on Harbour Loop (solo: 122.3 s drifting, 120.1 s with driftUse 0). Turn 1 itself takes the same 3.0 s either way; the loss is in the two sectors after it (1 s of braking, the odd wall). Not understood yet. Gate 2 dropped from 3 s to 1 s over the scripted driver and gate 16 compares paths with drifting off. For the critique round: trace speed and lateral from the turn-1 exit to the jetty with and without the drift.

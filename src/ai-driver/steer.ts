@@ -22,8 +22,7 @@ export function steerTo(s: KartState, aim: Vec3, m: AiMemory, noiseAmp: number, 
   const dErr = clamp((err - m.prevErr) / dt, -c.dErrMax, c.dErrMax);
   m.prevErr = err;
   m.noise += (range(m, -noiseAmp, noiseAmp) - m.noise) * c.noiseSmoothing;
-  // airborne off a jump (not a hop) the wheel does nothing; keep it centred
-  if (!s.grounded && s.drift.phase !== 'hopping' && m.driftDir === 0) return 0;
+  // airborne off a jump the kart still turns a little (the controller's air steer): keep steering for the landing
   // a lateral term on top of pure pursuit: lane changes and dodges happen now, not in 2L
   const lat = clamp(c.kLat * latErr, -c.kLatMax, c.kLatMax);
   return clamp((c.kP * err + c.kD * dErr + lat) * gain + m.noise, -1, 1);

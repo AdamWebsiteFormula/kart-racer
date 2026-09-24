@@ -39,10 +39,11 @@ describe('steer', () => {
     expect(steerTo(s, [0, 0, 10], memory(), 0, 1, -20, SIM_DT)).toBeCloseTo(-0.6);
   });
 
-  it('airborne off a jump the wheel is centred; noise is seeded and bounded', () => {
+  it('airborne off a jump it keeps steering for the landing (the kart has a little air steer); noise is seeded and bounded', () => {
     const s = kartAt(track, 0.12);
     s.grounded = false; s.airborne.fromJumpId = 'j';
-    expect(steerTo(s, [5, 0, 10], memory(), 0, 1, 0, SIM_DT)).toBe(0);
+    s.position = [0, 0, 0]; s.heading = 0;
+    expect(steerTo(s, [5, 0, 10], memory(), 0, 1, 0, SIM_DT)).toBeGreaterThan(0);
     s.grounded = true; s.airborne.fromJumpId = undefined;
     s.position = [0, 0, 0]; s.heading = 0;
     const a = memory(), b = memory();

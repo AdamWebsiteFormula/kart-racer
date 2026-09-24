@@ -90,6 +90,7 @@ export function stepDriftDecision(
   if (m.driftDir === 0) {
     if (m.driftCooldown > 0 || !s.grounded || s.drift.phase !== 'idle') return;
     if (line.narrow || line.nearBranch) return; // a hop at a fork or on a 3 m road ends in the water
+    if (line.airAhead) return; // bumps or a ramp ahead: a drift thrown into the air slides off the road
     if (s.speed < c.driftMinSpeed * legal) return;
     const near = line.turnNear, far = line.turnFar;
     const bends = Math.abs(near) > profile.driftThreshold && Math.abs(far) > profile.driftThreshold && Math.sign(near) === Math.sign(far);
@@ -151,6 +152,8 @@ export function stepDriftDecision(
     // sliding wide toward the outside edge: let go before the off-road (no wall to lean on there)
     : line.myLat * -dir > line.halfWidth + d.outsideSlack ? 'edge'
     : m.driftHold > d.maxHold ? 'hold'
+    // bumps or a ramp coming: let go on the road (the boost fires now), not in the air mid-slide
+    : line.airAhead ? 'air'
     : 'none';
   if (why !== 'none') release(m, tier === 0 ? d.abortCooldown : d.cooldown, out, why);
 }
@@ -163,8 +166,11 @@ function release(m: AiMemory, cooldown: number, out: InputState, why: DriftEndRe
   out.drift = false;
 }
 
-/** Off a jump: roll once, then press the button on a tick where it makes an edge. */
-export function stepTrick(s: KartState, m: AiMemory, profile: AiProfile, out: InputState): void {
+/**
+ * Off a jump: roll once, then press the button on a tick where it makes an edge. Not over bumps on a
+ * bend (`line`): each trick's boost carries it faster into the next bump, and airborne it cannot turn.
+ */
+export function stepTrick(s: KartState, m: AiMemory, profile: AiProfile, out: InputState, line?: LineInfo): void {
   if (s.grounded || s.airborne.fromJumpId === undefined) {
     m.trickRolled = false;
     m.trickDone = false;
@@ -174,6 +180,7 @@ export function stepTrick(s: KartState, m: AiMemory, profile: AiProfile, out: In
   if (!m.trickRolled) {
     m.trickRolled = true;
     m.trickDone = next(m) >= profile.trickChance; // "done" = decided not to
+    if (line && line.airAhead && Math.abs(line.turnNear) > AI.line.trickBend) m.trickDone = true;
   }
   if (m.trickDone) return;
   if (s.prevDrift) { out.drift = false; return; } // let go first so the press is an edge

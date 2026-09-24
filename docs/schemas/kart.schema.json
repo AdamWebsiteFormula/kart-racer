@@ -170,6 +170,10 @@
           "narrowMargin": { "type": "number", "description": "corner-speed margin multiplier on a narrow road, where a slide has nowhere to go", "default": 0.75 },
           "outsideFraction": { "type": "number", "description": "before a drift-worthy bend, set up on the outside at this × halfWidth so the drift has room", "default": 0.5 },
           "branchCommitMetres": { "type": "number", "description": "a taken shortcut stays the aim this far past its entry; the kart is only moved onto the branch once it has left the main road", "default": 40 },
+          "edgeLift": { "type": "number", "description": "metres inside the outside road edge (negative: past it, onto the curb) at which a grip-driving AI pointing off the road lifts; a racing line touches the edge at every exit, so only past it (the drift has outsideSlack; grip needed its own: review, 23 Sept 2026, Frostbite's moguls)", "default": -0.4 },
+          "edgeShed": { "type": "number", "description": "m/s under its present speed an AI lifting at the outside edge aims for", "default": 3 },
+          "airMargin": { "type": "number", "description": "share of the corner margin kept on a bend with bumps or a ramp ahead: airborne, a kart turns with only its air steer", "default": 0.7 },
+          "trickBend": { "type": "number", "description": "rad (heading change over turnNearSeconds): over bumps on a bend sharper than this the AI does no tricks; each trick boost carries it faster into the next bump, where airborne it cannot turn (the Canyon dunes)", "default": 0.12 },
           "declineFraction": { "type": "number", "description": "after declining a shortcut, keep at least this × halfWidth on the far side of the fork", "default": 0.35 },
           "wanderAmpMin": { "type": "number", "default": 0.08 }, "wanderAmpMax": { "type": "number", "default": 0.2 },
           "wanderPeriodMin": { "type": "number", "default": 3.3 }, "wanderPeriodMax": { "type": "number", "default": 8.3 }

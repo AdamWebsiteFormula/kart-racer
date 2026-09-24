@@ -38,11 +38,19 @@ export interface SpeedDecision { legal: number; target: number; corner: number }
 export function decideSpeed(s: KartState, c: KartConstants, m: AiMemory, line: LineInfo, willDrift: boolean, out: SpeedDecision): SpeedDecision {
   const ts = targetSpeed(s, c);
   const legal = ts.target;
-  const margin = cornerMargin(m.skill) * (line.narrow ? AI.line.narrowMargin : 1);
-  const corner = cornerSpeed(line.kappa, ts.base, c, margin, s.drift.phase === 'drifting' || willDrift);
+  const drifting = s.drift.phase === 'drifting' || willDrift;
+  // over bumps or a ramp on a bend the kart is airborne a while, turning with its air steer only
+  const margin = cornerMargin(m.skill) * (line.narrow ? AI.line.narrowMargin : 1) * (line.airAhead && !drifting ? AI.line.airMargin : 1);
+  const corner = cornerSpeed(line.kappa, ts.base, c, margin, drifting);
   out.legal = legal;
   out.corner = corner;
   out.target = Math.min(m.powerCap * m.fieldPace * legal, Math.max(corner, MIN_CORNER_SPEED));
+  // gripping round a bend, run wide to the outside edge and still pointing off the road: lift
+  const dir = Math.sign(line.turnNear);
+  if (!drifting && dir !== 0 && s.grounded) {
+    const room = line.halfWidth - line.myLat * -dir;
+    if (room < AI.line.edgeLift && line.roadErr * dir > 0) out.target = Math.min(out.target, Math.max(MIN_CORNER_SPEED, s.speed - AI.line.edgeShed));
+  }
   return out;
 }
 
