@@ -227,6 +227,17 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
   m.customProgramCacheKey = () => `road-lines-${lines ? 1 : 0}`;
 }
 
+/** A geometry's widest reach across the ground from its own vertical axis (cached on the geometry). */
+function reachOf(g: BufferGeometry): number {
+  const cached = g.userData.groundReach as number | undefined;
+  if (cached !== undefined) return cached;
+  const p = g.getAttribute('position');
+  let r = 0;
+  for (let i = 0; i < p.count; i++) r = Math.max(r, Math.hypot(p.getX(i), p.getZ(i)));
+  g.userData.groundReach = r;
+  return r;
+}
+
 /** Placeholder geometries the scene made itself; caller-owned `assets` geometries are never disposed. */
 const OWNED = new WeakSet<BufferGeometry>();
 
@@ -462,7 +473,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const geo = geometryFor(assets, entry.asset, 'decor');
     // how far the prop reaches from its centre across the ground: a roadside one stands clear of where karts drive
     if (!geo.boundingBox) geo.computeBoundingBox();
-    const bb = geo.boundingBox!, footprint = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z, 0);
+    // (its widest reach from its own axis, not its box's: turned by a random yaw, a square prop's
+    // corners reach √2 further, and a chalet's eaves hung over the course limit into the lens's path)
+    const bb = geo.boundingBox!, footprint = reachOf(geo);
     const extent = { across: Math.max(-bb.min.x, bb.max.x, 0), along: Math.max(-bb.min.z, bb.max.z, 0) };
     const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, occupied);
     decor.push(p);

@@ -65,7 +65,7 @@ function nearestXZ(lut: Lut, x: number, z: number): { d2: number; hw: number } {
 /** Full envelope past the road edge: kerb + shoulder + 1 m air. */
 export const ENVELOPE_PAD = BUILDER.kerbWidth + BUILDER.shoulderWidth + 1;
 /** Metres along the road past a roadside prop's footprint that must not be an open edge either. */
-const OPEN_CLEAR = 3;
+const OPEN_CLEAR = 5;
 /** Metres more than the course limit and its footprint that a roadside prop stands off an off-road track's curb (at exactly the limit, the road envelope test rejected it half the time). */
 const CLEAR_EPS = 0.1;
 /** Metres the land as drawn may rise or fall under a prop's footprint (more: it hangs off a lip or straddles a slope). */
@@ -80,13 +80,15 @@ function openBeside(lut: Lut, t: number, side: number, metres: number): boolean 
   return false;
 }
 
-/** Does the ground stay within FOOTING under a footprint of radius r at (x, z)? */
+/** Does the ground stay within FOOTING under a footprint of radius r at (x, z)? Read at its rim and halfway in (a cliff's lip can fall between). */
 function level(groundAt: (x: number, z: number) => number, x: number, z: number, r: number, tolerance = FOOTING): boolean {
   let lo = groundAt(x, z), hi = lo;
-  for (let k = 0; k < 8; k++) {
-    const a = (k / 8) * Math.PI * 2, g = groundAt(x + Math.cos(a) * r, z + Math.sin(a) * r);
-    if (g < lo) lo = g;
-    if (g > hi) hi = g;
+  for (const f of [1, 0.5]) {
+    for (let k = 0; k < 8; k++) {
+      const a = ((k + 1 - f) / 8) * Math.PI * 2, g = groundAt(x + Math.cos(a) * r * f, z + Math.sin(a) * r * f);
+      if (g < lo) lo = g;
+      if (g > hi) hi = g;
+    }
   }
   return hi - lo <= tolerance;
 }

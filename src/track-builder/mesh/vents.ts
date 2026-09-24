@@ -54,14 +54,20 @@ function baseGeometry(rim: Rgb, pool: Rgb): BufferGeometry {
   return g;
 }
 
+// Near the lens the spray fades right out (review, 24 Sept 2026: the chase camera passing a vent
+// looked through the column and saw the whole left of the screen washed white): gone within
+// NEAR_CLEAR metres, whole again by NEAR_FULL, so a kart riding the geyser 6 m ahead still shows it.
+const NEAR = { clear: 2.0, full: 6.0 };
 const COLUMN_VERT = `
 varying vec2 vUv;
 varying float vFade;
+varying float vNear;
 #include <fog_pars_vertex>
 void main() {
   vUv = uv;
   vFade = instanceMatrix[1][1] > 0.001 ? 1.0 : 0.0;
   vec4 mvPosition = viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0);
+  vNear = length(mvPosition.xyz);
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
@@ -71,6 +77,7 @@ uniform float time;
 uniform vec3 colour;
 varying vec2 vUv;
 varying float vFade;
+varying float vNear;
 #include <fog_pars_fragment>
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 float noise(vec2 p) {
@@ -83,7 +90,7 @@ void main() {
   vec2 p = vec2(vUv.x * 9.0, vUv.y * 3.0 - time * 4.5);
   float n = noise(p) * 0.6 + noise(p * 2.3 + 7.0) * 0.4;
   float top = 1.0 - smoothstep(0.55, 1.0, vUv.y);
-  float a = smoothstep(0.25, 0.75, n) * top * vFade;
+  float a = smoothstep(0.25, 0.75, n) * top * vFade * smoothstep(${NEAR.clear.toFixed(1)}, ${NEAR.full.toFixed(1)}, vNear);
   gl_FragColor = vec4(colour * (0.55 + 0.6 * n), a * 0.6); // see-through enough to watch your kart ride it
   #include <fog_fragment>
 }`;
@@ -93,12 +100,13 @@ uniform float time;
 uniform vec3 colour;
 varying vec2 vUv;
 varying float vFade;
+varying float vNear;
 #include <fog_pars_fragment>
 void main() {
   // the pool lights up from its middle, with rings of bubbles running outward
   float r = length(vUv - 0.5) * 2.0;
   float ring = 0.5 + 0.5 * sin(r * 18.0 - time * 9.0);
-  float a = (1.0 - smoothstep(0.2, 1.0, r)) * (0.55 + 0.45 * ring) * vFade;
+  float a = (1.0 - smoothstep(0.2, 1.0, r)) * (0.55 + 0.45 * ring) * vFade * smoothstep(${NEAR.clear.toFixed(1)}, ${NEAR.full.toFixed(1)}, vNear);
   gl_FragColor = vec4(colour, a);
   #include <fog_fragment>
 }`;
