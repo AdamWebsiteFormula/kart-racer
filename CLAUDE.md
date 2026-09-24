@@ -41,6 +41,7 @@ A hidden test page played the game's music through the night and woke Adam's hou
 - Close every browser tab you opened (the built-in browser pane included) the moment a check is done. Never leave the game open, not even muted.
 - Stop any dev server you started for a check when you finish it.
 - Never play the game's audio, or any other sound, on Adam's machine.
+- Silent tools for checks (24 Sept 2026): `scripts/headless/` runs headless Chrome with `--mute-audio` on `?mute` (fps.mjs frame times on the real GPU, shots.mjs track screenshots, snap.mjs any screen); use it when the browser pane is hidden (a hidden tab pauses the game). `scripts/ear/` listens without playing anything: labels.py (AudioSet labels and CLAP text match), intent.py (does each sound match its catalog prompt), listen.py (a local model describes a sound in words); set up with `bash scripts/ear/setup.sh`. gemini.mjs uses a Gemini key in .env.local (`bash scripts/set-gemini-key.sh`), but the free tier allows about 20 requests a day and its Flash models can make things up: check its answers against the local ears.
 
 ## Behaviour
 - Think before coding. Simplicity first. Surgical changes: touch only `src/<system>` and its tests.

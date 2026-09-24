@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Saves your ElevenLabs API key into .env.local, which git ignores, readable only by you.
+# Saves your Gemini API key (from aistudio.google.com/apikey) into .env.local, which git ignores, readable only by you.
 # The key does not show on screen while you paste it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-printf '\nPaste your ElevenLabs API key, then press Enter (it will stay hidden): '
+printf '\nPaste your Gemini API key, then press Enter (it will stay hidden): '
 IFS= read -rs key
 echo
 key="${key//[[:space:]]/}"
@@ -17,8 +17,8 @@ fi
 
 umask 077
 touch .env.local
-grep -v '^ELEVENLABS_API_KEY=' .env.local > .env.local.tmp || true
-printf 'ELEVENLABS_API_KEY=%s\n' "$key" >> .env.local.tmp
+grep -v '^GEMINI_API_KEY=' .env.local > .env.local.tmp || true
+printf 'GEMINI_API_KEY=%s\n' "$key" >> .env.local.tmp
 mv .env.local.tmp .env.local
 chmod 600 .env.local
 unset key
