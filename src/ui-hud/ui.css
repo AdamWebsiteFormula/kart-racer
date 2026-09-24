@@ -354,7 +354,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 
 /* ---------- overlays: pause, settings, credits ---------- */
 .overlay { display: none; align-items: center; justify-content: center; }
-.overlay.on { display: flex; }
+.overlay.on, #ui .overlay.on { display: flex; } /* (#ui .screen.on is more specific: without this, overlays sat top-left) */
 .overlay .box { position: relative; padding: 30px 34px; min-width: min(460px, 92vw); max-width: 92vw; max-height: 88vh; overflow: auto; animation: pop-in var(--t-med) var(--pop) both; }
 .overlay h2 { margin: 0 0 18px; font: 400 44px/1 var(--display); color: var(--ink); }
 .overlay .list { display: flex; flex-direction: column; gap: 12px; }
