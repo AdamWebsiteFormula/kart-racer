@@ -12,7 +12,7 @@ export interface BuilderConstants {
   boostPadHalfLength: number; boostPadWidth: number; offroadReach: number; offroadDrop: number; rampSkirt: number; tunnelWall: number; tunnelApex: number; tunnelHill: number; tunnelRamp: number; tunnelMesaTop: number; tunnelFunnel: number; tunnelFrameSpacing: number; tunnelLanternSpacing: number; rampRun: number; rampRise: number; humpRun: number; humpRise: number; humpEdge: number; loopRadius: number; loopShift: number; loopSpread: number; loopApproach: number; loopExit: number; loopWidth: number;
   balloonHeight: number; balloonRadius: number; coinRadius: number; hazardRadius: number; pierLift: number;
   ventRadius: number; ventWarnSeconds: number; ventEruptSeconds: number; ventLaunch: number;
-  fallingActiveSeconds: number; gustWindow: number;
+  fallingActiveSeconds: number; fallingWarnSeconds: number; fallingHeight: number; gustWindow: number;
   decorBands: { roadside: [number, number]; roadsideOffroad: [number, number]; far: [number, number]; sky: [number, number] };
   lapTimeWarn: [number, number]; trackDrawCallBudget: number;
 }

@@ -2,8 +2,8 @@
 // kart state: race-manager does the hit test and calls applyHit.
 //   rolling   moves along −tangent from its t at `speed`; respawns every `period`
 //   crossing  oscillates laterally across the road every `period`, inside halfWidth
-//   falling   on the ground and active for the first fallingActiveSeconds of every period
-//             (the drop itself is a visual for the scene layer)
+//   falling   on the ground and active for the first fallingActiveSeconds of every period; for the
+//             fallingWarnSeconds before, it drops (fallingPhase: the scene draws the drop and its shadow)
 //   static    always there
 //   gust      for the first half of every period, pushes `speed` m/s² sideways over a gustWindow stretch
 //   vent      a geyser or steam vent: quiet, then glows ventWarnSeconds, then erupts ventEruptSeconds
@@ -37,6 +37,25 @@ export function ventPhase(def: HazardDef, time: number): { state: VentState; k: 
 
 export interface VentView { id: string; position: Vec3; asset: string; state: VentState; k: number }
 
+export type FallState = 'idle' | 'drop' | 'down';
+
+/**
+ * Where a falling hazard is in its cycle at race time `time`: the state and how far through it (0..1).
+ * Pure. It lands at the start of every period and lies there (and hits) for fallingActiveSeconds; for
+ * the fallingWarnSeconds before, it drops (bug hunt 2, 24 Sept 2026: nothing drew the drop, so Canyon's
+ * rock blinked onto the road and slowed a kart on the tick it appeared).
+ */
+export function fallingPhase(def: HazardDef, time: number): { state: FallState; k: number } {
+  const period = def.period ?? 1;
+  const p = period > 0 ? ((time % period) + period) % period : 0;
+  if (p < BUILDER.fallingActiveSeconds) return { state: 'down', k: p / BUILDER.fallingActiveSeconds };
+  const warn = Math.min(BUILDER.fallingWarnSeconds, period - BUILDER.fallingActiveSeconds);
+  if (p >= period - warn) return { state: 'drop', k: (p - (period - warn)) / warn };
+  return { state: 'idle', k: 0 };
+}
+
+export interface FallView { id: string; position: Vec3; state: FallState; k: number }
+
 export class Hazards {
   private readonly items: Baked[] = [];
   private readonly branches: Branches;
@@ -62,6 +81,13 @@ export class Hazards {
       if (h.def.type !== 'vent' || !h.enabled) continue;
       out.push({ id: h.id, position: h.position, asset: h.def.asset ?? 'geyser', ...ventPhase(h.def, time) });
     }
+    return out;
+  }
+
+  /** Every enabled falling hazard at race time `time`: where it lands and where it is in its drop. */
+  falling(time: number): FallView[] {
+    const out: FallView[] = [];
+    for (const h of this.items) if (h.def.type === 'falling' && h.enabled) out.push({ id: h.id, position: h.position, ...fallingPhase(h.def, time) });
     return out;
   }
 
@@ -119,7 +145,7 @@ export class Hazards {
           break;
         }
         case 'falling': {
-          if (phase < BUILDER.fallingActiveSeconds) out.push({ id: h.id, type: d.type, position: h.position, radius, hit });
+          if (fallingPhase(d, time).state === 'down') out.push({ id: h.id, type: d.type, position: h.position, radius, hit });
           break;
         }
         case 'vent': {

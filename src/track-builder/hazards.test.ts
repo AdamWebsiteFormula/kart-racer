@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDER } from './constants.ts';
+import { fallingPhase } from './hazards.ts';
 import { buildTrack } from './track.ts';
 import { HARBOUR_LOOP, cloneDef } from './__tests__/fixtures.ts';
 import type { HazardDef } from './types.ts';
@@ -65,6 +66,25 @@ describe('hazards', () => {
     const right = [c.tangent[2] / hh, 0, -c.tangent[0] / hh];
     // authored on the left (lateral −3) so it pushes to the right
     expect(g.push![0] * right[0] + g.push![2] * right[2]).toBeCloseTo(4, 6);
+  });
+
+  it('a falling rock drops for fallingWarnSeconds before it lands, then lies there (and hits) for fallingActiveSeconds', () => {
+    // bug hunt 2 (24 Sept 2026): the drop was left to the scene, which never drew it
+    const def = { id: 'f', type: 'falling' as const, t: 0.2, period: 5 };
+    const t = withHazards([def]);
+    const W = BUILDER.fallingWarnSeconds, A = BUILDER.fallingActiveSeconds;
+    expect(fallingPhase(def, 5 - W - 0.01).state).toBe('idle');
+    expect(fallingPhase(def, 5 - W + 0.01).state).toBe('drop');
+    expect(fallingPhase(def, 5 - W / 2)).toEqual({ state: 'drop', k: 0.5 });
+    expect(fallingPhase(def, 5.01).state).toBe('down');
+    expect(fallingPhase(def, 5 + A + 0.01).state).toBe('idle');
+    // it hits only on the ground; the scene sees the whole drop, where it lands
+    for (let T = 0; T < 10; T += 0.05) {
+      expect(t.activeHazards(T).length, `time ${T}`).toBe(fallingPhase(def, T).state === 'down' ? 1 : 0);
+      const views = t.hazards.falling(T);
+      expect(views).toHaveLength(1);
+      expect(views[0].position).toEqual(t.sample(0.2, 0).position);
+    }
   });
 
   it('enable and disable by id', () => {

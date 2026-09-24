@@ -207,6 +207,8 @@
         "ventEruptSeconds": { "type": "number", "default": 1.5, "description": "how long a vent erupts; a kart on it then is thrown up" },
         "ventLaunch": { "type": "number", "default": 14, "description": "m/s up a vent throws a kart, about 4 m high (a ramp is 5 to 6)" },
         "fallingActiveSeconds": { "type": "number", "default": 0.5 },
+        "fallingWarnSeconds": { "type": "number", "default": 1.0, "description": "a falling hazard drops this long before it lands (and can hit), its shadow growing on the spot" },
+        "fallingHeight": { "type": "number", "default": 14, "description": "metres above the road a falling hazard drops from" },
         "gustWindow": { "type": "number", "default": 6, "description": "metres along the road a gust acts over" },
         "decorBands": {
           "type": "object",
