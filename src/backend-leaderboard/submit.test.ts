@@ -28,6 +28,13 @@ beforeAll(async () => {
     const path = String(url).replace('http://db/rest/v1/', '');
     const body = init?.body ? JSON.parse(String(init.body)) : {};
     if (path.startsWith('rpc/take_submit_slot')) return new Response('true');
+    if (path.startsWith('scores') && init?.method !== 'POST') {
+      // this client's rows on this board (the names-per-board check)
+      const q = new URLSearchParams(path.slice(path.indexOf('?') + 1));
+      const eq = (k: string) => q.get(k)?.replace(/^eq\./, '');
+      const mine = db.filter((r) => (r as unknown as Record<string, unknown>).ip_hash === eq('ip_hash') && (r as unknown as Record<string, unknown>).track_id === eq('track_id'));
+      return new Response(JSON.stringify(mine.map((r) => ({ name: r.name }))));
+    }
     if (path.startsWith('scores')) {
       const row = { ...body, id: `id${db.length + 1}`, created_at: db.length };
       db.push(row);
@@ -74,6 +81,28 @@ describe('submit-score: the rank it returns (bug hunt 3)', () => {
     expect(r).toMatchObject({ ok: true, timeMs: 150000, rank: 3, best: { id: 'id1', timeMs: 122800 } });
     const old = leaderboardClient(async () => new Response(JSON.stringify({ id: 'x', timeMs: 150000, rank: 4 }), { status: 201 }));
     expect(await old.post({ ...draft, name: 'Kit' })).toEqual({ ok: true, id: 'x', timeMs: 150000, rank: 4, best: { id: 'x', timeMs: 150000 } });
+  });
+});
+
+describe('submit-score: one drive cannot flood the board (red-team 2026-09-24)', () => {
+  it('a client holds at most 3 names on a board; its own names still post', async () => {
+    // this client already posted as Judge, Ada and Test above
+    expect(await post('Zed', 95000)).toMatchObject({ status: 400, error: 'you already post under 3 names on this board' });
+    expect(await post('Ada', 99000)).toMatchObject({ status: 201 });
+    const game = leaderboardClient(async () => new Response(JSON.stringify({ error: 'you already post under 3 names on this board' }), { status: 400 }));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await game.post({ name: 'Zed', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 1, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION }))
+      .toEqual({ ok: false, error: 'You already post under 3 names here. Use one of those.' });
+    warn.mockRestore();
+  });
+
+  it('a chunked body with no length is cut off at the cap, not read whole', async () => {
+    let sent = 0;
+    const chunk = new Uint8Array(64 * 1024).fill(32);
+    const body = new ReadableStream<Uint8Array>({ pull(c) { sent += chunk.byteLength; if (sent > 8 * 1024 * 1024) c.close(); else c.enqueue(chunk); } });
+    const res = await handler(new Request('http://fn', { method: 'POST', body, duplex: 'half' } as RequestInit));
+    expect(res.status).toBe(413);
+    expect(sent).toBeLessThan(1024 * 1024);
   });
 });
 

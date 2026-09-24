@@ -119,6 +119,21 @@ describe('submission rules', () => {
   });
 });
 
+describe('the word filter after the red-team (2026-09-24)', () => {
+  const good = { name: 'Rascal', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 90_000, racerId: 'pip', inputLog: 'AQ==', clientVersion: CLIENT_VERSION };
+  it('refuses digit spellings, look-alike letters and the words it missed', () => {
+    for (const name of ['N166ER', '8itch', '1488', 'Nlgger', 'Niqqer', 'Fvck', 'Phuck', 'Cvnt', 'Kike', 'Chink', 'Spic', 'Coon', 'Tranny', 'Wetback', 'Beaner', 'Sieg Heil', 'Kkk']) {
+      expect(cleanName(name), name).toBe(false);
+    }
+  });
+  it('still passes ordinary names that hold those letters', () => {
+    for (const name of ['Phil', 'Philip', 'Alvin', 'Olivia', 'Quinn', 'Spice', 'Spicy', 'Raccoon', 'Chinook', 'Coonan', 'Luke88', 'Kiki', 'Skier', 'Gr8 Racer', 'Heike', 'Valkyrie', 'Liv', 'Clive']) {
+      expect(cleanName(name), name).toBe(true);
+      expect(checkSubmission({ ...good, name }, IDS), name).toBeNull();
+    }
+  });
+});
+
 describe('re-simulation (SOP gate)', () => {
   const run = clientRun('harbour-loop', 'timeTrial', 'momo', 0);
   const log = encodeLog(run.log);
@@ -171,6 +186,23 @@ describe('red-team hardening (2026-09-23)', () => {
     // and the canonical log itself replays to the same time
     const again = verify(base.canonicalLog);
     expect(again).toMatchObject({ ok: true, timeMs: base.timeMs });
+  });
+
+  it('bits the sim never read make no new run either: look-back, item, countdown steer, over-full throttle (red-team 2026-09-24)', () => {
+    const base = verify(encodeLog(run.log));
+    if (!base.ok) throw new Error(base.reason);
+    const at = (k: number, f: (i: InputState) => InputState) => run.log.map((i, t) => (t === k ? f(i) : i));
+    const mid = 2000;
+    for (const log of [
+      at(mid, (i) => ({ ...i, lookBack: true })),
+      at(mid, (i) => ({ ...i, item: true })),
+      at(10, (i) => ({ ...i, steer: 0.8, drift: true })),
+      run.log.map((i) => (i.throttle >= 1 ? { ...i, throttle: 1.5 } : i)),
+    ]) {
+      const v = verify(encodeLog(log));
+      expect(v).toMatchObject({ ok: true, timeMs: base.timeMs });
+      if (v.ok) expect(v.canonicalLog).toBe(base.canonicalLog);
+    }
   });
 
   it('IPv6 counts by its /64, IPv4 and mapped IPv4 as they are', () => {

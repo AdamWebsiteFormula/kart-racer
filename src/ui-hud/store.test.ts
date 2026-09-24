@@ -35,6 +35,16 @@ describe('save store', () => {
     expect(odd.playerName.length).toBe(16);
     expect(odd.unlocked.skins).toEqual(['a']);
   });
+  it('records are read entry by entry: bad stars, a number for a best time, a prototype key all drop (red-team 2026-09-24)', () => {
+    const blob = `{"timeTrial":{"harbour-loop":7,"meadow-run":{"bestMs":91000,"medal":"platinum"},"__proto__":{"bestMs":1}},
+      "grandPrix":{"coastline":{"150":{"finished":true,"stars":4},"100":{"finished":true,"stars":2}},"peaks":"x"},
+      "knockout":{"peaks":{"finished":true,"won":"yes","bestPlacing":0}}}`;
+    const s = loadSave(fake({ [SAVE_KEY]: blob }));
+    expect(s.timeTrial).toEqual({ 'meadow-run': { bestMs: 91000, medal: 'none' } });
+    expect(Object.getPrototypeOf(s.timeTrial)).toBe(Object.prototype);
+    expect(s.grandPrix).toEqual({ coastline: { 100: { finished: true, stars: 2 } } });
+    expect(s.knockout).toEqual({ peaks: { finished: true, won: false } });
+  });
 
   it('a backend that throws on write never breaks the game', () => {
     const bad: Backend = { getItem: () => null, setItem: () => { throw new Error('full'); } };

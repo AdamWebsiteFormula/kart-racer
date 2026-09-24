@@ -45,6 +45,42 @@ const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'nu
 const oneOf = <T extends string>(v: unknown, opts: readonly T[], d: T): T => (opts.includes(v as T) ? (v as T) : d);
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
+/** Keep the entries `f` can read (it returns undefined to drop one); never a prototype key. */
+function entries<T>(v: unknown, f: (x: Record<string, unknown>) => T | undefined): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [k, x] of Object.entries(obj(v))) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype' || !x || typeof x !== 'object' || Array.isArray(x)) continue;
+    const e = f(x as Record<string, unknown>);
+    if (e !== undefined) out[k] = e;
+  }
+  return out;
+}
+const int = (v: unknown, lo: number, hi: number): number | undefined => (Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi ? (v as number) : undefined);
+const MEDALS = ['none', 'bronze', 'silver', 'gold'] as const;
+
+/**
+ * The records, entry by entry: a hand-edited or foreign save (every Pages site on the account shares
+ * this storage) must not crash a menu or strand a race's results (red-team 2026-09-24).
+ */
+function sanitiseRecords(r: Record<string, unknown>): Pick<Save, 'timeTrial' | 'grandPrix' | 'knockout'> {
+  return {
+    timeTrial: entries(r.timeTrial, (x) => {
+      if (typeof x.bestMs !== 'number' || !(x.bestMs > 0) || !Number.isFinite(x.bestMs)) return undefined;
+      return { bestMs: x.bestMs, medal: oneOf(x.medal, MEDALS, 'none'), ...(typeof x.racerId === 'string' ? { racerId: x.racerId } : {}) };
+    }),
+    grandPrix: entries(r.grandPrix, (cup) => entries(cup, (x) => {
+      const stars = int(x.stars, 0, 3);
+      if (stars === undefined) return undefined;
+      const best = int(x.bestPoints, 0, 1e6);
+      return { finished: x.finished === true, stars, ...(best !== undefined ? { bestPoints: best } : {}) };
+    })),
+    knockout: entries(r.knockout, (x) => {
+      const best = int(x.bestPlacing, 1, 8);
+      return { finished: x.finished === true, won: x.won === true, ...(best !== undefined ? { bestPlacing: best } : {}) };
+    }),
+  };
+}
+
 function sanitiseSettings(raw: unknown): Settings {
   const r = obj(raw), d = defaultSettings();
   return {
@@ -70,9 +106,7 @@ export function loadSave(b: Backend | null): Save {
     version: SAVE_VERSION,
     playerName: typeof r.playerName === 'string' ? r.playerName.slice(0, 16) : d.playerName,
     stats: { ultraTurbos: num(stats.ultraTurbos, 0, 1e9, 0), racesFinished: num(stats.racesFinished, 0, 1e9, 0), itemsHit: num(stats.itemsHit, 0, 1e9, 0) },
-    timeTrial: obj(r.timeTrial) as Save['timeTrial'],
-    grandPrix: obj(r.grandPrix) as Save['grandPrix'],
-    knockout: obj(r.knockout) as Save['knockout'],
+    ...sanitiseRecords(r),
     unlocked: {
       skins: Array.isArray(unlocked.skins) ? unlocked.skins.filter((x): x is string => typeof x === 'string') : [],
       bodies: Array.isArray(unlocked.bodies) ? unlocked.bodies.filter((x): x is string => typeof x === 'string') : [],

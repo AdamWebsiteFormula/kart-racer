@@ -38,6 +38,7 @@ async function call(path: string, body: unknown, f: typeof fetch): Promise<Respo
  * ("claimed N ms but the replay finished in M ms"), so the board shows plain words by status.
  */
 export function postError(status: number, serverText = ''): string {
+  if (status === 400 && /names on this board/.test(serverText)) return 'You already post under 3 names here. Use one of those.';
   if (status === 400 && /name/.test(serverText)) return 'That name is taken or not allowed. Try another.';
   if (status === 400 && /reload/.test(serverText)) return 'The game was updated. Reload the page to post.';
   if (status === 400 && /daily challenge is closed/.test(serverText)) return "That day's challenge has closed.";

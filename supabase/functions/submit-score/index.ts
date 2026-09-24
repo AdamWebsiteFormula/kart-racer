@@ -12,6 +12,8 @@ const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const LIMIT_PER_MINUTE = 10;
 /** accepted runs per client per day: plenty for a person, a ceiling for a flood */
 const LIMIT_PER_DAY = 60;
+/** names one client may hold on one board: room for a shared home, not for a flood of copies */
+const NAMES_PER_BOARD = 3;
 const MAX_BODY = MAX_LOG_BYTES + 4096;
 
 const CORS = {
@@ -50,6 +52,25 @@ async function takeSlot(ipHash: string): Promise<boolean | null> {
   return (await r.json().catch(() => null)) === true;
 }
 
+/** The body as text, or null past `max` bytes: stops reading there, so a chunked upload with no length cannot fill memory. */
+async function readCapped(req: Request, max: number): Promise<string | null> {
+  if (!req.body) return '';
+  const reader = req.body.getReader();
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) { await reader.cancel().catch(() => {}); return null; }
+    parts.push(value);
+  }
+  const all = new Uint8Array(size);
+  let o = 0;
+  for (const p of parts) { all.set(p, o); o += p.byteLength; }
+  return new TextDecoder().decode(all);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
@@ -64,8 +85,8 @@ Deno.serve(async (req) => {
   if (slot === null) return json(503, { error: 'the leaderboard is busy: try again soon' });
   if (!slot) return json(429, { error: 'too many submissions: wait a minute' });
 
-  const text = await req.text();
-  if (text.length > MAX_BODY) return json(413, { error: 'payload too large' });
+  const text = await readCapped(req, MAX_BODY);
+  if (text === null) return json(413, { error: 'payload too large' });
   let body: Record<string, unknown>;
   try { body = JSON.parse(text); } catch { return json(400, { error: 'body must be JSON' }); }
 
@@ -74,11 +95,21 @@ Deno.serve(async (req) => {
 
   const mode = body.mode as 'timeTrial' | 'daily';
   const seed = mode === 'daily' ? (body.dailySeed as number) : 0;
+  const name = (body.name as string).trim();
+
+  // one drive posted under many names would fill the board (red-team 2026-09-24): a client keeps
+  // to a few names per board. Checked before the replay, the costly step.
+  const board = `track_id=eq.${encodeURIComponent(body.trackId as string)}&mode=eq.${mode}&daily_seed=${mode === 'daily' ? `eq.${seed}` : 'is.null'}`;
+  const mine = await rest(`scores?select=name&ip_hash=eq.${ipHash}&${board}&limit=500`).catch(() => null);
+  if (!mine?.ok) return json(503, { error: 'the leaderboard is busy: try again soon' });
+  const names = new Set(((await mine.json()) as { name: string }[]).map((r) => r.name));
+  if (!names.has(name) && names.size >= NAMES_PER_BOARD) return json(400, { error: `you already post under ${NAMES_PER_BOARD} names on this board` });
+
   const verdict = verifyRun(TRACKS[body.trackId as string], mode, body.racerId as string, seed, body.inputLog as string, body.timeMs as number);
   if (!verdict.ok) return json(422, { error: verdict.reason });
 
   const row = {
-    name: (body.name as string).trim(), track_id: body.trackId, mode, daily_seed: mode === 'daily' ? seed : null,
+    name, track_id: body.trackId, mode, daily_seed: mode === 'daily' ? seed : null,
     speed_class: 150, racer_id: body.racerId, time_ms: verdict.timeMs, lap_times_ms: verdict.lapTimesMs,
     input_log: verdict.canonicalLog, client_version: CLIENT_VERSION, ip_hash: ipHash, verified: true,
   };
@@ -89,11 +120,11 @@ Deno.serve(async (req) => {
 
   // where the name placed on its board: the board keeps each name's best run, which may be an
   // earlier one (bestId, bestMs), so look for the name, not for this run
-  const board = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_leaderboard`, {
+  const top = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_leaderboard`, {
     method: 'POST', body: JSON.stringify({ p_track_id: row.track_id, p_mode: mode, p_daily_seed: row.daily_seed, p_limit: 50 }),
     headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
   }).catch(() => null);
-  const rows = board?.ok ? (await board.json()) as { id: string; name: string; time_ms: number }[] : [];
+  const rows = top?.ok ? (await top.json()) as { id: string; name: string; time_ms: number }[] : [];
   const at = rows.findIndex((r) => r.name === row.name);
   return json(201, { id: saved.id, timeMs: saved.time_ms, rank: at >= 0 ? at + 1 : null, bestId: rows[at]?.id ?? null, bestMs: rows[at]?.time_ms ?? null });
 });

@@ -3,11 +3,12 @@
 import { AiDriver } from '../ai-driver/index.ts';
 import { NEUTRAL_INPUT, type InputState } from '../kart-controller/types.ts';
 import { Items } from '../items/items.ts';
-import { RaceManager } from '../race-manager/index.ts';
+import { GO_TICK, RaceManager } from '../race-manager/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { simTick } from '../game/simtick.ts';
-import { decodeLog, encodeLog } from './inputlog.ts';
+import { RACE } from '../race-manager/constants.ts';
+import { decodeLog, encodeLog, quantize } from './inputlog.ts';
 import { soloConfig, type BoardMode } from './rules.ts';
 
 export interface Replay { finished: boolean; timeMs: number; lapTimesMs: number[]; ticks: number }
@@ -45,8 +46,24 @@ export function verifyRun(def: TrackDefinition, mode: BoardMode, racerId: string
   const r = replay(def, mode, racerId, seed, log);
   if (!r.finished) return { ok: false, reason: 'the replay never reached the finish line' };
   if (Math.abs(r.timeMs - claimedMs) > CLAIM_TOLERANCE_MS) return { ok: false, reason: `claimed ${claimedMs} ms but the replay finished in ${r.timeMs} ms` };
-  // the run as stored: cut at the finish and the horn cleared (the one button the sim never
-  // reads), so the same drive is always the same string and a copy cannot be posted twice
-  const canonical = log.slice(0, r.ticks).map((i) => (i.horn ? { ...i, horn: false } : i));
-  return { ok: true, timeMs: r.timeMs, lapTimesMs: r.lapTimesMs, canonicalLog: encodeLog(canonical) };
+  return { ok: true, timeMs: r.timeMs, lapTimesMs: r.lapTimesMs, canonicalLog: encodeLog(canonicalize(def, mode, racerId, seed, log.slice(0, r.ticks), r.timeMs)) };
+}
+
+/**
+ * The run as stored: only what the sim read, so the same drive is always the same string and the
+ * unique index refuses a copy with a flipped bit (red-team 2026-09-24). Every tick is quantised
+ * (a throttle byte over 127 clamps to 1); the horn is cleared; in the countdown only "throttle
+ * held" counts (the start boost); in Time Trial the items are inert, so item and look-back go.
+ * If the cleaned log ever replays to a different time, the raw log is kept instead.
+ */
+export function canonicalize(def: TrackDefinition, mode: BoardMode, racerId: string, seed: number, log: readonly InputState[], timeMs: number): InputState[] {
+  const out = log.map((raw, t) => {
+    const i = quantize(raw, { ...NEUTRAL_INPUT });
+    i.horn = false;
+    if (t <= GO_TICK) return { ...NEUTRAL_INPUT, throttle: i.throttle > RACE.stuckInputMin ? 1 : 0 };
+    if (mode === 'timeTrial') { i.item = false; i.lookBack = false; }
+    return i;
+  });
+  const again = replay(def, mode, racerId, seed, out);
+  return again.finished && again.timeMs === timeMs ? out : log.map((i) => (i.horn ? { ...i, horn: false } : i));
 }

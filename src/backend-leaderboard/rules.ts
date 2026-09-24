@@ -79,17 +79,20 @@ export function restartConfig(config: RaceConfig, trackIds: readonly string[], t
 }
 
 /** Rude wherever they turn up, even across the gaps ("F U C K", "Dick Head"). */
-const ANYWHERE = ['fuck', 'cunt', 'nigg', 'bitch', 'whore', 'retard', 'hitler', 'penis', 'vagina', 'pussy', 'faggot', 'wanker', 'dickhead', 'shithead', 'cocksuck'];
+const ANYWHERE = ['fuck', 'cunt', 'nigg', 'bitch', 'whore', 'retard', 'hitler', 'penis', 'vagina', 'pussy', 'faggot', 'wanker', 'dickhead', 'shithead', 'cocksuck', 'wetback', 'kkk', 'siegheil'];
 /**
  * Rude only as a whole word or its plural: the same letters sit inside ordinary names and tags
  * (Dickson, Hancock, Nazim, Fagan, Draper, Swanky, Atwater, Matsushita, Josh17).
  */
-const WHOLE = ['shit', 'shitty', 'dick', 'cock', 'fag', 'slut', 'slutty', 'rape', 'rapist', 'nazi', 'twat', 'wank'];
+const WHOLE = ['shit', 'shitty', 'dick', 'cock', 'fag', 'slut', 'slutty', 'rape', 'rapist', 'nazi', 'twat', 'wank', 'kike', 'chink', 'spic', 'coon', 'tranny', 'beaner', 'heil'];
 
-/** Letters only, leetspeak folded, so "sh1t" and "S H I T" both match. */
+const LEET: Record<string, string> = { 0: 'o', 1: 'i', 2: 'z', 3: 'e', 4: 'a', 5: 's', 6: 'g', 7: 't', 8: 'b', 9: 'g', '@': 'a', $: 's' };
+/** Letters only, leetspeak folded, so "sh1t", "N166ER" and "S H I T" all match. */
 function fold(s: string): string {
-  return s.toLowerCase().replace(/[013457@$]/g, (c) => ({ 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's' } as Record<string, string>)[c]).replace(/[^a-z]/g, '');
+  return s.toLowerCase().replace(/[0-9@$]/g, (c) => LEET[c]).replace(/[^a-z]/g, '');
 }
+/** A folded string as written and with the look-alike letters swapped: "Nlgger", "Fvck", "Phuck", "Niqqer" (red-team 2026-09-24). */
+const lookalikes = (f: string): string[] => [f, f.replace(/ph/g, 'f').replace(/l/g, 'i').replace(/v/g, 'u').replace(/q/g, 'g')];
 
 /** The words of a name: split at spaces, _ and - and at camelCase ("BigDick"), runs of single letters joined ("S H I T"). */
 function words(name: string): string[] {
@@ -106,9 +109,10 @@ function words(name: string): string[] {
 }
 
 export function cleanName(name: string): boolean {
-  if (ANYWHERE.some((w) => fold(name).includes(w))) return false;
+  if (name.replace(/[^0-9]/g, '').includes('1488')) return false;
+  if (lookalikes(fold(name)).some((f) => ANYWHERE.some((w) => f.includes(w)))) return false;
   // each word read as leetspeak ("sh1t") and with its digits dropped ("shit1", while "Josh17" stays "josh")
-  const whole = (f: string) => WHOLE.some((w) => f === w || f === `${w}s`);
+  const whole = (f: string) => lookalikes(f).some((v) => WHOLE.some((w) => v === w || v === `${w}s`));
   return !words(name).some((w) => whole(fold(w)) || whole(w.toLowerCase().replace(/[^a-z]/g, '')));
 }
 
