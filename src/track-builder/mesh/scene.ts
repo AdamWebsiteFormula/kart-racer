@@ -45,6 +45,40 @@ export interface TrackAssets {
   roadMap?: Texture;
   /** the coast of a sea track (flat top, beach slope); never disposed by the scene */
   coast?: () => Material | undefined;
+  /** the far vista (art-pipeline vista.ts): set-pieces in the distance and what moves there; built per scene, freed with it */
+  vista?: (ctx: VistaContext) => VistaParts | null;
+}
+
+/** What a far vista is laid out from: the track's middle and reach, its start, its ground and sun. */
+export interface VistaContext {
+  biome: string;
+  /** the middle of the roads' box and the farthest any main-line road reaches from it (metres) */
+  centre: [number, number];
+  radius: number;
+  /** the start line, and which way it faces (unit, level) */
+  start: [number, number];
+  forward: [number, number];
+  /** the ground plane (or the sea) height; NaN on a track with no ground */
+  groundY: number;
+  /** the roads' lowest and highest points */
+  roadMinY: number;
+  roadMaxY: number;
+  /** toward the sun (unit) */
+  sun: [number, number, number];
+  /** Mirror mode: the vista is reflected with the track */
+  mirrored: boolean;
+}
+
+/** A far vista's parts. */
+export interface VistaParts {
+  /** the still set-pieces as one vertex-coloured world-space geometry: the scene draws it toon-lit and fogged, casting no shadow */
+  solid?: BufferGeometry;
+  /** meshes in world space with their own materials (movers, glows) */
+  world?: Mesh[];
+  /** meshes that ride round the camera with the far ring (a moon, sun rays) */
+  ring?: Mesh[];
+  /** the far landmark ahead of the start line (world metres) */
+  landmark?: [number, number, number];
 }
 
 export interface TrackScene {
@@ -54,6 +88,8 @@ export interface TrackScene {
   decor: DecorPlacement[];
   /** the merged dressing (merge.ts): one static mesh per slice of the track, near ones casting shadows */
   dressing: Mesh[];
+  /** the far vista's landmark ahead of the start line, when the track has a vista */
+  farLandmark?: [number, number, number];
   /** name → instancer; names: barriers, balloons, coins, boostPads, ramps, hazard:<asset>, decor:<asset> */
   instancers: Map<string, InstancedMesh>;
   fog: { color: Rgb; density: number };
@@ -225,6 +261,27 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
         }`);
   };
   m.customProgramCacheKey = () => `road-lines-${lines ? 1 : 0}`;
+}
+
+/** The far vista hazes at this share of the fog's rate: out at 400 to 600 m the full fog washed a landmark to a pale shape. */
+const VISTA_HAZE = 0.55;
+
+/** A material hazes at `k` of the scene fog's rate (a linear or an exponential fog). */
+function lessHaze(m: Material, k: number): void {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, renderer) => {
+    prev.call(m, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG
+  #ifdef FOG_EXP2
+    float hazeK = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+  #else
+    float hazeK = smoothstep( fogNear, fogFar, vFogDepth );
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, hazeK * ${k.toFixed(2)} );
+#endif`);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => `${key()}|haze${k.toFixed(2)}`;
 }
 
 /** A geometry's widest reach across the ground from its own vertical axis (cached on the geometry). */
@@ -468,6 +525,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const rng = mulberry32(hashString(def.id));
   const decor: DecorPlacement[] = [];
   const toMerge: { item: MergeItem; far: boolean }[] = [];
+  let farLandmark: [number, number, number] | undefined;
   const occupied = new Occupancy();
   for (const entry of env.decor ?? []) {
     const geo = geometryFor(assets, entry.asset, 'decor');
@@ -724,8 +782,39 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const baseY = groundKind === 'none' ? branches.main.lut.minY - 80 : groundY;
     // the sun's compass direction (main.ts sunOffset, the same default) lights one flank of each peak
     const sunAz = Math.atan2(env.sunDirection?.[2] ?? 0.3, env.sunDirection?.[0] ?? 0.4);
-    const horizon = buildBackdrop(def.biome, baseY, [hz.r, hz.g, hz.b], sunAz);
+    let horizon = buildBackdrop(def.biome, baseY, [hz.r, hz.g, hz.b], sunAz);
     if (horizon) { for (const c of horizon.children) OWNED.add((c as Mesh).geometry); group.add(horizon); }
+
+    // the far vista (Adam, 24 Sept 2026: "make sure the distance of the environment looks interesting"):
+    // set-pieces out past the scenery, what moves out there, and what rides with the ring
+    const lut = branches.main.lut;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, radius = 0;
+    for (let i = 0; i < lut.n; i++) {
+      minX = Math.min(minX, lut.px[i]); maxX = Math.max(maxX, lut.px[i]);
+      minZ = Math.min(minZ, lut.pz[i]); maxZ = Math.max(maxZ, lut.pz[i]);
+    }
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    for (let i = 0; i < lut.n; i++) radius = Math.max(radius, Math.hypot(lut.px[i] - cx, lut.pz[i] - cz));
+    const st = lut.sample(track.startT, 0), fl = Math.hypot(st.tangent[0], st.tangent[2]) || 1;
+    const sd = env.sunDirection ?? [0.4, 0.8, 0.3], sl = Math.hypot(sd[0], sd[1], sd[2]) || 1;
+    const vista = assets.vista?.({
+      biome: def.biome, centre: [cx, cz], radius, start: [st.position[0], st.position[2]], forward: [st.tangent[0] / fl, st.tangent[2] / fl],
+      groundY: groundKind === 'none' ? NaN : groundY, roadMinY: lut.minY, roadMaxY: lut.maxY,
+      sun: [sd[0] / sl, sd[1] / sl, sd[2] / sl], mirrored: def.mirrored === true,
+    });
+    farLandmark = vista?.landmark;
+    if (vista?.solid) {
+      OWNED.add(vista.solid);
+      const m = new Mesh(vista.solid, toon(vista.solid, [1, 1, 1], GRADIENT));
+      lessHaze(m.material as Material, VISTA_HAZE);
+      m.name = 'vista';
+      group.add(m);
+    }
+    for (const m of vista?.world ?? []) { OWNED.add(m.geometry); group.add(m); }
+    if (vista?.ring?.length) {
+      if (!horizon) { horizon = new Group(); horizon.name = 'horizon'; group.add(horizon); }
+      for (const m of vista.ring) { OWNED.add(m.geometry); horizon.add(m); }
+    }
   }
 
   // landmark: at the loop's bounding-box centre on the ground
@@ -773,7 +862,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   }
 
   const scene: TrackScene = {
-    group, palette, chunks, decor, dressing, instancers,
+    group, palette, chunks, decor, dressing, farLandmark, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,

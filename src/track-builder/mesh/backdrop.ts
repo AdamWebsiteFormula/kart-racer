@@ -138,15 +138,29 @@ function layersFor(biome: string): Layer[] {
     // detail review 5: the bright lawn ended in a ruler-straight line under a pale, washed-out hill ring.
     // Now the near hills keep their green down to a foot the colour of the fogged lawn out there, and a
     // low line of hedgerow trees at 420 m hides where the lawn ends (the far hills stay hazed)
-    case 'meadow': return [
-      { radius: 760, profile: hills(52, 26, 11), foot: hex('#6f9a86'), top: hex('#8fb3a0'), haze: 0.5, shade: hex('#5f7f96') },
-      { radius: 640, profile: hills(22, 16, 7), foot: hex('#5f9c3e'), top: hex('#86c25a'), haze: 0.12, footHaze: 0.2, shade: hex('#3f6a5a') },
-      { radius: 420, profile: puffs(170, 3, 8, 420, 23, 3), foot: hex('#2f6a2c'), top: hex('#4f9a3c'), haze: 0.1, footHaze: 0.05, shade: hex('#24503a') },
-    ];
+    // far vista pass (Adam, 24 Sept 2026: "mountains ... hills and valleys"): blue mountains with snow
+    // on the tallest beyond the valley, rolling hills in a patchwork of fields, the hedgerow trees
+    case 'meadow': {
+      const snow = wobble(11, 101), fields = wobble(60, 103), crop = wobble(23, 107);
+      const CROPS = ['#6fae3a', '#86bf48', '#a9c457', '#64a238', '#98c253', '#bfbf5a'].map(hex);
+      return [
+        { radius: 840, profile: rugged(peaks(16, 70, 150, 83, 12), 10, 27, 85, 16), foot: hex('#7f96b8'), top: hex('#9fb4d4'), haze: 0.48, shade: hex('#7088b8'),
+          seg: 540, rows: 8, snowline: (a) => 0.72 + 0.14 * snow(a), paint: (a, k) => (k >= 0.72 + 0.14 * snow(a) ? hex('#f4f8ff') : null) },
+        { radius: 700, profile: hills(40, 22, 7), foot: hex('#5f9c3e'), top: hex('#86c25a'), haze: 0.16, footHaze: 0.18, shade: hex('#3f6a5a'),
+          seg: 720, rows: 8, paint: (a, k) => {
+            const cell = Math.floor(a * 20 + fields(a) * 3) * 7 + Math.floor(k * 3 + crop(a) * 1.5);
+            return CROPS[((cell % CROPS.length) + CROPS.length) % CROPS.length];
+          } },
+        { radius: 420, profile: puffs(170, 3, 8, 420, 23, 3), foot: hex('#2f6a2c'), top: hex('#4f9a3c'), haze: 0.1, footHaze: 0.05, shade: hex('#24503a') },
+      ];
+    }
+    // far vista pass: violet-hazed peaks, banded mesas, and near them tall red buttes, three deep
     case 'canyon': return [
-      { radius: 760, profile: peaks(14, 40, 95, 5, 10), foot: hex('#c98a6a'), top: hex('#e0a27c'), haze: 0.5, shade: hex('#8a6a9a') },
-      { radius: 640, profile: mesas(16, 30, 75, 3), foot: hex('#a8462a'), top: hex('#e27f4e'), haze: 0.25, shade: hex('#7a3a52'),
+      { radius: 800, profile: rugged(peaks(14, 40, 95, 5, 10), 8, 19, 111, 14), foot: hex('#c98a6a'), top: hex('#e0a27c'), haze: 0.55, shade: hex('#8a6a9a') },
+      { radius: 660, profile: mesas(16, 30, 75, 3), foot: hex('#a8462a'), top: hex('#e27f4e'), haze: 0.2, footHaze: 0.1, shade: hex('#7a3a52'),
         band: (h) => (Math.floor(h / 9) % 2 ? hex('#f0b48a') : null) },
+      { radius: 540, profile: mesas(12, 40, 95, 91), foot: hex('#8e3b26'), top: hex('#d9774f'), haze: 0.06, footHaze: 0.08, shade: hex('#6a2a42'),
+        rows: 10, band: (h) => (Math.floor(h / 7) % 3 === 1 ? hex('#ebb98c') : null) },
     ];
     // detail review (24 Sept 2026: "plain white cones"): three ranges, bluer with distance. Far, pale
     // blue peaks under a high snow line; the main range, rugged, grey-blue rock faces with a jagged snow
@@ -173,9 +187,21 @@ function layersFor(biome: string): Layer[] {
           paint: (a, k) => (k >= 0.7 + 0.2 * nearSnow(a) ? SNOW : trees(a) > 0.62 ? hex('#3b6e5a') : mixRgb(hex('#24463f'), hex('#2f5d4f'), k)) },
       ];
     }
-    case 'harbour': return [
-      { radius: 780, profile: hills(16, 12, 21), foot: hex('#8fb0a8'), top: hex('#a9c7b8'), haze: 0.6, shade: hex('#7f98a8') },
-      { radius: 640, profile: islands(7, 18, 46, 13), foot: hex('#c9b48a'), top: hex('#5f9f44'), haze: 0.3, shade: hex('#4a6f5a') },
+    // far vista pass: blue mountains across the sea, headlands with sandstone cliffs and green tops,
+    // and nearer, low islets with beaches
+    case 'harbour': {
+      const green = wobble(40, 121);
+      return [
+        { radius: 820, profile: rugged(peaks(14, 50, 115, 31, 6), 8, 21, 123, 10), foot: hex('#88a4c4'), top: hex('#a8bed8'), haze: 0.55, shade: hex('#7d94c0'), seg: 540 },
+        { radius: 680, profile: islands(7, 20, 55, 13), foot: hex('#c9b48a'), top: hex('#5f9f44'), haze: 0.3, shade: hex('#4a6f5a'), rows: 8,
+          paint: (a, k) => (k < 0.28 ? (k < 0.08 ? hex('#e9d7a4') : hex('#c2ab86')) : green(a) > 0.6 ? hex('#4f8f3e') : hex('#62a64a')) },
+        { radius: 560, profile: islands(9, 8, 26, 37), foot: hex('#e9d7a4'), top: hex('#4f9a44'), haze: 0.18, footHaze: 0.1, shade: hex('#3f6a5a'),
+          paint: (_a, k) => (k < 0.2 ? hex('#e9d7a4') : null) },
+      ];
+    }
+    // night hills round the bay, behind the city's towers
+    case 'boardwalk': return [
+      { radius: 780, profile: hills(22, 14, 41), foot: hex('#1a1440'), top: hex('#2c2466'), haze: 0.3, footHaze: 0.2, shade: hex('#1a1440') },
     ];
     // no ring: the sky's own painted cloud sea runs on under its horizon (sky.ts panoHorizon), and
     // flat cut-out puffs in front of it read as cardboard (detail review 2026-09-24)

@@ -246,7 +246,7 @@
       { "asset": "frost-bunting", "instances": 2, "band": "roadside", "layout": "span", "at": [0.07, 0.13], "merge": true },
       { "asset": "frost-bunting", "instances": 1, "band": "roadside", "layout": "span", "at": [0.85, 0.9], "merge": true },
       { "asset": "ice-shards", "instances": 110, "band": "verge", "merge": true },
-      { "asset": "fir", "instances": 110, "band": "far", "dist": [30, 110], "merge": true },
+      { "asset": "fir-far", "instances": 110, "band": "far", "dist": [30, 110], "merge": true },
       { "asset": "crag", "instances": 18, "band": "far", "dist": [40, 150], "merge": true },
       { "asset": "frozen-falls", "instances": 2, "band": "far", "layout": "row", "run": 1, "side": "outside", "dist": [40, 52], "at": [0.23, 0.31], "merge": true },
       { "asset": "frozen-falls", "instances": 1, "band": "far", "layout": "row", "run": 1, "side": "outside", "dist": [40, 52], "at": [0.63, 0.68], "merge": true },
@@ -256,7 +256,7 @@
       { "asset": "ski-lodge", "instances": 1, "band": "roadside", "layout": "row", "run": 1, "side": "right", "footing": "sink", "dist": [15, 18], "at": [0.46, 0.48], "merge": true },
       { "asset": "jump-tower", "instances": 1, "band": "roadside", "layout": "row", "run": 1, "side": "right", "footing": "sink", "dist": [16, 19], "at": [0.51, 0.53], "merge": true },
       { "asset": "crag", "instances": 5, "band": "roadside", "side": "right", "footing": "sink", "dist": [15, 19], "at": [0.4, 0.56], "merge": true },
-      { "asset": "fir", "instances": 14, "band": "far", "side": "right", "dist": [28, 52], "at": [0.38, 0.56], "merge": true },
+      { "asset": "fir-far", "instances": 14, "band": "far", "side": "right", "dist": [28, 52], "at": [0.38, 0.56], "merge": true },
       { "asset": "lantern-post", "instances": 10, "band": "roadside", "layout": "row", "every": 18, "run": 5, "side": "right", "dist": [14, 15], "at": [0.4, 0.56], "merge": true },
       { "asset": "snow-tufts", "instances": 90, "band": "verge", "at": [0.36, 0.62], "merge": true },
       { "asset": "frozen-pond", "instances": 1, "band": "far", "dist": [34, 60], "at": [0.7, 0.8], "merge": true }

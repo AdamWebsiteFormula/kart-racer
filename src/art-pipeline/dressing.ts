@@ -78,6 +78,20 @@ export const DRESSING_MODELS: Record<string, { build: Build }> = {
       fir(m, -1.2, 1.7, 3.4, 3, 2);
     },
   },
+  // the same stand for the far band: two tiers a tree, fewer sides (seen from 30 to 110 m)
+  'fir-far': {
+    build: (m) => {
+      const tree = (x: number, z: number, h: number, shade: number) => {
+        m.cyl(0.26 * h / 7, 0.34 * h / 7, h * 0.2, PINE_WOOD, [x, h * 0.1, z], undefined, 4, false);
+        m.cone(h * 0.26, h * 0.5, FIR[shade % 3], [x, h * 0.42, z], undefined, 6, false);
+        m.cone(h * 0.18, h * 0.42, FIR[(shade + 1) % 3], [x, h * 0.72, z], [0, 0.5, 0], 6, false);
+        m.cone(h * 0.08, h * 0.16, SNOW, [x, h * 0.9, z], undefined, 5, false);
+      };
+      tree(0, 0, 7.5, 0);
+      tree(1.9, 1.2, 5.2, 1);
+      tree(-1.2, 1.7, 3.4, 2);
+    },
+  },
   'snow-fence': {
     // a 4 m rail fence along Z with snow on its posts and top rail and a drift along its foot
     build: (m) => {

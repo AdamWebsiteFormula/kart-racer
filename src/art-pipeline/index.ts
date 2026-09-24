@@ -5,6 +5,7 @@ import { trackAssetsFor } from './decor.ts';
 import { PROP_MODELS } from './glb.ts';
 import { coastMaterial, groundMaterial, roadGrain } from './surfaces.ts';
 import { toonRamp } from './toon.ts';
+import { buildVista } from './vista.ts';
 
 export { bodyColours, buildRacerMesh, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
 export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } from './bodies.ts';
@@ -33,5 +34,6 @@ export function trackAssets(biome?: string): TrackAssets {
     if (file) { geometries[name] = file.geometry; materials[name] = file.material; }
   }
   const surfaces = biome ? { ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome) } : {};
-  return { geometries, materials, gradientMap: toonRamp(), ...surfaces };
+  // the far vista: set-pieces, movers and glows past the scenery (vista.ts)
+  return { geometries, materials, gradientMap: toonRamp(), vista: buildVista, ...surfaces };
 }
