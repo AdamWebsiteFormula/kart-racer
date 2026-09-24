@@ -16,6 +16,7 @@ import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type 
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
+import { buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
 import { buildStartGantry } from './gantry.ts';
 import { buildLoopMeshes } from './loop.ts';
@@ -109,9 +110,9 @@ function geometryFor(assets: TrackAssets, name: string, fallback = name): Buffer
  * where the road bends (the ribbon's `bend`), 2 never. a/b: the edge's two tones; joints: seams per
  * roadTileLength (slabs, planks), joint how dark a seam is; neon: a glowing line along the edge.
  */
-interface EdgeStyle { mode: 0 | 1 | 2; a: string; b: string; joints: number; joint: number; neon?: string }
+interface EdgeStyle { mode: 0 | 1 | 2; a: string; b: string; joints: number; joint: number; neon?: string; off?: [string, string] }
 const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
-  harbour: { mode: 1, a: '#e2ddd0', b: '#d2cabb', joints: 5, joint: 0.28 },             // a town sidewalk; stripes on the corners
+  harbour: { mode: 1, a: '#e2ddd0', b: '#d2cabb', joints: 5, joint: 0.28, off: ['#ead9ab', '#d8c290'] }, // a town sidewalk, stripes on the corners; beach sand past it
   skyline: { mode: 1, a: '#f4c64e', b: '#e2a92c', joints: 2, joint: 0.12 },             // gold trim; stripes on the corners
   meadow: { mode: 2, a: '#7cbc56', b: '#5e9c40', joints: 0, joint: 0 },                 // a grass verge
   canyon: { mode: 2, a: '#ecc08a', b: '#d9a56d', joints: 0, joint: 0 },                 // drifted sand
@@ -124,7 +125,7 @@ const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
  * edge and a dashed centre line (asphalt only). Reads the ribbon's `mark` and `bend` attributes
  * (road.ts); vertex colours still tint everything else.
  */
-function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle): void {
+function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle, offroad: boolean): void {
   const kerbA = new Color(...palette.kerbA), kerbB = new Color(...palette.kerbB);
   const ea = hexToRgb(edge.a), eb = hexToRgb(edge.b), neon = edge.neon ? hexToRgb(edge.neon) : ([0, 0, 0] as Rgb);
   m.onBeforeCompile = (shader) => {
@@ -137,11 +138,15 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
     shader.uniforms.uEdgeJoints = { value: edge.joints };
     shader.uniforms.uEdgeJoint = { value: edge.joint };
     shader.uniforms.uNeon = { value: new Color(neon[0] * 2.2, neon[1] * 2.2, neon[2] * 2.2) };
+    const off = edge.off ? [hexToRgb(edge.off[0]), hexToRgb(edge.off[1])] : [ea, eb];
+    shader.uniforms.uOffroad = { value: offroad ? 1 : 0 };
+    shader.uniforms.uOffA = { value: new Color(...off[0]) };
+    shader.uniforms.uOffB = { value: new Color(...off[1]) };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nvarying float vMark;\nvarying float vBend;\nvarying vec2 vRoad;')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvRoad = uv;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nvarying float vMark;\nvarying float vBend;\nvarying vec2 vRoad;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nvarying float vMark;\nvarying float vBend;\nvarying vec2 vRoad;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         if (vMark > 0.5 && vMark < 1.5) {
           // a neon line along the edge (Boardwalk): it lights itself
@@ -161,6 +166,10 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           vec3 plain = mix(uEdgeA, uEdgeB, q) * (1.0 - uEdgeJoint * (1.0 - seam));
           float corner = uEdgeMode > 1.5 ? 0.0 : uEdgeMode > 0.5 ? smoothstep(0.25, 0.6, vBend) : 1.0;
           diffuseColor.rgb = mix(plain, stripes, corner);
+        } else if (vMark > 1.5 && vMark < 2.5 && uOffroad > 0.5) {
+          // the off-road band: the place's own ground (grass, sand, snow), broken up in big soft patches
+          float g = sin(vRoad.y * 7.0 + vRoad.x * 4.0) * sin(vRoad.y * 2.3 - vRoad.x * 6.0) * 0.5 + 0.5;
+          diffuseColor.rgb = mix(uOffA, uOffB, g);
         } else if (vMark < 0.5) {
           // the surface itself: big soft patches of lighter and darker tarmac, and the middle a
           // little darker where the karts run (it is never one flat sheet)
@@ -303,7 +312,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
   if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
   else if (assets.roadMap) roadMaterial.map = assets.roadMap;
-  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour);
+  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour, def.offroad === true);
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);
@@ -316,13 +325,21 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   syncOpen();
 
   // barriers (open branches only, so a closed shortcut loses its posts with its road)
+  let boundary: Mesh | null = null;
   const addBarriers = () => {
     const old = instancers.get('barriers');
     if (old) retire(old);
-    const m = instancer('barriers', geometryFor(assets, `${def.biome}-barrier`, 'barrier'), palette.barrier, placeBarriers(branches));
+    // an off-road track has no posts at the road's edge: its boundary is a real wall past the off-road
+    const posts = def.offroad ? new Float32Array(0) : placeBarriers(branches);
+    const m = instancer('barriers', geometryFor(assets, `${def.biome}-barrier`, 'barrier'), palette.barrier, posts);
     instancers.set('barriers', m);
     group.add(m);
     withHull(m, `${def.biome}-barrier`);
+    // the boundary: a hedge, a sandstone wall, a snowbank or a sea wall past the off-road; a rail
+    // through the posts on a pier or a sky road (boundary.ts), rebuilt when a shortcut opens or closes
+    if (boundary) retire(boundary);
+    boundary = buildBoundary(branches, def.biome, def.offroad === true, GRADIENT ?? null);
+    if (boundary) { OWNED.add(boundary.geometry); group.add(boundary); }
   };
   addBarriers();
 

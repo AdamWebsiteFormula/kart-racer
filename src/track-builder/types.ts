@@ -120,6 +120,8 @@ export interface TrackDefinition {
   coins?: PickupDef[];
   boostPads?: BoostPadDef[];
   finalLapShift: FinalLapShiftDef;
+  /** off-road past the curb to a real boundary wall (Adam, 23 Sept 2026: the Mario Kart way); absent = a wall at the road's edge */
+  offroad?: boolean;
   /** loop-the-loops on the main line: every kart rides up and round (design.md Track thrills) */
   loops?: { id: string; t: number; radius?: number }[];
   /** stretches of the main line with no wall on one or both sides: drive off and fall (the claw brings you back) */

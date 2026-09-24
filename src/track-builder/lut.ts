@@ -43,6 +43,8 @@ export class Lut {
   readonly surface: Uint8Array;
   /** open edges per sample: bit 1 left, bit 2 right (Track.rebuildDerived fills it from the def) */
   readonly open: Uint8Array;
+  /** an off-road track (Track.rebuildDerived sets it): past the curb, loose ground to a wall past the shoulder */
+  offroad = false;
   /** control-point segment the sample lies in */
   readonly seg: Uint16Array;
   /** per-sample grip scale, 1 until a shift multiplies it */
@@ -179,18 +181,20 @@ export class Lut {
     const open = this.open[i0];
     out.open = open;
     out.overCliff = false;
-    if (open & (lateral < 0 ? 1 : 2)) {
-      // an open edge: loose ground over the kerb, then nothing past the shoulder
+    const openSide = (open & (lateral < 0 ? 1 : 2)) !== 0;
+    if (openSide || this.offroad) {
+      // past the curb, loose ground (off-road: a top-speed cap, kart-controller surfaceSpeed) that
+      // falls away as road.ts draws the shoulder; an open edge ends in a drop, elsewhere a wall
       const off = Math.abs(lateral) - out.halfWidth;
       if (off > BUILDER.kerbWidth) {
         out.surface = 'dirt';
-        // the shoulder falls away to the lip, as road.ts draws it
         const drop = BUILDER.shoulderDrop * Math.min(1, (off - BUILDER.kerbWidth) / BUILDER.shoulderWidth);
         out.groundY -= drop;
         p[1] -= drop;
       }
-      out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
+      if (openSide) out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
     }
+    out.wall = this.offroad ? out.halfWidth + BUILDER.kerbWidth + BUILDER.shoulderWidth : out.halfWidth;
     return out;
   }
 

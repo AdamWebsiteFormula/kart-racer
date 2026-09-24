@@ -12,6 +12,7 @@
     "bronze": 178000
   },
   "voidY": -10,
+  "offroad": true,
   "landmark": "windmill",
   "music": "meadow",
   "controlPoints": [

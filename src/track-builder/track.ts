@@ -110,6 +110,8 @@ export class Track implements TrackQuery {
   /** @internal Checkpoints, spawn grid, minimap and feature views from the current LUTs. */
   rebuildDerived(): void {
     const lut = this.branches.main.lut;
+    // off-road past the curb on every branch (a route change builds a new LUT, so it is set again here)
+    for (const b of this.branches.list) b.lut.offroad = this.def.offroad === true;
     // open edges (a route change builds a new LUT, so they are laid again here)
     lut.open.fill(0);
     for (const e of this.openEdges) {

@@ -12,6 +12,7 @@
     "bronze": 192000
   },
   "voidY": -10,
+  "offroad": true,
   "landmark": "peak",
   "music": "frost",
   "controlPoints": [

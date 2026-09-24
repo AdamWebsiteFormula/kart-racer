@@ -139,7 +139,7 @@ export function stepProjectiles(
     const smp = track.sample(p.t, 0, p.branch);
     const r = rightAt(track, p.t, p.branch, scratchRight);
     let lat = (p.position[0] - smp.position[0]) * r[0] + (p.position[2] - smp.position[2]) * r[2];
-    const limit = smp.halfWidth - p.radius;
+    const limit = (smp.wall ?? smp.halfWidth) - p.radius;
     if (Math.abs(lat) > limit) {
       p.bouncesLeft--;
       if (p.bouncesLeft < 0) { popProjectile(m, p, events); continue; }

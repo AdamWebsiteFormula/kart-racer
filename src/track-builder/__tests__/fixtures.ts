@@ -77,3 +77,6 @@ export const HARBOUR_WITH_PIER: TrackDefinition = (() => {
   d.jumps = [{ id: 'pier-ramp', t: 0.3492, shortcut: 'pier', launch: 5, width: 6 }];
   return d;
 })();
+
+/** Harbor Loop with a wall at the road's edge (no off-road band): for the barrier-post tests. */
+export const HARBOUR_WALLED: TrackDefinition = { ...cloneDef(HARBOUR_LOOP), offroad: false };

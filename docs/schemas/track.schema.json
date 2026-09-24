@@ -70,6 +70,7 @@
         }
       }
     },
+    "offroad": { "type": "boolean", "default": false, "description": "Past the curb, a band of off-road (shoulderWidth metres; the dirt top-speed cap) to a real boundary wall, the Mario Kart way. False: the wall is at the road's edge (a pier, a sky road), with a rail through the posts." },
     "loops": {
       "description": "Loop-the-loops on the main line (design.md Track thrills). Every kart on the ground is caught before the foot at t, rides up and round the ring and is set down after it with a boost. Put one on a straight at least approach + exit metres long.",
       "type": "array",

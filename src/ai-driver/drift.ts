@@ -148,6 +148,8 @@ export function stepDriftDecision(
     : err * dir < -d.overRotate ? 'over'
     : tier >= 1 && Math.abs(err) < d.aligned && line.kappaShort * Math.abs(s.speed) < d.exitYawFraction * driftYaw(c, 0) ? 'aligned'
     : line.myLat * dir > line.halfWidth - d.edgeMargin ? 'edge'
+    // sliding wide toward the outside edge: let go before the off-road (no wall to lean on there)
+    : line.myLat * -dir > line.halfWidth + d.outsideSlack ? 'edge'
     : m.driftHold > d.maxHold ? 'hold'
     : 'none';
   if (why !== 'none') release(m, tier === 0 ? d.abortCooldown : d.cooldown, out, why);

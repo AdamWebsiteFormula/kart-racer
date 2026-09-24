@@ -160,6 +160,8 @@ export interface TrackSample {
   open?: number;
   /** past an open edge's cliff: no ground under this point, the kart falls */
   overCliff?: boolean;
+  /** lateral distance of the boundary wall from the centre line: past the off-road band on an off-road track, else the road's edge (absent = halfWidth) */
+  wall?: number;
 }
 
 /** t is main-equivalent; branch 0 unless the feature sits on a shortcut. */

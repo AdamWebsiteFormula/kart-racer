@@ -3,7 +3,7 @@ import { InstancedMesh, Mesh } from 'three';
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
-import { HARBOUR_LOOP, cloneDef } from '../__tests__/fixtures.ts';
+import { HARBOUR_LOOP, HARBOUR_WALLED, cloneDef } from '../__tests__/fixtures.ts';
 import { chunkCountFor } from './chunks.ts';
 import { insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
@@ -164,7 +164,24 @@ describe('decor and barriers', () => {
     expect(Array.from(b)).toEqual(Array.from(a));
   });
 
+  it('an off-road track has no posts at the road edge: a continuous boundary wall stands past the off-road band', () => {
+    const t = buildTrack(HARBOUR_LOOP);
+    const s = buildTrackScene(t);
+    expect(HARBOUR_LOOP.offroad).toBe(true);
+    expect(s.instancers.get('barriers')!.count).toBe(0);
+    const wall = s.group.getObjectByName('boundary') as Mesh;
+    expect(wall).toBeDefined();
+    wall.geometry.computeBoundingBox();
+    expect(wall.geometry.getAttribute('position').count).toBeGreaterThan(1000);
+    // the physics wall is where the drawn one stands
+    const smp = t.sample(0.1, 0);
+    expect(smp.wall).toBeCloseTo(smp.halfWidth + BUILDER.kerbWidth + BUILDER.shoulderWidth, 6);
+    s.dispose();
+  });
+
   it('barriers: two per BARRIER_SPACING on every branch, minus the few posts that would fence a shortcut mouth', () => {
+    const track = buildTrack(HARBOUR_WALLED);
+    const scene = buildTrackScene(track);
     let expected = 0;
     for (const b of track.branches.list) expected += 2 * Math.max(1, Math.floor(b.lut.length / BUILDER.barrierSpacing));
     const count = scene.instancers.get('barriers')!.count;
@@ -184,7 +201,7 @@ describe('decor and barriers', () => {
   });
 
   it('a closed shortcut has no posts and its chunks are hidden after the shift', () => {
-    const t = buildTrack(HARBOUR_LOOP); // the tide closes the beach
+    const t = buildTrack(HARBOUR_WALLED); // the tide closes the beach
     const s = buildTrackScene(t);
     const before = s.instancers.get('barriers')!.count;
     t.applyFinalLapShift();
@@ -235,7 +252,7 @@ describe('Final Lap Shift swap and hazards', () => {
   });
 
   it('lap gating: a shortcut closed on lap 1 starts hidden, with no coins or posts, and appears when its lap comes', () => {
-    const d = cloneDef(HARBOUR_LOOP);
+    const d = cloneDef(HARBOUR_WALLED);
     d.shortcuts![0].openOnLaps = [2];
     const t = buildTrack(d);
     const s = buildTrackScene(t);

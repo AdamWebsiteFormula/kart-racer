@@ -12,6 +12,7 @@
     "bronze": 188000
   },
   "voidY": -25,
+  "offroad": true,
   "landmark": "arch",
   "music": "canyon",
   "controlPoints": [

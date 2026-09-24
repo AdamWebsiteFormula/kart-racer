@@ -139,6 +139,8 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-23: **Road edges are themed per track** (Adam chose option 1): EDGES in scene.ts picks stripes everywhere, stripes where the road bends (the ribbon's `bend` attribute, radius under about 40 to 80 m), or never, plus two tones, seams and an optional neon line. Barrier posts match (ranch posts on Canyon, snow poles on Frostbite).
 
+- 2026-09-23: **Off-road and real boundaries** (Adam): `offroad: true` on a track makes the LUT sample report dirt past the curb (with the shoulder drop) and `TrackSample.wall` = halfWidth + kerbWidth + shoulderWidth; the kart and projectiles stop there, and boundary.ts draws a continuous hedge, sandstone wall, snowbank or sea wall there. Tracks without it keep the wall at the road edge and get a continuous rail through the posts.
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-19: **Moving hazards would vanish after frame one (caught in review, not play).** Cause: `InstancedMesh` computes its bounding sphere lazily on the first render from the instances present then, and never again; a rolling barrel leaves the sphere and is culled, and an instancer whose first frame has `count = 0` gets an empty sphere and is culled forever. Fix: `frustumCulled = false` on every instancer whose matrices change at runtime. Rule: anything animated through `setMatrixAt` is never frustum-culled, or its `boundingSphere` is reset to `null` after every update.

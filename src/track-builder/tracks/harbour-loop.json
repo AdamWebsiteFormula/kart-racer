@@ -12,6 +12,7 @@
     "bronze": 180000
   },
   "voidY": -12,
+  "offroad": true,
   "landmark": "lighthouse",
   "music": "harbour",
   "controlPoints": [

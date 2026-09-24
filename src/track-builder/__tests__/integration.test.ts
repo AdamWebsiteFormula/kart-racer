@@ -74,7 +74,7 @@ describe('integration on Harbour Loop', () => {
     const t0 = wrap01(beach.entryT - 0.04);
     const p = track.sample(t0, 0);
     s.position = [...p.position]; s.t = t0; s.heading = Math.atan2(p.tangent[0], p.tangent[2]);
-    let onBeach = 0;
+    let onBeach = 0, onBeachRoad = 0;
     let prevT = s.t;
     let maxBack = 0;
     for (let i = 0; i < 120 * 20; i++) {
@@ -86,13 +86,15 @@ describe('integration on Harbour Loop', () => {
       while (err > Math.PI) err -= 2 * Math.PI;
       while (err < -Math.PI) err += 2 * Math.PI;
       stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer: Math.max(-1, Math.min(1, err * 3)) }, track, c, DT);
-      if (s.branch === beach.index) { onBeach++; expect(s.surface).toBe('road'); /* boardwalk */ }
+      if (s.branch === beach.index) { onBeach++; if (s.surface === 'road') onBeachRoad++; /* boardwalk */ }
       const d = wrap01(s.t - prevT);
       if (d > 0.5) maxBack = Math.max(maxBack, 1 - d);
       prevT = s.t;
       if (onBeach > 0 && s.branch === 0 && wrap01(s.t - beach.exitT) < 0.05) break;
     }
     expect(onBeach).toBeGreaterThan(120 * 5);
+    // the beach's own road nearly all the way (it may brush the off-road where it leaves the main road)
+    expect(onBeachRoad / onBeach).toBeGreaterThan(0.9);
     expect(s.branch).toBe(0);
     expect(maxBack).toBeLessThan(1e-3);
   });

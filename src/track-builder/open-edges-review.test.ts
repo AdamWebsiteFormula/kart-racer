@@ -14,6 +14,8 @@ import type { TrackDefinition, Vec3 } from './types.ts';
 
 const c = makeConstants('medium', 150);
 const canyon = () => JSON.parse(JSON.stringify(canyonJson)) as TrackDefinition;
+/** Canyon Rush with its wall at the road's edge (no off-road band): the open-edge shoulder on its own. */
+const walledCanyon = () => { const d = canyon(); d.offroad = false; return d; };
 const dist = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 /** Signed meters right of the main-line center at the kart's t. */
@@ -62,7 +64,8 @@ describe('open edges through a route-changing Final Lap Shift (Canyon Rush colla
       let maxLat = 0, fell = false;
       for (let k = 0; k < 360; k++) {
         events.push(...stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer }, track, c, SIM_DT));
-        maxLat = Math.max(maxLat, Math.abs(lateralOf(track, s)) - (track.sample(s.t, 0).halfWidth - c.kartRadius));
+        const smp = track.sample(s.t, 0);
+        maxLat = Math.max(maxLat, Math.abs(lateralOf(track, s)) - ((smp.wall ?? smp.halfWidth) - c.kartRadius));
         if (s.status.falling) fell = true;
       }
       expect(fell).toBe(false);
@@ -97,8 +100,8 @@ describe('open edges through a route-changing Final Lap Shift (Canyon Rush colla
 describe('the open shoulder falls away like the drawn one', () => {
   // Canyon Rush before the shift: left open at 0.46-0.6, right walled here (right opens at 0.51)
   const T = 0.48;
-  const track = buildTrack(canyon());
-  const flat = (() => { const d = canyon(); d.openEdges = []; return buildTrack(d); })(); // same road, all walled
+  const track = buildTrack(walledCanyon());
+  const flat = (() => { const d = walledCanyon(); d.openEdges = []; return buildTrack(d); })(); // same road, all walled
   const hw = track.sample(T, 0).halfWidth;
   const { kerbWidth: kw, shoulderWidth: sw, shoulderDrop: drop } = BUILDER;
 
@@ -180,5 +183,36 @@ describe('a kart far outside a wall line is eased back, not teleported', () => {
     expect(easingTicks).toBeGreaterThan(20);
     expect(maxJump).toBeLessThanOrEqual(c.wallEndOvershoot + 0.05);
     expect(Math.abs(prev)).toBeLessThanOrEqual(track.sample(s.t, 0).halfWidth - c.kartRadius + 0.05);
+  });
+});
+
+describe('off-road (Adam, 23 Sept 2026: the Mario Kart way)', () => {
+  const track = buildTrack(canyon());
+  const T = 0.3;
+  const hw = track.sample(T, 0).halfWidth;
+  const { kerbWidth: kw, shoulderWidth: sw, shoulderDrop: drop } = BUILDER;
+
+  it('past the curb on a walled side: loose ground (dirt) that falls away like the drawn shoulder, and the wall at its far edge', () => {
+    expect(track.sample(T, 0).open ?? 0).toBe(0);
+    expect(track.sample(T, hw + kw * 0.5).surface).toBe('road'); // the curb
+    const mid = track.sample(T, hw + kw + sw * 0.5);
+    expect(mid.surface).toBe('dirt');
+    expect(track.sample(T, 0).groundY - mid.groundY).toBeGreaterThan(drop * 0.4);
+    expect(mid.overCliff).toBe(false);
+    expect(mid.wall).toBeCloseTo(hw + kw + sw, 6);
+  });
+
+  it('a kart steered off the road rolls onto the off-road, slows to the dirt cap, and is stopped by the wall, not the road edge', () => {
+    const s = kartAt(track, T, 0, 22);
+    let maxLat = 0, dirtTicks = 0;
+    for (let k = 0; k < 360; k++) {
+      stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer: 1 }, track, c, SIM_DT);
+      maxLat = Math.max(maxLat, Math.abs(lateralOf(track, s)));
+      if (s.surface === 'dirt') dirtTicks++;
+    }
+    expect(maxLat).toBeGreaterThan(hw + kw); // it left the road
+    expect(maxLat).toBeLessThanOrEqual(hw + kw + sw - c.kartRadius + 0.05); // held by the boundary wall
+    expect(dirtTicks).toBeGreaterThan(0);
+    expect(s.status.falling).toBe(false);
   });
 });

@@ -19,7 +19,7 @@ export interface AiConstants {
   };
   drift: {
     maxHold: number; cooldown: number; abortCooldown: number; hopCommit: number; hopCommitStick: number; chargeSnap: number; chargeSecondsAhead: number; startYawFraction: number; exitYawFraction: number;
-    overRotate: number; aligned: number; alignedTurn: number; edgeMargin: number; aimGain: number; tierBySkill: number[];
+    overRotate: number; aligned: number; alignedTurn: number; edgeMargin: number; outsideSlack: number; aimGain: number; tierBySkill: number[];
   };
   recover: { stuckSeconds: number; reverseSeconds: number; cooldownSeconds: number };
   rubber: { min: number; max: number; deadZone: number; scale: number; powerFrom: number; skillGain: number; shortcutRb: number; fieldPaceSpread: number };

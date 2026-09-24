@@ -207,6 +207,7 @@
           "aligned": { "type": "number", "description": "rad; release when the error and turnNear are both this small", "default": 0.08 },
           "alignedTurn": { "type": "number", "default": 0.15 },
           "edgeMargin": { "type": "number", "description": "metres from the inside edge that releases", "default": 1.2 },
+          "outsideSlack": { "type": "number", "description": "metres past the outside road edge (onto the curb, still road) a drift may slide before the AI lets go; past the curb is off-road", "default": 0.3 },
           "aimGain": { "type": "number", "description": "rad/s of drift yaw asked per rad of heading error toward the aim point", "default": 1.0 },
           "tierBySkill": { "type": "array", "items": { "type": "number" }, "description": "skill below [0] → tier 1, below [1] → tier 2, else 3", "default": [0.5, 0.8] }
         } },
