@@ -7,11 +7,30 @@ import type { RaceEvent, RaceMode } from '../../race-manager/types.ts';
 import { OVAL, placeAt } from '../../race-manager/__tests__/fixtures.ts';
 import { buildTrack, type Track } from '../../track-builder/track.ts';
 import type { TrackDefinition } from '../../track-builder/types.ts';
+import boardwalkJson from '../../track-builder/tracks/boardwalk-nights.json';
+import canyonJson from '../../track-builder/tracks/canyon-rush.json';
+import frostbiteJson from '../../track-builder/tracks/frostbite-pass.json';
+import harbourJson from '../../track-builder/tracks/harbour-loop.json';
+import meadowJson from '../../track-builder/tracks/meadow-run.json';
+import skylineJson from '../../track-builder/tracks/skyline-circuit.json';
 import { ITEMS_CONFIG, itemById } from '../data.ts';
 import { Items } from '../items.ts';
 import type { ItemEvent, ItemsConfig } from '../types.ts';
 
 export { placeAt };
+
+const TRACK_JSON = {
+  boardwalk: boardwalkJson, canyon: canyonJson, frostbite: frostbiteJson,
+  harbour: harbourJson, meadow: meadowJson, skyline: skylineJson,
+} as const;
+export type RealTrack = keyof typeof TRACK_JSON;
+/** The six tracks; each has one shortcut, branch 1. */
+export const REAL_TRACKS = Object.keys(TRACK_JSON) as RealTrack[];
+
+/** A fresh copy of a real track's definition (a build or a shift never touches the JSON). */
+export function trackDef(id: RealTrack): TrackDefinition {
+  return JSON.parse(JSON.stringify(TRACK_JSON[id])) as TrackDefinition;
+}
 
 export interface H {
   track: Track;
@@ -102,6 +121,17 @@ export function toFeature(h: H, i: number, kind: 'pickup' | 'coin', nth = 0): vo
   const s = h.rm.state.karts[i];
   placeAt(h.track, s, f.t, f.lateral);
   s.position = [...f.position];
+}
+
+/** Stand kart i on a shortcut (branch index) at its local u, facing along it. */
+export function placeOn(h: H, i: number, branch: number, u: number, lateral = 0): void {
+  const t = h.track.branches.list[branch].toMain(u);
+  const p = h.track.sample(t, lateral, branch);
+  const s = h.rm.state.karts[i];
+  s.position = [...p.position];
+  s.heading = Math.atan2(p.tangent[0], p.tangent[2]);
+  s.t = t;
+  s.branch = branch;
 }
 
 export function kart(h: H, i: number): KartState { return h.rm.state.karts[i]; }

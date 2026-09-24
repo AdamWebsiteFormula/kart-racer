@@ -5,7 +5,7 @@ import { OVAL } from '../race-manager/__tests__/fixtures.ts';
 import { ITEMS_CONFIG } from './data.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import { lateralOf } from './projectiles.ts';
-import { count, give, go, hold, kart, letGo, placeAt, press, seconds, setup, tick, toFeature, withBehaviour, type H } from './__tests__/harness.ts';
+import { REAL_TRACKS, count, give, go, hold, kart, letGo, placeAt, placeOn, press, seconds, setup, tick, toFeature, trackDef, withBehaviour, type H } from './__tests__/harness.ts';
 
 /** Metres above the road under kart i. */
 function clearance(h: H, i: number): number {
@@ -99,6 +99,21 @@ describe('Strike Ball', () => {
     expect(b.status.spinRemaining).toBeGreaterThan(0);
     expect(a.status.spinRemaining).toBe(0);
   });
+
+  it('knocks each kart once: coins in hand cost 2 (bug hunt: it hit every tick of the touch and took all 10)', () => {
+    const h = setup({ n: 2 });
+    go(h);
+    const [a, b] = [kart(h, 0), kart(h, 1)];
+    placeAt(h.track, a, 0.02, 0);
+    placeAt(h.track, b, 0.02 + 30 / h.track.length, 0);
+    b.coins = 10;
+    give(h, 0, 'strikeBall');
+    press(h, 0);
+    tick(h, seconds(2));
+    const hits = h.log.filter((e) => e.type === 'hit' && e.racerId === 'k1');
+    expect(hits).toEqual([expect.objectContaining({ itemId: 'strikeBall', spun: false, coinsLost: 2 })]);
+    expect(b.coins).toBe(8);
+  });
 });
 
 describe('Pogo Spring', () => {
@@ -184,6 +199,62 @@ describe('Grapple Anchor', () => {
     expect(count(h.log, 'tetherStart')).toBe(0);
     expect(a.item.held).toBe('none');
   });
+
+  it('never hooks a kart on the other road (bug hunt: it hooked one in a shortcut and dragged you off the road)', () => {
+    for (const id of REAL_TRACKS) {
+      const h = setup({ n: 2, def: trackDef(id) });
+      h.track.branches.list[1].forcedOpen = true; // Frostbite's lake opens on lap 3 only
+      go(h);
+      const [a, b] = [kart(h, 0), kart(h, 1)];
+      // b in the shortcut, a on the main road 20 m of t behind it: in reach along the road, not by it
+      placeOn(h, 1, 1, 0.5);
+      placeAt(h.track, a, wrap01(b.t - 20 / h.track.length), 0);
+      give(h, 0, 'grappleAnchor');
+      expect(press(h, 0).some((e) => e.type === 'itemRefused' && e.reason === 'noTarget'), id).toBe(true);
+      expect(a.item.held, id).toBe('grappleAnchor');
+      // and the other way round: a in the shortcut, b on the main road
+      placeOn(h, 0, 1, 0.5);
+      placeAt(h.track, b, wrap01(a.t + 20 / h.track.length), 0);
+      expect(press(h, 0).some((e) => e.type === 'itemRefused' && e.reason === 'noTarget'), id).toBe(true);
+    }
+  });
+
+  it('lets go when the hooked kart turns into a shortcut you are not on, but follows it out of one', () => {
+    const h = setup({ n: 2, def: trackDef('meadow') });
+    go(h);
+    const [a, b] = [kart(h, 0), kart(h, 1)];
+    const entry = h.track.branches.list[1].entryT, L = h.track.length;
+    placeAt(h.track, a, wrap01(entry - 40 / L), 0);
+    placeAt(h.track, b, wrap01(entry - 10 / L), 0);
+    give(h, 0, 'grappleAnchor');
+    press(h, 0);
+    expect(a.status.towTarget).toBe(1);
+    placeOn(h, 1, 1, 0.05); // b takes the hedgerow cut
+    tick(h);
+    const end = h.log.find((e) => e.type === 'tetherEnd');
+    expect(end?.type === 'tetherEnd' && !end.slingshot).toBe(true);
+    expect(a.status.towTarget).toBe(-1);
+
+    // both in the cut, b driving out ahead: a is pulled out after it and flies past
+    const o = setup({ n: 2, def: trackDef('meadow') });
+    go(o);
+    const [c, d] = [kart(o, 0), kart(o, 1)];
+    placeOn(o, 1, 1, 0.97);
+    placeOn(o, 0, 1, 0.97 - 40 / (o.track.length * o.track.branches.list[1].span));
+    d.speed = 25;
+    o.inputs[1].throttle = 1;
+    give(o, 0, 'grappleAnchor');
+    press(o, 0);
+    expect(c.status.towTarget).toBe(1);
+    let split = false;
+    for (let k = 0; k < seconds(3) && c.status.towTarget >= 0; k++) {
+      tick(o);
+      if (c.status.towTarget >= 0 && c.branch !== d.branch) split = true;
+    }
+    expect(split).toBe(true);
+    const out = o.log.find((e) => e.type === 'tetherEnd');
+    expect(out?.type === 'tetherEnd' && out.slingshot).toBe(true);
+  });
 });
 
 describe('Wind-Up Mouse', () => {
@@ -197,6 +268,23 @@ describe('Wind-Up Mouse', () => {
     tick(h, seconds(2));
     const hit = (id: string) => h.log.some((e) => e.type === 'hit' && e.racerId === id);
     expect([hit('k1'), hit('k2'), hit('k3'), hit('k4')]).toEqual([true, true, true, false]);
+    expect(h.items.state.projectiles.length).toBe(0);
+  });
+
+  it('bumps each kart once, so three karts holding coins each lose 2 (bug hunt: all three bumps went on the first)', () => {
+    const h = setup({ n: 5, cfg: withBehaviour('windUpMouse', { weave: 0 }) });
+    go(h);
+    placeAt(h.track, kart(h, 0), 0.02, 0);
+    for (let k = 1; k <= 4; k++) {
+      placeAt(h.track, kart(h, k), 0.02 + (10 * k) / h.track.length, 0);
+      kart(h, k).coins = 5;
+    }
+    give(h, 0, 'windUpMouse');
+    press(h, 0);
+    tick(h, seconds(2));
+    const hits = (id: string) => h.log.filter((e) => e.type === 'hit' && e.racerId === id).length;
+    expect([hits('k1'), hits('k2'), hits('k3'), hits('k4')]).toEqual([1, 1, 1, 0]);
+    expect([1, 2, 3, 4].map((k) => kart(h, k).coins)).toEqual([3, 3, 3, 5]);
     expect(h.items.state.projectiles.length).toBe(0);
   });
 

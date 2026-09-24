@@ -46,12 +46,15 @@ export function stepPowers(
         if (s.item.held === def.id && s.item.charges === 0) promoteNext(s);
         m.power[i] = '';
       } else {
-        // rolling: karts it touches fly up and spin like pins; drops on the road are crushed
+        // rolling: karts it touches fly up and spin like pins, each once (a kart its coins kept from
+        // spinning is still touching it next tick); drops on the road are crushed
         for (let j = 0; j < karts.length; j++) {
           const o = karts[j];
-          if (j === i || !level(s, o)) continue;
+          if (j === i || (m.knocked[i] & (1 << j)) !== 0 || !level(s, o)) continue;
           if (distXZ(o.position, s.position) > radiusOf(s, consts[i]) + radiusOf(o, consts[j]) + 0.3) continue;
-          if (landHit(karts, consts, m, j, s.racerId, def, 'item', events, scratch) && o.status.spinRemaining > 0) {
+          if (!landHit(karts, consts, m, j, s.racerId, def, 'item', events, scratch)) continue;
+          m.knocked[i] |= 1 << j;
+          if (o.status.spinRemaining > 0) {
             o.verticalVelocity = def.behaviour.popSpeed ?? 0;
             o.grounded = false;
           }
@@ -86,6 +89,9 @@ export function stepPowers(
       let slingshot = false, done = !isTowed(s) || !o || !def;
       if (!done && o && def) {
         if (o.finishTick !== undefined || o.isGhost || o.status.intangibleRemaining > 0 || isRiding(o)) done = true;
+        // it turned into a shortcut you are not on: the pull would drag you off the road at it. (One that
+        // left your shortcut ahead of you, onto the main road, you follow out.)
+        else if (o.branch !== s.branch && o.branch !== 0) done = true;
         else if (distXZ(s.position, o.position) <= (def.behaviour.releaseMetres ?? 0)) {
           // reeled in: fly past with a boost, and tug the hooked kart
           done = slingshot = true;
