@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "check:bundle": "npm run build && node scripts/check-bundle.mjs",
     "test": "vitest run",
-    "verify": "tsc && vitest run",
+    "verify": "tsc && vitest run && vite build && node scripts/check-bundle.mjs",
     "build:function": "vite build --config vite.function.config.ts && node scripts/split-long-lines.mjs supabase/functions/submit-score/core.js && node scripts/publish-fn-core.mjs",
     "deploy:function": "npm run build:function && npx --yes supabase functions deploy submit-score --project-ref thuvqdejckcphwuooyhx"
   },
