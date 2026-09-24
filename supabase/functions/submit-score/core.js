@@ -5342,7 +5342,228 @@ var Mn = class {
 		let _ = xn(t, o, a, d, !c && a.driftDir === 0 && a.driftCooldown === 0 && a.personality.driftUse > 0 && !d.narrow && !d.nearBranch && !d.airAhead && Vt(t, o, l, d), this.speed);
 		Cn(t, _, l, i), c || (Ut(t, o, a, l, d, _.legal, i, s), Gt(t, a, l, i, d)), c || (this.itemCtx.gap = u, this.itemCtx.threatened = this.threatened[n] === !0, i.item = un(t, a, l, d, this.itemCtx, s)), En(t, a, i, s);
 	}
-}, Nn = {
+};
+//#endregion
+//#region src/track-builder/features.ts
+function Nn(e, t) {
+	if (!t) return 0;
+	let n = e.byId(t);
+	if (!n) throw Error(`feature names unknown shortcut "${t}"`);
+	return n.index;
+}
+function Pn(e, t, n, r, i, a) {
+	let o = Nn(e, r.shortcut), s = r.lateral ?? 0, c = r.t, l = e.sample(c, s, o);
+	return {
+		id: n,
+		kind: t,
+		branch: o,
+		t: e.list[o].toMain(e.list[o].toLocal(c)),
+		lateral: s,
+		position: l.position,
+		width: i,
+		launch: a
+	};
+}
+function Fn(e, t) {
+	let n = [];
+	return (e.pickups ?? []).forEach((e, r) => n.push({
+		...Pn(t, "pickup", `pickup-${r}`, e, L.balloonRadius * 2, 0),
+		...e.double ? { double: !0 } : {}
+	})), (e.coins ?? []).forEach((e, r) => n.push(Pn(t, "coin", `coin-${r}`, e, L.coinRadius * 2, 0))), (e.boostPads ?? []).forEach((e, r) => n.push(Pn(t, "boostPad", `pad-${r}`, e, e.width ?? L.boostPadWidth, 0))), (e.jumps ?? []).forEach((e) => n.push(In(t, e))), n;
+}
+function In(e, t) {
+	let n = t.shape === "hump";
+	return {
+		...Pn(e, "jump", t.id, t, t.width ?? L.boostPadWidth, t.launch),
+		shape: n ? "hump" : "ramp",
+		run: t.run ?? (n ? L.humpRun : L.rampRun),
+		rise: t.rise ?? (n ? L.humpRise : L.rampRise),
+		...n ? { edge: L.humpEdge } : {}
+	};
+}
+function Ln(e, t, n, r) {
+	let i = e.sample(t, 0, n), a = i.tangent[2], o = -i.tangent[0], s = Math.hypot(a, o) || 1;
+	return ((r[0] - i.position[0]) * a + (r[2] - i.position[2]) * o) / s;
+}
+function Rn(e, t) {
+	for (let n of e) {
+		let e = t.list[n.branch] ?? t.main;
+		n.t = e.nearestGlobal(n.position).t, n.lateral = Ln(t, n.t, e.index, n.position);
+	}
+}
+function zn(e) {
+	return e.filter((e) => e.kind === "jump").map((e) => ({
+		id: e.id,
+		t: e.t,
+		launch: e.launch,
+		branch: e.branch,
+		shape: e.shape,
+		run: e.run,
+		rise: e.rise,
+		...e.edge ? { edge: e.edge } : {}
+	}));
+}
+function Bn(e) {
+	return e.filter((e) => e.kind === "boostPad").map((e) => ({
+		t: e.t,
+		lateral: e.lateral,
+		halfWidth: e.width / 2,
+		branch: e.branch
+	}));
+}
+//#endregion
+//#region src/track-builder/shift.ts
+var Vn = (e, t, n) => R(e - t) <= R(n - t);
+function Hn(e, t, n) {
+	let r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Map();
+	for (let a of n) {
+		let n = [];
+		for (let r = 0; r < e.length; r++) Vn(t[r], a.fromT, a.toT) && n.push(r);
+		let o;
+		if (n.length) {
+			n.sort((e, n) => R(t[e] - a.fromT) - R(t[n] - a.fromT)), o = n[0];
+			for (let e of n) r.add(e);
+		} else {
+			o = 0;
+			let n = Infinity;
+			for (let r = 0; r < e.length; r++) {
+				let e = R(t[r] - a.toT);
+				e < n && (n = e, o = r);
+			}
+		}
+		i.set(o, [...i.get(o) ?? [], ...a.controlPoints]);
+	}
+	let a = [];
+	for (let t = 0; t < e.length; t++) {
+		let n = i.get(t);
+		n && a.push(...n.map((e) => ({ ...e }))), r.has(t) || a.push({ ...e[t] });
+	}
+	return a;
+}
+function Un(e, t = []) {
+	if (e.shifted) return;
+	e.shifted = !0;
+	let n = e.def.finalLapShift, r = e.branches, i = r.main, a = [], o = n.routeOverrides ?? [];
+	if (o.length) {
+		let n = t.map((e) => e.branch > 0 && r.list[e.branch] ? r.list[e.branch].toLocal(e.t) : 0), s = e.controlPoints.map((e) => i.lut.nearestTGlobal([
+			e.x,
+			e.y,
+			e.z
+		]));
+		e.controlPoints = Hn(e.controlPoints, s, o);
+		let c = r.list.map((e) => e.lut);
+		i.lut = xt(e.controlPoints), Wn(i.lut, c);
+		for (let e of o) a.push([e.fromT, e.toT]);
+		for (let e of r.list) e.isMain || (e.entryT = i.lut.nearestTGlobal(e.entryPoint), e.exitT = i.lut.nearestTGlobal(e.exitPoint), e.span = R(e.exitT - e.entryT));
+		e.startT = i.lut.nearestTGlobal(e.startPoint);
+		let l = (e) => o.some((t) => Vn(e, t.fromT, t.toT));
+		e.openEdges = e.openEdges.filter((e) => !l(e.fromT) && !l(e.toT)).map((e) => ({
+			...e,
+			fromT: i.lut.nearestTGlobal(e.fromPoint),
+			toT: i.lut.nearestTGlobal(e.toPoint)
+		})), e.loopFeet = e.loopFeet.filter((e) => !l(e.t)).map((e) => ({
+			...e,
+			t: i.lut.nearestTGlobal(e.point)
+		}));
+		for (let t of e.hazards.creatures) l(t.t) && e.hazards.setEnabled(t.id, !1);
+		t.forEach((e, t) => {
+			let a = r.list[e.branch];
+			if (e.branch > 0 && a) {
+				let i = qn(r, e.position);
+				i >= 0 ? (e.t = i, e.branch = 0) : e.t = a.toMain(n[t]);
+			} else e.t = i.lut.nearestTGlobal(e.position), e.branch = 0;
+		}), Rn(e.features, r), e.hazards.rederive();
+	}
+	for (let e of n.surfaceOverrides ?? []) {
+		let t = gt(e.surface), n = i.lut;
+		for (let r = 0; r < n.n; r++) Vn(r / n.n, e.fromT, e.toT) && (n.surface[r] = t);
+		a.push([e.fromT, e.toT]);
+	}
+	let s = n.gripMultiplier ?? 1;
+	if (s !== 1) for (let e of r.list) for (let t = 0; t < e.lut.n; t++) e.lut.grip[t] *= s;
+	for (let e of n.closesShortcuts ?? []) {
+		let t = r.byId(e);
+		t && (t.forcedOpen = !1);
+	}
+	for (let e of n.opensShortcuts ?? []) {
+		let t = r.byId(e);
+		t && (t.forcedOpen = !0);
+	}
+	for (let t of n.addsJumps ?? []) e.features.push(In(r, t));
+	for (let t of n.enablesHazards ?? []) e.hazards.setEnabled(t, !0);
+	for (let t of n.disablesHazards ?? []) e.hazards.setEnabled(t, !1);
+	e.rebuildDerived();
+	let c = {
+		kind: n.kind,
+		label: n.label,
+		sky: n.sky,
+		lut: n.lut,
+		fogDensity: n.fogDensity,
+		musicVariant: n.musicVariant,
+		length: i.lut.length,
+		changedRanges: a.map(([e, t]) => [R(e), R(t)])
+	};
+	return e.emit(c), c;
+}
+function Wn(e, t) {
+	let n = e.n, r = e.length / e.step, i = new Float64Array(n), a = new Float64Array(n), o = new Uint8Array(n);
+	for (let r = 0; r < n; r++) {
+		let n = Infinity;
+		for (let o of t) {
+			let t = Kn(o, e, r);
+			t && t.gap < n && (n = t.gap, i[r] = t.y - e.py[r], a[r] = t.bank - e.bank[r]);
+		}
+		o[r] = +(n < 0);
+	}
+	let s = new Float64Array(n).fill(Infinity), c = new Int32Array(n).fill(-1);
+	for (let e of [1, -1]) {
+		let t = -1;
+		for (let i = 0; i < 2 * n; i++) {
+			let a = e > 0 ? i % n : n - 1 - i % n;
+			o[a] ? t = i : t >= 0 && (i - t) * r < s[a] && (s[a] = (i - t) * r, c[a] = e > 0 ? t % n : n - 1 - t % n);
+		}
+	}
+	for (let t = 0; t < n; t++) {
+		let n = t, r = 1;
+		if (!o[t]) {
+			if (c[t] < 0) continue;
+			n = c[t];
+			let e = Math.min(1, s[t] / 30);
+			r = 1 - e * e * (3 - 2 * e);
+		}
+		e.py[t] += i[n] * r, e.bank[t] += a[n] * r;
+	}
+	e.refreshFrames();
+}
+var Gn = {
+	y: 0,
+	bank: 0,
+	gap: 0
+}, G = [
+	0,
+	0,
+	0
+];
+function Kn(e, t, n) {
+	G[0] = t.px[n], G[1] = t.py[n], G[2] = t.pz[n];
+	let r = e.nearestT(G, e.nearestTGlobal(G), L.globalSearchStep / e.step);
+	if (!e.closed && (r <= 0 || r >= 1)) {
+		let t = r <= 0 ? 0 : e.n - 1;
+		if (((G[0] - e.px[t]) * e.tx[t] + (G[2] - e.pz[t]) * e.tz[t]) * (r <= 0 ? -1 : 1) > 0) return null;
+	}
+	let i = e.norm(r) * e.step, a = Math.floor(i), o = e.idx(a), s = e.idx(a + 1), c = i - a, l = 1 - c, u = e.px[o] * l + e.px[s] * c, d = e.py[o] * l + e.py[s] * c, f = e.pz[o] * l + e.pz[s] * c, p = e.tx[o] * l + e.tx[s] * c, m = e.ty[o] * l + e.ty[s] * c, h = e.tz[o] * l + e.tz[s] * c, g = Math.hypot(p, h) || 1, _ = h / g, v = -p / g, y = e.bank[o] * l + e.bank[s] * c, b = e.hw[o] * l + e.hw[s] * c + L.kerbWidth, x = (G[0] - u) * _ + (G[2] - f) * v, S = d - Math.max(-b, Math.min(b, x)) * Math.tan(y);
+	if (Math.abs(S - G[1]) > L.tunnelApex) return null;
+	let C = t.rx[n] * _ + t.rz[n] * v, w = (t.rx[n] * p + t.rz[n] * h) / g;
+	return Gn.y = S, Gn.bank = Math.atan(Math.tan(y) * C - m / g * w), Gn.gap = Math.abs(x) - b - (t.hw[n] + L.kerbWidth) * Math.abs(C), Gn;
+}
+function qn(e, t) {
+	let n = e.main, r = n.nearestGlobal(t);
+	return Math.sqrt(r.d2) <= n.halfWidthAt(r.t) ? r.t : -1;
+}
+function Jn(e, t, n) {
+	return Vn(e, t, n) || z(e, t) === 0;
+}
+var Yn = {
 	$schema: "https://json-schema.org/draft/2020-12/schema",
 	$id: "item.schema.json",
 	title: "ItemDefinition and distribution table",
@@ -5577,10 +5798,10 @@ var Mn = class {
 };
 //#endregion
 //#region src/items/data.ts
-function G(e) {
-	return Nn.properties[e].default;
+function K(e) {
+	return Yn.properties[e].default;
 }
-var Pn = Object.freeze([
+var Xn = Object.freeze([
 	{
 		id: "beachBall",
 		name: "Beach Ball",
@@ -5788,7 +6009,7 @@ var Pn = Object.freeze([
 		icon: "wind-up-mouse",
 		sfx: "mouse-scurry"
 	}
-]), Fn = Object.freeze([
+]), Zn = Object.freeze([
 	{
 		beachBall: 20,
 		oilCan: 30,
@@ -5859,67 +6080,67 @@ var Pn = Object.freeze([
 		strikeBall: 50,
 		fogBank: 20
 	}
-]), In = Pn.map((e) => e.id), Ln = Object.freeze({
-	rouletteSeconds: G("rouletteSeconds"),
-	items: [...Pn],
-	table: [...Fn],
-	lockoutSeconds: G("lockoutSeconds"),
-	finalLapLockoutSeconds: G("finalLapLockoutSeconds"),
+]), Qn = Xn.map((e) => e.id), $n = Object.freeze({
+	rouletteSeconds: K("rouletteSeconds"),
+	items: [...Xn],
+	table: [...Zn],
+	lockoutSeconds: K("lockoutSeconds"),
+	finalLapLockoutSeconds: K("finalLapLockoutSeconds"),
 	lockedDuringLockout: ["fogBank", "strikeBall"],
 	knockoutPoolByRacers: {
-		8: In,
-		6: In,
-		4: In.filter((e) => e !== "fogBank" && e !== "strikeBall"),
-		2: In.filter((e) => e !== "fogBank" && e !== "decoyBalloon" && e !== "strikeBall")
+		8: Qn,
+		6: Qn,
+		4: Qn.filter((e) => e !== "fogBank" && e !== "strikeBall"),
+		2: Qn.filter((e) => e !== "fogBank" && e !== "decoyBalloon" && e !== "strikeBall")
 	},
-	ownerGraceSeconds: G("ownerGraceSeconds"),
-	spawnAheadMetres: G("spawnAheadMetres"),
-	dropBehindMetres: G("dropBehindMetres"),
-	projectileHeight: G("projectileHeight"),
-	homingSnapDistance: G("homingSnapDistance"),
-	homingLateralRate: G("homingLateralRate"),
-	maxProjectilesPerOwner: G("maxProjectilesPerOwner"),
-	maxGroundPerOwner: G("maxGroundPerOwner"),
-	trailBehindMetres: G("trailBehindMetres"),
-	hitHeight: G("hitHeight")
-}), Rn = Object.freeze(Object.fromEntries(Pn.map((e) => [e.id, e.role])));
+	ownerGraceSeconds: K("ownerGraceSeconds"),
+	spawnAheadMetres: K("spawnAheadMetres"),
+	dropBehindMetres: K("dropBehindMetres"),
+	projectileHeight: K("projectileHeight"),
+	homingSnapDistance: K("homingSnapDistance"),
+	homingLateralRate: K("homingLateralRate"),
+	maxProjectilesPerOwner: K("maxProjectilesPerOwner"),
+	maxGroundPerOwner: K("maxGroundPerOwner"),
+	trailBehindMetres: K("trailBehindMetres"),
+	hitHeight: K("hitHeight")
+}), er = Object.freeze(Object.fromEntries(Xn.map((e) => [e.id, e.role])));
 //#endregion
 //#region src/items/projectiles.ts
-function zn(e, t, n, r) {
+function tr(e, t, n, r) {
 	let i = e.sample(t, 0, n).tangent, a = Math.hypot(i[0], i[2]) || 1;
 	return r[0] = i[2] / a, r[1] = 0, r[2] = -i[0] / a, r;
 }
-function Bn(e, t, n, r) {
-	let i = e.sample(t, 0, n).position, a = zn(e, t, n, [
+function nr(e, t, n, r) {
+	let i = e.sample(t, 0, n).position, a = tr(e, t, n, [
 		0,
 		0,
 		0
 	]);
 	return (r[0] - i[0]) * a[0] + (r[2] - i[2]) * a[2];
 }
-function Vn(e) {
+function rr(e) {
 	return T.speedClasses[String(e)];
 }
-function Hn(e, t) {
+function ir(e, t) {
 	let n = 0;
 	for (let r of e.projectiles) r.owner === t && n++;
 	return n;
 }
-function Un(e, t) {
+function ar(e, t) {
 	return t === e || t === 0;
 }
-function Wn(e, t, n) {
+function or(e, t, n) {
 	let r = e[t], i = -1, a = .5;
 	for (let o = 0; o < e.length; o++) {
 		let s = e[o];
-		if (o === t || s.isGhost || s.finishTick !== void 0 || !Un(n, s.branch)) continue;
+		if (o === t || s.isGhost || s.finishTick !== void 0 || !ar(n, s.branch)) continue;
 		let c = R(s.t - r.t);
 		c > 0 && c < a && (a = c, i = o);
 	}
 	return i;
 }
-function Gn(e, t, n, r, i, a, o, s, c) {
-	let l = r[a], u = k(l.heading), d = s ? -1 : 1, f = (o.behaviour.projectileSpeed ?? 30) * Vn(i), p = [
+function sr(e, t, n, r, i, a, o, s, c) {
+	let l = r[a], u = k(l.heading), d = s ? -1 : 1, f = (o.behaviour.projectileSpeed ?? 30) * rr(i), p = [
 		l.position[0] + u[0] * e.spawnAheadMetres * d,
 		l.position[1],
 		l.position[2] + u[2] * e.spawnAheadMetres * d
@@ -5927,7 +6148,7 @@ function Gn(e, t, n, r, i, a, o, s, c) {
 		t: l.t,
 		branch: l.branch
 	}, T.tSearchWindow), h = n.sample(m.t, 0, m.branch);
-	p[1] = h.groundY + Ve(n, m.t, m.branch, Bn(n, m.t, m.branch, p), h.halfWidth) + e.projectileHeight;
+	p[1] = h.groundY + Ve(n, m.t, m.branch, nr(n, m.t, m.branch, p), h.halfWidth) + e.projectileHeight;
 	let g = o.behaviour.homing === !0, _ = o.role === "runner", v = {
 		id: t.nextId++,
 		itemId: o.id,
@@ -5935,7 +6156,7 @@ function Gn(e, t, n, r, i, a, o, s, c) {
 		ownerId: l.racerId,
 		t: m.t,
 		branch: m.branch,
-		lateral: Bn(n, m.t, m.branch, p),
+		lateral: nr(n, m.t, m.branch, p),
 		velocity: [
 			u[0] * f * d,
 			0,
@@ -5945,7 +6166,7 @@ function Gn(e, t, n, r, i, a, o, s, c) {
 		position: p,
 		prevPosition: [...p],
 		bouncesLeft: g || _ ? 0 : o.behaviour.bounces ?? 0,
-		target: g ? Wn(r, a, m.branch) : -1,
+		target: g ? or(r, a, m.branch) : -1,
 		ttl: o.behaviour.lifetimeSeconds ?? 8,
 		graceRemaining: e.ownerGraceSeconds,
 		radius: o.behaviour.radius ?? .5,
@@ -5967,7 +6188,7 @@ function Gn(e, t, n, r, i, a, o, s, c) {
 		position: [...p]
 	}), v;
 }
-function K(e, t, n) {
+function q(e, t, n) {
 	let r = e.projectiles.indexOf(t);
 	r < 0 || (e.projectiles.splice(r, 1), n.push({
 		type: "projectilePop",
@@ -5976,17 +6197,17 @@ function K(e, t, n) {
 		position: [...t.position]
 	}));
 }
-var Kn = [
+var cr = [
 	0,
 	0,
 	0
-], qn = 1e-9;
-function Jn(e, t, n, r, i, a) {
+], lr = 1e-9;
+function ur(e, t, n, r, i, a) {
 	let o = n.length;
 	for (let s = t.projectiles.length - 1; s >= 0; s--) {
 		let c = t.projectiles[s];
-		if (c.prevPosition[0] = c.position[0], c.prevPosition[1] = c.position[1], c.prevPosition[2] = c.position[2], c.graceRemaining = Math.max(0, c.graceRemaining - i), c.ttl -= i, c.age += i, c.ttl <= 1e-9 || !n.branches.list[c.branch].open) {
-			K(t, c, a);
+		if (c.prevPosition[0] = c.position[0], c.prevPosition[1] = c.position[1], c.prevPosition[2] = c.position[2], c.graceRemaining = Math.max(0, c.graceRemaining - i), c.ttl -= i, c.age += i, c.ttl <= 1e-9) {
+			q(t, c, a);
 			continue;
 		}
 		if (c.speed !== 0) {
@@ -5998,7 +6219,7 @@ function Jn(e, t, n, r, i, a) {
 			let a = 0;
 			if (c.target >= 0) {
 				let t = r[c.target], i = R(t.t - c.t) * o;
-				t.branch === c.branch && i <= e.homingSnapDistance && (a = Bn(n, t.t, t.branch, t.position));
+				t.branch === c.branch && i <= e.homingSnapDistance && (a = nr(n, t.t, t.branch, t.position));
 			}
 			let s = n.sample(c.t, 0, c.branch);
 			if (c.weave > 0) c.lateral = Math.sin(2 * Math.PI * c.age / c.weaveSeconds) * c.weave * (s.halfWidth - c.radius);
@@ -6019,12 +6240,12 @@ function Jn(e, t, n, r, i, a) {
 		}, T.tSearchWindow);
 		if (c.t = l.t, c.branch = l.branch, c.branch > 0) {
 			let e = n.branches.list[c.branch].toLocal(c.t);
-			(e <= qn || e >= .999999999) && (c.t = n.branches.main.nearestLocal(c.position, c.t, T.tSearchWindow).t, c.branch = 0);
+			(e <= lr || e >= .999999999) && (c.t = n.branches.main.nearestLocal(c.position, c.t, T.tSearchWindow).t, c.branch = 0);
 		}
-		let u = n.sample(c.t, 0, c.branch), d = zn(n, c.t, c.branch, Kn), f = (c.position[0] - u.position[0]) * d[0] + (c.position[2] - u.position[2]) * d[2], p = (u.wall ?? u.halfWidth) - c.radius;
+		let u = n.sample(c.t, 0, c.branch), d = tr(n, c.t, c.branch, cr), f = (c.position[0] - u.position[0]) * d[0] + (c.position[2] - u.position[2]) * d[2], p = (u.wall ?? u.halfWidth) - c.radius;
 		if (Math.abs(f) > p) {
 			if (c.bouncesLeft--, c.bouncesLeft < 0) {
-				K(t, c, a);
+				q(t, c, a);
 				continue;
 			}
 			let e = c.velocity[0] * d[0] + c.velocity[2] * d[2];
@@ -6043,9 +6264,9 @@ function Jn(e, t, n, r, i, a) {
 }
 //#endregion
 //#region src/items/ground.ts
-function Yn(e, t, n, r, i, a, o) {
+function dr(e, t, n, r, i, a, o) {
 	let s = r[i], c = t.groundItems.filter((e) => e.owner === i);
-	for (; c.length >= e.maxGroundPerOwner;) Xn(t, c.shift(), o);
+	for (; c.length >= e.maxGroundPerOwner;) fr(t, c.shift(), o);
 	let l = k(s.heading), u = [
 		s.position[0] - l[0] * e.dropBehindMetres,
 		s.position[1],
@@ -6053,7 +6274,7 @@ function Yn(e, t, n, r, i, a, o) {
 	], d = n.nearest(u, {
 		t: s.t,
 		branch: s.branch
-	}, T.tSearchWindow), f = Bn(n, d.t, d.branch, u), p = n.sample(d.t, f, d.branch);
+	}, T.tSearchWindow), f = nr(n, d.t, d.branch, u), p = n.sample(d.t, f, d.branch);
 	u[1] = p.groundY + Ve(n, d.t, d.branch, f, p.halfWidth);
 	let m = {
 		id: t.nextId++,
@@ -6075,7 +6296,7 @@ function Yn(e, t, n, r, i, a, o) {
 		position: [...m.position]
 	}), m;
 }
-function Xn(e, t, n) {
+function fr(e, t, n) {
 	let r = e.groundItems.indexOf(t);
 	r < 0 || (e.groundItems.splice(r, 1), n.push({
 		type: "groundPop",
@@ -6084,27 +6305,31 @@ function Xn(e, t, n) {
 		position: [...t.position]
 	}));
 }
-function Zn(e, t, n, r) {
-	for (let i = e.groundItems.length - 1; i >= 0; i--) {
-		let a = e.groundItems[i];
-		a.graceRemaining = Math.max(0, a.graceRemaining - n), a.ttl -= n, (a.ttl <= 1e-9 || !t.branches.list[a.branch].open) && Xn(e, a, r);
+function pr(e, t) {
+	for (let n = 0; n < e.length; n++) if (e[n].branch === t) return !0;
+	return !1;
+}
+function mr(e, t, n, r, i) {
+	for (let a = e.groundItems.length - 1; a >= 0; a--) {
+		let o = e.groundItems[a];
+		o.graceRemaining = Math.max(0, o.graceRemaining - r), o.ttl -= r, (o.ttl <= 1e-9 || !t.branches.list[o.branch].open && !pr(n, o.branch)) && fr(e, o, i);
 	}
 }
 //#endregion
 //#region src/items/rng.ts
-var Qn = 45477;
-function $n(e, t = Qn) {
+var hr = 45477;
+function gr(e, t = hr) {
 	return (Math.imul(e | 0, 2654435761) ^ Math.imul(t + 1, 2246822519)) >>> 0;
 }
-function er(e) {
+function _r(e) {
 	e.rng = e.rng + 1831565813 >>> 0;
 	let t = e.rng;
 	return t = Math.imul(t ^ t >>> 15, t | 1), t ^= t + Math.imul(t ^ t >>> 7, t | 61), (t ^ t >>> 14) >>> 0;
 }
-function tr(e) {
-	return er(e) / 4294967296;
+function vr(e) {
+	return _r(e) / 4294967296;
 }
-function nr(e, t) {
+function yr(e, t) {
 	let n = 0;
 	for (let t of Object.values(e)) t > 0 && (n += t);
 	if (n <= 0) return;
@@ -6114,7 +6339,7 @@ function nr(e, t) {
 }
 //#endregion
 //#region src/items/roulette.ts
-function rr(e, t, n) {
+function br(e, t, n) {
 	if (e.phase !== "finalLap") return Infinity;
 	let r = -1;
 	for (let t = 0; t < e.karts.length; t++) {
@@ -6125,26 +6350,26 @@ function rr(e, t, n) {
 	let i = e.lapsTotal * n.length - e.karts[r].distanceAlong;
 	return Math.max(0, i) / t[r].topSpeed;
 }
-function ir(e) {
+function xr(e) {
 	let t = e.knockout?.eliminated ?? [], n = 0;
 	for (let r of e.karts) !r.isGhost && !t.includes(r.racerId) && n++;
 	return n;
 }
-function ar(e, t, n, r, i) {
+function Sr(e, t, n, r, i) {
 	let a = { ...e.table[Math.min(Math.max(i, 1), e.table.length) - 1] };
-	if (t.time < e.lockoutSeconds || rr(t, n, r) <= e.finalLapLockoutSeconds) for (let t of e.lockedDuringLockout) a[t] = 0;
+	if (t.time < e.lockoutSeconds || br(t, n, r) <= e.finalLapLockoutSeconds) for (let t of e.lockedDuringLockout) a[t] = 0;
 	if (t.mode === "knockout") {
-		let n = e.knockoutPoolByRacers[String(ir(t))];
+		let n = e.knockoutPoolByRacers[String(xr(t))];
 		if (n) for (let e of Object.keys(a)) n.includes(e) || (a[e] = 0);
 	}
 	return a;
 }
-function or(e, t, n, r, i, a, o) {
+function Cr(e, t, n, r, i, a, o) {
 	let s = n.karts[a];
 	if (s.isGhost || s.finishTick !== void 0) return !1;
 	let c = s.item.held === "none" && s.item.rouletteRemaining <= 0, l = s.item.next === "none" && s.item.nextRouletteRemaining <= 0;
 	if (!c && !l) return !1;
-	let u = nr(ar(e, n, r, i, s.rank), tr(t));
+	let u = yr(Sr(e, n, r, i, s.rank), vr(t));
 	if (!u) return !1;
 	let d = e.items.find((e) => e.id === u)?.behaviour.charges ?? 1, f = +!c;
 	return f === 0 ? (s.item.held = u, s.item.charges = d, s.item.rouletteRemaining = e.rouletteSeconds) : (s.item.next = u, s.item.nextCharges = d, s.item.nextRouletteRemaining = e.rouletteSeconds), o.push({
@@ -6155,40 +6380,40 @@ function or(e, t, n, r, i, a, o) {
 		slot: f
 	}), !0;
 }
-function sr(e, t) {
+function wr(e, t) {
 	let n = e - t;
 	return n > 1e-9 ? n : 0;
 }
-function cr(e, t, n) {
-	e.item.rouletteRemaining > 0 && (e.item.rouletteRemaining = sr(e.item.rouletteRemaining, t), e.item.rouletteRemaining === 0 && e.item.held !== "none" && n.push({
+function Tr(e, t, n) {
+	e.item.rouletteRemaining > 0 && (e.item.rouletteRemaining = wr(e.item.rouletteRemaining, t), e.item.rouletteRemaining === 0 && e.item.held !== "none" && n.push({
 		type: "itemReady",
 		racerId: e.racerId,
 		itemId: e.item.held,
 		slot: 0
-	})), e.item.nextRouletteRemaining > 0 && (e.item.nextRouletteRemaining = sr(e.item.nextRouletteRemaining, t), e.item.nextRouletteRemaining === 0 && e.item.next !== "none" && n.push({
+	})), e.item.nextRouletteRemaining > 0 && (e.item.nextRouletteRemaining = wr(e.item.nextRouletteRemaining, t), e.item.nextRouletteRemaining === 0 && e.item.next !== "none" && n.push({
 		type: "itemReady",
 		racerId: e.racerId,
 		itemId: e.item.next,
 		slot: 1
 	}));
 }
-function lr(e) {
+function Er(e) {
 	e.item.held = "none", e.item.charges = 0, e.item.rouletteRemaining = 0, e.item.next = "none", e.item.nextCharges = 0, e.item.nextRouletteRemaining = 0;
 }
-function ur(e) {
+function Dr(e) {
 	e.item.held = e.item.next, e.item.charges = e.item.nextCharges, e.item.rouletteRemaining = e.item.nextRouletteRemaining, e.item.next = "none", e.item.nextCharges = 0, e.item.nextRouletteRemaining = 0;
 }
 //#endregion
 //#region src/items/hits.ts
-function q(e, t) {
+function J(e, t) {
 	return Math.hypot(e[0] - t[0], e[2] - t[2]);
 }
-function dr(e) {
+function Or(e) {
 	return !e.isGhost && e.finishTick === void 0 && e.status.intangibleRemaining <= 0 && e.status.spinRemaining <= 0 && !M(e);
 }
-function fr(e, t, n, r, i, a, o, s, c) {
+function kr(e, t, n, r, i, a, o, s, c) {
 	let l = e[r];
-	if (!dr(l)) return !1;
+	if (!Or(l)) return !1;
 	if (l.status.shield) return l.status.shield = !1, n.shieldRemaining[r] = 0, s.push({
 		type: "shieldPop",
 		racerId: l.racerId
@@ -6206,7 +6431,7 @@ function fr(e, t, n, r, i, a, o, s, c) {
 		type: "itemLost",
 		racerId: l.racerId,
 		itemId: l.item.next
-	}), lr(l)), s.push({
+	}), Er(l)), s.push({
 		type: "hit",
 		racerId: l.racerId,
 		byRacerId: i,
@@ -6215,7 +6440,7 @@ function fr(e, t, n, r, i, a, o, s, c) {
 		coinsLost: f
 	}), !0;
 }
-function pr(e, t, n, r) {
+function Ar(e, t, n, r) {
 	let i = e[t], a = n.behaviour.slowTo ?? 1, o = n.behaviour.durationSeconds ?? 0, s = [];
 	for (let c = 0; c < e.length; c++) {
 		let l = e[c];
@@ -6227,7 +6452,7 @@ function pr(e, t, n, r) {
 			type: "itemLost",
 			racerId: l.racerId,
 			itemId: l.item.next
-		}), lr(l)), s.push(l.racerId));
+		}), Er(l)), s.push(l.racerId));
 	}
 	return r.push({
 		type: "fog",
@@ -6237,26 +6462,31 @@ function pr(e, t, n, r) {
 }
 //#endregion
 //#region src/items/powers.ts
-function mr(e, t) {
+function jr(e, t) {
 	return Math.abs(e.position[1] - t.position[1]) < 2;
 }
-function hr(e, t, n, r, i, a, o, s) {
+function Mr(e, t, n, r, i, a, o, s) {
 	let c = e[r];
-	for (let l = 0; l < e.length; l++) l !== r && mr(c, e[l]) && q(e[l].position, c.position) <= a + t[l].kartRadius && fr(e, t, n, l, c.racerId, i, "item", o, s);
+	for (let l = 0; l < e.length; l++) l !== r && jr(c, e[l]) && J(e[l].position, c.position) <= a + t[l].kartRadius && kr(e, t, n, l, c.racerId, i, "item", o, s);
 }
-function gr(e, t, n, r, i, a) {
+function Nr(e, t, n, r, i, a) {
 	for (let o = 0; o < t.length; o++) {
 		let s = t[o];
 		if (e.power[o]) {
 			let c = r.get(e.power[o]);
-			if (M(s)) {
+			if (s.status.held) s.status.rideRemaining = 0, i.push({
+				type: "powerEnd",
+				racerId: s.racerId,
+				itemId: c.id
+			}), s.item.held === c.id && s.item.charges === 0 && Dr(s), e.power[o] = "";
+			else if (M(s)) {
 				for (let r = 0; r < t.length; r++) {
 					let l = t[r];
-					r === o || e.knocked[o] & 1 << r || !mr(s, l) || q(l.position, s.position) > N(s, n[o]) + N(l, n[r]) + .3 || fr(t, n, e, r, s.racerId, c, "item", i, a) && (e.knocked[o] |= 1 << r, l.status.spinRemaining > 0 && (l.verticalVelocity = c.behaviour.popSpeed ?? 0, l.grounded = !1));
+					r === o || e.knocked[o] & 1 << r || !jr(s, l) || J(l.position, s.position) > N(s, n[o]) + N(l, n[r]) + .3 || kr(t, n, e, r, s.racerId, c, "item", i, a) && (e.knocked[o] |= 1 << r, l.status.spinRemaining > 0 && (l.verticalVelocity = c.behaviour.popSpeed ?? 0, l.grounded = !1));
 				}
 				for (let t = e.groundItems.length - 1; t >= 0; t--) {
 					let r = e.groundItems[t];
-					q(r.position, s.position) <= N(s, n[o]) + r.radius && Xn(e, r, i);
+					J(r.position, s.position) <= N(s, n[o]) + r.radius && fr(e, r, i);
 				}
 			} else {
 				let r = c.behaviour.burstRadius ?? 0;
@@ -6265,11 +6495,11 @@ function gr(e, t, n, r, i, a) {
 					racerId: s.racerId,
 					position: [...s.position],
 					radius: r
-				}), hr(t, n, e, o, c, r, i, a), i.push({
+				}), Mr(t, n, e, o, c, r, i, a), i.push({
 					type: "powerEnd",
 					racerId: s.racerId,
 					itemId: c.id
-				}), s.item.held === c.id && s.item.charges === 0 && ur(s), e.power[o] = "";
+				}), s.item.held === c.id && s.item.charges === 0 && Dr(s), e.power[o] = "";
 			}
 		}
 		if (e.pogo[o] > 0 && s.grounded) {
@@ -6281,13 +6511,13 @@ function gr(e, t, n, r, i, a) {
 					racerId: s.racerId,
 					position: [...s.position],
 					radius: r
-				}), hr(t, n, e, o, c, r, i, a);
-			} else s.item.held === "pogoSpring" && s.item.charges === 1 && (s.item.charges = 0, ur(s));
+				}), Mr(t, n, e, o, c, r, i, a);
+			} else s.item.held === "pogoSpring" && s.item.charges === 1 && (s.item.charges = 0, Dr(s));
 			e.pogo[o] = 0;
 		}
 		if (e.towing[o]) {
 			let c = r.get("grappleAnchor"), l = s.status.towTarget, u = l >= 0 ? t[l] : void 0, d = !1, f = !oe(s) || !u || !c;
-			!f && u && c && (u.finishTick !== void 0 || u.isGhost || u.status.intangibleRemaining > 0 || M(u) || u.branch !== s.branch && u.branch !== 0 ? f = !0 : q(s.position, u.position) <= (c.behaviour.releaseMetres ?? 0) && (f = d = !0, D(s, "item", n[o].itemSpeedMultiplier, c.behaviour.slingshotSeconds ?? 0, a), u.status.slowedTo = Math.min(u.status.slowRemaining > 0 ? u.status.slowedTo : 1, c.behaviour.tugSlowTo ?? 1), u.status.slowRemaining = Math.max(u.status.slowRemaining, c.behaviour.tugSeconds ?? 0))), f && (i.push({
+			!f && u && c && (u.finishTick !== void 0 || u.isGhost || u.status.intangibleRemaining > 0 || M(u) || u.branch !== s.branch && u.branch !== 0 ? f = !0 : J(s.position, u.position) <= (c.behaviour.releaseMetres ?? 0) && (f = d = !0, D(s, "item", n[o].itemSpeedMultiplier, c.behaviour.slingshotSeconds ?? 0, a), u.status.slowedTo = Math.min(u.status.slowRemaining > 0 ? u.status.slowedTo : 1, c.behaviour.tugSlowTo ?? 1), u.status.slowRemaining = Math.max(u.status.slowRemaining, c.behaviour.tugSeconds ?? 0))), f && (i.push({
 				type: "tetherEnd",
 				racerId: s.racerId,
 				targetId: u?.racerId ?? "",
@@ -6298,7 +6528,7 @@ function gr(e, t, n, r, i, a) {
 }
 //#endregion
 //#region src/items/use.ts
-function _r(e, t, n) {
+function Pr(e, t, n) {
 	return e.push({
 		type: "itemRefused",
 		racerId: t.racerId,
@@ -6306,18 +6536,18 @@ function _r(e, t, n) {
 		reason: n
 	}), !1;
 }
-function vr(e, t, n = !1) {
+function Fr(e, t, n = !1) {
 	e.item.charges = Math.max(0, e.item.charges - 1), t.push({
 		type: "itemUsed",
 		racerId: e.racerId,
 		itemId: e.item.held,
 		chargesLeft: e.item.charges
-	}), e.item.charges === 0 && !n && ur(e);
+	}), e.item.charges === 0 && !n && Dr(e);
 }
-function yr(e, t) {
+function Ir(e, t) {
 	return e.phase !== "racing" && e.phase !== "finalLap" || t.isGhost || t.finishTick !== void 0 ? "notRacing" : t.item.rouletteRemaining > 0 ? "roulette" : t.item.charges <= 0 ? "inUse" : t.status.spinRemaining > 0 ? "spinning" : t.status.intangibleRemaining > 0 ? "intangible" : null;
 }
-function br(e, t, n, r) {
+function Lr(e, t, n, r) {
 	let i = e[t], a = -1, o = r / n;
 	for (let n = 0; n < e.length; n++) {
 		let r = e[n];
@@ -6327,27 +6557,27 @@ function br(e, t, n, r) {
 	}
 	return a;
 }
-function xr(e, t, n, r, i, a, o, s, c) {
+function Rr(e, t, n, r, i, a, o, s, c) {
 	let l = n.karts, u = l[a];
 	if (u.item.held === "none") return !1;
 	let d = e.items.find((e) => e.id === u.item.held);
 	if (!d) return !1;
-	let f = yr(n, u);
-	if (f) return _r(s, u, f);
+	let f = Ir(n, u);
+	if (f) return Pr(s, u, f);
 	let p = !1;
 	switch (d.role) {
 		case "forward":
 		case "homing":
 		case "runner":
-			if (Hn(t, a) >= e.maxProjectilesPerOwner) return _r(s, u, "inFlight");
-			Gn(e, t, i, l, n.speedClass, a, d, d.role !== "homing" && o.lookBack, s);
+			if (ir(t, a) >= e.maxProjectilesPerOwner) return Pr(s, u, "inFlight");
+			sr(e, t, i, l, n.speedClass, a, d, d.role !== "homing" && o.lookBack, s);
 			break;
 		case "rearDrop":
 		case "deception":
-			Yn(e, t, i, l, a, d, s);
+			dr(e, t, i, l, a, d, s);
 			break;
 		case "defenceArea":
-			Sr(t, l, r, a, d, s, c);
+			zr(t, l, r, a, d, s, c);
 			break;
 		case "defenceHeld":
 			u.status.shield = !0, t.shieldRemaining[a] = d.behaviour.durationSeconds ?? 0, s.push({
@@ -6361,8 +6591,8 @@ function xr(e, t, n, r, i, a, o, s, c) {
 			break;
 		}
 		case "equaliser":
-			if (u.rank < (d.behaviour.minPosition ?? 1)) return _r(s, u, "position");
-			pr(l, a, d, s);
+			if (u.rank < (d.behaviour.minPosition ?? 1)) return Pr(s, u, "position");
+			Ar(l, a, d, s);
 			break;
 		case "ride": {
 			let e = d.behaviour.durationSeconds ?? 0;
@@ -6381,15 +6611,15 @@ function xr(e, t, n, r, i, a, o, s, c) {
 				racerId: u.racerId
 			});
 			else if (t.pogo[a] === 1) u.verticalVelocity = -e.slamSpeed, u.airborne.trickQueued = !1, t.pogo[a] = 2;
-			else return _r(s, u, "inUse");
+			else return Pr(s, u, "inUse");
 			break;
 		}
 		case "tether": {
-			let e = br(l, a, i.length, d.behaviour.range ?? 0);
-			if (e < 0) return _r(s, u, "noTarget");
+			let e = Lr(l, a, i.length, d.behaviour.range ?? 0);
+			if (e < 0) return Pr(s, u, "noTarget");
 			let n = l[e];
 			if (n.status.shield) {
-				fr(l, r, t, e, u.racerId, d, "item", s, c);
+				kr(l, r, t, e, u.racerId, d, "item", s, c);
 				break;
 			}
 			u.status.towTarget = e, u.status.towRemaining = d.behaviour.durationSeconds ?? 0, t.towing[a] = !0, s.push({
@@ -6400,9 +6630,9 @@ function xr(e, t, n, r, i, a, o, s, c) {
 			break;
 		}
 	}
-	return vr(u, s, p), !0;
+	return Fr(u, s, p), !0;
 }
-function Sr(e, t, n, r, i, a, o) {
+function zr(e, t, n, r, i, a, o) {
 	let s = t[r], c = i.behaviour.radius ?? 0;
 	a.push({
 		type: "horn",
@@ -6412,21 +6642,21 @@ function Sr(e, t, n, r, i, a, o) {
 	});
 	for (let t = e.projectiles.length - 1; t >= 0; t--) {
 		let n = e.projectiles[t];
-		q(n.position, s.position) <= c + n.radius && K(e, n, a);
+		J(n.position, s.position) <= c + n.radius && q(e, n, a);
 	}
 	for (let t = e.groundItems.length - 1; t >= 0; t--) {
 		let n = e.groundItems[t];
-		q(n.position, s.position) <= c + n.radius && Xn(e, n, a);
+		J(n.position, s.position) <= c + n.radius && fr(e, n, a);
 	}
-	for (let l = 0; l < t.length; l++) l !== r && q(t[l].position, s.position) <= c + n[l].kartRadius && fr(t, n, e, l, s.racerId, i, "item", a, o);
+	for (let l = 0; l < t.length; l++) l !== r && J(t[l].position, s.position) <= c + n[l].kartRadius && kr(t, n, e, l, s.racerId, i, "item", a, o);
 }
 //#endregion
 //#region src/items/items.ts
-function Cr(e, t, n, r, i) {
+function Br(e, t, n, r, i) {
 	let a = e.sample(t, 0, n);
 	return Math.abs(r) > (a.wall ?? a.halfWidth) + i;
 }
-var wr = class {
+var Vr = class {
 	cfg;
 	track;
 	host;
@@ -6437,13 +6667,13 @@ var wr = class {
 	scratch = [];
 	inert;
 	doubles;
-	constructor(e, t, n = Ln) {
+	constructor(e, t, n = $n) {
 		this.cfg = n, this.track = e, this.host = t;
 		for (let e of n.items) this.defs.set(e.id, e);
-		this.roles = n === Ln ? Rn : Object.fromEntries(n.items.map((e) => [e.id, e.role]));
+		this.roles = n === $n ? er : Object.fromEntries(n.items.map((e) => [e.id, e.role]));
 		let r = t.state.karts.length;
 		this.threatened = Array(r).fill(!1), this.state = {
-			rng: $n(t.state.seed),
+			rng: gr(t.state.seed),
 			nextId: 1,
 			prevItem: Array(r).fill(!1),
 			shieldRemaining: Array(r).fill(0),
@@ -6479,7 +6709,7 @@ var wr = class {
 		}
 		for (let e = 0; e < l.length; e++) {
 			let t = l[e];
-			cr(t, n, r), s.shieldRemaining[e] > 0 && (s.shieldRemaining[e] = Math.max(0, s.shieldRemaining[e] - n), s.shieldRemaining[e] === 0 && t.status.shield && (t.status.shield = !1, r.push({
+			Tr(t, n, r), s.shieldRemaining[e] > 0 && (s.shieldRemaining[e] = Math.max(0, s.shieldRemaining[e] - n), s.shieldRemaining[e] === 0 && t.status.shield && (t.status.shield = !1, r.push({
 				type: "shieldEnd",
 				racerId: t.racerId
 			})));
@@ -6487,7 +6717,7 @@ var wr = class {
 		for (let e of t) {
 			if (e.type !== "pickup") continue;
 			let t = l.findIndex((t) => t.racerId === e.racerId);
-			t < 0 || (or(c, s, i, a, o, t, r), this.doubles[e.index] && or(c, s, i, a, o, t, r));
+			t < 0 || (Cr(c, s, i, a, o, t, r), this.doubles[e.index] && Cr(c, s, i, a, o, t, r));
 		}
 		for (let t = 0; t < l.length; t++) {
 			let n = l[t], u = e[t]?.item === !0, d = s.prevItem[t];
@@ -6496,47 +6726,47 @@ var wr = class {
 					type: "itemLost",
 					racerId: n.racerId,
 					itemId: n.item.held
-				}), vr(n, r);
+				}), Fr(n, r);
 				continue;
 			}
-			u && !d ? this.trailable(n) && yr(i, n) === null ? (s.trailing[t] = !0, r.push({
+			u && !d ? this.trailable(n) && Ir(i, n) === null ? (s.trailing[t] = !0, r.push({
 				type: "trailStart",
 				racerId: n.racerId,
 				itemId: n.item.held
-			})) : xr(c, s, i, a, o, t, e[t], r, this.scratch) : !u && d && s.trailing[t] && (s.trailing[t] = !1, xr(c, s, i, a, o, t, e[t], r, this.scratch));
+			})) : Rr(c, s, i, a, o, t, e[t], r, this.scratch) : !u && d && s.trailing[t] && (s.trailing[t] = !1, Rr(c, s, i, a, o, t, e[t], r, this.scratch));
 		}
-		Jn(c, s, o, l, n, r), Zn(s, o, n, r);
+		ur(c, s, o, l, n, r), mr(s, o, l, n, r);
 		let u = s.projectiles, d = s.groundItems;
 		for (let e = u.length - 1; e >= 0; e--) {
 			let t = u[e], n = !1;
 			for (let i = e - 1; i >= 0 && !n; i--) {
 				let a = u[i];
-				a.branch === t.branch && q(t.position, a.position) <= t.radius + a.radius && (K(s, t, r), K(s, a, r), n = !0, e--);
+				a.branch === t.branch && J(t.position, a.position) <= t.radius + a.radius && (q(s, t, r), q(s, a, r), n = !0, e--);
 			}
 			if (!n) {
 				for (let e = d.length - 1; e >= 0 && !n; e--) {
 					let i = d[e];
-					i.branch === t.branch && q(t.position, i.position) <= t.radius + i.radius && (K(s, t, r), Xn(s, i, r), n = !0);
+					i.branch === t.branch && J(t.position, i.position) <= t.radius + i.radius && (q(s, t, r), fr(s, i, r), n = !0);
 				}
 				if (!n) for (let e = 0; e < l.length && !n; e++) {
 					let i = l[e];
-					if (i.branch !== t.branch || t.hitMask & 1 << e || e === t.owner && t.graceRemaining > 0 || q(t.position, i.position) > t.radius + a[e].kartRadius || i.position[1] - (t.position[1] - c.projectileHeight) > c.hitHeight) continue;
+					if (i.branch !== t.branch || t.hitMask & 1 << e || e === t.owner && t.graceRemaining > 0 || J(t.position, i.position) > t.radius + a[e].kartRadius || i.position[1] - (t.position[1] - c.projectileHeight) > c.hitHeight) continue;
 					if (M(i)) {
-						K(s, t, r), n = !0;
+						q(s, t, r), n = !0;
 						continue;
 					}
-					if (!dr(i)) continue;
+					if (!Or(i)) continue;
 					if (s.trailing[e] && this.fromBehind(t, i)) {
 						r.push({
 							type: "trailBlock",
 							racerId: i.racerId,
 							itemId: i.item.held,
 							position: [...t.position]
-						}), s.trailing[e] = !1, vr(i, r), K(s, t, r), n = !0;
+						}), s.trailing[e] = !1, Fr(i, r), q(s, t, r), n = !0;
 						continue;
 					}
 					let o = this.defs.get(t.itemId);
-					fr(l, a, s, e, t.ownerId, o, "projectile", r, this.scratch), t.hitMask |= 1 << e, --t.hitsLeft <= 0 && (K(s, t, r), n = !0);
+					kr(l, a, s, e, t.ownerId, o, "projectile", r, this.scratch), t.hitMask |= 1 << e, --t.hitsLeft <= 0 && (q(s, t, r), n = !0);
 				}
 			}
 		}
@@ -6544,13 +6774,13 @@ var wr = class {
 			let t = d[e];
 			for (let e = 0; e < l.length; e++) {
 				let n = l[e];
-				if (n.branch !== t.branch || !dr(n) || e === t.owner && t.graceRemaining > 0 || q(t.position, n.position) > t.radius + a[e].kartRadius || n.position[1] - t.position[1] > c.hitHeight) continue;
+				if (n.branch !== t.branch || !Or(n) || e === t.owner && t.graceRemaining > 0 || J(t.position, n.position) > t.radius + a[e].kartRadius || n.position[1] - t.position[1] > c.hitHeight) continue;
 				let i = this.defs.get(t.itemId);
-				fr(l, a, s, e, t.ownerId, i, "item", r, this.scratch), Xn(s, t, r);
+				kr(l, a, s, e, t.ownerId, i, "item", r, this.scratch), fr(s, t, r);
 				break;
 			}
 		}
-		gr(s, l, a, this.defs, r, this.scratch), this.threatened.fill(!1);
+		Nr(s, l, a, this.defs, r, this.scratch), this.threatened.fill(!1);
 		for (let e of s.projectiles) e.target >= 0 && (this.threatened[e.target] = !0);
 		let f = "";
 		for (let e of l) if (this.defs.get(e.item.held)?.role === "equaliser" || this.defs.get(e.item.next)?.role === "equaliser") {
@@ -6569,14 +6799,20 @@ var wr = class {
 	}
 	reseat(e) {
 		let t = this.track, n = this.state;
-		for (let r = n.projectiles.length - 1; r >= 0; r--) {
-			let i = n.projectiles[r];
-			i.t = t.branches.list[i.branch].nearestGlobal(i.position).t, i.lateral = Bn(t, i.t, i.branch, i.position), Cr(t, i.t, i.branch, i.lateral, i.radius) && K(n, i, e);
+		if (t.def.finalLapShift.routeOverrides?.length) {
+			for (let r = n.projectiles.length - 1; r >= 0; r--) {
+				let i = n.projectiles[r];
+				this.seat(i), i.lateral = nr(t, i.t, i.branch, i.position), Br(t, i.t, i.branch, i.lateral, i.radius) && q(n, i, e);
+			}
+			for (let r = n.groundItems.length - 1; r >= 0; r--) {
+				let i = n.groundItems[r];
+				this.seat(i), Br(t, i.t, i.branch, nr(t, i.t, i.branch, i.position), i.radius) && fr(n, i, e);
+			}
 		}
-		for (let r = n.groundItems.length - 1; r >= 0; r--) {
-			let i = n.groundItems[r];
-			i.t = t.branches.list[i.branch].nearestGlobal(i.position).t, Cr(t, i.t, i.branch, Bn(t, i.t, i.branch, i.position), i.radius) && Xn(n, i, e);
-		}
+	}
+	seat(e) {
+		let t = this.track.branches, n = e.branch > 0 ? qn(t, e.position) : -1;
+		n >= 0 ? (e.t = n, e.branch = 0) : e.t = t.list[e.branch].nearestGlobal(e.position).t;
 	}
 	fromBehind(e, t) {
 		let n = k(t.heading);
@@ -6584,221 +6820,8 @@ var wr = class {
 	}
 };
 //#endregion
-//#region src/track-builder/features.ts
-function Tr(e, t) {
-	if (!t) return 0;
-	let n = e.byId(t);
-	if (!n) throw Error(`feature names unknown shortcut "${t}"`);
-	return n.index;
-}
-function Er(e, t, n, r, i, a) {
-	let o = Tr(e, r.shortcut), s = r.lateral ?? 0, c = r.t, l = e.sample(c, s, o);
-	return {
-		id: n,
-		kind: t,
-		branch: o,
-		t: e.list[o].toMain(e.list[o].toLocal(c)),
-		lateral: s,
-		position: l.position,
-		width: i,
-		launch: a
-	};
-}
-function Dr(e, t) {
-	let n = [];
-	return (e.pickups ?? []).forEach((e, r) => n.push({
-		...Er(t, "pickup", `pickup-${r}`, e, L.balloonRadius * 2, 0),
-		...e.double ? { double: !0 } : {}
-	})), (e.coins ?? []).forEach((e, r) => n.push(Er(t, "coin", `coin-${r}`, e, L.coinRadius * 2, 0))), (e.boostPads ?? []).forEach((e, r) => n.push(Er(t, "boostPad", `pad-${r}`, e, e.width ?? L.boostPadWidth, 0))), (e.jumps ?? []).forEach((e) => n.push(Or(t, e))), n;
-}
-function Or(e, t) {
-	let n = t.shape === "hump";
-	return {
-		...Er(e, "jump", t.id, t, t.width ?? L.boostPadWidth, t.launch),
-		shape: n ? "hump" : "ramp",
-		run: t.run ?? (n ? L.humpRun : L.rampRun),
-		rise: t.rise ?? (n ? L.humpRise : L.rampRise),
-		...n ? { edge: L.humpEdge } : {}
-	};
-}
-function kr(e, t, n, r) {
-	let i = e.sample(t, 0, n), a = i.tangent[2], o = -i.tangent[0], s = Math.hypot(a, o) || 1;
-	return ((r[0] - i.position[0]) * a + (r[2] - i.position[2]) * o) / s;
-}
-function Ar(e, t) {
-	for (let n of e) {
-		let e = t.list[n.branch] ?? t.main;
-		n.t = e.nearestGlobal(n.position).t, n.lateral = kr(t, n.t, e.index, n.position);
-	}
-}
-function jr(e) {
-	return e.filter((e) => e.kind === "jump").map((e) => ({
-		id: e.id,
-		t: e.t,
-		launch: e.launch,
-		branch: e.branch,
-		shape: e.shape,
-		run: e.run,
-		rise: e.rise,
-		...e.edge ? { edge: e.edge } : {}
-	}));
-}
-function Mr(e) {
-	return e.filter((e) => e.kind === "boostPad").map((e) => ({
-		t: e.t,
-		lateral: e.lateral,
-		halfWidth: e.width / 2,
-		branch: e.branch
-	}));
-}
-//#endregion
-//#region src/track-builder/shift.ts
-var Nr = (e, t, n) => R(e - t) <= R(n - t);
-function Pr(e, t, n) {
-	let r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Map();
-	for (let a of n) {
-		let n = [];
-		for (let r = 0; r < e.length; r++) Nr(t[r], a.fromT, a.toT) && n.push(r);
-		let o;
-		if (n.length) {
-			n.sort((e, n) => R(t[e] - a.fromT) - R(t[n] - a.fromT)), o = n[0];
-			for (let e of n) r.add(e);
-		} else {
-			o = 0;
-			let n = Infinity;
-			for (let r = 0; r < e.length; r++) {
-				let e = R(t[r] - a.toT);
-				e < n && (n = e, o = r);
-			}
-		}
-		i.set(o, [...i.get(o) ?? [], ...a.controlPoints]);
-	}
-	let a = [];
-	for (let t = 0; t < e.length; t++) {
-		let n = i.get(t);
-		n && a.push(...n.map((e) => ({ ...e }))), r.has(t) || a.push({ ...e[t] });
-	}
-	return a;
-}
-function Fr(e, t = []) {
-	if (e.shifted) return;
-	e.shifted = !0;
-	let n = e.def.finalLapShift, r = e.branches, i = r.main, a = [], o = n.routeOverrides ?? [];
-	if (o.length) {
-		let n = t.map((e) => e.branch > 0 && r.list[e.branch] ? r.list[e.branch].toLocal(e.t) : 0), s = e.controlPoints.map((e) => i.lut.nearestTGlobal([
-			e.x,
-			e.y,
-			e.z
-		]));
-		e.controlPoints = Pr(e.controlPoints, s, o);
-		let c = r.list.map((e) => e.lut);
-		i.lut = xt(e.controlPoints), Ir(i.lut, c);
-		for (let e of o) a.push([e.fromT, e.toT]);
-		for (let e of r.list) e.isMain || (e.entryT = i.lut.nearestTGlobal(e.entryPoint), e.exitT = i.lut.nearestTGlobal(e.exitPoint), e.span = R(e.exitT - e.entryT));
-		e.startT = i.lut.nearestTGlobal(e.startPoint);
-		let l = (e) => o.some((t) => Nr(e, t.fromT, t.toT));
-		e.openEdges = e.openEdges.filter((e) => !l(e.fromT) && !l(e.toT)).map((e) => ({
-			...e,
-			fromT: i.lut.nearestTGlobal(e.fromPoint),
-			toT: i.lut.nearestTGlobal(e.toPoint)
-		})), e.loopFeet = e.loopFeet.filter((e) => !l(e.t)).map((e) => ({
-			...e,
-			t: i.lut.nearestTGlobal(e.point)
-		}));
-		for (let t of e.hazards.creatures) l(t.t) && e.hazards.setEnabled(t.id, !1);
-		t.forEach((e, t) => {
-			let a = r.list[e.branch];
-			e.branch > 0 && a ? e.t = a.toMain(n[t]) : (e.t = i.lut.nearestTGlobal(e.position), e.branch = 0);
-		}), Ar(e.features, r), e.hazards.rederive();
-	}
-	for (let e of n.surfaceOverrides ?? []) {
-		let t = gt(e.surface), n = i.lut;
-		for (let r = 0; r < n.n; r++) Nr(r / n.n, e.fromT, e.toT) && (n.surface[r] = t);
-		a.push([e.fromT, e.toT]);
-	}
-	let s = n.gripMultiplier ?? 1;
-	if (s !== 1) for (let e of r.list) for (let t = 0; t < e.lut.n; t++) e.lut.grip[t] *= s;
-	for (let e of n.closesShortcuts ?? []) {
-		let t = r.byId(e);
-		t && (t.forcedOpen = !1);
-	}
-	for (let e of n.opensShortcuts ?? []) {
-		let t = r.byId(e);
-		t && (t.forcedOpen = !0);
-	}
-	for (let t of n.addsJumps ?? []) e.features.push(Or(r, t));
-	for (let t of n.enablesHazards ?? []) e.hazards.setEnabled(t, !0);
-	for (let t of n.disablesHazards ?? []) e.hazards.setEnabled(t, !1);
-	e.rebuildDerived();
-	let c = {
-		kind: n.kind,
-		label: n.label,
-		sky: n.sky,
-		lut: n.lut,
-		fogDensity: n.fogDensity,
-		musicVariant: n.musicVariant,
-		length: i.lut.length,
-		changedRanges: a.map(([e, t]) => [R(e), R(t)])
-	};
-	return e.emit(c), c;
-}
-function Ir(e, t) {
-	let n = e.n, r = e.length / e.step, i = new Float64Array(n), a = new Float64Array(n), o = new Uint8Array(n);
-	for (let r = 0; r < n; r++) {
-		let n = Infinity;
-		for (let o of t) {
-			let t = Rr(o, e, r);
-			t && t.gap < n && (n = t.gap, i[r] = t.y - e.py[r], a[r] = t.bank - e.bank[r]);
-		}
-		o[r] = +(n < 0);
-	}
-	let s = new Float64Array(n).fill(Infinity), c = new Int32Array(n).fill(-1);
-	for (let e of [1, -1]) {
-		let t = -1;
-		for (let i = 0; i < 2 * n; i++) {
-			let a = e > 0 ? i % n : n - 1 - i % n;
-			o[a] ? t = i : t >= 0 && (i - t) * r < s[a] && (s[a] = (i - t) * r, c[a] = e > 0 ? t % n : n - 1 - t % n);
-		}
-	}
-	for (let t = 0; t < n; t++) {
-		let n = t, r = 1;
-		if (!o[t]) {
-			if (c[t] < 0) continue;
-			n = c[t];
-			let e = Math.min(1, s[t] / 30);
-			r = 1 - e * e * (3 - 2 * e);
-		}
-		e.py[t] += i[n] * r, e.bank[t] += a[n] * r;
-	}
-	e.refreshFrames();
-}
-var Lr = {
-	y: 0,
-	bank: 0,
-	gap: 0
-}, J = [
-	0,
-	0,
-	0
-];
-function Rr(e, t, n) {
-	J[0] = t.px[n], J[1] = t.py[n], J[2] = t.pz[n];
-	let r = e.nearestT(J, e.nearestTGlobal(J), L.globalSearchStep / e.step);
-	if (!e.closed && (r <= 0 || r >= 1)) {
-		let t = r <= 0 ? 0 : e.n - 1;
-		if (((J[0] - e.px[t]) * e.tx[t] + (J[2] - e.pz[t]) * e.tz[t]) * (r <= 0 ? -1 : 1) > 0) return null;
-	}
-	let i = e.norm(r) * e.step, a = Math.floor(i), o = e.idx(a), s = e.idx(a + 1), c = i - a, l = 1 - c, u = e.px[o] * l + e.px[s] * c, d = e.py[o] * l + e.py[s] * c, f = e.pz[o] * l + e.pz[s] * c, p = e.tx[o] * l + e.tx[s] * c, m = e.ty[o] * l + e.ty[s] * c, h = e.tz[o] * l + e.tz[s] * c, g = Math.hypot(p, h) || 1, _ = h / g, v = -p / g, y = e.bank[o] * l + e.bank[s] * c, b = e.hw[o] * l + e.hw[s] * c + L.kerbWidth, x = (J[0] - u) * _ + (J[2] - f) * v, S = d - Math.max(-b, Math.min(b, x)) * Math.tan(y);
-	if (Math.abs(S - J[1]) > L.tunnelApex) return null;
-	let C = t.rx[n] * _ + t.rz[n] * v, w = (t.rx[n] * p + t.rz[n] * h) / g;
-	return Lr.y = S, Lr.bank = Math.atan(Math.tan(y) * C - m / g * w), Lr.gap = Math.abs(x) - b - (t.hw[n] + L.kerbWidth) * Math.abs(C), Lr;
-}
-function zr(e, t, n) {
-	return Nr(e, t, n) || z(e, t) === 0;
-}
-//#endregion
 //#region src/race-manager/checkpoints.ts
-function Br(e, t) {
+function Hr(e, t) {
 	return {
 		gridSlot: e,
 		nextCheckpoint: 0,
@@ -6818,7 +6841,7 @@ function Br(e, t) {
 		dnf: !1
 	};
 }
-function Vr(e, t, n, r, i, a, o) {
+function Ur(e, t, n, r, i, a, o) {
 	let s = n.checkpoints.length;
 	if (t.lastCheckpoint = r, t.nextCheckpoint = (r + 1) % s, r !== 0) return e.checkpointsHit++, o.push({
 		type: "checkpoint",
@@ -6833,65 +6856,65 @@ function Vr(e, t, n, r, i, a, o) {
 		isFinal: e.lap === i
 	}), "lap")) : "checkpoint";
 }
-function Hr(e, t, n, r, i, a) {
+function Wr(e, t, n, r, i, a) {
 	let o = t.prevT;
 	if (t.prevT = e.t, e.isGhost || e.finishTick !== void 0) return "none";
 	let s = n.checkpoints.length;
 	if (R(e.t - o) > W.teleportGuardSectors / s) return "none";
 	let c = n.checkpoints[t.nextCheckpoint];
-	return Re(o, e.t, c.t) ? Vr(e, t, n, t.nextCheckpoint, r, i, a) : "none";
+	return Re(o, e.t, c.t) ? Ur(e, t, n, t.nextCheckpoint, r, i, a) : "none";
 }
-function Ur(e, t, n, r, i, a) {
+function Gr(e, t, n, r, i, a) {
 	if (t.prevT = e.t, e.isGhost || e.finishTick !== void 0) return "none";
 	let o = n.checkpoints.length, s = n.checkpoints[t.nextCheckpoint], c = z(e.t, s.t);
-	return c > 0 && c < W.checkpointResyncSectors / o ? Vr(e, t, n, t.nextCheckpoint, r, i, a) : "none";
+	return c > 0 && c < W.checkpointResyncSectors / o ? Ur(e, t, n, t.nextCheckpoint, r, i, a) : "none";
 }
-var Wr = 1.5;
-function Gr(e, t, n) {
-	let r = n.checkpoints[t.lastCheckpoint], i = n.length, a = R(e.t - r.t), o = a > Wr / n.checkpoints.length ? a - 1 : a;
+var Kr = 1.5;
+function qr(e, t, n) {
+	let r = n.checkpoints[t.lastCheckpoint], i = n.length, a = R(e.t - r.t), o = a > Kr / n.checkpoints.length ? a - 1 : a;
 	return (e.lap - 1) * i + (R(r.t - n.startT) + o) * i;
 }
 //#endregion
 //#region src/race-manager/countdown.ts
-var Kr = Math.round(W.countdownStepSeconds * 120), qr = W.countdownSteps * Kr;
-function Jr(e, t, n, r, i, a, o) {
+var Jr = Math.round(W.countdownStepSeconds * 120), Yr = W.countdownSteps * Jr;
+function Xr(e, t, n, r, i, a, o) {
 	for (let i = 0; i < t.length; i++) {
 		let t = n[i];
 		r[i].throttle > W.stuckInputMin ? t.throttleHeldSinceTick < 0 && (t.throttleHeldSinceTick = e) : t.throttleHeldSinceTick = -1;
 	}
-	if (e < qr) return e % Kr === 0 && a.push({
+	if (e < Yr) return e % Jr === 0 && a.push({
 		type: "countdown",
-		stepsLeft: W.countdownSteps - e / Kr
+		stepsLeft: W.countdownSteps - e / Jr
 	}), !1;
 	for (let e = 0; e < t.length; e++) {
 		let r = n[e].throttleHeldSinceTick;
-		r >= 0 && at(t[e], i[e], (qr - r) / 120, o[e]);
+		r >= 0 && at(t[e], i[e], (Yr - r) / 120, o[e]);
 	}
 	return a.push({ type: "go" }), !0;
 }
 //#endregion
 //#region src/race-manager/util.ts
-var Yr = 1e-9;
-function Xr(e, t) {
+var Zr = 1e-9;
+function Qr(e, t) {
 	let n = e - t;
-	return n > Yr ? n : 0;
+	return n > Zr ? n : 0;
 }
-function Zr(e, t) {
+function $r(e, t) {
 	return Math.hypot(e[0] - t[0], e[2] - t[2]);
 }
-function Qr(e, t) {
+function ei(e, t) {
 	return Math.hypot(e[0] - t[0], e[1] - t[1], e[2] - t[2]);
 }
 //#endregion
 //#region src/race-manager/hazards.ts
-function $r(e, t, n, r, i, a, o) {
-	if (t.hazardCooldownRemaining = Xr(t.hazardCooldownRemaining, i), t.ventCooldownRemaining = Xr(t.ventCooldownRemaining, i), e.isGhost || e.finishTick !== void 0) return;
+function ti(e, t, n, r, i, a, o) {
+	if (t.hazardCooldownRemaining = Qr(t.hazardCooldownRemaining, i), t.ventCooldownRemaining = Qr(t.ventCooldownRemaining, i), e.isGhost || e.finishTick !== void 0) return;
 	if (t.hazardInside !== void 0) {
 		let i = r.find((e) => e.id === t.hazardInside);
-		(!i || Qr(e.position, i.position) > i.radius + n.kartRadius) && (t.hazardInside = void 0);
+		(!i || ei(e.position, i.position) > i.radius + n.kartRadius) && (t.hazardInside = void 0);
 	}
 	let s, c;
-	for (let l of r) if (!(Qr(e.position, l.position) > l.radius + n.kartRadius) && !(e.status.intangibleRemaining > 0 || M(e)) && (!l.ground || e.grounded)) {
+	for (let l of r) if (!(ei(e.position, l.position) > l.radius + n.kartRadius) && !(e.status.intangibleRemaining > 0 || M(e)) && (!l.ground || e.grounded)) {
 		if ((!s || !c) && (s = k(e.heading), c = A(e.heading)), l.hit === "launch") {
 			let n = l.launch ?? 0;
 			if (t.ventCooldownRemaining > 0 || e.airborne.fromJumpId === l.id || e.verticalVelocity >= n) continue;
@@ -6935,7 +6958,7 @@ function $r(e, t, n, r, i, a, o) {
 }
 //#endregion
 //#region src/race-manager/pickups.ts
-function ei(e) {
+function ni(e) {
 	let t = {
 		pickups: [],
 		coins: []
@@ -6944,22 +6967,22 @@ function ei(e) {
 		e.kind === "pickup" ? t.pickups.push(n) : e.kind === "coin" && t.coins.push(n);
 	}), t;
 }
-function ti(e) {
+function ri(e) {
 	return {
 		pickupStates: e.pickups.map(() => ({ respawnRemaining: 0 })),
 		coinStates: e.coins.map(() => ({ respawnRemaining: 0 }))
 	};
 }
-function ni(e, t, n, r, i, a, o, s) {
+function ii(e, t, n, r, i, a, o, s) {
 	for (let c = 0; c < t.length; c++) {
 		let l = n[c];
-		if (l.respawnRemaining = Xr(l.respawnRemaining, o), l.respawnRemaining > 0) continue;
+		if (l.respawnRemaining = Qr(l.respawnRemaining, o), l.respawnRemaining > 0) continue;
 		let u = r.features[t[c]];
 		if (!r.branches.list[u.branch].open) continue;
 		let d = u.width / 2;
 		for (let t = 0; t < i.length; t++) {
 			let n = i[t];
-			if (!(n.isGhost || n.finishTick !== void 0 || n.status.held || n.branch !== u.branch) && !(Zr(n.position, u.position) > d + a[t].kartRadius)) {
+			if (!(n.isGhost || n.finishTick !== void 0 || n.status.held || n.branch !== u.branch) && !($r(n.position, u.position) > d + a[t].kartRadius)) {
 				e === "coin" ? (l.respawnRemaining = W.coinRespawnSeconds, n.coins = Math.min(a[t].coinCap, n.coins + 1), s.push({
 					type: "coin",
 					racerId: n.racerId,
@@ -6974,13 +6997,13 @@ function ni(e, t, n, r, i, a, o, s) {
 		}
 	}
 }
-function ri(e, t, n, r, i, a, o, s) {
-	ni("pickup", e.pickups, t, r, i, a, o, s), ni("coin", e.coins, n, r, i, a, o, s);
+function ai(e, t, n, r, i, a, o, s) {
+	ii("pickup", e.pickups, t, r, i, a, o, s), ii("coin", e.coins, n, r, i, a, o, s);
 }
 //#endregion
 //#region src/race-manager/ranking.ts
 var Y = (e) => e.status.loopIndex >= 0 ? e.status.loopS : 0;
-function ii(e, t, n, r) {
+function oi(e, t, n, r) {
 	let i = e[n], a = e[r], o = i.finishTick !== void 0, s = a.finishTick !== void 0;
 	if (o && s) {
 		let e = i.finishTick - a.finishTick;
@@ -6988,17 +7011,17 @@ function ii(e, t, n, r) {
 	}
 	return o === s ? i.distanceAlong === a.distanceAlong ? Y(i) === Y(a) ? t[n].gridSlot - t[r].gridSlot : Y(a) - Y(i) : a.distanceAlong - i.distanceAlong : o ? -1 : 1;
 }
-function ai(e, t, n) {
+function si(e, t, n) {
 	n.length = 0;
 	for (let t = 0; t < e.length; t++) e[t].isGhost || n.push(t);
 	for (let r = 1; r < n.length; r++) {
 		let i = n[r], a = r - 1;
-		for (; a >= 0 && ii(e, t, n[a], i) > 0;) n[a + 1] = n[a], a--;
+		for (; a >= 0 && oi(e, t, n[a], i) > 0;) n[a + 1] = n[a], a--;
 		n[a + 1] = i;
 	}
 	return n;
 }
-function oi(e, t, n, r, i) {
+function ci(e, t, n, r, i) {
 	for (let a = 0; a < n.length; a++) {
 		let o = n[a], s = e[o], c = t[o], l = a + 1;
 		c.rankHeldSeconds = l === s.rank ? c.rankHeldSeconds + r : r, s.rank = l, l !== c.shownRank && (s.finishTick !== void 0 || c.rankHeldSeconds + 1e-9 >= W.rankDebounceSeconds) && (c.shownRank = l, i.push({
@@ -7010,7 +7033,7 @@ function oi(e, t, n, r, i) {
 }
 //#endregion
 //#region src/race-manager/wrongway.ts
-var si = {
+var li = {
 	position: [
 		0,
 		0,
@@ -7031,55 +7054,62 @@ var si = {
 	surface: "road",
 	gripScale: 1
 };
-function ci(e, t) {
-	let n = t.sampleInto(e.t, 0, e.branch, si), r = k(e.heading), i = A(e.heading), a = r[0] * e.speed + i[0] * e.lateralVelocity, o = r[2] * e.speed + i[2] * e.lateralVelocity;
+function ui(e, t) {
+	let n = t.sampleInto(e.t, 0, e.branch, li), r = k(e.heading), i = A(e.heading), a = r[0] * e.speed + i[0] * e.lateralVelocity, o = r[2] * e.speed + i[2] * e.lateralVelocity;
 	return a * n.tangent[0] + o * n.tangent[2];
 }
-function li(e, t, n) {
+function di(e, t, n) {
 	t.wrongWaySeconds = 0, t.wrongWayOn && (t.wrongWayOn = !1, n.push({
 		type: "wrongWay",
 		racerId: e.racerId,
 		on: !1
 	}));
 }
-function ui(e, t, n, r, i) {
+function fi(e, t, n, r, i) {
 	if (e.isGhost || e.finishTick !== void 0) {
-		li(e, t, i);
+		di(e, t, i);
 		return;
 	}
-	let a = ci(e, n);
+	let a = ui(e, n);
 	a < W.wrongWaySpeed ? (t.wrongWaySeconds += r, !t.wrongWayOn && t.wrongWaySeconds + 1e-9 >= W.wrongWayHoldSeconds && (t.wrongWayOn = !0, i.push({
 		type: "wrongWay",
 		racerId: e.racerId,
 		on: !0
-	}))) : a > W.wrongWayClearSpeed && li(e, t, i);
+	}))) : a > W.wrongWayClearSpeed && di(e, t, i);
 }
 //#endregion
 //#region src/race-manager/respawn.ts
-function di(e, t, n, r) {
+function pi(e, t, n, r) {
 	return t.stuckSeconds = (!e.isPlayer || n.throttle > W.stuckInputMin || n.brake > W.stuckInputMin) && Math.abs(e.speed) < W.stuckSpeed && e.status.spinRemaining === 0 && e.grounded && t.freezeRemaining === 0 ? t.stuckSeconds + r : 0, t.stuckSeconds + 1e-9 >= W.stuckSeconds;
 }
-function fi(e, t, n, r) {
+function mi(e, t, n, r) {
 	let i = r ?? Le(t, e.t, e.position, e.branch).lateral, a = Math.max(0, Math.min(n - T.kartRadius, n * W.respawnInset));
 	return Number.isFinite(i) ? i < -a ? -a : i > a ? a : i : 0;
 }
-function pi(e, t, n, r) {
-	let i = n.checkpoints[t.lastCheckpoint], a = n.sample(i.t, fi(e, n, i.halfWidth, r), 0).position;
+function hi(e, t) {
+	let n = e.branches.main.lut, r = (e) => (n.covered[n.idx(e)] | n.covered[n.idx(e + 1)]) !== 0, i = Math.floor(n.norm(t) * n.step);
+	if (!r(i)) return t;
+	for (let e = 0; e < n.n && r(i); e++) i--;
+	return R((i - Math.ceil(L.tunnelFunnel / (n.length / n.step))) / n.step);
+}
+function gi(e, t, n, r) {
+	let i = n.checkpoints[t.lastCheckpoint], a = hi(n, i.t), o = a === i.t ? i : n.sample(a, 0, 0), s = n.sample(a, mi(e, n, o.halfWidth, r), 0).position;
 	return {
 		position: [
-			a[0],
-			a[1] + W.respawnLift,
-			a[2]
+			s[0],
+			s[1] + W.respawnLift,
+			s[2]
 		],
-		heading: j(i.tangent)
+		heading: j(o.tangent),
+		t: a
 	};
 }
-var mi = (e) => {
+var _i = (e) => {
 	let t = Math.max(0, Math.min(1, e));
 	return t * t * (3 - 2 * t);
 };
-function hi(e, t, n, r) {
-	let i = Le(n, e.t, e.position, e.branch).lateral, a = pi(e, t, n, i);
+function vi(e, t, n, r) {
+	let i = Le(n, e.t, e.position, e.branch).lateral, a = gi(e, t, n, i);
 	t.rescue = {
 		lateral: Number.isFinite(i) ? i : 0,
 		from: [...e.position],
@@ -7093,18 +7123,18 @@ function hi(e, t, n, r) {
 		phase: "start"
 	});
 }
-function gi(e, t) {
+function yi(e, t) {
 	let n = W.rescueSeconds, r = n / 2.4 * .8, i = n / 2.4 * 2, a = e.from, o = e.to;
 	if (t < r) return {
 		position: [
 			a[0],
-			a[1] + .3 * mi((t - r * .7) / (r * .3)),
+			a[1] + .3 * _i((t - r * .7) / (r * .3)),
 			a[2]
 		],
 		heading: e.fromHeading
 	};
 	if (t < i) {
-		let n = mi((t - r) / (i - r)), s = Math.max(a[1], o[1]) + W.rescueRise, c = (t - r) / (i - r), l = c < .5 ? a[1] + .3 + (s - a[1] - .3) * mi(c * 2) : s + (o[1] + 1.5 - s) * mi((c - .5) * 2), u = e.toHeading - e.fromHeading;
+		let n = _i((t - r) / (i - r)), s = Math.max(a[1], o[1]) + W.rescueRise, c = (t - r) / (i - r), l = c < .5 ? a[1] + .3 + (s - a[1] - .3) * _i(c * 2) : s + (o[1] + 1.5 - s) * _i((c - .5) * 2), u = e.toHeading - e.fromHeading;
 		for (; u > Math.PI;) u -= 2 * Math.PI;
 		for (; u < -Math.PI;) u += 2 * Math.PI;
 		return {
@@ -7116,7 +7146,7 @@ function gi(e, t) {
 			heading: e.fromHeading + u * n
 		};
 	}
-	let s = mi((t - i) / (n - i));
+	let s = _i((t - i) / (n - i));
 	return {
 		position: [
 			o[0],
@@ -7126,31 +7156,31 @@ function gi(e, t) {
 		heading: e.toHeading
 	};
 }
-function _i(e, t, n) {
+function bi(e, t, n) {
 	let r = Le(t, e.t, e.position, e.branch).lateral, i = t.sample(e.t, r, e.branch), a = i.open ?? 0;
 	if (!(a & (r < 0 ? 1 : 2)) && Math.abs(r) - ((i.wall ?? i.halfWidth) - N(e, n)) > n.wallEndOvershoot) return !0;
 	let o = e.position[1] - (i.groundY + Ve(t, e.t, e.branch, r, i.halfWidth, a));
 	return o < -n.groundCatch || e.grounded && o > n.groundCatch;
 }
-function vi(e, t, n) {
+function xi(e, t, n) {
 	if (!t.rescue) return;
-	let r = pi(e, t, n, t.rescue.lateral);
+	let r = gi(e, t, n, t.rescue.lateral);
 	t.rescue.to = r.position, t.rescue.toHeading = r.heading;
 }
-function yi(e, t, n, r, i) {
+function Si(e, t, n, r, i) {
 	let a = t.rescue;
 	if (!a) return;
 	a.remaining = Math.max(0, a.remaining - r);
-	let o = gi(a, W.rescueSeconds - a.remaining);
-	e.position = o.position, e.heading = o.heading, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !1, !(a.remaining > 1e-9) && (t.rescue = void 0, bi(e, t, n, i, a.lateral), i.push({
+	let o = yi(a, W.rescueSeconds - a.remaining);
+	e.position = o.position, e.heading = o.heading, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !1, !(a.remaining > 1e-9) && (t.rescue = void 0, Ci(e, t, n, i, a.lateral), i.push({
 		type: "rescue",
 		racerId: e.racerId,
 		phase: "end"
 	}));
 }
-function bi(e, t, n, r, i) {
-	let a = n.checkpoints[t.lastCheckpoint], o = pi(e, t, n, i);
-	e.position = o.position, e.heading = o.heading, e.t = a.t, e.branch = 0, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !0, e.status.falling = !1, e.status.held = !1, e.airborne.fromJumpId = void 0, e.airborne.trickQueued = !1, e.airborne.seconds = 0, P(e), re(e), e.status.intangibleRemaining = Math.max(e.status.intangibleRemaining, W.respawnFreezeSeconds), t.prevT = R(a.t - 1e-7), t.freezeRemaining = W.respawnFreezeSeconds, t.stuckSeconds = 0, t.respawnCount++, li(e, t, r), r.push({
+function Ci(e, t, n, r, i) {
+	let a = gi(e, t, n, i);
+	e.position = a.position, e.heading = a.heading, e.t = a.t, e.branch = 0, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !0, e.status.falling = !1, e.status.held = !1, e.airborne.fromJumpId = void 0, e.airborne.trickQueued = !1, e.airborne.seconds = 0, P(e), re(e), e.status.intangibleRemaining = Math.max(e.status.intangibleRemaining, W.respawnFreezeSeconds), t.prevT = R(a.t - 1e-7), t.freezeRemaining = W.respawnFreezeSeconds, t.stuckSeconds = 0, t.respawnCount++, di(e, t, r), r.push({
 		type: "respawn",
 		racerId: e.racerId,
 		checkpoint: t.lastCheckpoint
@@ -7158,7 +7188,7 @@ function bi(e, t, n, r, i) {
 }
 //#endregion
 //#region src/race-manager/race.ts
-var xi = class {
+var wi = class {
 	track;
 	config;
 	state;
@@ -7188,9 +7218,9 @@ var xi = class {
 				heading: f.heading,
 				t: f.t
 			});
-			p.lap = 1, p.bodyId = e.bodyId, p.skinId = e.skinId, e.isPlayer && (d = r), c.push(p), l.push(Br(i, f.t)), u.push(ee(e.archetype, t.speedClass));
-		}), this.playerIndex = d, this.consts = u, this.fi = ei(e);
-		let f = ti(this.fi);
+			p.lap = 1, p.bodyId = e.bodyId, p.skinId = e.skinId, e.isPlayer && (d = r), c.push(p), l.push(Hr(i, f.t)), u.push(ee(e.archetype, t.speedClass));
+		}), this.playerIndex = d, this.consts = u, this.fi = ni(e);
+		let f = ri(this.fi);
 		this.state = {
 			mode: t.mode,
 			trackId: t.trackId,
@@ -7198,8 +7228,8 @@ var xi = class {
 			mirrored: t.mirrored ?? !1,
 			seed: t.seed,
 			tick: 0,
-			goTick: qr,
-			time: -qr * Ze,
+			goTick: Yr,
+			time: -Yr * Ze,
 			phase: "countdown",
 			lapsTotal: r,
 			finalLapShiftFired: !1,
@@ -7217,8 +7247,8 @@ var xi = class {
 			playerFinishTick: -1,
 			leaderLap: 1
 		}, this.effective = c.map(() => O), this.kartEvents = c.map(() => []);
-		for (let t = 0; t < c.length; t++) c[t].distanceAlong = Gr(c[t], l[t], e);
-		ai(c, l, this.order), this.order.forEach((e, t) => {
+		for (let t = 0; t < c.length; t++) c[t].distanceAlong = qr(c[t], l[t], e);
+		si(c, l, this.order), this.order.forEach((e, t) => {
 			c[e].rank = t + 1, l[e].shownRank = t + 1;
 		});
 	}
@@ -7245,7 +7275,7 @@ var xi = class {
 		for (let e of c) e.length = 0;
 		let l = t.phase === "finished", u = !1;
 		if (t.phase === "countdown") {
-			u = Jr(a, n, r, e, this.consts, s, c);
+			u = Xr(a, n, r, e, this.consts, s, c);
 			for (let e = 0; e < n.length; e++) this.effective[e] = O;
 		} else for (let t = 0; t < n.length; t++) {
 			let i = n[t], a = r[t];
@@ -7265,22 +7295,22 @@ var xi = class {
 			l.length = 0;
 			for (let u = 0; u < n.length; u++) {
 				let d = n[u], f = r[u], p = this.consts[u];
-				f.freezeRemaining = Xr(f.freezeRemaining, o);
+				f.freezeRemaining = Qr(f.freezeRemaining, o);
 				let m = !1, h = c[u];
 				for (let e = h.length - 1; e >= 0; e--) h[e].type === "respawn" && (m = !0, h.splice(e, 1));
 				if (f.rescue) {
-					yi(d, f, i, o, s);
+					Si(d, f, i, o, s);
 					continue;
 				}
-				if (m || Hr(d, f, i, t.lapsTotal, a, s) === "finish" && (l.push(u), d.isPlayer && (t.playerFinishTick = a)), ui(d, f, i, o, s), !m && !d.isGhost && d.finishTick === void 0 && di(d, f, e[u], o) && (m = !0), m) {
-					hi(d, f, i, s);
+				if (m || Wr(d, f, i, t.lapsTotal, a, s) === "finish" && (l.push(u), d.isPlayer && (t.playerFinishTick = a)), fi(d, f, i, o, s), !m && !d.isGhost && d.finishTick === void 0 && pi(d, f, e[u], o) && (m = !0), m) {
+					vi(d, f, i, s);
 					continue;
 				}
-				$r(d, f, p, this.lastActiveHazards, o, s, c[u]);
+				ti(d, f, p, this.lastActiveHazards, o, s, c[u]);
 			}
-			ri(this.fi, t.pickupStates, t.coinStates, i, n, this.consts, o, s);
-			for (let e = 0; e < n.length; e++) n[e].distanceAlong = Gr(n[e], r[e], i);
-			ai(n, r, this.order), oi(n, r, this.order, o, s);
+			ai(this.fi, t.pickupStates, t.coinStates, i, n, this.consts, o, s);
+			for (let e = 0; e < n.length; e++) n[e].distanceAlong = qr(n[e], r[e], i);
+			si(n, r, this.order), ci(n, r, this.order, o, s);
 			for (let e of this.order) l.includes(e) && s.push({
 				type: "finish",
 				racerId: n[e].racerId,
@@ -7301,7 +7331,7 @@ var xi = class {
 					let t = n[e];
 					t.finishTick === void 0 && (t.finishTick = a, r[e].dnf = !0);
 				}
-				ai(n, r, this.order), this.order.forEach((e, t) => {
+				si(n, r, this.order), this.order.forEach((e, t) => {
 					n[e].rank = t + 1;
 				});
 				for (let e of this.order) r[e].dnf && s.push({
@@ -7317,7 +7347,7 @@ var xi = class {
 				}), s.push({ type: "raceFinished" });
 			}
 		}
-		if (l) for (let e = 0; e < n.length; e++) r[e].freezeRemaining = Xr(r[e].freezeRemaining, o), r[e].rescue && yi(n[e], r[e], i, o, s);
+		if (l) for (let e = 0; e < n.length; e++) r[e].freezeRemaining = Qr(r[e].freezeRemaining, o), r[e].rescue && Si(n[e], r[e], i, o, s);
 		t.tick = a + 1;
 		let f = [];
 		for (let e = 0; e < n.length; e++) for (let t of c[e]) f.push({
@@ -7332,14 +7362,14 @@ var xi = class {
 		let n = this.state;
 		if (n.finalLapShiftFired) return;
 		n.finalLapShiftFired = !0;
-		let r = this.track.def.finalLapShift.routeOverrides ?? [], i = n.karts.map((e) => e.branch === 0 && r.some((t) => zr(e.t, t.fromT, t.toT))), a = this.track.applyFinalLapShift(n.karts);
+		let r = this.track.def.finalLapShift.routeOverrides ?? [], i = n.karts.map((e) => e.branch === 0 && r.some((t) => Jn(e.t, t.fromT, t.toT))), a = this.track.applyFinalLapShift(n.karts);
 		a && t.push({
 			type: "trackChanged",
 			event: a
 		});
 		for (let r = 0; r < n.karts.length; r++) {
 			let o = n.karts[r], s = n.trackers[r];
-			Ur(o, s, this.track, n.lapsTotal, e, t), vi(o, s, this.track), a && i[r] && !s.rescue && !Oe(o) && _i(o, this.track, this.consts[r]) && hi(o, s, this.track, t), o.distanceAlong = Gr(o, s, this.track);
+			Gr(o, s, this.track, n.lapsTotal, e, t), xi(o, s, this.track), a && i[r] && !s.rescue && !Oe(o) && bi(o, this.track, this.consts[r]) && vi(o, s, this.track, t), o.distanceAlong = qr(o, s, this.track);
 		}
 		n.phase = "finalLap", t.push({
 			type: "phase",
@@ -7348,12 +7378,12 @@ var xi = class {
 	}
 	results() {
 		let e = this.state, t = this.order.map((t) => {
-			let n = e.karts[t], r = e.trackers[t], i = n.finishTick ?? -1, a = r.lapTicks.map((t, n) => Si(t - (n === 0 ? e.goTick : r.lapTicks[n - 1])));
+			let n = e.karts[t], r = e.trackers[t], i = n.finishTick ?? -1, a = r.lapTicks.map((t, n) => Ti(t - (n === 0 ? e.goTick : r.lapTicks[n - 1])));
 			return {
 				racerId: n.racerId,
 				rank: n.rank,
 				finishTick: i,
-				timeMs: i < 0 ? -1 : Si(i - e.goTick),
+				timeMs: i < 0 ? -1 : Ti(i - e.goTick),
 				lapTimesMs: a,
 				dnf: i < 0 || r.dnf
 			};
@@ -7368,7 +7398,7 @@ var xi = class {
 		};
 	}
 };
-function Si(e) {
+function Ti(e) {
 	return Math.round(e * 1e3 * Ze);
 }
 //#endregion
@@ -7430,13 +7460,13 @@ var X = Object.freeze({
 		gust: 20,
 		window: 36
 	}
-}), Ci = (e) => {
+}), Ei = (e) => {
 	let t = Math.max(0, Math.min(1, e));
 	return t * t * (3 - 2 * t);
-}, wi = (e) => {
+}, Di = (e) => {
 	let t = Math.sin(e * 127.1 + 311.7) * 43758.5453;
 	return t - Math.floor(t);
-}, Ti = class {
+}, Oi = class {
 	id;
 	kind;
 	def;
@@ -7606,9 +7636,9 @@ var X = Object.freeze({
 			case "yeti": {
 				let o = X.yeti, s = this.frame(this.t), c = this.on(s, n * this.clear(s, o.off, o.footprint), 3), l = s.heading - n * Math.PI / 2, u = this.period(), d = Math.floor(e / u), f = "idle", p = 0;
 				t >= u - o.windUp ? (f = "windUp", p = (t - (u - o.windUp)) / o.windUp) : t < o.flight && (f = "throw", p = t / o.flight);
-				let m = this.branches.main.lut.length, h = this.t + o.ahead / m, g = this.frame(h), _ = (wi(d) * 2 - 1) * Math.max(0, g.hw - o.radius - 1), v = this.at(g, _);
+				let m = this.branches.main.lut.length, h = this.t + o.ahead / m, g = this.frame(h), _ = (Di(d) * 2 - 1) * Math.max(0, g.hw - o.radius - 1), v = this.at(g, _);
 				if (t < o.flight) {
-					let e = Ci(t / o.flight), n = [
+					let e = Ei(t / o.flight), n = [
 						c[0],
 						c[1] + 4,
 						c[2]
@@ -7686,7 +7716,7 @@ var X = Object.freeze({
 			case "crab": {
 				let e = X.crab, o = this.frame(this.t), s = o.hw + e.off, c = e.wait + e.cross, l = t % c, u = (t >= c ? -1 : 1) * n * s, d = -u, f = u, p = "wait", m = l / e.wait;
 				if (l >= e.wait) {
-					let t = Ci((l - e.wait) / e.cross);
+					let t = Ei((l - e.wait) / e.cross);
 					f = u + (d - u) * t, p = "cross", m = (l - e.wait) / e.cross;
 				}
 				return {
@@ -7704,12 +7734,12 @@ var X = Object.freeze({
 				if (t >= e.wait && t < l) {
 					let r = t - e.wait;
 					d = r * e.speed;
-					let i = Ci(r / .8);
+					let i = Ei(r / .8);
 					f = n * c * (1 - i) + Math.sin(r / e.weavePeriod * Math.PI * 2) * e.weave * i, p = "charge", m = r / e.charge;
 				} else if (t >= l) {
 					d = e.charge * e.speed;
-					let r = Ci((t - l) / e.turn);
-					f = n * c * r, p = t < u ? "turn" : "walk", m = t < u ? (t - l) / e.turn : (t - u) / (this.period() - u), t >= u && (d = e.charge * e.speed * (1 - Ci((t - u) / (this.period() - u)))), h = t >= u ? s.heading : s.heading + Math.PI - n * Math.PI / 2 * r;
+					let r = Ei((t - l) / e.turn);
+					f = n * c * r, p = t < u ? "turn" : "walk", m = t < u ? (t - l) / e.turn : (t - u) / (this.period() - u), t >= u && (d = e.charge * e.speed * (1 - Ei((t - u) / (this.period() - u)))), h = t >= u ? s.heading : s.heading + Math.PI - n * Math.PI / 2 * r;
 				}
 				let g = this.frame(this.t - d / o), _ = this.on(g, f);
 				return p === "wait" && m > .4 && a.push({
@@ -7729,7 +7759,7 @@ var X = Object.freeze({
 			}
 			case "whale": {
 				let o = X.whale, s = this.frame(this.t), c = o.swim + o.warn, l = c + o.slap, u = "swim", d = t / o.swim, f = 0;
-				t >= o.swim - 2 && t < o.swim ? f = Ci((t - (o.swim - 2)) / 2) : t >= o.swim && t < l ? f = 1 : t >= l && (f = 1 - Ci((t - l) / Math.max(.5, this.period() - l))), t >= o.swim && t < c ? (u = "warn", d = (t - o.swim) / o.warn) : t >= c && t < l ? (u = "slap", d = (t - c) / o.slap) : t >= l && (u = "swim", d = (t - l) / (this.period() - l));
+				t >= o.swim - 2 && t < o.swim ? f = Ei((t - (o.swim - 2)) / 2) : t >= o.swim && t < l ? f = 1 : t >= l && (f = 1 - Ei((t - l) / Math.max(.5, this.period() - l))), t >= o.swim && t < c ? (u = "warn", d = (t - o.swim) / o.warn) : t >= c && t < l ? (u = "slap", d = (t - c) / o.slap) : t >= l && (u = "swim", d = (t - l) / (this.period() - l));
 				let p = Math.sin(e / this.period() * Math.PI * 2) * 20, m = this.branches.main.lut.length, h = this.frame(this.t + p / m), g = n * (s.hw + o.off * (1 - f * .55));
 				return {
 					id: r,
@@ -7755,7 +7785,7 @@ var X = Object.freeze({
 };
 //#endregion
 //#region src/track-builder/hazards.ts
-function Ei(e, t) {
+function ki(e, t) {
 	let n = Math.max(e.period ?? 5, L.ventWarnSeconds + L.ventEruptSeconds + .1), r = ((t + (e.offset ?? 0)) % n + n) % n, i = n - L.ventEruptSeconds, a = i - L.ventWarnSeconds;
 	return r >= i ? {
 		state: "erupt",
@@ -7768,7 +7798,7 @@ function Ei(e, t) {
 		k: r / a
 	};
 }
-function Di(e, t) {
+function Ai(e, t) {
 	let n = e.period ?? 1, r = n > 0 ? (t % n + n) % n : 0;
 	if (r < L.fallingActiveSeconds) return {
 		state: "down",
@@ -7783,14 +7813,14 @@ function Di(e, t) {
 		k: 0
 	};
 }
-var Oi = class {
+var ji = class {
 	items = [];
 	branches;
 	creatures = [];
 	constructor(e, t) {
 		this.branches = t, e.forEach((e, n) => {
 			if (e.type === "creature") {
-				this.creatures.push(new Ti(e.id ?? `creature-${n}`, e, t));
+				this.creatures.push(new Oi(e.id ?? `creature-${n}`, e, t));
 				return;
 			}
 			let r = e.lateral ?? 0, i = t.sample(e.t, r, 0);
@@ -7813,7 +7843,7 @@ var Oi = class {
 			id: n.id,
 			position: n.position,
 			asset: n.def.asset ?? "geyser",
-			...Ei(n.def, e)
+			...ki(n.def, e)
 		});
 		return t;
 	}
@@ -7822,7 +7852,7 @@ var Oi = class {
 		for (let n of this.items) n.def.type === "falling" && n.enabled && t.push({
 			id: n.id,
 			position: n.position,
-			...Di(n.def, e)
+			...Ai(n.def, e)
 		});
 		return t;
 	}
@@ -7838,7 +7868,7 @@ var Oi = class {
 	}
 	rederive() {
 		for (let e of this.creatures) e.rederive();
-		for (let e of this.items) e.t = this.branches.main.nearestGlobal(e.position).t, e.lateral = kr(this.branches, e.t, 0, e.position);
+		for (let e of this.items) e.t = this.branches.main.nearestGlobal(e.position).t, e.lateral = Ln(this.branches, e.t, 0, e.position);
 	}
 	activeHazards(e) {
 		let t = [], n = this.branches.main, r = n.lut.length, i = L.hazardRadius;
@@ -7878,7 +7908,7 @@ var Oi = class {
 					break;
 				}
 				case "falling":
-					Di(o, e).state === "down" && t.push({
+					Ai(o, e).state === "down" && t.push({
 						id: a.id,
 						type: o.type,
 						position: a.position,
@@ -7887,7 +7917,7 @@ var Oi = class {
 					});
 					break;
 				case "vent":
-					Ei(o, e).state === "erupt" && t.push({
+					ki(o, e).state === "erupt" && t.push({
 						id: a.id,
 						type: o.type,
 						position: a.position,
@@ -7923,7 +7953,7 @@ var Oi = class {
 };
 //#endregion
 //#region src/track-builder/minimap.ts
-function ki(e) {
+function Mi(e) {
 	let t = L.minimapSamples, n = L.minimapPadding, r = [], i = Infinity, a = -Infinity, o = Infinity, s = -Infinity;
 	for (let n of e.list) {
 		let c = [], l = [], u = n.isMain ? t : Math.max(8, Math.round(t * n.lut.length / e.main.lut.length)), d = n.isMain ? u : u - 1;
@@ -7959,7 +7989,7 @@ function ki(e) {
 }
 //#endregion
 //#region src/track-builder/race.ts
-function Ai(e, t, n) {
+function Ni(e, t, n) {
 	let r = [];
 	for (let i = 0; i < n; i++) {
 		let a = R(t + i / n), o = e.sample(a, 0);
@@ -7973,7 +8003,7 @@ function Ai(e, t, n) {
 	}
 	return r;
 }
-function ji(e, t, n) {
+function Pi(e, t, n) {
 	let r = [], { rows: i, columns: a, spacing: o } = n;
 	for (let n = 0; n < i; n++) {
 		let i = R(t - (n + 1) * o / e.length), s = e.sample(i, 0).halfWidth, c = Math.max(0, Math.min(.5 * s, s - ct)), l = a > 1 ? 2 * c / (a - 1) : 0, u = n % 2 == 1 ? l / 4 : 0;
@@ -7992,7 +8022,7 @@ function ji(e, t, n) {
 }
 //#endregion
 //#region src/track-builder/terrain.ts
-var Mi = 30, Ni = .01, Z = 16, Pi = 15, Fi = class {
+var Fi = 30, Ii = .01, Z = 16, Li = 15, Ri = class {
 	luts;
 	x0;
 	z0;
@@ -8016,29 +8046,29 @@ var Mi = 30, Ni = .01, Z = 16, Pi = 15, Fi = class {
 		});
 	}
 	top(e, t) {
-		return this.query(e, t, Ii, Mi).top;
+		return this.query(e, t, zi, Fi).top;
 	}
-	query(e, t, n, r = Mi) {
+	query(e, t, n, r = Fi) {
 		let i = this.maxHw + L.kerbWidth + r, a = i * i, o = Math.max(0, Math.floor((e - i - this.x0) / Z)), s = Math.min(this.nx - 1, Math.floor((e + i - this.x0) / Z)), c = Math.max(0, Math.floor((t - i - this.z0) / Z)), l = Math.min(this.nz - 1, Math.floor((t + i - this.z0) / Z)), u = 0, d = 0, f = Infinity, p = Infinity, m = NaN, h = !1, g = NaN, _ = NaN, v = 0;
 		for (let n = c; n <= l; n++) for (let i = o; i <= s; i++) {
 			let o = n * this.nx + i;
 			for (let n = this.start[o]; n < this.start[o + 1]; n++) {
-				let i = this.items[n], o = this.luts[i >> 20], s = i & 1048575, c = Li(o, s, e, t);
+				let i = this.items[n], o = this.luts[i >> 20], s = i & 1048575, c = Bi(o, s, e, t);
 				if (c > a) continue;
 				let l = o.idx(s - 1), y = o.idx(s + 1);
-				if (l !== s && Li(o, l, e, t) < c || y !== s && Li(o, y, e, t) <= c) continue;
-				let b = Ri(o, s, e, t);
+				if (l !== s && Bi(o, l, e, t) < c || y !== s && Bi(o, y, e, t) <= c) continue;
+				let b = Vi(o, s, e, t);
 				if (!b || b.edge > r) continue;
 				v++, b.edge < f ? (p = f, f = b.edge, m = b.h, h = b.open, g = b.cover, _ = b.lip) : b.edge < p && (p = b.edge);
-				let x = b.edge > 0 ? b.edge : 0, S = 1 - x / Mi;
+				let x = b.edge > 0 ? b.edge : 0, S = 1 - x / Fi;
 				if (S <= 0) continue;
-				let C = S * S * b.fade / (x + Ni);
+				let C = S * S * b.fade / (x + Ii);
 				u += C, d += C * b.h;
 			}
 		}
 		return n.top = u > 1e-12 ? d / u : m, n.edge = f, n.next = p, n.open = h, n.cover = g, n.lip = _, n.pieces = v, n;
 	}
-}, Ii = {
+}, zi = {
 	top: 0,
 	edge: 0,
 	next: 0,
@@ -8054,11 +8084,11 @@ var Mi = 30, Ni = .01, Z = 16, Pi = 15, Fi = class {
 	cover: NaN,
 	lip: NaN
 };
-function Li(e, t, n, r) {
+function Bi(e, t, n, r) {
 	let i = e.px[t] - n, a = e.pz[t] - r;
 	return i * i + a * a;
 }
-function Ri(e, t, n, r) {
+function Vi(e, t, n, r) {
 	let i = Infinity, a = t;
 	for (let o = t - 1; o <= t; o++) {
 		let t = e.idx(o), s = e.idx(o + 1);
@@ -8077,12 +8107,12 @@ function Ri(e, t, n, r) {
 	let v = Q.open ? g + L.shoulderWidth : g, y = h < -v ? -v : h > v ? v : h, b = e.py[o] * l + e.py[s] * c, x = e.landAbove[o], S = Math.abs(h) - g, C = e.bore[o];
 	if (Q.cover = C === C && S < 1.5 ? b + C : NaN, x === x ? (Q.h = b + x, Q.lip = L.tunnelMesaTop) : (Q.h = b - y * Math.tan(_) - L.offroadDrop, Q.lip = NaN), Q.edge = S, e.closed) Q.fade = 1;
 	else {
-		let t = Math.min(1, Math.min(a, e.n - 1 - a) * e.length / e.step / Pi);
+		let t = Math.min(1, Math.min(a, e.n - 1 - a) * e.length / e.step / Li);
 		Q.fade = t * t * (3 - 2 * t);
 	}
 	return Q;
 }
-function zi(e, t) {
+function Hi(e, t) {
 	let n = e.environment?.ground;
 	if (n?.kind === "none") return -Infinity;
 	let r = n?.y ?? 0;
@@ -8096,16 +8126,16 @@ function zi(e, t) {
 }
 //#endregion
 //#region src/track-builder/tunnel.ts
-var Bi = 3, Vi = (e) => {
+var Ui = 3, Wi = (e) => {
 	let t = e < 0 ? 0 : e > 1 ? 1 : e;
 	return t * t * (3 - 2 * t);
 };
-function Hi(e, t, n) {
+function Gi(e, t, n) {
 	let r = Math.round(t * e.step), i = Math.round(n * e.step), a = e.length / e.step, o = i - r + 1, s = new Float64Array(o), c = new Float64Array(o), l = new Float64Array(o), u = Infinity, d = -Infinity, f = Infinity, p = -Infinity;
-	for (let t = Math.max(0, r - Math.ceil(Bi / a)); t <= Math.min(e.n - 1, i + Math.ceil(Bi / a)); t++) e.bore[t] = L.tunnelApex + .8;
+	for (let t = Math.max(0, r - Math.ceil(Ui / a)); t <= Math.min(e.n - 1, i + Math.ceil(Ui / a)); t++) e.bore[t] = L.tunnelApex + .8;
 	for (let t = r; t <= i; t++) {
 		let n = Math.min(t - r, i - t) * a;
-		e.landAbove[t] = -L.offroadDrop + (L.tunnelHill + L.offroadDrop) * Vi(n / L.tunnelRamp);
+		e.landAbove[t] = -L.offroadDrop + (L.tunnelHill + L.offroadDrop) * Wi(n / L.tunnelRamp);
 		let o = t - r;
 		s[o] = e.px[t], c[o] = e.py[t], l[o] = e.pz[t], s[o] < u && (u = s[o]), s[o] > d && (d = s[o]), l[o] < f && (f = l[o]), l[o] > p && (p = l[o]);
 	}
@@ -8122,7 +8152,7 @@ function Hi(e, t, n) {
 		maxZ: p
 	};
 }
-function Ui(e, t) {
+function Ki(e, t) {
 	if (e.covered.fill(0), e.reach.fill(L.offroadReach), !t.length) return;
 	for (let n = 0; n < e.n; n++) {
 		let r = e.px[n], i = e.pz[n];
@@ -8144,15 +8174,15 @@ function Ui(e, t) {
 	for (let t = 0; t < e.n; t++) if (!e.covered[t]) for (let i = 1; i <= r; i++) {
 		let r = e.idx(t + i), a = e.idx(t - i);
 		if (r !== t && e.covered[r] || a !== t && e.covered[a]) {
-			e.reach[t] = L.offroadReach * Vi(i * n / L.tunnelFunnel);
+			e.reach[t] = L.offroadReach * Wi(i * n / L.tunnelFunnel);
 			break;
 		}
 	}
 }
 //#endregion
 //#region src/track-builder/validate.ts
-var Wi = S.properties.base.properties.topSpeed.default, Gi = .8, Ki = 2, qi = 5;
-function Ji(e) {
+var qi = S.properties.base.properties.topSpeed.default, Ji = .8, Yi = 2, Xi = 5;
+function Zi(e) {
 	return [
 		e.x,
 		e.y,
@@ -8161,21 +8191,21 @@ function Ji(e) {
 		e.bank ?? 0
 	].some((e) => !Number.isFinite(e));
 }
-function Yi(e, t, n, r) {
+function Qi(e, t, n, r) {
 	if (e.length < r) return n.push(`${t}: needs at least ${r} control points, has ${e.length}`), !1;
 	for (let r = 0; r < e.length; r++) {
-		if (Ji(e[r])) return n.push(`${t}: control point ${r} has a NaN or infinite value`), !1;
+		if (Zi(e[r])) return n.push(`${t}: control point ${r} has a NaN or infinite value`), !1;
 		Math.abs(e[r].bank ?? 0) > L.maxBankDeg && n.push(`${t}: control point ${r} bank ${e[r].bank}° exceeds ${L.maxBankDeg}°`);
 	}
 	return !0;
 }
-function Xi(e, t) {
+function $i(e, t) {
 	let n = e.idx(t + 1), r = e.idx(t - 1), i = e.tx[n] - e.tx[r], a = e.ty[n] - e.ty[r], o = e.tz[n] - e.tz[r], s = e.length / e.step, c = Math.hypot(i, a, o) / (2 * s);
 	return c > 0 ? 1 / c : Infinity;
 }
-function Zi(e) {
+function ea(e) {
 	let t = [], n = [], r = e.controlPoints;
-	if (Yi(r, "controlPoints", t, 8)) {
+	if (Qi(r, "controlPoints", t, 8)) {
 		let e = r[0], n = r[r.length - 1];
 		e.x === n.x && e.y === n.y && e.z === n.z && t.push("controlPoints: last point repeats the first; the loop closes itself, drop it");
 	}
@@ -8190,7 +8220,7 @@ function Zi(e) {
 	s < L.minStartHalfWidth && t.push(`start line halfWidth ${s.toFixed(2)} < ${L.minStartHalfWidth}`);
 	let c = Infinity, l = 0;
 	for (let e = 0; e < a.n; e++) {
-		let t = Xi(a, e) / a.hw[e];
+		let t = $i(a, e) / a.hw[e];
 		t < c && (c = t, l = e / a.n);
 	}
 	c < L.minTurnRadiusFactor && t.push(`hairpin at t=${l.toFixed(3)}: turn radius is ${c.toFixed(2)} × halfWidth, minimum ${L.minTurnRadiusFactor}`);
@@ -8199,9 +8229,9 @@ function Zi(e) {
 		let e = `shortcut "${n.id}"`;
 		d.has(n.id) && t.push(`${e}: duplicate id`), d.add(n.id);
 		let r = R(n.exitT - n.entryT);
-		if ((r <= 0 || r > .5) && t.push(`${e}: exitT must follow entryT by less than half a lap (span ${r.toFixed(3)})`), !Yi(n.controlPoints, e, t, 2)) continue;
+		if ((r <= 0 || r > .5) && t.push(`${e}: exitT must follow entryT by less than half a lap (span ${r.toFixed(3)})`), !Qi(n.controlPoints, e, t, 2)) continue;
 		let i = a.sample(n.entryT, 0).position, o = a.sample(n.exitT, 0).position, s = n.controlPoints[0], c = n.controlPoints[n.controlPoints.length - 1], l = Math.hypot(s.x - i[0], s.y - i[1], s.z - i[2]), f = Math.hypot(c.x - o[0], c.y - o[1], c.z - o[2]);
-		l > Ki && t.push(`${e}: first point is ${l.toFixed(2)} m from the main line at entryT (max ${Ki})`), f > Ki && t.push(`${e}: last point is ${f.toFixed(2)} m from the main line at exitT (max ${Ki})`);
+		l > Yi && t.push(`${e}: first point is ${l.toFixed(2)} m from the main line at entryT (max ${Yi})`), f > Yi && t.push(`${e}: last point is ${f.toFixed(2)} m from the main line at exitT (max ${Yi})`);
 		let p = xt(n.controlPoints, {
 			closed: !1,
 			samples: 256,
@@ -8209,7 +8239,7 @@ function Zi(e) {
 		});
 		p.minY < u && (u = p.minY);
 	}
-	e.voidY > u - qi && t.push(`voidY ${e.voidY} must be at least ${qi} m below the lowest road sample (${u.toFixed(2)})`);
+	e.voidY > u - Xi && t.push(`voidY ${e.voidY} must be at least ${Xi} m below the lowest road sample (${u.toFixed(2)})`);
 	let f = (e) => e >= 0 && e <= 1, p = (e, n) => {
 		(n ?? []).forEach((n, r) => {
 			f(n.t) || t.push(`${e} ${r}: t ${n.t} outside 0..1`), n.shortcut && !d.has(n.shortcut) && t.push(`${e} ${r}: unknown shortcut "${n.shortcut}"`);
@@ -8229,22 +8259,22 @@ function Zi(e) {
 	let h = e.finalLapShift, g = new Set((e.hazards ?? []).map((e, t) => e.id ?? `hazard-${t}`));
 	for (let e of [...h.closesShortcuts ?? [], ...h.opensShortcuts ?? []]) d.has(e) || t.push(`finalLapShift names unknown shortcut "${e}"`);
 	for (let e of [...h.enablesHazards ?? [], ...h.disablesHazards ?? []]) g.has(e) || t.push(`finalLapShift names unknown hazard "${e}"`);
-	for (let e of h.routeOverrides ?? []) (!f(e.fromT) || !f(e.toT)) && t.push("routeOverride: fromT/toT outside 0..1"), Yi(e.controlPoints, "routeOverride", t, 1);
+	for (let e of h.routeOverrides ?? []) (!f(e.fromT) || !f(e.toT)) && t.push("routeOverride: fromT/toT outside 0..1"), Qi(e.controlPoints, "routeOverride", t, 1);
 	p("addsJump", h.addsJumps);
-	let _ = a.length / (Gi * Wi), [v, y] = L.lapTimeWarn;
+	let _ = a.length / (Ji * qi), [v, y] = L.lapTimeWarn;
 	return (_ < v || _ > y) && n.push(`estimated lap ${_.toFixed(1)} s (length ${a.length.toFixed(0)} m) is outside ${v}–${y} s; design target is 45–60 s`), {
 		ok: t.length === 0,
 		errors: t,
 		warnings: n
 	};
 }
-function Qi(e) {
-	let t = Zi(e);
+function ta(e) {
+	let t = ea(e);
 	if (!t.ok) throw Error(`track "${e.id}" is invalid:\n  ${t.errors.join("\n  ")}`);
 }
 //#endregion
 //#region src/track-builder/track.ts
-var $i = class {
+var na = class {
 	def;
 	voidY;
 	branches;
@@ -8269,14 +8299,14 @@ var $i = class {
 	constructor(e) {
 		this.def = e, this.voidY = e.voidY, this.controlPoints = e.controlPoints.map((e) => ({ ...e }));
 		let t = xt(this.controlPoints), n = [new St(0, "main", t, 0, 1, [])];
-		(e.shortcuts ?? []).forEach((e, r) => n.push(Tt(r + 1, e, t))), this.branches = new Dt(n), this.groundPlaneY = zi(e, t), this.tunnels = (e.shortcuts ?? []).flatMap((e, t) => e.tunnel ? [Hi(n[t + 1].lut, e.tunnel.from, e.tunnel.to)] : []), this.land = e.offroad === !0 ? new Fi(n.map((e) => e.lut)) : null, this.startT = R(e.startGrid.t), this.startPoint = t.sample(this.startT, 0).position, this.openEdges = (e.openEdges ?? []).map((e) => ({
+		(e.shortcuts ?? []).forEach((e, r) => n.push(Tt(r + 1, e, t))), this.branches = new Dt(n), this.groundPlaneY = Hi(e, t), this.tunnels = (e.shortcuts ?? []).flatMap((e, t) => e.tunnel ? [Gi(n[t + 1].lut, e.tunnel.from, e.tunnel.to)] : []), this.land = e.offroad === !0 ? new Ri(n.map((e) => e.lut)) : null, this.startT = R(e.startGrid.t), this.startPoint = t.sample(this.startT, 0).position, this.openEdges = (e.openEdges ?? []).map((e) => ({
 			...e,
 			fromPoint: t.sample(e.fromT, 0).position,
 			toPoint: t.sample(e.toT, 0).position
 		})), this.loopFeet = (e.loops ?? []).map((e) => ({
 			...e,
 			point: t.sample(e.t, 0).position
-		})), this.features = Dr(e, this.branches), this.hazards = new Oi(e.hazards ?? [], this.branches), this.branches.setLap(1), this.rebuildDerived();
+		})), this.features = Fn(e, this.branches), this.hazards = new ji(e.hazards ?? [], this.branches), this.branches.setLap(1), this.rebuildDerived();
 	}
 	get length() {
 		return this.branches.main.lut.length;
@@ -8303,13 +8333,13 @@ var $i = class {
 		return this.branches.nearestGlobal(e);
 	}
 	setLap(e) {
-		this.branches.setLap(e), this.minimap = ki(this.branches);
+		this.branches.setLap(e), this.minimap = Mi(this.branches);
 	}
 	activeHazards(e) {
 		return this.hazards.activeHazards(e);
 	}
 	applyFinalLapShift(e = []) {
-		return Fr(this, e);
+		return Un(this, e);
 	}
 	onChanged(e) {
 		return this.listeners.push(e), () => {
@@ -8322,18 +8352,18 @@ var $i = class {
 	}
 	rebuildDerived() {
 		let e = this.branches.main.lut;
-		for (let e of this.branches.list) e.lut.offroad = this.def.offroad === !0, e.lut.land = this.land, e.lut.floorY = this.groundPlaneY, Ui(e.lut, this.tunnels);
+		for (let e of this.branches.list) e.lut.offroad = this.def.offroad === !0, e.lut.land = this.land, e.lut.floorY = this.groundPlaneY, Ki(e.lut, this.tunnels);
 		e.open.fill(0);
 		for (let t of this.openEdges) {
 			let n = t.side === "left" ? 1 : t.side === "right" ? 2 : 3;
 			for (let r = 0; r < e.n; r++) ((r / e.n - t.fromT) % 1 + 1) % 1 <= ((t.toT - t.fromT) % 1 + 1) % 1 && (e.open[r] |= n);
 		}
-		this.checkpoints = Ai(e, this.startT, this.def.checkpointCount), this.spawnGrid = ji(e, this.startT, this.def.startGrid), this.minimap = ki(this.branches);
+		this.checkpoints = Ni(e, this.startT, this.def.checkpointCount), this.spawnGrid = Pi(e, this.startT, this.def.startGrid), this.minimap = Mi(this.branches);
 		let t = this.def.offroad === !0 ? L.rampSkirt : 0;
-		this.jumps = jr(this.features).map((e) => t && e.shape !== "hump" && e.rise ? {
+		this.jumps = zn(this.features).map((e) => t && e.shape !== "hump" && e.rise ? {
 			...e,
 			skirt: t
-		} : e), this.boostPads = Mr(this.features), this.loops = this.loopFeet.map((e) => ({
+		} : e), this.boostPads = Bn(this.features), this.loops = this.loopFeet.map((e) => ({
 			id: e.id,
 			t: e.t,
 			radius: e.radius ?? L.loopRadius,
@@ -8345,19 +8375,19 @@ var $i = class {
 		}));
 	}
 };
-function ea(e, t = {}) {
-	return (t.validate ?? !0) && Qi(e), new $i(e);
+function ra(e, t = {}) {
+	return (t.validate ?? !0) && ta(e), new na(e);
 }
 //#endregion
 //#region src/backend-leaderboard/inputlog.ts
-var $ = 127, ta = (e, t, n) => Math.round(Math.min(n, Math.max(t, e)) * $) / $ + 0;
-function na(e, t) {
-	return t.steer = ta(e.steer, -1, 1), t.throttle = ta(e.throttle, 0, 1), t.brake = ta(e.brake, 0, 1), t.drift = e.drift, t.item = e.item, t.lookBack = e.lookBack, t.horn = e.horn, t;
+var $ = 127, ia = (e, t, n) => Math.round(Math.min(n, Math.max(t, e)) * $) / $ + 0;
+function aa(e, t) {
+	return t.steer = ia(e.steer, -1, 1), t.throttle = ia(e.throttle, 0, 1), t.brake = ia(e.brake, 0, 1), t.drift = e.drift, t.item = e.item, t.lookBack = e.lookBack, t.horn = e.horn, t;
 }
-function ra(e, t, n) {
+function oa(e, t, n) {
 	t[n] = Math.round(e.steer * $) + 256 & 255, t[n + 1] = Math.round(e.throttle * $), t[n + 2] = Math.round(e.brake * $), t[n + 3] = +!!e.drift | (e.item ? 2 : 0) | (e.lookBack ? 4 : 0) | (e.horn ? 8 : 0);
 }
-function ia(e, t) {
+function sa(e, t) {
 	let n = e[t] > 127 ? e[t] - 256 : e[t], r = e[t + 3];
 	return {
 		steer: n / $ + 0,
@@ -8369,33 +8399,33 @@ function ia(e, t) {
 		horn: (r & 8) > 0
 	};
 }
-function aa(e) {
+function ca(e) {
 	let t = "";
 	for (let n = 0; n < e.length; n += 32768) t += String.fromCharCode(...e.subarray(n, n + 32768));
 	return btoa(t);
 }
-function oa(e) {
+function la(e) {
 	let t = atob(e), n = new Uint8Array(t.length);
 	for (let e = 0; e < t.length; e++) n[e] = t.charCodeAt(e);
 	return n;
 }
-function sa(e) {
+function ua(e) {
 	let t = /* @__PURE__ */ new Uint8Array(4), n = /* @__PURE__ */ new Uint8Array(4), r = [1], i = 0, a = () => {
 		let e = i;
 		for (; e >= 128;) r.push(e & 127 | 128), e >>>= 7;
 		r.push(e), r.push(n[0], n[1], n[2], n[3]);
 	};
 	for (let r of e) {
-		if (ra(r, t, 0), i > 0 && t[0] === n[0] && t[1] === n[1] && t[2] === n[2] && t[3] === n[3]) {
+		if (oa(r, t, 0), i > 0 && t[0] === n[0] && t[1] === n[1] && t[2] === n[2] && t[3] === n[3]) {
 			i++;
 			continue;
 		}
 		i > 0 && a(), n.set(t), i = 1;
 	}
-	return i > 0 && a(), aa(Uint8Array.from(r));
+	return i > 0 && a(), ca(Uint8Array.from(r));
 }
-function ca(e, t = 72e3) {
-	let n = oa(e);
+function da(e, t = 72e3) {
+	let n = la(e);
 	if (n[0] !== 1) throw Error("unknown log version");
 	let r = [], i = 1;
 	for (; i < n.length;) {
@@ -8408,7 +8438,7 @@ function ca(e, t = 72e3) {
 		}
 		if (i + 4 > n.length) throw Error("truncated record");
 		if (e <= 0 || r.length + e > t) throw Error("log too long");
-		let o = ia(n, i);
+		let o = sa(n, i);
 		i += 4;
 		for (let t = 0; t < e; t++) r.push(o);
 	}
@@ -8416,9 +8446,9 @@ function ca(e, t = 72e3) {
 }
 //#endregion
 //#region src/game/simtick.ts
-function la(e, t) {
+function fa(e, t) {
 	let { manager: n, ai: r, items: i, inputs: a, playerIndex: o } = e;
-	r.fill(n.state, n.lastActiveHazards, a), o >= 0 && t && n.state.karts[o].finishTick === void 0 && (a[o] = na(t, e.playerSlot));
+	r.fill(n.state, n.lastActiveHazards, a), o >= 0 && t && n.state.karts[o].finishTick === void 0 && (a[o] = aa(t, e.playerSlot));
 	let s = n.step(a), c = i.step(a, s, Ze);
 	for (let e = 0; e < a.length; e++) r.threatened[e] = i.threatened[e];
 	return {
@@ -8428,8 +8458,8 @@ function la(e, t) {
 }
 //#endregion
 //#region src/backend-leaderboard/verify.ts
-function ua(e, t, n, r, i) {
-	let a = m(t, e.id, n, r), o = ea(e), s = new xi(o, a), c = new wr(o, s), l = {
+function pa(e, t, n, r, i) {
+	let a = m(t, e.id, n, r), o = ra(e), s = new wi(o, a), c = new Vr(o, s), l = {
 		manager: s,
 		items: c,
 		ai: new Mn(o, a, s.state, { itemRoles: c.roles }),
@@ -8437,7 +8467,7 @@ function ua(e, t, n, r, i) {
 		playerIndex: 0,
 		playerSlot: { ...O }
 	}, u = 0;
-	for (; u < i.length && s.state.phase !== "finished"; u++) la(l, i[u]);
+	for (; u < i.length && s.state.phase !== "finished"; u++) fa(l, i[u]);
 	let d = s.results().ranks[0], f = d !== void 0 && !d.dnf && d.finishTick >= 0;
 	return {
 		finished: f,
@@ -8446,18 +8476,18 @@ function ua(e, t, n, r, i) {
 		ticks: u
 	};
 }
-var da = 1e3;
-function fa(e, t, n, r, i, a) {
+var ma = 1e3;
+function ha(e, t, n, r, i, a) {
 	let o;
 	try {
-		o = ca(i);
+		o = da(i);
 	} catch (e) {
 		return {
 			ok: !1,
 			reason: `bad input log: ${e.message}`
 		};
 	}
-	let s = ua(e, t, n, r, o);
+	let s = pa(e, t, n, r, o);
 	if (!s.finished) return {
 		ok: !1,
 		reason: "the replay never reached the finish line"
@@ -8474,16 +8504,16 @@ function fa(e, t, n, r, i, a) {
 		ok: !0,
 		timeMs: s.timeMs,
 		lapTimesMs: s.lapTimesMs,
-		canonicalLog: sa(c)
+		canonicalLog: ua(c)
 	};
 }
-var pa = Object.freeze(Object.fromEntries(Object.values(/* @__PURE__ */ Object.assign({
+var ga = Object.freeze(Object.fromEntries(Object.values(/* @__PURE__ */ Object.assign({
 	"../track-builder/tracks/boardwalk-nights.json": e,
 	"../track-builder/tracks/canyon-rush.json": t,
 	"../track-builder/tracks/frostbite-pass.json": n,
 	"../track-builder/tracks/harbour-loop.json": r,
 	"../track-builder/tracks/meadow-run.json": i,
 	"../track-builder/tracks/skyline-circuit.json": a
-})).map((e) => [e.id, e]))), ma = Object.freeze(Object.keys(pa).sort());
+})).map((e) => [e.id, e]))), _a = Object.freeze(Object.keys(ga).sort());
 //#endregion
-export { da as CLAIM_TOLERANCE_MS, s as CLIENT_VERSION, c as MAX_LOG_BYTES, pa as TRACKS, ma as TRACK_IDS, b as checkSubmission, d as dailySeed, u as ipBucket, fa as verifyRun };
+export { ma as CLAIM_TOLERANCE_MS, s as CLIENT_VERSION, c as MAX_LOG_BYTES, ga as TRACKS, _a as TRACK_IDS, b as checkSubmission, d as dailySeed, u as ipBucket, ha as verifyRun };
