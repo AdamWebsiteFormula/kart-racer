@@ -5,11 +5,11 @@ import type { RaceEvent } from '../race-manager/types.ts';
 import { AudioBus, type Volumes } from './bus.ts';
 import { AUDIO } from './constants.ts';
 import { direct, hornFor, resetDirector, type Listener } from './director.ts';
-import { engineHz, offroadAmount, racerPitch, rpmFor } from './engine.ts';
+import { boostRev, classVoice, engineHz, offroadAmount, racerPitch, rpmFor, sparkLayer, wheelSound } from './engine.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
-import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Voice } from './samples.ts';
+import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
 import { noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
 import type { Cue, MusicCue, SfxId, SongId } from './types.ts';
 import { mergeCues, rouletteGap, Voices } from './voices.ts';
@@ -164,6 +164,7 @@ export class GameAudio {
    */
   newRace(song: SongId, trackId?: string, gridRank?: number, finishLine?: number, balloons = true): void {
     resetDirector(gridRank, finishLine, balloons);
+    this.trackId = trackId ?? '';
     this.stingEnds = 0;
     this.songId = null;
     const key = trackId ? themeForTrack(trackId) : song;
@@ -205,7 +206,7 @@ export class GameAudio {
       rate *= 1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter;
     }
     const s = this.bank.get(id);
-    const seconds = (s ? s.buffer.duration - s.start : patchSeconds(PATCHES[id])) / rate;
+    const seconds = (s ? s.end - s.start : patchSeconds(PATCHES[id])) / rate;
     if (!this.voices.admit(id, ctx.currentTime, seconds, PRIORITY.has(id))) return null;
     if (DUCKERS.has(id) && gain >= 0.5) this.bus.musicDuck();
     if (s) return playSample(ctx, this.bus.sfx!, s, ctx.currentTime + 0.005, gain * mixLevel(id), pan, rate);
@@ -245,7 +246,9 @@ export class GameAudio {
     const left = Math.max(player.item.rouletteRemaining, player.item.nextRouletteRemaining);
     if (left > 0 && this.bus.time - this.lastTick >= rouletteGap(left)) {
       this.lastTick = this.bus.time;
-      this.tickVoice?.stop(this.bus.time + 0.004);
+      // the tick before is cut, so its voice is free: without this the cap of three refused ticks
+      // at the quick start of every roll (42 of 98 in a race), and the wheel stuttered
+      if (this.tickVoice) { this.tickVoice.stop(this.bus.time + 0.004); this.voices.release('rouletteTick', this.bus.time); }
       this.tickVoice = this.sfx('rouletteTick', 0.7);
     }
   }
@@ -261,6 +264,11 @@ export class GameAudio {
   }
 
   private lastTick = 0;
+  /** the course (its surfaces), and when the player's current boost began (the engine's rev) */
+  private trackId = '';
+  private boostAt = -1;
+  private wasBoosting = false;
+  private readonly extras = new Map<string, { s: Sample; gain: number; rate: number }>();
   private readonly near: KartState[] = [];
   private readonly nearD: number[] = [];
 
@@ -408,29 +416,49 @@ export class GameAudio {
     if (!this.loopPlayer) {
       // nothing is built outside a race
       if (!on || !player) return true;
-      this.loopPlayer = new LoopEngine(ctx, this.bus.sfx!, [idle, mid, high], this.bank.get('drift'), false, this.bank.get('offroad'));
+      // the wheels' loops (surfaces, sparks) start on first use (setExtras)
+      this.loopPlayer = new LoopEngine(ctx, this.bus.sfx!, [idle, mid, high], this.bank.get('drift'), false);
       // no recorded rumble: the synth one stands in
-      if (!this.loopPlayer.hasRumble) this.rumble = this.rumbleVoice(ctx);
+      if (!this.bank.get('offroad')) this.rumble = this.rumbleVoice(ctx);
       // each rival its own start point in the loop (and its own pitch, below), so none phase together
       for (let i = 0; i < AUDIO.aiEngines; i++) this.loopAi.push(new LoopEngine(ctx, this.bus.sfx!, [mid], undefined, true, undefined, i + 1));
     }
     if (!on || !player) {
       this.loopPlayer.set(t, AUDIO.idleRpm, 0);
+      this.extras.clear();
+      this.loopPlayer.setExtras(t, this.extras);
       this.rumble?.gain.setTargetAtTime(0, t, 0.05);
       for (const v of this.loopAi) v.set(t, AUDIO.idleRpm, 0);
       return true;
     }
     const boosting = player.boost.remaining > 0;
+    // a boost's whoosh rides a rev: the engine jumps up and swells, then settles (boostRev)
+    if (boosting && !this.wasBoosting) this.boostAt = t;
+    this.wasBoosting = boosting;
+    const rev = boosting ? boostRev(t - this.boostAt) : 0;
     const slip = Math.min(1, Math.abs(player.lateralVelocity) / 6) * (player.grounded ? 1 : 0);
     const screech = player.drift.active ? 0.35 + 0.65 * slip : 0.5 * Math.max(0, slip - 0.4);
-    const off = offroadAmount(player, topSpeed);
-    this.loopPlayer.set(t, rpmFor(player.speed, topSpeed, boosting), L.base + L.throttle * throttle + (boosting ? L.boost : 0), screech * L.screech, 0, off * AUDIO.offroad.loop);
-    this.rumble?.gain.setTargetAtTime(off * AUDIO.offroad.synth, t, 0.05);
+    // the kart's class sets the engine's voice: light high and bright, heavy low and dark
+    const cv = classVoice(player.racerId), R = AUDIO.boostRev;
+    this.loopPlayer.set(t, rpmFor(player.speed, topSpeed, boosting), L.base + L.throttle * throttle + (boosting ? L.boost : 0) + R.gain * rev, screech * L.screech, 0, 0, cv.pitch * (1 + R.pitch * rev), cv.bright);
+    // under the wheels: this course's own surfaces (sand, snow, grass, ice, planks, the rail), and the drift sparks by tier
+    const extras = this.extras;
+    extras.clear();
+    const w = wheelSound(player, this.trackId, topSpeed);
+    // an off-road recording not there yet: the plain one stands in (never for the planks, ice or rail)
+    const ws = w.id ? this.bank.get(w.id) ?? (w.id.startsWith('offroad-') ? this.bank.get('offroad') : undefined) : undefined;
+    if (w.id && ws) extras.set(w.id, { s: ws, gain: w.amount * (AUDIO.wheels[w.id] ?? AUDIO.offroad.loop), rate: 1 });
+    const sp = sparkLayer(player), sparks = this.bank.get('sparks');
+    if (sparks) extras.set('sparks', { s: sparks, gain: sp.gain * AUDIO.sparks.level, rate: sp.rate });
+    this.loopPlayer.setExtras(t, extras);
+    // no recorded wheel loop at all: the synth rumble stands in off the road
+    this.rumble?.gain.setTargetAtTime(ws ? 0 : offroadAmount(player, topSpeed) * AUDIO.offroad.synth, t, 0.05);
     const near = this.nearest(player, others, l);
     this.loopAi.forEach((v, i) => {
       const k = near[i], d = this.nearD[i];
       if (!k || d > AUDIO.farMetres) { v.set(t, AUDIO.idleRpm, 0); return; }
-      v.set(t, rpmFor(k.speed, topSpeed), L.other * Math.max(0, 1 - d / AUDIO.farMetres), 0, panOf(k, l, d), 0, racerPitch(k.racerId));
+      const c = classVoice(k.racerId);
+      v.set(t, rpmFor(k.speed, topSpeed), L.other * Math.max(0, 1 - d / AUDIO.farMetres), 0, panOf(k, l, d), 0, racerPitch(k.racerId) * c.pitch, c.bright);
     });
     return true;
   }

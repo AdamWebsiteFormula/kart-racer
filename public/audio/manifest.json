@@ -292,6 +292,30 @@
   "offroad": {
    "url": "audio/sfx/offroad.mp3",
    "loop": true
+  },
+  "offroad-sand": {
+   "url": "audio/sfx/offroad-sand.mp3",
+   "loop": true
+  },
+  "offroad-snow": {
+   "url": "audio/sfx/offroad-snow.mp3",
+   "loop": true
+  },
+  "road-ice": {
+   "url": "audio/sfx/road-ice.mp3",
+   "loop": true
+  },
+  "road-wood": {
+   "url": "audio/sfx/road-wood.mp3",
+   "loop": true
+  },
+  "rail-grind": {
+   "url": "audio/sfx/rail-grind.mp3",
+   "loop": true
+  },
+  "sparks": {
+   "url": "audio/sfx/sparks.mp3",
+   "loop": true
   }
  },
  "music": {

@@ -5,7 +5,8 @@ import { createGrandPrix, createKnockout, nextRace } from '../race-manager/serie
 import type { RaceEvent, RacerConfig } from '../race-manager/types.ts';
 import { AUDIO } from './constants.ts';
 import { direct, distanceGain, finishLine, hornFor, resetDirector, type Listener } from './director.ts';
-import { engineHz, gearFor, offroadAmount, rpmFor } from './engine.ts';
+import { boostRev, classVoice, engineClass, engineHz, gearFor, offroadAmount, OFFROAD_BY_TRACK, rpmFor, sparkLayer, wheelSound } from './engine.ts';
+import { CAST } from '../ui-hud/data/cast.ts';
 import { DRUMS, SONGS, keyPcs, line, songForTrack } from './music/patterns.ts';
 import { Sequencer } from './music/sequencer.ts';
 import { chord, freq, midi } from './music/theory.ts';
@@ -140,6 +141,54 @@ describe('off-road rumble', () => {
     expect(offroadAmount(k('dirt', -5), 25)).toBeCloseTo(0.2); // reversing out of the grass
     expect(offroadAmount(k('dirt', 20, false), 25)).toBe(0); // a hop over the grass is quiet
     expect(offroadAmount(k('dirt', 20), 0)).toBe(0);
+  });
+});
+
+describe('the engine\'s voice, the wheels and the sparks (24 Sept 2026)', () => {
+  it('each class has its own engine: light high and bright, heavy low and dark; the cast table matches the roster', () => {
+    for (const c of CAST) expect(engineClass(c.id), c.id).toBe(c.archetype);
+    const [l, m, h] = ['pip', 'juniper', 'gus'].map(classVoice);
+    expect(l.pitch).toBeGreaterThan(m.pitch);
+    expect(m.pitch).toBeGreaterThan(h.pitch);
+    expect(l.bright).toBeGreaterThan(m.bright);
+    expect(m.bright).toBeGreaterThan(h.bright);
+    expect(classVoice('stranger')).toEqual(AUDIO.engineClass.medium);
+  });
+
+  it('a boost revs the engine at once, then the rev settles', () => {
+    expect(boostRev(-0.1)).toBe(0);
+    expect(boostRev(0)).toBe(1);
+    expect(boostRev(AUDIO.boostRev.tau)).toBeCloseTo(Math.exp(-1), 6);
+    expect(boostRev(2)).toBeLessThan(0.01);
+  });
+
+  it('the wheels sound like what they roll on: each course its own off-road, ice, the rail, the boardwalk planks', () => {
+    const k = (surface: 'road' | 'dirt' | 'mud' | 'ice' | 'rail' | 'boost', speed = 25, grounded = true) => ({ surface, speed, grounded });
+    expect(wheelSound(k('dirt'), 'harbour-loop', 25)).toEqual({ id: 'offroad-sand', amount: 1 });
+    expect(wheelSound(k('dirt', 12.5), 'frostbite-pass', 25)).toEqual({ id: 'offroad-snow', amount: 0.5 });
+    expect(wheelSound(k('mud'), 'meadow-run', 25).id).toBe('offroad');
+    expect(wheelSound(k('dirt'), 'no-such-track', 25).id).toBe('offroad');
+    expect(wheelSound(k('ice'), 'frostbite-pass', 25).id).toBe('road-ice');
+    expect(wheelSound(k('rail', 10), 'skyline-circuit', 25).id).toBe('rail-grind');
+    expect(wheelSound(k('rail', 0), 'skyline-circuit', 25).amount).toBe(0);
+    expect(wheelSound(k('road'), 'boardwalk-nights', 25).id).toBe('road-wood');
+    expect(wheelSound(k('road'), 'harbour-loop', 25).id).toBeNull();
+    expect(wheelSound(k('dirt', 25, false), 'harbour-loop', 25).amount).toBe(0); // airborne: quiet
+    // every off-road the courses name has a level
+    for (const id of [...Object.values(OFFROAD_BY_TRACK), 'road-ice', 'road-wood', 'rail-grind']) expect(AUDIO.wheels[id], id).toBeGreaterThan(0);
+  });
+
+  it('the drift sparks crackle from the first tier, louder and higher with each', () => {
+    const k = (tier: number, active = true, grounded = true) => ({ grounded, drift: { active, tier } }) as Parameters<typeof sparkLayer>[0];
+    expect(sparkLayer(k(0)).gain).toBe(0);
+    expect(sparkLayer(k(2, false)).gain).toBe(0);
+    expect(sparkLayer(k(2, true, false)).gain).toBe(0);
+    const t = [1, 2, 3].map((n) => sparkLayer(k(n)));
+    expect(t[0].gain).toBeLessThan(t[1].gain);
+    expect(t[1].gain).toBeLessThan(t[2].gain);
+    expect(t[0].rate).toBeLessThan(t[1].rate);
+    expect(t[1].rate).toBeLessThan(t[2].rate);
+    expect(sparkLayer(k(5))).toEqual(t[2]);
   });
 });
 
@@ -328,7 +377,7 @@ describe('?mute: a silent bus (24 Sept 2026: a hidden test page played the title
   it('never builds an audio context, however often it is unlocked; a normal bus builds one on the first gesture', async () => {
     const { AudioBus } = await import('./bus.ts');
     let built = 0;
-    const node = () => ({ connect: () => undefined, gain: { value: 1, setTargetAtTime: () => undefined }, frequency: { value: 1, setTargetAtTime: () => undefined }, threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, type: '' });
+    const node = () => ({ connect: () => undefined, gain: { value: 1, setTargetAtTime: () => undefined }, frequency: { value: 1, setTargetAtTime: () => undefined }, Q: { value: 1 }, threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, type: '' });
     class FakeContext {
       state = 'running';
       currentTime = 0;

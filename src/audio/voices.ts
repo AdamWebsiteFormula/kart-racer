@@ -36,6 +36,12 @@ export class Voices {
     return true;
   }
 
+  /** A voice of `id` was cut short at `now`: the oldest still ringing ends then. */
+  release(id: string, now: number): void {
+    const v = this.live.find((x) => x.id === id && x.end > now);
+    if (v) v.end = now;
+  }
+
   get count(): number { return this.live.length; }
 }
 

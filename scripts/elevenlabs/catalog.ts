@@ -36,16 +36,22 @@ export const SFX: readonly SfxSpec[] = [
   // pickups and items
   { id: 'balloon', seconds: 0.6, prompt: `A party balloon popping: one crisp rubber pop with a tiny sparkly twinkle after it. ${CARTOON}` },
   { id: 'coin', seconds: 0.5, prompt: 'A bright arcade coin pickup: two quick high metallic chime notes, clean and satisfying. No voice.' },
-  { id: 'rouletteTick', seconds: 0.5, influence: 0.6, prompt: 'One single very short dry plastic click, like a prize wheel peg ticking once. No echo.' },
+  // remade 24 Sept 2026: the first was a 5 ms click, so spiky that at a level you could hear it
+  // over the music it pushed the output past −1 dB true peak; a tick with a note has body
+  { id: 'rouletteTick', seconds: 0.5, influence: 0.6, prompt: 'One single short bright wooden tock with a clear pitched note, like a prize wheel peg knocking once: a tiny marimba-like tick. Dry, no echo, no music, no voice.' },
   { id: 'itemReady', seconds: 0.9, prompt: 'A magical sparkly shimmer when a mystery prize is revealed: a quick glittering bell arpeggio going up. Short. No voice.' },
   { id: 'throw', seconds: 0.6, prompt: `A quick throwing whoosh: an object flung forward through the air, airy swish. ${CARTOON}` },
   { id: 'kite', seconds: 1.3, prompt: `A paper kite launching and flying away fast: fluttering flapping whoosh with a playful rising whistle. ${CARTOON}` },
+  // retaken 24 Sept 2026 (same prompt): the old take tagged as a coin dropping; the kept one as a knock
   { id: 'drop', seconds: 0.6, prompt: `A small object dropped onto a road: soft plop and a little rubbery bounce. ${CARTOON}` },
   { id: 'shieldUp', seconds: 1, prompt: `A magical bubble shield forming: shimmering rising whoosh with a soft glassy ring. ${CARTOON}` },
   { id: 'shieldPop', seconds: 0.8, prompt: `A magical soap bubble shield bursting into sparkles: glassy pop and a glittering shatter. ${CARTOON}` },
   { id: 'shieldEnd', seconds: 0.8, prompt: `A magical bubble shield fading away on its own: a soft glassy shimmer dissolving downward, gentle and quiet. ${CARTOON}` },
   // a thrown beach ball off a wall; a ball or a dropped toy popping
-  { id: 'bounce', seconds: 0.5, influence: 0.6, prompt: `A loud inflatable beach ball bouncing hard off a wall, close up: one punchy hollow rubbery boing. ${CARTOON}` },
+  // remade 24 Sept 2026: the first came out 25 dB under the others and still sat under the mix at full gain.
+  // Four takes were measured and scored by the local ear (no playback): two came out near-silent,
+  // and of the two full ones the one kept tagged least as a metal clang
+  { id: 'bounce', seconds: 0.5, influence: 0.6, prompt: `A big inflatable beach ball smacking hard into a wall right next to the listener: one loud, full, punchy hollow rubber thwock with a short springy boing. ${CARTOON}` },
   { id: 'pop', seconds: 0.5, influence: 0.5, prompt: `A small toy popping and vanishing: one soft rubbery pop with a tiny puff of air. ${CARTOON}` },
   { id: 'airHorn', seconds: 1.2, prompt: 'A loud comedic stadium air horn: one long cartoon honk blast. No voice.' },
   { id: 'fog', seconds: 1.5, prompt: `A thick cloud of smoke puffing out: soft rushing whoosh and a hissing puff. ${CARTOON}` },
@@ -94,7 +100,8 @@ export const SFX: readonly SfxSpec[] = [
   // the trick itself, the moment the button is pressed in the air
   { id: 'trick', seconds: 0.7, prompt: `A go-kart doing a quick mid-air flip trick: a fast spinning air whoosh swish with a tiny sparkle. ${CARTOON}` },
   { id: 'boostTrick', seconds: 0.8, prompt: `A stylish mid-air trick: quick sparkling swoosh with a twinkle chime. ${CARTOON}` },
-  { id: 'boostStart', seconds: 1.2, prompt: 'A perfect rocket start in a kart race: a sharp small engine rev, then a turbo whoosh launching forward. No music, no voice.' },
+  // remade 24 Sept 2026 at 1.6 s: the 1.2 s take was cut off at full level
+  { id: 'boostStart', seconds: 1.6, prompt: 'A perfect rocket start in a kart race: a sharp small engine rev, then a turbo whoosh launching forward that fades away completely at the end. No music, no voice.' },
   { id: 'slipstream', seconds: 1, prompt: "A go-kart slingshotting out of another kart's slipstream: a rushing wind whoosh that swells and snaps forward past the listener, airy and fast. No music, no voice." },
   // the drift spark tiers (blue, orange, purple): each a bigger, higher zap than the last
   { id: 'tierUp', seconds: 0.5, influence: 0.5, prompt: 'A tiny crackling electric spark: one short bright sizzle zap. No music, no voice.' },
@@ -139,6 +146,15 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'drift', seconds: 3, loop: true, prompt: 'The continuous tyre screech of a go-kart drifting sideways on asphalt. Steady and even, no engine, no other sounds.' },
   // under the wheels off the road (dirt and mud surfaces)
   { id: 'offroad', seconds: 3, loop: true, prompt: 'The continuous rumble of small go-kart tires rolling fast over grass and loose dirt: a rough crunchy gravel rumble with light pebble rattles. Steady and even, no engine, no other sounds.' },
+  // what the wheels roll on, per course (24 Sept 2026, src/audio/engine.ts wheelSound): the land beside the road
+  // on the sand and snow courses, the boardwalk's planks, the frozen lake's ice and the skyline's rails
+  { id: 'offroad-sand', seconds: 3, loop: true, prompt: 'The continuous sound of small go-kart tires rolling fast through soft beach sand: a soft hissing, crunchy sand rush with fine grit spraying. Steady and even, no engine, no other sounds.' },
+  { id: 'offroad-snow', seconds: 3, loop: true, influence: 0.5, prompt: 'The continuous, perfectly steady sound of small go-kart tires rolling fast through fresh snow: an unbroken soft crunching snow hiss with light powder spray, constant level, no pauses or footsteps. No engine, no other sounds.' },
+  { id: 'road-ice', seconds: 3, loop: true, prompt: 'The continuous sound of small go-kart tires gliding fast over smooth ice: a thin glassy hiss with faint icy crackles. Steady and even, no engine, no other sounds.' },
+  { id: 'road-wood', seconds: 3, loop: true, prompt: 'The continuous sound of a small go-kart rolling fast over wooden boardwalk planks: a steady hollow wooden rumble with quick even plank clatters. No engine, no other sounds.' },
+  { id: 'rail-grind', seconds: 3, loop: true, prompt: 'The continuous sound of a small cartoon kart grinding fast along a metal rail: a bright steady metallic scraping grind with crackling sparks. Even, no engine, no music, no voice.' },
+  // the drift sparks under the wheels, pitched and louder with each spark tier (blue, orange, purple)
+  { id: 'sparks', seconds: 3, loop: true, prompt: 'The continuous crackle of bright electric sparks spraying from spinning go-kart wheels: a steady sizzling, fizzing electric crackle. Even, no engine, no music, no voice.' },
 ];
 
 const SONG_TAIL = 'Constant driving energy from the first second, no intro, no fade-out, so it loops. Instrumental, no vocals.';

@@ -1,6 +1,6 @@
 // One AudioContext, created and resumed on the first user gesture (Safari and Chrome both need
-// it). Graph: sfx → master; music → duck gain (big sounds) → low-pass (the hit duck, the pause) → master;
-// master → compressor → limiter → out.
+// it). Graph: sfx → master; music → duck gain (big sounds) → presence dip (room for the cues) →
+// low-pass (the hit duck, the pause) → master; master → top-octave low-pass → compressor → limiter → out.
 import { AUDIO } from './constants.ts';
 
 export interface Volumes { master: number; music: number; sfx: number }
@@ -22,6 +22,8 @@ export class AudioBus {
   musicFilter: BiquadFilterNode | null = null;
   /** the music's own dip under a big sound (`musicDuck`), apart from the volume slider and the pause */
   musicDuckGain: GainNode | null = null;
+  /** a wide dip in the music's presence band, so the cues are not masked there (`AUDIO.musicPocket`) */
+  musicPocket: BiquadFilterNode | null = null;
   private volumes: Volumes = { master: 0.8, music: 0.7, sfx: 0.8 };
   private readonly Ctx: Ctor | undefined;
   private readonly listeners: (() => void)[] = [];
@@ -67,29 +69,47 @@ export class AudioBus {
     comp.ratio.value = 4;
     comp.attack.value = 0.004;
     comp.release.value = 0.2;
-    // a brick-wall limiter last: a pile of loud sounds at once never clips the output
+    // a brick-wall limiter last: a pile of loud sounds at once never clips the output. Its threshold
+    // sits low enough that, with the makeup gain Chrome's compressor adds (+3.4 dB here), the loudest
+    // pile-up at full sliders stays under −1 dB true peak (offline render, 24 Sept 2026)
     const lim = ctx.createDynamicsCompressor();
-    lim.threshold.value = -3;
+    lim.threshold.value = AUDIO.limiterDb;
     lim.knee.value = 0;
     lim.ratio.value = 20;
     lim.attack.value = 0.001;
     lim.release.value = 0.1;
     comp.connect(lim);
     lim.connect(ctx.destination);
+    // a gentle low-pass over the top octave before the dynamics: the sparkles and zaps (itemReady,
+    // the ticks) carry energy near the top of the band that peaks between samples, past what the
+    // limiter sees (+1.3 dB over at full sliders in the offline render); nothing up there is heard
+    const air = ctx.createBiquadFilter();
+    air.type = 'lowpass';
+    air.frequency.value = AUDIO.masterLowpassHz;
+    air.Q.value = -3; // Web Audio's low-pass Q is in dB: −3 is Butterworth, no bump
+    air.connect(comp);
     const master = ctx.createGain();
-    master.connect(comp);
+    master.connect(air);
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.value = AUDIO.openHz;
     lp.connect(master);
+    // the cues live in 1–4 kHz, and so do the songs' brass and guitars: a wide, gentle dip there
+    // gives every hit, pickup and zap its own room (offline render, 24 Sept 2026)
+    const pocket = ctx.createBiquadFilter();
+    pocket.type = 'peaking';
+    pocket.frequency.value = AUDIO.musicPocket.hz;
+    pocket.Q.value = AUDIO.musicPocket.q;
+    pocket.gain.value = AUDIO.musicPocket.db;
+    pocket.connect(lp);
     const duck = ctx.createGain();
     duck.gain.value = 1;
-    duck.connect(lp);
+    duck.connect(pocket);
     const music = ctx.createGain();
     music.connect(duck);
     const sfx = ctx.createGain();
     sfx.connect(master);
-    Object.assign(this, { ctx, master, music, sfx, musicFilter: lp, musicDuckGain: duck });
+    Object.assign(this, { ctx, master, music, sfx, musicFilter: lp, musicDuckGain: duck, musicPocket: pocket });
     this.setVolumes(this.volumes);
     if (this.paused) this.setPaused(true);
   }

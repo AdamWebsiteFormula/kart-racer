@@ -35,7 +35,7 @@ class FakeCtx {
     return s;
   }
   createGain() { return this.node({ gain: new Param() }); }
-  createBiquadFilter() { return this.node({ type: '', frequency: new Param(), Q: new Param() }); }
+  createBiquadFilter() { return this.node({ type: '', frequency: new Param(), Q: new Param(), gain: new Param() }); }
   createDynamicsCompressor() { return this.node({ threshold: new Param(), knee: new Param(), ratio: new Param(), attack: new Param(), release: new Param() }); }
   createStereoPanner() { return this.node({ pan: new Param() }); }
   createOscillator() { return this.source('osc', { type: '', frequency: new Param(), detune: new Param() }); }
@@ -214,6 +214,25 @@ describe('the sounds on the bus', () => {
     expect(oscs(ctx, m)).toHaveLength(1);
   });
 
+  it('a cut tick frees its voice: a quick roll never runs into the cap of three', () => {
+    const TICK: Sample = { buffer: { duration: 0.5 } as AudioBuffer, start: 0, end: 0.5, gain: 1 };
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, { onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'rouletteTick' ? TICK : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
+    bus.unlock();
+    const ctx = FakeCtx.last;
+    const k = createKartState({ racerId: 'p' });
+    let asked = 0;
+    for (let t = 0; t <= 0.5; t += 0.005) {
+      ctx.currentTime = 10 + t;
+      k.item.rouletteRemaining = 1.5 - t; // the quick start of the roll: a tick every 60-70 ms
+      const before = ctx.sources.length;
+      audio.input(k, NEUTRAL_INPUT);
+      if (ctx.sources.length > before) asked++;
+    }
+    // every tick due in the first half second played (it was three, then silence till one rang out)
+    expect(asked).toBeGreaterThanOrEqual(7);
+  });
+
   it('the roulette ticks quick then slow, each tick cutting the one before', () => {
     const TICK: Sample = { buffer: { duration: 0.5 } as AudioBuffer, start: 0, end: 0.5, gain: 1 };
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
@@ -232,6 +251,56 @@ describe('the sounds on the bus', () => {
     expect(gaps.at(-1)!).toBeGreaterThan(0.15);
     // every tick but the last was cut when the next began
     for (let i = 0; i + 1 < ticks.length; i++) expect(ticks[i].stoppedAt!).toBeLessThanOrEqual(ticks[i + 1].startedAt! + 0.03);
+  });
+});
+
+describe('the wheels and sparks under the recorded engine', () => {
+  const S = (d: number): Sample => ({ buffer: { duration: d } as AudioBuffer, start: 0.03, end: d, loopStart: 0.03, loopEnd: d, gain: 1 });
+  const ENGINE = S(4), WOOD = S(3), SAND = S(3.1), SPARKS = S(2.9);
+  function rig(track: string) {
+    const lib: Record<string, Sample> = { 'engine-idle': ENGINE, 'engine-mid': ENGINE, 'engine-high': ENGINE, 'road-wood': WOOD, 'offroad-sand': SAND, offroad: SAND, sparks: SPARKS };
+    const b = { onLoaded: null, load: async () => undefined, get: (id: string) => lib[id], hasSong: () => false, song: async () => null } as unknown as SampleBank;
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, b);
+    bus.unlock();
+    audio.newRace('raceSunrise', track);
+    return { audio, ctx: FakeCtx.last };
+  }
+  const kart = () => { const k = createKartState({ racerId: 'pip' }); k.speed = 20; k.grounded = true; return k; };
+  const of = (ctx: FakeCtx, s: Sample) => ctx.sources.filter((x) => x.buffer === s.buffer);
+
+  it('a course runs only the surfaces it has, started the first time the wheels touch one', () => {
+    const board = rig('boardwalk-nights');
+    const k = kart();
+    board.audio.engines(k, 1, 25, [k], L, true);
+    expect(of(board.ctx, WOOD)).toHaveLength(1);
+    expect(of(board.ctx, SAND)).toHaveLength(0);
+    board.audio.engines(k, 1, 25, [k], L, true);
+    expect(of(board.ctx, WOOD)).toHaveLength(1); // started once, then kept
+    const harbour = rig('harbour-loop');
+    const h = kart();
+    harbour.audio.engines(h, 1, 25, [h], L, true);
+    expect(of(harbour.ctx, WOOD)).toHaveLength(0);
+    expect(of(harbour.ctx, SAND)).toHaveLength(0); // on the road: no sand yet
+    h.surface = 'dirt';
+    harbour.audio.engines(h, 1, 25, [h], L, true);
+    expect(of(harbour.ctx, SAND)).toHaveLength(1);
+  });
+
+  it('the sparks start at the first tier and climb in pitch with each', () => {
+    const { audio, ctx } = rig('harbour-loop');
+    const k = kart();
+    k.drift.active = true;
+    k.drift.tier = 0;
+    audio.engines(k, 1, 25, [k], L, true);
+    expect(of(ctx, SPARKS)).toHaveLength(0);
+    const rate = () => (of(ctx, SPARKS)[0] as unknown as { playbackRate: Param }).playbackRate.value;
+    k.drift.tier = 1;
+    audio.engines(k, 1, 25, [k], L, true);
+    expect(rate()).toBeCloseTo(AUDIO.tierRates[0]);
+    k.drift.tier = 3;
+    audio.engines(k, 1, 25, [k], L, true);
+    expect(rate()).toBeCloseTo(AUDIO.tierRates[2]);
   });
 });
 

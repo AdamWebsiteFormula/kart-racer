@@ -26,10 +26,27 @@ export const RACE_THEME: Readonly<Record<string, string>> = Object.freeze({
 export const themeForTrack = (trackId: string): string => RACE_THEME[trackId] ?? 'race-harbour';
 
 const HOP = 0.01;
-/** loudness targets (RMS): a sound effect at its loudest moment, a loop and a song on average */
-const SFX_RMS = 0.2, LOOP_RMS = 0.16, SONG_RMS = 0.16;
+/**
+ * Loudness targets, K-weighted RMS (the BS.1770 ear, `kWeight`): a sound effect over its loudest
+ * 100 ms (0.19 ≈ −12 LUFS for a stereo sound at mix 1), a loop and a song on average. Measured by
+ * rendering whole races offline (docs/sops/audio.md, 24 Sept 2026): the game's mix then lands near
+ * −16 LUFS integrated with every gameplay cue over the music and engines.
+ */
+const SFX_K = 0.19, LOOP_K = 0.12, SONG_K = 0.083;
+export const LEVELS = Object.freeze({ sfx: SFX_K, loop: LOOP_K, song: SONG_K });
 /** a song fades in this fast when it starts; the loop end stays this far inside the file */
 const FADE_IN = 0.008, TAIL = 0.15;
+/** one-shots: a fade-in this long at the cut start (no click), and a fade-out over the end (longer when the recording stops while still loud) */
+const EDGE_IN = 0.002, EDGE_OUT = 0.012, EDGE_OUT_LOUD = 0.09;
+/**
+ * Sounds whose moment is the hit (a bump, a pickup, a zap): their start is cut to 20 dB under the
+ * peak, not 36, so a soft lead-in never delays the thud (the bump's first 110 ms were scrape noise).
+ */
+export const TIGHT: ReadonlySet<string> = new Set([
+  'bump', 'hit', 'spin', 'wall', 'land', 'hop', 'balloon', 'coin', 'pop', 'bounce', 'blocked', 'drop', 'trail', 'throw', 'hitConfirm',
+  'count', 'uiMove', 'uiConfirm', 'uiBack', 'rouletteTick', 'tierUp', 'tierUp2', 'tierUp3', 'boost1', 'boost2', 'boost3', 'boostPad',
+  'gainPlace', 'losePlace', 'denied', 'snowThud', 'shieldPop', 'trick',
+]);
 /** the final-lap fanfare's length: the music waits this long before it comes back faster */
 export const FANFARE_SECONDS = 2.1;
 /** the stings' lengths (catalog `finish`, `finishLow`, `koOut`, `koSafe`, plus a breath): the results song waits for their last chord */
@@ -56,6 +73,86 @@ export function leadIn(chs: readonly Float32Array[], rate: number, threshold = 0
   const len = chs[0]?.length ?? 0;
   for (let i = 0; i < len; i++) for (const ch of chs) if (Math.abs(ch[i]) >= threshold) return Math.max(0, i / rate - preRoll);
   return 0;
+}
+
+/**
+ * Where a sound starts: the first 2 ms whose level is within `relDb` of the loudest 2 ms, less a
+ * little pre-roll so the attack is kept. Relative, so a quiet recording is cut as closely as a
+ * loud one; on the level, not single samples, so the odd spike in a noisy lead-in does not count.
+ */
+export function onset(chs: readonly Float32Array[], rate: number, relDb = -36, preRoll = 0.003): number {
+  const env = envelope(chs, rate, 0.002);
+  let top = 0;
+  for (const e of env) top = Math.max(top, e);
+  if (!(top > 0)) return 0;
+  const th = top * Math.pow(10, relDb / 20), hop = Math.max(1, Math.round(rate * 0.002)) / rate;
+  for (let i = 0; i < env.length; i++) if (env[i] >= th) return Math.max(0, i * hop - preRoll);
+  return 0;
+}
+
+/**
+ * The BS.1770 K-weighting the loudness meters use (a +4 dB shelf over about 1.7 kHz, a high-pass
+ * under about 40 Hz), at any sample rate; new arrays. A rate too low for the shelf skips it.
+ */
+export function kWeight(chs: readonly Float32Array[], rate: number): Float32Array[] {
+  const stages: number[][] = [];
+  const fc1 = 1681.974450955533;
+  if (fc1 < 0.45 * rate) {
+    const A = Math.pow(10, 3.999843853973347 / 40), w = (2 * Math.PI * fc1) / rate, c = Math.cos(w), al = Math.sin(w) / (2 * 0.7071752369554196), r = 2 * Math.sqrt(A) * al;
+    const a0 = A + 1 - (A - 1) * c + r;
+    stages.push([A * (A + 1 + (A - 1) * c + r) / a0, -2 * A * (A - 1 + (A + 1) * c) / a0, A * (A + 1 + (A - 1) * c - r) / a0, 2 * (A - 1 - (A + 1) * c) / a0, (A + 1 - (A - 1) * c - r) / a0]);
+  }
+  {
+    const w = (2 * Math.PI * 38.13547087602444) / rate, c = Math.cos(w), al = Math.sin(w) / (2 * 0.5003270373238773), a0 = 1 + al;
+    stages.push([(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, (-2 * c) / a0, (1 - al) / a0]);
+  }
+  return chs.map((ch) => {
+    const out = Float32Array.from(ch);
+    for (const [b0, b1, b2, a1, a2] of stages) {
+      let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+      for (let i = 0; i < out.length; i++) {
+        const x = out[i], y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1; x1 = x; y2 = y1; y1 = y; out[i] = y;
+      }
+    }
+    return out;
+  });
+}
+
+/** Take each channel's average (DC) out, in place: an offset thumps at every start and stop. */
+export function removeDc(chs: readonly Float32Array[]): void {
+  for (const ch of chs) {
+    let m = 0;
+    for (let i = 0; i < ch.length; i++) m += ch[i];
+    m /= ch.length || 1;
+    if (m !== 0) for (let i = 0; i < ch.length; i++) ch[i] -= m;
+  }
+}
+
+/**
+ * Shape a one-shot's edges in place and find where it really ends: a raised-cosine fade-in of
+ * `EDGE_IN` from `start` (a recording that begins mid-wave clicks), the end moved in to the last
+ * sample within 60 dB of the peak, and a fade-out over the end (`EDGE_OUT_LOUD` when the recording
+ * is still loud in its last 50 ms, as a clipped-off whoosh is). Returns the end in seconds.
+ */
+export function shapeEdges(chs: readonly Float32Array[], rate: number, start: number): number {
+  const len = chs[0]?.length ?? 0, a = Math.round(start * rate), pk = samplePeak(chs);
+  let b = len;
+  const floor = pk * 1e-3;
+  outer: for (; b > a + 1; b--) for (const ch of chs) if (Math.abs(ch[b - 1]) > floor) break outer;
+  b = Math.min(len, b + Math.round(0.005 * rate));
+  // loud tail: the last 50 ms still within 30 dB of the loudest 50 ms
+  const env = envelope(chs.map((ch) => ch.subarray(a, b)), rate, 0.05);
+  let top = 0;
+  for (const e of env) top = Math.max(top, e);
+  const loud = env.length > 1 && env[env.length - 1] > top * 0.0316;
+  const nIn = Math.min(Math.round(EDGE_IN * rate), (b - a) >> 2), nOut = Math.min(Math.round((loud ? EDGE_OUT_LOUD : EDGE_OUT) * rate), (b - a) >> 2);
+  for (const ch of chs) {
+    for (let i = 0; i < nIn; i++) ch[a + i] *= 0.5 - 0.5 * Math.cos((Math.PI * i) / nIn);
+    for (let i = 0; i < nOut; i++) ch[b - 1 - i] *= 0.5 - 0.5 * Math.cos((Math.PI * i) / nOut);
+    for (let i = b; i < len; i++) ch[i] = 0;
+  }
+  return b / rate;
 }
 
 /** RMS of the loudest `win`-second window: how loud a sound is at its peak, clicks and tails aside. */
@@ -113,24 +210,33 @@ export function bakeLoop(chs: readonly Float32Array[], rate: number, start: numb
 }
 
 /**
- * The recorded mix: every recording is levelled to the same peak, then set here. Big moments stand
- * out; sounds that fire every few seconds (boosts, hops, ticks) sit back. Missing ids are 0.9.
+ * The recorded mix, in dB against the level every recording is brought to (`SFX_K`, loudness as
+ * heard): the race's stings and your hits on top, big items and creatures level, the sounds that
+ * fire every few seconds (boosts, hops, sparks, ticks, menu clicks) set back. Rebalanced from an
+ * offline render of whole races (24 Sept 2026): every gameplay cue of your own sits over the music
+ * and engines. Missing ids are −2 dB (yelps and horns −2 too).
  */
-const MIX: Readonly<Record<string, number>> = Object.freeze({
-  uiMove: 0.5, uiConfirm: 0.7, uiBack: 0.6, rouletteTick: 0.45,
-  count: 1, go: 1.2, lap: 0.9, finalLap: 1.2, finish: 1.2, finishLow: 1,
-  balloon: 0.8, coin: 0.7, itemReady: 0.8,
-  throw: 0.9, kite: 0.8, drop: 0.8, shieldUp: 0.8, shieldPop: 0.9, shieldEnd: 0.6, airHorn: 1.1, fog: 0.8, bounce: 0.7, pop: 0.7,
-  fizz: 1, strikeRoll: 1, strike: 1.1, boing: 0.9, slam: 1.1, anchor: 0.9, slingshot: 0.9, mouse: 0.8, blocked: 0.8, denied: 0.6, trail: 0.6,
-  roar: 1.2, stomp: 1.2, yetiThrow: 0.9, snowThud: 1, krakenRise: 1, krakenSlam: 1.2, crabClack: 0.9, honk: 1.1, whaleSong: 1, tailSlap: 1.1,
-  claw: 1, clawDrop: 0.9, loop: 0.9, ventWarn: 0.7, geyser: 0.9, steamVent: 0.85,
-  hit: 1, hitConfirm: 0.9, spin: 1,
-  boost1: 0.75, boost2: 0.85, boost3: 1, boostPad: 0.85, boostTrick: 0.9, boostStart: 1, slipstream: 0.85, tierUp: 0.5, tierUp2: 0.6, tierUp3: 0.7,
-  hop: 0.6, land: 0.7, wall: 0.8, bump: 0.8,
-  gainPlace: 0.6, losePlace: 0.5, wrongWay: 0.8, respawn: 0.8,
-  shift: 1.2, koOut: 1.1, koSafe: 1.1, trick: 0.8,
+const MIX_DB: Readonly<Record<string, number>> = Object.freeze({
+  // the race
+  count: -1, go: 1, lap: -1, finalLap: 1, finish: 1, finishLow: 0, shift: 1, koOut: 0, koSafe: 0,
+  // menus, pickups and place
+  uiMove: -8, uiConfirm: -5, uiBack: -6, rouletteTick: -3, itemReady: -2, coin: 0, balloon: -1,
+  gainPlace: -2, losePlace: -3, wrongWay: -2, respawn: -3, denied: -6,
+  // items
+  throw: -3, kite: -3, drop: -1, shieldUp: -3, shieldPop: -2, shieldEnd: 0, airHorn: 0, fog: -3, bounce: -5, pop: -5,
+  fizz: -2, strikeRoll: -2, strike: 0, boing: -2, slam: 0, anchor: -2, slingshot: -2, mouse: -3, blocked: -3, trail: -1, hitConfirm: -1,
+  hit: 0, spin: 0,
+  // boosts and sparks: each tier over the last
+  boost1: -3, boost2: -2, boost3: -1, boostPad: -3, boostTrick: -2, boostStart: -1, slipstream: -2.5, trick: -3,
+  tierUp: -1.5, tierUp2: -0.5, tierUp3: 0.5,
+  // driving
+  hop: -5, land: -3, wall: -1, bump: -3, loop: -2, claw: -2, clawDrop: -3,
+  // the course
+  roar: 0, stomp: 0, yetiThrow: 0, snowThud: 0, krakenRise: 0, krakenSlam: 0, crabClack: -2, honk: 0, whaleSong: 0, tailSlap: 0,
+  ventWarn: -1, geyser: 0, steamVent: 0,
 });
-export const mixLevel = (id: string): number => MIX[id] ?? (id.startsWith('yelp:') ? 1 : 0.9);
+export const mixDb = (id: string): number => MIX_DB[id] ?? -2;
+export const mixLevel = (id: string): number => Math.pow(10, mixDb(id) / 20);
 
 /** Onset strength per hop: how much the level rises from the hop before. */
 export function onsets(env: Float32Array): Float32Array {
@@ -229,22 +335,80 @@ function channels(b: AudioBuffer): Float32Array[] {
   return out;
 }
 
-/** Level a sound effect (its peak never past the ceiling); a loop also gets its wrap baked seamless. */
-export function cutSfx(b: AudioBuffer, loop: boolean): Sample {
-  const chs = channels(b), env = envelope(chs, b.sampleRate), peak = samplePeak(chs);
-  if (loop) {
-    const w = bakeLoop(chs, b.sampleRate, 0, b.duration, AUDIO.loopFade);
-    return { buffer: b, start: w.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(meanRms(env), LOOP_RMS), peak) };
+/**
+ * Even out a loop that swells and dips, in place: a crunch or rumble whose level wanders by several
+ * dB pulses once it repeats every few seconds. Only a loop whose 100 ms level varies by more than
+ * `minSd` dB (standard deviation) is touched, so the engines' own lope is left alone; each 100 ms
+ * then moves part of the way (`amount`) to the loop's average, at most `maxDb`, the gain curve read
+ * round the loop so the wrap stays seamless.
+ */
+export function evenLoop(chs: readonly Float32Array[], rate: number, amount = 0.7, maxDb = 6, minSd = 2.5): void {
+  const env = envelope(chs, rate, 0.1), n = env.length;
+  if (n < 4) return;
+  const dbs = Array.from(env, (e) => 20 * Math.log10(Math.max(e, 1e-6)));
+  const m = dbs.reduce((x, y) => x + y, 0) / n;
+  if (Math.sqrt(dbs.reduce((x, y) => x + (y - m) ** 2, 0) / n) < minSd) return;
+  const len = chs[0].length, hop = len / n;
+  // a cyclic 3-tap smoothing so the gain does not flutter
+  const sm = Float32Array.from(env, (_, i) => (env[(i + n - 1) % n] + 2 * env[i] + env[(i + 1) % n]) / 4);
+  const mean = meanRms(sm);
+  const lim = Math.pow(10, maxDb / 20);
+  const g = Float32Array.from(sm, (e) => (e > 1e-6 ? Math.min(lim, Math.max(1 / lim, Math.pow(mean / e, amount))) : 1));
+  for (let i = 0; i < len; i++) {
+    const x = i / hop - 0.5, k = Math.floor(x), f = x - k;
+    const a = g[(k + n) % n], b = g[(k + 1 + n) % n], v = a + (b - a) * f;
+    for (const ch of chs) ch[i] *= v;
   }
-  return { buffer: b, start: leadIn(chs, b.sampleRate), end: b.duration, gain: peakSafe(levelGain(peakRms(env), SFX_RMS), peak) };
 }
 
-/** Level a song and find its loop; the first pass starts on its first beat, the wrap is baked seamless. */
+/**
+ * Level a sound effect by its loudness as heard (K-weighted, loudest 100 ms), its peak never past
+ * the ceiling; its DC taken out, its start cut to the sound (closer for `TIGHT` ids), its edges faded.
+ * A loop is levelled on its K-weighted average and gets its wrap baked seamless.
+ */
+export function cutSfx(b: AudioBuffer, loop: boolean, id = ''): Sample {
+  const chs = channels(b), rate = b.sampleRate;
+  removeDc(chs);
+  if (loop) {
+    evenLoop(chs, rate);
+    const env = envelope(kWeight(chs, rate), rate), peak = samplePeak(chs);
+    const w = bakeLoop(chs, rate, 0, b.duration, AUDIO.loopFade);
+    return { buffer: b, start: w.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(meanRms(env), LOOP_K), peak) };
+  }
+  const env = envelope(kWeight(chs, rate), rate), peak = samplePeak(chs);
+  const start = onset(chs, rate, TIGHT.has(id) ? -20 : -36);
+  const end = shapeEdges(chs, rate, start);
+  return { buffer: b, start, end, gain: peakSafe(levelGain(peakRms(env, HOP, 0.1), SFX_K, 8), peak) };
+}
+
+/** Level a song on its K-weighted average and find its loop; the first pass starts on its first beat, the wrap is baked seamless. */
 export function cutSong(b: AudioBuffer, bpm: number): Sample {
   const chs = channels(b), env = envelope(chs, b.sampleRate);
   const p = loopPoints(env, bpm);
   const w = bakeLoop(chs, b.sampleRate, p.start, Math.min(p.end, b.duration - TAIL), AUDIO.songFade);
-  return { buffer: b, start: p.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(meanRms(env), SONG_RMS, 3), samplePeak(chs)) };
+  return { buffer: b, start: p.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(songLevel(chs, b.sampleRate, w.start, w.end), SONG_K, 3), samplePeak(chs)) };
+}
+
+/**
+ * A song's loudness as heard (K-weighted RMS) over its loop, read from `parts` stretches of `span`
+ * seconds spread across it rather than the whole minute and a half: within a fraction of a dB of
+ * the full measure for a whole-song groove, at a sixth of the work (it runs while the race song
+ * decodes in the countdown). A loop shorter than the stretches together is read whole.
+ */
+export function songLevel(chs: readonly Float32Array[], rate: number, start: number, end: number, span = 4, parts = 4): number {
+  const a = Math.max(0, Math.round(start * rate)), b = Math.min(chs[0]?.length ?? 0, Math.round(end * rate));
+  const n = Math.round(span * rate), warm = Math.round(0.05 * rate);
+  const starts = b - a <= parts * n ? [a] : Array.from({ length: parts }, (_, p) => a + Math.floor(((b - a - n) * p) / (parts - 1)));
+  const len = starts.length === 1 ? b - a : n;
+  let sum = 0, count = 0;
+  for (const s0 of starts) {
+    const from = Math.max(0, s0 - warm); // the filters settle before the stretch is read
+    for (const ch of kWeight(chs.map((c) => c.subarray(from, s0 + len)), rate)) {
+      for (let i = s0 - from; i < ch.length; i++) sum += ch[i] * ch[i];
+      count += ch.length - (s0 - from);
+    }
+  }
+  return count ? Math.sqrt(sum / count) : 0;
 }
 
 /** Songs kept decoded whatever else is asked for: the menus' and the results'. Race songs: the two most recent. */
@@ -275,7 +439,7 @@ export class SampleBank {
       this.manifest = (await r.json()) as Manifest;
       await Promise.all(Object.entries(this.manifest.sfx).map(async ([id, m]) => {
         const b = await this.decode(ctx, m.url);
-        if (b) this.sfx.set(id, cutSfx(b, !!m.loop));
+        if (b) this.sfx.set(id, cutSfx(b, !!m.loop, id));
       }));
       this.onLoaded?.();
     })().catch(() => undefined);
@@ -419,6 +583,10 @@ export class SongPlayer {
  */
 export class LoopEngine {
   private readonly bands: { src: AudioBufferSourceNode; g: GainNode; s: Sample; band: number }[] = [];
+  /** loops started on first use (the wheels' surfaces, the drift sparks), silent when not asked for */
+  private readonly extras = new Map<string, { g: GainNode; src: AudioBufferSourceNode; s: Sample }>();
+  private readonly ctx: BaseAudioContext;
+  private readonly dest: AudioNode;
   private readonly out: GainNode;
   private readonly lp: BiquadFilterNode;
   private readonly pan: StereoPannerNode | null = null;
@@ -426,6 +594,9 @@ export class LoopEngine {
   private readonly rumble: { g: GainNode; s: Sample } | null = null;
 
   constructor(ctx: BaseAudioContext, dest: AudioNode, loops: readonly (Sample | undefined)[], drift: Sample | undefined, panned: boolean, offroad?: Sample, seed = 0) {
+    this.ctx = ctx;
+    this.dest = dest;
+    this.seed = seed;
     this.out = ctx.createGain();
     this.out.gain.value = 0;
     this.lp = ctx.createBiquadFilter();
@@ -437,17 +608,7 @@ export class LoopEngine {
       this.pan = ctx.createStereoPanner();
       this.lp.connect(this.pan).connect(dest);
     } else this.lp.connect(dest);
-    let layers = 0;
-    const loop = (s: Sample, into: AudioNode) => {
-      const src = ctx.createBufferSource();
-      src.buffer = s.buffer;
-      src.loop = true;
-      const a = s.loopStart ?? 0, b = s.loopEnd ?? s.buffer.duration;
-      if (s.loopEnd !== undefined) { src.loopStart = a; src.loopEnd = b; }
-      src.connect(into);
-      src.start(0, a + (b - a) * loopPhase(layers++, seed));
-      return src;
-    };
+    const loop = (s: Sample, into: AudioNode) => this.loop(s, into);
     loops.forEach((s, i) => {
       if (!s) return;
       const band = loops.length === 1 ? 1 : i;
@@ -467,20 +628,56 @@ export class LoopEngine {
     if (offroad) this.rumble = layer(offroad);
   }
 
+  private layers = 0;
+  private readonly seed: number;
+
+  private loop(s: Sample, into: AudioNode): AudioBufferSourceNode {
+    const src = this.ctx.createBufferSource();
+    src.buffer = s.buffer;
+    src.loop = true;
+    const a = s.loopStart ?? 0, b = s.loopEnd ?? s.buffer.duration;
+    if (s.loopEnd !== undefined) { src.loopStart = a; src.loopEnd = b; }
+    src.connect(into);
+    src.start(0, a + (b - a) * loopPhase(this.layers++, this.seed));
+    return src;
+  }
+
+  /**
+   * The extra loops for this frame, id → [level, rate]: each starts the first time it is asked for
+   * (so a course only runs the surfaces it has) and every one not asked for fades to silence.
+   */
+  setExtras(t: number, want: ReadonlyMap<string, { s: Sample; gain: number; rate: number }>): void {
+    for (const [id, w] of want) {
+      let x = this.extras.get(id);
+      if (!x) {
+        if (w.gain <= 0) continue;
+        const g = this.ctx.createGain();
+        g.gain.value = 0;
+        g.connect(this.dest);
+        x = { g, s: w.s, src: this.loop(w.s, g) };
+        this.extras.set(id, x);
+      }
+      x.g.gain.setTargetAtTime(w.gain * x.s.gain, t, 0.05);
+      x.src.playbackRate.setTargetAtTime(w.rate, t, 0.05);
+    }
+    for (const [id, x] of this.extras) if (!want.has(id)) x.g.gain.setTargetAtTime(0, t, 0.05);
+  }
+
   /** Whether this engine plays the recorded off-road rumble (else the synth one stands in). */
   get hasRumble(): boolean { return this.rumble !== null; }
 
   /**
    * Follow the rpm; `level` is the engine's loudness, `screech` the drift screech's, `rumble` the
-   * off-road's, `pan` −1..1, `pitch` this racer's own pitch offset (racerPitch).
+   * off-road's, `pan` −1..1, `pitch` this racer's own pitch offset (racerPitch, class, boost rev),
+   * `bright` the class's low-pass factor.
    */
-  set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0, pitch = 1): void {
+  set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0, pitch = 1, bright = 1): void {
     const w = bandWeights(rpm);
     for (const b of this.bands) {
       b.src.playbackRate.setTargetAtTime(bandRate(rpm, b.band) * pitch, t, 0.03);
       b.g.gain.setTargetAtTime((this.bands.length === 1 ? 1 : w[b.band]) * b.s.gain, t, 0.05);
     }
-    this.lp.frequency.setTargetAtTime(engineCutoff(rpm), t, 0.05);
+    this.lp.frequency.setTargetAtTime(engineCutoff(rpm) * bright, t, 0.05);
     this.out.gain.setTargetAtTime(level, t, 0.05);
     this.pan?.pan.setTargetAtTime(pan, t, 0.1);
     if (this.screech) this.screech.g.gain.setTargetAtTime(screech * this.screech.s.gain, t, 0.05);

@@ -30,7 +30,7 @@ class FakeCtx {
   constructor() { FakeCtx.last = this; }
   private mk<T extends Node_>(n: T): T { this.nodes.push(n); return n; }
   createGain() { return this.mk(Object.assign(new Node_('gain'), { gain: new Param() })); }
-  createBiquadFilter() { return this.mk(Object.assign(new Node_('filter'), { type: '', frequency: new Param(), Q: new Param() })); }
+  createBiquadFilter() { return this.mk(Object.assign(new Node_('filter'), { type: '', frequency: new Param(), Q: new Param(), gain: new Param() })); }
   createDynamicsCompressor() { return this.mk(Object.assign(new Node_('comp'), { threshold: new Param(), knee: new Param(), ratio: new Param(), attack: new Param(), release: new Param() })); }
   createStereoPanner() { return this.mk(Object.assign(new Node_('pan'), { pan: new Param() })); }
   createOscillator() { return this.mk(Object.assign(new Node_('osc'), { type: '', frequency: new Param(), detune: new Param(), start() {}, stop() {} })); }
@@ -73,23 +73,34 @@ describe('bus', () => {
     expect(busGains({ master: -1, music: 0, sfx: 0 }).master).toBe(0);
   });
 
-  it('nothing exists until a gesture; then the graph is music → duck → low-pass → master → compressor → limiter → out', () => {
+  it('nothing exists until a gesture; then the graph is music → duck → presence dip → low-pass → master → top low-pass → compressor → limiter → out', () => {
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
     expect(bus.ctx).toBeNull();
     bus.unlock();
     const ctx = FakeCtx.last!;
     expect(ctx.state).toBe('running');
-    const b = bus as unknown as { music: Node_; sfx: Node_; master: Node_; musicFilter: Node_; musicDuckGain: Node_ };
+    const b = bus as unknown as { music: Node_; sfx: Node_; master: Node_; musicFilter: Node_; musicDuckGain: Node_; musicPocket: Node_ & { type: string; frequency: Param; gain: Param } };
     expect(b.music.out[0]).toBe(b.musicDuckGain);
-    expect(b.musicDuckGain.out[0]).toBe(b.musicFilter);
+    expect(b.musicDuckGain.out[0]).toBe(b.musicPocket);
+    expect(b.musicPocket.out[0]).toBe(b.musicFilter);
+    // the presence dip: a gentle peaking cut in the cues' band
+    expect(b.musicPocket.type).toBe('peaking');
+    expect(b.musicPocket.frequency.value).toBeGreaterThanOrEqual(1000);
+    expect(b.musicPocket.frequency.value).toBeLessThanOrEqual(4000);
+    expect(b.musicPocket.gain.value).toBeLessThan(0);
+    expect(b.musicPocket.gain.value).toBeGreaterThanOrEqual(-6);
     expect(b.musicFilter.out[0]).toBe(b.master);
     expect(b.sfx.out[0]).toBe(b.master);
-    const comp = b.master.out[0] as Node_ & { threshold: Param };
+    const air = b.master.out[0] as Node_ & { type: string; frequency: Param };
+    expect([air.kind, air.type, air.frequency.value]).toEqual(['filter', 'lowpass', AUDIO.masterLowpassHz]);
+    expect(AUDIO.masterLowpassHz).toBeGreaterThanOrEqual(15000);
+    const comp = air.out[0] as Node_ & { threshold: Param };
     expect(comp.kind).toBe('comp');
-    // a brick-wall limiter after the compressor: -3 dB, 20:1, 1 ms
+    // a brick-wall limiter after the compressor: 20:1, 1 ms, low enough to hold −1 dB true peak
     const lim = comp.out[0] as Node_ & { threshold: Param; ratio: Param; attack: Param };
     expect(lim.kind).toBe('comp');
-    expect([lim.threshold.value, lim.ratio.value, lim.attack.value]).toEqual([-3, 20, 0.001]);
+    expect([lim.threshold.value, lim.ratio.value, lim.attack.value]).toEqual([AUDIO.limiterDb, 20, 0.001]);
+    expect(AUDIO.limiterDb).toBeLessThanOrEqual(-3);
     expect(lim.out[0]).toBe(ctx.destination);
   });
 
