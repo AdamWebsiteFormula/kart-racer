@@ -18,7 +18,7 @@ import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from 
 import { buildBackdrop } from './backdrop.ts';
 import { buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
-import { buildStartGantry } from './gantry.ts';
+import { buildStartGantry, setStartLamps } from './gantry.ts';
 import { buildTunnels } from './tunnel.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
@@ -507,9 +507,17 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // launch vents: rim, glow and column, posed from race time like the sim
   const vents = track.hazards.vents(0).length ? new VentView(track, GRADIENT) : null;
   if (vents) group.add(vents.group);
+  // start/finish: a checkered band across the road under an arch, and the start lamps that count
+  // the race down from race time (gantry.ts)
+  const startLine = buildStartGantry(track, palette, GRADIENT ?? null);
+  const startLamps = startLine.getObjectByName('start-lamps') as InstancedMesh;
+  OWNED.add(startLine.geometry);
+  OWNED.add(startLamps.geometry);
+  group.add(startLine);
 
   const update = (time: number, active: readonly ActiveHazard[] = track.activeHazards(time), live?: LiveFeatures) => {
     creatures?.update(time);
+    setStartLamps(startLamps, time);
     vents?.update(time);
     tickPads(time);
     const open = openMask();
@@ -560,11 +568,6 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     });
   };
   update(0);
-
-  // start/finish: a checkered band across the road under an arch (gantry.ts)
-  const startLine = buildStartGantry(track, palette, GRADIENT ?? null);
-  OWNED.add(startLine.geometry);
-  group.add(startLine);
 
   // a mine (a shortcut's tunnel): rock bore, timber frames, lanterns (tunnel.ts); the mesa over it is the land
   const tunnels = buildTunnels(track.tunnels, GRADIENT ?? null, groundAt);

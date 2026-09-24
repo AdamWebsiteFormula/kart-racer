@@ -2,6 +2,7 @@
 // kartRadius and tSearchWindow are read from the kart schema and never redefined.
 import trackSchema from '../../docs/schemas/track.schema.json';
 import kartSchema from '../../docs/schemas/kart.schema.json';
+import raceSchema from '../../docs/schemas/race-state.schema.json';
 
 export interface BuilderConstants {
   lutSamples: number; arcDivisions: number; globalSearchStep: number; branchHysteresis: number; branchLeaveMargin: number;
@@ -35,3 +36,6 @@ export const BUILDER: Readonly<BuilderConstants> = Object.freeze(
 export const KART_RADIUS: number = kartSchema.properties.base.properties.kartRadius.default;
 /** From kart.schema.json. Spline fraction searched around the previous t. */
 export const T_SEARCH_WINDOW: number = kartSchema.properties.base.properties.tSearchWindow.default;
+/** From race-state.schema.json. The countdown's beats (one start lamp each) and their length, seconds. */
+export const COUNTDOWN_STEPS: number = raceSchema.properties.constants.properties.countdownSteps.default;
+export const COUNTDOWN_STEP_SECONDS: number = raceSchema.properties.constants.properties.countdownStepSeconds.default;

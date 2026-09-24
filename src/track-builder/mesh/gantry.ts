@@ -1,8 +1,12 @@
 // The start/finish (critique 2026-09-23: "a thin white line"): a checkered band across the road and
 // an arch over it, two striped pillars in the track's accent with a checkered beam, a light board
-// and a pennant on each post. One mesh, vertex colours, one draw call.
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Mesh, MeshToonMaterial, type Texture } from 'three';
-import { BUILDER } from '../constants.ts';
+// and a pennant on each post. One mesh, vertex colours, one draw call; the board's lamps are a
+// second (one instancer, 'start-lamps') so they can count the race down.
+import {
+  BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial,
+  MeshToonMaterial, type Texture,
+} from 'three';
+import { BUILDER, COUNTDOWN_STEP_SECONDS, COUNTDOWN_STEPS } from '../constants.ts';
 import type { Track } from '../track.ts';
 import type { Vec3 } from '../types.ts';
 import { glowFromVertexColours } from './glow.ts';
@@ -12,7 +16,40 @@ import type { Rgb, TrackPalette } from './palette.ts';
 const SQUARE = 0.75;
 /** The beam's underside above the road, its height, the pillars' width, their distance past the curb. */
 const CLEAR = 6.2, BEAM = 1.3, PILLAR = 0.8, OUT = 0.9;
-const WHITE: Rgb = [0.96, 0.96, 0.94], BLACK: Rgb = [0.08, 0.08, 0.1], RED: Rgb = [2.2, 0.35, 0.25]; // RED lights itself (glow.ts)
+const WHITE: Rgb = [0.96, 0.96, 0.94], BLACK: Rgb = [0.08, 0.08, 0.1];
+
+/**
+ * The start lamps: one per countdown beat, lit red one by one with the beats, all green on the go
+ * for one beat, then dark. Unlit (MeshBasicMaterial), linear RGB with the other channels near
+ * zero, so the tone mapping keeps them red and green (a 2.2 red with 0.3 green and blue through
+ * the toon glow read as peach squares).
+ */
+export const LAMP = Object.freeze({
+  radius: 0.36, gap: 1.05,
+  dark: [0.16, 0.025, 0.02] as Rgb, red: [1.6, 0.05, 0.03] as Rgb, go: [0.02, 1.1, 0.12] as Rgb,
+});
+
+/** Red lamps lit at race `time` (seconds since the go, negative in the countdown), or -1 for all green. */
+export function startLampsLit(time: number): number {
+  if (time > 0) return time <= COUNTDOWN_STEP_SECONDS ? -1 : 0;
+  const into = time + COUNTDOWN_STEPS * COUNTDOWN_STEP_SECONDS; // seconds into the countdown
+  if (into <= 0) return 0;
+  // the HUD's number turns on the tick after each beat; so does the next lamp
+  return Math.min(COUNTDOWN_STEPS, Math.ceil(into / COUNTDOWN_STEP_SECONDS - 1e-6));
+}
+
+const lampColour = new Color();
+/** Light the board for race `time`; only touches the GPU when a lamp changes. */
+export function setStartLamps(lamps: InstancedMesh, time: number): void {
+  const lit = startLampsLit(time);
+  if (lamps.userData.lit === lit) return;
+  lamps.userData.lit = lit;
+  for (let k = 0; k < lamps.count; k++) {
+    const c = lit < 0 ? LAMP.go : k < lit ? LAMP.red : LAMP.dark;
+    lamps.setColorAt(k, lampColour.setRGB(c[0], c[1], c[2]));
+  }
+  lamps.instanceColor!.needsUpdate = true;
+}
 
 interface Buf { pos: number[]; col: number[]; idx: number[] }
 
@@ -96,12 +133,18 @@ export function buildStartGantry(track: Track, palette: TrackPalette, gradientMa
   box(b, [o[0], beamY + BEAM + 0.08, o[2]], [r[0] * (span + 0.4), 0, r[2] * (span + 0.4)], [0, 0.08, 0], [f[0] * 0.45, 0, f[2] * 0.45], accent);
   box(b, [o[0], beamY - 0.08, o[2]], [r[0] * (span + 0.4), 0, r[2] * (span + 0.4)], [0, 0.08, 0], [f[0] * 0.45, 0, f[2] * 0.45], accent);
 
-  // the light board under the beam, facing the grid: five red lamps
+  // the light board under the beam, facing the grid: a round lamp per countdown beat, each under a
+  // visor (the lamps themselves are the instancer below)
   const board: Vec3 = [o[0] - f[0] * 0.2, beamY - 0.75, o[2] - f[2] * 0.2];
-  box(b, board, [r[0] * 2.3, 0, r[2] * 2.3], [0, 0.5, 0], [f[0] * 0.2, 0, f[2] * 0.2], BLACK);
-  for (let k = 0; k < 5; k++) {
-    const l = -1.8 + k * 0.9;
-    box(b, [board[0] + r[0] * l - f[0] * 0.22, board[1], board[2] + r[2] * l - f[2] * 0.22], [r[0] * 0.28, 0, r[2] * 0.28], [0, 0.28, 0], [f[0] * 0.05, 0, f[2] * 0.05], RED);
+  const boardHalf = ((COUNTDOWN_STEPS - 1) * LAMP.gap) / 2 + LAMP.radius + 0.3;
+  box(b, board, [r[0] * boardHalf, 0, r[2] * boardHalf], [0, 0.5, 0], [f[0] * 0.2, 0, f[2] * 0.2], BLACK);
+  const lampAt = (k: number): Vec3 => {
+    const l = ((COUNTDOWN_STEPS - 1) / 2 - k) * LAMP.gap; // lamp 0 on the left as the grid sees it
+    return [board[0] + r[0] * l - f[0] * 0.21, board[1], board[2] + r[2] * l - f[2] * 0.21];
+  };
+  for (let k = 0; k < COUNTDOWN_STEPS; k++) {
+    const p = lampAt(k);
+    box(b, [p[0] - f[0] * 0.14, p[1] + LAMP.radius + 0.05, p[2] - f[2] * 0.14], [r[0] * (LAMP.radius + 0.06), 0, r[2] * (LAMP.radius + 0.06)], [0, 0.03, 0], [f[0] * 0.14, 0, f[2] * 0.14], BLACK);
   }
 
   const g = new BufferGeometry();
@@ -115,5 +158,18 @@ export function buildStartGantry(track: Track, palette: TrackPalette, gradientMa
   m.name = 'start-line';
   m.castShadow = true;
   m.receiveShadow = true;
+
+  // the lamps: a disc facing the grid, brighter at its centre like a lens, one instance per beat
+  const disc = new CircleGeometry(LAMP.radius, 24).rotateY(Math.atan2(-f[0], -f[2]));
+  const n = disc.getAttribute('position').count;
+  const lens = new Float32Array(n * 3).fill(0.7);
+  lens.fill(1, 0, 3); // vertex 0 is the centre
+  disc.setAttribute('color', new Float32BufferAttribute(lens, 3));
+  const lamps = new InstancedMesh(disc, new MeshBasicMaterial({ vertexColors: true }), COUNTDOWN_STEPS);
+  lamps.name = 'start-lamps';
+  const place = new Matrix4();
+  for (let k = 0; k < COUNTDOWN_STEPS; k++) { const p = lampAt(k); lamps.setMatrixAt(k, place.makeTranslation(p[0], p[1], p[2])); }
+  setStartLamps(lamps, -Infinity);
+  m.add(lamps);
   return m;
 }
