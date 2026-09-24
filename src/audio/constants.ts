@@ -30,6 +30,14 @@ export const AUDIO = Object.freeze({
   aiEngines: 3,
   /** the recorded engine (samples.ts): loop levels by throttle and boost, the drift screech, a near rival */
   engineLoop: Object.freeze({ base: 0.15, throttle: 0.22, boost: 0.08, screech: 0.4, other: 0.18 }),
+  /** the off-road rumble under the player's wheels (dirt, mud) at top speed: the recorded loop, the synth noise and its low-pass (Hz) */
+  offroad: Object.freeze({ loop: 0.35, synth: 0.09, synthHz: 320 }),
+  /** the pause menu: the music drops to this share of its level behind this low-pass (Hz), over `seconds` */
+  pause: Object.freeze({ music: 0.3, hz: 1200, seconds: 0.15 }),
+  /** the race song fades this fast when the player crosses the line, so the finish sting plays alone */
+  finishFade: 0.25,
+  /** the drift spark tiers' zaps (blue, orange, purple) also climb in pitch: two semitones, then four */
+  tierRates: Object.freeze([1, 1.12, 1.26]),
   master: 0.9,
   /** the worst place that still earns the finish fanfare outside a Knockout (the podium) */
   podium: 3,

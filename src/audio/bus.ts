@@ -1,5 +1,5 @@
 // One AudioContext, created and resumed on the first user gesture (Safari and Chrome both need
-// it). Graph: sfx → master; music → low-pass (the hit duck) → master; master → compressor → out.
+// it). Graph: sfx → master; music → low-pass (the hit duck, the pause) → master; master → compressor → out.
 import { AUDIO } from './constants.ts';
 
 export interface Volumes { master: number; music: number; sfx: number }
@@ -77,6 +77,7 @@ export class AudioBus {
     sfx.connect(master);
     Object.assign(this, { ctx, master, music, sfx, musicFilter: lp });
     this.setVolumes(this.volumes);
+    if (this.paused) this.setPaused(true);
   }
 
   setVolumes(v: Volumes): void {
@@ -84,7 +85,7 @@ export class AudioBus {
     if (!this.ctx) return;
     const g = busGains(v), t = this.ctx.currentTime;
     this.master!.gain.setTargetAtTime(g.master, t, 0.03);
-    this.music!.gain.setTargetAtTime(g.music, t, 0.03);
+    this.music!.gain.setTargetAtTime(g.music * (this.paused ? AUDIO.pause.music : 1), t, 0.03);
     this.sfx!.gain.setTargetAtTime(g.sfx, t, 0.03);
   }
 
@@ -96,6 +97,22 @@ export class AudioBus {
     f.frequency.cancelScheduledValues(t);
     f.frequency.setValueAtTime(AUDIO.duckHz, t);
     f.frequency.setTargetAtTime(AUDIO.openHz, t + AUDIO.duckSeconds * 0.4, AUDIO.duckSeconds * 0.4);
+  }
+
+  private paused = false;
+
+  /**
+   * The pause menu: the music drops back behind a low-pass, as in the classics, and comes back on
+   * resume. The sound effects bus stays open for the menu's clicks.
+   */
+  setPaused(on: boolean): void {
+    this.paused = on;
+    const ctx = this.ctx, f = this.musicFilter;
+    if (!ctx || !f) return;
+    const t = ctx.currentTime, k = AUDIO.pause.seconds / 3;
+    this.music!.gain.setTargetAtTime(busGains(this.volumes).music * (on ? AUDIO.pause.music : 1), t, k);
+    f.frequency.cancelScheduledValues(t);
+    f.frequency.setTargetAtTime(on ? AUDIO.pause.hz : AUDIO.openHz, t, k);
   }
 
   /** Tab hidden → suspend; visible → resume (only after a gesture has unlocked it). */

@@ -1,7 +1,9 @@
 // Every recorded sound and song in the game, with the exact ElevenLabs prompt that made it.
 // This file is the provenance record for CREDITS.md: change a prompt, remake the file.
 // Ids match src/audio/types.ts SfxId (sound effects) and the music ids in src/audio/samples.ts.
-// Rules: original sounds only, no franchise names, no voices or words.
+// Rules: original sounds only, no franchise names, no voices or words. No human voice at all:
+// no crowd, cheer, chant or shout (the racers' own yelps and horns are creature and toy noises).
+// Every song is instrumental: its prompt says so and every request forces it (songBody).
 
 export interface SfxSpec {
   id: string;
@@ -69,9 +71,12 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'geyser', seconds: 1.8, prompt: `A geyser erupting: a sudden powerful whoosh of water blasting straight up, then a hissing spray raining down. ${CARTOON}` },
   { id: 'steamVent', seconds: 1.8, prompt: `A steam vent in the snow blasting open: a sharp loud hiss and roar of steam shooting skyward, then fading. ${CARTOON}` },
   // the loop-the-loop (kart-controller loop.ts): the ride round the neon ring
-  { id: 'loop', seconds: 2.4, prompt: `A small go-kart racing round a roller-coaster loop: a rising whoosh up and over, a rattling track, and a crowd going "woooah!" at the top. ${CARTOON}` },
+  // (remade 24 Sept 2026: the first asked for a crowd shouting at the top)
+  { id: 'loop', seconds: 2.4, prompt: `A small go-kart racing round a roller-coaster loop: a rising whoosh up and over, a rattling coaster track and a bright rising whistle at the top. ${CARTOON}` },
   { id: 'clawDrop', seconds: 0.8, prompt: `A toy claw opening and dropping a small go-kart onto a road: a springy metal clack and a soft rubbery bump. ${CARTOON}` },
   { id: 'hit', seconds: 0.8, prompt: `A go-kart getting bonked by a thrown toy: bouncy boing with a small plastic crash. ${CARTOON}` },
+  // your own item landed on a rival, however far ahead (the attacker's payoff)
+  { id: 'hitConfirm', seconds: 0.7, prompt: 'A satisfying cartoon score sound when your thrown toy hits a rival far away: a punchy rubbery thwack and a bright two-note chime going up. Short. No music, no voice.' },
   { id: 'spin', seconds: 1.3, prompt: `A go-kart spinning out: a descending slide whistle over a short tyre squeal. ${CARTOON}` },
   // boosts: the drift tiers grow
   { id: 'boost1', seconds: 0.7, prompt: 'A short small turbo boost for a toy go-kart: one quick jet whoosh burst. No music, no voice.' },
@@ -80,7 +85,11 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'boostPad', seconds: 0.9, prompt: 'A go-kart driving over a glowing speed boost pad: an electric zap and a fast rising whoosh. Arcade style. No music, no voice.' },
   { id: 'boostTrick', seconds: 0.8, prompt: `A stylish mid-air trick: quick sparkling swoosh with a twinkle chime. ${CARTOON}` },
   { id: 'boostStart', seconds: 1.2, prompt: 'A perfect rocket start in a kart race: a sharp small engine rev, then a turbo whoosh launching forward. No music, no voice.' },
+  { id: 'slipstream', seconds: 1, prompt: "A go-kart slingshotting out of another kart's slipstream: a rushing wind whoosh that swells and snaps forward past the listener, airy and fast. No music, no voice." },
+  // the drift spark tiers (blue, orange, purple): each a bigger, higher zap than the last
   { id: 'tierUp', seconds: 0.5, influence: 0.5, prompt: 'A tiny crackling electric spark: one short bright sizzle zap. No music, no voice.' },
+  { id: 'tierUp2', seconds: 0.6, influence: 0.5, prompt: 'A bright crackling electric spark charging up: a quick sizzle zap with a short rising fizz, bigger and higher than a tiny spark. No music, no voice.' },
+  { id: 'tierUp3', seconds: 0.8, influence: 0.5, prompt: 'A powerful electric spark surging to full charge: a sharp crackling zap, a fast rising sizzle and a sparkly shimmer on top. Short. No music, no voice.' },
   // driving
   { id: 'hop', seconds: 0.5, prompt: `A small springy hop of a go-kart: light boing with a quick suspension creak. ${CARTOON}` },
   { id: 'land', seconds: 0.6, prompt: 'A go-kart landing on asphalt after a small jump: a solid rubbery thump with a tyre chirp. No music, no voice.' },
@@ -117,6 +126,8 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'engine-mid', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine running steadily at medium RPM. Continuous and even, no gear changes, no revving, no other sounds.' },
   { id: 'engine-high', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine held at high RPM, full throttle, a steady continuous buzzing whine. Even, no gear changes, no other sounds.' },
   { id: 'drift', seconds: 3, loop: true, prompt: 'The continuous tyre screech of a go-kart drifting sideways on asphalt. Steady and even, no engine, no other sounds.' },
+  // under the wheels off the road (dirt and mud surfaces)
+  { id: 'offroad', seconds: 3, loop: true, prompt: 'The continuous rumble of small go-kart tires rolling fast over grass and loose dirt: a rough crunchy gravel rumble with light pebble rattles. Steady and even, no engine, no other sounds.' },
 ];
 
 const SONG_TAIL = 'Constant driving energy from the first second, no intro, no fade-out, so it loops. Instrumental, no vocals.';
@@ -131,6 +142,19 @@ export const SONGS: readonly SongSpec[] = [
   { id: 'race-finale', seconds: 96, bpm: 160, prompt: `Soaring orchestral-pop racing music for the final track of a cartoon kart racing cup. A heroic brass fanfare melody, fast sweeping strings, harp runs, timpani hits, driving rock drums and electric bass. 160 BPM, E-flat major. Epic, triumphant and fun. ${SONG_TAIL}` },
   { id: 'results', seconds: 32, bpm: 100, prompt: 'A short happy results-screen loop for a cartoon kart racing game. A relaxed funky groove: electric piano, muted brass accents, bass, finger snaps and light drums. 100 BPM, C major. Warm and cheerful, and it ends as it began, so it loops. Instrumental, no vocals.' },
 ];
+
+/** The sound-effect request generate.ts sends. */
+export function sfxBody(s: SfxSpec): { text: string; duration_seconds: number; prompt_influence: number; loop: boolean; model_id: string } {
+  return { text: s.prompt, duration_seconds: s.seconds, prompt_influence: s.influence ?? 0.35, loop: s.loop ?? false, model_id: 'eleven_text_to_sound_v2' };
+}
+
+/**
+ * The song request generate.ts sends. Always instrumental: the flag is in the type, so no song can
+ * be made with singing (Adam, 24 Sept 2026: no singing or vocals in any song).
+ */
+export function songBody(s: SongSpec, model: string): { prompt: string; music_length_ms: number; model_id: string; force_instrumental: true } {
+  return { prompt: s.prompt, music_length_ms: s.seconds * 1000, model_id: model, force_instrumental: true };
+}
 
 /** File name for an id: colons are not safe in file names on every system. */
 export const fileFor = (id: string): string => `${id.replace(/:/g, '-')}.mp3`;

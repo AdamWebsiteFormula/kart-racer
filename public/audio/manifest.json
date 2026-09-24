@@ -138,6 +138,9 @@
   "hit": {
    "url": "audio/sfx/hit.mp3"
   },
+  "hitConfirm": {
+   "url": "audio/sfx/hitConfirm.mp3"
+  },
   "spin": {
    "url": "audio/sfx/spin.mp3"
   },
@@ -159,8 +162,17 @@
   "boostStart": {
    "url": "audio/sfx/boostStart.mp3"
   },
+  "slipstream": {
+   "url": "audio/sfx/slipstream.mp3"
+  },
   "tierUp": {
    "url": "audio/sfx/tierUp.mp3"
+  },
+  "tierUp2": {
+   "url": "audio/sfx/tierUp2.mp3"
+  },
+  "tierUp3": {
+   "url": "audio/sfx/tierUp3.mp3"
   },
   "hop": {
    "url": "audio/sfx/hop.mp3"
@@ -257,6 +269,10 @@
   },
   "drift": {
    "url": "audio/sfx/drift.mp3",
+   "loop": true
+  },
+  "offroad": {
+   "url": "audio/sfx/offroad.mp3",
    "loop": true
   }
  },

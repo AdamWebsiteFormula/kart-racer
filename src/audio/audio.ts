@@ -5,15 +5,15 @@ import type { RaceEvent } from '../race-manager/types.ts';
 import { AudioBus, type Volumes } from './bus.ts';
 import { AUDIO } from './constants.ts';
 import { direct, hornFor, resetDirector, type Listener } from './director.ts';
-import { engineHz, rpmFor } from './engine.ts';
+import { engineHz, offroadAmount, rpmFor } from './engine.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
-import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, themeForTrack } from './samples.ts';
-import { PATCHES, playPatch } from './sfx.ts';
+import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack } from './samples.ts';
+import { noiseBuffer, PATCHES, playPatch } from './sfx.ts';
 import type { Cue, MusicCue, SfxId, SongId } from './types.ts';
 
-interface EngineVoice { o1: OscillatorNode; o2: OscillatorNode; lp: BiquadFilterNode; gain: GainNode; scrub: GainNode; pan: StereoPannerNode | null }
+interface EngineVoice { o1: OscillatorNode; o2: OscillatorNode; lp: BiquadFilterNode; gain: GainNode; scrub: GainNode; rumble: GainNode | null; pan: StereoPannerNode | null }
 
 export class GameAudio {
   readonly bus: AudioBus;
@@ -38,6 +38,10 @@ export class GameAudio {
   private jitter = 0x9e3779b9;
   private lastHorn = false;
   private watching = false;
+  /** context time the finish sting ends: the results song waits for it */
+  private stingEnds = 0;
+  /** the synth off-road rumble, when the engines are recorded but the rumble loop is not */
+  private rumble: GainNode | null = null;
 
   constructor(bus = new AudioBus(), bank = new SampleBank()) {
     this.bus = bus;
@@ -72,9 +76,12 @@ export class GameAudio {
 
   setVolumes(v: Volumes): void { this.bus.setVolumes(v); }
 
+  /** The pause menu opened or closed: the music drops back under it (the engines go quiet on their own). */
+  pause(on: boolean): void { this.bus.setPaused(on); }
+
   /**
    * Switch songs: the recording `key` when there is one, else the synth `song`. Queued until the
-   * context is unlocked.
+   * context is unlocked. The results song waits for the finish sting's last chord.
    */
   play(song: SongId | null, key: string | null = song): void {
     this.wantSong = song;
@@ -82,29 +89,48 @@ export class GameAudio {
     this.awaitGo = false;
     const ctx = this.bus.ctx;
     if (!ctx || !this.bus.running) return;
+    const after = song === 'results' ? this.stingEnds : 0;
     if (key && this.bank.hasSong(key)) {
       this.seq = null;
       this.songId = null;
-      if (this.songKey !== key) this.startSong(ctx, key);
+      if (this.songKey !== key) this.startSong(ctx, key, after);
       return;
     }
     this.stopSong();
     if (song === this.songId && this.seq) return;
     this.songId = song;
-    this.seq = song ? new Sequencer(SONGS[song], ctx.currentTime + 0.1) : null;
+    this.seq = song ? new Sequencer(SONGS[song], Math.max(ctx.currentTime + 0.1, after)) : null;
   }
 
-  private startSong(ctx: AudioContext, key: string): void {
+  /** Start the recording `key`, not before context time `after`. */
+  private startSong(ctx: AudioContext, key: string, after = 0): void {
     this.songKey = key;
     this.song ??= new SongPlayer(ctx, this.bus.music!);
     this.song.stop(ctx.currentTime, 0.3);
     void this.bank.song(ctx, key).then((s) => {
       if (this.songKey !== key) return; // another song was asked for while this one decoded
-      if (s) { this.song!.start(s, ctx.currentTime + 0.05); return; }
+      if (s) { this.song!.start(s, Math.max(ctx.currentTime + 0.05, after)); return; }
       // it would not decode: the synth plays instead
       this.songKey = null;
-      if (this.wantSong) { this.songId = this.wantSong; this.seq = new Sequencer(SONGS[this.wantSong], ctx.currentTime + 0.1); }
+      if (this.wantSong) { this.songId = this.wantSong; this.seq = new Sequencer(SONGS[this.wantSong], Math.max(ctx.currentTime + 0.1, after)); }
     });
+  }
+
+  /**
+   * The player crossed the line: the race song fades out so the sting plays alone (the classic
+   * finish), and nothing brings it back (a late decode, the recordings arriving). The results
+   * song starts after the sting (`play`).
+   */
+  private finish(win: boolean): void {
+    const t = this.bus.time;
+    this.stingEnds = t + (win ? STING_SECONDS.finish : STING_SECONDS.finishLow);
+    if (this.songKey) this.song?.stop(t, AUDIO.finishFade);
+    this.songKey = null;
+    this.seq = null;
+    this.songId = null;
+    this.wantSong = null;
+    this.wantKey = null;
+    this.awaitGo = false;
   }
 
   private stopSong(): void {
@@ -119,6 +145,7 @@ export class GameAudio {
    */
   newRace(song: SongId, trackId?: string, gridRank?: number, finishLine?: number): void {
     resetDirector(gridRank, finishLine);
+    this.stingEnds = 0;
     this.songId = null;
     const key = trackId ? themeForTrack(trackId) : song;
     if (this.bank.hasSong(key)) {
@@ -146,11 +173,12 @@ export class GameAudio {
     }
   }
 
-  sfx(id: SfxId, gain = 1, pan = 0): void {
+  /** One sound now; `pitch` scales its playback rate on top of the jitter. */
+  sfx(id: SfxId, gain = 1, pan = 0, pitch = 1): void {
     const ctx = this.bus.ctx;
     if (!ctx || !this.bus.running) return;
     this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
-    const rate = 1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter;
+    const rate = pitch * (1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter);
     const s = this.bank.get(id);
     if (s) playSample(ctx, this.bus.sfx!, s, ctx.currentTime + 0.005, gain * mixLevel(id), pan, rate);
     else playPatch(ctx, this.bus.sfx!, PATCHES[id], ctx.currentTime + 0.005, gain, pan, rate);
@@ -164,7 +192,7 @@ export class GameAudio {
   tick(race: readonly RaceEvent[], items: readonly ItemEvent[], l: Listener): void {
     if (!this.bus.running) return;
     const { cues, music } = direct(race, items, l, this.cues, this.music);
-    for (const c of cues) this.sfx(c.sfx, c.gain, c.pan);
+    for (const c of cues) this.sfx(c.sfx, c.gain, c.pan, c.rate);
     for (const m of music) {
       if (m.type === 'finalLap') {
         if (this.songKey) this.song?.lift(this.bus.time); else this.seq?.lift(this.bus.time);
@@ -172,6 +200,7 @@ export class GameAudio {
         if (m.on && this.awaitGo && this.wantKey && this.bus.ctx) { this.awaitGo = false; this.startSong(this.bus.ctx, this.wantKey); }
         else if (this.seq) this.seq.drums = m.on;
       } else if (m.type === 'duck') this.bus.duck();
+      else if (m.type === 'finish') this.finish(m.win);
     }
   }
 
@@ -209,6 +238,7 @@ export class GameAudio {
     o1.start(); o2.start();
     const scrub = ctx.createGain();
     scrub.gain.value = 0;
+    const rumble = panned ? null : this.rumbleVoice(ctx);
     if (!panned) {
       const n = ctx.createBufferSource();
       n.buffer = (() => { const b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = b.getChannelData(0); let x = 7; for (let i = 0; i < d.length; i++) { x = (x * 1664525 + 1013904223) >>> 0; d[i] = x / 0x80000000 - 1; } return b; })();
@@ -220,7 +250,22 @@ export class GameAudio {
       n.connect(bp).connect(scrub).connect(this.bus.sfx!);
       n.start();
     }
-    return { o1, o2, lp, gain, scrub, pan };
+    return { o1, o2, lp, gain, scrub, rumble, pan };
+  }
+
+  /** The synth off-road rumble: looped noise under a low-pass, silent until the wheels leave the road. */
+  private rumbleVoice(ctx: AudioContext): GainNode {
+    const n = ctx.createBufferSource();
+    n.buffer = noiseBuffer(ctx);
+    n.loop = true;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = AUDIO.offroad.synthHz;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    n.connect(lp).connect(g).connect(this.bus.sfx!);
+    n.start();
+    return g;
   }
 
   /**
@@ -238,6 +283,7 @@ export class GameAudio {
     if (!on || !player) {
       pv.gain.gain.setTargetAtTime(0, t, 0.08);
       pv.scrub.gain.setTargetAtTime(0, t, 0.08);
+      pv.rumble?.gain.setTargetAtTime(0, t, 0.08);
       for (const v of this.ai) v.gain.gain.setTargetAtTime(0, t, 0.08);
       return;
     }
@@ -250,6 +296,7 @@ export class GameAudio {
     pv.gain.gain.setTargetAtTime(0.05 + 0.07 * throttle + (boosting ? 0.04 : 0), t, 0.05);
     const slip = Math.min(1, Math.abs(player.lateralVelocity) / 6) * (player.grounded ? 1 : 0);
     pv.scrub.gain.setTargetAtTime(player.drift.active ? 0.04 + 0.08 * slip : 0.06 * Math.max(0, slip - 0.4), t, 0.05);
+    pv.rumble?.gain.setTargetAtTime(AUDIO.offroad.synth * offroadAmount(player, topSpeed), t, 0.05);
 
     const near = this.nearest(player, others, l);
     this.ai.forEach((v, i) => {
@@ -294,21 +341,26 @@ export class GameAudio {
     if (!idle || !mid || !high) return false;
     const t = ctx.currentTime, L = AUDIO.engineLoop;
     if (!this.loopPlayer) {
-      this.loopPlayer = new LoopEngine(ctx, this.bus.sfx!, [idle, mid, high], this.bank.get('drift'), false);
+      this.loopPlayer = new LoopEngine(ctx, this.bus.sfx!, [idle, mid, high], this.bank.get('drift'), false, this.bank.get('offroad'));
+      // no recorded rumble: the synth one stands in
+      if (!this.loopPlayer.hasRumble) this.rumble = this.rumbleVoice(ctx);
       for (let i = 0; i < AUDIO.aiEngines; i++) this.loopAi.push(new LoopEngine(ctx, this.bus.sfx!, [mid], undefined, true));
       // the synth voices, if they ran before the recordings arrived, go quiet
-      if (this.player) { this.player.gain.gain.setTargetAtTime(0, t, 0.05); this.player.scrub.gain.setTargetAtTime(0, t, 0.05); }
+      if (this.player) { this.player.gain.gain.setTargetAtTime(0, t, 0.05); this.player.scrub.gain.setTargetAtTime(0, t, 0.05); this.player.rumble?.gain.setTargetAtTime(0, t, 0.05); }
       for (const v of this.ai) v.gain.gain.setTargetAtTime(0, t, 0.05);
     }
     if (!on || !player) {
       this.loopPlayer.set(t, AUDIO.idleRpm, 0);
+      this.rumble?.gain.setTargetAtTime(0, t, 0.05);
       for (const v of this.loopAi) v.set(t, AUDIO.idleRpm, 0);
       return true;
     }
     const boosting = player.boost.remaining > 0;
     const slip = Math.min(1, Math.abs(player.lateralVelocity) / 6) * (player.grounded ? 1 : 0);
     const screech = player.drift.active ? 0.35 + 0.65 * slip : 0.5 * Math.max(0, slip - 0.4);
-    this.loopPlayer.set(t, rpmFor(player.speed, topSpeed, boosting), L.base + L.throttle * throttle + (boosting ? L.boost : 0), screech * L.screech);
+    const off = offroadAmount(player, topSpeed);
+    this.loopPlayer.set(t, rpmFor(player.speed, topSpeed, boosting), L.base + L.throttle * throttle + (boosting ? L.boost : 0), screech * L.screech, 0, off * AUDIO.offroad.loop);
+    this.rumble?.gain.setTargetAtTime(off * AUDIO.offroad.synth, t, 0.05);
     const near = this.nearest(player, others, l);
     this.loopAi.forEach((v, i) => {
       const k = near[i], d = this.nearD[i];
