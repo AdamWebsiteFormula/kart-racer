@@ -8,7 +8,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { simTick } from '../game/simtick.ts';
 import { decodeLog, encodeLog, quantize } from './inputlog.ts';
-import { CLIENT_VERSION, checkSubmission, cleanName, DAILY_GRACE_MINUTES, dailySeed, dailyTrack, ipBucket, soloConfig, type BoardMode } from './rules.ts';
+import { CLIENT_VERSION, checkSubmission, cleanName, DAILY_GRACE_MINUTES, dailySeed, dailyTrack, ipBucket, restartConfig, soloConfig, type BoardMode } from './rules.ts';
 import { CLAIM_TOLERANCE_MS, verifyRun } from './verify.ts';
 
 const TRACKS = Object.fromEntries(Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>).map((d) => [d.id, d]));
@@ -80,10 +80,42 @@ describe('submission rules', () => {
     expect(checkSubmission({ ...d, trackId: IDS.find((x) => x !== track) }, IDS, seed)).not.toBeNull();
     expect(dailyTrack(seed, [...IDS].reverse())).toBe(track); // order-proof
   });
+  it('a restarted Daily is today\'s race: the old day\'s would be refused after midnight UTC (bug hunt 3)', () => {
+    const yesterday = soloConfig('daily', dailyTrack(20260924, IDS), 'pip', 20260924);
+    const again = restartConfig(yesterday, IDS, 20260925);
+    expect(again).toEqual(soloConfig('daily', dailyTrack(20260925, IDS), 'pip', 20260925));
+    expect(again.trackId).not.toBe(yesterday.trackId);
+    const post = (c: { seed: number; trackId: string }) => checkSubmission({ ...good, mode: 'daily', dailySeed: c.seed, trackId: c.trackId }, IDS, 20260925, DAILY_GRACE_MINUTES + 1);
+    expect(post(yesterday)).toBe('that daily challenge is closed');
+    expect(post(again)).toBeNull();
+    // everything else restarts exactly as it was
+    const tt = soloConfig('timeTrial', 'harbour-loop', 'pip', 0);
+    expect(restartConfig(tt, IDS, 20260925)).toBe(tt);
+  });
   it('the word filter sees through spacing and leetspeak but passes normal names', () => {
     expect(cleanName('Rascal_Racer')).toBe(true);
     expect(cleanName('F U C K')).toBe(false);
     expect(cleanName('b1tch')).toBe(false);
+  });
+  it('the word filter passes ordinary names and tags that hold a short rude word inside them (bug hunt 3)', () => {
+    for (const name of [
+      'Dickson', 'Dickens', 'Hancock', 'Peacock', 'Hitchcock', 'Babcock', 'Cockpit', 'Cockburn', 'Nazim', 'Nazir', 'Anna Zim',
+      'Grape', 'Grapefruit', 'Draper', 'Don Draper', 'Skyscraper', 'Therapist', 'Fagan', 'Swanky', 'Wade Swanky', 'Atwater',
+      'Josh17', 'Ash17', 'Josh Ito', 'Smash It', 'Crush It', 'Push It', 'Matsushita', 'Yoshito', 'Mike Shitara', 'Adam', 'Judge', 'Dixon',
+    ]) {
+      expect(cleanName(name), name).toBe(true);
+      expect(checkSubmission({ ...good, name }, IDS), name).toBeNull();
+    }
+  });
+  it('and still refuses the words themselves, spaced out, in leetspeak, with digits, plural or camelCase', () => {
+    for (const name of [
+      'shit', 'Sh1t', '5hit', 'shit1', 'S H I T', 'S-H-I-T', 'sh1t head', 'ShitHead', 'shithead', 'Shitty', 'Dick', 'D I C K', 'dicks', 'BigDick',
+      'dickhead', 'Dick Head', 'c0ck', 'Cocks', 'fag', 'faggot', 'N4zi', 'Nazi88', 'N A Z I', 'rape', 'wank', 'wanker', 'twat', 'slut',
+      'xXfuckXx', 'fuckface', 'FU CK', 'cunt', 'whore', 'retard', 'hitler', 'b1tch',
+    ]) {
+      expect(cleanName(name), name).toBe(false);
+      expect(checkSubmission({ ...good, name }, IDS), name).toBe('please pick another name');
+    }
   });
 });
 

@@ -85,11 +85,12 @@ Deno.serve(async (req) => {
   if (!ins.ok) return json(500, { error: 'could not save the score' });
   const [saved] = await ins.json();
 
-  // where it placed on its board (best per name, as the board shows it)
+  // where the name placed on its board: the board keeps each name's best run, which may be an
+  // earlier one (bestId, bestMs), so look for the name, not for this run
   const board = await rest('rpc/get_leaderboard', {
     method: 'POST', body: JSON.stringify({ p_track_id: row.track_id, p_mode: mode, p_daily_seed: row.daily_seed, p_limit: 50 }),
   });
-  const rows = board.ok ? (await board.json()) as { id: string }[] : [];
-  const rank = rows.findIndex((r) => r.id === saved.id) + 1;
-  return json(201, { id: saved.id, timeMs: saved.time_ms, rank: rank > 0 ? rank : null });
+  const rows = board.ok ? (await board.json()) as { id: string; name: string; time_ms: number }[] : [];
+  const at = rows.findIndex((r) => r.name === row.name);
+  return json(201, { id: saved.id, timeMs: saved.time_ms, rank: at >= 0 ? at + 1 : null, bestId: rows[at]?.id ?? null, bestMs: rows[at]?.time_ms ?? null });
 });
