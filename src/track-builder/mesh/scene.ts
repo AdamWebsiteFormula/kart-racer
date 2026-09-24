@@ -12,7 +12,7 @@ import { BUILDER } from '../constants.ts';
 import type { Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
-import { hashString, mulberry32, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
+import { hashString, mulberry32, Occupancy, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
 import { CreatureView } from './creatures.ts';
 import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
@@ -457,13 +457,14 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const rng = mulberry32(hashString(def.id));
   const decor: DecorPlacement[] = [];
   const toMerge: { item: MergeItem; far: boolean }[] = [];
+  const occupied = new Occupancy();
   for (const entry of env.decor ?? []) {
     const geo = geometryFor(assets, entry.asset, 'decor');
     // how far the prop reaches from its centre across the ground: a roadside one stands clear of where karts drive
     if (!geo.boundingBox) geo.computeBoundingBox();
     const bb = geo.boundingBox!, footprint = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z, 0);
     const extent = { across: Math.max(-bb.min.x, bb.max.x, 0), along: Math.max(-bb.min.z, bb.max.z, 0) };
-    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent);
+    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, occupied);
     decor.push(p);
     // a code-built prop marked `merge` joins the merged dressing: no instancer of its own
     if (entry.merge && geo.hasAttribute('color') && !assets.materials?.[entry.asset]) {

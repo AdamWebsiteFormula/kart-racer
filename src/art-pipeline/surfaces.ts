@@ -98,6 +98,37 @@ function texture(file: string): Texture {
   return t;
 }
 
+/**
+ * Frostbite's snow (detail review, 24 Sept 2026: "flat pure white"): soft blue hollows, wind ripples
+ * and a glint of sparkle near the camera, in world space on the ground plane and on the land under
+ * the road alike, so the two meet with no seam. Same draw calls, same textures.
+ */
+const SNOW_PARS = `varying vec3 vSnowW;
+float snowHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float snowNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(snowHash(i), snowHash(i + vec2(1.0, 0.0)), u.x), mix(snowHash(i + vec2(0.0, 1.0)), snowHash(i + vec2(1.0, 1.0)), u.x), u.y);
+}`;
+const SNOW_FRAG = `{
+  vec2 w = vSnowW.xz;
+  float view = length(cameraPosition.xz - w);
+  // soft blue hollows and drifts, two sizes
+  float n = snowNoise(w * 0.028) * 0.65 + snowNoise(w * 0.085 + 7.0) * 0.35;
+  diffuseColor.rgb *= mix(vec3(1.0), vec3(0.58, 0.71, 0.97), smoothstep(0.4, 0.72, n) * 0.85);
+  // wind ripples: thin cool shadow lines across the wind, bent by the drifts, fading with distance
+  float ripple = sin(dot(w, vec2(0.83, 0.55)) * 1.25 + snowNoise(w * 0.05) * 6.0);
+  diffuseColor.rgb *= 1.0 - 0.22 * smoothstep(0.55, 0.97, ripple) * (1.0 - smoothstep(30.0, 110.0, view)) * vec3(1.0, 0.7, 0.3);
+  // sparkle: a few ice glints near the camera, bright enough for the bloom
+  vec2 cell = floor(w * 2.2), f = fract(w * 2.2) - 0.5;
+  float glint = step(0.986, snowHash(cell)) * (1.0 - smoothstep(0.04, 0.1, length(f))) * (1.0 - smoothstep(12.0, 40.0, view));
+  totalEmissiveRadiance += vec3(0.85, 0.93, 1.0) * glint * 1.4;
+}`;
+/** Add the snow to a toon material's shader (it needs `transformed` and `totalEmissiveRadiance`). */
+function snowShader(shader: { vertexShader: string; fragmentShader: string }): void {
+  shader.vertexShader = `varying vec3 vSnowW;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSnowW = (modelMatrix * vec4(transformed, 1.0)).xyz;')}`;
+  shader.fragmentShader = `${SNOW_PARS}\n${shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${SNOW_FRAG}`)}`;
+}
+
 const groundCache = new Map<string, Material>();
 /**
  * The ground under a track: water for the sea tracks, a painted texture for the land ones, or
@@ -114,6 +145,10 @@ export function groundMaterial(biome: string, kind: string, size: number): Mater
     const t = texture(g.file);
     t.repeat.set(size / g.metres, size / g.metres);
     m = new MeshToonMaterial({ color: 0xffffff, map: t, gradientMap: toonRamp() });
+    if (biome === 'frost') {
+      m.onBeforeCompile = snowShader;
+      m.customProgramCacheKey = () => 'ground-snow';
+    }
     m.userData.shared = true;
     groundCache.set(key, m);
   }
@@ -214,6 +249,7 @@ export function coastMaterial(biome: string): Material | undefined {
             '  diffuseColor.rgb *= mix(topTexel, sandTexel, smoothstep(0.0, 1.0, vBlend));',
           ].join('\n'),
         );
+      if (biome === 'frost') snowShader(shader);
     };
     mat.customProgramCacheKey = () => `coast-${biome}`;
     mat.userData.shared = true;

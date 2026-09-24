@@ -158,7 +158,7 @@ describe('the dressing models', () => {
       expect(g.hasAttribute('color'), name).toBe(true);
       expect(b.min.y, name).toBeLessThanOrEqual(0.02);
       // repeated by the hundred: small; set-pieces and spans (a handful a track) a little more
-      expect(g.index!.count / 3, name).toBeLessThan(/bunting|span|falls/.test(name) ? 800 : 400);
+      expect(g.index!.count / 3, name).toBeLessThan(/bunting|span|falls|cliff|pond/.test(name) ? 950 : 400);
       if (/bunting|span/.test(name)) {
         expect(Math.max(-b.min.x, b.max.x), name).toBeCloseTo(SPAN_HALF, 0);
         expect(b.min.y, name).toBeLessThan(-2.5);

@@ -225,7 +225,7 @@ describe('decor and barriers', () => {
           const a = (k / 8) * Math.PI * 2, px = k < 0 ? x : x + Math.cos(a) * r, pz = k < 0 ? z : z + Math.sin(a) * r;
           rc.set(new Vector3(px, y + 50, pz), new Vector3(0, -1, 0));
           const under = rc.intersectObjects(ground, false)[0]?.point.y ?? -Infinity;
-          if (y - under > 1) { bad++; where ||= `${p.asset} ${i} at (${x.toFixed(1)}, ${y.toFixed(2)}, ${z.toFixed(1)}): ground ${under.toFixed(2)} under its footprint`; break; }
+          if (y - under > (entry.footing === 'sink' ? 3.5 : 1)) { bad++; where ||= `${p.asset} ${i} at (${x.toFixed(1)}, ${y.toFixed(2)}, ${z.toFixed(1)}): ground ${under.toFixed(2)} under its footprint`; break; }
         }
       }
     });

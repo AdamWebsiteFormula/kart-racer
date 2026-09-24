@@ -103,7 +103,8 @@ export interface DecorEntry {
   asset: string;
   instances: number;
   band: DecorBand;
-  footing?: 'pier';
+  /** pier: out at sea on its own pier; sink: a set-piece whose foundation reaches 3.5 m down, so it may stand on a slope */
+  footing?: 'pier' | 'sink';
   /** metres above its band's ground (a model centred on its middle, like a hazard's, sits on the ground with lift = its radius) */
   lift?: number;
   layout?: 'scatter' | 'row' | 'span';
@@ -116,6 +117,8 @@ export interface DecorEntry {
   dist?: [number, number];
   scale?: [number, number];
   merge?: boolean;
+  /** span: grow the piece whole to the road's width instead of stretching it across (a rock arch) */
+  keepShape?: boolean;
 }
 
 export interface EnvironmentDef {

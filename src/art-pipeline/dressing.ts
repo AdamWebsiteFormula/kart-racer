@@ -298,19 +298,21 @@ export const DRESSING_MODELS: Record<string, { build: Build }> = {
     },
   },
   cliff: {
-    // a 22 m stretch of banded canyon wall along Z (local -X faces the road), boulders at its foot
+    // a 22 m stretch of canyon wall along Z (local -X faces the road), in the language of the banded
+    // mesas: long rounded strata of sandstone, each one stepping out (a ledge, an overhang) or in from
+    // the one under it, eroded domes of uneven height along the top, boulders at the foot (detail
+    // review, 24 Sept 2026: the first cut read as stacked cubes, the second as stacked drums)
     build: (m) => {
-      const bands: Paint[] = [CLAY, CREAM, RUST, '#d9774f', CREAM, RUST];
-      const tops = [12, 14.5, 11, 13.5, 15, 12.5];
-      for (let i = 0; i < 6; i++) {
-        const z = -9.2 + i * 3.7, top = tops[i];
-        for (let b = 0; b < 4; b++) {
-          const y0 = (b * top) / 4, h = top / 4 + 0.3;
-          m.box([4 - b * 0.4, h, 4.2], bands[(b + i) % bands.length], [0.2 * b + (i % 2) * 0.3, y0 + h / 2 - 1.2, z], [0, (i % 3) * 0.05, 0], false);
-        }
-      }
-      m.rock(1.6, '#b8452f', [-2.6, 0.5, -4], [0.4, 0.2, 0.7]);
-      m.rock(1.2, '#d9734f', [-2.4, 0.3, 5], [0.2, 0.8, 0.1]);
+      const bands: [number, number, number, number, Paint][] = [
+        // y, half-height, depth across, lean toward the road
+        [0.6, 2.4, 3.4, 0, CLAY], [3.9, 1.5, 2.9, 0.3, CREAM], [6.4, 1.7, 3.3, -0.2, RUST], [9.0, 1.4, 2.8, 0.25, '#d9774f'], [11.2, 1.3, 3.1, -0.1, CREAM],
+      ];
+      bands.forEach(([y, hh, d, lean, c], i) => m.ball([d, hh, 11.6 - i * 0.35], c, [lean, y, (i % 2 ? 0.6 : -0.5)], [0, 0, 0], 9, false));
+      const tops: [number, number, number, Paint][] = [[-6.5, 13.6, 3.4, RUST], [-0.8, 15.2, 4.2, CLAY], [5.8, 13.0, 3.6, RUST]];
+      for (const [z, y, r, c] of tops) m.ball([2.5, y - 11, r], c, [0.1, 11.4, z], [0, 0, 0], 8, false);
+      m.rock(1.6, '#b8452f', [-3.4, 0.5, -6], [0.4, 0.2, 0.7]);
+      m.rock(1.1, '#d9734f', [-3.2, 0.3, 2.5], [0.2, 0.8, 0.1]);
+      m.rock(0.8, CREAM, [-2.9, 0.2, 7], [0.6, 0.3, 0.2]);
     },
   },
   'mine-track': {
@@ -421,6 +423,64 @@ export const DRESSING_MODELS: Record<string, { build: Build }> = {
         const x = Math.cos(a) * (SPAN_HALF - 3.6), y = 13 + Math.sin(a) * 3.4;
         m.rock(2.3, cols[(i + 1) % 4], [x, y, 0], [i * 0.5, i * 0.9, 0.3], [1.1, 0.85, 1.2]);
       }
+    },
+  },
+
+  // ---- Frostbite's long climb by the chairlift (detail review, 24 Sept 2026: sparse on the left)
+  'ski-lodge': {
+    // a big A-frame lodge: timber walls, a roof heaped with snow, a wall of warm windows, a stone chimney, a deck
+    build: (m) => {
+      m.box([9, 3.4, 7], '#a0703c', [0, 1.7, 0]);
+      m.box([9.4, 4.2, 7.4], '#8c96a8', [0, -1.9, 0], undefined, false);                    // a stone footing down the slope
+      m.cone(7.2, 7.5, '#6b3a2a', [0, 7.1, 0], [0, Math.PI / 4, 0], 4, false);
+      m.cone(6.6, 6.2, SNOW, [0, 7.9, 0], [0, Math.PI / 4, 0], 4, false);
+      // the gable end faces the road (-X): a diamond of lit glass under the roof
+      m.box([0.08, 2.6, 2.6], WARM_GLOW, [-4.55, 5.2, 0], [Math.PI / 4, 0, 0], false);
+      for (const z of [-2.2, 0, 2.2]) m.box([0.08, 1.6, 1.4], WARM_GLOW, [-4.53, 1.9, z], undefined, false);
+      m.box([1.6, 0.25, 7.4], '#7a5236', [-5.2, 0.4, 0], undefined, false);                // the deck
+      m.box([0.1, 0.8, 7.4], '#5a3a22', [-5.95, 0.9, 0], undefined, false);
+      m.box([1.7, 0.12, 7.5], SNOW, [-5.2, 0.58, 0], undefined, false);
+      m.box([1.6, 4, 7.4], '#8c96a8', [-5.2, -1.8, 0], undefined, false);
+      m.box([1.4, 9.5, 1.4], '#8c96a8', [2.8, 4.75, -2.6], undefined, false);                 // the chimney
+      m.box([1.6, 0.3, 1.6], SNOW, [2.8, 9.6, -2.6], undefined, false);
+      m.box([0.1, 0.9, 2.4], PINK, [-4.6, 4.2, 0], undefined, false);                        // a pink sign board, no words
+    },
+  },
+  'frozen-pond': {
+    // a frozen pond with an ice-fishing hut, a snow bank round it and a couple of fishing holes
+    build: (m) => {
+      m.ball([10, 0.5, 7], SNOW_SHADE, [0, 0, 0], undefined, 12, false);
+      m.ball([8.6, 0.42, 5.8], ICE_DEEP, [0, 0.12, 0], undefined, 12, false);
+      m.ball([7.4, 0.38, 4.8], ICE, [0.4, 0.18, -0.3], undefined, 12, false);
+      for (const [x, z] of [[-2.5, 1.5], [1.8, -1.9]] as const) m.cyl(0.5, 0.5, 0.06, '#2b3a55', [x, 0.56, z], undefined, 8, false);
+      m.box([2.2, 2.1, 2.6], '#e8384f', [3.4, 1.55, 1.2], [0, 0.4, 0], false);
+      m.cone(1.9, 1.1, SNOW, [3.4, 3.1, 1.2], [0, 0.4 + Math.PI / 4, 0], 4, false);
+      m.box([0.06, 1.2, 0.7], '#5a3a22', [2.35, 1.1, 0.8], [0, 0.4, 0], false);
+      m.box([0.5, 0.5, 0.06], WARM_GLOW, [4.0, 1.9, 2.45], [0, 0.4, 0], false);
+    },
+  },
+  'jump-tower': {
+    // a ski-jump tower beside the road: a tall timber trestle, a steep in-run down along the road to a
+    // pink lip, a flag on top (its legs reach 3.5 m down: it stands on a slope)
+    build: (m) => {
+      for (const [x, z] of [[-1.4, -7], [1.4, -7], [-1.4, -4], [1.4, -4]] as const) m.cyl(0.2, 0.26, 19.5, '#7a5236', [x, 6.25, z], undefined, 5, false);
+      for (const y of [4, 8, 12]) m.box([3.2, 0.2, 3.6], '#7a5236', [0, y, -5.5], undefined, false);
+      m.box([3.4, 1.2, 3.6], '#5a3a22', [0, 16.4, -5.5], undefined, false);                  // the start hut
+      m.cone(2.8, 1.6, SNOW, [0, 17.8, -5.5], [0, Math.PI / 4, 0], 4, false);
+      rod(m, [0, 16.2, -4.4], [0, 3, 8.5], 1.2, '#dfe9fb', 4);                                // the in-run, a slide of snow
+      rod(m, [0, 3, 8.5], [0, 2.4, 11.5], 1.2, PINK, 4);                                      // the lip
+      for (const [z, y] of [[0, 9.8], [4.5, 5.6]] as const) m.cyl(0.18, 0.22, y + 3.5, '#7a5236', [0, (y - 3.5) / 2, z], undefined, 5, false);
+      m.cyl(0.05, 0.05, 2.6, '#5a3a22', [0, 18.9, -5.5], undefined, 4, false);
+      m.box([0.04, 0.7, 1.2], PINK, [0, 19.7, -4.9], undefined, false);
+    },
+  },
+  'snow-tufts': {
+    // the verge by the climb: frozen grass poking out of the snow, a gold-brown contrast (karts drive through it)
+    build: (m) => {
+      m.ball([0.6, 0.14, 0.5], SNOW, [0, 0, 0], undefined, 6, false);
+      const blades: [number, number, number, number][] = [[0, 0, 0.7, 0.1], [0.2, 0.1, 0.55, -0.3], [-0.18, 0.12, 0.6, 0.35], [0.1, -0.2, 0.5, 0.2], [-0.25, -0.1, 0.45, -0.25]];
+      for (const [x, z, h, lean] of blades) m.cone(0.05, h, '#c9a25a', [x, h / 2, z], [lean, 0, lean * 0.6], 3, false);
+      m.ball([0.12, 0.08, 0.12], '#e8384f', [0.3, 0.15, -0.25], undefined, 5, false);          // a red berry sprig
     },
   },
 

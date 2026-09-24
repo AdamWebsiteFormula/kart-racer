@@ -35,6 +35,13 @@ interface Layer {
   shade: Rgb;
   /** optional colour by absolute height above the base (snow caps, rock bands) */
   band?: (h: number, k: number) => Rgb | null;
+  /** columns round the ring and rows up each (defaults SEG and 6): a detailed range needs more */
+  seg?: number;
+  rows?: number;
+  /** the snow line (0 foot → 1 top) at angle a: half the rows fall under it and half over, two of them on it, so it is a crisp edge */
+  snowline?: (a: number) => number;
+  /** a colour by angle, height fraction, height and the ring's slope there (metres up per metre along): rock faces, ribs, forest */
+  paint?: (a: number, k: number, h: number, slope: number) => Rgb | null;
 }
 
 /** A seeded random for layouts that are the same every load. */
@@ -49,6 +56,22 @@ const wrapA = (a: number) => { let d = a % TAU; if (d > Math.PI) d -= TAU; if (d
 const hills = (base: number, amp: number, seed: number): Profile => {
   const r = rng(seed), p = [r() * TAU, r() * TAU, r() * TAU];
   return (a) => Math.max(2, base + amp * (0.55 * Math.sin(3 * a + p[0]) + 0.3 * Math.sin(7 * a + p[1]) + 0.15 * Math.sin(13 * a + p[2])));
+};
+
+/** A seeded wobble in [0, 1] round the ring, `freq` bumps a turn: a sum of three sines. */
+const wobble = (freq: number, seed: number): Profile => {
+  const r = rng(seed), p = [r() * TAU, r() * TAU, r() * TAU];
+  return (a) => 0.5 + 0.25 * Math.sin(freq * a + p[0]) + 0.15 * Math.sin(freq * 2.3 * a + p[1]) + 0.1 * Math.sin(freq * 5.1 * a + p[2]);
+};
+
+/** Ridges and gullies on a range: its crest line broken by small jagged peaks, more of them the higher it stands. */
+const rugged = (profile: Profile, amp: number, freq: number, seed: number, floor: number): Profile => {
+  const w = wobble(freq, seed), v = wobble(freq * 3.7, seed + 1);
+  return (a) => {
+    const h = profile(a);
+    if (h <= floor) return h;
+    return h + amp * (w(a) + 0.5 * v(a) - 0.75) * Math.min(1, (h - floor) / 30);
+  };
 };
 
 /** Sharp peaks: triangles of random width and height, the tallest wins. */
@@ -125,12 +148,31 @@ function layersFor(biome: string): Layer[] {
       { radius: 640, profile: mesas(16, 30, 75, 3), foot: hex('#a8462a'), top: hex('#e27f4e'), haze: 0.25, shade: hex('#7a3a52'),
         band: (h) => (Math.floor(h / 9) % 2 ? hex('#f0b48a') : null) },
     ];
-    case 'frost': return [
-      { radius: 770, profile: peaks(18, 90, 170, 9, 20), foot: hex('#7f93b8'), top: hex('#eef4ff'), haze: 0.42, shade: hex('#7a8fc8'),
-        band: (_h, k) => (k > 0.55 ? hex('#f6f9ff') : null) },
-      { radius: 650, profile: peaks(22, 40, 95, 4, 10), foot: hex('#5e6f8f'), top: hex('#ffffff'), haze: 0.22, shade: hex('#6a80c0'),
-        band: (_h, k) => (k > 0.5 ? hex('#fbfdff') : null) },
-    ];
+    // detail review (24 Sept 2026: "plain white cones"): three ranges, bluer with distance. Far, pale
+    // blue peaks under a high snow line; the main range, rugged, grey-blue rock faces with a jagged snow
+    // line, rock ribs down its steep snow and snow gullies down its rock; near, dark forested foothills
+    // with snowy tops
+    case 'frost': {
+      const farSnow = wobble(9, 41), midSnow = wobble(13, 43), ribs = wobble(70, 47), gully = wobble(55, 53), nearSnow = wobble(17, 59), trees = wobble(90, 61);
+      const ROCK = hex('#62729a'), ROCK_DEEP = hex('#46557c'), SNOW = hex('#fbfdff'), SNOW_BLUE = hex('#dfe9fb');
+      return [
+        { radius: 800, profile: rugged(peaks(20, 110, 190, 9, 25), 14, 23, 71, 30), foot: hex('#9aaed6'), top: hex('#eef4ff'), haze: 0.5, shade: hex('#8ea4dc'),
+          seg: 540, rows: 8, snowline: (a) => 0.5 + 0.22 * farSnow(a),
+          paint: (a, k) => (k >= 0.5 + 0.22 * farSnow(a) ? hex('#f3f7ff') : mixRgb(hex('#7a90c2'), hex('#9aaed8'), k)) },
+        { radius: 690, profile: rugged(peaks(24, 60, 135, 4, 12), 12, 31, 73, 16), foot: hex('#5f6f92'), top: hex('#ffffff'), haze: 0.2, shade: hex('#6a80c0'),
+          seg: 900, rows: 10, snowline: (a) => 0.6 + 0.26 * midSnow(a),
+          paint: (a, k, _h, slope) => {
+            const line = 0.6 + 0.26 * midSnow(a);
+            if (k >= line) return slope > 0.7 && ribs(a) > 0.6 && k < 0.94 ? ROCK : k > 0.9 || ribs(a) < 0.5 ? SNOW : SNOW_BLUE;
+            // gullies of snow run down the rock
+            if (gully(a) > 0.7 && k > line * 0.45) return SNOW_BLUE;
+            return mixRgb(ROCK_DEEP, ROCK, k / Math.max(0.01, line));
+          } },
+        { radius: 580, profile: rugged(peaks(30, 22, 58, 17, 5), 5, 47, 79, 8), foot: hex('#2a4f4a'), top: hex('#3f6d5c'), haze: 0.16, footHaze: 0.2, shade: hex('#34507a'),
+          seg: 540, rows: 8, snowline: (a) => 0.7 + 0.2 * nearSnow(a),
+          paint: (a, k) => (k >= 0.7 + 0.2 * nearSnow(a) ? SNOW : trees(a) > 0.62 ? hex('#3b6e5a') : mixRgb(hex('#24463f'), hex('#2f5d4f'), k)) },
+      ];
+    }
     case 'harbour': return [
       { radius: 780, profile: hills(16, 12, 21), foot: hex('#8fb0a8'), top: hex('#a9c7b8'), haze: 0.6, shade: hex('#7f98a8') },
       { radius: 640, profile: islands(7, 18, 46, 13), foot: hex('#c9b48a'), top: hex('#5f9f44'), haze: 0.3, shade: hex('#4a6f5a') },
@@ -163,20 +205,28 @@ export function flankLight(profile: Profile, a: number, sunAz: number): number {
   return FLANK_LIGHT * flank * Math.sin(a - sunAz) - FACE_LIGHT * Math.cos(a - sunAz);
 }
 
+/** Row j's height fraction when half the rows lie under the snow line `line` and half over, two a hair either side of it. */
+export function snowRow(j: number, rows: number, line: number): number {
+  const under = Math.floor(rows / 2), d = 0.004, l = Math.min(0.97, Math.max(0.03, line));
+  return j <= under ? (l - d) * (j / under) : l + d + (1 - l - d) * ((j - under - 1) / (rows - under - 1));
+}
+
 interface RingBuild { pos: number[]; col: number[]; idx: number[]; base: number[]; haze: number[] }
 
 function strip(layer: Layer, baseY: number, horizon: Rgb, sunAz: number, out: RingBuild): void {
-  const rows = 6;
+  const rows = layer.rows ?? 6, seg = layer.seg ?? SEG, e = TAU / seg;
   const start = out.pos.length / 3;
-  for (let i = 0; i <= SEG; i++) {
-    const a = (i / SEG) * TAU;
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * TAU;
     const h = layer.profile(a % TAU);
+    const slope = Math.abs(layer.profile((a + e) % TAU) - layer.profile((a - e + TAU) % TAU)) / (2 * e * layer.radius);
+    const snow = layer.snowline?.(a % TAU);
     const cx = Math.cos(a) * layer.radius, cz = Math.sin(a) * layer.radius;
     const lit = flankLight(layer.profile, a % TAU, sunAz);
     for (let j = 0; j <= rows; j++) {
-      const k = j / rows, y = h * k;
+      const k = snow === undefined ? j / rows : snowRow(j, rows, snow), y = h * k;
       let c = mixRgb(layer.foot, layer.top, k);
-      const b = layer.band?.(y, h > 0 ? y / Math.max(h, 1) : 0);
+      const b = layer.paint?.(a % TAU, k, h, slope) ?? layer.band?.(y, h > 0 ? y / Math.max(h, 1) : 0);
       if (b) c = b;
       // never past white: the bloom picks out only what is brighter than 1
       c = lit >= 0 ? [Math.min(1, c[0] * (1 + lit)), Math.min(1, c[1] * (1 + lit)), Math.min(1, c[2] * (1 + lit))] : mixRgb(c, layer.shade, Math.min(1, -SHADE_LEAN * lit));
@@ -189,7 +239,7 @@ function strip(layer: Layer, baseY: number, horizon: Rgb, sunAz: number, out: Ri
     }
   }
   const per = rows + 1;
-  for (let i = 0; i < SEG; i++) {
+  for (let i = 0; i < seg; i++) {
     for (let j = 0; j < rows; j++) {
       const a = start + i * per + j, b = a + per;
       out.idx.push(a, b, a + 1, a + 1, b, b + 1);

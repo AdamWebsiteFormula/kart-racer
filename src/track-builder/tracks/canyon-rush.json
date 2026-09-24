@@ -233,7 +233,7 @@
       { "asset": "crate", "instances": 12, "band": "roadside", "merge": true },
       { "asset": "cliff", "instances": 10, "band": "roadside", "layout": "row", "every": 21, "run": 5, "dist": [15, 17], "at": [0.17, 0.3], "merge": true },
       { "asset": "cliff", "instances": 8, "band": "roadside", "layout": "row", "every": 21, "run": 4, "side": "outside", "dist": [15, 17], "at": [0.86, 0.97], "merge": true },
-      { "asset": "rock-span", "instances": 1, "band": "roadside", "layout": "span", "at": [0.07, 0.11], "merge": true },
+      { "asset": "rock-span", "instances": 1, "band": "roadside", "layout": "span", "at": [0.07, 0.11], "keepShape": true, "merge": true },
       { "asset": "canyon-bunting", "instances": 1, "band": "roadside", "layout": "span", "at": [0.17, 0.2], "merge": true },
       { "asset": "canyon-bunting", "instances": 1, "band": "roadside", "layout": "span", "at": [0.86, 0.9], "merge": true },
       { "asset": "barrel-cactus", "instances": 130, "band": "verge", "merge": true },

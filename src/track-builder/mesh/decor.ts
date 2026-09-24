@@ -70,6 +70,8 @@ const OPEN_CLEAR = 3;
 const CLEAR_EPS = 0.1;
 /** Metres the land as drawn may rise or fall under a prop's footprint (more: it hangs off a lip or straddles a slope). */
 const FOOTING = 0.5;
+/** Metres a set-piece on footing 'sink' reaches below its origin: the land under it may fall this far. */
+const SINK = 3.5;
 
 /** Is the road's `side` (-1 left, 1 right) an open edge within `metres` of main-line t? */
 function openBeside(lut: Lut, t: number, side: number, metres: number): boolean {
@@ -79,14 +81,14 @@ function openBeside(lut: Lut, t: number, side: number, metres: number): boolean 
 }
 
 /** Does the ground stay within FOOTING under a footprint of radius r at (x, z)? */
-function level(groundAt: (x: number, z: number) => number, x: number, z: number, r: number): boolean {
+function level(groundAt: (x: number, z: number) => number, x: number, z: number, r: number, tolerance = FOOTING): boolean {
   let lo = groundAt(x, z), hi = lo;
   for (let k = 0; k < 8; k++) {
     const a = (k / 8) * Math.PI * 2, g = groundAt(x + Math.cos(a) * r, z + Math.sin(a) * r);
     if (g < lo) lo = g;
     if (g > hi) hi = g;
   }
-  return hi - lo <= FOOTING;
+  return hi - lo <= tolerance;
 }
 
 /** Is (x, z) within `pad` metres past any branch's road edge? `except` skips one branch index. */
@@ -145,7 +147,7 @@ export function outsideOf(lut: Lut, t: number): { side: number; bend: number } {
  * so order matters and is fixed by the JSON. A row or span entry (DecorEntry) is laid out as its
  * `layout` says; `extent` is the model's reach across and along (default: `footprint` both ways).
  */
-export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number, footprint = 0, extent?: DecorExtent): DecorPlacement {
+export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number, footprint = 0, extent?: DecorExtent, occupied?: Occupancy): DecorPlacement {
   const main = branches.main.lut;
   const verge = entry.band === 'verge';
   const layout = entry.layout ?? 'scatter', row = layout === 'row', span = layout === 'span';
@@ -160,6 +162,7 @@ export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => num
   const [s0, s1] = entry.scale ?? [1, 1];
   const run = Math.max(1, entry.run ?? 6), every = entry.every ?? 4;
   const out: number[] = [];
+  const mine: [number, number, number][] = [];
   let placed = 0;
   const maxTries = entry.instances * 20;
   // props come in little groups (a row of cottages, a stand of pines, a flock of gulls, a patch of
@@ -185,9 +188,9 @@ export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => num
     const side = gside;
     const dist = row ? gdist : Math.max(band[0], Math.min(band[1], gdist + (rng() - 0.5) * (band[1] - band[0]) * 0.7));
     const tt = ((t % 1) + 1) % 1, c = main.sample(tt, 0);
-    const yaw = row ? headingOf(c.tangent) + (side > 0 ? 0 : Math.PI) : rng() * Math.PI * 2;
+    let yaw = row ? headingOf(c.tangent) + (side > 0 ? 0 : Math.PI) : rng() * Math.PI * 2;
     const u = rng(), scale = entry.scale ? s0 + (s1 - s0) * u : row ? 1 : 0.7 + 0.6 * u;
-    let x: number, y: number, z: number;
+    let x: number, y: number, z: number, long = 1;
     if (entry.band === 'sky') {
       const lateral = side * (c.halfWidth + 10 + 30 * rng());
       x = c.position[0] + c.tangent[2] * lateral;
@@ -199,9 +202,19 @@ export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => num
       if (verge && (main.covered[j] || dist + foot > main.reach[j])) continue;
       // a roadside prop on an off-road track stands wholly past the course limit (its footprint too), where karts cannot reach it
       const clear = entry.band === 'roadside' && main.offroad ? Math.max(dist, BUILDER.offroadReach + 0.5 + foot + CLEAR_EPS) : dist;
-      const lateral = side * (edge ? c.halfWidth + BUILDER.kerbWidth + clear : dist);
-      x = c.position[0] + c.tangent[2] * lateral;
-      z = c.position[2] - c.tangent[0] * lateral;
+      const at = (ts: number, s = main.sample(ts, 0)): [number, number] => {
+        const l = side * (edge ? s.halfWidth + BUILDER.kerbWidth + clear : dist);
+        return [s.position[0] + s.tangent[2] * l, s.position[2] - s.tangent[0] * l];
+      };
+      [x, z] = at(tt, c);
+      if (row) {
+        // a row piece is turned and stretched to the chord from where the last one ends to where the next
+        // begins, at its own distance from the road: on a bend the pieces meet end to end instead of
+        // gapping on the outside and crossing on the inside (detail review, 24 Sept 2026)
+        const h = every / 2 / main.length, [ax, az] = at(tt - h), [bx, bz] = at(tt + h);
+        yaw = Math.atan2(bx - ax, bz - az) + (side > 0 ? 0 : Math.PI);
+        long = Math.max(0.5, Math.min(1.6, Math.hypot(bx - ax, bz - az) / every));
+      }
       y = groundAt ? groundAt(x, z) : entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
       // clear of every road (on an off-road track, of where karts can drive past its curb, footprint
       // and all; ground cover, which karts drive through, keeps off the roads and their curbs only)
@@ -216,12 +229,69 @@ export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => num
       // water off Boardwalk's pier (placeBarriers skips those sides too); and on the land as drawn a
       // prop keeps off a cliff's lip and slopes (a mesa hung 24 m over Canyon's chasm)
       if (edge && openBeside(main, tt, side, foot + OPEN_CLEAR)) continue;
-      if (groundAt && reach > 0 && !level(groundAt, x, z, foot)) continue;
+      // a set-piece on a stone footing (footing 'sink') may stand on a slope its foundation reaches down
+      if (groundAt && reach > 0 && !level(groundAt, x, z, foot, entry.footing === 'sink' ? SINK : FOOTING)) continue;
+      // a solid prop keeps out of every solid prop placed by the entries before it (a fence through a cactus or a cottage)
+      if (occupied && !verge) {
+        const circles = pieceCircles(x, z, yaw, foot, row ? along * scale * long : foot);
+        // small pieces give way (a fence, a lamp, a sign, a sled); big ones (a cliff, a set-piece) stand where they are put
+        if (entry.merge && circles[0][2] < GIVE_WAY && circles.some((k) => occupied.hits(k[0], k[1], k[2]))) continue;
+        mine.push(...circles);
+      }
     }
-    pushTransform(out, [x, y + (entry.lift ?? 0) * scale, z], yaw, [scale, scale, scale]);
+    pushTransform(out, [x, y + (entry.lift ?? 0) * scale, z], yaw, [scale, scale, scale * long]);
     placed++;
   }
+  for (const k of mine) occupied?.add(k[0], k[1], k[2]);
   return { asset: entry.asset, band: entry.band, matrices: Float32Array.from(out), count: placed, footprint: reach, layout };
+}
+
+/** How much of its footprint a prop claims against others: they may touch, not stand in each other. */
+const CLAIM = 0.7;
+/** A merged prop that claims less than this (metres) gives way to props already standing. */
+const GIVE_WAY = 1.2;
+
+/** Circles covering a piece `across` wide and `along` long (half-sizes), turned to `yaw`. */
+function pieceCircles(x: number, z: number, yaw: number, across: number, along: number): [number, number, number][] {
+  const n = Math.max(1, Math.round(along / Math.max(0.3, across))), r = Math.max(across, along / n) * CLAIM;
+  const dx = Math.sin(yaw), dz = Math.cos(yaw), out: [number, number, number][] = [];
+  for (let k = 0; k < n; k++) {
+    const o = -along + ((2 * k + 1) * along) / n;
+    out.push([x + dx * o, z + dz * o, r]);
+  }
+  return out;
+}
+
+/**
+ * Where solid props already stand (the scene's decor entries in order): a coarse grid of circles.
+ * A merged entry keeps out of what entries before it placed; its own pieces may touch each other.
+ */
+export class Occupancy {
+  private readonly cells = new Map<number, number[]>();
+  private maxR = 0;
+  private static readonly CELL = 16;
+  private key(i: number, j: number): number { return (i + 4096) * 8192 + (j + 4096); }
+  add(x: number, z: number, r: number): void {
+    const k = this.key(Math.floor(x / Occupancy.CELL), Math.floor(z / Occupancy.CELL));
+    let c = this.cells.get(k);
+    if (!c) this.cells.set(k, (c = []));
+    c.push(x, z, r);
+    this.maxR = Math.max(this.maxR, r);
+  }
+  hits(x: number, z: number, r: number): boolean {
+    const reach = Math.ceil((r + this.maxR) / Occupancy.CELL), ci = Math.floor(x / Occupancy.CELL), cj = Math.floor(z / Occupancy.CELL);
+    for (let i = ci - reach; i <= ci + reach; i++) {
+      for (let j = cj - reach; j <= cj + reach; j++) {
+        const c = this.cells.get(this.key(i, j));
+        if (!c) continue;
+        for (let n = 0; n < c.length; n += 3) {
+          const d = r + c[n + 2];
+          if ((c[n] - x) ** 2 + (c[n + 1] - z) ** 2 < d * d) return true;
+        }
+      }
+    }
+    return false;
+  }
 }
 
 /** A group's centre t: anywhere on the lap, or inside `at` ([t0, t1], wrapping past the line when t0 > t1). */
@@ -267,8 +337,9 @@ function placeSpans(branches: Branches, entry: DecorEntry, rng: () => number, gr
       }
     }
     if (!ok) continue;
+    // stretched across the road (bunting), or grown whole to its width (a rock arch keeps its shape)
     const sx = legs / Math.max(0.5, half);
-    pushTransform(out, [c.position[0], c.position[1] + (entry.lift ?? 0), c.position[2]], headingOf(c.tangent), [sx, 1, 1]);
+    pushTransform(out, [c.position[0], c.position[1] + (entry.lift ?? 0), c.position[2]], headingOf(c.tangent), entry.keepShape ? [sx, sx, sx] : [sx, 1, 1]);
     placed++;
   }
   return { asset: entry.asset, band: entry.band, matrices: Float32Array.from(out), count: placed, footprint: half, layout: 'span' };
