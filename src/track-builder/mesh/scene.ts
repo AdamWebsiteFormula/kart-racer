@@ -5,7 +5,7 @@
 import {
   BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Group,
   InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
-  RepeatWrapping, RGBAFormat, SphereGeometry, SRGBColorSpace, Matrix4, type Material, type Texture,
+  RepeatWrapping, RGBAFormat, SphereGeometry, Quaternion, Vector3, SRGBColorSpace, Matrix4, type Material, type Texture,
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
@@ -16,7 +16,7 @@ import { hashString, mulberry32, placeBarriers, placeDecor, pushTransform, type 
 import { CreatureView } from './creatures.ts';
 import { buildCoast, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
-import { glowFromVertexColours } from './glow.ts';
+import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
 import { buildStartGantry } from './gantry.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
@@ -148,6 +148,7 @@ function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | unde
   const vc = geometry.hasAttribute('color');
   const m = new MeshToonMaterial({ color: vc ? 0xffffff : toColor(colour), vertexColors: vc, gradientMap: gradientMap ?? null });
   if (vc) glowFromVertexColours(m); // lamp globes, bulbs and neon signs light themselves (glow.ts)
+  fadeNearCamera(m); // and nothing fills the screen when the camera brushes past it
   return m;
 }
 
@@ -371,6 +372,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   for (const [id, asset] of hazardAsset) hazardMeshById.set(id, hazardMeshes[hazardMeshByAsset.get(asset)!]);
   const hazardCounts = new Int32Array(hazardMeshes.length);
   const scratch = new Matrix4();
+  // rolling hazards keep their own spin between frames (visual only)
+  const rolls = new Map<string, { x: number; z: number; q: Quaternion }>();
+  const rollQ = new Quaternion(), rollAxis = new Vector3(), rollPos = new Vector3(), rollScale = new Vector3(1, 1, 1);
   const hidden = new Matrix4().makeScale(0, 0, 0);
   // popped balloons and taken coins vanish until their timer runs out
   const syncLive = (name: string, timers: readonly { respawnRemaining: number }[] | undefined) => {
@@ -407,7 +411,15 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       const k = hazardMeshByAsset.get(hazardAsset.get(h.id)!)!;
       const i = hazardCounts[k];
       if (i * 16 >= m.instanceMatrix.array.length) continue;
-      scratch.makeTranslation(h.position[0], h.position[1] + h.radius, h.position[2]);
+      if (h.type === 'rolling') {
+        // a snowball or a barrel turns as it goes: roll it by the distance it moved since last frame
+        const r = rolls.get(h.id) ?? { x: h.position[0], z: h.position[2], q: new Quaternion() };
+        const dx = h.position[0] - r.x, dz = h.position[2] - r.z, d = Math.hypot(dx, dz);
+        if (d > 1e-4 && d < 5) r.q.premultiply(rollQ.setFromAxisAngle(rollAxis.set(dz / d, 0, -dx / d), d / h.radius));
+        r.x = h.position[0]; r.z = h.position[2];
+        rolls.set(h.id, r);
+        scratch.compose(rollPos.set(h.position[0], h.position[1] + h.radius, h.position[2]), r.q, rollScale);
+      } else scratch.makeTranslation(h.position[0], h.position[1] + h.radius, h.position[2]);
       m.setMatrixAt(i, scratch);
       hazardCounts[k] = i + 1;
     }
