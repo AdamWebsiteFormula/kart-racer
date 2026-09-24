@@ -17,7 +17,9 @@ export function resultsModel(res: RaceResults, playerId: string | null, trackNam
     dnf: r.dnf, player: r.racerId === playerId, delayMs: i * staggerMs,
   }));
   const me = res.ranks.find((r) => r.racerId === playerId);
-  const headline = !me ? 'Results' : me.dnf ? 'Out of time' : me.rank === 1 ? 'You win!' : `You finished ${ordinal(me.rank)}`;
+  // a solo run (Daily, Time Trial) has no one to beat: it gets the time, not "You win!"
+  const headline = !me ? 'Results' : me.dnf ? 'Out of time' : res.ranks.length === 1 ? `Finished! ${formatMs(me.timeMs)}`
+    : me.rank === 1 ? 'You win!' : `You finished ${ordinal(me.rank)}`;
   const laps = me?.lapTimesMs ?? [];
   const best = laps.length ? Math.min(...laps) : -1;
   return {
