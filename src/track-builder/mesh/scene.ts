@@ -64,6 +64,12 @@ export interface TrackScene {
 export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[]; coins?: readonly { respawnRemaining: number }[] }
 
 const SKY_RADIUS = 900;
+/** Each landmark's target height, metres (scaled up to it where the road leaves room). */
+const LANDMARK_HEIGHT: Readonly<Partial<Record<string, number>>> = Object.freeze({
+  lighthouse: 55, windmill: 48, arch: 42, peak: 110, 'ferris-wheel': 60, airship: 34,
+});
+/** Metres a scaled-up landmark keeps from the nearest road edge. */
+const LANDMARK_CLEAR = 14;
 const GROUND_SIZE = 2400;
 /** The coast of a sea track: metres of flat land past the shoulder (the roadside band ends at 14), the slope into the sea, the grid. */
 const COAST = Object.freeze({ flat: 14, slope: 12, cell: 2.5 });
@@ -241,6 +247,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       hull = new Mesh(hg, assets.ink);
       hull.position.copy(src.position);
       hull.rotation.copy(src.rotation);
+      hull.scale.copy(src.scale);
     }
     hull.name = `${src.name}:ink`;
     hull.userData.sharedMaterial = true;
@@ -472,12 +479,26 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const landmark = new Mesh(lg, own ?? toon(lg, palette.accent, GRADIENT));
     if (own) landmark.userData.sharedMaterial = true;
     landmark.name = `landmark-${def.landmark}`;
+    // big enough to own the skyline from most of the lap (critique 2026-09-23: landmarks were
+    // specks), but never reaching the road: scale up toward its target height, capped so its
+    // footprint keeps LANDMARK_CLEAR metres from every road sample
+    lg.computeBoundingBox();
+    const lb = lg.boundingBox!;
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    let near = Infinity;
+    for (const b of branches.list) {
+      for (let i = 0; i < b.lut.n; i += 2) near = Math.min(near, Math.hypot(b.lut.px[i] - cx, b.lut.pz[i] - cz) - b.lut.hw[i]);
+    }
+    const half = Math.max(lb.max.x - lb.min.x, lb.max.z - lb.min.z) / 2;
+    const want = (LANDMARK_HEIGHT[def.landmark] ?? 0) / Math.max(1, lb.max.y - lb.min.y);
+    const fit = (near - LANDMARK_CLEAR) / Math.max(1, half);
+    landmark.scale.setScalar(Math.max(1, Math.min(want, fit)));
     const onPier = env.landmarkFooting === 'pier';
     landmark.position.set((minX + maxX) / 2, groundKind === 'none' ? lut.minY : groundY + (onPier ? BUILDER.pierLift : 0), (minZ + maxZ) / 2);
     if (onPier) {
       lg.computeBoundingBox();
       const b = lg.boundingBox!;
-      const pier = new Mesh(buildPier(Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.5 + 2, BUILDER.pierLift), new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null }));
+      const pier = new Mesh(buildPier(Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.5 * landmark.scale.x + 2, BUILDER.pierLift), new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null }));
       pier.position.copy(landmark.position);
       pier.name = 'pier:landmark';
       pier.receiveShadow = true;
