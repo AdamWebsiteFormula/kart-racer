@@ -7,6 +7,8 @@ import { CLIENT_VERSION, MAX_LOG_BYTES, TRACKS, TRACK_IDS, checkSubmission, dail
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+/** the public key: get_leaderboard is granted to anon (the board players see), not to the service role */
+const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const LIMIT_PER_MINUTE = 10;
 /** accepted runs per client per day: plenty for a person, a ceiling for a flood */
 const LIMIT_PER_DAY = 60;
@@ -87,10 +89,11 @@ Deno.serve(async (req) => {
 
   // where the name placed on its board: the board keeps each name's best run, which may be an
   // earlier one (bestId, bestMs), so look for the name, not for this run
-  const board = await rest('rpc/get_leaderboard', {
+  const board = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_leaderboard`, {
     method: 'POST', body: JSON.stringify({ p_track_id: row.track_id, p_mode: mode, p_daily_seed: row.daily_seed, p_limit: 50 }),
-  });
-  const rows = board.ok ? (await board.json()) as { id: string; name: string; time_ms: number }[] : [];
+    headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+  }).catch(() => null);
+  const rows = board?.ok ? (await board.json()) as { id: string; name: string; time_ms: number }[] : [];
   const at = rows.findIndex((r) => r.name === row.name);
   return json(201, { id: saved.id, timeMs: saved.time_ms, rank: at >= 0 ? at + 1 : null, bestId: rows[at]?.id ?? null, bestMs: rows[at]?.time_ms ?? null });
 });
