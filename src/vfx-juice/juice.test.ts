@@ -106,3 +106,13 @@ describe('fx director', () => {
     expect(sparkColour(2, 0, out)).toBe(out); // writes into the caller's array: no garbage per spark
   });
 });
+
+describe('pickup pops know whose they are', () => {
+  it('marks the player’s own balloon and coin pops, not a rival’s', () => {
+    const fx = directFx([
+      { type: 'pickup', racerId: 'p', index: 0 }, { type: 'pickup', racerId: 'a', index: 1 },
+      { type: 'coin', racerId: 'p', coins: 1 }, { type: 'coin', racerId: 'a', coins: 1 },
+    ], [], 'p');
+    expect(fx.bursts.map((b) => `${b.kind}:${b.mine}`)).toEqual(['balloon:true', 'balloon:false', 'coin:true', 'coin:false']);
+  });
+});

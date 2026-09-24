@@ -93,7 +93,8 @@ export class TimeScale {
 export type Burst = 'balloon' | 'coin' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'strike' | 'slam' | 'spring' | 'fizz';
 
 export interface Effects {
-  bursts: { kind: Burst; racerId: string }[];
+  /** `mine`: the player's own pickup (a balloon or coin pop), drawn at full size; a rival's is small */
+  bursts: { kind: Burst; racerId: string; mine?: boolean }[];
   /** creature stomps and slams: dust at a world point, and a shake that fades with distance from the player */
   quakes: { position: [number, number, number]; strength: number }[];
   /** drift spark tier per racer that changed this tick (0 = sparks off) */
@@ -140,12 +141,12 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
   for (const e of race) {
     switch (e.type) {
       case 'kart': kart(out, e.racerId, e.event, me); break;
-      case 'pickup': out.bursts.push({ kind: 'balloon', racerId: e.racerId }); break;
+      case 'pickup': out.bursts.push({ kind: 'balloon', racerId: e.racerId, mine: e.racerId === me }); break;
       case 'creature':
         if ((e.kind === 'rumblesaur' && e.action === 'stomp') || (e.kind === 'kraken' && e.action === 'slam')) out.quakes.push({ position: [...e.position], strength: 1 });
         else if (e.kind === 'yeti' && e.action === 'idle') out.quakes.push({ position: [...e.position], strength: 0.3 });
         break;
-      case 'coin': out.bursts.push({ kind: 'coin', racerId: e.racerId }); break;
+      case 'coin': out.bursts.push({ kind: 'coin', racerId: e.racerId, mine: e.racerId === me }); break;
       case 'finish':
         if (e.racerId === me) { out.bursts.push({ kind: 'confetti', racerId: e.racerId }); if (!e.dnf) out.slowMo = true; }
         break;

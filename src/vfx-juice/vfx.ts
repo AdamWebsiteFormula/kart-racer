@@ -20,6 +20,16 @@ export const CONFETTI: readonly (readonly [number, number, number])[] = [
  * The player's finish shower: centred `ahead` metres (plus `lead` seconds of the kart's speed) up
  * the road, so the kart drives into it and the chase camera, 6 m behind, looks at it, not through it.
  */
+/**
+ * Balloon and coin pops: your own at full size, a rival's small and dim. With balloons back in 0.5 s,
+ * eight karts pop a row at once, and full-size bright sparkles bloomed into discs over the road.
+ */
+export const POP = Object.freeze({
+  mine: Object.freeze({ confetti: 26, glow: 10, glowSize: 0.3, coinGlow: 10 }),
+  rival: Object.freeze({ confetti: 8, glow: 3, glowSize: 0.16, coinGlow: 3 }),
+  /** a rival's sparkle colour stays under the bloom threshold (the player's is HDR and blooms) */
+  rivalGlow: Object.freeze([1.0, 0.92, 0.7]),
+});
 export const CONFETTI_BURST = Object.freeze({ count: 180, ahead: 4, lead: 0.4, spread: 4, depth: 3, rise: 4.5, riseSpread: 3, size: 0.22 });
 /** The STRIKE burst: thrown up and out to the sides and forward from `ahead` metres in front, never back at the lens. */
 export const STRIKE_BURST = Object.freeze({ count: 140, ahead: 1.5, side: 9, forward: [1, 8] as const, up: [5, 13] as const, size: 0.24 });
@@ -94,13 +104,17 @@ export class Vfx {
       if (!k) continue;
       const [x, y, z] = k.position;
       switch (b.kind) {
-        case 'balloon':
-          for (let i = 0; i < 26; i++) this.spawn(this.soft, x, y + 1.6, z, sym() * 6, 2 + rnd() * 5, sym() * 6, CONFETTI[i % 4], 0.22, 0.7, 12, 1);
-          for (let i = 0; i < 10; i++) this.spawn(this.glow, x, y + 1.6, z, sym() * 3, rnd() * 3, sym() * 3, [1.6, 1.4, 0.9], 0.3, 0.3, 0, 3);
+        case 'balloon': {
+          const p = b.mine ? POP.mine : POP.rival, glow = b.mine ? [1.6, 1.4, 0.9] : POP.rivalGlow;
+          for (let i = 0; i < p.confetti; i++) this.spawn(this.soft, x, y + 1.6, z, sym() * 6, 2 + rnd() * 5, sym() * 6, CONFETTI[i % 4], 0.22, 0.7, 12, 1);
+          for (let i = 0; i < p.glow; i++) this.spawn(this.glow, x, y + 1.6, z, sym() * 3, rnd() * 3, sym() * 3, glow, p.glowSize, 0.3, 0, 3);
           break;
-        case 'coin':
-          for (let i = 0; i < 10; i++) this.spawn(this.glow, x, y + 1, z, sym() * 2, 2 + rnd() * 3, sym() * 2, [1.8, 1.4, 0.3], 0.18, 0.5, 6);
+        }
+        case 'coin': {
+          const n = b.mine ? POP.mine.coinGlow : POP.rival.coinGlow, glow = b.mine ? [1.8, 1.4, 0.3] : POP.rivalGlow;
+          for (let i = 0; i < n; i++) this.spawn(this.glow, x, y + 1, z, sym() * 2, 2 + rnd() * 3, sym() * 2, glow, 0.18, 0.5, 6);
           break;
+        }
         case 'hitStars':
           for (let i = 0; i < 14; i++) {
             const a = (i / 14) * Math.PI * 2;

@@ -4,7 +4,7 @@ import { createKartState } from '../kart-controller/types.ts';
 import { newEffects } from './juice.ts';
 import { drawnSize, nearFade, PARTICLE, ParticlePool } from './particles.ts';
 import { SKID, skidShade, Skids } from './trails.ts';
-import { CONFETTI, CONFETTI_BURST, STRIKE_BURST, Vfx } from './vfx.ts';
+import { CONFETTI, CONFETTI_BURST, POP, STRIKE_BURST, Vfx } from './vfx.ts';
 
 /** Every live particle's position and velocity, read back from the pool's buffers. */
 function offsets(pool: ParticlePool): number[][] {
@@ -132,5 +132,29 @@ describe('tyre marks darken what they lie on', () => {
     expect(skidShade(SKID.life)).toBe(1);
     expect(skidShade(SKID.life * 3)).toBe(1);
     expect(SKID.shade).toBeLessThan(1);
+  });
+});
+
+describe('balloon and coin pops', () => {
+  const pop = (kind: 'balloon' | 'coin', mine: boolean) => {
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+    const k = createKartState({ racerId: 'nova', isPlayer: mine, position: [0, 0, 0], heading: 0 });
+    const fx = newEffects();
+    fx.bursts.push({ kind, racerId: 'nova', mine });
+    vfx.onTick(fx, () => k, 0, false);
+    return vfx;
+  };
+
+  it('a rival popping a balloon makes a small, dim sparkle; your own pop stays full', () => {
+    const mine = pop('balloon', true), rival = pop('balloon', false);
+    expect(mine.glow.count).toBe(POP.mine.glow);
+    expect(rival.glow.count).toBe(POP.rival.glow);
+    expect(rival.soft.count).toBeLessThan(mine.soft.count);
+    // under the bloom threshold, so a row of rival pops never blooms into discs over the road
+    expect(Math.max(...POP.rivalGlow)).toBeLessThanOrEqual(1);
+  });
+
+  it('a rival picking up a coin sparkles less than you do', () => {
+    expect(pop('coin', false).glow.count).toBeLessThan(pop('coin', true).glow.count);
   });
 });
