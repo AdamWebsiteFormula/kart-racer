@@ -31,19 +31,21 @@ const STRATA: readonly (readonly [number, number, number])[] = [[1.08, 0.98, 0.8
 
 /** Below the sea by this much the slope stops: nothing there shows. */
 const UNDER = 1.2;
+/** The land's top sits this far under the road's outer shoulder, so the two never fight. */
+const UNDER_ROAD = 0.12;
 /** Metres over which an open edge's cliff falls: near sheer, as the physics has no ground past it. */
 const CLIFF = 2.5;
 
 export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry | null {
   // road samples (every other LUT sample is plenty at a 2–3 m grid), bucketed for the search
-  const xs: number[] = [], zs: number[] = [], ys: number[] = [], edges: number[] = [], rxs: number[] = [], rzs: number[] = [], opens: number[] = [];
+  const xs: number[] = [], zs: number[] = [], ys: number[] = [], edges: number[] = [], rxs: number[] = [], rzs: number[] = [], opens: number[] = [], tans: number[] = [];
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, widest = 0;
   for (const b of branches.list) {
     const L = b.lut;
     for (let i = 0; i < L.n; i += 2) {
       const e = L.hw[i] + BUILDER.kerbWidth + BUILDER.shoulderWidth;
       xs.push(L.px[i]); zs.push(L.pz[i]); ys.push(L.py[i]); edges.push(e);
-      rxs.push(L.rx[i]); rzs.push(L.rz[i]); opens.push(L.open[i]);
+      rxs.push(L.rx[i]); rzs.push(L.rz[i]); opens.push(L.open[i]); tans.push(Math.tan(L.bank[i]));
       if (L.px[i] < minX) minX = L.px[i]; if (L.px[i] > maxX) maxX = L.px[i];
       if (L.pz[i] < minZ) minZ = L.pz[i]; if (L.pz[i] > maxZ) maxZ = L.pz[i];
       if (e > widest) widest = e;
@@ -81,9 +83,12 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
       }
       let y = o.waterY - UNDER, mix = 1;
       if (bk >= 0) {
-        const d = Math.sqrt(best), top = ys[bk] - BUILDER.shoulderDrop;
-        // an open edge on this side: no flat past the shoulder, and a sheer drop
+        // the road's own height at this lateral (a banked road's low edge is below its middle),
+        // and the land a little under it, so no grass ever pokes up through the road
         const lat = (x - xs[bk]) * rxs[bk] + (z - zs[bk]) * rzs[bk];
+        const latC = Math.max(-edges[bk], Math.min(edges[bk], lat));
+        const d = Math.sqrt(best), top = ys[bk] - latC * tans[bk] - BUILDER.shoulderDrop - UNDER_ROAD;
+        // an open edge on this side: no flat past the shoulder, and a sheer drop
         const open = (opens[bk] & (lat < 0 ? 1 : 2)) !== 0;
         const lip = edges[bk] + (open ? 0 : o.flat);
         const fall = open ? CLIFF : o.slope;
