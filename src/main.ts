@@ -23,7 +23,7 @@ import { makeConstants } from './kart-controller/constants.ts';
 import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from './race-manager/series.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
-import { CAM, chaseYaw, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
+import { CAM, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { CAST, UiRoot, browserBackend, trackCard, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
@@ -300,6 +300,8 @@ function chaseCamera(frameDt: number): void {
   const pose = idealPose([root.x, root.y, root.z], camYaw, camSpeed, lookBack);
   const lag = lookBack ? CAM.flipLag : CAM.lag;
   smoothTo(camPos, pose.position, lag, frameDt);
+  // over the road under the camera, and under a tunnel's beams: the pose rides the kart's height
+  clampToRoad(s.track, camPos, k);
   smoothTo(camLook, pose.target, lag, frameDt);
   camera.fov = fovFor(camSpeed);
 }
