@@ -91,6 +91,8 @@ export function popProjectile(m: ItemsState, p: Projectile, events: ItemEvent[])
 }
 
 const scratchRight: Vec3 = [0, 0, 0];
+/** A shortcut's local u this close to 0 or 1 is its end (the nearest point past the end is clamped onto it). */
+const END_U = 1e-9;
 
 /** Move every projectile one tick. Pops on ttl, on the 4th edge, and when the branch closes. */
 export function stepProjectiles(
@@ -137,6 +139,12 @@ export function stepProjectiles(
     p.position[2] += p.velocity[2] * dt;
     const near = track.nearest(p.position, { t: p.t, branch: p.branch }, BASE.tSearchWindow);
     p.t = near.t; p.branch = near.branch;
+    if (p.branch > 0) {
+      // at or past a shortcut's end its road holds the ball on the clamped end point, and the snap
+      // below would stop it there: from the end on it rolls along the main road that end joins
+      const u = track.branches.list[p.branch].toLocal(p.t);
+      if (u <= END_U || u >= 1 - END_U) { p.t = track.branches.main.nearestLocal(p.position, p.t, BASE.tSearchWindow).t; p.branch = 0; }
+    }
     const smp = track.sample(p.t, 0, p.branch);
     const r = rightAt(track, p.t, p.branch, scratchRight);
     let lat = (p.position[0] - smp.position[0]) * r[0] + (p.position[2] - smp.position[2]) * r[2];

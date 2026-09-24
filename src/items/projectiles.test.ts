@@ -1,7 +1,9 @@
 // SOP tests 5, 6, 12 (grace and immunity): Beach Ball bounces, Homing Kite, hit rules.
 import { describe, expect, it } from 'vitest';
 import { ITEMS_CONFIG } from './data.ts';
-import { count, give, go, kart, placeAt, press, seconds, setup, tick, withBehaviour } from './__tests__/harness.ts';
+import { REAL_TRACKS, count, give, go, kart, placeAt, placeOn, press, seconds, setup, tick, trackDef, withBehaviour } from './__tests__/harness.ts';
+import { distXZ } from './hits.ts';
+import type { Vec3 } from '../kart-controller/types.ts';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
 import meadowJson from '../track-builder/tracks/meadow-run.json';
 import type { TrackDefinition } from '../track-builder/types.ts';
@@ -199,6 +201,29 @@ describe('Beach Ball on a banked corner', () => {
     p.graceRemaining = 0;
     tick(h, 1);
     expect(h.log.find((e) => e.type === 'hit')).toMatchObject({ racerId: 'k1', itemId: 'beachBall' });
+  });
+});
+
+describe('shots through a shortcut', () => {
+  it('a Beach Ball rolls out of either end onto the main road (bug hunt: it froze at the end for the rest of its life)', () => {
+    for (const id of REAL_TRACKS) {
+      for (const back of [false, true]) {
+        const h = setup({ n: 1, def: trackDef(id), cfg: withBehaviour('beachBall', { bounces: 1000 }) });
+        h.track.branches.list[1].forcedOpen = true; // Frostbite's lake opens on lap 3 only
+        go(h);
+        placeOn(h, 0, 1, back ? 0.1 : 0.9);
+        give(h, 0, 'beachBall');
+        press(h, 0, back);
+        const p = h.items.state.projectiles[0];
+        tick(h, seconds(1));
+        const before: Vec3 = [...p.position];
+        tick(h);
+        const at = `${id} ${back ? 'back' : 'ahead'}`;
+        expect(h.items.state.projectiles.includes(p), at).toBe(true);
+        expect(p.branch, at).toBe(0);
+        expect(distXZ(before, p.position), at).toBeGreaterThan(0.2);
+      }
+    }
   });
 });
 
