@@ -2,8 +2,10 @@
 // landing (fires a queued trick), void.
 import { startLoop } from './loop.ts';
 import { requestBoost } from './boost.ts';
+import { bounceOff } from './collide.ts';
 import type { KartConstants } from './constants.ts';
-import { forwardOf, rightOf, type KartEvent, type KartState, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
+import { radiusOf } from './powers.ts';
+import { forwardOf, rightOf, type KartEvent, type KartState, type TrackJump, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
 
 /** Signed lateral offset of `pos` from the centreline at `t` (positive = track right). */
 export function lateralOffset(track: TrackQuery, t: number, pos: Vec3, branch = 0): { lateral: number; right: Vec3 } {
@@ -91,13 +93,24 @@ function rampLipNear(track: TrackQuery, t: number, branch: number): boolean {
   return false;
 }
 
-/** Did the kart back over a ramp's lip line (t went down across it) on the ramp itself? */
-function rampLipBehind(track: TrackQuery, prevT: number, t: number, branch: number, lateral: number): boolean {
+/**
+ * Did t go down from a onto or across x (wrap-aware)? Landing on x counts: there the ramp is at its
+ * full rise (bug hunt, 24 Sept 2026: a creeping kart that stopped exactly on Meadow's haystack lip line
+ * popped 0.8 m up onto it). Leaving x, a kart already on the lip, does not.
+ */
+function backedOnto(a: number, b: number, x: number): boolean {
+  const d = wrap01(a - b);
+  if (d === 0 || d > 0.5) return false;
+  return wrap01(x - b) < d;
+}
+
+/** The ramp whose lip line the kart backed onto or over, on the ramp itself, if any. */
+function rampLipBehind(track: TrackQuery, prevT: number, t: number, branch: number, lateral: number): TrackJump | undefined {
   for (const j of track.jumps) {
     if (j.shape === 'hump' || !j.rise || (j.branch ?? 0) !== branch) continue;
-    if (crossed(t, prevT, j.t) && Math.abs(lateral) <= track.sample(j.t, 0, branch).halfWidth + (j.skirt ?? 0) / 2) return true;
+    if (backedOnto(prevT, t, j.t) && Math.abs(lateral) <= track.sample(j.t, 0, branch).halfWidth + (j.skirt ?? 0) / 2) return j;
   }
-  return false;
+  return undefined;
 }
 
 export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt: number, events: KartEvent[]): GroundResult {
@@ -120,12 +133,36 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   // again here: a bump from another kart moved it after last tick's t was taken.
   const t0 = s.grounded && rampLipNear(track, s.t, s.branch)
     ? track.nearest([x0, s.position[1], z0], { t: prevT, branch: branch0 }, c.tSearchWindow).t : prevT;
-  if (s.grounded && rampLipBehind(track, t0, s.t, s.branch, lateral)) {
-    s.position[0] = x0; s.position[2] = z0;
-    s.t = t0; s.branch = branch0;
-    s.speed = 0; s.lateralVelocity = 0;
-    events.push({ type: 'wall' });
+  const lip = s.grounded ? rampLipBehind(track, t0, s.t, s.branch, lateral) : undefined;
+  if (lip) {
+    // only the move into the lip is undone: what it moved along the lip line stays, and it bounces
+    // off like any wall, nose swung along the lip (bug hunt, 24 Sept 2026: a dead stop every tick
+    // pinned a kart driving nose-first into a lip, too slow to steer, a wall event every tick, until
+    // the claw)
+    const tg = track.sample(lip.t, 0, s.branch).tangent, h = Math.hypot(tg[0], tg[2]) || 1;
+    const n: Vec3 = [-tg[0] / h, 0, -tg[2] / h]; // back along the road at the lip, into it
+    const dx = s.position[0] - x0, dz = s.position[2] - z0, into = dx * n[0] + dz * n[2];
+    s.position[0] = x0 + dx - n[0] * into; s.position[2] = z0 + dz - n[2] * into;
+    s.branch = branch0;
+    // and no nearer the lip than it was, as t measures it: t lines are not quite square to the lip,
+    // so a slide along it can drift a hair behind it, onto the ramp's full rise
+    const L = track.length, ahead = (t: number) => (wrap01(t - lip.t + 0.5) - 0.5) * L;
+    s.t = track.nearest(s.position, { t: t0, branch: branch0 }, c.tSearchWindow).t;
+    const short = ahead(t0) - ahead(s.t);
+    if (short > 0) {
+      s.position[0] -= n[0] * short; s.position[2] -= n[2] * short;
+      s.t = t0;
+    }
     ({ lateral, right } = lateralOffset(track, s.t, s.position, s.branch));
+    // where the lip meets a side wall the corner is the wall: the nose swings out of the corner, not
+    // along the lip into the side wall (which would swing it straight back into the lip)
+    const at = track.sample(s.t, lateral, s.branch), side = lateral < 0 ? -1 : 1;
+    if (Math.abs(lateral) >= (at.wall ?? at.halfWidth) - radiusOf(s, c) && !((at.open ?? 0) & (side < 0 ? 1 : 2))) {
+      n[0] += right[0] * side; n[2] += right[2] * side;
+      const k = Math.hypot(n[0], n[2]);
+      n[0] /= k; n[2] /= k;
+    }
+    bounceOff(s, n, c, dt, events);
   }
   s.distanceAlong = s.t * track.length;
   const sample = track.sample(s.t, lateral, s.branch);

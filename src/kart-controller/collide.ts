@@ -35,8 +35,16 @@ export function stepWalls(
   if (push >= overshoot) s.status.wallEasing = false;
   s.position[0] -= right[0] * push * side;
   s.position[2] -= right[2] * push * side;
+  bounceOff(s, [right[0] * side, 0, right[2] * side], c, dt, events);
+}
 
-  const n: Vec3 = [right[0] * side, 0, right[2] * side]; // outward
+/**
+ * A wall hit's velocity: `n` is the wall's unit outward normal (horizontal, pointing into the wall).
+ * What drives into it bounces back (wallRestitution), what runs along it stays, a hard hit scrubs
+ * speed and swings the nose along the wall line, and one `wall` event per wallCooldownSeconds.
+ * Walls (stepWalls) and a ramp's lip from behind (ground.ts) share it.
+ */
+export function bounceOff(s: KartState, n: Vec3, c: KartConstants, dt: number, events: KartEvent[]): void {
   const w = worldVelocity(s);
   const out = w[0] * n[0] + w[2] * n[2];
   if (out <= 0) return;

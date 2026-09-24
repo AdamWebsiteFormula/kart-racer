@@ -1,7 +1,12 @@
 // Review regressions for ramps: a ramp stops at the road edge (no invisible wedge, no launch
 // on the shoulder), backing into a ramp's lip is a wall, and projectiles ride over ramps and bumps.
 import { describe, expect, it } from 'vitest';
+import boardwalkJson from '../track-builder/tracks/boardwalk-nights.json';
+import canyonJson from '../track-builder/tracks/canyon-rush.json';
 import frostbiteJson from '../track-builder/tracks/frostbite-pass.json';
+import harbourJson from '../track-builder/tracks/harbour-loop.json';
+import meadowJson from '../track-builder/tracks/meadow-run.json';
+import skylineJson from '../track-builder/tracks/skyline-circuit.json';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { cloneDef, OVAL } from '../race-manager/__tests__/fixtures.ts';
@@ -15,6 +20,7 @@ import { makeOval } from './__tests__/oval-stub.ts';
 
 const c = makeConstants('medium', 150);
 const DT = SIM_DT;
+const wrap = (t: number) => ((t % 1) + 1) % 1;
 
 /** A kart on the road at t, `lateral` metres right of the centreline, facing down the road. */
 function kartAt(track: TrackQuery, t: number, lateral: number, speed: number): KartState {
@@ -91,7 +97,7 @@ describe('a ramp stops at the road edge', () => {
 });
 
 describe("a ramp's lip is a wall from behind", () => {
-  it('backing into the lip stops the kart where it was (wall, no 0.8 m step up); forward over it still launches', () => {
+  it('backing into the lip puts the kart back where it was and bounces it off (wall, no 0.8 m step up); forward over it still launches', () => {
     const jumps: TrackJump[] = [
       { id: 'r', t: 0.06, launch: 6, shape: 'ramp', run: 5, rise: 0.8 },
       { id: 'b', t: 0.3, launch: 4.5, shape: 'hump', run: 8, rise: 1, edge: 1.6 },
@@ -111,12 +117,13 @@ describe("a ramp's lip is a wall from behind", () => {
       highest = Math.max(highest, s.position[1]);
       if (tickEv.some((e) => e.type === 'wall')) {
         walled = true;
-        // put back exactly where it was, dead stop
+        // put back exactly where it was (straight back is all into the lip), bounced off it like any
+        // wall: rolling away from it now (bug hunt, 24 Sept 2026: it was a dead stop)
         expect(s.position[0]).toBe(before[0]);
         expect(s.position[2]).toBe(before[2]);
         expect(s.t).toBe(tBefore);
-        expect(s.speed).toBe(0);
-        expect(s.lateralVelocity).toBe(0);
+        expect(s.speed).toBeCloseTo(5 * c.wallRestitution * (1 - c.wallScrub), 9);
+        expect(s.lateralVelocity).toBeCloseTo(0, 9);
         expect(s.grounded).toBe(true);
       }
     }
@@ -184,6 +191,70 @@ describe("a ramp's lip is a wall from behind", () => {
     }
     expect(walls).toBeLessThan(5);
     expect(launched).toBe(true);
+  });
+
+  it('every ramp on every track: a kart turned round and driving nose-first into the lip slides off it and drives away (bug hunt, 24 Sept 2026)', () => {
+    // it was stopped dead every tick (too slow to steer), a wall event every tick, pinned until the claw
+    for (const def of [harbourJson, meadowJson, canyonJson, frostbiteJson, boardwalkJson, skylineJson] as unknown as TrackDefinition[]) {
+      const track = buildTrack(cloneDef(def));
+      const L = track.length;
+      const ramps = track.jumps.filter((j) => j.shape !== 'hump' && j.rise);
+      expect(ramps.length, def.id).toBeGreaterThan(0);
+      for (const j of ramps) {
+        for (const steer of [-1, 1]) {
+          // 4 m past the lip, facing back at it, throttle and full lock
+          const p = track.sample(j.t + 4 / L, 0, j.branch ?? 0);
+          const s = createKartState({ racerId: 'x', position: [...p.position], heading: headingOf(p.tangent) + Math.PI, t: j.t + 4 / L });
+          s.branch = j.branch ?? 0;
+          s.speed = 12;
+          let contact = -1, freeAfter = -1, walls = 0, parked = 0, pop = 0;
+          for (let i = 0; i < 7 / DT; i++) {
+            const y = s.position[1], grounded = s.grounded;
+            const ev = stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer }, track, c, DT);
+            const ahead = (wrap(s.t - j.t + 0.5) - 0.5) * L;
+            if (contact < 0 && ahead < 0.5) contact = i;
+            if (contact >= 0 && i - contact < 2 / DT) walls += ev.filter((e) => e.type === 'wall').length;
+            if (s.grounded && Math.abs(ahead) < 0.5 && Math.abs(s.speed) < 0.5) parked++;
+            if (grounded && s.grounded) pop = Math.max(pop, s.position[1] - y);
+            if (contact >= 0 && freeAfter < 0 && ahead > 3) freeAfter = (i - contact) * DT;
+          }
+          const at = `${def.id} ${j.id} steer ${steer}`;
+          expect(contact, at).toBeGreaterThanOrEqual(0);
+          // off the lip and 3 m clear of it again within 2 s
+          expect(freeAfter, at).toBeGreaterThan(0);
+          expect(freeAfter, at).toBeLessThan(2);
+          // one thud per wallCooldownSeconds at most, not one a tick
+          expect(walls, at).toBeLessThanOrEqual(Math.ceil(2 / c.wallCooldownSeconds));
+          expect(parked * DT, at).toBeLessThan(0.25);
+          // never lifted onto the lip from behind
+          expect(pop, at).toBeLessThan(0.3);
+        }
+      }
+    }
+  });
+
+  it('backing exactly onto the lip line (t lands on it) is the wall, not a step up onto its full rise', () => {
+    // Meadow's haystack lip sits on a LUT sample, so a creeping kart's t can land exactly on it
+    const oval = makeOval({ jumps: [{ id: 'r', t: 0.06, launch: 6, shape: 'ramp', run: 5, rise: 0.8 }] });
+    const L = oval.length;
+    const track: TrackQuery = {
+      ...oval,
+      nearest: (p, hint, w) => {
+        const n = oval.nearest(p, hint, w);
+        return Math.abs(n.t - 0.06) * L < 0.02 ? { ...n, t: 0.06 } : n;
+      },
+    };
+    // reversing at 5 m/s from 10 cm past the lip: the third tick lands inside the 2 cm the t snaps
+    const s = kartAt(track, 0.06 + 0.1 / L, 0, -5);
+    const ev: KartEvent[] = [];
+    let highest = 0;
+    for (let i = 0; i < 30; i++) {
+      stepGround(s, track, c, DT, ev);
+      highest = Math.max(highest, s.position[1]);
+    }
+    expect(ev.some((e) => e.type === 'wall')).toBe(true);
+    expect(highest).toBeLessThan(0.02);
+    expect(s.t).toBeGreaterThan(0.06);
   });
 });
 
