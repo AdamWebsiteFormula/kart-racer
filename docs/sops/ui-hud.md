@@ -136,6 +136,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24: A solo run (Daily Challenge, Time Trial: one row in the results) is headlined "Finished! 1:51.38", not "You win!" (bug hunt: every finished Daily said "You win!" over a one-row table; Time Trial hid it behind its medal note).
 - 2026-09-24: Gamepad buttons still down when the race hands over to a menu (the Start that paused, A held for a drift) are spent: the menu ignores each until it is released and pressed again (bug hunt: the menu repeat state went stale while racing, so the held Start read as a fresh Back and resumed the race a frame after pausing, and a held A could skip the results).
 - 2026-09-24: A settings row's ◀ and ▶ carry their direction (`data-dir`): a click or tap on ◀ turns the value down, ▶ up, like left and right on the keys; the rest of the row still steps up (bug hunt: every click went through confirm → +1, so by mouse or touch the volumes only rose and Resolution could never be lowered). The arrows got a larger hit area, same look.
+- 2026-09-24: Touch controls have a pause button (top right, left of the map, inside the safe area); a tap opens the pause dialog like Escape or Start (bug hunt: a touch player had no way to pause, restart or quit a race short of leaving the app).
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

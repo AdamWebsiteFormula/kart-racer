@@ -1,7 +1,7 @@
 // Touch controls for phones and tablets: a steering pad under the left thumb, and Drift, Item,
-// Brake and Look-back buttons under the right. The gas is on by itself (let go of nothing), as in
-// mobile kart games. Shown only on a coarse pointer, and only while racing. Multi-touch: every
-// finger is tracked by its pointer id.
+// Brake and Look-back buttons under the right, and a pause button up top. The gas is on by itself
+// (let go of nothing), as in mobile kart games. Shown only on a coarse pointer, and only while
+// racing. Multi-touch: every finger is tracked by its pointer id.
 import { h } from './dom.ts';
 
 export interface TouchInput { steer: number; throttle: number; brake: number; drift: boolean; item: boolean; lookBack: boolean }
@@ -19,7 +19,11 @@ export class TouchControls {
   readonly enabled: boolean;
   private shown = false;
 
-  constructor(parent: HTMLElement) {
+  private readonly onPause: () => void;
+
+  /** `onPause`: the pause button was tapped (a touch player has no Escape or Start) */
+  constructor(parent: HTMLElement, onPause: () => void = () => {}) {
+    this.onPause = onPause;
     this.enabled = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
     this.root = h('div', 'touch', parent);
     this.root.setAttribute('aria-hidden', 'true');
@@ -36,6 +40,9 @@ export class TouchControls {
     mk('lookBack', 'BACK');
     mk('drift', 'DRIFT');
     mk('brake', 'BRAKE');
+    const pause = h('div', 'tb pause', this.root);
+    pause.dataset.pause = '';
+    h('span', '', pause);
     for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture'] as const) {
       this.root.addEventListener(ev, (e) => this.onPointer(e as PointerEvent));
     }
@@ -64,6 +71,7 @@ export class TouchControls {
     const id = e.pointerId;
     if (e.type === 'pointerdown') {
       const t = e.target as HTMLElement;
+      if (t.closest('[data-pause]')) { this.onPause(); return; }
       const b = t.closest('[data-touch]') as HTMLElement | null;
       if (t.closest('.pad')) { this.held.set(id, 'pad'); this.root.setPointerCapture?.(id); this.steerTo(e.clientX); }
       else if (b) { const k = b.dataset.touch as Button; this.held.set(id, k); this.down[k]++; b.classList.add('down'); }

@@ -147,6 +147,30 @@ describe('UiRoot', () => {
   });
 });
 
+describe('touch', () => {
+  it('a phone or tablet has a pause button while racing, and it pauses', () => {
+    const mm = globalThis.matchMedia;
+    globalThis.matchMedia = ((q: string) => ({ matches: q === '(pointer: coarse)', addEventListener: () => {} })) as never;
+    try {
+      document.body.innerHTML = '';
+      const h = host();
+      const ui = new UiRoot(document.body, h, null);
+      ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'grandPrix' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickCup', cupId: 'sunrise' });
+      expect(ui.app.screen).toBe('racing');
+      ui.touch.show(true); // as main.ts does while racing and not paused
+      const pause = document.querySelector('#ui .touch.on .tb.pause')!;
+      expect(pause).not.toBeNull();
+      pause.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }));
+      expect(ui.paused).toBe(true);
+      expect(h.calls).toContain('paused:true');
+      // and the pause dialog takes over with its own tappable buttons (Quit among them)
+      expect(document.querySelector('#ui .pause.on [data-id="quit"]')).not.toBeNull();
+      ui.touch.show(false);
+      ui.dispose();
+    } finally { globalThis.matchMedia = mm; }
+  });
+});
+
 describe('settings by pointer', () => {
   it('a click on ◀ turns a value down and ▶ turns it up; the row itself still steps up', () => {
     document.body.innerHTML = '';

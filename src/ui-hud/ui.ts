@@ -119,7 +119,7 @@ export class UiRoot {
     this.root = document.createElement('div');
     this.root.id = 'ui';
     parent.appendChild(this.root);
-    this.touch = new TouchControls(this.root);
+    this.touch = new TouchControls(this.root, () => this.dispatch({ type: 'pause' }));
     // a phone held upright: the race needs it sideways (shown by CSS only, portrait + touch)
     const rotate = document.createElement('div');
     rotate.className = 'rotate-hint';
