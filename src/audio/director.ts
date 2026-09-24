@@ -2,7 +2,8 @@
 // hits and horns play only when near the listener, quieter with distance.
 import type { KartEvent, Vec3 } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
-import type { RaceEvent } from '../race-manager/types.ts';
+import { KNOCKOUT_CUT_LINES } from '../race-manager/constants.ts';
+import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { AUDIO } from './constants.ts';
 import type { Cue, MusicCue, SfxId } from './types.ts';
 
@@ -95,7 +96,7 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
         push(e.isFinal ? 'finalLap' : 'lap', null);
         if (e.isFinal) music.push({ type: 'finalLap' });
         break;
-      case 'finish': if (e.racerId === me) push(e.rank <= 3 && !e.dnf ? 'finish' : 'finishLow', null); break;
+      case 'finish': if (e.racerId === me) push(e.rank <= goodRank && !e.dnf ? 'finish' : 'finishLow', null); break;
       case 'positionChange':
         // only the player's own place changes, measured against the last one (the grid slot at first)
         if (e.racerId === me) push(e.rank < (lastRank ?? e.rank) ? 'gainPlace' : 'losePlace', null, 0.6);
@@ -171,11 +172,23 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
 }
 
 /**
- * The player's last announced rank, for gain/lose place. Reset per race with `resetDirector`,
- * seeded with the player's grid rank so the first pass off the back row is a gain.
+ * The player's last announced rank, for gain/lose place, and the worst place that earns the finish
+ * fanfare (`finishLine`). Reset per race with `resetDirector`, seeded with the player's grid rank
+ * so the first pass off the back row is a gain.
  */
 let lastRank: number | undefined;
-export function resetDirector(gridRank?: number): void { lastRank = gridRank; }
+let goodRank: number = AUDIO.podium;
+export function resetDirector(gridRank?: number, line: number = AUDIO.podium): void { lastRank = gridRank; goodRank = line; }
+
+/**
+ * The race's own winning line: a Knockout round's cut line, only 1st in its final (no next round,
+ * the HUD's WIN THE FINAL), else the podium. A solo run's one racer is always 1st.
+ */
+export function finishLine(config: Pick<RaceConfig, 'mode' | 'knockout'>): number {
+  const ko = config.mode === 'knockout' ? config.knockout : undefined;
+  if (!ko) return AUDIO.podium;
+  return ko.segment >= KNOCKOUT_CUT_LINES.length - 1 ? 1 : ko.cutLine;
+}
 
 /** The horn for a racer, or a generic one. */
 const RACERS: readonly string[] = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];
