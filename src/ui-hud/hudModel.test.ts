@@ -44,7 +44,8 @@ describe('hud model', () => {
     expect(hudModel(race(), k, 4, 10, m, 1.01, defs, 0).banner).toBeNull();
     ev([{ type: 'wrongWay', racerId: 'p', on: true }], 2);
     expect(hudModel(race(), k, 4, 10, m, 2, defs, 0).banner?.kind).toBe('wrongWay');
-    ev([{ type: 'trackChanged', event: { label: 'THE TIDE IS IN' } as never }, { type: 'phase', phase: 'finalLap' }], 3);
+    // the player leads: their last lap and the shift land on one tick
+    ev([{ type: 'lap', racerId: 'p', lap: 3, isFinal: true }, { type: 'trackChanged', event: { label: 'THE TIDE IS IN' } as never }, { type: 'phase', phase: 'finalLap' }], 3);
     const fl = hudModel(race(), k, 4, 10, m, 3, defs, 0).banner!;
     expect([fl.kind, fl.text, fl.sub]).toEqual(['finalLap', 'FINAL LAP', 'THE TIDE IS IN']);
     ev([{ type: 'countdown', stepsLeft: 1 }], 3.1); // lower priority: ignored while final lap holds
@@ -54,6 +55,30 @@ describe('hud model', () => {
     k.finishTick = 9;
     const fin = hudModel(race(), k, 2, 10, m, 999, defs, 0).banner!;
     expect([fin.kind, fin.text, fin.sub]).toEqual(['finish', 'FINISH!', '2nd']);
+  });
+
+  it('FINAL LAP waits for the player\'s own last lap; the leader\'s shows only the shift\'s label', () => {
+    const m = newHudMemory();
+    const k = kart(); // on lap 2 of 3
+    // the leader starts the last lap: the shift fires while the player is still on lap 2
+    feedHud(m, [{ type: 'lap', racerId: 'x', lap: 3, isFinal: true }, { type: 'trackChanged', event: { label: 'STORM ROLLS IN' } as never }, { type: 'phase', phase: 'finalLap' }], [], 'p', 10);
+    const shift = hudModel(race(), k, 4, 10, m, 10, defs, 0);
+    expect([shift.banner?.kind, shift.banner?.text, shift.banner?.sub, shift.lap]).toEqual(['shift', 'STORM ROLLS IN', '', '2/3']);
+    // three seconds later the player crosses into lap 3
+    k.lap = 3;
+    feedHud(m, [{ type: 'lap', racerId: 'p', lap: 3, isFinal: true }], [], 'p', 13);
+    const mine = hudModel(race(), k, 4, 10, m, 13.5, defs, 0);
+    expect([mine.banner?.kind, mine.banner?.text, mine.banner?.sub, mine.lap, mine.lapFinal]).toEqual(['finalLap', 'FINAL LAP', 'STORM ROLLS IN', '3/3', true]);
+    expect(hudModel(race(), k, 4, 10, m, 13 + UI.bannerHoldSeconds - 0.01, defs, 0).banner?.kind).toBe('finalLap');
+  });
+
+  it('the timer stops on the player\'s own time once they cross the line', () => {
+    const k = kart();
+    const st = race({ goTick: 360, time: 80 });
+    expect(hudModel(st, k, 4, 10, newHudMemory(), 0, defs, 0).timer).toBe('1:20.00');
+    k.finishTick = 360 + 120 * 70.25; // finished 70.25 s after the go; the race clock runs on
+    expect(hudModel(st, k, 4, 10, newHudMemory(), 0, defs, 0).timer).toBe('1:10.25');
+    expect(hudModel({ ...st, time: 84.5 }, k, 4, 10, newHudMemory(), 0, defs, 0).timer).toBe('1:10.25');
   });
 
   it('a hit on the player flashes for flashMs; a hit on someone else does not', () => {

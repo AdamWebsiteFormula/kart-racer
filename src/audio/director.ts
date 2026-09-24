@@ -88,8 +88,13 @@ export function direct(race: readonly RaceEvent[], items: readonly ItemEvent[], 
     switch (e.type) {
       case 'countdown': push('count', null); if (e.stepsLeft === 3) music.push({ type: 'drums', on: false }); break;
       case 'go': push('go', null); music.push({ type: 'drums', on: true }); break;
-      case 'lap': if (e.racerId === me && !e.isFinal) push('lap', null); break;
-      case 'phase': if (e.phase === 'finalLap') { push('finalLap', null); music.push({ type: 'finalLap' }); } break;
+      // the player's own last lap, not the leader's (the shift): the fanfare, and the song pauses
+      // for it and comes back faster (SongPlayer.lift), so the two stay one moment
+      case 'lap':
+        if (e.racerId !== me) break;
+        push(e.isFinal ? 'finalLap' : 'lap', null);
+        if (e.isFinal) music.push({ type: 'finalLap' });
+        break;
       case 'finish': if (e.racerId === me) push(e.rank <= 3 && !e.dnf ? 'finish' : 'finishLow', null); break;
       case 'positionChange':
         // only the player's own place changes, and only once racing has settled (rank 0 is the grid)

@@ -3,12 +3,14 @@
 import type { KartState } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import { KNOCKOUT_CUT_LINES } from '../race-manager/constants.ts';
+import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { formatTime, kmh, ordinal, ordinalParts } from './format.ts';
+import { formatMs, formatTime, kmh, ordinal, ordinalParts } from './format.ts';
 
-export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'finish' | 'strike';
-const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, strike: 2, wrongWay: 2, finalLap: 3, finish: 4 };
+/** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
+export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'shift' | 'finish' | 'strike';
+const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, strike: 2, wrongWay: 2, finalLap: 3, shift: 3, finish: 4 };
 
 export interface HudMemory {
   banner: { text: string; sub: string; kind: BannerKind; until: number } | null;
@@ -16,11 +18,13 @@ export interface HudMemory {
   flourishUntil: number;
   wrongWay: boolean;
   shiftLabel: string;
+  /** the player has started their own last lap */
+  finalLap: boolean;
   /** the controls strip shows through the countdown and a moment after the go */
   hintUntil: number;
 }
 
-export const newHudMemory = (): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', hintUntil: -1 });
+export const newHudMemory = (): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, hintUntil: -1 });
 
 function show(m: HudMemory, kind: BannerKind, text: string, sub: string, until: number, clock: number): void {
   const cur = m.banner && m.banner.until > clock ? m.banner : null;
@@ -36,8 +40,15 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
       case 'countdown': show(m, 'countdown', `${e.stepsLeft}`, '', clock + 1, clock); m.hintUntil = clock + 1.5; break;
       case 'go': show(m, 'go', 'GO!', '', clock + 1, clock); m.hintUntil = clock + UI.keysHintSeconds; break;
       case 'trackChanged': m.shiftLabel = e.event.label; break;
+      // FINAL LAP is the player's own last lap; the shift fires on the leader's. A leading player
+      // gets both on one tick (lap first, then the label): FINAL LAP under the shift's label.
+      case 'lap':
+        if (e.racerId === playerId && e.isFinal) { m.finalLap = true; show(m, 'finalLap', 'FINAL LAP', m.shiftLabel, hold, clock); }
+        break;
       case 'phase':
-        if (e.phase === 'finalLap') show(m, 'finalLap', 'FINAL LAP', m.shiftLabel, hold, clock);
+        if (e.phase !== 'finalLap') break;
+        if (m.finalLap) show(m, 'finalLap', 'FINAL LAP', m.shiftLabel, hold, clock);
+        else if (m.shiftLabel) show(m, 'shift', m.shiftLabel, '', hold, clock);
         break;
       case 'wrongWay': if (e.racerId === playerId) m.wrongWay = e.on; break;
       case 'positionChange': if (e.racerId === playerId) m.flourishUntil = clock + 0.4; break;
@@ -120,7 +131,8 @@ export function hudModel(
   }
   const slots = itemSlots(player, defs, nowMs, trailing);
   return {
-    timer: formatTime(state.time),
+    // stops on the player's own time (the one the results show), not the race clock
+    timer: player.finishTick !== undefined ? formatMs(ticksToMs(player.finishTick - state.goTick)) : formatTime(state.time),
     lap: `${lap}/${state.lapsTotal}`,
     lapFinal: lap === state.lapsTotal && state.lapsTotal > 1,
     position: ordinalParts(rank),
