@@ -1,8 +1,10 @@
 // RaceManager: one race, one fixed tick at a time. Everything is a function of
 // (config, tick, inputs), so a replayed input log reproduces the race exactly.
 import { makeConstants, type KartConstants } from '../kart-controller/constants.ts';
+import { inLoop } from '../kart-controller/loop.ts';
 import { SIM_DT, stepKarts } from '../kart-controller/step.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type KartEvent, type KartState } from '../kart-controller/types.ts';
+import { tInRange } from '../track-builder/shift.ts';
 import type { Track } from '../track-builder/track.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
 import { createTracker, distanceAlong, resyncAfterShift, stepCheckpoints } from './checkpoints.ts';
@@ -11,7 +13,7 @@ import { GO_TICK, stepCountdown } from './countdown.ts';
 import { stepHazards } from './hazards.ts';
 import { indexFeatures, initTimers, stepPickups, type FeatureIndex } from './pickups.ts';
 import { assignRanks, sortOrder } from './ranking.ts';
-import { retargetRescue, startRescue, stepRescue, stepStuck } from './respawn.ts';
+import { retargetRescue, startRescue, stepRescue, stepStuck, strandedByShift } from './respawn.ts';
 import type { KartTracker, RaceConfig, RaceEvent, RaceResults, RaceState } from './types.ts';
 import { countDown } from './util.ts';
 import { stepWrongWay } from './wrongway.ts';
@@ -232,12 +234,18 @@ export class RaceManager {
     const st = this.state;
     if (st.finalLapShiftFired) return;
     st.finalLapShiftFired = true;
+    // who is on the stretch of main road a route change replaces (their t is still the old road's)
+    const replaced = this.track.def.finalLapShift.routeOverrides ?? [];
+    const onReplaced = st.karts.map((s) => s.branch === 0 && replaced.some((ov) => tInRange(s.t, ov.fromT, ov.toT)));
     const changed = this.track.applyFinalLapShift(st.karts);
     if (changed) events.push({ type: 'trackChanged', event: changed });
     for (let i = 0; i < st.karts.length; i++) {
-      resyncAfterShift(st.karts[i], st.trackers[i], this.track, st.lapsTotal, tick, events);
-      retargetRescue(st.karts[i], st.trackers[i], this.track);
-      st.karts[i].distanceAlong = distanceAlong(st.karts[i], st.trackers[i], this.track);
+      const s = st.karts[i], tr = st.trackers[i];
+      resyncAfterShift(s, tr, this.track, st.lapsTotal, tick, events);
+      retargetRescue(s, tr, this.track);
+      // its road went from under it and the new one is nowhere near: the claw fetches it
+      if (changed && onReplaced[i] && !tr.rescue && !inLoop(s) && strandedByShift(s, this.track, this.consts[i])) startRescue(s, tr, this.track, events);
+      s.distanceAlong = distanceAlong(s, tr, this.track);
     }
     st.phase = 'finalLap';
     events.push({ type: 'phase', phase: 'finalLap' });

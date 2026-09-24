@@ -3,9 +3,10 @@
 // and a kart parked there is a hazard: ai-driver Decisions 2026-09-21), facing the
 // tangent, with a short input freeze. Coins and the held item stay.
 import { clearBoost } from '../kart-controller/boost.ts';
-import { BASE } from '../kart-controller/constants.ts';
+import { BASE, type KartConstants } from '../kart-controller/constants.ts';
 import { cancelDrift } from '../kart-controller/drift.ts';
-import { lateralOffset } from '../kart-controller/ground.ts';
+import { jumpLift, lateralOffset } from '../kart-controller/ground.ts';
+import { radiusOf } from '../kart-controller/powers.ts';
 import { headingOf, type InputState, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -74,6 +75,22 @@ export function rescuePose(r: Rescue, since: number): { position: Vec3; heading:
   }
   const e = smooth((since - carry) / (D - carry));
   return { position: [t[0], t[1] + 1.5 * (1 - e), t[2]], heading: r.toHeading };
+}
+
+/**
+ * A route-changing Final Lap Shift took the road from under this kart: is it where nothing brings it
+ * back? Past a walled side by more than wallEndOvershoot (the wall would drag it in through the sky or
+ * the rock), more than groundCatch under the new road (it falls through it), or on the ground before
+ * and now more than groundCatch above it (bug hunt, 24 Sept 2026: a slow kart on Skyline's retracting
+ * bridge was left 80 m off the new road, fell 18 m onto nothing and was pulled in through the air).
+ */
+export function strandedByShift(s: KartState, track: Track, c: KartConstants): boolean {
+  const lateral = lateralOffset(track, s.t, s.position, s.branch).lateral;
+  const smp = track.sample(s.t, lateral, s.branch), open = smp.open ?? 0;
+  const walled = !(open & (lateral < 0 ? 1 : 2));
+  if (walled && Math.abs(lateral) - ((smp.wall ?? smp.halfWidth) - radiusOf(s, c)) > c.wallEndOvershoot) return true;
+  const dy = s.position[1] - (smp.groundY + jumpLift(track, s.t, s.branch, lateral, smp.halfWidth, open));
+  return dy < -c.groundCatch || (s.grounded && dy > c.groundCatch);
 }
 
 /** A route-changing Final Lap Shift moved the checkpoints: a claw already in the air flies to the new one. */

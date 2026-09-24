@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SIM_DT, SIM_HZ, stepKart, stepKarts } from '../kart-controller/step.ts';
 import { headingOf, NEUTRAL_INPUT, type InputState, type KartEvent, type KartState } from '../kart-controller/types.ts';
 import canyonJson from '../track-builder/tracks/canyon-rush.json';
+import skylineJson from '../track-builder/tracks/skyline-circuit.json';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { RACE } from './constants.ts';
@@ -242,6 +243,45 @@ describe('claw rescue: the flag and the Final Lap Shift', () => {
     expect(tr.rescue).toBeUndefined();
     expect(distXZ(last, cp.position)).toBeLessThan(cp.halfWidth);
     expect(distXZ(s.position, cp.position)).toBeLessThan(cp.halfWidth);
+  });
+
+  it('a kart on the road a Final Lap Shift replaces, left off the new road, is fetched by the claw (Canyon Rush, Skyline Circuit)', () => {
+    // bug hunt, 24 Sept 2026: a slow kart on the old road was left 80-115 m off the new one, in the
+    // sky or the rock, with no claw; it fell onto nothing and was dragged in by the wall easing
+    for (const [json, t] of [[canyonJson, 0.47], [canyonJson, 0.59], [skylineJson, 0.609]] as const) {
+      const track = buildTrack(cloneDef(json as TrackDefinition));
+      const rm = new RaceManager(track, config(track, [
+        { racerId: 'slow', archetype: 'medium', isPlayer: false },
+        { racerId: 'lead', archetype: 'medium', isPlayer: false },
+      ], 2));
+      toGo(rm);
+      const idle = [NEUTRAL_INPUT, NEUTRAL_INPUT];
+      const s = rm.state.karts[0], tr = rm.state.trackers[0];
+      const at = `${track.id} t ${t}`;
+      // on the old road, driving, past the checkpoint before it
+      const cpi = track.checkpoints.reduce((best, cp, i) => (cp.t <= t && cp.t > track.checkpoints[best].t ? i : best), 0);
+      placeAt(track, s, t, 1);
+      s.speed = 10;
+      tr.lastCheckpoint = cpi; tr.nextCheckpoint = cpi + 1; tr.prevT = t;
+      rm.step(idle);
+      expect(tr.rescue, at).toBeUndefined();
+      // the other kart starts the last lap: the road under this one is replaced
+      rm.state.karts[1].lap = 2;
+      const out = rm.step(idle);
+      expect(rm.state.finalLapShiftFired, at).toBe(true);
+      expect(out.some((e) => isRescue(e, 'slow', 'start')), at).toBe(true);
+      expect(s.status.held, at).toBe(true);
+      // the kart that started the last lap was on unchanged road: left alone
+      expect(rm.state.trackers[1].rescue, at).toBeUndefined();
+      // carried to its checkpoint on the new road and set down on it
+      for (let k = 0; k < RESCUE_TICKS + 5 && tr.rescue; k++) rm.step(idle);
+      expect(tr.rescue, at).toBeUndefined();
+      const cp = track.checkpoints[tr.lastCheckpoint];
+      expect(distXZ(s.position, cp.position), at).toBeLessThan(cp.halfWidth);
+      for (let k = 0; k < 60; k++) rm.step(idle);
+      expect(s.grounded, at).toBe(true);
+      expect(Math.abs(s.position[1] - track.sample(s.t, 0, s.branch).groundY), at).toBeLessThan(0.5);
+    }
   });
 
   it('the claw sets the kart down where it carried it: no sideways jump at let-go', () => {
