@@ -56,6 +56,9 @@ Lap target 45–60 s at 150cc-equivalent; width ≥ 4 karts at the start; one sh
 
 Stretch tracks if ahead of schedule: **Overgrown Temple** (jungle ruins, vines swing, water rises on the final lap) and **Foundry Sprint** (industrial, conveyor belts reverse on the final lap).
 
+### Road edges (Adam, 23 Sept 2026: option 1, "themed edges")
+Mario Kart keeps striped rumble curbs for race circuits, on their corners ([mariowiki: Circuit](https://www.mariowiki.com/Circuit)); a course set in a place has an edge that belongs to it. Ours: Harbor Loop a town sidewalk, striped only where the road bends; Skyline Circuit gold trim, striped only on its corners; Meadow Run a grass verge; Canyon Rush drifted sand, with weathered ranch posts; Frostbite Pass a snowbank, with wooden snow poles; Boardwalk Nights dark planks with a glowing neon line. (track-builder/mesh/scene.ts EDGES, road.ts `bend`.)
+
 ### Course creatures (Adam, 23 Sept 2026)
 Each track has one big original creature at a set spot: a hazard with a readable warning (a shadow, a rumble, a wind-up) that knocks or spins karts, or throws something that does. Skill beats luck: the warning always comes first, and the AI sees and dodges it like any hazard. Deterministic in the sim like every other hazard; animated in code.
 

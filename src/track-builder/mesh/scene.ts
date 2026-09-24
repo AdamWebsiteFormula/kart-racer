@@ -104,28 +104,63 @@ function geometryFor(assets: TrackAssets, name: string, fallback = name): Buffer
 }
 
 /**
- * Crisp kerb stripes (two colours, hard-edged and anti-aliased, one stripe every roadTileLength / 4)
- * and painted road lines: an edge line inside each kerb and a dashed centre line (asphalt only).
- * Reads the ribbon's `mark` attribute (road.ts ROAD_MARK); vertex colours still tint everything else.
+ * Each track's road edge (Adam, 23 Sept 2026, option 1): Mario Kart keeps striped curbs for race
+ * circuits and their corners; a place has its own edge. mode 0 stripes everywhere, 1 stripes only
+ * where the road bends (the ribbon's `bend`), 2 never. a/b: the edge's two tones; joints: seams per
+ * roadTileLength (slabs, planks), joint how dark a seam is; neon: a glowing line along the edge.
  */
-function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean): void {
+interface EdgeStyle { mode: 0 | 1 | 2; a: string; b: string; joints: number; joint: number; neon?: string }
+const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
+  harbour: { mode: 1, a: '#e2ddd0', b: '#d2cabb', joints: 5, joint: 0.28 },             // a town sidewalk; stripes on the corners
+  skyline: { mode: 1, a: '#f4c64e', b: '#e2a92c', joints: 2, joint: 0.12 },             // gold trim; stripes on the corners
+  meadow: { mode: 2, a: '#7cbc56', b: '#5e9c40', joints: 0, joint: 0 },                 // a grass verge
+  canyon: { mode: 2, a: '#ecc08a', b: '#d9a56d', joints: 0, joint: 0 },                 // drifted sand
+  frost: { mode: 2, a: '#f7faff', b: '#d6e3f3', joints: 0, joint: 0 },                  // a snowbank
+  boardwalk: { mode: 2, a: '#4c3c72', b: '#3a2d5a', joints: 16, joint: 0.35, neon: '#2ee6ff' }, // planks with a neon line
+});
+
+/**
+ * The road edge in each track's style (EDGES), and painted road lines: an edge line inside each
+ * edge and a dashed centre line (asphalt only). Reads the ribbon's `mark` and `bend` attributes
+ * (road.ts); vertex colours still tint everything else.
+ */
+function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle): void {
   const kerbA = new Color(...palette.kerbA), kerbB = new Color(...palette.kerbB);
+  const ea = hexToRgb(edge.a), eb = hexToRgb(edge.b), neon = edge.neon ? hexToRgb(edge.neon) : ([0, 0, 0] as Rgb);
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uKerbA = { value: kerbA };
     shader.uniforms.uKerbB = { value: kerbB };
     shader.uniforms.uLines = { value: lines ? 1 : 0 };
+    shader.uniforms.uEdgeMode = { value: edge.mode };
+    shader.uniforms.uEdgeA = { value: new Color(...ea) };
+    shader.uniforms.uEdgeB = { value: new Color(...eb) };
+    shader.uniforms.uEdgeJoints = { value: edge.joints };
+    shader.uniforms.uEdgeJoint = { value: edge.joint };
+    shader.uniforms.uNeon = { value: new Color(neon[0] * 2.2, neon[1] * 2.2, neon[2] * 2.2) };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float mark;\nvarying float vMark;\nvarying vec2 vRoad;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvRoad = uv;');
+      .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nvarying float vMark;\nvarying float vBend;\nvarying vec2 vRoad;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvRoad = uv;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nvarying float vMark;\nvarying vec2 vRoad;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nvarying float vMark;\nvarying float vBend;\nvarying vec2 vRoad;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        if (vMark > 0.5 && vMark < 1.5) {
+          // a neon line along the edge (Boardwalk): it lights itself
+          float line = 1.0 - smoothstep(0.1, 0.18, abs(vRoad.x - 0.5));
+          totalEmissiveRadiance += uNeon * line;
+        }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         if (vMark > 0.5 && vMark < 1.5) {
-          // the kerb: hard stripes, anti-aliased so they do not shimmer far away
+          // striped curb: hard stripes, anti-aliased so they do not shimmer far away
           float p = vRoad.y * 2.0;
           float w = fwidth(p) * 1.5;
           float t = abs(fract(p) - 0.5) * 2.0;
-          diffuseColor.rgb = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
+          vec3 stripes = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
+          // the place's own edge: two tones broken up along the road, with seams (slabs, planks)
+          float q = sin(vRoad.y * 11.0 + vRoad.x * 3.0) * sin(vRoad.y * 4.3 - vRoad.x * 1.7) * 0.5 + 0.5;
+          float seam = uEdgeJoints > 0.0 ? 1.0 - smoothstep(0.0, 0.08, abs(fract(vRoad.y * uEdgeJoints) - 0.5) * 2.0 - 0.9) : 0.0;
+          vec3 plain = mix(uEdgeA, uEdgeB, q) * (1.0 - uEdgeJoint * (1.0 - seam));
+          float corner = uEdgeMode > 1.5 ? 0.0 : uEdgeMode > 0.5 ? smoothstep(0.25, 0.6, vBend) : 1.0;
+          diffuseColor.rgb = mix(plain, stripes, corner);
         } else if (vMark < 0.5) {
           // the surface itself: big soft patches of lighter and darker tarmac, and the middle a
           // little darker where the karts run (it is never one flat sheet)
@@ -268,7 +303,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
   if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
   else if (assets.roadMap) roadMaterial.map = assets.roadMap;
-  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome));
+  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour);
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);

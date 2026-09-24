@@ -195,8 +195,10 @@ const MODELS: Record<string, { build: Build }> = {
   },
   'canyon-barrier': {
     build: (m) => {
-      m.box([0.62, 0.7, 0.62], '#d9734f', [0, 0.35, 0], [0, 0.3, 0], false);
-      m.box([0.64, 0.14, 0.64], '#2ec4b6', [0, 0.62, 0], [0, 0.3, 0], false);    // turquoise paint band
+      // a weathered ranch post: sun-bleached timber, a rope band, a sandstone rock at its foot
+      m.cyl(0.13, 0.16, 1.05, '#9a6a44', [0, 0.52, 0], [0, 0, 0.05], 5);
+      m.cyl(0.15, 0.15, 0.1, '#2ec4b6', [0, 0.82, 0], undefined, 5, false);        // turquoise rope wrap
+      m.ball([0.42, 0.26, 0.36], '#d9824f', [0.12, 0.08, 0.05], [0, 0.6, 0], 4, false); // sandstone rock
     },
   },
   minecart: {
@@ -263,8 +265,11 @@ const MODELS: Record<string, { build: Build }> = {
   },
   'frost-barrier': {
     build: (m) => {
-      m.box([0.62, 0.55, 0.62], '#fbfdff', [0, 0.28, 0], [0, 0.4, 0], false);
-      m.box([0.64, 0.12, 0.64], '#ff3e9a', [0, 0.5, 0], [0, 0.4, 0], false);           // hot-pink marker band
+      // a snow-pole: a wooden post in a drift, a hot-pink marker band, a cap of snow
+      m.ball([0.5, 0.22, 0.45], '#f4f8ff', [0, 0.02, 0], undefined, 4, false);       // the drift at its foot
+      m.cyl(0.1, 0.12, 1.2, '#7a5236', [0, 0.6, 0], undefined, 5);
+      m.cyl(0.13, 0.13, 0.22, '#ff3e9a', [0, 0.95, 0], undefined, 5, false);         // hot-pink marker band
+      m.cone(0.17, 0.12, '#fbfdff', [0, 1.26, 0], undefined, 5, false);               // snow cap
     },
   },
   // ================================================================ Skyline Circuit

@@ -66,6 +66,17 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   const col = new Float32Array(total * 3);
   const uv = new Float32Array(total * 2);
   const mark = new Float32Array(total);
+  const bend = new Float32Array(total);
+  // how sharply the road turns here: the heading change across a few samples, per metre, eased
+  // from a gentle sweep (radius ~80 m) to a real corner (radius ~40 m)
+  const K = 4, ds = (2 * K * lut.length) / lut.step;
+  const bendAt = (j: number): number => {
+    const a = lut.idx(j - K), b = lut.idx(j + K);
+    const cross = lut.rx[a] * lut.rz[b] - lut.rz[a] * lut.rx[b], dot = lut.rx[a] * lut.rx[b] + lut.rz[a] * lut.rz[b];
+    const k = Math.abs(Math.atan2(cross, dot)) / ds;
+    const x = Math.max(0, Math.min(1, (k - 0.012) / 0.013));
+    return x * x * (3 - 2 * x);
+  };
   const idx = new Uint32Array(strips.length * (count - 1) * 6);
 
   let v = 0, f = 0;
@@ -89,6 +100,7 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
         uv[v * 2] = side; uv[v * 2 + 1] = s / tile;
         // a branch's blended ends are plain: no stripes, no lines where it slides under the main road
         mark[v] = inBlend && strip.mark !== M.road ? M.plain : strip.mark;
+        bend[v] = lut.closed || (i - K >= 0 && i + K <= lut.step) ? bendAt(i) : 0;
         v++;
       }
     }
@@ -105,6 +117,7 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   g.setAttribute('color', new BufferAttribute(col, 3));
   g.setAttribute('uv', new BufferAttribute(uv, 2));
   g.setAttribute('mark', new BufferAttribute(mark, 1));
+  g.setAttribute('bend', new BufferAttribute(bend, 1));
   g.setIndex(new BufferAttribute(idx, 1));
   g.computeVertexNormals();
   g.computeBoundingSphere();
