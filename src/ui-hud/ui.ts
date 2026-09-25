@@ -33,15 +33,23 @@ import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
 import { cleanName, dailySeed, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
 import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Settings } from './store.ts';
 import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
-import { grantAll, grantUnlocks, unlockRows } from './unlocks.ts';
+import { grantAll, grantUnlocks, unlockRows, unlockWords } from './unlocks.ts';
 import { garageModel, lookFor, mirrorAllowed, setChoice, stepChoice, type ChoiceId } from './garage.ts';
+import { isKart, kartCard, kartFor, kartLocked, kartName } from './data/karts.ts';
+import { comboStats } from './data/kartStats.ts';
+import { skinCard } from './data/cosmetics.ts';
+import { kartMenu, kartMove, type KartMenuVM } from './screens/karts.ts';
+import { statPanel } from './screens/stats.ts';
+import { KartView } from './render/karts.ts';
 
 /**
  * `mirrored`: Mirror mode (Quick Race and Grand Prix only); `look`: the player's paint and body (cosmetic only);
  * `intro`: from the results, the course intro to fly: 'short' for a Quick Race's Next track, 'none' for a race
- * again or a Time Trial's Retry (as the pause's Restart); absent, the mode's own (design §9)
+ * again or a Time Trial's Retry (as the pause's Restart); absent, the mode's own (design §9);
+ * `kartId`: with karts picked (UI.kartPick), the kart the player races in, for the whole series (kart-controller
+ * karts.ts ids; its stats replace the racer's own kart's: comboStats); absent, the racer's own kart
  */
-export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[]; mirrored?: boolean; look?: KartLookIds; intro?: 'short' | 'none' }
+export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[]; mirrored?: boolean; look?: KartLookIds; intro?: 'short' | 'none'; kartId?: string }
 /** A kart's look by id: an alt paint (data/cosmetics.ts SKINS) and a body (BODIES); absent = the racer's own. */
 export interface KartLookIds { paint?: string; body?: string }
 
@@ -87,6 +95,8 @@ export interface RaceOver {
   ghost?: string;
   /** the look the player raced in: kept with a new best's ghost, which is drawn in it */
   look?: KartLookIds;
+  /** the kart the player raced in (absent: the one the menus asked for): a Time Trial best keeps it (save timeTrial[track].kart) */
+  kartId?: string;
   /** the series is over: its top three (1st to 3rd), for the podium ceremony after the standings or the cut (the host shows it) */
   podium?: readonly string[];
 }
@@ -120,7 +130,7 @@ export class UiRoot {
   private readonly host: UiHost;
   private readonly backend: Backend | null;
   private readonly views: {
-    boot: BootView; title: TitleView; modes: ListView; roster: RosterView; cups: CupView; tracks: TrackView; hud: HudView; results: ResultsView; podium: PodiumView;
+    boot: BootView; title: TitleView; modes: ListView; roster: RosterView; karts: KartView; cups: CupView; tracks: TrackView; hud: HudView; results: ResultsView; podium: PodiumView;
     pause: OverlayMenuView; settings: SettingsView; credits: CreditsView; howTo: HowToView; unlocks: UnlocksView;
   };
   private readonly models = new Map<string, FocusModel>();
@@ -155,6 +165,14 @@ export class UiRoot {
   private dressing = '';
   /** a racer card under the pointer goes on show once the pointer rests on it (UI.hoverDressMs) */
   private dressTimer: ReturnType<typeof setTimeout> | undefined;
+  /** the kart on show on the Kart screen (the hero and the panel's ghost): the card last focused by a key, a pad, a tap or a resting pointer */
+  private previewing = '';
+  /** a kart chosen: its "Locked in!" pulse plays until then (UI.lockInMs), input waits, then the next screen comes */
+  private lockIn: { until: number; timer: ReturnType<typeof setTimeout> } | null = null;
+  /** the last pointer down's kind: on a touch screen a first tap on a kart card previews it, a second on the same one chooses */
+  private pointerKind = '';
+  /** the Kart screen as last drawn (its cards' names, colors and locks, for the hero) */
+  private kartVm: KartMenuVM | null = null;
   /**
    * The screen change under way (UI.wipeMs): the views going (kept on show while they leave), the view
    * coming, a view's old face when it is drawn again as the next screen (results → standings), and when
@@ -185,7 +203,7 @@ export class UiRoot {
   private osReduced = false;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
   private readonly onMove = (e: PointerEvent) => this.hover(e);
-  private readonly onDown = (e: PointerEvent) => this.tapInRace(e);
+  private readonly onDown = (e: PointerEvent) => { this.pointerKind = e.pointerType ?? ''; this.tapInRace(e); };
   /** the window lost the focus mid-race (alt-tab, a click on the address bar or another window) */
   private readonly onBlur = () => { if (this.app.screen === 'racing' && !this.app.overlays.length) this.dispatch({ type: 'pause' }); };
   /** into or out of fullscreen (F, the Settings row, Esc, the browser): Settings' row says which */
@@ -202,11 +220,14 @@ export class UiRoot {
   /** on-screen thumbs for phones and tablets (shown only there, only while racing) */
   readonly touch: TouchControls;
 
-  constructor(parent: HTMLElement, host: UiHost, backend: Backend | null) {
+  /** `opts.kartPick`: the ship switch (UI.kartPick), for a test to turn on */
+  constructor(parent: HTMLElement, host: UiHost, backend: Backend | null, opts: { kartPick?: boolean } = {}) {
     this.host = host;
     this.backend = backend;
-    this.save = loadSave(backend);
-    this.app = { ...this.app, racerId: this.save.settings.selectedRacerId };
+    const kartPick = opts.kartPick ?? UI.kartPick;
+    this.save = loadSave(backend, kartPick);
+    const kart = kartPick ? this.save.settings.selectedKartId : undefined;
+    this.app = { ...initialApp(kartPick), racerId: this.save.settings.selectedRacerId, ...(kart ? { kartId: kart } : {}) };
     this.root = document.createElement('div');
     this.root.id = 'ui';
     parent.appendChild(this.root);
@@ -234,7 +255,7 @@ export class UiRoot {
     const r = this.root;
     this.views = {
       boot: new BootView(r), title: new TitleView(r), modes: new ListView(r, 'mode-screen', 'Pick a mode'),
-      roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r), podium: new PodiumView(r),
+      roster: new RosterView(r), karts: new KartView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r), podium: new PodiumView(r),
       pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r), howTo: new HowToView(r), unlocks: new UnlocksView(r),
     };
     this.introView = new IntroCardView(this.views.hud.root);
@@ -260,6 +281,7 @@ export class UiRoot {
   dispose(): void {
     this.endWipe();
     clearTimeout(this.dressTimer);
+    if (this.lockIn) clearTimeout(this.lockIn.timer);
     removeEventListener('keydown', this.onKey);
     removeEventListener('pointermove', this.onMove);
     removeEventListener('pointerdown', this.onDown);
@@ -313,6 +335,13 @@ export class UiRoot {
       this.save.settings.selectedRacerId = next.racerId;
       writeSave(this.backend, this.save);
     }
+    // back from the Kart screen: the Racer screen opens on the racer kept (design §12)
+    if (prev.screen === 'kartSelect' && next.screen === 'rosterSelect') this.focusBy.set('rosterSelect', next.racerId);
+    // the kart is saved as it is chosen (design §5: the next racer takes it too; absent, each racer's own)
+    if (a.type === 'pickKart' && next.kartId) {
+      this.save.settings.selectedKartId = next.kartId;
+      writeSave(this.backend, this.save);
+    }
   }
 
   private plan(s: AppState): RacePlan {
@@ -322,7 +351,19 @@ export class UiRoot {
     const vm = cup && (s.mode === 'grandPrix' || s.mode === 'knockout') ? cupMenu(s.mode, built, this.save, s.speedClass).cups.find((c) => c.id === cup.id) : undefined;
     const tracks = needsTrack(s) && s.trackId ? [s.trackId] : vm?.plays ?? [[...built][0]];
     const mode = s.mode ?? 'quick';
-    return { mode, racerId: s.racerId, speedClass: s.speedClass, cupId: s.cupId, tracks, mirrored: s.mirrored && mirrorAllowed(this.save, mode), look: lookFor(this.save, s.racerId) };
+    const kartId = this.kartOf(s.racerId);
+    return {
+      mode, racerId: s.racerId, speedClass: s.speedClass, cupId: s.cupId, tracks, mirrored: s.mirrored && mirrorAllowed(this.save, mode), look: lookFor(this.save, s.racerId, kartId),
+      ...(kartId ? { kartId } : {}),
+    };
+  }
+
+  /** Karts are picked (the ship switch, UI.kartPick): the Kart screen follows the Racer screen. */
+  private get kartPick(): boolean { return this.app.kartPick === true; }
+
+  /** With karts picked, the kart this racer races in (the one chosen, else their own); undefined when the switch is off (their own, as ever). */
+  private kartOf(racerId: string): string | undefined {
+    return this.kartPick ? kartFor(racerId, this.app.kartId) : undefined;
   }
 
   /** The race is over: record it and show the results. */
@@ -360,15 +401,18 @@ export class UiRoot {
       this.ttBefore = tt?.bestMs ?? 0; // the results say how the run did against it
       // the ghost goes with the best it drove, never with a slower run; so do its lap lines, which the next run races
       const look = over.ghost ? { ...(over.look?.paint ? { paint: over.look.paint } : {}), ...(over.look?.body ? { body: over.look.body } : {}) } : {};
+      // with karts picked the best keeps the kart it was raced in (the ghost is drawn in it; the leaderboard replays in it)
+      const kartId = this.kartPick ? (isKart(over.kartId) ? over.kartId : this.kartOf(over.playerId ?? this.app.racerId)) : undefined;
       if (!tt || me.timeMs < tt.bestMs) {
         this.save.timeTrial[over.results.trackId] = {
           bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined, splitsMs: cumulativeSplits(me.lapTimesMs, me.timeMs), ...(over.ghost ? { ghost: over.ghost } : {}), ...look,
+          ...(kartId ? { kart: kartId } : {}),
         };
       } else tt.medal = medalFor(tt.bestMs, over.medalTimesMs); // the kept best, graded against today's times
     } else { this.ttNote = ''; this.ttBefore = 0; this.ttSlower = false; }
     // design §10: anything this race earned is granted now, and shown once
     const fresh = grantUnlocks(this.save, this.host.medalTimes);
-    if (fresh.length) this.showToast(`Unlocked: ${fresh.map((u) => u.name).join(', ')}!`);
+    if (fresh.length) this.showToast(`Unlocked: ${fresh.map((u) => unlockWords(u, this.kartPick).name).join(', ')}!`);
     writeSave(this.backend, this.save);
     if (over.board && this.host.leaderboard) {
       this.boardLoad = 'loading';
@@ -529,7 +573,7 @@ export class UiRoot {
     }
     if (!stickOut) this.padStickSpent = false;
     const a = repeat(this.padRepeat, navFromPad(buttons, this.padStickSpent ? NO_AXES : pad.axes), nowMs);
-    if (!a || wiping) return;
+    if (!a || wiping || this.lockIn) return;
     // A pressed twice: the second press would pick the new screen's first entry unseen, as a key or a click would
     if (a === 'confirm' && this.clock() - this.enteredAt < UI.screenGuardMs) return;
     this.nav(a);
@@ -560,8 +604,9 @@ export class UiRoot {
       toggleFullscreen();
       return;
     }
-    // a key while the screen changes is dropped, not kept for later (UI.wipeMs); letters still type in the name box
-    if (this.inWipe(e)) {
+    // a key while the screen changes is dropped, not kept for later (UI.wipeMs); letters still type in the name box.
+    // So is one while a chosen kart's "Locked in!" plays (UI.lockInMs): the next screen is on its way
+    if (this.inWipe(e) || this.lockIn) {
       if (racing ? isRaceKey(e.code) || isPauseKey(e.code, e.key) : navFromKey(e.code, e.key)) e.preventDefault();
       return;
     }
@@ -611,12 +656,20 @@ export class UiRoot {
   }
 
   private pointer(e: Event, click: boolean): void {
-    if (this.inWipe(e)) return; // the screen is changing under the pointer
+    if (this.inWipe(e) || this.lockIn) return; // the screen is changing under the pointer (or a chosen kart is locking in)
     const b = (e.target as HTMLElement | null)?.closest?.('[data-id]') as HTMLElement | null;
     if (!b || !this.active || !this.active.view.root.contains(b)) return;
     const id = b.dataset.id as string;
-    if (b.getAttribute('aria-disabled') === 'true') return;
+    // a kart card on the Kart screen: a locked one still takes the pointer, to preview (a click on it is refused)
+    const kartCardHit = this.active.key === 'kartSelect' && isKart(id);
+    if (b.getAttribute('aria-disabled') === 'true' && !kartCardHit) return;
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
+    // a touch screen has no hover: a first tap on a kart previews it, a second tap on the same one chooses it
+    if (click && kartCardHit && this.pointerKind === 'touch' && this.previewing !== id) {
+      this.host.uiSound?.('move');
+      this.setFocus(id, false);
+      return;
+    }
     this.setFocus(id, false, !click); // under the pointer it is already in sight
     if (!click || id === 'name') return; // a click in the name box is for typing
     if (this.tooSoon(e)) return; // the second click of a double click that opened this screen
@@ -643,8 +696,14 @@ export class UiRoot {
         return;
       }
     }
-    this.host.uiSound?.(id === 'back' ? 'back' : 'confirm');
+    this.host.uiSound?.(id === 'back' || this.refuses(id) ? 'back' : 'confirm');
     this.confirm(id);
+  }
+
+  /** A press that is refused: a locked kart on the Kart screen (it previews, but cannot be chosen). */
+  private refuses(id: string): boolean {
+    const k = this.active?.key === 'kartSelect' ? kartCard(id) : undefined;
+    return !!k && kartLocked(k, this.save.unlocked.bodies);
   }
 
   /** One navigation action on whatever is on top. */
@@ -654,7 +713,13 @@ export class UiRoot {
     const model = key ? this.models.get(key) : undefined;
     const cur = key ? this.focusBy.get(key) : undefined;
     if (a === 'back') { this.host.uiSound?.('back'); this.back(); return; }
-    if (a === 'confirm') { if (cur) { this.host.uiSound?.('confirm'); this.confirm(cur); } return; }
+    if (a === 'confirm') { if (cur) { this.host.uiSound?.(this.refuses(cur) ? 'back' : 'confirm'); this.confirm(cur); } return; }
+    // the Kart screen: the arrows, the D-pad and the stick run through all ten cards and wrap (screens/karts.ts kartMove)
+    if (key === 'kartSelect' && model && cur) {
+      const next = kartMove(model, cur, a);
+      if (next !== cur) { this.host.uiSound?.('move'); this.setFocus(next); }
+      return;
+    }
     if (key === 'settings' && cur && cur !== 'done' && (a === 'left' || a === 'right')) {
       this.host.uiSound?.('move');
       this.changeSetting(cur as SettingId, a === 'left' ? -1 : 1);
@@ -711,6 +776,7 @@ export class UiRoot {
   private confirm(id: string): void {
     const s = this.app;
     const top = topOverlay(s);
+    if (s.screen === 'kartSelect' && !top && isKart(id)) { this.chooseKart(id); return; }
     const btn = this.active?.view.buttons.get(id);
     if (btn?.getAttribute('aria-disabled') === 'true') return;
     const endScreen = s.screen === 'results' || s.screen === 'gpTable' || s.screen === 'knockoutCut' || s.screen === 'podium';
@@ -758,6 +824,34 @@ export class UiRoot {
     }
   }
 
+  /**
+   * A kart card pressed (Enter, pad A, a click, a second tap): a locked twin shakes no; any other is chosen with a
+   * short "Locked in!" pulse (UI.lockInMs; input waits it out), then the cup or track screen comes (or the race).
+   * With reduced motion, at once.
+   */
+  private chooseKart(id: string): void {
+    if (this.lockIn) return;
+    if (this.refuses(id)) { this.views.karts.refuse(id); return; }
+    if (this.focusBy.get('kartSelect') !== id) this.setFocus(id, false);
+    const go = () => { if (this.app.screen === 'kartSelect' && !this.app.overlays.length) this.dispatch({ type: 'pickKart', kartId: id }); };
+    if (this.reducedMotion) { go(); return; }
+    this.views.karts.lockIn(id);
+    this.lockIn = { until: this.clock() + UI.lockInMs, timer: setTimeout(() => { this.lockIn = null; go(); }, UI.lockInMs) };
+  }
+
+  /** The kart under the focus on show on the Kart screen: large in the hero, and its four bars as a ghost over the kart chosen now. */
+  private previewKart(id: string): void {
+    const vm = this.kartVm, c = vm?.cards.find((x) => x.id === id);
+    if (!vm || !c) return;
+    this.previewing = id;
+    const racer = vm.racerId, paint = this.save.settings.skinByRacer[racer];
+    this.views.karts.preview({
+      kartId: id, name: c.name, colors: c.colors, locked: c.locked, ...(c.hint ? { hint: c.hint } : {}), racerId: racer, racerName: vm.racerName,
+      ...(paint ? { paintName: skinCard(paint)?.name } : {}),
+      panel: statPanel(comboStats(racer, kartFor(racer, this.app.kartId)), comboStats(racer, id)),
+    });
+  }
+
   /** Put a racer on show: the hero turntable turns them and the garage dresses them. */
   private dress(id: string): void {
     this.dressing = id;
@@ -778,25 +872,48 @@ export class UiRoot {
     const s = this.app;
     const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras(), this.short?.matches ?? false);
     if (!vm.garage) return;
-    this.views.roster.renderGarage(vm.garage);
+    this.views.roster.renderGarage(vm.garage, vm.kartName);
     this.views.roster.markDressed(vm.garage.racerId);
+    if (vm.panel) this.views.roster.renderPanel(vm.panel, `${vm.garage.racerName} in the ${vm.kartName ?? ''}`);
     this.models.set('rosterSelect', vm.focus);
     // the focused Paint or Body button was drawn again: focus the new one (or its neighbour, if it went)
     const cur = this.focusBy.get('rosterSelect');
     if ((cur === 'paint' || cur === 'body') && vm.garage.choices.length) this.setFocus(vm.focus.rows.flat().includes(cur) ? cur : vm.garage.choices[0].id, false);
   }
 
+  /**
+   * The racer screen's garage and Mirror switch; with karts picked, no Body row (Classic and Buggy are karts) and the
+   * stats panel: the racer on show in the kart they would race in, as a ghost over the racer and kart chosen now.
+   */
   private rosterExtras() {
     const s = this.app;
-    return { garage: garageModel(this.save, this.dressing || s.racerId), mirror: mirrorAllowed(this.save, s.mode) ? s.mirrored : undefined };
+    const racer = this.dressing || s.racerId, kart = this.kartOf(racer);
+    const chosen = this.kartOf(s.racerId);
+    return {
+      garage: garageModel(this.save, racer, kart), mirror: mirrorAllowed(this.save, s.mode) ? s.mirrored : undefined,
+      ...(kart ? { panel: statPanel(comboStats(s.racerId, chosen), comboStats(racer, kart)), kartName: kartName(kart) } : {}),
+    };
   }
 
-  /** The racer screen's turntable: the canvas to draw the dressed kart in, turning, and who and how; null when there is none. */
-  turntable(): { canvas: HTMLCanvasElement; racerId: string; look: KartLookIds } | null {
+  /**
+   * The turntable: the canvas to draw the dressed kart in, turning, and who and how; null when there is none. The racer
+   * screen's shows the racer on show (in their paint and body; with karts picked, in the kart they would race in); the
+   * Kart screen's (the plan's K6: main.ts draws it on 'kartSelect' too once the art can seat any racer in any kart) the
+   * racer in the kart under the focus. `kartId`: with karts picked, that kart (its shared body, Classic or Buggy, is
+   * in `look` already); absent, the racer's own kart.
+   */
+  turntable(): { canvas: HTMLCanvasElement; racerId: string; look: KartLookIds; kartId?: string } | null {
+    const key = this.active?.key;
+    if (key === 'kartSelect') {
+      const canvas = this.views.karts.turntable;
+      if (!canvas?.isConnected) return null;
+      const racerId = this.app.racerId, kartId = this.previewing || kartFor(racerId, this.app.kartId);
+      return { canvas, racerId, look: lookFor(this.save, racerId, kartId), kartId };
+    }
     const canvas = this.views.roster.turntable;
-    if (this.active?.key !== 'rosterSelect' || !canvas?.isConnected) return null;
-    const racerId = this.dressing || this.app.racerId;
-    return { canvas, racerId, look: lookFor(this.save, racerId) };
+    if (key !== 'rosterSelect' || !canvas?.isConnected) return null;
+    const racerId = this.dressing || this.app.racerId, kartId = this.kartOf(racerId);
+    return { canvas, racerId, look: lookFor(this.save, racerId, kartId), ...(kartId ? { kartId } : {}) };
   }
 
   /** Every unlock at once (the dev console's kart.unlockAll(), for trying the rewards). Saved; the screen on top is drawn again. */
@@ -844,6 +961,11 @@ export class UiRoot {
       if (hover) this.dressTimer = setTimeout(() => { if (this.active?.key === 'rosterSelect' && this.focusBy.get(key) === id) this.dress(id); }, UI.hoverDressMs);
       else this.dress(id);
     }
+    // a kart card focused: on show at once from a key, a pad or a tap; under a pointer once it rests there (UI.hoverDressMs)
+    if (key === 'kartSelect' && id !== this.previewing && isKart(id)) {
+      if (hover) this.dressTimer = setTimeout(() => { if (this.active?.key === 'kartSelect' && this.focusBy.get(key) === id) this.previewKart(id); }, UI.hoverDressMs);
+      else this.previewKart(id);
+    }
     const b = view.buttons.get(id);
     if (b) {
       b.classList.add('focused');
@@ -859,7 +981,7 @@ export class UiRoot {
     const v = this.views;
     const top = topOverlay(s);
     const base: Record<string, ScreenView> = {
-      boot: v.boot, title: v.title, modeSelect: v.modes, rosterSelect: v.roster, cupSelect: v.cups, trackSelect: v.tracks,
+      boot: v.boot, title: v.title, modeSelect: v.modes, rosterSelect: v.roster, kartSelect: v.karts, cupSelect: v.cups, trackSelect: v.tracks,
       racing: v.hud, results: v.results, gpTable: v.results, knockoutCut: v.results, podium: v.podium,
     };
     const baseView = base[s.screen];
@@ -885,7 +1007,9 @@ export class UiRoot {
     const ok = remembered && model.rows.flat().includes(remembered) && !model.disabled?.includes(remembered);
     // the saved racer, when it is still a card (a stale id falls back to the first card)
     const racer = entering && key === 'rosterSelect' && model.rows.flat().includes(s.racerId) ? s.racerId : undefined;
-    const id = ok ? remembered : racer ?? firstFocus(model);
+    // the Kart screen opens on the kart the racer is in now (the one chosen, else their own)
+    const kart = entering && key === 'kartSelect' ? kartFor(s.racerId, s.kartId) : undefined;
+    const id = kart && model.rows.flat().includes(kart) ? kart : ok ? remembered : racer ?? firstFocus(model);
     // How to Play and Credits open at the top: their one button, Back, is at the end
     if (id) this.setFocus(id, key !== 'howTo' && key !== 'credits' && key !== 'unlocks');
   }
@@ -962,6 +1086,16 @@ export class UiRoot {
         this.models.set(key, vm.focus);
         break;
       }
+      case 'kartSelect': {
+        // the racer's kart now marked; every card's bars against it (its label says them)
+        const racer = s.racerId;
+        const vm = kartMenu(this.save, racer, kartFor(racer, s.kartId), (k) => comboStats(racer, k));
+        this.kartVm = vm;
+        v.karts.render(vm);
+        this.previewing = ''; // the focus puts one on show (drawn again, the hero writes only what changed)
+        this.models.set(key, vm.focus);
+        break;
+      }
       case 'cupSelect': {
         const vm = cupMenu(s.mode === 'knockout' ? 'knockout' : 'grandPrix', built, this.save, s.speedClass);
         v.cups.render(vm);
@@ -972,7 +1106,7 @@ export class UiRoot {
       case 'pause': { const vm = pauseMenu(short, this.canRestart); v.pause.render(vm); this.models.set(key, vm.focus); break; }
       case 'settings': { const vm = settingsMenu(this.save.settings, fullscreenState()); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
-      case 'unlocks': { v.unlocks.render(unlockRows(this.save)); this.models.set(key, { rows: [['back']] }); break; }
+      case 'unlocks': { v.unlocks.render(unlockRows(this.save, this.kartPick)); this.models.set(key, { rows: [['back']] }); break; }
       case 'howTo': { v.howTo.render(ITEM_DEFINITIONS, this.save.settings.autoAccelerate); this.models.set(key, { rows: [['back']] }); break; }
       case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key, entering); break;
       case 'podium': {

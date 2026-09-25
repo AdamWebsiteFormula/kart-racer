@@ -9,7 +9,9 @@ import type { BoardVM, CutVM, EndMenuVM, GpRow, GpVM, ResultsVM } from '../scree
 import { faceCrop } from '../data/faces.ts';
 import type { UnlockRow } from '../unlocks.ts';
 import type { GarageVM } from '../garage.ts';
+import type { StatPanelVM } from '../screens/stats.ts';
 import { button, clear, h, Markup } from './dom.ts';
+import { StatPanel } from './statPanel.ts';
 
 export interface ScreenView {
   readonly root: HTMLElement;
@@ -193,6 +195,8 @@ export class RosterView implements ScreenView {
   private heroCap: HTMLElement | null = null;
   /** the hero canvas the game copies the dressed kart into, turning on its pedestal (main.ts), or null */
   turntable: HTMLCanvasElement | null = null;
+  /** with karts picked (UI.kartPick): the stats panel by the turntable (beside it; a strip over the cards on a narrower screen) */
+  private panel: StatPanel | null = null;
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen roster-screen', parent);
     this.root.setAttribute('aria-label', 'Pick your racer');
@@ -212,7 +216,7 @@ export class RosterView implements ScreenView {
       b.style.setProperty('--secondary', c.secondary);
       // a pale accent (Sprocket's cream) vanishes on the bar track: use the other colour
       b.style.setProperty('--bar', luminance(c.accent) > 0.6 ? c.secondary : c.accent);
-      b.setAttribute('aria-label', `${c.name}, ${c.archetype.toLowerCase()} class. ${c.species} with a ${c.kart.toLowerCase()}. ${c.personality}.`);
+      b.setAttribute('aria-label', `${c.name}, ${c.archetype.toLowerCase()} class. ${c.species} with a ${c.kart.toLowerCase()}. ${c.personality}.${c.words ? ` ${c.words}.` : ''}`);
       h('span', 'cls', b, c.archetype);
       // the racer's portrait (their concept art, public/art/racers), zoomed to face and shoulders
       const face = h('div', 'face has-portrait', b, c.name[0]);
@@ -248,13 +252,19 @@ export class RosterView implements ScreenView {
     this.turntable = h('canvas', 'hero-stage', hero);
     this.turntable.setAttribute('aria-hidden', 'true');
     this.heroCap = h('div', 'hero-cap', hero);
-    if (vm.garage) this.renderGarage(vm.garage);
+    this.panel = vm.panel ? new StatPanel(body, 'roster-stats enter') : null;
+    if (vm.garage) this.renderGarage(vm.garage, vm.kartName);
     else this.garage.hidden = true;
+    if (vm.panel && vm.garage) this.renderPanel(vm.panel, `${vm.garage.racerName} in the ${vm.kartName ?? ''}`);
     hint(st);
   }
 
-  /** The garage and the hero's caption alone, drawn again when a choice or the dressed racer changes (the cards stay put). */
-  renderGarage(g: GarageVM): void {
+  /** The stats panel by the turntable (with karts picked): the racer on show in their kart, over the combo chosen now. */
+  renderPanel(p: StatPanelVM, who: string): void { this.panel?.render(p, who); }
+
+  /** The garage and the hero's caption alone, drawn again when a choice or the dressed racer changes (the cards stay put).
+   *  `kartName`: with karts picked, the kart the racer on show would race in: the caption names it (there is no Body row). */
+  renderGarage(g: GarageVM, kartName?: string): void {
     const el = this.garage;
     if (!el) return;
     for (const id of ['paint', 'body']) this.buttons.delete(id);
@@ -297,8 +307,9 @@ export class RosterView implements ScreenView {
       clear(cap);
       h('div', 'hero-name', cap, g.racerName);
       const look = h('div', 'hero-look', cap);
-      // a racer with no alt paint shows only the body
-      const tags = [...(g.choices.some((c) => c.id === 'paint') ? [['Paint', g.paintName]] : []), ['Body', g.bodyName]];
+      // a racer with no alt paint shows only the body (with karts picked: the kart, then any paint)
+      const paint = g.choices.some((c) => c.id === 'paint') ? [['Paint', g.paintName]] : [];
+      const tags = kartName ? [['Kart', kartName], ...paint] : [...paint, ['Body', g.bodyName]];
       for (const [k, v] of tags) {
         const t = h('span', 'tag', look);
         h('small', '', t, k);

@@ -165,3 +165,56 @@ describe('save store: audit fixes (24 Sept 2026)', () => {
     for (const k of Object.keys(bad)) expect(t[k], k).toEqual({ bestMs: k === 'd' ? 21 : 110408, medal: 'gold' });
   });
 });
+
+describe('save store: any racer in any kart (design §5; docs/plans/kart-combos.md §5)', () => {
+  it('the chosen kart round-trips; absent (a new save) means each racer\'s own; an unknown or still-locked one is dropped', () => {
+    expect(defaultSave().settings.selectedKartId).toBeUndefined();
+    const b = fake();
+    const s = defaultSave();
+    s.settings.selectedKartId = 'snacktruck';
+    writeSave(b, s);
+    expect(loadSave(fake(b.data), true)).toEqual(s);
+    expect(loadSave(fake(b.data), false).settings.selectedKartId).toBe('snacktruck'); // kept with the switch off too
+    const load = (settings: object, bodies: string[] = []) => loadSave(fake({ [SAVE_KEY]: JSON.stringify({ settings, unlocked: { bodies } }) }), true).settings.selectedKartId;
+    expect(load({ selectedKartId: 'hovercraft' })).toBeUndefined();
+    expect(load({ selectedKartId: 7 })).toBeUndefined();
+    expect(load({ selectedKartId: 'classic' })).toBeUndefined(); // Classic still locked in this save
+    expect(load({ selectedKartId: 'classic' }, ['classic'])).toBe('classic');
+  });
+
+  it('with karts picked, an old Classic or Buggy body seeds the kart once, and never over a kart already chosen', () => {
+    const load = (settings: object, kartPick = true) => loadSave(fake({ [SAVE_KEY]: JSON.stringify({ settings, unlocked: { bodies: ['classic', 'buggy'] } }) }), kartPick).settings;
+    expect(load({ selectedBodyId: 'buggy' }).selectedKartId).toBe('buggy');
+    expect(load({ selectedBodyId: 'classic' }).selectedKartId).toBe('classic');
+    expect(load({ selectedBodyId: 'standard' }).selectedKartId).toBeUndefined();
+    expect(load({ selectedBodyId: 'buggy', selectedKartId: 'pod' }).selectedKartId).toBe('pod');
+    // a kart chosen and found locked or unknown stays unchosen: the old body does not come back
+    expect(load({ selectedBodyId: 'buggy', selectedKartId: 'hovercraft' }).selectedKartId).toBeUndefined();
+    // a body still locked seeds nothing
+    expect(loadSave(fake({ [SAVE_KEY]: JSON.stringify({ settings: { selectedBodyId: 'buggy' } }) }), true).settings.selectedKartId).toBeUndefined();
+    // the switch off: the Body row is as ever and nothing is seeded
+    expect(load({ selectedBodyId: 'buggy' }, false)).toMatchObject({ selectedBodyId: 'buggy' });
+    expect(load({ selectedBodyId: 'buggy' }, false).selectedKartId).toBeUndefined();
+    // seeded once: the save writes the kart, and the body is left as it was, never written again
+    const b = fake({ [SAVE_KEY]: JSON.stringify({ settings: { selectedBodyId: 'buggy' }, unlocked: { bodies: ['buggy'] } }) });
+    const s = loadSave(b, true);
+    s.settings.selectedKartId = 'wagon'; // the player picks another kart
+    writeSave(b, s);
+    expect(loadSave(b, true).settings).toMatchObject({ selectedKartId: 'wagon', selectedBodyId: 'buggy' });
+  });
+
+  it('a Time Trial best keeps the kart it was raced in; with karts picked an old best\'s body is its kart', () => {
+    const b = fake();
+    const s = defaultSave();
+    s.timeTrial['harbour-loop'] = { bestMs: 110408, medal: 'gold', racerId: 'pip', kart: 'snacktruck' };
+    s.timeTrial['meadow-run'] = { bestMs: 99000, medal: 'silver', racerId: 'gus', ghost: 'AQQA', kart: 'classic' };
+    writeSave(b, s);
+    expect(loadSave(fake(b.data), true).timeTrial).toEqual(s.timeTrial);
+    const old = { timeTrial: { 'canyon-rush': { bestMs: 99000, medal: 'gold', racerId: 'momo', ghost: 'AQQA', body: 'buggy' }, x: { bestMs: 5, medal: 'none', kart: 'hovercraft' } } };
+    const on = loadSave(fake({ [SAVE_KEY]: JSON.stringify(old) }), true).timeTrial;
+    expect(on['canyon-rush']).toEqual({ ...old.timeTrial['canyon-rush'], kart: 'buggy' });
+    expect(on.x).toEqual({ bestMs: 5, medal: 'none' });
+    // the switch off: the old best is as it was
+    expect(loadSave(fake({ [SAVE_KEY]: JSON.stringify(old) }), false).timeTrial['canyon-rush']).toEqual(old.timeTrial['canyon-rush']);
+  });
+});

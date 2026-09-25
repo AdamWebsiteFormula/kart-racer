@@ -87,6 +87,61 @@ describe('app flow', () => {
   });
 });
 
+describe('any racer in any kart (design §12: Mode → Racer → Kart → Cup or Track)', () => {
+  const on = () => initialApp(true);
+
+  it('off (the ship switch, UI.kartPick), the Racer screen goes straight on as ever; no kart is ever set', () => {
+    expect(initialApp(false).kartPick).toBeUndefined();
+    const { trail, s } = walk([{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'gus' }], initialApp(false));
+    expect(trail).toEqual(['title', 'modeSelect', 'rosterSelect', 'trackSelect']);
+    expect(reduce(s, { type: 'pickKart', kartId: 'scooter' })).toBe(s); // no Kart screen, no kart
+  });
+
+  it('on, the Kart screen comes after the racer, then the track, the cup or the race; every mode', () => {
+    const to = (mode: 'quick' | 'grandPrix' | 'knockout' | 'timeTrial' | 'daily') => walk([
+      { type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode }, { type: 'pickRacer', racerId: 'gus' }, { type: 'pickKart', kartId: 'scooter' },
+    ], on());
+    expect(to('quick').trail).toEqual(['title', 'modeSelect', 'rosterSelect', 'kartSelect', 'trackSelect']);
+    expect(to('timeTrial').trail.slice(3)).toEqual(['kartSelect', 'trackSelect']);
+    expect(to('grandPrix').trail.slice(3)).toEqual(['kartSelect', 'cupSelect']);
+    expect(to('knockout').trail.slice(3)).toEqual(['kartSelect', 'cupSelect']);
+    expect(to('daily').trail.slice(3)).toEqual(['kartSelect', 'racing']); // the Daily picks its own track
+    expect(to('quick').s).toMatchObject({ racerId: 'gus', kartId: 'scooter' });
+  });
+
+  it('back from the Kart screen keeps the racer; back from the track or cup screen comes back to the Kart screen', () => {
+    let s = walk([{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'grandPrix' }, { type: 'pickRacer', racerId: 'nova' }], on()).s;
+    expect(s.screen).toBe('kartSelect');
+    s = reduce(s, { type: 'back' });
+    expect([s.screen, s.racerId]).toEqual(['rosterSelect', 'nova']);
+    s = reduce(reduce(s, { type: 'pickRacer', racerId: 'nova' }), { type: 'pickKart', kartId: 'wagon' });
+    expect(s.screen).toBe('cupSelect');
+    const back = walk([{ type: 'back' }, { type: 'back' }, { type: 'back' }, { type: 'back' }], s).trail;
+    expect(back).toEqual(['kartSelect', 'rosterSelect', 'modeSelect', 'title']);
+    // a kart pick only on the Kart screen
+    expect(reduce(s, { type: 'pickKart', kartId: 'pod' })).toBe(s);
+  });
+
+  it('the kart stays through a series and every one more go; Change racer goes through both screens', () => {
+    const gp = walk([
+      { type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'grandPrix' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickKart', kartId: 'snacktruck' },
+      { type: 'pickCup', cupId: 'sunrise' }, { type: 'raceFinished', seriesHasNext: true }, { type: 'continue' }, { type: 'continue' },
+    ], on()).s;
+    expect([gp.screen, gp.kartId]).toEqual(['racing', 'snacktruck']);
+    const results = walk([
+      { type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickKart', kartId: 'stomper' },
+      { type: 'pickTrack', trackId: 'meadow-run' }, { type: 'raceFinished', seriesHasNext: false },
+    ], on()).s;
+    expect(reduce(results, { type: 'raceAgain' })).toMatchObject({ screen: 'racing', kartId: 'stomper' });
+    expect(reduce(results, { type: 'nextTrack', trackId: 'canyon-rush' })).toMatchObject({ screen: 'racing', kartId: 'stomper' });
+    const change = walk([{ type: 'changeRacer' }, { type: 'pickRacer', racerId: 'momo' }, { type: 'pickKart', kartId: 'pod' }, { type: 'pickTrack', trackId: 'meadow-run' }], results);
+    expect(change.trail).toEqual(['rosterSelect', 'kartSelect', 'trackSelect', 'racing']);
+    expect(change.s).toMatchObject({ racerId: 'momo', kartId: 'pod' });
+    // Change track keeps the combo and skips the pickers
+    expect(walk([{ type: 'changeTrack' }, { type: 'pickTrack', trackId: 'canyon-rush' }], results).s).toMatchObject({ racerId: 'pip', kartId: 'stomper', screen: 'racing' });
+  });
+});
+
 describe('one more go from the results (25 Sept 2026, Mario Kart World\'s end-of-race menu)', () => {
   const to = (mode: 'quick' | 'timeTrial' | 'daily', racerId = 'gus'): AppState => walk([
     { type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode }, { type: 'pickRacer', racerId },

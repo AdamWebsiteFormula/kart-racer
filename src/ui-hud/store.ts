@@ -1,7 +1,9 @@
 // The local save (docs/schemas/save.schema.json) through an injected backend, so tests use a fake.
 // Bad or missing data never throws: it falls back to defaults field by field.
+import { UI } from './constants.ts';
 import { CAST } from './data/cast.ts';
 import { DEFAULT_BODY, isBody, skinCard } from './data/cosmetics.ts';
+import { isKart, kartCard, kartLocked } from './data/karts.ts';
 
 export interface Settings {
   /** the gas down by itself from GO (game/assist.ts): the countdown, and so the start boost, and the brake stay the player's */
@@ -20,6 +22,12 @@ export interface Settings {
   selectedBodyId: string;
   /** each racer's unlocked alt paint, by racer id (absent: their own colours) */
   skinByRacer: Record<string, string>;
+  /**
+   * The kart the player races in, any racer in any kart (design §5; data/karts.ts ids), saved when a kart is
+   * chosen; absent: each racer drives their own. On load a kart that is unknown or a twin still locked is
+   * dropped; with karts picked (UI.kartPick) an old selectedBodyId of classic or buggy seeds it once.
+   */
+  selectedKartId?: string;
 }
 
 export interface Save {
@@ -27,8 +35,9 @@ export interface Save {
   playerName: string;
   stats: { ultraTurbos: number; racesFinished: number; itemsHit: number };
   /** `ghost`: the best run's path (race-manager/ghost.ts), kept only with the best time it drove; `paint`, `body`: the look it was set in (the ghost is drawn so);
-   *  `splitsMs`: the best run's time at each lap line from the start, the last its finish (a run races it lap by lap; a best from before it has none) */
-  timeTrial: Record<string, { bestMs: number; medal: 'none' | 'bronze' | 'silver' | 'gold'; racerId?: string; ghost?: string; paint?: string; body?: string; splitsMs?: number[] }>;
+   *  `splitsMs`: the best run's time at each lap line from the start, the last its finish (a run races it lap by lap; a best from before it has none);
+   *  `kart`: the kart the best was set in (design §5; absent: the racer's own), its ghost drawn in it (an old best's `body` maps to it) */
+  timeTrial: Record<string, { bestMs: number; medal: 'none' | 'bronze' | 'silver' | 'gold'; racerId?: string; ghost?: string; paint?: string; body?: string; splitsMs?: number[]; kart?: string }>;
   grandPrix: Record<string, Record<string, { finished: boolean; stars: number; bestPoints?: number }>>;
   knockout: Record<string, { finished: boolean; won: boolean; bestPlacing?: number }>;
   unlocked: { skins: string[]; bodies: string[]; mirror: boolean };
@@ -91,7 +100,7 @@ function splits(v: unknown, bestMs: number): number[] | undefined {
  * The records, entry by entry: a hand-edited or foreign save (every Pages site on the account shares
  * this storage) must not crash a menu or strand a race's results (red-team 2026-09-24).
  */
-function sanitiseRecords(r: Record<string, unknown>): Pick<Save, 'timeTrial' | 'grandPrix' | 'knockout'> {
+function sanitiseRecords(r: Record<string, unknown>, kartPick: boolean): Pick<Save, 'timeTrial' | 'grandPrix' | 'knockout'> {
   return {
     timeTrial: entries(r.timeTrial, (x) => {
       if (typeof x.bestMs !== 'number' || !(x.bestMs > 0) || !Number.isFinite(x.bestMs)) return undefined;
@@ -102,9 +111,11 @@ function sanitiseRecords(r: Record<string, unknown>): Pick<Save, 'timeTrial' | '
       const paint = ghost && typeof x.paint === 'string' && skinCard(x.paint)?.racerId === racerId ? x.paint : undefined;
       const body = ghost && typeof x.body === 'string' && x.body !== DEFAULT_BODY && isBody(x.body) ? x.body : undefined;
       const splitsMs = splits(x.splitsMs, x.bestMs);
+      // the kart it was set in: a known one; with karts picked, an old best's body (Classic, Buggy) is its kart
+      const kart = isKart(x.kart) ? x.kart : kartPick && body && isKart(body) ? body : undefined;
       return {
         bestMs: x.bestMs, medal: oneOf(x.medal, MEDALS, 'none'), ...(racerId ? { racerId } : {}), ...(ghost ? { ghost } : {}), ...(paint ? { paint } : {}), ...(body ? { body } : {}),
-        ...(splitsMs ? { splitsMs } : {}),
+        ...(splitsMs ? { splitsMs } : {}), ...(kart ? { kart } : {}),
       };
     }),
     grandPrix: entries(r.grandPrix, (cup) => entries(cup, (x) => {
@@ -137,8 +148,20 @@ function sanitiseSkins(raw: unknown, unlocked: Save['unlocked']): Record<string,
   return out;
 }
 
-function sanitiseSettings(raw: unknown, unlocked: Save['unlocked'] = { skins: [], bodies: [], mirror: false }): Settings {
+/**
+ * The chosen kart: a known one, and a twin only once unlocked. With karts picked (UI.kartPick) and none
+ * chosen yet, an old body of Classic or Buggy (the garage's Body row, before any racer could take any kart)
+ * seeds it, once: the kart is saved from then on and the body is never written again.
+ */
+function sanitiseKart(r: Record<string, unknown>, unlocked: Save['unlocked'], kartPick: boolean): string | undefined {
+  const ok = (id: unknown): id is string => isKart(id) && !kartLocked(kartCard(id)!, unlocked.bodies);
+  if (r.selectedKartId !== undefined) return ok(r.selectedKartId) ? r.selectedKartId : undefined;
+  return kartPick && ok(r.selectedBodyId) ? r.selectedBodyId : undefined;
+}
+
+function sanitiseSettings(raw: unknown, unlocked: Save['unlocked'] = { skins: [], bodies: [], mirror: false }, kartPick = false): Settings {
   const r = obj(raw), d = defaultSettings();
+  const kart = sanitiseKart(r, unlocked, kartPick);
   return {
     autoAccelerate: typeof r.autoAccelerate === 'boolean' ? r.autoAccelerate : d.autoAccelerate,
     steeringAssist: typeof r.steeringAssist === 'boolean' ? r.steeringAssist : d.steeringAssist,
@@ -154,10 +177,12 @@ function sanitiseSettings(raw: unknown, unlocked: Save['unlocked'] = { skins: []
     // a body or paint that is unknown, or not unlocked in this save, falls back to the racer's own
     selectedBodyId: typeof r.selectedBodyId === 'string' && isBody(r.selectedBodyId) && (r.selectedBodyId === DEFAULT_BODY || unlocked.bodies.includes(r.selectedBodyId)) ? r.selectedBodyId : d.selectedBodyId,
     skinByRacer: sanitiseSkins(r.skinByRacer, unlocked),
+    ...(kart ? { selectedKartId: kart } : {}),
   };
 }
 
-export function loadSave(b: Backend | null): Save {
+/** `kartPick`: the ship switch (UI.kartPick): on, an old save's Classic or Buggy body becomes its kart (sanitiseKart, and a Time Trial best's). */
+export function loadSave(b: Backend | null, kartPick: boolean = UI.kartPick): Save {
   const d = defaultSave();
   let raw: unknown = null;
   try { raw = JSON.parse(b?.getItem(SAVE_KEY) ?? 'null'); } catch { raw = null; }
@@ -168,9 +193,9 @@ export function loadSave(b: Backend | null): Save {
     version: SAVE_VERSION,
     playerName: typeof r.playerName === 'string' ? r.playerName.slice(0, 16) : d.playerName,
     stats: { ultraTurbos: num(stats.ultraTurbos, 0, 1e9, 0), racesFinished: num(stats.racesFinished, 0, 1e9, 0), itemsHit: num(stats.itemsHit, 0, 1e9, 0) },
-    ...sanitiseRecords(r),
+    ...sanitiseRecords(r, kartPick),
     unlocked,
-    settings: sanitiseSettings(r.settings, unlocked),
+    settings: sanitiseSettings(r.settings, unlocked, kartPick),
   };
 }
 

@@ -286,3 +286,154 @@ export function medalSvg(medal: 'gold' | 'silver' | 'bronze', width = 48): strin
     + '<path class="glint" d="M50 13l1.7 5.3L57 20l-5.3 1.7L50 27l-1.7-5.3L43 20l5.3-1.7Z" stroke="#1b1b2f" stroke-width="1.6" stroke-linejoin="round"/>'
     + '</svg>';
 }
+
+// ---- the ten karts (design §5, 25 Sept 2026: any racer in any kart) ----
+// Each kart side on, facing right, in the house style (flat fills under the ink outline, a white glint), drawn
+// from the racers' concept art (public/art/racers): a card's picture and the Kart screen's big one. `a` and `b`
+// are its two colors (data/karts.ts kartColors: the owner's; a twin the racer's own or their paint's).
+// Trusted, generated markup only; no ids, so any number can sit on one page. The viewBox is 124 × 68.
+const TIRE = '#2a2630', TREAD = '#4b4552', CHROME = '#cfd6de', STEEL = '#8d97a5', PAN = '#3a3a44', ENGINE = '#5a5a66';
+const WOOD = '#b57f4c', WOOD_DARK = '#7b4c2a', GLASS = '#bfe6ff', THRUST = '#7fe3ff', ROUNDEL = '#e53935', STRAP = '#6b3f2a', LAMP = '#fff7c2';
+
+/** A wheel: the tire, a hub in `hub`, a dark nut; `knobby` adds a tread ring (the off-roaders). */
+function wheel(cx: number, cy: number, r: number, hub = CHROME, knobby = false): string {
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${TIRE}"/>`
+    + (knobby ? `<circle cx="${cx}" cy="${cy}" r="${n1(r - 2.2)}" fill="none" stroke="${TREAD}" stroke-width="2.6" stroke-dasharray="3.2 2.6"/>` : '')
+    + `<circle cx="${cx}" cy="${cy}" r="${n1(r * 0.5)}" fill="${hub}" stroke-width="1.8"/>`
+    + `<circle cx="${cx}" cy="${cy}" r="${n1(r * 0.17)}" fill="${INK}" stroke="none"/>`;
+}
+/** A tube drawn twice (a fat ink stroke, then its color on it): a roll cage, a rail, a pipe. */
+const tube = (d: string, color: string, w = 3.2) => `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${n1(w + 3)}"/><path d="${d}" fill="none" stroke="${color}" stroke-width="${w}"/>`;
+/** Two exhaust pipes out of (x, y) and (x, y + 5), `len` back and `rise` up. */
+const pipes = (x: number, y: number, len: number, rise: number, color = CHROME) => tube(`M${x} ${y}l${-len} ${-rise}M${x} ${y + 5}l${-len} ${-rise}`, color, 3.4);
+/** a white glint along a top edge */
+const glint = (d: string) => `<path d="${d}" fill="none" stroke="#fff" stroke-opacity="0.75" stroke-width="2.2" stroke-linecap="round"/>`;
+
+/** Pip's Parcel Scooter: a low scooter kart, a round headlamp on its cowl, handlebars, a parcel strapped to the rack behind. */
+const scooter = (a: string, b: string) => pipes(20, 39, 10, 2)
+  + tube('M14 30h28M38 30l2 7', CHROME, 2.4)
+  + `<rect x="12" y="9" width="30" height="21" rx="3" fill="${b}"/><path d="M22 9v21M33 9v21M12 19.5h30" stroke="${STRAP}" stroke-width="2.6"/>`
+  + `<path d="M18 46v-5c0-4 3-7 8-7h42l7-5 7-13c2-4 5-6 9-6h11c4 0 7 3 7 7v24c0 3-3 5-6 5Z" fill="${a}"/>`
+  + `<path d="M46 34c0-4 3-6 7-6h12c3 0 5 2 5 5v1Z" fill="${PAN}"/>`
+  + tube('M89 10 85 3h-7', PAN, 2.2)
+  + `<circle cx="103" cy="21" r="6" fill="${PAPER}" stroke-width="2.2"/><circle cx="103" cy="21" r="3" fill="${GLASS}" stroke-width="1.4"/>`
+  + wheel(30, 47, 11) + wheel(92, 47, 11)
+  + glint('M28 37c1-1 2-1 4-1h32M90 13c2-1 4-1 7-1');
+
+/** Momo's Scrap Buggy: a bare tube cage over a dark chassis, the engine out in the open behind, knobby tires. */
+const scrap = (a: string, b: string) => pipes(18, 17, 10, 9)
+  + `<rect x="10" y="20" width="24" height="18" rx="3" fill="${CHROME}"/><path d="M13 20v-5h5v5M19.5 20v-5h5v5M26 20v-5h5v5" fill="${STEEL}" stroke-width="1.8"/><path d="M13 27h18M13 32h18" stroke="${STEEL}" stroke-width="1.6"/>`
+  + `<path d="M16 38h90l6-6v4l-6 8H16Z" fill="${a}"/>`
+  + `<path d="M50 38c0-6 3-10 8-10h5v10Z" fill="${PAN}"/>`
+  + tube('M42 38 48 8h24l14 30M45 22h35M86 38l14-6h10M108 32v8', b, 3.4)
+  + `<circle cx="80" cy="19" r="5" fill="none" stroke-width="2.6"/><path d="M80 24l-5 12" stroke-width="2.4"/>`
+  + wheel(28, 45, 14, CHROME, true) + wheel(94, 45, 13, CHROME, true)
+  + glint('M50 10h20');
+
+/** Nova's Comet Pod: a round pod on white-hubbed wheels, a little swept wing, and a thruster glowing at the back. */
+const pod = (a: string, b: string) => `<ellipse cx="6" cy="31" rx="7" ry="6.5" fill="${THRUST}" stroke="none" opacity="0.5"/>`
+  + `<rect x="8" y="24" width="15" height="14" rx="2" fill="${a}"/><path d="M8 24c-3 0-4.5 3-4.5 7s1.5 7 4.5 7Z" fill="${THRUST}"/><path d="M15 24.5v13" stroke="${b}" stroke-width="3" stroke-linecap="butt"/>`
+  + `<path d="M20 45c-3-9 2-20 14-23l8-2c5-5 13-7 21-5 7 2 11 5 14 9 14 2 28 8 30 17 1 5-2 8-7 8H26c-4 0-5-2-6-4Z" fill="${a}"/>`
+  + `<path d="M36 39c14 5 40 5 60-2" fill="none" stroke="${b}" stroke-width="5"/>`
+  + `<path d="M44 21c4-4 10-6 16-5 5 1 9 3 12 7Z" fill="${PAN}"/>`
+  + `<path d="M26 27 13 17h10l13 9Z" fill="${b}"/>`
+  + `<ellipse cx="98" cy="35" rx="5" ry="4" fill="${b}" stroke-width="1.8"/>`
+  + wheel(32, 48, 11, b) + wheel(90, 48, 11, b)
+  + glint('M64 16c5 1 9 4 12 7M84 28c6 1 12 4 16 7');
+
+/** Juniper's Timber Wagon: a boxy off-roader, a wood-paneled tub, a green hood, bumper and roll bar, a spare tire on the back. */
+const wagon = (a: string, b: string) => `<circle cx="10" cy="28" r="9" fill="${TIRE}"/><circle cx="10" cy="28" r="4" fill="${STEEL}" stroke-width="1.6"/>`
+  + tube('M34 24 38 7h16l4 17', b)
+  + `<path d="M13 24h52l4 6h38c3 0 5 2 5 5v8c0 2-2 4-4 4H16c-2 0-3-2-3-4Z" fill="${a}"/>`
+  + `<rect x="18" y="27" width="40" height="12" rx="1.5" fill="${WOOD}"/><path d="M18 33h40M31 27v12M45 27v6M45 33v6" stroke="${WOOD_DARK}" stroke-width="1.6"/>`
+  + `<path d="M68 30h39c2.5 0 4.5 1.5 5 4H70Z" fill="${b}"/>`
+  + `<circle cx="108.5" cy="38" r="3.4" fill="${PAPER}" stroke-width="1.6"/>`
+  + `<rect x="100" y="44" width="16" height="5" rx="1.5" fill="${b}"/>`
+  + wheel(30, 46, 13, STEEL, true) + wheel(93, 46, 13, STEEL, true)
+  + tube('M15 47a15 15 0 0 1 30 0M78 47a15 15 0 0 1 30 0', a, 3.4)
+  + glint('M72 32h34M40 9h12');
+
+/** Otto's Wave Skimmer: a boat hull on wheels, a white stripe down its side, the rescue float ringed on the back. */
+const skimmer = (a: string, b: string) => pipes(18, 30, 9, 4)
+  + `<circle cx="26" cy="20" r="10" fill="none" stroke="${INK}" stroke-width="9.4"/><circle cx="26" cy="20" r="10" fill="none" stroke="${PAPER}" stroke-width="6.2"/>`
+  + `<circle cx="26" cy="20" r="10" fill="none" stroke="${b}" stroke-width="6.2" stroke-dasharray="7.85 7.85"/>`
+  + `<path d="M12 29h52c18 0 36 2 50 8-3 5-8 9-14 9H22c-6 0-10-4-10-9Z" fill="${a}"/>`
+  + `<path d="M16 37.5h90" stroke="${PAPER}" stroke-width="4" stroke-linecap="butt"/>`
+  + `<path d="M46 29c0-5 4-8 8-8h10c3 0 5 3 5 8Z" fill="${PAN}"/><path d="M70 29l4-9h4l-2 9Z" fill="${GLASS}" stroke-width="1.8"/>`
+  + wheel(30, 48, 10, PAPER) + wheel(90, 48, 10, PAPER)
+  + glint('M68 31c14 0 28 2 40 6');
+
+/** Sprocket's Wind-Up Racer: a round tin-toy racer with a brass band and rivets, a 1 on a red roundel, the big key on its back. */
+const windup = (a: string, b: string) => tube('M10 31h8', b, 3)
+  + `<path d="M7 17.5a5.5 5.5 0 0 1 5.5 5.5c0 2-1 3.5-2.5 4.5v8c1.5 1 2.5 2.5 2.5 4.5a5.5 5.5 0 0 1-11 0c0-2 1-3.5 2.5-4.5v-8c-1.5-1-2.5-2.5-2.5-4.5A5.5 5.5 0 0 1 7 17.5Z" fill="${b}"/>`
+  + `<circle cx="7" cy="23" r="1.8" fill="${INK}" stroke="none"/><circle cx="7" cy="40" r="1.8" fill="${INK}" stroke="none"/>`
+  + pipes(24, 27, 7, 4, b)
+  + `<path d="M18 46c-3-7-2-15 5-19 7-4 15-4 21-2l6-3c8-3 16-1 22 3 14 1 28 5 34 12 3 4 1 9-4 9Z" fill="${a}"/>`
+  + tube('M21 39h84', b, 3)
+  + `<g fill="${INK}" stroke="none"><circle cx="30" cy="39" r="1"/><circle cx="46" cy="39" r="1"/><circle cx="62" cy="39" r="1"/><circle cx="78" cy="39" r="1"/><circle cx="94" cy="39" r="1"/></g>`
+  + `<path d="M46 26c2-3 6-5 11-5 5 0 9 2 12 5Z" fill="${PAN}"/>`
+  + `<circle cx="84" cy="31" r="6.4" fill="${ROUNDEL}" stroke-width="2"/><path d="M83 28.6l2-1.2v7.6" fill="none" stroke="${PAPER}" stroke-width="2"/>`
+  + wheel(32, 47, 12, b) + wheel(90, 47, 12, b)
+  + glint('M27 29c4-2 9-3 14-2M76 23c10 1 20 4 26 9');
+
+/** Boulder's Stone Stomper: chunky stone slabs with moss on top, two tall chrome stacks, a bull bar, huge knobby tires. */
+const stomper = (a: string, b: string) => tube('M24 22V3M31 22V5', CHROME, 3.6)
+  + `<path d="M12 36l2-12 12-4 14 2 10-6 14 3 16-1 12 6 12 2 4 10-3 6H14Z" fill="${a}"/>`
+  + `<path d="M40 22l4 8-3 6M76 19l-2 9 5 7M58 25l6 4" fill="none" stroke-opacity="0.45" stroke-width="1.6"/>`
+  + tube('M26 20c2-3 6-4 9-3 3-3 7-3 9 0M62 19c3-3 7-3 10-1 3-2 7-2 9 1M95 25c2-2 5-2 7 0', b, 2.8)
+  + tube('M106 28h8v14h-8M106 35h8', STEEL, 2.6)
+  + wheel(29, 43, 16, STEEL, true) + wheel(92, 43, 16, STEEL, true)
+  + glint('M28 21l10-3 12 1');
+
+/** The Snack Truck's awning: eight scalloped stripes from x = 16, `a` and `b` in turn. */
+const awning = (a: string, b: string) => Array.from({ length: 8 }, (_, i) => `<path d="M${16 + i * 6} 12h6v5a3 3 0 0 1-6 0Z" fill="${i % 2 ? b : a}" stroke-width="1.8"/>`).join('');
+
+/** Gus's Snack Truck: a food truck kart, the serving hatch under a striped awning, a round-lamped hood, a chrome bumper. */
+const snacktruck = (a: string, b: string) => pipes(14, 36, 8, 3)
+  + `<path d="M12 44V14c0-3 2-5 5-5h48c3 0 5 2 5 5v12h26c8 0 14 6 15 14v4c0 2-2 3-4 3H14c-1 0-2-1-2-3Z" fill="${a}"/>`
+  + `<rect x="20" y="19" width="40" height="15" rx="1.5" fill="${PAPER}"/><rect x="24" y="25" width="4" height="9" rx="1" fill="${SUN}" stroke-width="1.4"/><rect x="30" y="23" width="4" height="11" rx="1" fill="${ROUNDEL}" stroke-width="1.4"/>`
+  + `<rect x="18" y="33" width="44" height="3" fill="${WOOD}" stroke-width="1.6"/>`
+  + awning(a, b)
+  + `<path d="M74 26l6-10h10l4 10Z" fill="${GLASS}" stroke-width="2"/>`
+  + `<circle cx="106" cy="34" r="4.2" fill="${PAPER}" stroke-width="1.8"/>`
+  + `<rect x="94" y="43" width="20" height="5" rx="2.5" fill="${CHROME}" stroke-width="1.8"/>`
+  + wheel(30, 47, 12) + wheel(92, 47, 12)
+  + glint('M17 11h44M78 28h14');
+
+/** Classic: a low open-wheel go-kart, a bullet nose on a front wing, a side pod, a number disc and a rear wing on struts. */
+const classic = (a: string, b: string) => pipes(16, 40, 8, 2)
+  + tube('M18 17l4 16M28 17l2 16', STEEL, 2)
+  + `<rect x="6" y="11" width="28" height="6" rx="2" fill="${a}"/><rect x="6" y="8" width="4" height="12" rx="1.2" fill="${b}"/>`
+  + `<path d="M98 47h20v3H98Z" fill="${b}"/>`
+  + `<path d="M14 42c0-7 6-11 14-11h14l6-5h14l8 6h12c14 0 26 5 34 11-2 3-6 5-10 5H18c-3 0-4-3-4-6Z" fill="${a}"/>`
+  + `<path d="M40 44c0-4 3-6 7-6h22c4 0 6 2 6 5v3H40Z" fill="${b}"/>`
+  + tube('M47 28c2-5 13-5 15 0', b, 4)
+  + tube('M72 34h28', b, 3)
+  + `<circle cx="88" cy="39" r="4.4" fill="#fff" stroke-width="1.8"/>`
+  + wheel(26, 46, 12) + wheel(94, 48, 10)
+  + glint('M76 35c10 0 20 3 28 7');
+
+/** Buggy: a dune buggy, a tub with a sloped nose, fenders over chunky tires, a roll bar behind the seat and the engine bare. */
+const buggy = (a: string, b: string) => pipes(12, 22, 8, 6)
+  + `<rect x="8" y="22" width="18" height="14" rx="2.5" fill="${ENGINE}"/><rect x="11" y="15" width="10" height="7" rx="3" fill="${CHROME}" stroke-width="1.8"/>`
+  + tube('M40 28 44 6h14l3 22', b)
+  + `<path d="M20 28h62l24 6c4 1 6 4 6 7v2H22c-2 0-3-2-3-4Z" fill="${a}"/>`
+  + `<circle cx="106" cy="33" r="3.4" fill="${LAMP}" stroke-width="1.6"/>`
+  + `<rect x="100" y="42" width="15" height="4" rx="2" fill="${CHROME}" stroke-width="1.6"/>`
+  + wheel(29, 45, 14, b, true) + wheel(92, 45, 14, b, true)
+  + tube('M13 36c1-9 8-14 16-14s14 5 16 14M76 36c2-9 8-14 16-14s14 5 16 14', b, 3.4)
+  + glint('M24 30h54M46 8h10');
+
+const KART_ART: Readonly<Record<string, (a: string, b: string) => string>> = Object.freeze({ scooter, scrap, pod, wagon, skimmer, windup, stomper, snacktruck, classic, buggy });
+
+/**
+ * A kart side on and facing right (data/karts.ts ids), in its two colors `a` and `b`, on its shadow; '' for an
+ * unknown id. Sized by its box (karts.css), never by its attributes.
+ */
+export function kartSvg(kartId: string, a: string, b: string): string {
+  const art = KART_ART[kartId];
+  if (!art) return '';
+  return `<svg class="kart-svg" data-kart="${kartId}" viewBox="-2 -4 124 68" width="124" height="68" aria-hidden="true" focusable="false">`
+    + `<ellipse cx="60" cy="60" rx="52" ry="3.4" fill="${INK}" opacity="0.2"/>`
+    + `<g stroke="${INK}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">${art(a, b)}</g></svg>`;
+}

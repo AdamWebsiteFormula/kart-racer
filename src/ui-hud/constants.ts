@@ -67,4 +67,17 @@ export const UI = Object.freeze({
   endScreenGuardMs: 300,
   /** a confirm (a real key or click, or a pad's A) this soon after any screen or dialog opened is ignored: Enter pressed twice on the title picked Quick Race unseen (sweep, 24 Sept 2026) */
   screenGuardMs: 180,
+  /**
+   * The ship switch for any racer in any kart (design §5, docs/plans/kart-combos.md): on, the Racer screen goes on
+   * to the Kart screen (Mode → Racer → Kart → Cup or Track), Classic and Buggy move from the garage's Body row to
+   * the kart grid, and the stats panel shows the combined bars; off, the Racer screen goes straight on and everyone
+   * drives their own kart. Off until the sim, the art and the leaderboard have landed (the plan's K7).
+   */
+  kartPick: false,
+  /** the stats panel's bars move this long (scaleX only, the house ease), each one this much after the one above; a ghost fades in this long */
+  statBarMs: 240,
+  statStaggerMs: 40,
+  statGhostMs: 120,
+  /** a kart chosen: its "Locked in!" pulse plays this long before the next screen comes (none with reduced motion) */
+  lockInMs: 220,
 });

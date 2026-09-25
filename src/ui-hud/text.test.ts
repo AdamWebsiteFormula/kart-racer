@@ -11,6 +11,9 @@ import { TIER_RGB } from '../vfx-juice/flames.ts';
 import { CAST } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS, TRACKS } from './data/catalog.ts';
 import { BODIES, SKINS } from './data/cosmetics.ts';
+import { byLine, KART_UNLOCK_WORDS, KARTS } from './data/karts.ts';
+import { KART_SCREEN_TITLE, LOCKED_IN } from './screens/karts.ts';
+import { STAT_LABELS } from './screens/stats.ts';
 import { AUTO_GAS_NOTE, CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from './data/howto.ts';
 import { CONTROLS_STRIP, feedHud, hudModel, itemSlots, newHudMemory, SKIP_PROMPTS } from './hudModel.ts';
 import { ITEM_ICONS } from './icons.ts';
@@ -155,6 +158,24 @@ describe('How to Play says what the game does', () => {
   });
 });
 
+describe('the karts\' words (design §5, §12)', () => {
+  it('each card names its owner as the design does, a twin its twin, and the twins\' unlocks say kart, not body', () => {
+    for (const k of KARTS) {
+      if (k.owner) expect(byLine(k), k.id).toBe(`${CAST.find((c) => c.id === k.owner)!.name.split(' ').pop()}'s kart`);
+      else expect(byLine(k), k.id).toBe(`Same stats as the ${KARTS.find((x) => x.id === k.twinOf)!.name}`);
+    }
+    for (const [id, w] of Object.entries(KART_UNLOCK_WORDS)) {
+      const kart = KARTS.find((k) => k.id === id)!;
+      expect(w.name).toBe(`${kart.name} kart`);
+      expect(w.use).toContain(`the ${kart.name} kart`);
+      // the same unlock, the same way to earn it: only the words change
+      expect(UNLOCKS.find((u) => u.id === id)!.kind).toBe('body');
+    }
+    // the panel's four stats, as design §5 names them
+    expect(Object.values(STAT_LABELS)).toEqual(['Speed', 'Accel', 'Handling', 'Weight']);
+  });
+});
+
 describe('the credits', () => {
   it('count every art file that ships, and name the tools that made our own', () => {
     const md = fs.readFileSync(`${ROOT}CREDITS.md`, 'utf8');
@@ -185,6 +206,9 @@ describe('every word a player reads', () => {
       ...[...CUPS, ...KNOCKOUT_SETS].map((c) => c.name), ...SKINS.map((s) => s.name), ...BODIES.map((b) => b.name),
       ...UNLOCKS.flatMap((u) => [u.name, u.how, u.use]), ...MODES.flatMap((m) => [m.label, m.sub]), ...SPEED_CLASSES.flatMap((s) => [s.label, s.sub]),
       ...settingsMenu(defaultSettings()).rows.map((r) => r.label), ...Object.values(SETTING_HELP).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))), DONE_HELP,
+      // any racer in any kart (design §5, §12): the Kart screen, its cards, the stats panel, the twins' unlocks
+      KART_SCREEN_TITLE, LOCKED_IN, ...Object.values(STAT_LABELS), ...KARTS.flatMap((k) => [k.name, k.line, byLine(k)]),
+      ...Object.values(KART_UNLOCK_WORDS).flatMap((w) => [w.name, w.use]),
     ];
     for (const w of words) {
       // no emoji (sweep 25 Sept 2026): an OS draws them its own way, off the game's art (⏸ in How to Play's Touch column)

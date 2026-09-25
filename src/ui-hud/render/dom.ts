@@ -48,6 +48,19 @@ export class Attr {
   }
 }
 
+/** A style property (a CSS custom property: `--x`) that remembers its value. */
+export class StyleVar {
+  private last: string | null = null;
+  readonly el: HTMLElement;
+  readonly name: string;
+  constructor(el: HTMLElement, name: string) { this.el = el; this.name = name; }
+  set(v: string): void {
+    if (v === this.last) return;
+    this.last = v;
+    this.el.style.setProperty(this.name, v);
+  }
+}
+
 /**
  * innerHTML that remembers its source (icons are trusted, generated markup only). A picture in it
  * that fails to load removes itself, so the shape under it shows (ui.css hides the shape while an

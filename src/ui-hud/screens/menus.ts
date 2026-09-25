@@ -11,6 +11,9 @@ import type { Save, Settings } from '../store.ts';
 import { move } from '../focus.ts';
 import type { FocusModel, NavAction } from '../types.ts';
 import type { GarageVM } from '../garage.ts';
+import { ownKart } from '../data/karts.ts';
+import { comboStats } from '../data/kartStats.ts';
+import { panelWords, statPanel, type StatPanelVM } from './stats.ts';
 
 export interface Entry { id: string; label: string; sub?: string; disabled?: boolean; badge?: string }
 export interface MenuVM { title: string; entries: Entry[]; focus: FocusModel }
@@ -58,9 +61,14 @@ export function statBar(stat: number): number {
   return Math.min(1, Math.max(0.1, (3 + stat / 0.06) / 5));
 }
 
-export interface RacerCardVM { id: string; name: string; archetype: string; species: string; personality: string; kart: string; accent: string; secondary: string; stats: { label: string; value: number }[] }
-/** `garage`: the paint and body choices for the racer being dressed (garage.ts); a row in the grid only when it has any */
-export interface RosterVM { cards: RacerCardVM[]; classes: Entry[]; focus: FocusModel; garage?: GarageVM }
+/** `words`: with karts picked, the card's own four bars for a screen reader ("Speed 2 of 10. Accel 8 of 10. …") */
+export interface RacerCardVM { id: string; name: string; archetype: string; species: string; personality: string; kart: string; accent: string; secondary: string; stats: { label: string; value: number }[]; words?: string }
+/**
+ * `garage`: the paint and body choices for the racer being dressed (garage.ts); a row in the grid only when it has any.
+ * `panel`: with karts picked (UI.kartPick), the stats panel by the turntable: the racer on show in the kart they would
+ * race in, as a ghost over the combo chosen now (screens/karts.ts statPanel); `kartName`: that kart, for the caption.
+ */
+export interface RosterVM { cards: RacerCardVM[]; classes: Entry[]; focus: FocusModel; garage?: GarageVM; panel?: StatPanelVM; kartName?: string }
 
 export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: string }[] = Object.freeze([
   { cc: 50, label: '50cc', sub: 'Easy' },
@@ -74,16 +82,21 @@ export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: strin
  * Mirror switch's state, beside the classes, when Mirror is unlocked and the mode takes it (garage.ts mirrorAllowed).
  * `oneRow`: a short screen (a phone on its side, UI.shortScreenQuery) sets the eight cards in one row, and so does the grid.
  */
-export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null, extras: { garage?: GarageVM; mirror?: boolean } = {}, oneRow = false): RosterVM {
-  const cards = CAST.map((c) => {
+export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null, extras: { garage?: GarageVM; mirror?: boolean; panel?: StatPanelVM; kartName?: string } = {}, oneRow = false): RosterVM {
+  // with karts picked, each card's own four bars (the racer in their own kart: their class) on the stats panel's
+  // scale, the fair band of every racer-and-kart pair, so a card and the panel read alike (design §12)
+  const kartPick = extras.panel !== undefined;
+  const cards = CAST.map((c): RacerCardVM => {
     const a = ARCHETYPES[c.archetype];
+    const own = kartPick ? statPanel(comboStats(c.id, ownKart(c.id))) : undefined;
     return {
       id: c.id, name: c.name, archetype: c.archetype[0].toUpperCase() + c.archetype.slice(1), species: c.species,
       personality: c.personality, kart: c.kart, accent: c.accent, secondary: c.secondary,
-      stats: [
+      stats: own ? own.rows.map((r) => ({ label: r.label, value: r.value })) : [
         { label: 'Speed', value: statBar(a.speed) }, { label: 'Accel', value: statBar(a.accel) },
         { label: 'Handling', value: statBar(a.handling) }, { label: 'Weight', value: statBar(a.weight) },
       ],
+      ...(own ? { words: panelWords(own) } : {}),
     };
   });
   const solo = mode === 'timeTrial' || mode === 'daily';
@@ -93,7 +106,10 @@ export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null,
   const rows = oneRow ? [ids] : [ids.slice(0, 4), ids.slice(4, 8)];
   const garage = extras.garage;
   if (garage?.choices.length) rows.push(garage.choices.map((c) => c.id));
-  return { cards, classes, focus: { rows: classes.length ? [...rows, classes.map((c) => c.id)] : rows }, ...(garage ? { garage } : {}) };
+  return {
+    cards, classes, focus: { rows: classes.length ? [...rows, classes.map((c) => c.id)] : rows }, ...(garage ? { garage } : {}),
+    ...(extras.panel ? { panel: extras.panel } : {}), ...(extras.kartName ? { kartName: extras.kartName } : {}),
+  };
 }
 
 /** The ids on the racer screen that are racer cards. */

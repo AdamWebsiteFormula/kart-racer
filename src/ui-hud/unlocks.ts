@@ -2,6 +2,7 @@
 // results (docs/schemas/save.schema.json), granted once into save.unlocked so the reveal fires once.
 // Skins and bodies are cosmetic only: the racer owns the class. Pure.
 import { CUPS } from './data/catalog.ts';
+import { KART_UNLOCK_WORDS } from './data/karts.ts';
 import { medalFor, type MedalTimes } from './screens/menus.ts';
 import type { Save } from './store.ts';
 
@@ -72,8 +73,17 @@ export function grantUnlocks(save: Save, medalTimes: ReadonlyMap<string, MedalTi
   return out;
 }
 
+/**
+ * An unlock as the game names it: with karts picked (UI.kartPick) Classic and Buggy are karts on the Kart
+ * screen, not bodies in the garage (data/karts.ts KART_UNLOCK_WORDS); the ids and the save stay as they are.
+ */
+export function unlockWords(u: Unlock, kartPick = false): { name: string; use: string } {
+  const k = kartPick && u.kind === 'body' ? KART_UNLOCK_WORDS[u.id as 'classic' | 'buggy'] : undefined;
+  return k ?? { name: u.name, use: u.use };
+}
+
 export interface UnlockRow { id: string; name: string; how: string; use: string; unlocked: boolean }
-/** The Unlocks list: every unlock, granted or not, with how to get it. */
-export function unlockRows(save: Save): UnlockRow[] {
-  return UNLOCKS.map((u) => ({ id: u.id, name: u.name, how: u.how, use: u.use, unlocked: isUnlocked(u, save) }));
+/** The Unlocks list: every unlock, granted or not, with how to get it. `kartPick`: Classic and Buggy named as karts. */
+export function unlockRows(save: Save, kartPick = false): UnlockRow[] {
+  return UNLOCKS.map((u) => ({ id: u.id, ...unlockWords(u, kartPick), how: u.how, unlocked: isUnlocked(u, save) }));
 }

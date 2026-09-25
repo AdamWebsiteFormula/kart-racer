@@ -1,9 +1,11 @@
 // The screen flow as a pure reducer. Every transition is an action, so a test can walk the
 // whole graph with no browser (docs/sops/ui-hud.md test 1).
-import type { AppAction, AppState, Overlay } from './types.ts';
+import { UI } from './constants.ts';
+import type { AppAction, AppState, Overlay, Screen } from './types.ts';
 
-export function initialApp(): AppState {
-  return { screen: 'boot', overlays: [], mode: null, racerId: 'pip', speedClass: 100, cupId: null, trackId: null, seriesHasNext: false, mirrored: false };
+/** `kartPick`: the ship switch (UI.kartPick), which the state carries so the flow stays a pure function of it */
+export function initialApp(kartPick: boolean = UI.kartPick): AppState {
+  return { screen: 'boot', overlays: [], mode: null, racerId: 'pip', speedClass: 100, cupId: null, trackId: null, seriesHasNext: false, mirrored: false, ...(kartPick ? { kartPick } : {}) };
 }
 
 export const needsCup = (s: AppState) => s.mode === 'grandPrix' || s.mode === 'knockout';
@@ -12,6 +14,10 @@ export const needsTrack = (s: AppState) => s.mode === 'quick' || s.mode === 'tim
 /** A race that is no series (Quick Race, Time Trial, Daily): its results offer it again (Mario Kart World's end-of-race menu). */
 export const oneOff = (s: AppState) => s.mode !== null && !needsCup(s);
 export const topOverlay = (s: AppState): Overlay | undefined => s.overlays[s.overlays.length - 1];
+/** After the racer and the kart (design §12: Mode → Racer → Kart → Cup or Track → race): the cup, the track, or the race. */
+const afterPicks = (s: AppState): Screen => (needsCup(s) ? 'cupSelect' : needsTrack(s) ? 'trackSelect' : 'racing');
+/** One level up from the cup or track screen: the Kart screen when karts are picked, else the Racer screen. */
+const beforeCourse = (s: AppState): Screen => (s.kartPick ? 'kartSelect' : 'rosterSelect');
 export const isPaused = (s: AppState) => s.screen === 'racing' && s.overlays.length > 0;
 
 const push = (s: AppState, o: Overlay): AppState => (topOverlay(s) === o ? s : { ...s, overlays: [...s.overlays, o] });
@@ -39,9 +45,11 @@ export function reduce(s: AppState, a: AppAction): AppState {
     case 'setSpeedClass': return { ...s, speedClass: a.speedClass };
     // the racer screen's Mirror switch (shown only once unlocked, for Quick Race and Grand Prix: ui.ts)
     case 'toggleMirror': return s.screen === 'rosterSelect' ? { ...s, mirrored: !s.mirrored } : s;
+    // with karts picked the Kart screen comes next (the kart kept from before: absent, the racer's own); else straight on
     case 'pickRacer':
       if (s.screen !== 'rosterSelect') return s;
-      return { ...s, racerId: a.racerId, screen: needsCup(s) ? 'cupSelect' : needsTrack(s) ? 'trackSelect' : 'racing' };
+      return { ...s, racerId: a.racerId, screen: s.kartPick ? 'kartSelect' : afterPicks(s) };
+    case 'pickKart': return s.screen === 'kartSelect' ? { ...s, kartId: a.kartId, screen: afterPicks(s) } : s;
     case 'pickCup': return s.screen === 'cupSelect' ? { ...s, cupId: a.cupId, screen: 'racing' } : s;
     case 'pickTrack': return s.screen === 'trackSelect' ? { ...s, trackId: a.trackId, screen: 'racing' } : s;
     case 'raceFinished': return s.screen === 'racing' ? { ...s, screen: 'results', seriesHasNext: a.seriesHasNext, podiumNext: a.podium === true && !a.seriesHasNext } : s;
@@ -72,8 +80,10 @@ export function reduce(s: AppState, a: AppAction): AppState {
       switch (s.screen) {
         case 'modeSelect': return { ...s, screen: 'title' };
         case 'rosterSelect': return { ...s, screen: 'modeSelect' };
-        case 'cupSelect': return { ...s, screen: 'rosterSelect' };
-        case 'trackSelect': return { ...s, screen: 'rosterSelect' };
+        // back from the Kart screen keeps the racer (and the kart they were in)
+        case 'kartSelect': return { ...s, screen: 'rosterSelect' };
+        case 'cupSelect': return { ...s, screen: beforeCourse(s) };
+        case 'trackSelect': return { ...s, screen: beforeCourse(s) };
         case 'racing': return push(s, 'pause');
         default: return s;
       }

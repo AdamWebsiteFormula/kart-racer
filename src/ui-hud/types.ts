@@ -3,7 +3,7 @@ import type { SpeedClass } from '../kart-controller/types.ts';
 import type { RaceMode } from '../race-manager/types.ts';
 
 export type Screen =
-  | 'boot' | 'title' | 'modeSelect' | 'rosterSelect' | 'cupSelect' | 'trackSelect'
+  | 'boot' | 'title' | 'modeSelect' | 'rosterSelect' | 'kartSelect' | 'cupSelect' | 'trackSelect'
   | 'racing' | 'results' | 'gpTable' | 'knockoutCut' | 'podium';
 
 export type Overlay = 'pause' | 'settings' | 'credits' | 'howTo' | 'unlocks';
@@ -27,6 +27,13 @@ export interface AppState {
   podiumNext?: boolean;
   /** Mirror mode on (design §10): Quick Race and Grand Prix run the track reflected left to right */
   mirrored: boolean;
+  /**
+   * The kart the racer races in (design §5, data/karts.ts ids), chosen on the Kart screen and kept for the
+   * rest of a series and every one more go; absent: each racer's own kart (settings.selectedKartId seeds it)
+   */
+  kartId?: string;
+  /** the ship switch (UI.kartPick): on, the Racer screen goes on to the Kart screen; off, straight on, everyone in their own kart */
+  kartPick?: boolean;
 }
 
 export type AppAction =
@@ -34,6 +41,8 @@ export type AppAction =
   | { type: 'start' }
   | { type: 'pickMode'; mode: RaceMode }
   | { type: 'pickRacer'; racerId: string }
+  /** the Kart screen (with UI.kartPick on): this kart, then on to the cup or track (or the race) */
+  | { type: 'pickKart'; kartId: string }
   | { type: 'setSpeedClass'; speedClass: SpeedClass }
   | { type: 'toggleMirror' }
   | { type: 'pickCup'; cupId: string }

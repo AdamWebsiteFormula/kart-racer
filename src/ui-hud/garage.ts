@@ -4,6 +4,7 @@
 import type { RaceMode } from '../race-manager/types.ts';
 import { castCard, nameOf } from './data/cast.ts';
 import { BODIES, DEFAULT_BODY, DEFAULT_PAINT, DEFAULT_PAINT_NAME, skinsFor } from './data/cosmetics.ts';
+import { isKart, kartCard, kartLocked } from './data/karts.ts';
 import type { Save, Settings } from './store.ts';
 import { UNLOCKS } from './unlocks.ts';
 
@@ -11,8 +12,8 @@ export type ChoiceId = 'paint' | 'body';
 /** `swatch`: a paint's two colours, or a body's id (the renderer draws its outline); `hint`: how to unlock a locked one */
 export interface ChoiceOption { id: string; name: string; locked: boolean; hint?: string; swatch: readonly [string, string] | string }
 export interface Choice { id: ChoiceId; label: string; value: string; options: ChoiceOption[]; index: number }
-/** `paintName`, `bodyName`: what the racer wears now, for the hero turntable's caption */
-export interface GarageVM { racerId: string; racerName: string; paintName: string; bodyName: string; choices: Choice[] }
+/** `paintName`, `bodyName`: what the racer wears now, for the hero turntable's caption; `kartId`: with karts picked, the kart they are in (the caption names it) */
+export interface GarageVM { racerId: string; racerName: string; paintName: string; bodyName: string; choices: Choice[]; kartId?: string }
 
 const how = (id: string) => UNLOCKS.find((u) => u.id === id)?.how;
 
@@ -33,27 +34,35 @@ function bodies(save: Save): ChoiceOption[] {
   });
 }
 
-/** The paint and body this racer races in (only ever unlocked ones: the store checks on load too). */
-export function lookFor(save: Save, racerId: string): { paint?: string; body?: string } {
+/**
+ * The paint and body this racer races in (only ever unlocked ones: the store checks on load too). `kartId`:
+ * with karts picked (UI.kartPick) the kart they race in, whose shared body (Classic, Buggy) is the one drawn:
+ * the garage's Body row is gone then, and the old body is never read.
+ */
+export function lookFor(save: Save, racerId: string, kartId?: string): { paint?: string; body?: string } {
   const paint = save.settings.skinByRacer[racerId];
-  const body = save.settings.selectedBodyId;
+  const twin = kartId !== undefined && isKart(kartId) && kartCard(kartId)!.unlock && !kartLocked(kartCard(kartId)!, save.unlocked.bodies) ? kartId : undefined;
+  const body = kartId !== undefined ? twin ?? DEFAULT_BODY : save.settings.selectedBodyId;
   return {
     ...(paint && paints(save, racerId).some((p) => p.id === paint && !p.locked) ? { paint } : {}),
     ...(body !== DEFAULT_BODY && bodies(save).some((b) => b.id === body && !b.locked) ? { body } : {}),
   };
 }
 
-/** The garage for this racer: Paint when they have an alt (locked or not), and Body. */
-export function garageModel(save: Save, racerId: string): GarageVM {
+/**
+ * The garage for this racer: Paint when they have an alt (locked or not), and Body. `kartId`: with karts picked
+ * (UI.kartPick) the kart they race in: no Body row then (Classic and Buggy are karts on the Kart screen).
+ */
+export function garageModel(save: Save, racerId: string, kartId?: string): GarageVM {
   const choices: Choice[] = [];
-  const look = lookFor(save, racerId);
+  const look = lookFor(save, racerId, kartId);
   const p = paints(save, racerId);
   const pi = Math.max(0, p.findIndex((x) => x.id === (look.paint ?? DEFAULT_PAINT)));
   if (p.length > 1) choices.push({ id: 'paint', label: 'Paint', value: p[pi].name, options: p, index: pi });
   const b = bodies(save);
   const bi = Math.max(0, b.findIndex((x) => x.id === (look.body ?? DEFAULT_BODY)));
-  choices.push({ id: 'body', label: 'Body', value: b[bi].name, options: b, index: bi });
-  return { racerId, racerName: nameOf(racerId), paintName: p[pi].name, bodyName: b[bi].name, choices };
+  if (kartId === undefined) choices.push({ id: 'body', label: 'Body', value: b[bi].name, options: b, index: bi });
+  return { racerId, racerName: nameOf(racerId), paintName: p[pi].name, bodyName: b[bi].name, choices, ...(kartId !== undefined ? { kartId } : {}) };
 }
 
 /** Step a choice left (−1) or right (+1) for this racer, over the unlocked options, wrapping. Pure: returns new settings. */
