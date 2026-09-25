@@ -161,6 +161,10 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   gap: 22px;
   flex-wrap: wrap;
 }
+/* prompts name the keys, or a gamepad's buttons once one is pressed (UiRoot sets data-input) */
+.only-pad { display: none; }
+:root[data-input='pad'] .only-keys { display: none; }
+:root[data-input='pad'] .only-pad { display: revert; }
 .hint kbd {
   font: 700 13px/1 var(--body);
   background: var(--paper);

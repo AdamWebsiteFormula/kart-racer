@@ -149,6 +149,12 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(value(':root .keys-hint', 'display', COARSE)).toBe('none');
   });
 
+  it('the prompts show the keys, or a gamepad\'s buttons once one is pressed', () => {
+    expect(value('.only-pad', 'display')).toBe('none');
+    expect(value(":root[data-input='pad'] .only-keys", 'display')).toBe('none');
+    expect(value(":root[data-input='pad'] .only-pad", 'display')).toBe('revert');
+  });
+
   it('a solo run shows no place numeral; the count and GO! sit below the start lights', () => {
     expect(value('.hud.solo .place', 'display')).toBe('none');
     expect(value(".banner[data-kind='countdown']", 'top')).toBe('31%');

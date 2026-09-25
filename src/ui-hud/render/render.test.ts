@@ -958,3 +958,26 @@ describe('double presses (sweep 24 Sept 2026)', () => {
     ui.dispose();
   });
 });
+
+describe('prompts follow the input (sweep 24 Sept 2026)', () => {
+  it('a gamepad press switches the hints to its buttons, a key switches them back; the HUD strip has both', () => {
+    document.body.innerHTML = '';
+    const pad = { connected: true, buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0, 0, 0] };
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    const root = document.documentElement;
+    expect(root.dataset.input).toBe('keys');
+    expect(document.querySelector('#ui .title .press.only-keys')?.textContent).toBe('Press Enter');
+    expect(document.querySelector('#ui .title .press.only-pad')?.textContent).toBe('Press A');
+    ui.poll(16); // a pad plugged in but nothing pressed: still the keys
+    expect(root.dataset.input).toBe('keys');
+    pad.buttons[13].pressed = true; ui.poll(32); pad.buttons[13].pressed = false; ui.poll(48);
+    expect(root.dataset.input).toBe('pad');
+    key('ArrowUp');
+    expect(root.dataset.input).toBe('keys');
+    expect([...document.querySelectorAll('#ui .hud .keys-hint > span')].map((e) => e.className)).toEqual(['only-keys', 'only-pad']);
+    ui.dispose();
+    delete (navigator as { getGamepads?: unknown }).getGamepads;
+  });
+});

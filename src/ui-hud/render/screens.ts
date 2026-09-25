@@ -15,7 +15,9 @@ export interface ScreenView {
   readonly buttons: Map<string, HTMLElement>;
 }
 
-const HINT = '<span><kbd>↑↓←→</kbd>move</span><span><kbd>Enter</kbd>pick</span><span><kbd>Esc</kbd>back</span>';
+/** The keys, or a gamepad's buttons once one is pressed (UiRoot sets `data-input`; the stylesheet shows one set) */
+const HINT = '<span class="only-keys"><kbd>↑↓←→</kbd>move</span><span class="only-keys"><kbd>Enter</kbd>pick</span><span class="only-keys"><kbd>Esc</kbd>back</span>'
+  + '<span class="only-pad"><kbd>D-pad</kbd>move</span><span class="only-pad"><kbd>A</kbd>pick</span><span class="only-pad"><kbd>B</kbd>back</span>';
 
 function stage(root: HTMLElement): HTMLElement {
   h('div', 'dim', root);
@@ -87,7 +89,8 @@ export class TitleView implements ScreenView {
       delay(b, 500 + i * 80);
       this.buttons.set(e.id, b);
     });
-    h('div', 'press', st, 'Press Enter');
+    h('div', 'press only-keys', st, 'Press Enter');
+    h('div', 'press only-pad', st, 'Press A');
   }
 }
 

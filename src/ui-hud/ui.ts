@@ -207,6 +207,7 @@ export class UiRoot {
     // as for a hidden tab, instead of the pack driving off from a kart whose keys the blur let go
     addEventListener('blur', this.onBlur);
     this.applyTheme();
+    this.usedInput('keys');
     this.show();
   }
 
@@ -407,6 +408,7 @@ export class UiRoot {
     const buttons = pad.buttons.map((b) => b.pressed);
     const start = buttons[9] ?? false;
     const stickOut = navFromPad(NO_BUTTONS, pad.axes) !== null;
+    if (stickOut || buttons.some(Boolean)) this.usedInput('pad');
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (start && !this.padStartWas) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
@@ -435,7 +437,14 @@ export class UiRoot {
   }
 
   // ---------------------------------------------------------------- input
+  /** The prompts (menu hints, Press Enter, the race's controls strip) name the keys or a gamepad's
+   *  buttons, whichever was pressed last (`data-input` on the page; the stylesheet shows one set). */
+  private usedInput(kind: 'keys' | 'pad'): void {
+    if (document.documentElement.dataset.input !== kind) document.documentElement.dataset.input = kind;
+  }
+
   private key(e: KeyboardEvent): void {
+    this.usedInput('keys');
     const racing = this.app.screen === 'racing' && !this.app.overlays.length;
     const code = e.code || e.key;
     if (racing) this.keySpent.add(code);

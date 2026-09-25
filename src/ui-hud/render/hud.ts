@@ -213,7 +213,11 @@ export class HudView {
     this.bannerKind = new Attr(this.banner, 'data-kind');
 
     this.flash = new Flag(h('div', 'flash', this.root), 'on');
-    this.keysHint = new Flag(h('div', 'keys-hint', this.root, 'W / ↑ gas · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause'), 'on');
+    // the keys, or a gamepad's buttons once one is pressed (How to Play's Gamepad column)
+    const keys = h('div', 'keys-hint', this.root);
+    h('span', 'only-keys', keys, 'W / ↑ gas · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause');
+    h('span', 'only-pad', keys, 'RT gas · Left stick steer · A drift · X use item · LT brake · Start pause');
+    this.keysHint = new Flag(keys, 'on');
   }
 
   render(vm: HudVM): void {
