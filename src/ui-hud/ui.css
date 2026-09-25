@@ -466,11 +466,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* pause: top right, left of the map (which moves up there on touch) */
 .touch .tb.pauseBtn { top: calc(14px + var(--safe-t)); right: calc(170px + var(--safe-r)); width: 52px; height: 52px; }
 .touch .tb.pauseBtn span { width: 18px; height: 20px; border-left: 6px solid var(--paper); border-right: 6px solid var(--paper); }
-/* make room for the thumbs: the place and the map move up */
-:root[data-touch='on'] .hud .bl { bottom: calc(140px + var(--safe-b)); }
-:root[data-touch='on'] .hud .br { bottom: auto; top: calc(14px + var(--safe-t)); }
-:root[data-touch='on'] .minimap { width: 128px; height: 128px; }
-:root[data-touch='on'] .keys-hint { display: none; }
+/* make room for the thumbs: the place and the map move up. By the pointer, not by the thumbs being shown:
+   they hide under the pause, and the map, the place and the keys strip jumped back behind it (sweep) */
+@media (pointer: coarse) {
+  :root .hud .bl { bottom: calc(140px + var(--safe-b)); }
+  :root .hud .br { bottom: auto; top: calc(14px + var(--safe-t)); }
+  :root .minimap { width: 128px; height: 128px; }
+  :root .keys-hint { display: none; }
+}
 /* it takes the taps (#ui passes them through): none reaches the buttons hidden under it */
 .rotate-hint { display: none; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgb(27 27 47 / 0.92); color: var(--paper); font: 400 26px/1.2 var(--display); text-align: center; padding: 24px; pointer-events: auto; touch-action: none; }
 .rotate-hint .phone { width: 58px; height: 100px; border: 6px solid var(--paper); border-radius: 14px; animation: rotate-phone 1.8s ease-in-out infinite; }

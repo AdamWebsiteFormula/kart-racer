@@ -142,6 +142,13 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(value('.pause .list .btn:last-child:nth-child(odd)', 'grid-column', PHONE)).toBe('1 / -1');
   });
 
+  it('on a phone the race HUD keeps its touch layout under the pause (the thumbs hide there; the map and place jumped back)', () => {
+    const COARSE = '(pointer: coarse)';
+    expect(value(':root .minimap', 'width', COARSE)).toBe('128px');
+    expect(value(':root .hud .br', 'top', COARSE)).toMatch(/14px/);
+    expect(value(':root .keys-hint', 'display', COARSE)).toBe('none');
+  });
+
   it('a solo run shows no place numeral; the count and GO! sit below the start lights', () => {
     expect(value('.hud.solo .place', 'display')).toBe('none');
     expect(value(".banner[data-kind='countdown']", 'top')).toBe('31%');

@@ -74,7 +74,9 @@ export class TouchControls {
     if (e.type === 'pointerdown') {
       const t = e.target as HTMLElement;
       if (t.closest('[data-pause]')) { this.onPause(); return; }
-      const b = t.closest('[data-touch]') as HTMLElement | null;
+      // a button's own attribute: <html data-touch="on"> matched too, so a tap off the buttons (the
+      // countdown's gas) was held as a button called "on" and put a `down` class on the page (sweep)
+      const b = t.closest('.tb[data-touch]') as HTMLElement | null;
       if (t.closest('.pad')) { this.held.set(id, 'pad'); this.root.setPointerCapture?.(id); this.steerTo(e.clientX); }
       else if (b) { const k = b.dataset.touch as Button; this.held.set(id, k); this.down[k]++; b.classList.add('down'); }
       else this.held.set(id, 'screen');

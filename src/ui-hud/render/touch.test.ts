@@ -73,3 +73,17 @@ describe('touch button labels (detail review)', () => {
     expect([...t.root.querySelectorAll('.tb')].map((b) => b.textContent)).not.toContain('BACK');
   });
 });
+
+describe('a tap off the controls (sweep 24 Sept 2026)', () => {
+  it('is the screen, not a button: the page gets no down class and no button is pressed', () => {
+    const t = new TouchControls(document.body);
+    t.show(true); // <html data-touch="on">: a tap off the buttons matched it as a button called "on"
+    down(t.root, 1);
+    expect(document.documentElement.classList.contains('down')).toBe(false);
+    const s = t.state(false)!;
+    expect([s.drift, s.item, s.lookBack, s.brake]).toEqual([false, false, false, 0]);
+    expect(t.state(true)!.throttle).toBe(1); // still a thumb down for the countdown's gas
+    up(t.root, 1);
+    expect(t.state(true)!.throttle).toBe(0);
+  });
+});
