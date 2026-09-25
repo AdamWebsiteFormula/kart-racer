@@ -8422,7 +8422,8 @@ function jo(e, t) {
 		stuckSeconds: 0,
 		freezeRemaining: 0,
 		respawnCount: 0,
-		dnf: !1
+		dnf: !1,
+		cutDistance: 0
 	};
 }
 function Mo(e, t, n, r, i, a, o) {
@@ -8918,7 +8919,7 @@ var ms = class {
 			if (d || f) {
 				for (let e of this.order) {
 					let t = n[e];
-					t.finishTick === void 0 && (t.finishTick = a, r[e].dnf = !0);
+					t.finishTick === void 0 && (t.finishTick = a, r[e].dnf = !0, r[e].cutDistance = t.distanceAlong);
 				}
 				Zo(n, r, this.order), this.order.forEach((e, t) => {
 					n[e].rank = t + 1;
@@ -8971,7 +8972,7 @@ var ms = class {
 	results() {
 		let e = this.state, t = e.lapsTotal * this.track.length, n = 0, r = this.order.map((r) => {
 			let i = e.karts[r], a = e.trackers[r], o = i.finishTick ?? -1, s = a.lapTicks.map((t, n) => hs(t - (n === 0 ? e.goTick : a.lapTicks[n - 1]))), c = o < 0 ? -1 : hs(o - e.goTick), l = o < 0 || a.dnf, u = -1;
-			return l && c > 0 && i.distanceAlong > 0 && (u = Math.max(n + 100, Math.round(c * Math.max(1, t / i.distanceAlong)))), n = Math.max(n, l ? u : c), {
+			return l && c > 0 && a.cutDistance > 0 && (u = Math.max(n + 100, Math.round(c * Math.max(1, t / a.cutDistance)))), n = Math.max(n, l ? u : c), {
 				racerId: i.racerId,
 				rank: i.rank,
 				finishTick: o,

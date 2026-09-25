@@ -76,6 +76,12 @@ export interface KartTracker {
   rescue?: Rescue;
   /** force-finished at the grace cut-off */
   dnf: boolean;
+  /**
+   * Its race distance (metres) on the cut-off tick, for the projected time: past the flag the kart
+   * controller writes its own lap-less distanceAlong every tick (t × length), so a projection read
+   * later carried it home from a lap or two back ("670:07.36" in the results). 0 until then.
+   */
+  cutDistance: number;
 }
 
 export interface FeatureTimer { respawnRemaining: number }

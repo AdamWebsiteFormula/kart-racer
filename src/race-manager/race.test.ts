@@ -234,6 +234,26 @@ describe('RaceManager', () => {
     for (const r of cut) expect(r.projectedMs).toBeGreaterThan(res.ranks.find((x) => x.racerId === 'r1')!.timeMs);
   });
 
+  it('a projected time is the cut-off\'s: the field driving on behind the results never changes it (25 Sept 2026: "670:07.36")', () => {
+    const t2 = buildTrack(OVAL);
+    const rm = new RaceManager(t2, config(t2, racers(4, 1)));
+    const drivers = [lookAheadDriver(23, -2), lookAheadDriver(22, 2), lookAheadDriver(21, -2), lookAheadDriver(8, 0)];
+    run(rm, drivers, (tick) => { if (rm.state.playerFinishTick >= 0 && tick === rm.state.playerFinishTick + 30) rm.endRace(); });
+    const atCut = rm.results().ranks.map((r) => r.projectedMs);
+    // past the flag the karts roll on (their controller writes a lap-less distanceAlong every tick),
+    // a lap and more of it, over the line: the results screens read results() all that while
+    const inputs: InputState[] = new Array(drivers.length);
+    for (let k = 0; k < 20 * SIM_HZ; k++) {
+      for (let i = 0; i < drivers.length; i++) inputs[i] = drivers[i](rm.state.karts[i], rm.track);
+      rm.step(inputs);
+    }
+    const later = rm.results();
+    expect(later.ranks.map((r) => r.projectedMs)).toEqual(atCut);
+    const winner = later.ranks[0].timeMs;
+    // r3 crawls at a third of the pace, so its time is some 2.6x the winner's; the bug read 285x to 1,060x
+    for (const r of later.ranks.filter((x) => x.dnf)) expect(r.projectedMs).toBeLessThan(winner * 4);
+  });
+
   it('the input log ends on the player\'s finish tick, not behind the results screens (24 Sept 2026)', () => {
     const track = buildTrack(OVAL);
     const rm = new RaceManager(track, config(track, racers(2, 0)));
