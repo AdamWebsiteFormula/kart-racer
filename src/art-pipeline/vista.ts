@@ -18,6 +18,7 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { VistaContext, VistaParts } from '../track-builder/mesh/index.ts';
 import { decorGeometry } from './decor.ts';
+import { HAZE } from './look.ts';
 import { ModelBuilder, type Paint, type V3 } from './model.ts';
 import { WATER_CLOCK } from './surfaces.ts';
 
@@ -35,6 +36,7 @@ uniform vec3 sunDir;
 uniform float uTrig[${TRIGGERS}];
 uniform float uDetail;
 uniform float uNight;
+uniform float lkHazeGroundY;
 attribute vec3 aAnchor;
 attribute vec4 aMove;
 attribute vec4 aDir;
@@ -43,6 +45,7 @@ attribute vec3 aWing;
 attribute float aGroup;
 varying vec3 vColor;
 varying float vAlpha;
+varying float vLkHazeY;
 #include <fog_pars_vertex>
 const float PI = 3.14159265;
 vec3 yawed(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c); }
@@ -153,6 +156,11 @@ void main() {
   }
   p *= size;
   vec3 world = base + yawed(p, yaw);
+  // atmospheric perspective (look.ts HAZE): every vista item's own height above the track's ground,
+  // for the same haze that thins going up (world is already in world space here, and the group these
+  // meshes sit in either stands still or, for the ring, follows the camera in x/z only, so its own y
+  // never moves under this)
+  vLkHazeY = world.y - lkHazeGroundY;
   #ifdef GLOW
     vColor = color;
   #else
@@ -171,20 +179,32 @@ void main() {
 const SOLID_FRAG = `
 varying vec3 vColor;
 varying float vAlpha;
+varying float vLkHazeY;
 #include <fog_pars_fragment>
 void main() {
   gl_FragColor = vec4(vColor, 1.0);
-  #include <fog_fragment>
+  #ifdef USE_FOG
+    #ifdef FOG_EXP2
+      float lkHazeDist = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+    #else
+      float lkHazeDist = smoothstep( fogNear, fogFar, vFogDepth );
+    #endif
+    float lkHazeUp = mix( ${HAZE.heightMin.toFixed(3)}, 1.0, exp( -max( 0.0, vLkHazeY ) * ${HAZE.heightFalloff.toFixed(4)} ) );
+    gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, pow( lkHazeDist, ${HAZE.pow.toFixed(2)} ) * lkHazeUp );
+  #endif
 }`;
 
 const GLOW_FRAG = `
 varying vec3 vColor;
 varying float vAlpha;
+varying float vLkHazeY;
 #include <fog_pars_fragment>
 void main() {
   float f = 0.0;
   #ifdef USE_FOG
-    f = smoothstep(fogNear, fogFar, vFogDepth) * 0.85;
+    // the same accelerating curve as the world's own haze (look.ts HAZE): a spark or a beacon keeps
+    // its punch through the middle distance and only fades hard near the true horizon
+    f = pow(smoothstep(fogNear, fogFar, vFogDepth), ${HAZE.pow.toFixed(2)}) * 0.85;
   #endif
   // added light fades into the haze rather than taking the fog's colour
   gl_FragColor = vec4(vColor * vAlpha * (1.0 - f), 1.0);
@@ -193,10 +213,10 @@ void main() {
 /** The uniforms every vista material of a track shares: its triggers, the detail level, the night. */
 interface LifeUniforms { uTrig: { value: Float32Array }; uDetail: { value: number }; uNight: { value: number } }
 
-function vistaMaterial(sun: V3, glow: boolean, life: LifeUniforms, fog = true): ShaderMaterial {
+function vistaMaterial(sun: V3, glow: boolean, life: LifeUniforms, fog = true, groundY = 0): ShaderMaterial {
   return new ShaderMaterial({
     vertexShader: VERT, fragmentShader: glow ? GLOW_FRAG : SOLID_FRAG,
-    uniforms: { ...UniformsUtils.clone(UniformsLib.fog), time: WATER_CLOCK, sunDir: { value: new Vector3(...sun) }, ...life },
+    uniforms: { ...UniformsUtils.clone(UniformsLib.fog), time: WATER_CLOCK, sunDir: { value: new Vector3(...sun) }, lkHazeGroundY: { value: groundY }, ...life },
     defines: glow ? { GLOW: '' } : {},
     vertexColors: true, fog, transparent: glow, depthWrite: !glow, blending: glow ? AdditiveBlending : NormalBlending,
   });
@@ -404,7 +424,7 @@ class Vista {
       if (!list.length) return null;
       const g = mergeGeometries(list, false);
       if (!g) return null;
-      const m = new Mesh(g, vistaMaterial(sun, glow, this.life, fog));
+      const m = new Mesh(g, vistaMaterial(sun, glow, this.life, fog, this.floor));
       m.name = name;
       // posed in the vertex shader: its geometry's own bounds say nothing about where it draws
       m.frustumCulled = false;
@@ -432,6 +452,22 @@ class Vista {
 
 const SAND = '#f2dfa6', CORAL = '#ff6f61', WHITE = '#fffaf0', TEAL = '#2ec4b6', SUN = '#ffd23f';
 const WARM_GLOW: Paint = [2.4, 1.6, 0.6];
+
+/** `hex` made `k` times as dark (a furrow or a shaded strip: the same colour family, never a new one). */
+function darken(hex: string, k: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const c = (shift: number) => Math.max(0, Math.min(255, Math.round(((n >> shift) & 255) * k)));
+  return `#${((1 << 24) + (c(16) << 16) + (c(8) << 8) + c(0)).toString(16).slice(1)}`;
+}
+
+/** A small hedgerow clump (detail review, 25 Sept 2026: "too plain"): two or three round bushes of slightly different size and green, never one blob. */
+function bushClump(m: ModelBuilder, x: number, y: number, z: number, seed: number): void {
+  const n = 2 + (seed % 2);
+  for (let b = 0; b < n; b++) {
+    const a = b * 2.4 + seed, r = 1.3 - b * 0.18;
+    m.ball([r, r * 0.85, r], b % 2 ? '#3f8a3a' : '#4fa142', [x + Math.cos(a) * 0.7, y + r * 0.85, z + Math.sin(a) * 0.7], undefined, 6, false);
+  }
+}
 
 /** A little palm: a leaning trunk and five fronds (fans of cones), about 9 m. */
 function palm(m: ModelBuilder, x: number, z: number, h = 9, lean = 0.15): void {
@@ -770,11 +806,30 @@ function meadow(v: Vista): void {
     m.box([34, 1.2, 0.6], '#cfc9c2', [0, 8.6, -3.2], undefined, false);
   }), [bp[0], bp[1] - 0.4, bp[2]], byaw + Math.PI / 2));
 
-  // patchwork fields on the gentle slopes near the valley
+  // patchwork fields on the gentle slopes near the valley (Adam, 25 Sept 2026: "look too plain"; a
+  // patchwork wants furrows and a real hedgerow, not flat colour blocks with bare posts between them)
   const fields = model((m) => {
     const crops = ['#8cc24a', '#c9c254', '#5a9a34', '#d9b45a', '#a8c65a', '#6fae3a'];
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) m.box([38, 0.5 + ((i + j) % 2) * 0.3, 28], crops[(i * 3 + j * 2) % crops.length], [-60 + i * 40, 0.3, -30 + j * 30], [0, 0, 0], false);
-    for (let i = 0; i < 5; i++) m.box([1, 1.4, 90], '#7a5a3a', [-80 + i * 40, 0.7, 0], undefined, false);
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 3; j++) {
+        const cx = -60 + i * 40, cz = -30 + j * 30, h = 0.5 + ((i + j) % 2) * 0.3, colour = crops[(i * 3 + j * 2) % crops.length];
+        m.box([38, h, 28], colour, [cx, h / 2 - 0.2, cz], [0, 0, 0], false);
+        // furrows: thin darker strips, ploughed along X or Z so neighbouring plots read differently
+        const along = (i + j) % 2 === 0, dark = darken(colour, 0.6);
+        for (let k = -3; k <= 3; k++) {
+          const off = k * 3.6;
+          const size: V3 = along ? [37, 0.08, 1.1] : [1.1, 0.08, 27];
+          const pos: V3 = along ? [cx, h - 0.2, cz + off] : [cx + off, h - 0.2, cz];
+          m.box(size, dark, pos, undefined, false);
+        }
+      }
+    }
+    // the hedgerow: fence posts with real clumps of bushes between them, not bare posts
+    for (let i = 0; i < 5; i++) {
+      const x = -80 + i * 40;
+      m.box([1, 1.4, 90], '#7a5a3a', [x, 0.7, 0], undefined, false);
+      for (let k = 0; k < 7; k++) bushClump(m, x, 0, -42 + k * 14, i * 7 + k);
+    }
   });
   v.solid(fields, -30, v.out(115), -0.2);
   v.solid(fields, 125, v.out(105), -0.2, [0.8, 1, 1.2], 0.6);
@@ -1084,16 +1139,24 @@ function boardwalk(v: Vista): void {
 // ================================================================ Skyline Circuit: floating islands in the clouds
 
 function skyline(v: Vista): void {
-  // floating islands with waterfalls pouring off into the clouds
+  // floating islands with waterfalls pouring off into the clouds (Adam, 25 Sept 2026: "look too
+  // plain"; a squashed ball read as a flat green pancake at range, so its top now has real hummocks
+  // and a visible rock lip, and its trees stand taller so they break the silhouette, not just the texture)
   const island = (trees: number) => model((m) => {
-    m.ball([30, 5, 24], '#7cc85a', [0, 0, 0], undefined, 12, false);
-    m.ball([29, 8, 23], '#b07a4a', [0, -4, 0], undefined, 12, false);
-    m.cone(26, 44, '#9a7a6a', [0, -28, 0], [Math.PI, 0.3, 0], 9, false);
-    m.cone(15, 30, '#8a6a5a', [8, -40, 5], [Math.PI, 0.9, 0.12], 7, false);
+    m.ball([30, 9, 24], '#7cc85a', [0, -1, 0], undefined, 12, false);
+    for (const [hx, hz, hr, hh, c] of [[-10, 6, 11, 5, '#6fbd4f'], [12, -4, 9, 4.4, '#86d066'], [1, 12, 8, 3.6, '#6fbd4f'], [-6, -13, 7, 3, '#86d066']] as const) {
+      m.ball([hr, hh, hr], c, [hx, 3.6 + hh * 0.35, hz], undefined, 8, false);
+    }
+    // the rock lip where the green gives way to root and stone (a floating island's own strata)
+    m.cyl(29, 27, 3, '#8a6f52', [0, -5.5, 0], undefined, 12, false);
+    m.ball([28, 8, 22], '#b07a4a', [0, -9, 0], undefined, 12, false);
+    m.cyl(24, 22, 1.8, '#7a5f46', [0, -18, 0], [Math.PI, 0, 0], 10, false);
+    m.cone(26, 44, '#9a7a6a', [0, -33, 0], [Math.PI, 0.3, 0], 9, false);
+    m.cone(15, 30, '#8a6a5a', [8, -45, 5], [Math.PI, 0.9, 0.12], 7, false);
     for (let i = 0; i < trees; i++) {
-      const a = i * 2.2, r = 8 + (i % 3) * 5;
-      m.cyl(0.6, 0.8, 4, '#6b4a2b', [Math.cos(a) * r, 5, Math.sin(a) * r], undefined, 5, false);
-      m.ball([3.6, 3.2, 3.6], i % 2 ? '#3f9a4a' : '#56b85a', [Math.cos(a) * r, 9, Math.sin(a) * r], undefined, 7, false);
+      const a = i * 2.2, r = 8 + (i % 3) * 5, h = 4.6 + (i % 2) * 1.1;
+      m.cyl(0.65, 0.85, h, '#6b4a2b', [Math.cos(a) * r, h / 2 + 3, Math.sin(a) * r], undefined, 5, false);
+      m.ball([4, 3.7, 4], i % 2 ? '#3f9a4a' : '#56b85a', [Math.cos(a) * r, h + 6.5, Math.sin(a) * r], undefined, 7, false);
     }
     m.box([4.5, 1.2, 1.4], '#4aa8e0', [0, 3.6, 22.6], undefined, false);
   });

@@ -56,6 +56,67 @@ export const PBR = Object.freeze({
   envSize: 256,
 });
 
+/**
+ * Atmospheric perspective (Adam, 25 Sept 2026: "will items off in the distance have natural fading
+ * ... how does Mario Kart World work with that?"; a weakness found the same day: the painted skies'
+ * pale horizons washed the distance out flat, and the lawn past about 40 m read as painted paper).
+ * Three's own fog chunk only takes camera distance, in a straight ramp, to one colour at every height.
+ * Real haze does two things it does not:
+ * - it reads as an accelerating curve, not a straight one (`pow`), so the middle distance stays
+ *   readable and the wash is spent mostly on the far edge — the three.js manual's own reason to prefer
+ *   `FogExp2` over the linear `Fog` for a natural look; here the curve does that job while the game
+ *   keeps its tuned near/far (main.ts) and the Final Lap Shift's fogDensity swap;
+ * - it pools low and thins going up (`heightMin`, `heightFalloff`), so a peak keeps its own colour
+ *   while its foot melts into the horizon (Inigo Quilez, "Better Fog", iquilezles.org/articles/fog).
+ * One varying, one pow, one exp: no new pass, no new texture. Shared by every world PBR material
+ * through `lookLights`, so the ground, the road, the land and the far vista's own buildings and
+ * mountains all haze the same way; `?look=toon` never compiles it.
+ */
+export const HAZE = Object.freeze({
+  /** > 1 keeps the near-to-mid range clearer and spends more of the wash near the far edge of the fog. */
+  pow: 2.2,
+  /** the haze a tall thing never drops under, however high it stands (a share of the ground's rate at the same distance). */
+  heightMin: 0.45,
+  /** per metre risen above the material's own hazeGroundY: how fast the haze thins going up. */
+  heightFalloff: 0.012,
+});
+
+/** After `#include <fog_vertex>`: `vLkHazeY`, world height above `lkHazeGroundY` (instancing-safe). */
+const HAZE_VERT = `
+#ifdef USE_FOG
+  {
+    vec4 lkHazeW = vec4( transformed, 1.0 );
+    #ifdef USE_INSTANCING
+      lkHazeW = instanceMatrix * lkHazeW;
+    #endif
+    vLkHazeY = ( modelMatrix * lkHazeW ).y - lkHazeGroundY;
+  }
+#endif`;
+
+/** Replaces `#include <fog_fragment>`: the same fogColor/fogNear/fogFar three already refreshes from `scene.fog`, bent by HAZE. */
+const HAZE_FRAG = `#ifdef USE_FOG
+  #ifdef FOG_EXP2
+    float lkHazeDist = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+  #else
+    float lkHazeDist = smoothstep( fogNear, fogFar, vFogDepth );
+  #endif
+  float lkHazeUp = mix( ${HAZE.heightMin.toFixed(3)}, 1.0, exp( -max( 0.0, vLkHazeY ) * ${HAZE.heightFalloff.toFixed(4)} ) );
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, pow( lkHazeDist, ${HAZE.pow.toFixed(2)} ) * lkHazeUp );
+#endif`;
+
+/**
+ * Patches atmospheric perspective (HAZE) into an already-compiled shader. `groundY`: the height a
+ * material's own haze counts as "the ground" — a track's own is close enough to 0 everywhere but
+ * Skyline (docs/sops/art-pipeline.md), which has none and stands high everywhere, so it hazes a touch
+ * less by default too; a material can carry its own in `userData.hazeGroundY` (read by its caller,
+ * the same way `userData.lookEnv` already picks a material's share of the sky's light).
+ */
+function applyHaze(shader: WebGLProgramParametersWithUniforms, groundY: number): void {
+  shader.uniforms.lkHazeGroundY = { value: groundY };
+  shader.vertexShader = `varying float vLkHazeY;\nuniform float lkHazeGroundY;\n${shader.vertexShader.replace('#include <fog_vertex>', `#include <fog_vertex>\n${HAZE_VERT}`)}`;
+  shader.fragmentShader = `varying float vLkHazeY;\n${shader.fragmentShader.replace('#include <fog_fragment>', HAZE_FRAG)}`;
+}
+
 /** three's physical lighting with the world's own sun: gained and wrapped (PBR.sun, PBR.wrap) and the ambient scaled (PBR.ambient). */
 const DIRECT = 'vec3 irradiance = dotNL * directLight.color;';
 const DIFFUSE = 'reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseContribution );';
@@ -76,11 +137,12 @@ export const LOOK_ENV = `#include <lights_fragment_maps>
   radiance = mix( vec3( dot( radiance, vec3( 0.2126, 0.7152, 0.0722 ) ) ), radiance, LOOK_ENV_SAT );
 #endif`;
 
-/** The world's sun, ambient and sky light (LOOK_LIGHTS, LOOK_ENV) into a MeshStandardMaterial's shader. */
-export function lookLights(shader: WebGLProgramParametersWithUniforms): void {
+/** The world's sun, ambient, sky light and atmospheric haze (LOOK_LIGHTS, LOOK_ENV, HAZE) into a MeshStandardMaterial's shader. */
+export function lookLights(shader: WebGLProgramParametersWithUniforms, hazeGroundY = 0): void {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <lights_physical_pars_fragment>', `${LIGHT_DEFINES}${LOOK_LIGHTS}`)
     .replace('#include <lights_fragment_maps>', LOOK_ENV);
+  applyHaze(shader, hazeGroundY);
 }
 
 // ---- the sky's reflection ----
@@ -181,9 +243,10 @@ export function pbrTwin(src: MeshToonMaterial): MeshStandardMaterial {
   t.envMap = env;
   // (a toon may name its own share of the sky's light: litWorld)
   t.envMapIntensity = (ud.lookEnv as number | undefined) ?? PBR.env;
+  const hazeGroundY = (ud.hazeGroundY as number | undefined) ?? 0;
   t.onBeforeCompile = (shader, renderer) => {
     src.onBeforeCompile(shader, renderer);
-    lookLights(shader);
+    lookLights(shader, hazeGroundY);
   };
   t.customProgramCacheKey = () => `${src.customProgramCacheKey()}|pbr`;
   src.addEventListener('dispose', () => t.dispose());
@@ -203,9 +266,10 @@ export function litWorld(m: MeshStandardMaterial): MeshStandardMaterial {
   if (LIT.has(m)) return m;
   LIT.add(m);
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey.bind(m);
+  const hazeGroundY = (m.userData.hazeGroundY as number | undefined) ?? 0;
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
-    lookLights(shader);
+    lookLights(shader, hazeGroundY);
   };
   m.customProgramCacheKey = () => `${key()}|pbr`;
   m.needsUpdate = true;

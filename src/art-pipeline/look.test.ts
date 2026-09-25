@@ -8,7 +8,7 @@ import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { trackAssets } from './index.ts';
-import { applyLook, DEFAULT_LOOK, isPbr, litWorld, look, LOOK_LIGHTS, LOOK_LIGHTS_OK, lookFromSearch, PBR, pbrTwin, setLook } from './look.ts';
+import { applyLook, DEFAULT_LOOK, HAZE, isPbr, litWorld, look, LOOK_LIGHTS, LOOK_LIGHTS_OK, lookFromSearch, PBR, pbrTwin, setLook } from './look.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 const HARBOUR = TRACKS.find((d) => d.id === 'harbour-loop')!;
@@ -103,6 +103,53 @@ describe('the PBR twin of a toon material', () => {
     expect(PBR.sun).toBeGreaterThan(1);
     expect(PBR.wrap).toBeGreaterThan(0);
     expect(PBR.wrap).toBeLessThan(1);
+  });
+});
+
+describe('atmospheric perspective (HAZE, 25 Sept 2026: distant things fade to each sky\'s own horizon, denser near the ground)', () => {
+  it('bends every PBR world material\'s own fog: an accelerating curve, thinner going up, still just three\'s fogColor', () => {
+    const toon = new MeshToonMaterial();
+    const t = pbrTwin(toon);
+    const { vs, fs } = compiled(t);
+    expect(vs).toContain('varying float vLkHazeY;');
+    expect(vs).toContain('vLkHazeY = ( modelMatrix * lkHazeW ).y - lkHazeGroundY;');
+    expect(fs).toContain(`pow( lkHazeDist, ${HAZE.pow.toFixed(2)} )`);
+    expect(fs).toContain(`mix( ${HAZE.heightMin.toFixed(3)}, 1.0, exp(`);
+    expect(fs).toContain('mix( gl_FragColor.rgb, fogColor, pow( lkHazeDist, ');
+    // still one #include <fog_fragment> worth of code: no leftover token for a later patch to miss
+    expect(fs).not.toContain('#include <fog_fragment>');
+    expect(HAZE.pow).toBeGreaterThan(1); // an accelerating ramp, not a straight one
+    expect(HAZE.heightMin).toBeGreaterThan(0);
+    expect(HAZE.heightMin).toBeLessThan(1);
+  });
+
+  it('defaults hazeGroundY to 0, and reads a material\'s own (Skyline has no ground: art-pipeline SOP)', () => {
+    const std = new MeshStandardMaterial();
+    std.userData.hazeGroundY = 42;
+    litWorld(std);
+    const shader = { vertexShader: ShaderChunk.meshphysical_vert, fragmentShader: ShaderChunk.meshphysical_frag, uniforms: {} } as unknown as WebGLProgramParametersWithUniforms;
+    std.onBeforeCompile(shader, {} as WebGLRenderer);
+    expect((shader.uniforms.lkHazeGroundY as { value: number }).value).toBe(42);
+    const plain = new MeshStandardMaterial();
+    litWorld(plain);
+    const shader2 = { vertexShader: ShaderChunk.meshphysical_vert, fragmentShader: ShaderChunk.meshphysical_frag, uniforms: {} } as unknown as WebGLProgramParametersWithUniforms;
+    plain.onBeforeCompile(shader2, {} as WebGLRenderer);
+    expect((shader2.uniforms.lkHazeGroundY as { value: number }).value).toBe(0);
+    // a toon's twin reads the toon's own userData the same way (pbrTwin)
+    const toonWithGround = new MeshToonMaterial();
+    toonWithGround.userData.hazeGroundY = -0.5;
+    const twin = pbrTwin(toonWithGround);
+    const shader3 = { vertexShader: ShaderChunk.meshphysical_vert, fragmentShader: ShaderChunk.meshphysical_frag, uniforms: {} } as unknown as WebGLProgramParametersWithUniforms;
+    twin.onBeforeCompile(shader3, {} as WebGLRenderer);
+    expect((shader3.uniforms.lkHazeGroundY as { value: number }).value).toBe(-0.5);
+  });
+
+  it('the toon look never compiles it (?look=toon, art-pipeline SOP)', () => {
+    const toon = new MeshToonMaterial();
+    const shader = { vertexShader: ShaderChunk.meshtoon_vert, fragmentShader: ShaderChunk.meshtoon_frag, uniforms: {} } as unknown as WebGLProgramParametersWithUniforms;
+    toon.onBeforeCompile(shader, {} as WebGLRenderer);
+    expect(shader.fragmentShader).not.toContain('lkHazeUp');
+    expect(shader.fragmentShader).toContain('#include <fog_fragment>');
   });
 });
 
