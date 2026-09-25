@@ -16,7 +16,7 @@ export { PAINTS, paintFor, repaintHex, repaintPixels, repaintRgb, type Paint, ty
 export { clipDriver, DRIVER_CUTS, fitToBox, fitToKart, KART_FIT, PROP_MODELS, PropModels, RACER_MODELS, RacerModels, trackProps, type DriverCut, type ModelManifest } from './glb.ts';
 export { EXHAUST, portDir, RACER_IDS, racerModel, type Exhaust } from './racers.ts';
 export { freeSkeletons, RACER_POSES, RiggedKart, SEATED, type PartsManifest, type PartsSpec, type RiggedTemplate, type SeatSpec } from './rigged.ts';
-export { flameColour, flameGeometry, flameMaterial, JET_PROFILE, type FlameUniforms } from './flames.ts';
+export { flameColour } from './flames.ts';
 export { ModelBuilder } from './model.ts';
 export { DECOR_NAMES, decorGeometry } from './decor.ts';
 export { DAY_GRADE, DAY_LIGHT, fadeSky, lightOf, paintSky, preloadSky, SKIES, SKY_FADE, SKY_FADE_FOR, skyTint, type SkyLight, type SkyPreset } from './sky.ts';

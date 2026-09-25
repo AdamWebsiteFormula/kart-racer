@@ -1,8 +1,8 @@
-import { CustomBlending, PerspectiveCamera, Scene, ShaderMaterial, SrcColorFactor, ZeroFactor } from 'three';
+import { AdditiveBlending, CustomBlending, OneFactor, OneMinusSrcAlphaFactor, PerspectiveCamera, Scene, ShaderMaterial, SrcColorFactor, ZeroFactor } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createKartState } from '../kart-controller/types.ts';
 import { newEffects } from './juice.ts';
-import { drawnSize, drawnStreak, nearFade, PARTICLE, ParticlePool } from './particles.ts';
+import { drawnSize, drawnStreak, nearFade, PARTICLE, ParticlePool, STREAK_COVER } from './particles.ts';
 import { SKID, skidShade, Skids } from './trails.ts';
 import { CONFETTI, CONFETTI_BURST, POP, STRIKE_BURST, Vfx } from './vfx.ts';
 
@@ -175,6 +175,25 @@ describe('streaks (drift sparks and boost embers)', () => {
       const cross = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
       expect(cross).toBeGreaterThan(0); // the plane's own sense (x right, y up): front-facing
     }
+  });
+
+  it('part cover what is behind them (premultiplied), so a spark\'s color holds over a bright road', () => {
+    const streak = new ParticlePool(4, true, false, PARTICLE.maxSize.spark, true), glow = new ParticlePool(4, true);
+    const sm = streak.mesh.material as ShaderMaterial;
+    expect(sm.blending).toBe(CustomBlending);
+    expect([sm.blendSrc, sm.blendDst]).toEqual([OneFactor, OneMinusSrcAlphaFactor]);
+    expect(sm.fragmentShader).toContain(`a * ${STREAK_COVER.toFixed(2)}`);
+    expect((glow.mesh.material as ShaderMaterial).blending).toBe(AdditiveBlending); // the round glows still only add light
+  });
+
+  it('a particle draws no more opaque than it was spawned (the pipes\' faint puffs), and keeps that when packed forward', () => {
+    const pool = new ParticlePool(4, false);
+    const o = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 0.5, g: 0.5, b: 0.6, size: 0.2, life: 0.1 };
+    pool.spawn(o); // dies first
+    pool.spawn({ ...o, life: 5, alpha: 0.4 });
+    pool.update(0.2);
+    expect(pool.count).toBe(1);
+    expect((pool.mesh.geometry.getAttribute('aColor').array as Float32Array)[3]).toBeCloseTo(0.4, 6);
   });
 
   it('ride with their kart and stretch over their own motion only', () => {

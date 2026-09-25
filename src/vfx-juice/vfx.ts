@@ -61,8 +61,8 @@ export class Vfx {
   /** the camera's roll into the player's drift, eased */
   readonly camRoll = new DriftRoll();
   readonly time = new TimeScale();
-  /** each kart's drift sparks, wheel glows, boost embers, dust and tyre marks (kartfx.ts) */
-  readonly kartFx = new KartFx(this.glow, this.soft, this.skids);
+  /** each kart's drift specks, flame flakes, pipe puffs, dust and tyre marks (kartfx.ts; the tyre stars and the flames burn on the kart's own mesh, flames.ts) */
+  readonly kartFx = new KartFx(this.soft, this.skids);
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
   /** a firework's colour, reused */
   private readonly hot: number[] = [1, 1, 1];
@@ -246,7 +246,7 @@ export class Vfx {
    */
   frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean): void {
     this.lastPlayer = player;
-    if (simDt > 0) for (const k of karts) this.kartFx.emit(k, simDt, t, camPos, k === player);
+    if (simDt > 0) for (const k of karts) this.kartFx.emit(k, simDt, t, camPos, k === player, reduced);
     this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt);
     this.skids.setTime(t);
     this.trauma.update(dt);

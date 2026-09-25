@@ -1,8 +1,9 @@
 import { PerspectiveCamera, Scene } from 'three';
 import { describe, expect, it } from 'vitest';
+import { BASE } from '../kart-controller/constants.ts';
 import { createKartState, type KartState } from '../kart-controller/types.ts';
 import { TIER_RGB } from './flames.ts';
-import { EMBER, MARK, SPARK, streaksPerKart } from './kartfx.ts';
+import { EMBER, MARK, PUFF, SMOKE, SPARK, streaksPerKart } from './kartfx.ts';
 import { Vfx } from './vfx.ts';
 
 const RACERS = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];
@@ -80,7 +81,7 @@ describe('drift sparks (Mario Kart World: small, crisp, coloured by tier, from t
     }
   });
 
-  it('burn in the tier\'s colour (blue, orange, purple), some white-hot; the wheels glow in it too', () => {
+  it('burn in the tier\'s color (blue, orange, purple), some white-hot (the tires\' glow is the kart\'s own star)', () => {
     for (const tier of [1, 2, 3]) {
       const vfx = new Vfx(new Scene(), new PerspectiveCamera());
       const k = driver('otto', 0, 22, tier, true);
@@ -95,15 +96,48 @@ describe('drift sparks (Mario Kart World: small, crisp, coloured by tier, from t
         for (const { c } of pts) expect(Math.max(...c)).toBeCloseTo(c[top], 5);
       }
       expect(tinted / all, `tier ${tier}`).toBeGreaterThan(0.6);
-      // a glow on the rear wheels in the tier's colour, riding with the kart
-      const glows = live(vfx.glow);
-      expect(glows.length).toBeGreaterThan(1);
-      for (const { p } of glows) expect(p[2] - k.position[2]).toBeGreaterThan(-1.2);
+      // the tires' own glow is a star on the kart's mesh (flames.ts), not a stack of discs in the glow pool
+      expect(vfx.glow.count).toBe(0);
     }
     // blue, orange and purple are three distinct hues: blue's top channel is blue, orange's red, purple's blue with red
     expect(TIER_RGB[0][2]).toBeGreaterThan(TIER_RGB[0][0]);
     expect(TIER_RGB[1][0]).toBeGreaterThan(TIER_RGB[1][2]);
     expect(TIER_RGB[2][0]).toBeGreaterThan(TIER_RGB[2][1] * 3);
+  });
+
+  it('a tier-up throws a spray of needles from both tires; reduced motion has none, and half the specks', () => {
+    const count = (reduced: boolean, tier: number) => {
+      const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+      const k = driver('pip', 0, 24, tier, true);
+      vfx.frame(1 / 120, 1 / 120, 0, [k], k, [0, 3, -6], reduced);
+      return vfx.kartFx.sparks.count;
+    };
+    // the first frame at a new tier: the needles (the steady specks come a few a frame)
+    expect(count(false, 2)).toBeGreaterThanOrEqual(SPARK.burst.count * 2);
+    expect(count(true, 2)).toBeLessThan(SPARK.burst.count);
+    const steady = (reduced: boolean) => {
+      const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+      const k = driver('pip', 0, 24, 1, true);
+      let n = 0;
+      for (let i = 0; i < 120; i++) { k.position[2] += 0.2; vfx.frame(1 / 60, 1 / 60, i / 60, [k], k, [0, 3, k.position[2] - 6], reduced); if (i > 30) n += vfx.kartFx.sparks.count; }
+      return n;
+    };
+    expect(steady(true)).toBeLessThan(steady(false) * 0.7);
+  });
+
+  it('letting go of a drift throws a last spray in the mini-turbo\'s color, and the boost a handful of flakes', () => {
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+    const k = driver('otto', 0, 24, 2, true);
+    const frame = (i: number) => { k.position[2] += 0.4; vfx.frame(1 / 60, 1 / 60, i / 60, [k], k, [0, 3, k.position[2] - 6], false); };
+    for (let i = 0; i < 60; i++) frame(i);
+    const before = vfx.kartFx.sparks.count;
+    k.drift.active = false; k.drift.tier = 0;
+    k.boost.source = 'drift'; k.boost.remaining = BASE.boostSeconds[1]; k.boost.multiplier = 1.3;
+    frame(60);
+    const orange = TIER_RGB[1].map((x) => x * SPARK.gain);
+    const pts = live(vfx.kartFx.sparks);
+    expect(pts.length - before).toBeGreaterThanOrEqual(SPARK.release * 2 + EMBER.burst - 4);
+    expect(pts.filter(({ c }) => c.every((x, i) => Math.abs(x - orange[i]) < 1e-4)).length).toBeGreaterThan(SPARK.release / 2);
   });
 
   it('boost embers trail the pipes a short way in the flame\'s colour', () => {
@@ -121,6 +155,62 @@ describe('drift sparks (Mario Kart World: small, crisp, coloured by tier, from t
       expect(p[2] - k.position[2]).toBeGreaterThan(-4);
       expect(c[0]).toBeGreaterThan(c[2]); // orange, not the racer's red-only or a blue
     }
+  });
+});
+
+describe('the pipes\' breath', () => {
+  /** a kart standing still, then launching hard: the puffs it leaves in the soft pool */
+  it('a small, faint gray-blue puff at idle, quicker ones on a hard launch; none while cruising or boosting', () => {
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+    const k = driver('gus', 0, 0, 0, true);
+    let t = 0;
+    const run = (secs: number, accel = 0) => {
+      let most = 0;
+      for (let i = 0; i < secs * 60; i++) { k.speed += accel / 60; k.position[2] += k.speed / 60; t += 1 / 60; vfx.frame(1 / 60, 1 / 60, t, [k], k, [0, 3, k.position[2] - 6], false); most = Math.max(most, vfx.soft.count); }
+      return most;
+    };
+    const idle = run(2);
+    expect(idle).toBeGreaterThan(0);
+    expect(idle).toBeLessThanOrEqual(Math.ceil(PUFF.idleRate * PUFF.life * 1.2) + 1);
+    for (const { c } of live(vfx.soft)) { expect(c[2]).toBeGreaterThan(c[0]); expect(Math.max(...c)).toBeLessThan(1); } // gray-blue, never glowing
+    const launch = run(0.5, 12);
+    expect(launch).toBeGreaterThan(idle);
+    vfx.soft.clear();
+    k.speed = 25;
+    expect(run(1)).toBe(0); // cruising: nothing
+    k.speed = 0; k.boost.source = 'start'; k.boost.remaining = 5; vfx.soft.clear();
+    expect(run(1)).toBe(0); // a start boost burns, it does not puff
+    // faint: at most PUFF.launchAlpha opaque
+    k.boost.source = 'none'; k.boost.remaining = 0; k.speed = 0; vfx.soft.clear();
+    run(0.3);
+    const a = vfx.soft.mesh.geometry.getAttribute('aColor').array as Float32Array;
+    for (let i = 0; i < vfx.soft.count; i++) expect(a[i * 4 + 3]).toBeLessThanOrEqual(PUFF.launchAlpha + 1e-6);
+  });
+});
+
+describe('a drift\'s tire smoke', () => {
+  it('faint white puffs at the rear tires while drifting on the road, none off it or off the drift', () => {
+    const smoke = (surface: KartState['surface'], drifting: boolean) => {
+      const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+      const k = driver('momo', 0, 20, drifting ? 1 : 0, true);
+      k.drift.active = drifting;
+      k.surface = surface;
+      run(vfx, [k], 0.5, k);
+      return vfx.soft;
+    };
+    const road = smoke('road', true);
+    expect(road.count).toBeGreaterThan(2);
+    const a = road.mesh.geometry.getAttribute('aColor').array as Float32Array;
+    for (let i = 0; i < road.count; i++) {
+      expect(a[i * 4 + 3]).toBeLessThanOrEqual(SMOKE.alpha + 1e-6); // faint
+      expect(a[i * 4 + 2]).toBeLessThan(1); // never glowing
+    }
+    expect(smoke('road', false).count).toBe(0);
+    // off-road the dust takes over (its own puffs), no smoke on top of it
+    const dirt = smoke('dirt', true);
+    const d = dirt.mesh.geometry.getAttribute('aColor').array as Float32Array;
+    expect(dirt.count).toBeGreaterThan(0);
+    for (let i = 0; i < dirt.count; i++) expect([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]].every((x, j) => Math.abs(x - SMOKE.color[j]) < 1e-4)).toBe(false);
   });
 });
 

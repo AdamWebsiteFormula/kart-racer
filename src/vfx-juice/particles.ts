@@ -2,9 +2,11 @@
 // Live particles are packed at the front of the buffers every frame, so `count` is exact and
 // the GPU draws only what is alive. Additive, no depth writes: sparks, flames, dust, confetti.
 // A streak pool draws each particle as a crisp capsule stretched along its motion (drift sparks,
-// boost embers): a hot core line with a thin glow, brightest at its head.
+// flame flakes): a white-hot core line inside a saturated color, brightest at its head, with
+// premultiplied blending so the color partly covers what is behind it and holds over a bright road
+// (added light alone washed an orange spark to pale yellow by day).
 import {
-  AdditiveBlending, InstancedBufferAttribute, InstancedMesh, NormalBlending, PlaneGeometry, ShaderMaterial,
+  AdditiveBlending, CustomBlending, InstancedBufferAttribute, InstancedMesh, NormalBlending, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial,
 } from 'three';
 
 export const PARTICLE = Object.freeze({
@@ -19,6 +21,9 @@ export const PARTICLE = Object.freeze({
   /** confetti turns at this many rad/s either way, and flips over (its width through zero) at this many */
   spin: [1.5, 6] as const, flutter: [5, 13] as const,
 });
+
+/** How much of what is behind it a streak's middle hides (premultiplied: the rest of it is added light). */
+export const STREAK_COVER = 0.55;
 
 /** How much of a particle shows at `depth` metres from the lens (the shader's near fade). */
 export function nearFade(depth: number): number {
@@ -89,11 +94,13 @@ void main() {
   float d = length(vec2(vShape.x, max(abs(vShape.y) - vShape.z, 0.0)));
   float head = clamp((vShape.y + vShape.z + 1.0) / (2.0 * vShape.z + 2.0), 0.0, 1.0);
   float core = 1.0 - smoothstep(0.0, 0.45, d);
-  float a = (1.0 - smoothstep(0.3, 1.0, d)) * mix(0.3, 1.0, head) * vColor.a;
+  float a = (1.0 - smoothstep(0.3, 1.0, d)) * mix(0.35, 1.0, head) * vColor.a;
   if (a <= 0.004) discard;
-  // a white-hot core line inside the colour: crisp, and the tier colour stays on the rim
-  vec3 c = mix(vColor.rgb, vec3(max(vColor.r, max(vColor.g, vColor.b))), core * 0.5) * (0.65 + 0.6 * core);
-  gl_FragColor = vec4(c, a);
+  // a white-hot core line inside the saturated color: crisp, and the tier color stays on the rim;
+  // premultiplied, it covers a little of what is behind it (the color holds over a bright road)
+  float top = max(vColor.r, max(vColor.g, vColor.b));
+  vec3 c = mix(vColor.rgb * 1.05, vec3(top) * 1.2, core * core * 0.4);
+  gl_FragColor = vec4(c * a, a * ${STREAK_COVER.toFixed(2)});
 #else
   float d = length(vUv - 0.5);
   // a spark is a disc with a soft rim; dust and smoke (uPuff) a puff with no hard edge
@@ -114,6 +121,8 @@ export interface SpawnOpts {
   cx?: number; cy?: number; cz?: number;
   /** streak pools: seconds of its motion against its kart (its own velocity) a spark is drawn stretched over; 0 draws it round */
   stretch?: number;
+  /** 0..1: the most opaque it draws (the pipes' faint puffs); default 1 */
+  alpha?: number;
 }
 
 export class ParticlePool {
@@ -138,6 +147,8 @@ export class ParticlePool {
   private readonly spin: Float32Array;
   private readonly stretch: Float32Array;
   private readonly streak: Float32Array;
+  /** each particle's most opaque (SpawnOpts.alpha) */
+  private readonly opa: Float32Array;
   private readonly spins: boolean;
   private time = 0;
   private seed = 0x9e3779b9;
@@ -169,6 +180,7 @@ export class ParticlePool {
     this.spin = new Float32Array(n * 3);
     this.stretch = new Float32Array(streaks ? n : 0);
     this.streak = new Float32Array(streaks ? n * 3 : 0);
+    this.opa = new Float32Array(n);
     this.spins = square;
     const geo = new PlaneGeometry(1, 1);
     this.aOffset = new InstancedBufferAttribute(this.pos, 3);
@@ -185,7 +197,9 @@ export class ParticlePool {
     }
     this.mat = new ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
-      blending: additive ? AdditiveBlending : NormalBlending,
+      // streaks write premultiplied color (part cover, part added light)
+      blending: streaks ? CustomBlending : additive ? AdditiveBlending : NormalBlending,
+      blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor,
       defines: streaks ? { STREAKS: 1 } : {},
       uniforms: {
         uSquare: { value: square ? 1 : 0 }, uPuff: { value: additive || square ? 0 : 1 }, uTime: { value: 0 },
@@ -210,6 +224,7 @@ export class ParticlePool {
     this.baseSize[i] = o.size; this.size[i] = o.size;
     this.life[i] = o.life; this.maxLife[i] = o.life;
     this.grav[i] = o.gravity ?? 0; this.drag[i] = o.drag ?? 0; this.grow[i] = o.grow ?? 0;
+    this.opa[i] = o.alpha ?? 1;
     if (this.streaks) this.stretch[i] = o.stretch ?? 0;
     if (this.spins) {
       const [s0, s1] = PARTICLE.spin, [f0, f1] = PARTICLE.flutter;
@@ -251,7 +266,7 @@ export class ParticlePool {
       }
       const f = life / this.maxLife[w];
       this.size[w] = this.baseSize[w] * (1 + this.grow[w] * (1 - f));
-      const a = Math.min(1, f * 2.5);
+      const a = Math.min(1, f * 2.5) * this.opa[w];
       this.col[w * 4] = this.rgb[j]; this.col[w * 4 + 1] = this.rgb[j + 1]; this.col[w * 4 + 2] = this.rgb[j + 2]; this.col[w * 4 + 3] = a;
       w++;
     }
@@ -270,6 +285,7 @@ export class ParticlePool {
     }
     this.baseSize[to] = this.baseSize[from]; this.maxLife[to] = this.maxLife[from];
     this.grav[to] = this.grav[from]; this.drag[to] = this.drag[from]; this.grow[to] = this.grow[from];
+    this.opa[to] = this.opa[from];
     if (this.streaks) this.stretch[to] = this.stretch[from];
   }
 
