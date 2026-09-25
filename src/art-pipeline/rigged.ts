@@ -101,8 +101,9 @@ export const SEATED: SeatedPose = Object.freeze({
 /** Each racer's differences from SEATED (tuned on close-ups of the racer in their kart). */
 export const RACER_POSES: Readonly<Record<string, Partial<SeatedPose>>> = Object.freeze({
   juniper: {},
-  // his long beak would pass through the handlebar stem: the head tips up (25 Sept 2026 fit)
-  pip: { turns: [['Head', 'x', -22]] },
+  // the low-back handlebars (25 Sept 2026 fit) have no stem in front of his face, so no head turn is
+  // needed any more (checked on close-ups of the new body: the beak clears it in the default pose)
+  pip: {},
 });
 export const poseFor = (racerId: string): SeatedPose => ({ ...SEATED, ...(RACER_POSES[racerId] ?? {}) });
 
