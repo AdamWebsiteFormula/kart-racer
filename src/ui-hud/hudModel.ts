@@ -99,6 +99,9 @@ export interface HudVM {
 
 type Def = { id: string; name: string };
 
+/** Items whose charges are not more of the item: a Pogo Spring's second charge is its slam (items/use.ts), so no ×2 */
+const ONE_OF: ReadonlySet<string> = new Set(['pogoSpring']);
+
 function slot(id: string, charges: number, roulette: number, defs: readonly Def[], nowMs: number, trailing = false): ItemSlotVM {
   if (roulette > 0) {
     const d = defs[Math.floor(nowMs / UI.rouletteFlickerMs) % Math.max(1, defs.length)];
@@ -107,7 +110,7 @@ function slot(id: string, charges: number, roulette: number, defs: readonly Def[
   if (id === 'none' || !id) return { state: 'empty', itemId: '', label: '', charges: '' };
   const d = defs.find((x) => x.id === id);
   const state = charges <= 0 ? 'active' : trailing ? 'trailing' : 'ready';
-  return { state, itemId: id, label: d?.name ?? id, charges: charges > 1 ? `×${charges}` : '' };
+  return { state, itemId: id, label: d?.name ?? id, charges: charges > 1 && !ONE_OF.has(id) ? `×${charges}` : '' };
 }
 
 export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number, trailing = false): { held: ItemSlotVM; next: ItemSlotVM } {

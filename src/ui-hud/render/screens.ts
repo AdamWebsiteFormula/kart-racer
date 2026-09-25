@@ -39,6 +39,15 @@ function heading(st: HTMLElement, title: string, buttons: Map<string, HTMLElemen
 
 const delay = (e: HTMLElement, ms: number) => e.style.setProperty('--delay', `${ms}ms`);
 
+/** A results or board row as a table row: each part a cell, the color swatch left to the eyes. */
+function asRow(row: HTMLElement): void {
+  row.setAttribute('role', 'row');
+  for (const c of row.children) {
+    if (c.classList.contains('sw')) c.setAttribute('aria-hidden', 'true');
+    else c.setAttribute('role', 'cell');
+  }
+}
+
 /** Relative luminance of a #rrggbb colour, 0 (black) to 1 (white). */
 export function luminance(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
@@ -61,7 +70,7 @@ export class TitleView implements ScreenView {
   readonly buttons = new Map<string, HTMLElement>();
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen title', parent);
-    this.root.setAttribute('aria-label', 'Title');
+    this.root.setAttribute('aria-label', GAME_TITLE.join(' '));
   }
   render(vm: MenuVM): void {
     clear(this.root);
@@ -97,7 +106,7 @@ export class ListView implements ScreenView {
     const grid = h('div', 'modes', st);
     vm.entries.forEach((e, i) => {
       const b = button(grid, e.id);
-      if (icons[e.id]) h('span', 'icon', b, icons[e.id]);
+      if (icons[e.id]) h('span', 'icon', b, icons[e.id]).setAttribute('aria-hidden', 'true');
       h('span', 'label', b, e.label);
       if (e.sub) h('span', 'sub', b, e.sub);
       if (e.badge) h('span', 'badge', b, e.badge);
@@ -145,7 +154,7 @@ export class RosterView implements ScreenView {
       b.style.setProperty('--secondary', c.secondary);
       // a pale accent (Sprocket's cream) vanishes on the bar track: use the other colour
       b.style.setProperty('--bar', luminance(c.accent) > 0.6 ? c.secondary : c.accent);
-      b.setAttribute('aria-label', `${c.name}, ${c.archetype}. ${c.species}. ${c.personality}.`);
+      b.setAttribute('aria-label', `${c.name}, ${c.archetype.toLowerCase()} class. ${c.species} with a ${c.kart.toLowerCase()}. ${c.personality}.`);
       h('span', 'cls', b, c.archetype);
       // the racer's portrait (their concept art, public/art/racers), zoomed to face and shoulders
       const face = h('div', 'face has-portrait', b, c.name[0]);
@@ -171,7 +180,7 @@ export class RosterView implements ScreenView {
         const b = button(cls, e.id);
         h('span', 'label', b, e.label);
         if (e.sub) h('span', 'sub', b, e.sub);
-        if (e.badge) h('span', 'badge', b, e.id === 'mirror' ? 'ON' : '✓');
+        if (e.badge) h('span', 'badge', b, e.id === 'mirror' ? 'ON' : '✓').setAttribute('aria-hidden', 'true'); // aria-pressed says it
         b.setAttribute('aria-pressed', e.badge ? 'true' : 'false');
         this.buttons.set(e.id, b);
       }
@@ -247,6 +256,7 @@ export class CupView implements ScreenView {
   render(vm: CupVM): void {
     clear(this.root);
     this.buttons.clear();
+    this.root.setAttribute('aria-label', vm.title);
     const st = stage(this.root);
     heading(st, vm.title, this.buttons);
     const grid = h('div', 'cups', st);
@@ -255,7 +265,11 @@ export class CupView implements ScreenView {
       delay(b, i * 90);
       const row = h('div', 'cup-head', b);
       h('span', 'label', row, c.label);
-      if (c.badge) h('span', 'badge', row, c.badge);
+      if (c.badge) {
+        const bd = h('span', 'badge', row, c.badge);
+        // ★★☆ reads as "black star, black star, white star": say how many
+        if (/^[★☆]+$/.test(c.badge)) { bd.setAttribute('role', 'img'); bd.setAttribute('aria-label', `${[...c.badge].filter((x) => x === '★').length} of ${c.badge.length} stars`); }
+      }
       if (c.sub) h('span', 'sub', b, c.sub);
       const tracks = h('div', 'tracks', b);
       for (const t of c.tracks) {
@@ -283,6 +297,7 @@ export class TrackView implements ScreenView {
   render(vm: TrackVM): void {
     clear(this.root);
     this.buttons.clear();
+    this.root.setAttribute('aria-label', vm.title);
     const st = stage(this.root);
     heading(st, vm.title, this.buttons);
     const grid = h('div', 'track-cards', st);
@@ -376,7 +391,7 @@ export class HowToView implements ScreenView {
     this.root = h('section', 'screen overlay howto', parent);
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
-    this.root.setAttribute('aria-label', 'How to play');
+    this.root.setAttribute('aria-label', 'How to Play');
   }
   render(items: readonly { id: string; name: string }[]): void {
     clear(this.root);
@@ -387,10 +402,10 @@ export class HowToView implements ScreenView {
     h('h3', '', box, 'Controls');
     const t = h('table', 'controls', box);
     const head = h('tr', '', t);
-    h('th', '', head, ''); h('th', '', head, 'Keyboard'); h('th', '', head, 'Gamepad');
+    h('th', '', head, 'Action'); h('th', '', head, 'Keyboard'); h('th', '', head, 'Gamepad'); h('th', '', head, 'Touch');
     for (const c of CONTROLS) {
       const tr = h('tr', '', t);
-      h('td', '', tr, c.action); h('td', 'k', tr, c.keys); h('td', 'k', tr, c.pad);
+      h('td', '', tr, c.action); h('td', 'k', tr, c.keys); h('td', 'k', tr, c.pad); h('td', 'k', tr, c.touch);
     }
     h('h3', '', box, 'Items');
     const grid = h('div', 'items', box);
@@ -473,7 +488,7 @@ export class UnlocksView implements ScreenView {
     for (const r of rows) {
       const li = h('li', r.unlocked ? 'unlock on' : 'unlock', list);
       li.setAttribute('aria-label', `${r.name}: ${r.unlocked ? `unlocked. ${r.use}` : `locked. ${r.how}`}`);
-      h('span', 'mark', li, r.unlocked ? '★' : '🔒');
+      h('span', 'mark', li, r.unlocked ? '★' : '🔒').setAttribute('aria-hidden', 'true');
       const txt = h('div', 'txt', li);
       h('b', '', txt, r.name);
       h('span', '', txt, r.unlocked ? `Unlocked! ${r.use}` : r.how);
@@ -498,9 +513,11 @@ export class ResultsView implements ScreenView {
   }
 
   /** The panel: everything but the buttons scrolls inside it, so it never runs off the screen. */
-  private frame(headline: string, sub: string): { box: HTMLElement; body: HTMLElement; rows: HTMLElement } {
+  /** `label`: the screen's name for assistive tech (the results, the standings, the cut) */
+  private frame(headline: string, sub: string, label = 'Results'): { box: HTMLElement; body: HTMLElement; rows: HTMLElement } {
     clear(this.root);
     this.buttons.clear();
+    this.root.setAttribute('aria-label', label);
     const st = stage(this.root);
     const box = h('div', 'panel box enter', st);
     const body = h('div', 'scroll', box);
@@ -542,13 +559,13 @@ export class ResultsView implements ScreenView {
     }
     for (const r of vm.rows) {
       const e = h('div', `board-row${r.me ? ' me' : ''}`, b.list);
-      e.setAttribute('role', 'row');
       e.style.setProperty('--accent', r.accent);
       h('span', 'rk', e, r.rank);
       h('span', 'sw', e);
       h('span', 'nm', e, r.name);
       h('span', 'rc', e, r.racer);
       h('span', 'tm', e, r.time);
+      asRow(e);
     }
     (b.btn.querySelector('.label') as HTMLElement).textContent = vm.button;
     b.btn.setAttribute('aria-disabled', vm.buttonDisabled ? 'true' : 'false');
@@ -594,7 +611,6 @@ export class ResultsView implements ScreenView {
     const { box, body, rows } = this.frame(vm.headline, vm.sub);
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.dnf ? ' dnf' : ''} r${i + 1}`, rows);
-      e.setAttribute('role', 'row');
       delay(e, r.delayMs);
       e.style.setProperty('--accent', r.accent);
       h('span', 'rk', e, r.rank);
@@ -602,6 +618,7 @@ export class ResultsView implements ScreenView {
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
       h('span', 'tm', e, r.time);
       h('span', 'gp', e, r.gap);
+      asRow(e);
     });
     if (vm.playerLaps.length) {
       const laps = h('div', 'laps', body);
@@ -613,10 +630,11 @@ export class ResultsView implements ScreenView {
 
   renderGp(vm: GpVM, next: string): void {
     this.board = null;
-    const { box, body, rows } = this.frame(vm.headline, vm.sub);
+    const { box, body, rows } = this.frame(vm.headline, vm.sub, 'Grand Prix standings');
     if (vm.done) {
       const s = h('div', 'stars', body);
       s.innerHTML = [0, 1, 2].map((i) => starSvg(i < vm.stars, i)).join('');
+      s.setAttribute('role', 'img');
       s.setAttribute('aria-label', `${vm.stars} of 3 stars`);
       body.insertBefore(s, rows);
     }
@@ -629,13 +647,14 @@ export class ResultsView implements ScreenView {
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
       h('span', 'tm', e, `${r.points} pts`);
       h('span', 'gp gained', e, r.gained ? `+${r.gained}` : '');
+      asRow(e);
     });
     this.actions(box, next);
   }
 
   renderCut(vm: CutVM, next: string): void {
     this.board = null;
-    const { box, rows } = this.frame(vm.headline, vm.sub);
+    const { box, rows } = this.frame(vm.headline, vm.sub, 'Knockout results');
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.out ? ' out' : ''} r${i + 1}`, rows);
       delay(e, r.delayMs);
@@ -645,6 +664,7 @@ export class ResultsView implements ScreenView {
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
       h('span', 'tm', e, r.out ? 'OUT' : r.winner ? 'WINNER' : 'THROUGH');
       h('span', 'gp', e, '');
+      asRow(e);
     });
     this.actions(box, next);
   }

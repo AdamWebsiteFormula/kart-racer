@@ -9,16 +9,16 @@ export type UnlockKind = 'skin' | 'body' | 'mirror';
 /** `use`: where to use it once unlocked (the Unlocks screen says so) */
 export interface Unlock { id: string; kind: UnlockKind; name: string; how: string; use: string }
 
-/** ultra turbos (tier-3 drift boosts) for Sprocket's alt skin */
+/** ultra turbos (tier-3 drift boosts, the purple ones) for Sprocket's alt skin; the Unlocks screen says "purple drift boosts" */
 export const ULTRA_TURBOS_FOR_SPROCKET = 10;
 
 export const UNLOCKS: readonly Unlock[] = Object.freeze([
-  { id: 'pip-alt', kind: 'skin', name: 'Pip alt paint', how: 'Gold in Time Trial on every Sunrise Cup track', use: 'Pick Pip on the racer screen, then Paint: Berry.' },
-  { id: 'boulder-alt', kind: 'skin', name: 'Boulder alt paint', how: 'Win a Knockout', use: 'Pick Boulder on the racer screen, then Paint: Frost.' },
-  { id: 'sprocket-alt', kind: 'skin', name: 'Sprocket alt paint', how: `Fire ${ULTRA_TURBOS_FOR_SPROCKET} Ultra Turbos (a drift held to its third spark)`, use: 'Pick Sprocket on the racer screen, then Paint: Mint.' },
-  { id: 'classic', kind: 'body', name: 'Classic body', how: 'Finish a Grand Prix', use: 'Any racer: Body on the racer screen.' },
-  { id: 'buggy', kind: 'body', name: 'Buggy body', how: 'Race a Knockout to the end', use: 'Any racer: Body on the racer screen.' },
-  { id: 'mirror', kind: 'mirror', name: 'Mirror mode', how: 'Gold in Time Trial on every track', use: 'Quick Race or Grand Prix: turn Mirror on beside the speed classes.' },
+  { id: 'pip-alt', kind: 'skin', name: "Pip's Berry paint", how: 'Get gold in Time Trial on every Sunrise Cup track', use: 'Pick Pip on the racer screen, then Paint: Berry.' },
+  { id: 'boulder-alt', kind: 'skin', name: "Boulder's Frost paint", how: 'Win a Knockout', use: 'Pick Boulder on the racer screen, then Paint: Frost.' },
+  { id: 'sprocket-alt', kind: 'skin', name: "Sprocket's Mint paint", how: `Fire ${ULTRA_TURBOS_FOR_SPROCKET} purple drift boosts`, use: 'Pick Sprocket on the racer screen, then Paint: Mint.' },
+  { id: 'classic', kind: 'body', name: 'Classic body', how: 'Finish a Grand Prix', use: 'Pick any racer, then Body: Classic.' },
+  { id: 'buggy', kind: 'body', name: 'Buggy body', how: 'Race a Knockout to the end', use: 'Pick any racer, then Body: Buggy.' },
+  { id: 'mirror', kind: 'mirror', name: 'Mirror mode', how: 'Get gold in Time Trial on every track', use: 'Quick Race or Grand Prix: turn on Mirror next to 150cc.' },
 ]);
 
 const SUNRISE = CUPS.find((c) => c.id === 'sunrise')?.trackIds ?? [];

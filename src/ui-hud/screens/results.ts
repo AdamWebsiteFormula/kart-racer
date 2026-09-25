@@ -41,7 +41,7 @@ export function gpModel(before: GrandPrixState | null, after: GrandPrixState, pl
     gained: r.points - (before?.points[r.racerId] ?? 0), player: r.racerId === playerId, delayMs: i * staggerMs,
   }));
   const me = table.rows.find((r) => r.racerId === playerId);
-  const headline = done ? (me?.rank === 1 ? 'Cup winner!' : `Cup finished ${me ? ordinal(me.rank) : ''}`.trim()) : `Race ${after.raceIndex} of ${after.trackIds.length}`;
+  const headline = done ? (me?.rank === 1 ? 'Cup winner!' : me ? `You placed ${ordinal(me.rank)} in the cup` : 'Cup over') : `Race ${after.raceIndex} of ${after.trackIds.length}`;
   // stars are the player's, from their own total against the thresholds
   const myPoints = me?.points ?? 0;
   const stars = done ? thresholds.filter((t) => myPoints >= t).length : 0;
@@ -67,7 +67,7 @@ export function knockoutCutModel(res: RaceResults, after: KnockoutState, playerI
   }));
   const playerOut = playerId !== null && out.has(playerId);
   const headline = done ? (winnerId === playerId ? 'Knockout champion!' : `${winnerId ? nameOf(winnerId) : '—'} wins`) : playerOut ? 'Knocked out!' : 'Safe!';
-  return { headline, sub: done ? 'Final' : `${remaining} remain`, rows, remaining, playerOut, done, winner: winnerId ? nameOf(winnerId) : null };
+  return { headline, sub: done ? 'Final' : `${remaining} racers left`, rows, remaining, playerOut, done, winner: winnerId ? nameOf(winnerId) : null };
 }
 
 // ---------------------------------------------------------------- leaderboard panel

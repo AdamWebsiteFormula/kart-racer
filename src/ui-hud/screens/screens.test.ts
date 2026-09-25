@@ -105,7 +105,7 @@ describe('results screens', () => {
     expect(vm.rows.filter((x) => x.out).length).toBe(2);
     expect(vm.playerOut).toBe(true);
     expect(vm.headline).toBe('Knocked out!');
-    expect(vm.sub).toBe('6 remain');
+    expect(vm.sub).toBe('6 racers left');
   });
 
   it('after the Knockout final only the winner goes on: 2nd is out too, not THROUGH (bug hunt 2)', () => {

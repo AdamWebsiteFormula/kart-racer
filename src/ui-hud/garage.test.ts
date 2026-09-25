@@ -43,7 +43,7 @@ describe('garage view model (pure)', () => {
     expect(pip.choices.map((c) => [c.id, c.options.map((o) => `${o.name}${o.locked ? ' (locked)' : ''}`)])).toEqual([
       ['paint', ['Original', 'Berry (locked)']], ['body', ['Standard', 'Classic (locked)', 'Buggy (locked)']],
     ]);
-    expect(pip.choices[0].options[1]).toMatchObject({ hint: 'Gold in Time Trial on every Sunrise Cup track', swatch: ['#ce30ba', '#ffca54'] });
+    expect(pip.choices[0].options[1]).toMatchObject({ hint: 'Get gold in Time Trial on every Sunrise Cup track', swatch: ['#ce30ba', '#ffca54'] });
     expect(pip.choices[1].options[1]).toMatchObject({ hint: 'Finish a Grand Prix', swatch: 'classic' });
     expect([pip.paintName, pip.bodyName]).toEqual(['Original', 'Standard']);
     expect(garageModel(s, 'momo').choices.map((c) => c.id)).toEqual(['body']); // Momo has no alt paint
@@ -104,7 +104,7 @@ describe('garage on the racer screen (jsdom)', () => {
     expect(q('.garage')?.hidden).toBe(false);
     expect([...document.querySelectorAll('#ui .roster-screen.on [data-id="paint"] .opt')].map((o) => [o.getAttribute('data-opt'), o.classList.contains('locked')])).toEqual([['default', false], ['pip-alt', true]]);
     expect(q('[data-id="body"] .opt.locked .lock')?.textContent).toBe('🔒');
-    expect(q('.pick-hint')?.textContent).toContain('Berry: Gold in Time Trial on every Sunrise Cup track');
+    expect(q('.pick-hint')?.textContent).toContain('Berry: Get gold in Time Trial on every Sunrise Cup track');
     expect(q('[data-id="mirror"]')).toBeNull();
     expect(q('.hero-name')?.textContent).toBe('Pip');
     expect(ui.turntable()).toMatchObject({ racerId: 'pip', look: {} });

@@ -1,28 +1,30 @@
 // How to Play (title and pause menus): the controls, every item in a line (design §8), the course
-// creatures (design §6) and the tricks worth knowing. US English, short and plain.
+// creatures (design §6) and the tricks worth knowing. US English, short and plain. text.test.ts
+// checks the numbers and colors here against the game's own (items, kart schema, touch buttons).
 
-export const CONTROLS: readonly { action: string; keys: string; pad: string }[] = Object.freeze([
-  { action: 'Steer', keys: 'A / D or ← / →', pad: 'Left stick' },
-  { action: 'Gas', keys: 'W or ↑', pad: 'RT' },
-  { action: 'Brake / reverse', keys: 'S or ↓', pad: 'LT' },
-  { action: 'Hop and drift', keys: 'Shift or Space', pad: 'A' },
-  { action: 'Use item (hold to keep it behind you)', keys: 'E or X', pad: 'X' },
-  { action: 'Look back (throw backward)', keys: 'Q', pad: 'B' },
-  { action: 'Horn', keys: 'H', pad: 'Y' },
-  { action: 'Pause', keys: 'Esc or P', pad: 'Start' },
+/** `touch`: the phone and tablet controls, named as the on-screen buttons read (render/touch.ts) */
+export const CONTROLS: readonly { action: string; keys: string; pad: string; touch: string }[] = Object.freeze([
+  { action: 'Steer', keys: 'A / D or ← / →', pad: 'Left stick or D-pad', touch: 'Left pad' },
+  { action: 'Gas', keys: 'W or ↑', pad: 'RT', touch: 'On by itself' },
+  { action: 'Brake / reverse', keys: 'S or ↓', pad: 'LT', touch: 'BRAKE' },
+  { action: 'Hop and drift', keys: 'Shift or Space', pad: 'A', touch: 'DRIFT' },
+  { action: 'Use item (hold to keep it behind you)', keys: 'E or X', pad: 'X', touch: 'ITEM' },
+  { action: 'Look back (throw backward)', keys: 'Q', pad: 'B', touch: 'LOOK' },
+  { action: 'Horn', keys: 'H', pad: 'Y', touch: '—' },
+  { action: 'Pause', keys: 'Esc or P', pad: 'Start', touch: '⏸ at the top' },
 ]);
 
 /** One line per item, in the order the game lists them (items/data.ts). */
 export const ITEM_LINES: Readonly<Record<string, string>> = Object.freeze({
-  beachBall: 'Throw it ahead. It bounces off the walls three times.',
+  beachBall: 'Throw it ahead. It bounces off the sides three times.',
   homingKite: 'Flies after the racer in front of you.',
-  oilCan: 'Leave a slick behind you. It slows whoever drives in.',
-  decoyBalloon: 'Looks just like a real balloon. It pops on whoever grabs it.',
+  oilCan: 'Leave a slick behind you. Whoever drives in slows to half speed.',
+  decoyBalloon: 'Looks just like a real balloon, but spins out whoever grabs it.',
   airHorn: 'A blast all around you: clears items and spins racers nearby.',
-  bubble: 'A shield that stops one hit.',
-  fizzPop: 'One big burst of speed.',
+  bubble: 'A shield that stops one hit, for up to 8 seconds.',
+  fizzPop: 'One big burst of speed, even off the road.',
   tripleFizz: 'Three bursts of speed, and faster drift sparks.',
-  fogBank: 'Slows everyone ahead and takes their items. From 5th place back.',
+  fogBank: 'Slows everyone ahead and takes their items. Works from 5th place back.',
   strikeBall: 'Become a bowling ball: roll on your own and knock racers flying.',
   pogoSpring: 'Boing over trouble. Press again in the air to slam down.',
   grappleAnchor: 'Hook the racer ahead, reel in, then slingshot past.',
@@ -40,8 +42,10 @@ export const CREATURES: readonly { name: string; track: string; line: string }[]
 
 export const TIPS: readonly string[] = Object.freeze([
   'Hold drift through a turn: the sparks go blue, orange, then purple. Let go for a boost.',
-  'Press the gas the moment the 2 appears for a rocket start. On a phone, put your thumbs on the screen then.',
-  'Pop a balloon for an item. You can hold two. Gold balloons give you both at once.',
-  'Off a ramp, press drift in the air for a trick boost when you land.',
-  'On the last lap every track changes. Watch for the banner.',
+  'Press the gas the moment the 2 appears for a start boost. On a phone, put a thumb on the screen then.',
+  'Pop a balloon for an item. You can hold two. A gold pair of balloons gives you two at once.',
+  'Grab coins for a little more top speed, up to 10. A hit spins you out and costs 2 coins.',
+  'Stay right behind a racer for 2 seconds: their slipstream gives you a boost.',
+  'Off a ramp or a bump, press drift in the air for a trick boost when you land.',
+  'When the leader starts the last lap, the track changes. Watch for the banner.',
 ]);

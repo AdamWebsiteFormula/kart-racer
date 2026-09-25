@@ -16,6 +16,7 @@ class SlotView {
   private readonly size: number;
   constructor(parent: HTMLElement, next: boolean) {
     this.root = h('div', next ? 'slot next' : 'slot', parent);
+    this.root.setAttribute('role', 'img'); // an icon: its aria-label (below) is its name
     if (next) h('span', 'tag', this.root, 'NEXT');
     const ic = h('span', 'ic', this.root);
     this.icon = new Markup(ic);
@@ -30,7 +31,7 @@ class SlotView {
     this.icon.set(s.itemId ? iconMarkup(s.itemId, this.size) : '');
     this.glyph.set(iconFor(s.itemId)?.glyph ?? '');
     this.charges.set(s.charges);
-    this.label.set(s.state === 'ready' || s.state === 'trailing' ? `Item: ${s.label} ${s.charges}`.trim()
+    this.label.set(s.state === 'ready' ? `Item: ${s.label} ${s.charges}`.trim() : s.state === 'trailing' ? `Item: ${s.label}, held behind you`
       : s.state === 'active' ? `Item: ${s.label} running` : s.state === 'rolling' ? 'Item: rolling' : 'Item: empty');
   }
 }
@@ -206,7 +207,7 @@ export class HudView {
     this.bannerKind = new Attr(this.banner, 'data-kind');
 
     this.flash = new Flag(h('div', 'flash', this.root), 'on');
-    this.keysHint = new Flag(h('div', 'keys-hint', this.root, 'W / ↑ go · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause'), 'on');
+    this.keysHint = new Flag(h('div', 'keys-hint', this.root, 'W / ↑ gas · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause'), 'on');
   }
 
   render(vm: HudVM): void {

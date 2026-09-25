@@ -200,7 +200,7 @@ describe('unlocks in the UI (design §10)', () => {
     expect([ui.save.stats.ultraTurbos, ui.save.stats.itemsHit]).toEqual([10, 1]);
     ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: true });
     const toast = document.querySelector('#ui .toast')!;
-    expect(toast.textContent).toBe('Unlocked: Sprocket alt paint!');
+    expect(toast.textContent).toBe("Unlocked: Sprocket's Mint paint!");
     expect(toast.classList.contains('on')).toBe(true);
     expect(ui.save.unlocked.skins).toEqual(['sprocket-alt']);
     ui.dispose();
@@ -213,7 +213,7 @@ describe('unlocks in the UI (design §10)', () => {
     expect(again.app.overlays).toEqual(['unlocks']);
     const rows = [...document.querySelectorAll('#ui .unlocks.on .unlock')];
     expect(rows.length).toBe(6);
-    expect(rows.filter((r) => r.classList.contains('on')).map((r) => r.querySelector('b')?.textContent)).toEqual(['Sprocket alt paint']);
+    expect(rows.filter((r) => r.classList.contains('on')).map((r) => r.querySelector('b')?.textContent)).toEqual(["Sprocket's Mint paint"]);
     expect(document.querySelector('#ui .unlocks.on .made')?.textContent).toBe('1 of 6 unlocked');
     again.nav('back');
     expect(again.app.overlays).toEqual([]);

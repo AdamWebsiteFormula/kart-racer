@@ -3,6 +3,7 @@
 import { ARCHETYPES } from '../../kart-controller/constants.ts';
 import type { SpeedClass } from '../../kart-controller/types.ts';
 import type { RaceMode } from '../../race-manager/types.ts';
+import { GAME_TITLE } from '../constants.ts';
 import { CAST } from '../data/cast.ts';
 import { CUPS, KNOCKOUT_SETS, playableTracks, trackCard, TRACKS, type CupCard } from '../data/catalog.ts';
 import { formatMs } from '../format.ts';
@@ -34,15 +35,15 @@ export function titleMenu(twoByTwo = false): MenuVM {
     { id: 'settings', label: 'Settings' },
     { id: 'credits', label: 'Credits' },
   ];
-  return { title: 'Kart Racer', entries, focus: column(entries, twoByTwo) };
+  return { title: GAME_TITLE.join(' '), entries, focus: column(entries, twoByTwo) };
 }
 
 export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = Object.freeze([
   { mode: 'quick', label: 'Quick Race', sub: 'One track, eight racers' },
   { mode: 'grandPrix', label: 'Grand Prix', sub: 'Three tracks, points and stars' },
   { mode: 'knockout', label: 'Knockout', sub: 'Eight start. Cuts every race. One wins.' },
-  { mode: 'timeTrial', label: 'Time Trial', sub: 'Just you and the clock' },
-  { mode: 'daily', label: 'Daily Challenge', sub: 'One seed a day, same for everyone' },
+  { mode: 'timeTrial', label: 'Time Trial', sub: 'No items: race your ghost for medals' },
+  { mode: 'daily', label: 'Daily Challenge', sub: "Today's track, the same for everyone" },
 ]);
 
 export function modeMenu(available: ReadonlySet<RaceMode>): MenuVM {
