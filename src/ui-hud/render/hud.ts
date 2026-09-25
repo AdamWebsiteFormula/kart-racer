@@ -156,6 +156,8 @@ export class HudView {
   private bannerSmall: TextField;
   private bannerKind: Attr;
   private bannerSkip: Flag;
+  /** the finish prompt as the eyes see it: a pill at the foot of the screen */
+  private skipPill: Flag;
   /** a Time Trial over the line: the medal its time won, under FINISH! */
   private medalIcon: Markup;
   private medalText: TextField;
@@ -221,12 +223,20 @@ export class HudView {
     this.medalIcon = new Markup(h('span', 'mw-icon', medal));
     this.medalText = new TextField(h('span', 'mw-text', medal));
     this.medalOn = new Flag(medal, 'on');
-    // over the line: how to go on to the results, in the last input's words (the stylesheet shows one)
-    const skip = h('span', 'skip', this.banner);
-    h('span', 'only-keys', skip, SKIP_PROMPTS.keys);
-    h('span', 'only-pad', skip, SKIP_PROMPTS.pad);
-    h('span', 'only-touch', skip, SKIP_PROMPTS.touch);
-    this.bannerSkip = new Flag(skip, 'on');
+    // over the line: how to go on to the results, in the last input's words (the stylesheet shows one). It
+    // is drawn on a pill at the foot of the screen, under the kart the finish camera circles (small text
+    // under FINISH! sat on the racer's hat); the banner keeps the words, so they are read out with it
+    const prompt = (parent: HTMLElement, cls: string) => {
+      const e = h('span', cls, parent);
+      h('span', 'only-keys', e, SKIP_PROMPTS.keys);
+      h('span', 'only-pad', e, SKIP_PROMPTS.pad);
+      h('span', 'only-touch', e, SKIP_PROMPTS.touch);
+      return e;
+    };
+    this.bannerSkip = new Flag(prompt(this.banner, 'skip sr-only'), 'on');
+    const pill = prompt(this.root, 'finish-go');
+    pill.setAttribute('aria-hidden', 'true');
+    this.skipPill = new Flag(pill, 'on');
 
     this.flash = new Flag(h('div', 'flash', this.root), 'on');
     // the keys, or a gamepad's buttons once one is pressed (How to Play's Gamepad column)
@@ -280,6 +290,7 @@ export class HudView {
       this.bannerSmall.set(b?.sub ?? '');
       this.bannerKind.set(b?.kind ?? 'none');
       this.bannerSkip.set(b?.skip ?? false);
+      this.skipPill.set(b?.skip ?? false);
       if (b) replay(this.banner, 'show'); else this.banner.classList.remove('show');
     }
     this.medalIcon.set(vm.medal ? medalSvg(vm.medal, 64) : '');

@@ -148,6 +148,8 @@ export class UiRoot {
    * it is over. Keys, clicks and the pad do nothing until then.
    */
   private wipe: { els: HTMLElement[]; ghost: HTMLElement | null; until: number; timer: ReturnType<typeof setTimeout> } | null = null;
+  /** the screen coming waits this much longer (ms): the results over the race, for FINISH! to leave first (UI.finishLagMs) */
+  private arriveLag = 0;
   /** the unlock reveal (design §10), over whatever screen is up */
   private readonly toast: HTMLElement;
   /** the course intro's title card, in the race HUD (game/intro.ts flies the camera) */
@@ -834,11 +836,15 @@ export class UiRoot {
    * stays on show while it leaves (`x-out`), the view coming slides in (`x-in`), and a view drawn again as
    * the next screen (results → standings → the cut) leaves its old face behind as a ghost that leaves the
    * same way. `dir` -1 goes back. None from the loading screen, and none with reduced motion: a plain cut.
+   * The results over the race wait for FINISH! and its lines to leave first (UI.finishLagMs), so no frame
+   * shows both at full strength.
    * Transforms and opacity only (the race or attract camera behind never waits); input waits it out (inWipe).
    */
   private beginWipe(from: { key: string; view: ScreenView } | null, to: ScreenView, wasOn: readonly ScreenView[], dir: 1 | -1): void {
     this.endWipe();
+    this.arriveLag = 0;
     if (!from || from.key === 'boot' || this.reducedMotion) return;
+    if (from.key === 'racing' && to === this.views.results) this.arriveLag = UI.finishLagMs;
     const way = dir < 0 ? 'back' : 'fwd';
     const els: HTMLElement[] = [];
     for (const v of wasOn) if (!v.root.classList.contains('on')) els.push(v.root);
@@ -860,7 +866,8 @@ export class UiRoot {
     // a view already on show (the screen under a dialog that closes) does not come in again
     if (ghost || !wasOn.includes(to)) { to.root.classList.add('x-in'); to.root.dataset.x = way; els.push(to.root); }
     if (!els.length) return;
-    this.wipe = { els, ghost, until: this.clock() + UI.wipeMs, timer: setTimeout(() => this.endWipe(), UI.wipeMs + 40) };
+    const ms = UI.wipeMs + this.arriveLag;
+    this.wipe = { els, ghost, until: this.clock() + ms, timer: setTimeout(() => this.endWipe(), ms + 40) };
   }
 
   /** The transition is over (or another begins): every view as it stands, the ghost gone. */
@@ -901,7 +908,7 @@ export class UiRoot {
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
       case 'unlocks': { v.unlocks.render(unlockRows(this.save)); this.models.set(key, { rows: [['back']] }); break; }
       case 'howTo': { v.howTo.render(ITEM_DEFINITIONS); this.models.set(key, { rows: [['back']] }); break; }
-      case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key); break;
+      case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key, entering); break;
       case 'podium': {
         // the ceremony's overlay (the host draws the podium itself): the headline, the places, Continue
         const o = this.lastOver;
@@ -934,10 +941,12 @@ export class UiRoot {
     this.host.skipToResults?.();
   }
 
-  private renderEnd(key: string): void {
+  /** `entering`: the screen is coming in (not drawn again): the results wait for the race's FINISH! to leave, the standings play out */
+  private renderEnd(key: string, entering = true): void {
     const o = this.lastOver;
     if (!o) return;
     const s = this.app;
+    const lag = entering ? this.arriveLag : 0;
     const series = s.mode === 'grandPrix' || s.mode === 'knockout';
     const nextLabel = key === 'results' ? (series ? 'Standings' : 'Back to menu') : s.seriesHasNext ? 'Next race' : s.podiumNext ? 'Continue' : 'Back to menu';
     if (key === 'results') {
@@ -948,7 +957,7 @@ export class UiRoot {
       // a first-timer gets a friendly name to post under (a pad has no keys to type one), selected so typing replaces it
       const known = !!this.save.playerName && this.save.playerName !== 'Player';
       const name = known ? this.save.playerName : o.playerId ? `${nameOf(o.playerId)} ${this.nameNumber}`.slice(0, 16) : '';
-      this.views.results.renderResults(vm, nextLabel, withBoard ? { name, suggested: !known } : undefined);
+      this.views.results.renderResults(vm, nextLabel, withBoard ? { name, suggested: !known } : undefined, lag);
       if (withBoard) {
         this.models.set(key, { rows: [['name', 'post'], ['continue']] });
         // a known name goes straight to Post; a first-timer starts in the name box
@@ -957,7 +966,8 @@ export class UiRoot {
         return;
       }
     }
-    else if (key === 'gpTable' && o.gp) this.views.results.renderGp(gpModel(o.gp.before, o.gp.after, o.playerId), nextLabel);
+    // the standings play out (the old order, the count, the flips); reduced motion shows how they end
+    else if (key === 'gpTable' && o.gp) this.views.results.renderGp(gpModel(o.gp.before, o.gp.after, o.playerId), nextLabel, entering && !this.reducedMotion);
     else if (key === 'knockoutCut' && o.ko) this.views.results.renderCut(knockoutCutModel(o.results, o.ko.after, o.playerId), nextLabel);
     // the player's own row in sight (a phone on its side, the player low in the standings)
     this.views.results.revealPlayer();

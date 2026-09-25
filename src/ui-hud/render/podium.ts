@@ -6,7 +6,7 @@ import '../podium.css';
 import { SHAPE_PATHS } from '../icons.ts';
 import type { PodiumVM } from '../screens/podium.ts';
 import { button, clear, h } from './dom.ts';
-import type { ScreenView } from './screens.ts';
+import { face, type ScreenView } from './screens.ts';
 
 export class PodiumView implements ScreenView {
   readonly root: HTMLElement;
@@ -39,7 +39,7 @@ export class PodiumView implements ScreenView {
       const li = h('li', `podium-place p${p.place}${p.player ? ' me' : ''}`, list);
       li.style.setProperty('--accent', p.accent);
       h('span', 'rk', li, p.label);
-      h('span', 'sw', li);
+      face(li, p.racerId);
       h('span', 'nm', li, p.name + (p.player ? ' (you)' : ''));
     }
     if (vm.mine) h('div', 'podium-mine', bar, vm.mine);

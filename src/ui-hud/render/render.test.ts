@@ -80,10 +80,10 @@ describe('Knockout cut screen', () => {
   it('after the final the winner row says WINNER and the rest say OUT (bug hunt 2)', () => {
     document.body.innerHTML = '';
     const v = new ResultsView(document.body);
-    const row = (name: string, out: boolean, winner: boolean) => ({ name, accent: '#fff', rank: '1st', out, winner, player: false, delayMs: 0 });
+    const row = (racerId: string, name: string, out: boolean, winner: boolean) => ({ racerId, name, accent: '#fff', rank: '1st', out, winner, player: false, delayMs: 0 });
     v.renderCut({
       headline: 'Big Gus wins', sub: 'Final', remaining: 2, playerOut: false, done: true, winner: 'Big Gus',
-      rows: [row('Big Gus', false, true), row('Boulder', true, false)],
+      rows: [row('gus', 'Big Gus', false, true), row('boulder', 'Boulder', true, false)],
     }, 'Back to menu');
     expect([...v.root.querySelectorAll('.row .tm')].map((e) => e.textContent)).toEqual(['WINNER', 'OUT']);
   });

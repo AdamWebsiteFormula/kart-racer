@@ -186,3 +186,86 @@ describe('results on a phone on its side (sweep 24 Sept 2026)', () => {
     expect(value('.rows.many', 'display')).toBe('');
   });
 });
+
+describe('the finish and the end screens (25 Sept 2026)', () => {
+  it('a racer\'s face in every results-type row: the portrait cropped to the head, ringed in their color, smaller where the rows are', () => {
+    expect(value('.face-ic', 'border-radius')).toBe('50%');
+    expect(value('.face-ic', 'border')).toContain('var(--accent');
+    expect(value('.face-ic', 'background')).toMatch(/var\(--portrait\) var\(--crop/);
+    // ~36 px at 1600x900, the column the face sits in
+    expect(value('.row', '--face')).toBe('36px');
+    expect(value('.row', 'grid-template-columns')).toBe('56px var(--face) 1fr auto auto');
+    expect(value('.row', '--face', '(max-height: 800px)')).toBe('30px');
+    expect(value('.row', '--face', PHONE)).toBe('26px');
+    expect(value('.row', 'grid-template-columns', PHONE)).toBe('34px var(--face) minmax(0, 1fr) auto auto');
+    // a narrow window: the panel takes the width, the gap to the winner goes, a long name gives way (at 390x844 all were one letter)
+    const NARROW = '(max-width: 600px)';
+    expect(value('.row', 'grid-template-columns', NARROW)).toContain('minmax(0, 1fr)');
+    expect(value('.row .nm', 'text-overflow', NARROW)).toBe('ellipsis');
+    expect(value('.rows:not(.standings) .row .gp', 'display', NARROW)).toBe('none');
+    expect(value('.results .stage', 'padding-left', NARROW)).toContain('12px');
+    expect(value('.board-row', 'grid-template-columns')).toBe('48px var(--face) 1fr auto auto');
+  });
+
+  it('the finish: the place beside FINISH! on a pill, and the prompt on a pill at the foot of the screen', () => {
+    expect(value(".banner[data-kind='finish'] .small", 'display')).toBe('inline-block');
+    expect(value(".banner[data-kind='finish'] .small", 'background')).toMatch(/27,? 27,? 47/);
+    expect(value(".banner[data-kind='finish'] .small:empty", 'display')).toBe('none');
+    expect(value('.finish-go', 'position')).toBe('absolute');
+    expect(value('.finish-go', 'bottom')).toContain('var(--safe-b)');
+    expect(value('.finish-go', 'background')).toMatch(/27,? 27,? 47/);
+    expect(value('.finish-go.on', 'display')).toBe('block');
+    expect(value('.finish-go', 'bottom', PHONE)).toContain('12px');
+    // a narrow window: above the big place in the corner (it sat on it)
+    expect(value('.finish-go', 'bottom', '(max-width: 600px)')).toContain('128px');
+  });
+
+  it('the standings: the tokens are the UI\'s, the totals count and the changing rows turn over only when it plays', () => {
+    let root: CSSStyleDeclaration | null = null;
+    for (const r of rules()) if (r instanceof CSSStyleRule && r.selectorText === ':root') root = r.style;
+    expect(root?.getPropertyValue('--t-count').trim()).toBe(`${UI.countUpMs}ms`);
+    expect(root?.getPropertyValue('--t-flip').trim()).toBe(`${UI.flipMs}ms`);
+    // the number is a registered integer, so it counts as it animates (jsdom drops @property: read the text)
+    expect(css).toMatch(/@property --pts \{ syntax: '<integer>'; inherits: false; initial-value: 0; \}/);
+    expect(css).toMatch(/\.pts \.n \{ counter-reset: pts var\(--pts\); \}\n\.pts \.n::before \{ content: counter\(pts\); \}/);
+    expect(value('.standings.play .n.count', 'animation')).toMatch(/count-up var\(--t-count\).*var\(--count-at\) backwards/);
+    // the flip is listed before the row's slide in (which wins while it runs) and holds nothing after
+    expect(value('.standings.play .row.flip', 'animation')).toMatch(/^row-flip .*var\(--flip-at\) backwards, slide-in /);
+    expect(keyframes('row-flip').map((k) => (k === 'from' ? '0%' : k === 'to' ? '100%' : k))).toEqual(['0%', '50%', '50.1%', '100%']);
+    expect(value('.standings .was', 'opacity')).toBe('0');
+    expect(value('.standings.play .row.flip > .was', 'animation')).toMatch(/was-on .*var\(--flip-at\) backwards/);
+  });
+});
+
+describe('the finish celebration keeps clear of the kart (podium.css, 25 Sept 2026)', () => {
+  let pcss = '';
+  beforeAll(async () => {
+    const fs = (await import('node:fs' as string)) as { readFileSync(p: string, enc: 'utf8'): string };
+    pcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'podium.css')), 'utf8');
+  });
+  /** `selector`'s `prop` in podium.css, top level or in the @media `media` */
+  const pvalue = (selector: string, prop: string, media?: string) => {
+    const saved = css;
+    css = pcss;
+    try { return value(selector, prop, media); } finally { css = saved; }
+  };
+
+  it('FINISH! and its place rise under the timer; the scale is a variable, so FINISH! keeps it as it leaves for the results', () => {
+    expect(pvalue('#ui .hud.celebrate .banner', 'top')).toBe('12%');
+    expect(pvalue('#ui .hud.celebrate .banner', 'transform')).toBe('scale(var(--banner-scale))');
+    // a laptop window (1366x657): a little smaller and higher, clear of the hat; the Knockout strip steps aside
+    expect(pvalue('#ui .hud.celebrate .banner', '--banner-scale', '(max-height: 700px)')).toBe('0.48');
+    expect(pcss).toMatch(/#ui \.hud\.celebrate :is\([^)]*\.ko-strip\) \{ opacity: 0;/);
+    expect(css).toMatch(/@keyframes x-rise-out \{[^\n]*scale\(calc\(var\(--banner-scale, 1\)/);
+  });
+
+  it('under a solo run\'s lap splits, and on a phone on its side, the timer steps aside to the top left and FINISH! takes the top', () => {
+    expect(pvalue('#ui .hud.solo.celebrate .tc', 'left')).toContain('24px');
+    expect(pvalue('#ui .hud.solo.celebrate .tc', 'transform')).toBe('none');
+    expect(pvalue('#ui .hud.solo.celebrate .banner', 'top')).toContain('16px');
+    expect(pvalue('#ui .hud.celebrate .tc', 'transform', PHONE)).toBe('none');
+    expect(pvalue('#ui .hud.celebrate .banner', 'top', PHONE)).toContain('8px');
+    // a Time Trial's medal sits beside FINISH! there, not under it on the racer's goggles
+    expect(pvalue('#ui .hud.celebrate .banner .medal-won.on', 'display', PHONE)).toBe('inline-flex');
+  });
+});

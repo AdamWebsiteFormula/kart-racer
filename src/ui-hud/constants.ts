@@ -24,7 +24,22 @@ export const UI = Object.freeze({
   dotStrokePx: 2.5,
   repeatDelayMs: 180,
   repeatRateMs: 90,
+  /** the Grand Prix standings' totals count up from the old ones this long (ui.css `--t-count`) */
   countUpMs: 700,
+  /**
+   * The Grand Prix standings after a race (Mario Kart World): the rows come in on this stagger as they
+   * stood before it, each with the points just won beside its total; the totals count up from this long
+   * after the screen opens; this long after the count, the rows that change hands flip over into the new
+   * order, one place after another down the list (a flip lasts `flipMs`, ui.css `--t-flip`).
+   */
+  staggerStandingsMs: 50,
+  standingsCountAtMs: 700,
+  standingsFlipGapMs: 250,
+  flipMs: 440,
+  flipStaggerMs: 70,
+  /** finish → results: FINISH! and its lines leave first (UI.wipeOutMs); the results come in this much later
+   *  than a screen coming usually does, once they have gone (ui.css: the results stage's `--lag`) */
+  finishLagMs: 100,
   reducedMotionMs: 1,
   /** the rolling item slot changes name this often; wall time drives it (cosmetic only) */
   rouletteFlickerMs: 90,

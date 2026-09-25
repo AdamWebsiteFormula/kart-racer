@@ -9,7 +9,7 @@ import { accentOf, nameOf } from '../data/cast.ts';
 import { CUPS, KNOCKOUT_SETS } from '../data/catalog.ts';
 import { ordinal } from '../format.ts';
 
-export interface PodiumPlace { place: number; label: string; name: string; accent: string; player: boolean }
+export interface PodiumPlace { place: number; label: string; racerId: string; name: string; accent: string; player: boolean }
 
 export interface PodiumVM {
   headline: string;
@@ -49,7 +49,7 @@ export function podiumModel(top: readonly string[], playerId: string | null, ser
     : place <= 3 ? `${ordinal(place)} in ${what}!`
     : 'Congratulations to the winners!';
   const places = STAND_ORDER.filter((i) => i < top.length).map((i) => ({
-    place: i + 1, label: ordinal(i + 1), name: nameOf(top[i]), accent: accentOf(top[i]), player: top[i] === playerId,
+    place: i + 1, label: ordinal(i + 1), racerId: top[i], name: nameOf(top[i]), accent: accentOf(top[i]), player: top[i] === playerId,
   }));
   const mine = place > 3 ? `You placed ${ordinal(place)}` : '';
   return { headline, sub, places, mine, stars };

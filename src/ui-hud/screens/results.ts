@@ -33,26 +33,40 @@ export function resultsModel(res: RaceResults, playerId: string | null, trackNam
   };
 }
 
-export interface GpRow { rank: string; name: string; accent: string; points: number; gained: number; player: boolean; delayMs: number }
-export interface GpVM { headline: string; sub: string; rows: GpRow[]; done: boolean; stars: number; thresholds: number[] }
+/** `was`: the total before this race; `moved`: places gained (+) or lost (−) in the standings with it, null after the first race (no standings before it) */
+export interface GpRow { rank: string; racerId: string; name: string; accent: string; points: number; gained: number; was: number; moved: number | null; player: boolean; delayMs: number }
+/** `rows`: the standings now, top down; `before`: as they stood before this race, top down, as indexes into `rows` (after the first race, this race's order: nothing moves) */
+export interface GpVM { headline: string; sub: string; rows: GpRow[]; before: number[]; done: boolean; stars: number; thresholds: number[] }
 
-export function gpModel(before: GrandPrixState | null, after: GrandPrixState, playerId: string | null, staggerMs = UI.staggerResultsMs): GpVM {
+/**
+ * The Grand Prix standings after a race. The screen shows them as they stood before it (`before`), each
+ * total with the points just won beside it, counts the totals up, then turns the rows that change hands
+ * over into the new order (render/screens.ts ResultsView.renderGp; Mario Kart World).
+ */
+export function gpModel(before: GrandPrixState | null, after: GrandPrixState, playerId: string | null, staggerMs = UI.staggerStandingsMs): GpVM {
   const thresholds = starThresholdsFor(after.trackIds.length);
   const table = grandPrixTable(after, thresholds);
   const done = after.raceIndex >= after.trackIds.length;
-  const rows = table.rows.map((r, i) => ({
-    rank: ordinal(r.rank), name: nameOf(r.racerId), accent: accentOf(r.racerId), points: r.points,
-    gained: r.points - (before?.points[r.racerId] ?? 0), player: r.racerId === playerId, delayMs: i * staggerMs,
-  }));
+  const ids = table.rows.map((r) => r.racerId);
+  // the table before this race, when there was one and it had these racers
+  const prior = before && before.raceIndex > 0 ? grandPrixTable(before, thresholds).rows.map((r) => r.racerId) : null;
+  const order = prior && prior.length === ids.length && prior.every((id) => ids.includes(id)) ? prior : null;
+  const rows = table.rows.map((r, i) => {
+    const was = before?.points[r.racerId] ?? 0;
+    return {
+      rank: ordinal(r.rank), racerId: r.racerId, name: nameOf(r.racerId), accent: accentOf(r.racerId), points: r.points,
+      gained: r.points - was, was, moved: order ? order.indexOf(r.racerId) - i : null, player: r.racerId === playerId, delayMs: i * staggerMs,
+    };
+  });
   const me = table.rows.find((r) => r.racerId === playerId);
   const headline = done ? (me?.rank === 1 ? 'Cup winner!' : me ? `You placed ${ordinal(me.rank)} in the cup` : 'Cup over') : `Race ${after.raceIndex} of ${after.trackIds.length}`;
   // stars are the player's, from their own total against the thresholds
   const myPoints = me?.points ?? 0;
   const stars = done ? thresholds.filter((t) => myPoints >= t).length : 0;
-  return { headline, sub: 'Grand Prix standings', rows, done, stars, thresholds };
+  return { headline, sub: 'Grand Prix standings', rows, before: order ? order.map((id) => ids.indexOf(id)) : rows.map((_, i) => i), done, stars, thresholds };
 }
 
-export interface CutRow { name: string; accent: string; rank: string; out: boolean; winner: boolean; player: boolean; delayMs: number }
+export interface CutRow { racerId: string; name: string; accent: string; rank: string; out: boolean; winner: boolean; player: boolean; delayMs: number }
 export interface CutVM { headline: string; sub: string; rows: CutRow[]; remaining: number; playerOut: boolean; done: boolean; winner: string | null }
 
 /**
@@ -65,7 +79,7 @@ export function knockoutCutModel(res: RaceResults, after: KnockoutState, playerI
   const done = after.segment >= after.trackIds.length;
   const winnerId = done ? Object.entries(after.placings).find(([, p]) => p === 1)?.[0] ?? null : null;
   const rows = res.ranks.map((r, i) => ({
-    name: nameOf(r.racerId), accent: accentOf(r.racerId), rank: ordinal(r.rank),
+    racerId: r.racerId, name: nameOf(r.racerId), accent: accentOf(r.racerId), rank: ordinal(r.rank),
     out: out.has(r.racerId) || (done && r.racerId !== winnerId), winner: r.racerId === winnerId,
     player: r.racerId === playerId, delayMs: i * staggerMs,
   }));
@@ -84,7 +98,7 @@ export interface BoardVM {
   /** Daily: when the next challenge starts, in the player's own time ('' otherwise) */
   note: string;
   state: 'loading' | 'offline' | 'empty' | 'rows';
-  rows: { rank: string; name: string; racer: string; accent: string; time: string; me: boolean }[];
+  rows: { rank: string; name: string; racerId: string; racer: string; accent: string; time: string; me: boolean }[];
   button: string;
   buttonDisabled: boolean;
   /** the board could not be read: a Try again control reads it again */
@@ -121,7 +135,7 @@ export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, daily
   const best = post.best && post.best.id !== post.id ? post.best : null;
   const mine = best?.id ?? post.id;
   const rows = typeof load === 'string' ? [] : load.map((r, i) => ({
-    rank: ordinal(i + 1), name: r.name, racer: nameOf(r.racerId), accent: accentOf(r.racerId), time: formatMs(r.timeMs), me: r.id === mine,
+    rank: ordinal(i + 1), name: r.name, racerId: r.racerId, racer: nameOf(r.racerId), accent: accentOf(r.racerId), time: formatMs(r.timeMs), me: r.id === mine,
   }));
   const state = load === 'loading' ? 'loading' : load === 'offline' ? 'offline' : rows.length ? 'rows' : 'empty';
   const button = post.state === 'posting' ? 'Posting…' : post.state === 'posted' ? (post.rank && !best ? `Posted: ${ordinal(post.rank)}!` : 'Posted!') : 'Post my time';

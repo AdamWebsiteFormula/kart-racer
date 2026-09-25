@@ -5,7 +5,8 @@ import { iconFor, iconMarkup, medalSvg, SHAPE_PATHS } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
 import type { CupVM, MedalLadderVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
-import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
+import type { BoardVM, CutVM, GpRow, GpVM, ResultsVM } from '../screens/results.ts';
+import { faceCrop } from '../data/faces.ts';
 import type { UnlockRow } from '../unlocks.ts';
 import type { GarageVM } from '../garage.ts';
 import { button, clear, h, Markup } from './dom.ts';
@@ -41,13 +42,52 @@ function heading(st: HTMLElement, title: string, buttons: Map<string, HTMLElemen
 
 const delay = (e: HTMLElement, ms: number) => e.style.setProperty('--delay', `${ms}ms`);
 
-/** A results or board row as a table row: each part a cell, the color swatch left to the eyes. */
+/** A results or board row as a table row: each part a cell, the face (and anything else hidden) left to the eyes. */
 function asRow(row: HTMLElement): void {
   row.setAttribute('role', 'row');
-  for (const c of row.children) {
-    if (c.classList.contains('sw')) c.setAttribute('aria-hidden', 'true');
-    else c.setAttribute('role', 'cell');
-  }
+  for (const c of row.children) if (c.getAttribute('aria-hidden') !== 'true') c.setAttribute('role', 'cell');
+}
+
+/**
+ * A racer's face, as Mario Kart World names every racer in a list: their portrait cropped to the head
+ * (data/faces.ts), round and ringed in their color (the row's `--accent`). The name is beside it, so
+ * assistive tech skips it.
+ */
+export function face(parent: HTMLElement, racerId: string): HTMLElement {
+  const e = h('span', 'face-ic', parent);
+  e.setAttribute('aria-hidden', 'true');
+  e.style.setProperty('--portrait', `url("${import.meta.env.BASE_URL}art/racers/${racerId}.webp")`);
+  e.style.setProperty('--crop', faceCrop(racerId));
+  return e;
+}
+
+/** How a racer moved in the standings with this race: an arrow up or down, or a dash, and the words for assistive tech; `by` null draws an empty cell. */
+function moveCell(e: HTMLElement, by: number | null): void {
+  const m = h('span', by === null ? 'mv' : `mv ${by > 0 ? 'up' : by < 0 ? 'down' : 'same'}`, e);
+  if (by === null) return;
+  h('i', '', m).setAttribute('aria-hidden', 'true');
+  h('span', 'sr-only', m, by > 0 ? `up ${by}` : by < 0 ? `down ${-by}` : 'no change');
+}
+
+/** A standings total. The stylesheet draws the number from `--pts` (ui.css), counting it up from `from` when `count`; the words are for assistive tech. */
+function total(e: HTMLElement, from: number, to: number, count: boolean): void {
+  const t = h('span', 'tm pts', e);
+  const n = h('span', count && from !== to ? 'n count' : 'n', t);
+  n.setAttribute('aria-hidden', 'true');
+  n.style.setProperty('--pts', String(to));
+  if (count) n.style.setProperty('--from', String(from));
+  h('span', 'sr-only', t, String(to));
+  t.append(' pts');
+}
+
+/** A standings row's cells: the place, how they moved (none after the first race), the face, the name, the points just won and the total. */
+function standing(e: HTMLElement, r: GpRow, moves: boolean, count: boolean, arrow = true): void {
+  h('span', 'rk', e, r.rank);
+  if (moves) moveCell(e, arrow ? r.moved : null);
+  face(e, r.racerId);
+  h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
+  h('span', 'gp gained', e, r.gained ? `+${r.gained}` : '');
+  total(e, r.was, r.points, count);
 }
 
 /** Relative luminance of a #rrggbb colour, 0 (black) to 1 (white). */
@@ -543,8 +583,9 @@ export function scrollToShow(scrollTop: number, viewH: number, top: number, heig
   return down > scrollTop ? Math.min(up, down) : null;
 }
 
-function starSvg(on: boolean, i: number): string {
-  return `<svg class="star${on ? ' on' : ''}" style="--delay:${600 + i * 180}ms" viewBox="-2 -2 28 28" aria-hidden="true"><path d="${SHAPE_PATHS.star}"/></svg>`;
+/** `atMs`: when the first star pops in (each next one 180 ms on) */
+function starSvg(on: boolean, i: number, atMs = 600): string {
+  return `<svg class="star${on ? ' on' : ''}" style="--delay:${atMs + i * 180}ms" viewBox="-2 -2 28 28" aria-hidden="true"><path d="${SHAPE_PATHS.star}"/></svg>`;
 }
 
 export class ResultsView implements ScreenView {
@@ -557,13 +598,17 @@ export class ResultsView implements ScreenView {
 
   /** The panel: everything but the buttons scrolls inside it, so it never runs off the screen. */
   /** `label`: the screen's name for assistive tech (the results, the standings, the cut); `n`: how many rows
-   *  (more than four sit in two columns on a phone on its side, ui.css, so all eight fit) */
-  private frame(headline: string, sub: string, label = 'Results', n = 0): { box: HTMLElement; head: HTMLElement; body: HTMLElement; rows: HTMLElement } {
+   *  (more than four sit in two columns on a phone on its side, ui.css, so all eight fit); `lagMs`: the
+   *  results over the finish wait this long for FINISH! to leave (UI.finishLagMs): the stage (ui.css) and
+   *  everything that comes in with it */
+  private frame(headline: string, sub: string, label = 'Results', n = 0, lagMs = 0): { box: HTMLElement; head: HTMLElement; body: HTMLElement; rows: HTMLElement } {
     clear(this.root);
     this.buttons.clear();
     this.root.setAttribute('aria-label', label);
     const st = stage(this.root);
+    if (lagMs) st.style.setProperty('--lag', `${lagMs}ms`);
     const box = h('div', 'panel box enter', st);
+    if (lagMs) delay(box, lagMs);
     const body = h('div', 'scroll', box);
     const head = h('div', 'res-head', body);
     const words = h('div', 'res-words', head);
@@ -622,7 +667,7 @@ export class ResultsView implements ScreenView {
       const e = h('div', `board-row${r.me ? ' me' : ''}`, b.list);
       e.style.setProperty('--accent', r.accent);
       h('span', 'rk', e, r.rank);
-      h('span', 'sw', e);
+      face(e, r.racerId);
       h('span', 'nm', e, r.name);
       h('span', 'rc', e, r.racer);
       h('span', 'tm', e, r.time);
@@ -667,9 +712,10 @@ export class ResultsView implements ScreenView {
     this.board = { list, sub, note, btn, status, input };
   }
 
-  renderResults(vm: ResultsVM, next: string, board?: { name: string; suggested?: boolean }): void {
+  /** `lagMs`: coming in over the race's finish, the wait for FINISH! to leave (UI.finishLagMs) */
+  renderResults(vm: ResultsVM, next: string, board?: { name: string; suggested?: boolean }, lagMs = 0): void {
     this.board = null;
-    const { box, head, body, rows } = this.frame(vm.headline, vm.sub, 'Results', vm.rows.length);
+    const { box, head, body, rows } = this.frame(vm.headline, vm.sub, 'Results', vm.rows.length, lagMs);
     // a Time Trial's medal: its badge by the headline (which names it)
     if (vm.medal && vm.medal.won !== 'none') {
       const m = h('div', 'res-medal');
@@ -678,10 +724,10 @@ export class ResultsView implements ScreenView {
     }
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.dnf ? ' dnf' : ''} r${i + 1}`, rows);
-      delay(e, r.delayMs);
+      delay(e, lagMs + r.delayMs);
       e.style.setProperty('--accent', r.accent);
       h('span', 'rk', e, r.rank);
-      h('span', 'sw', e);
+      face(e, r.racerId);
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
       h('span', 'tm', e, r.time);
       h('span', 'gp', e, r.gap);
@@ -696,27 +742,51 @@ export class ResultsView implements ScreenView {
     this.actions(box, next);
   }
 
-  renderGp(vm: GpVM, next: string): void {
+  /**
+   * The Grand Prix standings, played as Mario Kart World plays them (`play`): the rows come in as they stood
+   * before the race, each total with the points just won beside it; the totals count up; then, one place
+   * after another down the list, each place that changes hands flips over to the racer who holds it now,
+   * with an arrow for how they moved. All of it is CSS animation on the times set here (ui.css "Grand Prix
+   * standings"); the table under it is the new order from the start, as assistive tech reads it. Without
+   * `play` (reduced motion, or drawn again) it is the new order as it ends.
+   */
+  renderGp(vm: GpVM, next: string, play = true): void {
     this.board = null;
     const { box, head, rows } = this.frame(vm.headline, vm.sub, 'Grand Prix standings', vm.rows.length);
+    // no arrows after the first race: there were no standings before it
+    const moves = vm.rows.some((r) => r.moved !== null);
+    rows.classList.add('standings');
+    rows.classList.toggle('moves', moves);
+    rows.classList.toggle('play', play);
+    const countAt = UI.standingsCountAtMs;
+    const flipAt = (k: number) => countAt + UI.countUpMs + UI.standingsFlipGapMs + k * UI.flipStaggerMs;
+    vm.rows.forEach((r, k) => {
+      // who held this place before the race: a place that changes hands turns over to the racer holding it now
+      const was = vm.rows[vm.before[k]] ?? r;
+      const flips = play && was !== r;
+      const e = h('div', `row${r.player ? ' me' : ''}${flips ? ' flip' : ''} r${k + 1}`, rows);
+      delay(e, r.delayMs);
+      e.style.setProperty('--accent', r.accent);
+      e.style.setProperty('--count-at', `${countAt}ms`);
+      e.style.setProperty('--flip-at', `${flipAt(k)}ms`);
+      standing(e, r, moves, play && !flips);
+      if (flips) {
+        // the one who held it, on top until the row turns over (the row itself is the standing now)
+        const w = h('div', `was${was.player ? ' me' : ''}`, e);
+        w.setAttribute('aria-hidden', 'true');
+        w.style.setProperty('--accent', was.accent);
+        standing(w, { ...was, rank: r.rank }, moves, true, false);
+      }
+      asRow(e);
+    });
     if (vm.done) {
-      // the player's stars at the end of the headline's row
+      // the player's stars at the end of the headline's row, once the rows have settled
       const s = h('div', 'stars', head);
-      s.innerHTML = [0, 1, 2].map((i) => starSvg(i < vm.stars, i)).join('');
+      const at = play ? flipAt(vm.rows.length - 1) + UI.flipMs : undefined;
+      s.innerHTML = [0, 1, 2].map((i) => starSvg(i < vm.stars, i, at)).join('');
       s.setAttribute('role', 'img');
       s.setAttribute('aria-label', `${vm.stars} of 3 stars`);
     }
-    vm.rows.forEach((r, i) => {
-      const e = h('div', `row${r.player ? ' me' : ''} r${i + 1}`, rows);
-      delay(e, r.delayMs);
-      e.style.setProperty('--accent', r.accent);
-      h('span', 'rk', e, r.rank);
-      h('span', 'sw', e);
-      h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
-      h('span', 'tm', e, `${r.points} pts`);
-      h('span', 'gp gained', e, r.gained ? `+${r.gained}` : '');
-      asRow(e);
-    });
     this.actions(box, next);
   }
 
@@ -728,7 +798,7 @@ export class ResultsView implements ScreenView {
       delay(e, r.delayMs);
       e.style.setProperty('--accent', r.accent);
       h('span', 'rk', e, r.rank);
-      h('span', 'sw', e);
+      face(e, r.racerId);
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
       h('span', 'tm', e, r.out ? 'OUT' : r.winner ? 'WINNER' : 'THROUGH');
       h('span', 'gp', e, '');

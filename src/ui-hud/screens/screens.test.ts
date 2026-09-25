@@ -4,6 +4,7 @@ import type { GrandPrixState, KnockoutState, RaceResults, RacerConfig } from '..
 import { UI } from '../constants.ts';
 import { CAST } from '../data/cast.ts';
 import { attractTrack, playableTracks } from '../data/catalog.ts';
+import { FACE_ZOOM, faceCrop } from '../data/faces.ts';
 import { firstFocus, move, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { CREDITS_MADE, parseCredits } from './credits.ts';
@@ -96,6 +97,28 @@ describe('results screens', () => {
     expect(vm.headline).toBe('Cup winner!');
   });
 
+  it('the standings as they stood before the race, the old totals and how each racer moved, for the count and the flips (Mario Kart World)', () => {
+    const gp: GrandPrixState = createGrandPrix({ id: 'sunrise', trackIds: ['a', 'b', 'c'] }, racers, 150, 1);
+    const order = CAST.map((c) => c.id); // pip, momo, nova, juniper, otto, sprocket, boulder, gus
+    // the first race: no standings before it, so nothing moves (no arrows) and the totals count up from 0
+    let before = structuredClone(gp);
+    applyResults(gp, results(order));
+    const first = gpModel(before, gp, 'pip');
+    expect(first.before).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(first.rows.every((r) => r.moved === null && r.was === 0)).toBe(true);
+    // the second: Nova wins it and passes Momo; Big Gus passes Boulder; the rest keep their places
+    before = structuredClone(gp);
+    applyResults(gp, results(['nova', 'pip', 'momo', 'juniper', 'otto', 'sprocket', 'gus', 'boulder']));
+    const vm = gpModel(before, gp, 'pip');
+    expect(vm.rows.map((r) => r.racerId)).toEqual(['pip', 'nova', 'momo', 'juniper', 'otto', 'sprocket', 'gus', 'boulder']);
+    // as they stood: the old table top down, as indexes into the new one
+    expect(vm.before.map((i) => vm.rows[i].racerId)).toEqual(order);
+    expect(vm.rows.map((r) => r.moved)).toEqual([0, 1, -1, 0, 0, 0, 1, -1]);
+    expect(vm.rows[0]).toMatchObject({ was: 15, gained: 12, points: 27, player: true });
+    expect(vm.rows[1]).toMatchObject({ was: 10, gained: 15, points: 25 });
+    expect(vm.rows.map((r) => r.delayMs)).toEqual(vm.rows.map((_, i) => i * UI.staggerStandingsMs));
+  });
+
   it('SOP test 11: the Knockout cut strikes out the eliminated and counts who remains', () => {
     const ko: KnockoutState = createKnockout({ id: 'coastline', trackIds: ['a', 'b', 'c'] }, racers, 150, 1);
     const r = results([...CAST.map((c) => c.id)].reverse()); // pip last
@@ -103,6 +126,7 @@ describe('results screens', () => {
     const vm = knockoutCutModel(r, ko, 'pip');
     expect(vm.remaining).toBe(6);
     expect(vm.rows.filter((x) => x.out).length).toBe(2);
+    expect(vm.rows.map((x) => x.racerId)).toEqual(r.ranks.map((x) => x.racerId)); // for their faces
     expect(vm.playerOut).toBe(true);
     expect(vm.headline).toBe('Knocked out!');
     expect(vm.sub).toBe('6 racers left');
@@ -149,6 +173,22 @@ describe('results screens', () => {
     const ko = MODES.find((m) => m.mode === 'knockout')!;
     expect(ko.sub).toMatch(/one wins/i);
     expect(ko.sub).not.toMatch(/two/i);
+  });
+});
+
+describe('racer faces (25 Sept 2026)', () => {
+  it('every racer has a head measured, and the crop centers on it inside the picture', () => {
+    for (const c of CAST) {
+      const m = faceCrop(c.id).match(/^([\d.]+)% ([\d.]+)% \/ (\d+)%$/);
+      expect(m, c.id).not.toBeNull();
+      const [x, y, size] = m!.slice(1).map(Number);
+      expect(size).toBe(Math.round(FACE_ZOOM * 100));
+      for (const p of [x, y]) { expect(p, c.id).toBeGreaterThanOrEqual(0); expect(p, c.id).toBeLessThanOrEqual(100); }
+    }
+    // Pip's head at 0.45 across, 0.22 down: position p = (0.45 × 2.8 − 0.5) / 1.8 across
+    expect(faceCrop('pip')).toBe('42.2% 6.4% / 280%');
+    // an id with no head measured gets the middle top, not a broken rule
+    expect(faceCrop('nobody')).toMatch(/^50\.0% /);
   });
 });
 
