@@ -38,6 +38,9 @@
   --t-wipe-out: 150ms;
   /* the screen coming starts this late, once the one going is a trace */
   --t-wipe-lag: 60ms;
+  /* the Grand Prix standings: a total counting up (UI.countUpMs), a row turning over (UI.flipMs) */
+  --t-count: 700ms;
+  --t-flip: 440ms;
 
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
@@ -115,6 +118,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 @keyframes x-fade-out { to { opacity: 0; } }
 @keyframes x-fade-in { from { opacity: 0; } }
 @keyframes x-pop-out { to { opacity: 0; transform: translateY(18px) scale(0.9); } }
+/* finish → results: FINISH! and its lines rise away first (a trace by half way), and the results wait until
+   they have gone: their stage starts --lag later (UI.finishLagMs, set on it by ResultsView), so no frame shows
+   both at full strength. The banner keeps the celebration's scale (podium.css --banner-scale) as it goes */
+#ui .hud.x-out > .banner { animation-name: x-rise-out; }
+#ui .results.x-in > .stage { animation-delay: calc(var(--t-wipe-lag) + var(--lag, 0ms)); }
+@keyframes x-rise-out { 50% { opacity: 0.12; } to { opacity: 0; transform: translateY(-40px) scale(calc(var(--banner-scale, 1) * 0.92)); } }
 
 /* ---------- shared type ---------- */
 .display {
@@ -521,7 +530,19 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .banner { position: absolute; top: 24%; left: 0; right: 0; text-align: center; pointer-events: none; }
 .banner .big { display: inline-block; font-size: clamp(72px, 12vw, 160px); line-height: 1; }
 .banner .small { display: block; margin-top: 8px; font: 400 clamp(26px, 3.5vw, 44px)/1 var(--display); color: var(--sun); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
-.banner .skip { display: none; margin-top: 12px; font: 700 clamp(16px, 2vw, 22px)/1.2 var(--body); color: var(--paper); text-shadow: 0 2px 0 var(--ink), 0 0 6px var(--ink); }
+/* the finish: the place beside FINISH! on a pill (the timer's), so it reads over any sky or crowd; the
+   celebration takes the two up under the timer, clear of the kart (podium.css). Under FINISH! it sat on the
+   racer's hat in the finish camera, small and bare (25 Sept 2026) */
+.banner[data-kind='finish'] .small { display: inline-block; vertical-align: 0.6em; margin: 0 0 0 0.3em; padding: 0.12em 0.42em 0.18em; border-radius: 999px; background: rgb(27 27 47 / 0.6); font-size: clamp(34px, 4.4vw, 62px); }
+.banner[data-kind='finish'] .small:empty { display: none; }
+.banner.show[data-kind='finish'] .small { animation: pop-in var(--t-slow) var(--pop) 200ms backwards; }
+/* the prompt's words stay in the banner for assistive tech (read out with FINISH!); the eyes get the pill */
+.banner .skip { display: none; }
+/* over the line: how to go on to the results, on a pill at the foot of the screen, under the kart the finish
+   camera circles (render/hud.ts); it comes a beat after FINISH!, so the finish reads first */
+.finish-go { position: absolute; left: 0; right: 0; bottom: calc(34px + var(--safe-b)); display: none; width: max-content; max-width: calc(100% - 32px); margin: 0 auto; padding: 11px 26px; border-radius: 999px; background: rgb(27 27 47 / 0.74); box-shadow: 0 4px 0 rgb(27 27 47 / 0.35); color: var(--paper); font: 700 21px/1.15 var(--body); text-align: center; pointer-events: none; }
+.finish-go.on { display: block; animation: pop-in var(--t-slow) var(--pop) 700ms backwards; }
+@media (max-height: 500px) { .finish-go { bottom: calc(12px + var(--safe-b)); padding: 8px 18px; font-size: 17px; } }
 /* a Time Trial over the line: the medal its time won, under FINISH! */
 .banner .medal-won { display: none; }
 .banner .medal-won.on { display: flex; align-items: center; gap: 12px; width: max-content; margin: 14px auto 0; padding: 6px 26px 6px 10px; border: var(--stroke) solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 6px 0 var(--ink); animation: medal-in 700ms var(--pop) 350ms backwards; }
@@ -679,7 +700,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .rows { display: flex; flex-direction: column; gap: 8px; }
 .row {
   display: grid;
-  grid-template-columns: 56px 16px 1fr auto auto;
+  --face: 36px;
+  grid-template-columns: 56px var(--face) 1fr auto auto;
   align-items: center;
   gap: 12px;
   padding: 9px 14px;
@@ -691,7 +713,10 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   animation-delay: var(--delay, 0ms);
 }
 .row .rk { font: 400 26px/1 var(--display); }
-.row .sw { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink); background: var(--accent); }
+/* a racer's face (render/screens.ts face()): the portrait cropped to the head (data/faces.ts), ringed in the
+   racer's color, an ink line either side so a pale one (Sprocket's cream) still rings it. Mario Kart World
+   names every racer in a list by their face; a colored dot said little */
+.face-ic { display: block; width: var(--face, 36px); height: var(--face, 36px); border-radius: 50%; border: 3px solid var(--accent, var(--paper)); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 1.5px rgb(27 27 47 / 0.5); background: #e6e6e6 var(--portrait) var(--crop, 50% 22% / 170%) no-repeat; }
 .row .tm { font-variant-numeric: tabular-nums; }
 .row .gp { font-variant-numeric: tabular-nums; opacity: 0.6; font-size: 15px; min-width: 64px; text-align: right; }
 .row.me { background: var(--sun); transform: scale(1.02); }
@@ -702,7 +727,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .row.r2 .rk { color: var(--silver); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
 .row.r3 .rk { color: var(--bronze); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
 /* a solo run's results (Time Trial, Daily): one row and no place to show ("1st" of one), as in the HUD */
-.rows .row:only-child { grid-template-columns: 16px 1fr auto auto; }
+.rows .row:only-child { grid-template-columns: var(--face) 1fr auto auto; }
 .rows .row:only-child .rk { display: none; }
 .laps { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; font: 600 15px/1 var(--body); }
 .laps span { padding: 7px 10px; border: 2px solid var(--ink); border-radius: 999px; }
@@ -716,6 +741,45 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .stars .star.on { animation: pop-in 500ms var(--pop) backwards; animation-delay: var(--delay, 0ms); }
 .results .actions { display: flex; justify-content: center; padding: 14px 28px 22px; }
 .gained { color: #0a8f5a; font-weight: 700; }
+
+/* ---------- Grand Prix standings (ResultsView.renderGp), as Mario Kart World plays them ----------
+   The rows come in as they stood before the race, each total with the points just won beside it; the totals
+   count up (UI.countUpMs from UI.standingsCountAtMs, --count-at); then, one place after another down the list
+   (--flip-at), each place that changes hands turns over about its long axis (UI.flipMs) to the racer who holds
+   it now, and an arrow says how each one moved: up in green, down in blue, a dash for no change. The one who
+   held a place rides on top of its row (.was, hidden from assistive tech) until the row is edge on. A total is
+   drawn from --pts, a registered integer, so it counts as it animates (a browser without @property shows the
+   old total, then the new one half way). No .play (reduced motion): the new order as it ends. */
+@property --pts { syntax: '<integer>'; inherits: false; initial-value: 0; }
+.pts .n { counter-reset: pts var(--pts); }
+.pts .n::before { content: counter(pts); }
+.standings .pts { min-width: 4.4em; text-align: right; }
+.standings .gained { opacity: 1; font-size: 17px; }
+.standings.moves .row { grid-template-columns: 56px 18px var(--face) 1fr auto auto; }
+.standings .row { position: relative; }
+.standings .was { position: absolute; inset: -3px; display: grid; grid-template-columns: inherit; align-items: center; gap: inherit; padding: inherit; border: inherit; border-radius: inherit; background: #fff; opacity: 0; }
+.standings .was.me { background: var(--sun); }
+.standings .mv { display: flex; justify-content: center; }
+.standings .mv i { display: block; }
+.standings .mv.up i { border: 0 solid transparent; border-width: 0 7px 10px; border-bottom-color: #0a8f5a; }
+.standings .mv.down i { border: 0 solid transparent; border-width: 10px 7px 0; border-top-color: #2b6fd6; }
+.standings .mv.same i { width: 12px; height: 4px; border-radius: 2px; background: rgb(27 27 47 / 0.4); }
+.standings.play .n.count { animation: count-up var(--t-count) ease-out var(--count-at) backwards; }
+.standings.play .gained { transform-origin: 100% 50%; animation: gain-pop 460ms var(--pop) var(--count-at); }
+.standings.play .row.flip { animation: row-flip var(--t-flip) linear var(--flip-at) backwards, slide-in var(--t-med) var(--out) var(--delay, 0ms) backwards; }
+.standings.play .row.flip > .was { animation: was-on calc(var(--t-flip) / 2) step-end var(--flip-at) backwards; }
+.standings.play .row .mv:not(:empty) { animation: pop-in var(--t-med) var(--pop) calc(var(--flip-at) + var(--t-flip) / 2) backwards; }
+@keyframes count-up { from { --pts: var(--from); } }
+@keyframes gain-pop { 45% { transform: scale(1.35); } }
+/* (listed before slide-in, which wins while the row comes in; nothing held after it, so the player's row
+   keeps its own lift) */
+@keyframes row-flip {
+  from { transform: perspective(700px) rotateX(0deg); animation-timing-function: ease-in; }
+  50% { transform: perspective(700px) rotateX(-90deg); animation-timing-function: steps(1, end); }
+  50.1% { transform: perspective(700px) rotateX(90deg); animation-timing-function: ease-out; }
+  to { transform: perspective(700px) rotateX(0deg); }
+}
+@keyframes was-on { from, to { opacity: 1; } }
 
 /* ---------- Time Trial medals (icons.ts medalSvg: a stopwatch struck as a medal) ---------- */
 .medal-svg { --m-base: #f2b705; --m-light: #ffe58f; --m-dark: #a26f00; display: block; width: 100%; height: auto; overflow: visible; }
@@ -736,7 +800,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* the results' head: a Time Trial's medal by the headline, which names it */
 .res-head { display: flex; align-items: center; gap: 16px; }
 .res-words { min-width: 0; }
-.results .res-medal { flex: none; width: 76px; margin: -6px 0 4px -4px; filter: drop-shadow(0 4px 0 rgb(27 27 47 / 0.35)); animation: medal-in 700ms var(--pop) 200ms backwards; }
+.results .res-medal { flex: none; width: 76px; margin: -6px 0 4px -4px; filter: drop-shadow(0 4px 0 rgb(27 27 47 / 0.35)); animation: medal-in 700ms var(--pop) calc(200ms + var(--lag, 0ms)) backwards; }
 /* a Time Trial's medal times under the run: each in color where the run reached it */
 .medal-ladder { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .rung { display: inline-flex; align-items: center; gap: 7px; padding: 4px 14px 4px 6px; border: 2px solid var(--ink); border-radius: 999px; background: #fff; font: 600 15px/1 var(--body); }
@@ -757,11 +821,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .board-list .retry-btn { align-self: flex-start; padding: 8px 18px; }
 .board-list .retry-btn .label { font-size: 20px; }
 .board-row {
-  display: grid; grid-template-columns: 48px 14px 1fr auto auto; align-items: center; gap: 10px;
-  padding: 6px 12px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; font: 600 15px/1 var(--body);
+  --face: 28px;
+  display: grid; grid-template-columns: 48px var(--face) 1fr auto auto; align-items: center; gap: 10px;
+  padding: 5px 12px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; font: 600 15px/1 var(--body);
 }
 .board-row .rk { font: 400 20px/1 var(--display); }
-.board-row .sw { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); background: var(--accent); }
+.board-row .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
 .board-row .rc { font-size: 13px; opacity: 0.6; }
 .board-row .tm { font-variant-numeric: tabular-nums; }
 .board-row.me { background: var(--sun); }
@@ -819,6 +884,28 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 @media (max-width: 900px) and (pointer: fine) {
   .coins { padding: 4px 13px 4px 5px; font-size: 28px; -webkit-text-stroke-width: 3px; }
   .coins .coin { width: 27px; height: 27px; }
+}
+/* a laptop window (1280x720, 1366x657): the faces a little smaller, so eight rows are no taller than they
+   were with the color dots */
+@media (max-height: 800px) {
+  .row { --face: 30px; padding: 4px 12px; }
+}
+/* a narrow window (390 px): the panel takes the width, the place, face and time keep their room, the gap to
+   the winner goes (the times say it) and a long name gives way; the standings keep the points just won.
+   At 390x844 every name was cut to one letter */
+@media (max-width: 600px) {
+  .results .stage { padding-left: calc(12px + var(--safe-l)); padding-right: calc(12px + var(--safe-r)); }
+  .results .scroll { padding-left: 14px; padding-right: 14px; }
+  .row { --face: 28px; grid-template-columns: 34px var(--face) minmax(0, 1fr) auto auto; gap: 8px; padding: 5px 10px; font-size: 15px; }
+  .row .rk { font-size: 20px; }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rows:not(.standings) .row .gp { display: none; }
+  .standings .gained { min-width: 0; font-size: 14px; }
+  .rows .row:only-child { grid-template-columns: var(--face) minmax(0, 1fr) auto auto; }
+  .standings.moves .row { grid-template-columns: 34px 12px var(--face) minmax(0, 1fr) auto auto; }
+  .standings .pts { min-width: 0; }
+  /* the prompt over the finish sits above the big place in the corner, under the kart */
+  .finish-go { bottom: calc(128px + var(--safe-b)); padding: 9px 18px; font-size: 17px; }
 }
 /* a laptop window (1280x720, 1536x730, 1366x657): the title and the racer screen fit without a scroll.
    The title's name is sized by the height too and its buttons tighten; the racer cards drop the species
@@ -917,12 +1004,19 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .sub { margin: 0; }
   .results .res-medal { width: 42px; margin: -4px 0 -2px; }
   .rows.many { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--half, 4), auto); grid-auto-flow: column; gap: 5px 10px; }
-  .row { grid-template-columns: 34px 12px minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 10px; font-size: 15px; }
+  .row { --face: 26px; grid-template-columns: 34px var(--face) minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 10px; font-size: 15px; }
   .row .rk { font-size: 19px; }
-  .row .sw { width: 12px; height: 12px; }
+  .row .face-ic, .board-row .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
   .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row .gp { font-size: 13px; min-width: 44px; }
-  .rows .row:only-child { grid-template-columns: 12px minmax(0, 1fr) auto auto; }
+  .rows .row:only-child { grid-template-columns: var(--face) minmax(0, 1fr) auto auto; }
+  .standings.moves .row { grid-template-columns: 34px 12px var(--face) minmax(0, 1fr) auto auto; }
+  .standings .gained { font-size: 14px; min-width: 30px; }
+  .standings .pts { min-width: 3.9em; }
+  .standings .mv.up i { border-width: 0 5px 8px; }
+  .standings .mv.down i { border-width: 8px 5px 0; }
+  .standings .mv.same i { width: 9px; height: 3px; }
+  .board-row { --face: 24px; }
   .res-head .stars .star { width: 30px; height: 30px; }
   .laps { margin-top: 6px; }
   .laps span { padding: 5px 9px; }

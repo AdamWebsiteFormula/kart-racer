@@ -149,6 +149,13 @@ describe('over the line, a press goes straight to the results', () => {
     expect(document.querySelector('#ui .banner .skip.on')).not.toBeNull();
     expect([...document.querySelectorAll('#ui .banner .skip > span')].map((e) => `${e.className}: ${e.textContent}`))
       .toEqual(['only-keys: Press Enter for results', 'only-pad: Press A for results', 'only-touch: Tap for results']);
+    // the eyes get it on a pill at the foot of the screen, under the kart the finish camera circles (it sat
+    // small on the racer's hat, 25 Sept 2026); the banner keeps the words, read out with FINISH!
+    expect(document.querySelector('#ui .banner .skip')!.classList.contains('sr-only')).toBe(true);
+    const pill = document.querySelector('#ui .hud > .finish-go')!;
+    expect([pill.classList.contains('on'), pill.getAttribute('aria-hidden')]).toEqual([true, 'true']);
+    expect([...pill.children].map((e) => `${e.className}: ${e.textContent}`))
+      .toEqual(['only-keys: Press Enter for results', 'only-pad: Press A for results', 'only-touch: Tap for results']);
     ui.dispose();
   });
 });

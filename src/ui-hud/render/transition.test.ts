@@ -4,6 +4,7 @@
 // back runs the other way, a dialog pops in and out, and a view drawn again as the next screen (results
 // → standings) leaves a ghost of its old face. Keys, clicks, taps and the pad do nothing until it ends:
 // dropped, never queued. Reduced motion: a plain cut. The stylesheet moves only transforms and opacity.
+// Over a race's finish the results wait for FINISH! to leave first (25 Sept 2026).
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { applyResults, createGrandPrix } from '../../race-manager/series.ts';
 import type { RaceResults } from '../../race-manager/types.ts';
@@ -111,12 +112,47 @@ describe('screen transitions', () => {
     ui.dispose();
   });
 
+  it('finish → results: FINISH! and its lines leave first and the results wait UI.finishLagMs more, so no frame has both; input waits it all out; the standings after them do not wait', () => {
+    vi.useFakeTimers();
+    const { ui, t } = make();
+    for (const a of [{ type: 'start' }, { type: 'pickMode', mode: 'grandPrix' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickCup', cupId: 'sunrise' }] as const) ui.dispatch(a);
+    vi.advanceTimersByTime(UI.wipeMs + 50);
+    t.now += 1000;
+    const gp = createGrandPrix({ id: 'sunrise', trackIds: ['harbour-loop', 'harbour-loop', 'harbour-loop'] }, IDS.map((id) => ({ racerId: id, archetype: 'medium' as const, isPlayer: id === 'pip' })), 150, 1);
+    const before = structuredClone(gp);
+    applyResults(gp, results(IDS));
+    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
+    expect(moving()).toEqual(['hud out fwd', 'results in fwd']);
+    const res = view('results');
+    expect(res.querySelector<HTMLElement>(':scope > .stage')!.style.getPropertyValue('--lag')).toBe(`${UI.finishLagMs}ms`);
+    // all that comes in with the panel comes after it: the panel's pop and each row's slide
+    expect(res.querySelector<HTMLElement>('.box')!.style.getPropertyValue('--delay')).toBe(`${UI.finishLagMs}ms`);
+    expect([...res.querySelectorAll<HTMLElement>('.row')].map((r) => r.style.getPropertyValue('--delay'))).toEqual(IDS.map((_, i) => `${UI.finishLagMs + i * UI.staggerResultsMs}ms`));
+    // input waits for the whole move: a screen change's own and the lag
+    t.now += UI.wipeMs + 1;
+    expect(ui.changingScreen).toBe(true);
+    t.now += UI.finishLagMs;
+    expect(ui.changingScreen).toBe(false);
+    vi.advanceTimersByTime(UI.wipeMs + UI.finishLagMs + 50);
+    expect(moving()).toEqual([]);
+    t.now += 1000;
+    ui.dispatch({ type: 'continue' });
+    expect(ui.app.screen).toBe('gpTable');
+    expect(view('results').querySelector<HTMLElement>(':scope > .stage')!.style.getPropertyValue('--lag')).toBe('');
+    ui.dispose();
+  });
+
   it('reduced motion: a plain cut, no transition at all', () => {
     vi.useFakeTimers();
     const { ui } = make(true);
     ui.dispatch({ type: 'start' });
     expect(moving()).toEqual([]);
     expect(ui.changingScreen).toBe(false);
+    // the results over a race's finish too: no wait for FINISH!, which is simply gone
+    for (const a of [{ type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }] as const) ui.dispatch(a);
+    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false });
+    expect([ui.app.screen, moving(), ui.changingScreen]).toEqual(['results', [], false]);
+    expect(view('results').querySelector<HTMLElement>(':scope > .stage')!.style.getPropertyValue('--lag')).toBe('');
     ui.dispose();
   });
 });
@@ -226,7 +262,7 @@ describe('the stylesheet\'s transitions', () => {
         for (let i = 0; i < style.length; i++) expect(['opacity', 'transform'], `${r.name} ${style[i]}`).toContain(style[i]);
       }
     }
-    expect([...names].sort()).toEqual(['x-arrive', 'x-arrive-back', 'x-fade-in', 'x-fade-out', 'x-leave', 'x-leave-back', 'x-pop-out']);
+    expect([...names].sort()).toEqual(['x-arrive', 'x-arrive-back', 'x-fade-in', 'x-fade-out', 'x-leave', 'x-leave-back', 'x-pop-out', 'x-rise-out']);
   });
 
   it('last as long as the input waits: the tokens are UI.wipeMs and UI.wipeOutMs, and the screen coming ends on UI.wipeMs', () => {
@@ -241,5 +277,16 @@ describe('the stylesheet\'s transitions', () => {
     expect(css).toMatch(/\.screen\.x-in > \.stage \{ animation: x-arrive calc\(var\(--t-wipe\) - var\(--t-wipe-lag\)\) var\(--out\) var\(--t-wipe-lag\) backwards; \}/);
     // reduced motion drops every animation to 1 ms; UiRoot adds no transition then anyway
     expect(css).toMatch(/:root\[data-reduced-motion='on'\] \*,/);
+  });
+
+  it('finish → results: FINISH! rises away on its own keyframes, and the results stage waits --lag more, starting just as FINISH! has gone', () => {
+    expect(css).toMatch(/#ui \.hud\.x-out > \.banner \{ animation-name: x-rise-out; \}/);
+    expect(css).toMatch(/#ui \.results\.x-in > \.stage \{ animation-delay: calc\(var\(--t-wipe-lag\) \+ var\(--lag, 0ms\)\); \}/);
+    let root: CSSStyleDeclaration | null = null;
+    for (const r of sheet().cssRules) if (r instanceof CSSStyleRule && r.selectorText === ':root') root = r.style;
+    const start = parseFloat(root!.getPropertyValue('--t-wipe-lag')) + UI.finishLagMs;
+    // FINISH! leaves in the time the screen going takes (UI.wipeOutMs): the results start once it has, a beat, not a pause
+    expect(start).toBeGreaterThanOrEqual(UI.wipeOutMs);
+    expect(start).toBeLessThanOrEqual(UI.wipeOutMs + 60);
   });
 });
