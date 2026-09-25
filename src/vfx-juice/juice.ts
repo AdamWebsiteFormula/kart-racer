@@ -49,7 +49,7 @@ export const JUICE = Object.freeze({
   /** the drift roll eases in and out at this rate (1/s; a 3° snap read as a glitch), full from this speed (m/s) */
   rollEase: 5, rollFullSpeed: 12,
   hitStopSeconds: 0.075,
-  slowMoScale: 0.3, slowMoSeconds: 1,
+  slowMoScale: 0.3, slowMoSeconds: 1, slowMoEase: 0.4,
 });
 
 /** The punch for a boost that started from `source` and runs `seconds` (a drift's tier is told by its length, BASE.boostSeconds). */
@@ -163,7 +163,13 @@ export class TimeScale {
   scale(now: number, reduced = false): number {
     if (reduced) return 1;
     if (now < this.stopUntil) return 0;
-    if (now < this.slowUntil) return JUICE.slowMoScale;
+    if (now < this.slowUntil) {
+      // the finish slow-mo eases back to full speed over its last slowMoEase seconds (a step read as a lurch under the finish camera's swing)
+      const left = this.slowUntil - now;
+      if (left >= JUICE.slowMoEase) return JUICE.slowMoScale;
+      const k = 1 - left / JUICE.slowMoEase;
+      return JUICE.slowMoScale + (1 - JUICE.slowMoScale) * k * k * (3 - 2 * k);
+    }
     return 1;
   }
 }
@@ -221,8 +227,15 @@ function kart(fx: Effects, id: string, e: KartEvent, me: string | null): void {
   }
 }
 
-/** One tick of events → effects. `out` is reset and reused. */
-export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[], me: string | null, out: Effects = newEffects()): Effects {
+/** Every finish throws the confetti (the default when the game does not say). */
+const ALWAYS = (): boolean => true;
+
+/**
+ * One tick of events → effects. `out` is reset and reused. `confettiFor`: whether the player's finish
+ * in this place throws the confetti shower (the game's finish celebration: a win, a podium place, a
+ * safe Knockout place; a lower place gets none, game/celebrate.ts).
+ */
+export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[], me: string | null, out: Effects = newEffects(), confettiFor: (rank: number) => boolean = ALWAYS): Effects {
   out.bursts.length = 0; out.quakes.length = 0; out.sparks.length = 0; out.boosts.length = 0;
   out.trauma = 0; out.kickBoost = null; out.kickHit = false; out.hitStop = false; out.slowMo = false;
   for (const e of race) {
@@ -235,7 +248,7 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
         break;
       case 'coin': out.bursts.push({ kind: 'coin', racerId: e.racerId, mine: e.racerId === me }); break;
       case 'finish':
-        if (e.racerId === me) { out.bursts.push({ kind: 'confetti', racerId: e.racerId }); if (!e.dnf) out.slowMo = true; }
+        if (e.racerId === me) { if (!e.dnf && confettiFor(e.rank)) out.bursts.push({ kind: 'confetti', racerId: e.racerId }); if (!e.dnf) out.slowMo = true; }
         break;
       // a bumper car's shove and a rockfall raise no kart event (a spin does, as a 'hit'): they
       // jolt the player like a wall
@@ -277,15 +290,5 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
     }
   }
   out.trauma = Math.min(1, out.trauma);
-  return out;
-}
-
-/** Spark colour per drift tier (research §7.2: blue → orange → rainbow). `t` cycles the rainbow. */
-export function sparkColour(tier: number, t: number, out: [number, number, number] = [0, 0, 0]): [number, number, number] {
-  if (tier <= 1) { out[0] = 0.3; out[1] = 0.75; out[2] = 1.6; return out; }
-  if (tier === 2) { out[0] = 1.8; out[1] = 0.8; out[2] = 0.2; return out; }
-  const h = (t * 3) % 1;
-  const k = (n: number) => { const x = (n + h * 6) % 6; return Math.max(0, Math.min(1, Math.abs(x - 3) - 1)); };
-  out[0] = k(5) * 1.8; out[1] = k(3) * 1.8; out[2] = k(1) * 1.8;
   return out;
 }

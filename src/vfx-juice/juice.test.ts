@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceEvent } from '../race-manager/types.ts';
-import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, directFx, driftRoll, punchFor, sparkColour, type PunchKind } from './juice.ts';
+import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, directFx, driftRoll, punchFor, type PunchKind } from './juice.ts';
 
 describe('trauma', () => {
   it('clamps at 1, decays to 0, and shake = trauma² with rotation under 0.6°', () => {
@@ -166,13 +166,6 @@ describe('fx director', () => {
     const both = directFx([{ type: 'kart', racerId: 'p', event: { type: 'boostStart', source: 'item', multiplier: 1.4, seconds: 1.5 } } as RaceEvent],
       [{ type: 'itemUsed', racerId: 'p', itemId: 'fizzPop', chargesLeft: 0 }], 'p');
     expect(both.trauma).toBeCloseTo(JUICE.punch.item.trauma);
-  });
-  it('spark colours: blue, orange, then a cycling rainbow', () => {
-    expect(sparkColour(1, 0)[2]).toBeGreaterThan(1);
-    expect(sparkColour(2, 0)[0]).toBeGreaterThan(1);
-    expect(sparkColour(3, 0)).not.toEqual(sparkColour(3, 0.1));
-    const out: [number, number, number] = [0, 0, 0];
-    expect(sparkColour(2, 0, out)).toBe(out); // writes into the caller's array: no garbage per spark
   });
 });
 
