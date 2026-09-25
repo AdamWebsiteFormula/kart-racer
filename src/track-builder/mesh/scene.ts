@@ -43,6 +43,8 @@ export interface TrackAssets {
   ground?: (kind: string, size: number) => Material | undefined;
   /** a fine grain multiplied over every road's colours (not on planked roads); never disposed by the scene */
   roadMap?: Texture;
+  /** the road's wear and sheen (art-pipeline surfaces.ts roadWear), patched onto the road material after its lines: same material, same draws */
+  road?: (m: MeshToonMaterial) => void;
   /** the coast of a sea track (flat top, beach slope); never disposed by the scene */
   coast?: () => Material | undefined;
   /** the far vista (art-pipeline vista.ts): set-pieces in the distance and what moves there; built per scene, freed with it */
@@ -490,6 +492,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
   else if (assets.roadMap) roadMaterial.map = assets.roadMap;
   paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour, def.offroad === true);
+  assets.road?.(roadMaterial);
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
   for (const c of chunks) group.add(c.mesh);

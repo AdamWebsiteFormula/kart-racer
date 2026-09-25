@@ -5,13 +5,13 @@
 // Projectiles interpolate prev → current like karts.
 import { jumpLift } from '../kart-controller/ground.ts';
 import {
-  InstancedMesh, Group, Matrix4, Object3D, Quaternion, SphereGeometry, Vector3, type BufferGeometry, type Material,
+  InstancedMesh, Group, Matrix4, Object3D, Quaternion, SphereGeometry, Vector3, type BufferGeometry, type Material, type MeshToonMaterial,
 } from 'three';
 import { bubbleMaterial, itemGeometry, oilSlickMaterial, strikeBallMaterial, vertexToon } from '../art-pipeline/index.ts';
 import type { KartState } from '../kart-controller/types.ts';
 import type { Items } from '../items/items.ts';
 import type { Track } from '../track-builder/track.ts';
-import { fadeNearCamera } from '../track-builder/mesh/glow.ts';
+import { fadeNearCameraAlpha } from '../track-builder/mesh/glow.ts';
 import { CAM } from './camera.ts';
 
 const RIDE_RADIUS = 1.3;
@@ -38,6 +38,17 @@ class Kind {
   }
 }
 
+let itemToonMaterial: MeshToonMaterial | null = null;
+/** The items' own copy of the vertex toon, see-through near the lens (a prop's copy dithers). Shared, never disposed. */
+function itemToon(): MeshToonMaterial {
+  if (!itemToonMaterial) {
+    itemToonMaterial = vertexToon().clone();
+    itemToonMaterial.userData.shared = true;
+    fadeNearCameraAlpha(itemToonMaterial, CAM.nearFade);
+  }
+  return itemToonMaterial;
+}
+
 /** Deterministic 0..1 from an id, for a drop's resting angle. */
 const spread = (id: number) => ((id * 2654435761) >>> 0) / 4294967296;
 
@@ -58,9 +69,9 @@ export class ItemsView {
   private readonly dummy = new Object3D();
 
   constructor() {
-    const toon = vertexToon();
-    // an item against the lens (a rival's Strike Ball, a ball trailing the kart in front) dissolves as karts do
-    for (const m of [toon, strikeBallMaterial()]) fadeNearCamera(m, CAM.nearFade);
+    const toon = itemToon();
+    // an item against the lens (a rival's Strike Ball, a ball trailing the kart in front) fades out smoothly, as a rival's kart does
+    fadeNearCameraAlpha(strikeBallMaterial(), CAM.nearFade);
     const kind = (name: string, cap = 16, material: Material = toon, shadows = true) => new Kind(itemGeometry(name) as BufferGeometry, material, cap, shadows);
     this.kinds = {
       beachBall: kind('beachBall'),

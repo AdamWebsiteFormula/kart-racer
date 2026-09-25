@@ -22,7 +22,8 @@ import { GhostView } from './ghostView.ts';
 import { ItemsView } from './itemsView.ts';
 import { RescueView } from './rescueView.ts';
 import { simTick, type SimParts } from './simtick.ts';
-import { buildKartMesh, fadeKartNearCamera, ownKartMaterials } from './kartMesh.ts';
+import { KartFader } from './kartFade.ts';
+import { buildKartMesh, ownKartMaterials } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
 
 export class RaceSession {
@@ -34,6 +35,8 @@ export class RaceSession {
   readonly views: KartView[];
   /** the boost flames on each kart's pipes, by kart index */
   private readonly flames: ExhaustFlames[] = [];
+  /** a rival near the lens turns to a see-through ghost (kartFade.ts); yours never does */
+  private readonly fader: KartFader;
   readonly itemsView: ItemsView;
   readonly rescueView = new RescueView();
   readonly config: RaceConfig;
@@ -96,13 +99,14 @@ export class RaceSession {
     this.itemsView = new ItemsView();
     this.group.add(this.rescueView.root);
     this.group.add(this.itemsView.root);
+    this.fader = new KartFader(scene);
     this.views = this.manager.state.karts.map((s, i) => {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
       const mesh = buildRacerMesh(config.racers[i].racerId, config.racers[i].isPlayer ? look : {}) ?? buildKartMesh(r.accent, r.secondary);
       const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s);
       this.flames.push(new ExhaustFlames(mesh, config.racers[i].racerId));
-      // a rival against the lens dissolves, flames and all; yours never does
-      if (i === this.playerIndex) ownKartMaterials(mesh); else fadeKartNearCamera(mesh);
+      // a rival against the lens turns to a ghost, flames and all; yours never does
+      if (i === this.playerIndex) ownKartMaterials(mesh); else this.fader.add(mesh);
       this.group.add(v.root);
       return v;
     });
@@ -162,7 +166,7 @@ export class RaceSession {
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
-    for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k].boost.remaining, st.time, reduced);
+    for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k], st.time, reduced);
     const live = this.live;
     live.pickups = st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates;
     live.coins = st.coinStates;
@@ -198,6 +202,7 @@ export class RaceSession {
     this.trackScene.dispose();
     this.rescueView.dispose();
     this.itemsView.dispose();
+    this.fader.dispose();
     this.group.traverse((o) => {
       const m = o as unknown as { geometry?: { dispose(): void }; material?: { dispose(): void } | { dispose(): void }[] };
       // shared placeholder geometries live at module scope; only per-session materials go

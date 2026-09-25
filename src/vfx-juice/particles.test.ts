@@ -2,7 +2,7 @@ import { CustomBlending, PerspectiveCamera, Scene, ShaderMaterial, SrcColorFacto
 import { describe, expect, it } from 'vitest';
 import { createKartState } from '../kart-controller/types.ts';
 import { newEffects } from './juice.ts';
-import { drawnSize, nearFade, PARTICLE, ParticlePool } from './particles.ts';
+import { drawnSize, drawnStreak, nearFade, PARTICLE, ParticlePool } from './particles.ts';
 import { SKID, skidShade, Skids } from './trails.ts';
 import { CONFETTI, CONFETTI_BURST, POP, STRIKE_BURST, Vfx } from './vfx.ts';
 
@@ -126,7 +126,10 @@ describe('tyre marks darken what they lie on', () => {
     s.dispose();
   });
 
-  it('fresh marks multiply by the shade and fade to nothing over their life', () => {
+  it('fresh marks multiply by the shade and fade to nothing over their life, softly (never near-black)', () => {
+    expect(SKID.shade).toBeGreaterThanOrEqual(0.58); // the old 0.55 read near-black on a night deck
+    let last = 0;
+    for (let t = 0; t <= SKID.life * 1.2; t += 0.1) { const s = skidShade(t); expect(s).toBeGreaterThanOrEqual(last); last = s; } // only ever fades
     expect(skidShade(0)).toBeCloseTo(SKID.shade, 6);
     expect(skidShade(SKID.life / 2)).toBeCloseTo((1 + SKID.shade) / 2, 6);
     expect(skidShade(SKID.life)).toBe(1);
@@ -156,5 +159,36 @@ describe('balloon and coin pops', () => {
 
   it('a rival picking up a coin sparkles less than you do', () => {
     expect(pop('coin', false).glow.count).toBeLessThan(pop('coin', true).glow.count);
+  });
+});
+
+describe('streaks (drift sparks and boost embers)', () => {
+  it('draw a capsule along their own motion whose quad keeps its winding (a mirrored one is culled as a back face)', () => {
+    const pool = new ParticlePool(4, true, false, PARTICLE.maxSize.spark, true);
+    const vs = (pool.mesh.material as ShaderMaterial).vertexShader;
+    expect(vs).toContain('vec2(axis.y, -axis.x) * (position.x * w) + axis * along');
+    // the same map in JS: a plane corner (x, y) goes to across * x * w + axis * along(y); for every axis the winding holds
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2, ax = Math.cos(a), ay = Math.sin(a), w = 1, len = 2;
+      const map = (x: number, y: number) => { const along = -len - 0.5 * w + (y + 0.5) * (len + w); return [ay * x * w + ax * along, -ax * x * w + ay * along]; };
+      const [p0, p1, p2] = [map(-0.5, -0.5), map(0.5, -0.5), map(-0.5, 0.5)];
+      const cross = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
+      expect(cross).toBeGreaterThan(0); // the plane's own sense (x right, y up): front-facing
+    }
+  });
+
+  it('ride with their kart and stretch over their own motion only', () => {
+    const pool = new ParticlePool(4, true, false, PARTICLE.maxSize.spark, true);
+    pool.spawn({ x: 0, y: 0, z: 0, vx: 0, vy: 2, vz: -3, cx: 0, cy: 0, cz: 20, r: 1, g: 1, b: 1, size: 0.05, life: 1, stretch: 0.05 });
+    pool.update(0.1);
+    const pos = pool.mesh.geometry.getAttribute('aOffset').array as Float32Array, st = pool.mesh.geometry.getAttribute('aStreak').array as Float32Array;
+    expect(pos[2]).toBeCloseTo((20 - 3) * 0.1, 5); // carried along, falling back by its own speed
+    expect(st[2]).toBeCloseTo(-3 * 0.05, 5);
+    expect(st[1]).toBeCloseTo(2 * 0.05, 5);
+    // on screen never longer than PARTICLE.maxStreak per metre of depth
+    expect(drawnStreak(1, 2)).toBeCloseTo(2 * PARTICLE.maxStreak, 6);
+    expect(drawnStreak(0.1, 2)).toBe(0.1);
+    // a round pool has no streaks and draws as it always did
+    expect(new ParticlePool(4, true).mesh.geometry.getAttribute('aStreak')).toBeUndefined();
   });
 });

@@ -1,9 +1,6 @@
 // The toon look (research plan §7.1): MeshToonMaterial with a gradient ramp and vertex colours
 // so a whole model is one draw call. No outlines since 2026-09-23 (Mario Kart World has none).
-import {
-  AdditiveBlending, DataTexture, MeshBasicMaterial, MeshToonMaterial, NearestFilter, RedFormat,
-  type Material,
-} from 'three';
+import { DataTexture, MeshToonMaterial, NearestFilter, RedFormat, type Material } from 'three';
 
 
 let ramp: DataTexture | null = null;
@@ -25,14 +22,7 @@ export function vertexToon(): MeshToonMaterial {
   return vcToon;
 }
 
-let flame: MeshBasicMaterial | null = null;
-/** The one shared boost-flame material: unlit vertex colours added onto what is behind, no depth write. */
-export function flameMaterial(): MeshBasicMaterial {
-  if (!flame) flame = new MeshBasicMaterial({ vertexColors: true, transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false });
-  return flame;
-}
-
 /** Is this one of the shared materials (never disposed per session)? */
 export function isShared(m: Material): boolean {
-  return m === vcToon || m === flame || m.userData.shared === true;
+  return m === vcToon || m.userData.shared === true;
 }

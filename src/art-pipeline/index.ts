@@ -1,9 +1,9 @@
 // art-pipeline public surface.
-import type { Material } from 'three';
+import type { Material, MeshToonMaterial } from 'three';
 import type { TrackAssets } from '../track-builder/mesh/index.ts';
 import { trackAssetsFor } from './decor.ts';
 import { PROP_MODELS } from './glb.ts';
-import { coastMaterial, groundMaterial, roadGrain } from './surfaces.ts';
+import { coastMaterial, groundMaterial, roadGrain, roadWear } from './surfaces.ts';
 import { toonRamp } from './toon.ts';
 import { buildVista } from './vista.ts';
 
@@ -12,14 +12,14 @@ export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } fro
 export { PAINTS, paintFor, repaintHex, repaintPixels, repaintRgb, type Paint, type PaintRule } from './paints.ts';
 export { clipDriver, DRIVER_CUTS, fitToBox, fitToKart, KART_FIT, PROP_MODELS, PropModels, RACER_MODELS, RacerModels, type DriverCut, type ModelManifest } from './glb.ts';
 export { EXHAUST, portDir, RACER_IDS, racerModel, type Exhaust } from './racers.ts';
-export { flameColour, flameGeometry } from './flames.ts';
+export { flameColour, flameGeometry, flameMaterial, JET_PROFILE, type FlameUniforms } from './flames.ts';
 export { ModelBuilder } from './model.ts';
 export { DECOR_NAMES, decorGeometry } from './decor.ts';
 export { DAY_GRADE, DAY_LIGHT, fadeSky, lightOf, paintSky, preloadSky, SKIES, SKY_FADE, skyTint, type SkyLight, type SkyPreset } from './sky.ts';
-export { flameMaterial, isShared, toonRamp, vertexToon } from './toon.ts';
+export { isShared, toonRamp, vertexToon } from './toon.ts';
 export { BUBBLE_CLOCK, bubbleMaterial, ITEM_MODEL_KINDS, itemGeometry, oilSlickMaterial, strikeBallMaterial } from './items.ts';
 
-export { preloadSurfaces, WATER_CLOCK } from './surfaces.ts';
+export { preloadSurfaces, ROAD_LOOKS, roadWear, WATER_CLOCK, type RoadLook } from './surfaces.ts';
 
 /**
  * The TrackAssets a track scene gets: the modelled decor and the toon ramp, with every prop that
@@ -33,7 +33,10 @@ export function trackAssets(biome?: string): TrackAssets {
     const file = PROP_MODELS.get(name);
     if (file) { geometries[name] = file.geometry; materials[name] = file.material; }
   }
-  const surfaces = biome ? { ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome) } : {};
+  const surfaces = biome ? {
+    ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome),
+    road: (m: MeshToonMaterial) => roadWear(m, biome),
+  } : {};
   // the far vista: set-pieces, movers and glows past the scenery (vista.ts)
   return { geometries, materials, gradientMap: toonRamp(), vista: buildVista, ...surfaces };
 }
