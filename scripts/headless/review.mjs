@@ -1,6 +1,6 @@
 // Fresh-eyes review of the game in motion: records a real-time clip of a race in silent headless Chrome
 // (the WebGL canvas only, so no HUD) and asks Gemini to critique it against Mario Kart World.
-//   node scripts/headless/review.mjs 'harbour-loop,canyon-rush' [--secs=20] [--url=http://localhost:5173/] [--out=dir] [--model=gemini-pro-latest] [--ask="..."]
+//   node scripts/headless/review.mjs 'harbour-loop,canyon-rush' [--secs=20] [--fps=8] [--url=http://localhost:5173/] [--out=dir] [--model=gemini-pro-latest] [--ask="..."]
 // Needs the dev server (the `kart` console helper) and GEMINI_API_KEY in .env.local (scripts/set-gemini-key.sh).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -45,7 +45,9 @@ async function record(c, track) {
 
 /** The clip through each model in `--model` (comma-separated) in turn: a busy (503) or limited (429) model is retried, then the next is tried. */
 async function critique(video) {
-  const body = JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: 'video/webm', data: video.toString('base64') } }, { text: ask }] }], generationConfig: { temperature: 0.3 } });
+  // Gemini samples video at 1 frame a second unless told otherwise: a 0.1 s boost punch falls between frames
+  const fps = Number(flag('fps', '8'));
+  const body = JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: 'video/webm', data: video.toString('base64') }, video_metadata: { fps } }, { text: ask }] }], generationConfig: { temperature: 0.3 } });
   let last = '';
   for (const m of model.split(',')) {
     for (let attempt = 0; attempt < 3; attempt++) {
