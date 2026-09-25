@@ -11,7 +11,6 @@ import { accentOf, CAST, nameOf } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
-import { ITEM_ICONS, itemArt } from './icons.ts';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { UI } from './constants.ts';
 import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
@@ -186,8 +185,8 @@ export class UiRoot {
     this.upright?.addEventListener?.('change', this.onUpright);
     this.short = globalThis.matchMedia?.(UI.shortScreenQuery);
     this.short?.addEventListener?.('change', this.onShort);
-    // the item roulette flicks through every painted item: have them all in the cache first
-    for (const id of Object.keys(ITEM_ICONS)) new Image().src = itemArt(id);
+    // the item roulette flicks through every painted item: main.ts fetches them all into the cache,
+    // in turn with the other background files, once the title is up (performance/loadQueue.ts)
     const r = this.root;
     this.views = {
       boot: new BootView(r), title: new TitleView(r), modes: new ListView(r, 'mode-screen', 'Pick a mode'),

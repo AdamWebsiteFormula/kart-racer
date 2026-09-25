@@ -1,0 +1,95 @@
+/* The page's loading screen (index.html #splash, docs/sops/performance.md): painted with the page,
+   before the game's script (about 420 KB) has arrived, so a first visit on a slow line sees the
+   game's name and a moving bar at once instead of a blank page. main.ts fades it out as the title
+   screen comes up (performance/splash.ts). Self-contained: its colors are the ui-hud tokens'
+   values, since ui.css may not be in yet. It draws with the two font files the page preloads
+   (Lilita One, Fredoka 600: vite.config.ts), so it asks for no other file while the script loads. */
+#splash {
+  --s-ink: #1b1b2f;
+  --s-paper: #fffaf0;
+  --s-sun: #ffd23f;
+  --s-coral: #ff6f61;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px 16px;
+  background: radial-gradient(ellipse at 50% 40%, #2c2c50 0%, var(--s-ink) 70%);
+  color: var(--s-paper);
+  font: 600 16px/1.3 'Fredoka', 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  text-align: center;
+  transition: opacity 320ms ease, visibility 0s linear 320ms;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+#splash.done { opacity: 0; visibility: hidden; pointer-events: none; }
+
+#splash .splash-logo {
+  margin-bottom: 18px;
+  font-family: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
+  line-height: 0.86;
+  letter-spacing: 0.01em;
+  -webkit-text-stroke: 4px var(--s-ink);
+  paint-order: stroke fill;
+  text-shadow: 0 6px 0 var(--s-ink);
+}
+#splash .splash-logo span { display: block; }
+#splash .splash-logo .l1 { font-size: clamp(64px, 11vw, 150px); color: var(--s-sun); transform: rotate(-3deg); }
+#splash .splash-logo .l2 { font-size: clamp(56px, 9.5vw, 128px); color: var(--s-coral); transform: rotate(2deg); margin-top: -0.08em; }
+
+/* the bar: it eases most of the way while the script loads (it cannot know how far that is); the
+   splash fades out once the title is up */
+#splash .splash-bar {
+  width: min(340px, 72vw);
+  height: 20px;
+  border: 4px solid var(--s-ink);
+  border-radius: 999px;
+  background: rgba(255, 250, 240, 0.16);
+  box-shadow: 0 0 0 3px rgba(255, 250, 240, 0.55), 0 5px 0 3px var(--s-ink);
+  overflow: hidden;
+}
+#splash .splash-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #ffe27a 0%, var(--s-sun) 55%, #f2b705 100%);
+  transform-origin: left center;
+  transform: scaleX(0.04);
+  animation: splash-fill 9s cubic-bezier(0.12, 0.75, 0.25, 1) forwards;
+  transition: transform 300ms ease-out;
+}
+@keyframes splash-fill { from { transform: scaleX(0.04); } to { transform: scaleX(0.82); } }
+
+#splash .splash-label { margin: 0; font: 600 18px/1.2 'Fredoka', 'Nunito', system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0.9; }
+#splash .splash-tip {
+  margin: 6px 0 0;
+  max-width: min(560px, 92vw);
+  padding: 10px 18px;
+  border-radius: 16px;
+  background: rgba(255, 250, 240, 0.08);
+  font: 600 16px/1.4 'Fredoka', 'Nunito', system-ui, sans-serif;
+  color: rgba(255, 250, 240, 0.92);
+}
+#splash .splash-tip b { color: var(--s-sun); font-weight: 600; margin-right: 6px; }
+
+/* a short screen (a phone on its side): the logo and the tip shrink so everything fits */
+@media (max-height: 480px) {
+  #splash { gap: 12px; }
+  #splash .splash-logo { margin-bottom: 8px; }
+  #splash .splash-logo .l1 { font-size: clamp(40px, 15vh, 96px); }
+  #splash .splash-logo .l2 { font-size: clamp(36px, 13vh, 84px); }
+  #splash .splash-tip { font-size: 14px; padding: 6px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #splash, #splash .splash-bar > span { animation: none; transition: none; }
+}
+
+/* the game's canvas fades in on its first real frame instead of popping in over the title (splash.ts) */
+canvas.game.booting { opacity: 0; }
+canvas.game.fade-in { transition: opacity 600ms ease; }
+@media (prefers-reduced-motion: reduce) { canvas.game.fade-in { transition: none; } }

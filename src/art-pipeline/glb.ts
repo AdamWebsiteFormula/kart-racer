@@ -9,6 +9,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
 import type { V3 } from './model.ts';
 import { MODEL_WHEELS, rigKart } from './rig.ts';
+import { atOnce, type Schedule } from '../performance/loadQueue.ts';
+import type { TrackDefinition } from '../track-builder/types.ts';
 
 /** The footprint a model is fitted into (metres): nose to tail, side to side, ground to top. */
 export const KART_FIT = Object.freeze({ length: 2.1, width: 1.7, height: 2.2 });
@@ -43,19 +45,22 @@ export class RacerModels {
     this.get_ = f;
   }
 
-  /** Fetch the manifest and every model. Safe to call again; fails soft (no file: code karts). */
-  load(): Promise<void> {
+  /**
+   * Fetch the manifest and every model, each file through `schedule` (performance/loadQueue.ts: a
+   * few at a time, in turn). Safe to call again; fails soft (no file: code karts).
+   */
+  load(schedule: Schedule = atOnce): Promise<void> {
     this.loading ??= (async () => {
       const r = await this.get_(`${this.base}models/manifest.json`).catch(() => null);
       if (!r?.ok) return;
       const manifest = (await r.json().catch(() => ({}))) as ModelManifest;
       const loader = new GLTFLoader();
-      await Promise.all(Object.entries(manifest).map(async ([racerId, spec]) => {
+      await Promise.all(Object.entries(manifest).map(([racerId, spec]) => schedule(async () => {
         try {
           const gltf = await loader.loadAsync(`${this.base}${spec.url}`);
           this.templates.set(racerId, rigRacer(this.fitted(gltf.scene, spec.yaw ?? 0), racerId));
         } catch { /* a broken file leaves that racer on its code-built kart */ }
-      }));
+      })));
     })();
     return this.loading;
   }
@@ -295,13 +300,32 @@ export function fitToBox(g: BufferGeometry, target: Box3, by: 'height' | 'width'
 }
 
 /**
+ * The scenery models a track's scene asks for (PROP_MODELS names): its landmark, its decor and its
+ * hazards' creatures and props. Pure; the names with no model file are the caller's to skip. A track
+ * can load just these first (main.ts: the title's track before the rest).
+ */
+export function trackProps(def: Pick<TrackDefinition, 'landmark' | 'environment' | 'hazards'>): string[] {
+  const out = new Set<string>();
+  if (def.landmark) out.add(def.landmark);
+  for (const d of def.environment?.decor ?? []) out.add(d.asset);
+  for (const h of def.hazards ?? []) {
+    if (h.creature) out.add(h.creature);
+    if (h.asset) out.add(h.asset);
+  }
+  return [...out];
+}
+
+/**
  * Scenery models from files (public/models/props.json, made with AI image-to-3D): each replaces
- * the code-built model of the same name, fitted to its box. Loaded once at boot; a prop without a
- * file, or before it arrives, stays code-built.
+ * the code-built model of the same name, fitted to its box. A prop without a file, or before it
+ * arrives, stays code-built; main.ts loads the title's track's first, then the rest.
  */
 export class PropModels {
   private readonly ready = new Map<string, { geometry: BufferGeometry; material: Material }>();
-  private loading: Promise<void> | null = null;
+  private manifest: Promise<ModelManifest | null> | null = null;
+  /** each prop's load, started once */
+  private readonly started = new Map<string, Promise<void>>();
+  private loader: GLTFLoader | null = null;
   private readonly base: string;
   private readonly get_: typeof fetch;
 
@@ -310,32 +334,45 @@ export class PropModels {
     this.get_ = f;
   }
 
-  load(): Promise<void> {
-    this.loading ??= (async () => {
-      const r = await this.get_(`${this.base}models/props.json`).catch(() => null);
-      if (!r?.ok) return;
-      const manifest = (await r.json().catch(() => ({}))) as ModelManifest;
-      const loader = new GLTFLoader();
-      await Promise.all(Object.entries(manifest).map(async ([name, spec]) => {
-        const target = decorGeometry(name)?.body.boundingBox;
-        if (!target) return;
-        try {
-          const gltf = await loader.loadAsync(`${this.base}${spec.url}`);
-          let mesh: Mesh | undefined;
-          gltf.scene.traverse((o) => { if (!mesh && (o as Mesh).isMesh) mesh = o as Mesh; });
-          if (!mesh) return;
-          const geometry = bakedGeometry(mesh);
-          geometry.rotateY(spec.yaw ?? 0);
-          fitToBox(geometry, target, spec.fit);
-          const material = mesh.material as Material;
-          material.userData.shared = true;
-          const std = material as MeshStandardMaterial;
-          if (spec.glow && std.isMeshStandardMaterial) { std.emissiveMap = std.map; std.emissive.set(0xffffff); std.emissiveIntensity = spec.glow; }
-          this.ready.set(name, { geometry, material });
-        } catch { /* a broken file leaves that prop code-built */ }
+  /**
+   * Fetch the models of `names` (every prop in the manifest when left out), each file through
+   * `schedule` (performance/loadQueue.ts: a few at a time, in turn). A prop already asked for is not
+   * asked again. Safe to call again; fails soft (no file: code-built props).
+   */
+  load(names?: Iterable<string>, schedule: Schedule = atOnce): Promise<void> {
+    return (async () => {
+      const manifest = await (this.manifest ??= this.get_(`${this.base}models/props.json`)
+        .then((r) => (r.ok ? r.json() as Promise<ModelManifest> : null)).catch(() => null));
+      if (!manifest) return;
+      const want = names ? [...names].filter((n) => Object.hasOwn(manifest, n)) : Object.keys(manifest);
+      await Promise.all(want.map((name) => {
+        let p = this.started.get(name);
+        if (!p) {
+          p = schedule(() => this.loadOne(name, manifest[name])).catch(() => undefined);
+          this.started.set(name, p);
+        }
+        return p;
       }));
     })();
-    return this.loading;
+  }
+
+  private async loadOne(name: string, spec: ModelSpec): Promise<void> {
+    const target = decorGeometry(name)?.body.boundingBox;
+    if (!target) return;
+    try {
+      const gltf = await (this.loader ??= new GLTFLoader()).loadAsync(`${this.base}${spec.url}`);
+      let mesh: Mesh | undefined;
+      gltf.scene.traverse((o) => { if (!mesh && (o as Mesh).isMesh) mesh = o as Mesh; });
+      if (!mesh) return;
+      const geometry = bakedGeometry(mesh);
+      geometry.rotateY(spec.yaw ?? 0);
+      fitToBox(geometry, target, spec.fit);
+      const material = mesh.material as Material;
+      material.userData.shared = true;
+      const std = material as MeshStandardMaterial;
+      if (spec.glow && std.isMeshStandardMaterial) { std.emissiveMap = std.map; std.emissive.set(0xffffff); std.emissiveIntensity = spec.glow; }
+      this.ready.set(name, { geometry, material });
+    } catch { /* a broken file leaves that prop code-built */ }
   }
 
   get(name: string): { geometry: BufferGeometry; material: Material } | undefined { return this.ready.get(name); }

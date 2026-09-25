@@ -12,10 +12,13 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, isBodyId, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, DAY_GRADE, isBodyId, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { Warmup } from './performance/warmup.ts';
+import { LoadQueue, prefetchImage } from './performance/loadQueue.ts';
+import { bootScreens } from './performance/splash.ts';
+import { ITEM_ICONS, itemArt } from './ui-hud/icons.ts';
 import { InputSource } from './kart-controller/input.ts';
 import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
@@ -53,7 +56,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFShadowMap;
 renderer.toneMapping = ACESFilmicToneMapping;
 renderer.info.autoReset = false; // the post chain renders several passes; count the whole frame
-renderer.domElement.className = 'game';
+renderer.domElement.className = 'game booting fade-in'; // fades in on its first frame (performance/splash.ts)
 let post: Post | null = null; // made once the camera exists
 document.body.appendChild(renderer.domElement);
 
@@ -319,11 +322,39 @@ input.setVirtual(() => ui.touch.state(session?.state.phase === 'countdown'));
 settings = ui.save.settings;
 audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume });
 applyRender();
-startAttract();
-// racer model files, when there are any (fails soft to code-built karts). The title's race started
-// before they arrived: restart it so the first thing a player sees is the modelled cast.
-preloadSurfaces();
-void Promise.all([RACER_MODELS.load(), PROP_MODELS.load()]).then(() => { if (attract) startAttract(); warmLooks(); });
+// The title first (load-speed sweep, docs/sops/performance.md): its menu paints before the attract
+// race is built (half a second of script on a phone), then the race, then the background files.
+// (a hidden tab runs no animation frames: the timer starts it there, so the files still come down)
+let booted = false;
+const afterFirstPaint = () => {
+  if (booted) return;
+  booted = true;
+  if (!session) startAttract();
+  backgroundFiles();
+};
+requestAnimationFrame(() => setTimeout(afterFirstPaint));
+setTimeout(afterFirstPaint, 300);
+bootScreens({ titleUp: () => ui.app.screen !== 'boot', firstFrame: () => session !== null && !warmup.active, canvas: renderer.domElement });
+
+/** Background files: a few at a time, in the order the player meets them (performance/loadQueue.ts). */
+const files = new LoadQueue(3);
+function backgroundFiles(): void {
+  const base = import.meta.env.BASE_URL;
+  // the title's own sky painting first (the page preloads its fonts): nothing else shares the line till then
+  files.hold(Promise.race([preloadSky(session?.trackScene.sky), new Promise((r) => setTimeout(r, 2000))]));
+  // 0: the pictures on the next screens (racer portraits, track cards: ui-hud render/screens.ts addresses)
+  for (const c of CAST) void files.add(() => prefetchImage(`${base}art/racers/${c.id}.webp`), 0);
+  for (const id of TRACKS.keys()) void files.add(() => prefetchImage(`${base}art/tracks/${id}.webp`), 0);
+  // 1: the eight racers' model files (every race), 2: the title's track's scenery models. Both in, the
+  // title's race restarts, so the first thing a player sees is the modelled cast (fails soft: code-built)
+  const titleTrack = TRACKS.get(ATTRACT_TRACK);
+  void Promise.all([RACER_MODELS.load(files.at(1)), PROP_MODELS.load(titleTrack ? trackProps(titleTrack) : [], files.at(2))])
+    .then(() => { if (attract) startAttract(); warmLooks(); });
+  // 3: the item art the roulette flicks through (the first race's first balloon); 4: every other track's ground and scenery
+  for (const id of Object.keys(ITEM_ICONS)) void files.add(() => prefetchImage(itemArt(id)), 3);
+  void files.add(async () => preloadSurfaces(), 4);
+  void PROP_MODELS.load(undefined, files.at(4));
+}
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));
 setTimeout(() => ui.dispatch({ type: 'boot' }), 1500); // never wait on fonts for more than 1.5 s
