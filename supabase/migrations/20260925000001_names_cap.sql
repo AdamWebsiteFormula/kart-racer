@@ -1,4 +1,4 @@
--- The names-per-board cap, made atomic (red-team 24 Sept 2026; NOT applied: needs Adam's OK).
+-- The names-per-board cap, made atomic (red-team 24 Sept 2026; applied 24 Sept 2026 with Adam's OK as migration "names_cap").
 -- submit-score counts a client's names on a board before its replay and inserts after it, so posts
 -- sent together all saw the old count: ten at once (the per-minute limit) put ten names on a board,
 -- not three. This trigger counts again inside the insert, under a lock per client, so the cap holds

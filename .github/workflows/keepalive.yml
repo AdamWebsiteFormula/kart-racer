@@ -1,0 +1,33 @@
+# Keeps the free Supabase project awake: it pauses after about a week with no activity, and then
+# the leaderboard is offline. Twice a week this reads one board through the public RPC (the same
+# read the game makes), which counts as activity. Read-only: it never writes a score.
+name: Keep the leaderboard awake
+
+on:
+  schedule:
+    - cron: '23 14 * * 1,4' # Mondays and Thursdays, 14:23 UTC: never more than 4 days apart
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: src/backend-leaderboard/config.ts
+          sparse-checkout-cone-mode: false
+      - name: Read one leaderboard
+        run: |
+          # the project URL and the public (anon) key, from the game's own config: one source of truth
+          url=$(grep -oE 'https://[a-z0-9]+\.supabase\.co' src/backend-leaderboard/config.ts | head -1)
+          key=$(grep -oE '(eyJ[A-Za-z0-9._-]+|sb_publishable_[A-Za-z0-9_-]+)' src/backend-leaderboard/config.ts | head -1)
+          test -n "$url" && test -n "$key"
+          code=$(curl -s -o /tmp/board.json -w '%{http_code}' -X POST "$url/rest/v1/rpc/get_leaderboard" \
+            -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' \
+            -d '{"p_track_id":"harbour-loop","p_mode":"timeTrial","p_daily_seed":null,"p_limit":1}')
+          echo "get_leaderboard answered $code"
+          test "$code" = 200
