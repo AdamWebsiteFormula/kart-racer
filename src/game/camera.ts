@@ -105,8 +105,13 @@ export const CAM = Object.freeze({
   fovMax: 80,
   /** metres from the lens within which an item dissolves (glow.ts fadeNearCamera): all karts share the item meshes, so what yours trails must stay farther (camera.test.ts) */
   nearFade: 2.8,
-  /** the same for a rival's kart: one between you and the lens dissolves, one alongside you does not (camera.test.ts); yours never does */
-  kartFade: 4,
+  /**
+   * the same for a rival's kart, only as it is about to cut into the lens: Mario Kart World keeps rivals solid near the
+   * camera, beside you and right behind you too (Adam, 25 Sept 2026, "only what is backed by research"; checked in
+   * MKW footage: KkZV6Lp5Z5o 1:24 and 4:56, ngiIINHSiJc 3:25-3:27 and 5:29). Nintendo fades only what reaches the near
+   * clip plane (Super Mario Odyssey), so a kart's insides never show. Yours never fades.
+   */
+  kartFade: 1.3,
   /** riding a Strike Ball (2.6 m across, taller than the lens): the camera rises and backs off by these metres so the road ahead shows over the ball; 1/s, how fast it eases in and out */
   rideUp: 1.8, rideBack: 3, rideEase: 3,
   /** metres the camera keeps inside a wall's line (the mine's bore, Skyline's parapet): behind a kart on the outside of a bend it would sit in the rock */

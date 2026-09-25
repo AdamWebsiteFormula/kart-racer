@@ -30,14 +30,14 @@ describe('a rival near the lens turns to a see-through ghost (no dither)', () =>
     expect(ghostAlpha(CAM.kartFade)).toBe(1);
     expect(ghostAlpha(CAM.kartFade + 5)).toBe(1);
     let last = 0;
-    for (let d = 0; d <= CAM.kartFade + 1; d += 0.05) {
+    for (let d = 0; d <= CAM.kartFade + 1; d += 0.01) {
       const a = ghostAlpha(d);
       expect(a).toBeGreaterThanOrEqual(last); // monotonic
       expect(a - last).toBeLessThan(0.06); // no jump
       last = a;
     }
-    // a rival tucked in between you and the lens (its near end ~3 m off) lets you see through it
-    expect(ghostAlpha(3)).toBeLessThan(0.55);
+    // a rival tucked in between you and the lens (its near end ~3 m off) stays solid, as in Mario Kart World
+    expect(ghostAlpha(3)).toBe(1);
   });
 
   it('measures to the kart\'s box, not its origin', () => {
@@ -61,8 +61,8 @@ describe('a rival near the lens turns to a see-through ghost (no dither)', () =>
     // the flames fade with it: they share its opacity
     const fu = (flames.mesh!.material as ShaderMaterial).uniforms;
     expect(fu.uFade.value).toBe(CAM.kartFade);
-    fader.update(cameraBehind(2));
-    expect(fu.uKart.value).toBeCloseTo(ghostAlpha(2), 5);
+    fader.update(cameraBehind(0.9));
+    expect(fu.uKart.value).toBeCloseTo(ghostAlpha(0.9), 5);
     fader.update(cameraBehind(12));
     expect(fu.uKart.value).toBe(1);
     for (const m of meshes) {
@@ -81,7 +81,7 @@ describe('a rival near the lens turns to a see-through ghost (no dither)', () =>
     fader.update(cameraBehind(12));
     meshes.forEach((m, i) => expect(m.material).toBe(solids[i]));
     // near: ghost
-    fader.update(cameraBehind(2));
+    fader.update(cameraBehind(0.9));
     for (const m of meshes) {
       expect((m.material as Material).visible).toBe(false);
       for (const c of m.children) if (c.name.startsWith('ghost')) expect(c.visible).toBe(true);
@@ -93,12 +93,12 @@ describe('a rival near the lens turns to a see-through ghost (no dither)', () =>
     const alpha = g.uniforms.uGhost.value as number;
     expect(alpha).toBeGreaterThan(0);
     expect(alpha).toBeLessThan(1);
-    expect(alpha).toBeCloseTo(ghostAlpha(2), 5);
+    expect(alpha).toBeCloseTo(ghostAlpha(0.9), 5);
     expect((ghost.material as Material).customProgramCacheKey()).toContain('|ghost');
     const depth = meshes[0].children.find((c) => c.name === 'ghost-depth') as Mesh;
     expect(compiled(depth.material as Material).fragmentShader).toContain(`if (uGhost < ${GHOST.depthBelow.toFixed(2)}) discard;`);
     // nearer still: fainter
-    fader.update(cameraBehind(1.2));
+    fader.update(cameraBehind(0.8));
     expect(g.uniforms.uGhost.value as number).toBeLessThan(alpha);
     // and back out: whole again
     fader.update(cameraBehind(8));
@@ -114,11 +114,11 @@ describe('a rival near the lens turns to a see-through ghost (no dither)', () =>
     kart.updateMatrixWorld(true);
     fader.add(kart);
     const body = kart.children[0] as Mesh, solid = body.material;
-    scene.onBeforeRender({} as WebGLRenderer, scene, cameraBehind(1.5), null as never, null as never, null as never);
+    scene.onBeforeRender({} as WebGLRenderer, scene, cameraBehind(0.9), null as never, null as never, null as never);
     expect(body.material).not.toBe(solid);
     fader.dispose();
     expect(body.material).toBe(solid);
-    scene.onBeforeRender({} as WebGLRenderer, scene, cameraBehind(1.5), null as never, null as never, null as never);
+    scene.onBeforeRender({} as WebGLRenderer, scene, cameraBehind(0.9), null as never, null as never, null as never);
     expect(body.material).toBe(solid); // a finished race's karts are left alone
   });
 
@@ -126,10 +126,10 @@ describe('a rival near the lens turns to a see-through ghost (no dither)', () =>
     const scene = new Scene();
     const fader = new KartFader(scene);
     const near = buildKartMesh(0xff0000, 0x00ff00), farther = buildKartMesh(0x0000ff, 0x00ff00), far = buildKartMesh(0xffff00, 0x00ff00);
-    farther.position.z = 1; // 1 m further from a camera behind them
+    farther.position.z = 0.25; // 0.25 m further from a camera behind them (both inside the fade)
     far.position.z = 20;
     for (const k of [near, farther, far]) { scene.add(k); k.updateMatrixWorld(true); fader.add(k); }
-    fader.update(cameraBehind(1.8));
+    fader.update(cameraBehind(1.0));
     expect(far.renderOrder).toBe(0);
     expect(farther.renderOrder).toBeGreaterThanOrEqual(GHOST.order);
     expect(near.renderOrder).toBeGreaterThan(farther.renderOrder); // back to front
@@ -148,7 +148,7 @@ describe('a rival near the lens turns to a see-through ghost (no dither)', () =>
     const fader = new KartFader(new Scene());
     fader.add(m);
     m.updateMatrixWorld(true);
-    fader.update(cameraBehind(1.5));
+    fader.update(cameraBehind(0.9));
     m.morphTargetInfluences![0] = 0.7;
     for (const c of m.children as Mesh[]) expect(c.morphTargetInfluences?.[0]).toBe(0.7);
     fader.dispose();

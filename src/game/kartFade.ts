@@ -1,6 +1,7 @@
-// A rival's kart near the lens (tucked in between you and the camera, or passing close by) turns
-// into a see-through ghost instead of filling the screen and hiding you: a proper alpha fade, not
-// the old screen-door dither (critique of 24 Sept 2026: "a coarse stipple that reads as cheap").
+// A rival's kart about to cut into the lens turns into a see-through ghost for that moment, so its
+// insides never show: a proper alpha fade, not the old screen-door dither (critique of 24 Sept 2026:
+// "a coarse stipple that reads as cheap"). Only that close (CAM.kartFade): Mario Kart World keeps rivals
+// solid near the camera, beside you and right behind you (25 Sept 2026, checked in its footage).
 //
 // How, with no cost while a kart is far (nearly always): every rival mesh gets two hidden children
 // sharing its geometry (and its morph targets, so the driver still leans and the wheels still
@@ -19,7 +20,7 @@ import { CAM } from './camera.ts';
 
 export const GHOST = Object.freeze({
   /** a rival is gone with its nearest point this close to the lens (metres); whole from CAM.kartFade out */
-  near: 0.8,
+  near: 0.45,
   /** below this opacity even the depth copy draws nothing (the kart is all but gone) */
   depthBelow: 0.02,
   /** ghost karts' group order: after everything else in the see-through pass (particles are 10), the farthest first */

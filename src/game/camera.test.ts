@@ -172,8 +172,8 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
     };
     const side = 2 * BASE.kartRadius; // two karts touching
     for (const speed of [0, CAM.topSpeed]) {
-      // tucked in behind you, in the camera's line of sight to your kart: well inside the fade
-      expect(nearestKart(speed, 0, -KART_FIT.length - 0.3)).toBeLessThan(CAM.kartFade * 0.75);
+      // tucked in right behind you, in the camera's line of sight to your kart: solid, as Mario Kart World keeps it
+      expect(nearestKart(speed, 0, -KART_FIT.length - 0.3)).toBeGreaterThan(CAM.kartFade);
       // door to door with you: seen whole
       expect(nearestKart(speed, side, 0)).toBeGreaterThan(CAM.kartFade);
       // half a length back beside you: at most its nearest corner thins (the dither drops under a third there)
