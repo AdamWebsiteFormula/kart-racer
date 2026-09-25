@@ -134,6 +134,25 @@ describe('the word filter after the red-team (2026-09-24)', () => {
   });
 });
 
+describe('the word filter, red-team 3 (24 Sept 2026): a G-rated board', () => {
+  it('reads stretched spellings as the word, and refuses the everyday words it missed', () => {
+    for (const name of [
+      'Fuuuck', 'FUUUCK', 'Fuckkk', 'Shiiit', 'Shittt', 'Biiitch', 'Cuuunnt', 'Whoooore', 'Diiick', 'Nazii', 'Niiigger', 'Hittler', 'Puuussy', 'Twaaat',
+      'Fuk', 'Fukk', 'Phuk', 'Fcuk', 'Fck', 'Btch', 'Biatch', 'Asshole', 'A55hole', 'Arsehole', 'Bastard', 'Kunt', 'Ass', 'BadAss', 'Kick Ass', 'Sexy', 'SexyBeast',
+      'Boobs', 'Tits', 'Milf', 'PornStar', 'Dildo', 'Jizz', 'Bollocks', 'Cum', 'Anal', 'Wtf', 'Stfu',
+    ]) expect(cleanName(name), name).toBe(false);
+  });
+  it('and still passes the names those letters sit in, doubled letters and all', () => {
+    for (const name of [
+      'Nigel', 'Bob', 'Bobby', 'Boo', 'Booker', 'Hooper', 'Cooper', 'Poppy', 'Otto', 'Hannah', 'Kitty', 'Class', 'Bass', 'Grass', 'Assassin', 'Cassidy', 'Essex', 'Sussex',
+      'Cummings', 'Scum', 'Janus', 'Uranus', 'Analyst', 'Titan', 'Titus', 'Arsenal', 'Shiitake', 'Fukuda', 'Fluke', 'Buck', 'Kunta', 'Hommie', 'Coco', 'Cocco', 'Mississippi',
+    ]) {
+      expect(cleanName(name), name).toBe(true);
+      expect(checkSubmission({ name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 90_000, racerId: 'pip', inputLog: 'AQ==', clientVersion: CLIENT_VERSION }, IDS), name).toBeNull();
+    }
+  });
+});
+
 describe('re-simulation (SOP gate)', () => {
   const run = clientRun('harbour-loop', 'timeTrial', 'momo', 0);
   const log = encodeLog(run.log);

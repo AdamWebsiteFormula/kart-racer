@@ -11,8 +11,15 @@ vi.mock('../../supabase/functions/submit-score/core.js', async () => ({
   verifyRun: () => ({ ok: true, timeMs: replayMs, lapTimesMs: [1, 2, 3], canonicalLog: `log${replayMs}` }),
 }));
 
-interface Row { id: string; name: string; racer_id: string; time_ms: number; created_at: number }
+interface Row { id: string; name: string; racer_id: string; time_ms: number; created_at: number; ip_hash?: string; track_id?: string; mode?: string; daily_seed?: number | null }
 const db: Row[] = [];
+/** calls to take_submit_slot (each spends one of the client's per-minute slots) */
+let slots = 0;
+/** the database's own names-per-board count (trigger scores_names_cap, migration 20260925000001) */
+let dbNamesCap = false;
+/** holds each names query until this many wait together: posts overlapping as they do over a real network */
+let overlap = 0;
+const waiting: (() => void)[] = [];
 
 /** get_leaderboard: distinct on (name) by time then age, then fastest first. */
 function board(limit: number): Row[] {
@@ -27,8 +34,9 @@ beforeAll(async () => {
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
     const path = String(url).replace('http://db/rest/v1/', '');
     const body = init?.body ? JSON.parse(String(init.body)) : {};
-    if (path.startsWith('rpc/take_submit_slot')) return new Response('true');
+    if (path.startsWith('rpc/take_submit_slot')) { slots++; return new Response('true'); }
     if (path.startsWith('scores') && init?.method !== 'POST') {
+      if (overlap) await new Promise<void>((go) => { waiting.push(go); if (waiting.length >= overlap) for (const f of waiting.splice(0)) f(); });
       // this client's rows on this board (the names-per-board check)
       const q = new URLSearchParams(path.slice(path.indexOf('?') + 1));
       const eq = (k: string) => q.get(k)?.replace(/^eq\./, '');
@@ -36,6 +44,9 @@ beforeAll(async () => {
       return new Response(JSON.stringify(mine.map((r) => ({ name: r.name }))));
     }
     if (path.startsWith('scores')) {
+      // the trigger counts inside the insert, under a lock per client: here, with no await in between
+      const others = new Set(db.filter((r) => r.ip_hash === body.ip_hash && r.track_id === body.track_id && r.mode === body.mode && (r.daily_seed ?? null) === (body.daily_seed ?? null) && r.name !== body.name).map((r) => r.name));
+      if (dbNamesCap && others.size >= 3) return new Response(JSON.stringify({ code: 'P0001', details: null, hint: null, message: 'names per board' }), { status: 400 });
       const row = { ...body, id: `id${db.length + 1}`, created_at: db.length };
       db.push(row);
       return new Response(JSON.stringify([{ id: row.id, time_ms: row.time_ms }]), { status: 201 });
@@ -148,5 +159,69 @@ describe('client: the 12 s timeout covers the body too (audit 24 Sept 2026)', ()
       await vi.advanceTimersByTimeAsync(12_001);
       expect(await got).toEqual({ ok: false, error: 'Could not reach the leaderboard. Check your connection.' });
     } finally { vi.useRealTimers(); }
+  });
+});
+
+describe('submit-score: red-team 3 (24 Sept 2026; live once the function is redeployed and migration 20260925000001 applied)', () => {
+  const pages = ['https://adamwebsiteformula.github.io', 'http://localhost:5199', 'http://127.0.0.1:4173'];
+  const strangers = ['https://evil.example', 'null', 'https://adamwebsiteformula.github.io.evil.example', 'http://localhost.evil.example', 'https://otheruser.github.io'];
+
+  it('answers the game\'s own pages and refuses any other page before it spends a rate-limit slot', async () => {
+    for (const o of pages) {
+      const pre = await handler(new Request('http://fn', { method: 'OPTIONS', headers: { origin: o } }));
+      expect(pre.status, o).toBe(200);
+      expect(pre.headers.get('access-control-allow-origin'), o).toBe(o);
+      expect(pre.headers.get('vary'), o).toMatch(/Origin/);
+    }
+    const before = slots;
+    for (const o of strangers) {
+      const pre = await handler(new Request('http://fn', { method: 'OPTIONS', headers: { origin: o } }));
+      expect(pre.status, o).toBe(403);
+      expect(pre.headers.get('access-control-allow-origin'), o).toBeNull();
+      expect((await handler(new Request('http://fn', { method: 'POST', headers: { origin: o }, body: '{}' }))).status, o).toBe(403);
+    }
+    expect(slots).toBe(before);
+    // a script sends no Origin: no visitor's browser is borrowed, so it goes on to the checks and the limits
+    expect((await handler(new Request('http://fn', { method: 'POST', body: '{}' }))).status).toBe(400);
+    expect((await handler(new Request('http://fn', { method: 'POST', headers: { origin: pages[0] }, body: '{}' }))).status).toBe(400);
+    expect(slots).toBe(before + 2);
+  });
+
+  it('a body that trickles in is cut off after 15 s (408) instead of holding the worker', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      // the start of a body, then nothing: the connection stays open
+      const body = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new TextEncoder().encode('{"name":"Sl')); } });
+      let done: Response | null = null;
+      void handler(new Request('http://fn', { method: 'POST', body, duplex: 'half' } as RequestInit)).then((r) => { done = r; });
+      // let the real async steps (the hash, the slot) run between ticks of the fake clock
+      // (setImmediate is Node's and not faked: a real turn of the event loop)
+      const turn = () => new Promise<void>((r) => (globalThis as unknown as { setImmediate(f: () => void): void }).setImmediate(r));
+      for (let i = 0; i < 60 && !done; i++) { await turn(); await vi.advanceTimersByTimeAsync(1000); }
+      expect((done as Response | null)?.status).toBe(408);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('posts sent together keep to 3 names a board: the database counts again inside the insert', async () => {
+    const post = (ip: string, name: string) => handler(new Request('http://fn', {
+      method: 'POST', headers: { 'cf-connecting-ip': ip },
+      body: JSON.stringify({ name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 101000, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION }),
+    })).then(async (r) => ({ status: r.status, ...(await r.json()) as { error?: string } }));
+    replayMs = 101000;
+    overlap = 6;
+    // the function's own count alone: six posts at once all see no names yet, and all six get on (the bug)
+    dbNamesCap = false;
+    const loose = await Promise.all(['A1', 'A2', 'A3', 'A4', 'A5', 'A6'].map((n) => post('198.51.100.7', n)));
+    expect(loose.filter((r) => r.status === 201).length).toBe(6);
+    // with the trigger: three get on, the rest read the same line as the early count
+    dbNamesCap = true;
+    const names = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6'];
+    const held = await Promise.all(names.map((n) => post('198.51.100.8', n)));
+    expect(held.filter((r) => r.status === 201).length).toBe(3);
+    expect(held.filter((r) => r.status !== 201)).toEqual(Array(3).fill({ status: 400, error: 'you already post under 3 names on this board' }));
+    overlap = 0;
+    // a name the client already holds still posts
+    expect((await post('198.51.100.8', names[held.findIndex((r) => r.status === 201)])).status).toBe(201);
+    dbNamesCap = false;
   });
 });
