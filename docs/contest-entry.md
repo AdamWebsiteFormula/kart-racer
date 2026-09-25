@@ -21,7 +21,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 | Sound | 102 sound effects and 7 instrumental songs |
 | Sim | Fixed 120 Hz, deterministic, bit-identical across chips and JavaScript engines |
 | Leaderboard | Global; the server replays every run and stores its own time |
-| Speed | 60 fps measured; title on screen in 0.8 s on fast 4G; 423 KB of gzipped code |
+| Speed | 60 fps measured; title on screen in under 1 s on fast 4G; 446 KB of gzipped code |
 | Tests | 1,462 automated, run before every deploy |
 
 ## How to play
@@ -156,7 +156,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 - No shader hitches: every shader compiles in a warm-up hidden behind the intro's title card, before the countdown.
 - 69 to 86 draw calls mid-race with 8 karts (measured on all six tracks), one shadow map; a test holds every track's draw and triangle budget.
 - An Auto quality governor steps resolution, then shadows and effects, down on a machine that falls under 55 fps, at a calm moment and without flip-flopping.
-- Loading, cold cache on fast 4G: first paint in 0.40 s, the title in 0.82 s, a race from pick to countdown in 0.18 s. The code is 423 KB gzipped.
+- Loading the live site, cold cache on fast 4G (25 Sept 2026): first paint in 0.5 s, the title in 0.94 to 0.98 s. A race loads behind its course intro, which flies over the track and can be skipped. The code is 446 KB gzipped.
 
 ### Accessibility and reach
 - Reduce motion (follows the system, or on or off): the intro holds still shots, the finish drops its slow motion and swoops, and the camera moves less.

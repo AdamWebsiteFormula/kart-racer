@@ -44,7 +44,7 @@ Time Trial and the Daily post to a global leaderboard.
 - **Race day, not just a race.** A camera fly-through of each course before the countdown, far vistas with a landmark ahead of every start line, birds and fireworks overhead, over a hundred cheering critter spectators per track, karts that lean, bounce and squash, a slow-motion finish with your racer's reaction, and a podium ceremony after every Grand Prix and Knockout final.
 - **102 sound effects and 7 instrumental songs**, checked by AI listening models and mixed by measurement.
 - **A leaderboard you can trust.** The 120 Hz sim is deterministic and bit-identical across chips and JavaScript engines, so the server replays every posted run with the real game code and stores its own time. Hardened by three red-team passes: a strict Content-Security-Policy, an origin allowlist, rate limits and a name filter.
-- **Fast.** Full races held a locked 60 fps on an M4 Pro (16.7 ms frames, none over 20 ms, even with the CPU slowed 4×). The title is up in 0.8 s on fast 4G; the game's code is 423 KB gzipped.
+- **Fast.** Full races held a locked 60 fps on an M4 Pro (16.7 ms frames, none over 20 ms, even with the CPU slowed 4×). The live site shows the title in under 1 s on fast 4G; the game's code is 446 KB gzipped.
 - **Accessible.** Reduce motion (follows your system), item letters so items never rely on color, screen-reader labels, and full keyboard and gamepad menus.
 - **1,462 automated tests**, run with the type check, build and bundle gate before every deploy.
 
