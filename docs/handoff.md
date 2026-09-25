@@ -4,7 +4,7 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 
 ## Where the game stands
 - Live: https://adamwebsiteformula.github.io/kart-racer/ (GitHub Pages; CI runs `npm run verify`, then publishes main).
-- 1460 tests, verify green (verify also runs the frame budget and the bundle gate).
+- 1462 tests, verify green (verify also runs the frame budget and the bundle gate).
 - Done this month: four AI bug hunts (68 bugs fixed), a seam review, and a 35-point detail review. The review covered:
   - camera: 5.5 m back, 2.4 m up, fov 60-66, and rival karts fade near the lens.
   - effects: start lamps count red, red, red, then green.

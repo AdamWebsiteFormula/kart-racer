@@ -46,7 +46,7 @@ Time Trial and the Daily post to a global leaderboard.
 - **A leaderboard you can trust.** The 120 Hz sim is deterministic and bit-identical across chips and JavaScript engines, so the server replays every posted run with the real game code and stores its own time. Hardened by three red-team passes: a strict Content-Security-Policy, an origin allowlist, rate limits and a name filter.
 - **Fast.** Full races held a locked 60 fps on an M4 Pro (16.7 ms frames, none over 20 ms, even with the CPU slowed 4×). The title is up in 0.8 s on fast 4G; the game's code is 423 KB gzipped.
 - **Accessible.** Reduce motion (follows your system), item letters so items never rely on color, screen-reader labels, and full keyboard and gamepad menus.
-- **1,460 automated tests**, run with the type check, build and bundle gate before every deploy.
+- **1,462 automated tests**, run with the type check, build and bundle gate before every deploy.
 
 <p>
   <img src="docs/img/harbor-start.jpg" width="49%" alt="Harbor Loop: GO! as the pack leaves the grid, a smoking volcano island ahead">
@@ -77,7 +77,7 @@ Every system has its own SOP and headless tests, built on seven shared data sche
 ```bash
 npm install
 npm run dev       # then open http://localhost:5173/
-npm run verify    # type check, 1,460 tests, build and bundle gate
+npm run verify    # type check, 1,462 tests, build and bundle gate
 ```
 
 Add `?mute` to the address for a silent game. Credits and licenses are in [CREDITS.md](CREDITS.md).
