@@ -124,6 +124,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-25: MP3 edits go through libsndfile's LAME (python soundfile), which leaves 0.3 dB of headroom: a 1 kHz sine comes back 0.27 dB down. So measure it and undo it. At 128 kbps CBR, and 139–161 kbps VBR, the file keeps its exact length. At 160 kbps CBR it gains 576 samples.
 - 2026-09-25: Spend today: Gemini $0.62 by the ledger (41 requests; $0.93 over both days); ElevenLabs 294 credits.
 - 2026-09-25: The other 16 sounds that scored 4 or less on both scales have new takes staged for the judge's compare, none installed: strike, mouse, honk, whaleSong, tailSlap, boost3, boostStart, trick, tierUp, tierUp2, land, wall, horn:momo, horn:nova, yelp:gus and engine-high. There are 57 takes, made for 696 ElevenLabs credits, and the local ears (CLAP, AST, Qwen) heard every one. `judge.mjs --briefs` judges a remake's takes against the prompt they were made from. No `land` take is usable: all six came back 22–35 dB under full scale. A sea lion's "honk" brought car horns, and "wind-up" and "clockwork" brought ratchets. The new engine-high loops hold one pitch: their spread is under 2 cents, where the shipped loop wanders 29.
+- 2026-09-25: Adam keeps the title song's "Hey!" shout at 13.5-14.2 s (a voice, not singing): no bar splice, the loop keeps its one drum-and-bass break. The rule stays "no singing in any song"; a short shout that costs music to remove is left in.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
