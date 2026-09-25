@@ -4,6 +4,7 @@ import { BASE } from '../kart-controller/constants.ts';
 import type { BoostSource, KartEvent } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
+import { SHOW } from '../track-builder/shiftShow.ts';
 
 /** A boost's kind as the camera feels it: the three mini-turbo tiers (blue, orange, purple) and the other sources. */
 export type PunchKind = 'mini' | 'super' | 'ultra' | 'trick' | 'pad' | 'item' | 'start' | 'slipstream';
@@ -107,11 +108,22 @@ const PUNCH_TOP = Math.max(...Object.values(JUICE.punch).map((p) => p.fov));
 export class CameraKick {
   private boostAt = -Infinity;
   private hitAt = -Infinity;
+  private pulseAt = -Infinity;
   private punch: Punch = JUICE.punch.pad;
   /** A boost of kind `kind` fired at time `t` (seconds). */
   boost(t: number, kind: PunchKind = 'pad'): void { this.boostAt = t; this.punch = JUICE.punch[kind]; }
   hit(t: number): void { this.hitAt = t; }
-  reset(): void { this.boostAt = -Infinity; this.hitAt = -Infinity; }
+  /** The Final Lap Shift fired at time `t`: the view widens a little and eases back (none with reduced motion). */
+  pulse(t: number): void { this.pulseAt = t; }
+  reset(): void { this.boostAt = -Infinity; this.hitAt = -Infinity; this.pulseAt = -Infinity; }
+  /** 0..1: the shift's pulse at time `t` (up over SHOW.pulse.in, eased back over SHOW.pulse.out). */
+  private pulseEnv(t: number): number {
+    const b = t - this.pulseAt, P = SHOW.pulse;
+    if (b < 0 || b >= P.in + P.out) return 0;
+    if (b < P.in) { const k = b / P.in; return k * k * (3 - 2 * k); }
+    const k = (b - P.in) / P.out;
+    return 1 - k * k * (3 - 2 * k);
+  }
   /** 0..1: the last punch's envelope at time `t`, up over fovBoostIn, eased back over fovBoostOut. */
   private envelope(t: number): number {
     const b = t - this.boostAt;
@@ -126,12 +138,12 @@ export class CameraKick {
     let f = this.punch.fov * this.envelope(t);
     const h = t - this.hitAt;
     if (h >= 0 && h < JUICE.fovHitSeconds) f += JUICE.fovHit * (1 - h / JUICE.fovHitSeconds);
-    return reduced ? f * JUICE.reducedKick : f;
+    return reduced ? f * JUICE.reducedKick : f + SHOW.pulse.fov * this.pulseEnv(t);
   }
   /** Metres the camera falls back behind the kart at time `t` (the punch's pull-back). */
   back(t: number, reduced = false): number {
     const b = this.punch.back * this.envelope(t);
-    return reduced ? b * JUICE.reducedKick : b;
+    return reduced ? b * JUICE.reducedKick : b + SHOW.pulse.back * this.pulseEnv(t);
   }
   /** 0..1: how hard the punch is at time `t` against the strongest there is (speed lines and the lens streaks scale by it). */
   level(t: number): number { return (this.punch.fov / PUNCH_TOP) * this.envelope(t); }
@@ -191,10 +203,12 @@ export interface Effects {
   kickHit: boolean;
   hitStop: boolean;
   slowMo: boolean;
+  /** the Final Lap Shift fired this tick: the camera's pulse (and its shake, in `trauma`) */
+  shiftPulse: boolean;
 }
 
 export function newEffects(): Effects {
-  return { bursts: [], quakes: [], sparks: [], boosts: [], trauma: 0, kickBoost: null, kickHit: false, hitStop: false, slowMo: false };
+  return { bursts: [], quakes: [], sparks: [], boosts: [], trauma: 0, kickBoost: null, kickHit: false, hitStop: false, slowMo: false, shiftPulse: false };
 }
 
 /** The player's boost of kind `kind` fired: its punch and its shake (once a tick, whatever reported it). */
@@ -237,7 +251,7 @@ const ALWAYS = (): boolean => true;
  */
 export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[], me: string | null, out: Effects = newEffects(), confettiFor: (rank: number) => boolean = ALWAYS): Effects {
   out.bursts.length = 0; out.quakes.length = 0; out.sparks.length = 0; out.boosts.length = 0;
-  out.trauma = 0; out.kickBoost = null; out.kickHit = false; out.hitStop = false; out.slowMo = false;
+  out.trauma = 0; out.kickBoost = null; out.kickHit = false; out.hitStop = false; out.slowMo = false; out.shiftPulse = false;
   for (const e of race) {
     switch (e.type) {
       case 'kart': kart(out, e.racerId, e.event, me); break;
@@ -250,6 +264,9 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
       case 'finish':
         if (e.racerId === me) { if (!e.dnf && confettiFor(e.rank)) out.bursts.push({ kind: 'confetti', racerId: e.racerId }); if (!e.dnf) out.slowMo = true; }
         break;
+      // the Final Lap Shift: the world changes for everyone at once; the camera widens and shakes once
+      // (the set piece itself is the scene's: track-builder mesh/shiftStage.ts)
+      case 'trackChanged': out.shiftPulse = true; out.trauma += SHOW.pulse.trauma; break;
       // a bumper car's shove and a rockfall raise no kart event (a spin does, as a 'hit'): they
       // jolt the player like a wall
       case 'hazardHit':

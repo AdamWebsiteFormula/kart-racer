@@ -178,3 +178,28 @@ describe('pickup pops know whose they are', () => {
     expect(fx.bursts.map((b) => `${b.kind}:${b.mine}`)).toEqual(['balloon:true', 'balloon:false', 'coin:true', 'coin:false']);
   });
 });
+
+describe('the Final Lap Shift pulse', () => {
+  const shift = { type: 'trackChanged', event: { kind: 'storm', label: 'STORM', length: 1000, changedRanges: [] } } as unknown as RaceEvent;
+  it("the world changes for everyone: the camera widens a little, eases back and shakes once, on the shift's tick", () => {
+    const fx = directFx([shift], [], null);
+    expect(fx.shiftPulse).toBe(true);
+    expect(fx.trauma).toBeGreaterThan(0);
+    expect(directFx([], [], null).shiftPulse).toBe(false);
+    const k = new CameraKick();
+    k.pulse(10);
+    expect(k.fov(9.99)).toBe(0);
+    let peak = 0;
+    for (let t = 10; t < 11.5; t += 0.01) peak = Math.max(peak, k.fov(t));
+    expect(peak).toBeGreaterThan(3);
+    expect(peak).toBeLessThanOrEqual(6);
+    expect(k.fov(11.5)).toBe(0);
+    // not a boost: the speed lines and the lens stay out of it
+    expect(k.level(10.3)).toBe(0);
+  });
+  it('reduced motion: no pulse at all (and the shake is off, as every shake is)', () => {
+    const k = new CameraKick();
+    k.pulse(0);
+    for (let t = 0; t < 1.5; t += 0.05) { expect(k.fov(t, true)).toBe(0); expect(k.back(t, true)).toBe(0); }
+  });
+});

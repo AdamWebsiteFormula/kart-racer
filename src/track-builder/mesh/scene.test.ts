@@ -192,12 +192,20 @@ describe('decor and barriers', () => {
     s.dispose();
   });
 
-  it('a closed shortcut has its chunks hidden after the shift', () => {
+  it('a shortcut the shift closes stays drawn under its set piece (the tide floods the beach road); one the new route covers is hidden', () => {
     const t = buildTrack(HARBOUR_WALLED); // the tide closes the beach
     const s = buildTrackScene(t);
-    t.applyFinalLapShift();
     const beach = t.branches.byId('beach')!;
-    for (const c of s.chunks) expect(c.mesh.visible).toBe(c.branch !== beach.index);
+    expect(s.stage?.keepsBranches.has(beach.index)).toBe(true);
+    t.applyFinalLapShift();
+    for (const c of s.chunks) expect(c.mesh.visible).toBe(true);
+    // Canyon's mine: the main road is laid through it, so its own chunks go
+    const ct = buildTrack(canyonJson as unknown as TrackDefinition), cs = buildTrackScene(ct);
+    const mine = ct.branches.byId('mine-tunnel')!;
+    expect(cs.stage?.keepsBranches.has(mine.index)).toBe(false);
+    ct.applyFinalLapShift();
+    for (const c of cs.chunks) expect(c.mesh.visible, c.mesh.name).toBe(c.branch !== mine.index);
+    s.dispose(); cs.dispose();
   });
 
   const grounded = (Object.values(import.meta.glob('../tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[]).filter((d) => d.environment?.ground?.kind !== 'none');
@@ -279,7 +287,9 @@ describe('Final Lap Shift swap and hazards', () => {
       if (c.branch === 0) expect(c.mesh.geometry).not.toBe(before[i]);
       else expect(c.mesh.geometry).toBe(before[i]);
     });
-    expect(scene.instancers.get('barriers')).not.toBe(barriersBefore);
+    // no posts along any road, before or after (the edge is the land, or a pier's or sky road's wall)
+    expect(barriersBefore?.count ?? 0).toBe(0);
+    expect(scene.instancers.get('barriers')?.count ?? 0).toBe(0);
     expect(scene.group.getObjectByName('ramps')!.userData.count).toBe(rampsBefore + 1);
     expect(scene.fog.density).toBe(0.01);
     expect(scene.drawables()).toBeLessThanOrEqual(BUILDER.trackDrawCallBudget);
@@ -425,4 +435,45 @@ describe('pickups after dark (detail review 2026-09-24: near-black balloons on B
     expect(glow.value).toBeLessThan(0.2);
     scene.dispose();
   });
+});
+
+describe('the Final Lap Shift built ahead (its rebuild was the race\'s one hitch left)', () => {
+  const skyJson = Object.values(import.meta.glob('../tracks/skyline-circuit.json', { eager: true, import: 'default' }))[0] as TrackDefinition;
+  it.each([['canyon-rush', canyonJson as unknown as TrackDefinition], ['skyline-circuit', skyJson], ['boardwalk-nights', boardwalkJson as unknown as TrackDefinition]] as const)(
+    '%s: the new road, balloons, coins, pads, ramps and edge are made at load and hidden; the shift swaps them in, the very road a rebuild would draw',
+    (_id, def) => {
+      const track = buildTrack(def);
+      const scene = buildTrackScene(track);
+      // made at load, hidden: the warm-up compiles and uploads them with the rest
+      const road = new Map<number, BufferGeometry>();
+      scene.group.traverse((o) => { const m = o as Mesh; if (m.isMesh && m.name.startsWith('shift-road-')) { expect(m.visible).toBe(false); road.set(Number(m.name.slice(11)), m.geometry); } });
+      const balloons = new Set<Mesh>();
+      scene.group.traverse((o) => { if (o.name === 'balloons') balloons.add(o as Mesh); });
+      expect(balloons.size).toBe(2); // the race's, and the shift's own (hidden)
+      const shifted = def.finalLapShift.routeOverrides?.length ? 8 : 0;
+      expect(road.size).toBe(shifted);
+      track.applyFinalLapShift();
+      // swapped in, not built on the tick
+      for (const c of scene.chunks) if (c.branch === 0 && shifted) expect(c.mesh.geometry).toBe(road.get(c.index));
+      const now = scene.instancers.get('balloons')!;
+      expect(balloons.has(now)).toBe(true);
+      expect(now.visible).toBe(true);
+      let named = 0;
+      scene.group.traverse((o) => { if (o.name.startsWith('shift-road-')) named++; });
+      expect(named).toBe(0);
+      // the very road a rebuild after the shift draws
+      const palette = paletteFor(track.def), main = track.branches.main;
+      for (const c of scene.chunks) {
+        if (c.branch !== 0 || !shifted) continue;
+        const fresh = buildRibbon(main.lut, c.u0, c.u1, palette, { offroad: main.lut.offroad });
+        const a = c.mesh.geometry.getAttribute('position').array, b = fresh.getAttribute('position').array;
+        expect(a.length).toBe(b.length);
+        let worst = 0;
+        for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i] - b[i]));
+        expect(worst).toBeLessThan(1e-4);
+        fresh.dispose();
+      }
+      scene.dispose();
+    },
+  );
 });

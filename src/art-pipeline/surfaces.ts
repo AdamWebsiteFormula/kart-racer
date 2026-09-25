@@ -6,6 +6,7 @@ import {
   Texture, UniformsLib, UniformsUtils, type Material,
 } from 'three';
 import { toonRamp } from './toon.ts';
+import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts';
 
 /** Seconds, advanced by the game loop; every water surface animates from it. */
 export const WATER_CLOCK = { value: 0 };
@@ -123,10 +124,61 @@ const SNOW_FRAG = `{
   float glint = step(0.986, snowHash(cell)) * (1.0 - smoothstep(0.04, 0.1, length(f))) * (1.0 - smoothstep(12.0, 40.0, view));
   totalEmissiveRadiance += vec3(0.85, 0.93, 1.0) * glint * 1.4;
 }`;
-/** Add the snow to a toon material's shader (it needs `transformed` and `totalEmissiveRadiance`). */
-function snowShader(shader: { vertexShader: string; fragmentShader: string }): void {
+/**
+ * Frostbite's lake along the crossing its Final Lap Shift opens (the stage sets it per race: track-builder
+ * mesh/shiftStage.ts frozenLake): painted on the snow, ground and land alike, no draw of its own. Open
+ * water with drifting floes until the shift, then ice spreading out from the crossing behind a bright
+ * front (reduced motion: faded in). Its shore keeps clear of every open road's course limit.
+ */
+export const FROST_LAKE: LakeHook = { path: { value: new Float32Array(4 * LAKE_POINTS) }, count: { value: 0 }, front: { value: -1 }, fade: { value: 0 } };
+
+const LAKE_PARS = `uniform vec4 uLake[${LAKE_POINTS}];
+uniform float uLakeN;
+uniform float uLakeFront;
+uniform float uLakeFade;
+uniform float uLakeClock;`;
+const LAKE_FRAG = `if (uLakeN > 1.5) {
+  vec2 w = vSnowW.xz;
+  float sd = 1e5, dm = 1e5;
+  for (int i = 0; i < ${LAKE_POINTS - 1}; i++) {
+    if (float(i) + 1.5 > uLakeN) break;
+    vec4 a = uLake[i], b = uLake[i + 1];
+    if (a.z <= 0.0 && b.z <= 0.0) continue;
+    vec2 ab = b.xy - a.xy;
+    float h = clamp(dot(w - a.xy, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0);
+    float d = length(w - a.xy - ab * h);
+    sd = min(sd, d - mix(a.z, b.z, h));
+    dm = min(dm, d);
+  }
+  // a ragged shore
+  sd += (snowNoise(w * 0.07) - 0.5) * 7.0 + (snowNoise(w * 0.21) - 0.5) * 2.0;
+  if (sd < 0.0) {
+    float ice = max(step(dm, uLakeFront), uLakeFade);
+    // open water, deep and dark out in the middle, with floes of old ice drifting on it
+    vec3 water = mix(vec3(0.17, 0.38, 0.5), vec3(0.05, 0.16, 0.28), smoothstep(0.0, 10.0, -sd));
+    vec2 fl = w * 0.11 + vec2(uLakeClock * 0.02, uLakeClock * 0.013);
+    float floe = smoothstep(0.6, 0.64, snowNoise(fl) * 0.7 + snowNoise(fl * 2.7) * 0.3);
+    water = mix(water, vec3(0.86, 0.93, 0.98), floe);
+    // ice: pale blue with white cracks
+    float cn = snowNoise(w * 0.16);
+    float crack = 1.0 - smoothstep(0.0, 0.05 + fwidth(cn) * 1.5, abs(cn - 0.5));
+    vec3 iceC = mix(vec3(0.74, 0.88, 0.98), vec3(0.6, 0.79, 0.95), snowNoise(w * 0.05));
+    iceC = mix(iceC, vec3(0.97, 0.99, 1.0), crack * 0.8);
+    float shore = smoothstep(-1.4, 0.0, sd);
+    diffuseColor.rgb = mix(mix(water, iceC, ice), vec3(0.95, 0.97, 1.0), shore * 0.6);
+    // the frost's front: a bright band racing out across the water
+    float band = uLakeFront > 0.0 && uLakeFade < 0.5 ? 1.0 - smoothstep(0.0, 2.4, abs(dm - uLakeFront)) : 0.0;
+    totalEmissiveRadiance += vec3(0.7, 0.85, 1.0) * band * 1.3 * (1.0 - shore);
+    // glints on the new ice
+    totalEmissiveRadiance += vec3(0.8, 0.9, 1.0) * ice * step(0.985, snowHash(floor(w * 1.7))) * 0.9;
+  }
+}`;
+
+/** Add the snow (and Frostbite's lake) to a toon material's shader (it needs `transformed` and `totalEmissiveRadiance`). */
+function snowShader(shader: { vertexShader: string; fragmentShader: string; uniforms?: Record<string, { value: unknown }> }): void {
+  if (shader.uniforms) Object.assign(shader.uniforms, { uLake: FROST_LAKE.path, uLakeN: FROST_LAKE.count, uLakeFront: FROST_LAKE.front, uLakeFade: FROST_LAKE.fade, uLakeClock: WATER_CLOCK });
   shader.vertexShader = `varying vec3 vSnowW;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSnowW = (modelMatrix * vec4(transformed, 1.0)).xyz;')}`;
-  shader.fragmentShader = `${SNOW_PARS}\n${shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${SNOW_FRAG}`)}`;
+  shader.fragmentShader = `${SNOW_PARS}\n${LAKE_PARS}\n${shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${SNOW_FRAG}\n${LAKE_FRAG}`)}`;
 }
 
 const groundCache = new Map<string, Material>();

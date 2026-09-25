@@ -39,6 +39,7 @@ import { Showroom } from './game/showroom.ts';
 import { CELEBRATE, FinishCam, joyful, reactionFor } from './game/celebrate.ts';
 import { Podium } from './game/podium.ts';
 import type { Crowd } from './art-pipeline/crowd.ts';
+import type { SfxId } from './audio/types.ts';
 import type { Reaction } from './kart-controller/anim.ts';
 import { medalFor } from './ui-hud/screens/menus.ts';
 import { CAST, UiRoot, attractTrack, browserBackend, introCard, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
@@ -694,6 +695,39 @@ function freeStaging(g: Group): void {
   });
 }
 
+/** How much brighter the lights go at a full lightning flash (Meadow Run's storm): sky, ambient, sun. */
+const SHIFT_FLASH = Object.freeze({ sky: 1.8, ambient: 2.4, sun: 0.5 });
+
+/**
+ * The Final Lap Shift's show beyond its set piece (track-builder mesh/shiftStage.ts): the blizzard's fog,
+ * lightning on the lights, its bursts of dust, sparks and fireworks, and its sounds (the game's own, under
+ * the shift's sting; heard only while the race screen is up).
+ */
+function showShift(s: RaceSession, audible: boolean, reduced: boolean): void {
+  const st = s.trackScene.stage;
+  if (!st) return;
+  const fog = scene.fog as Fog | null;
+  if (fog) { fog.near = st.fog.near; fog.far = st.fog.far; }
+  if (st.flash > 0) {
+    hemi.intensity *= 1 + SHIFT_FLASH.sky * st.flash;
+    fill.intensity *= 1 + SHIFT_FLASH.ambient * st.flash;
+    sun.intensity *= 1 + SHIFT_FLASH.sun * st.flash;
+  }
+  for (const b of st.bursts) vfx.shiftBurst(b.kind, b.at[0], b.at[1], b.at[2], b.size, b.hue, reduced);
+  if (!audible) return;
+  for (const c of st.cues) {
+    let gain = c.gain, pan = 0;
+    if (c.at) {
+      // heard from the set piece: fading out over its reach, panned by where it stands
+      const dx = c.at[0] - listener.position[0], dz = c.at[2] - listener.position[2];
+      gain *= Math.max(0, 1 - Math.hypot(dx, dz) / c.reach);
+      if (gain < 0.03) continue;
+      pan = 0.7 * Math.sin(Math.atan2(dx, dz) - listener.heading);
+    }
+    audio.sfx(c.sfx as SfxId, gain, pan);
+  }
+}
+
 /** Attract mode: a slow TV camera swinging around whoever leads. */
 function tvCamera(frameDt: number): void {
   const s = session!;
@@ -791,6 +825,7 @@ function step(now: number): void {
   cur.frame(acc.alpha, frameDt, reduced, intro ? intro.sceneTime(cur.state.time) : undefined);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap, attract ? 0 : chase.tunnel);
+  showShift(cur, racing && !ui.paused, reduced);
   if (post) { post.gradeTo = cur.skyLight.grade ?? DAY_GRADE; if (lightSnap) post.snapGrade(); }
   lightSnap = false;
   if (attract) tvCamera(frameDt); else if (intro) introCamera(reduced); else chaseCamera(frameDt, nowS, reduced);

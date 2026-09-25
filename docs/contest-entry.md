@@ -210,7 +210,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 ## Honest notes
 
 - The frame times were measured on an M4 Pro. On a mid-range laptop, the Auto governor trades resolution or effects to hold 60 fps; that estimate comes from measured ratios, not from a run on such a laptop.
-- One known hitch remains: with the CPU slowed 4×, Canyon Rush's Final Lap Shift rebuilds its scenery in about 75 ms.
+- The Final Lap Shift's new scenery is built during the race's warm-up and only swapped in on its tick; what is left on that tick is the sim's own route change: on Canyon Rush about 5.5 ms of script on the M4 Pro and about 20 ms with the CPU slowed 4× (it was about 75 ms).
 - The leaderboard checks physics, not people: a bot that drives well would pass. Any row can be hidden with one line of SQL.
 
 ## Skool post (paste as is)

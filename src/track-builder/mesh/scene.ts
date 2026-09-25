@@ -9,9 +9,11 @@ import {
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
-import type { Track } from '../track.ts';
+import { buildTrack, type Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
-import { buildBranchChunks, chunkTouched, rebuildChunk, type Chunk } from './chunks.ts';
+import { buildBranchChunks, chunkTouched, rebuildChunk, ribbonOptions, type Chunk } from './chunks.ts';
+import { buildRibbon, sampleRange } from './road.ts';
+import { buildShiftStage, type LakeHook, type ShiftStage } from './shiftStage.ts';
 import { hashString, mulberry32, Occupancy, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
 import { CreatureView } from './creatures.ts';
@@ -49,6 +51,8 @@ export interface TrackAssets {
   coast?: () => Material | undefined;
   /** the far vista (art-pipeline vista.ts): set-pieces in the distance and what moves there; built per scene, freed with it */
   vista?: (ctx: VistaContext) => VistaParts | null;
+  /** a lake painted on the snow that freezes at the Final Lap Shift (art-pipeline surfaces.ts; Frostbite): the stage sets it */
+  lake?: LakeHook;
 }
 
 /** What a far vista is laid out from: the track's middle and reach, its start, its ground and sun. */
@@ -106,6 +110,8 @@ export interface TrackScene {
   farLandmark?: [number, number, number];
   /** the far vista's parts (its sky life's controls), when the track has one */
   vista?: VistaParts;
+  /** the Final Lap Shift's set piece (mesh/shiftStage.ts), played from the shift's tick by the session; none once shifted */
+  stage?: ShiftStage;
   /** name → instancer; names: barriers, balloons, coins, boostPads, ramps, hazard:<asset>, decor:<asset> */
   instancers: Map<string, InstancedMesh>;
   fog: { color: Rgb; density: number };
@@ -616,8 +622,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   /** bitmask of open branches; when it changes (lap gating or a shift) visibility, barriers and features follow */
   const openMask = () => branches.list.reduce((m, b, i) => (b.open ? m | (1 << i) : m), 0);
   let lastOpen = openMask();
+  /** shortcuts the Final Lap Shift closes that stay drawn once it has (flooded, blocked: the stage says) */
+  let keeps: ReadonlySet<number> = new Set();
   const syncOpen = () => {
-    for (const c of chunks) if (c.branch !== 0) c.mesh.visible = branches.list[c.branch].open;
+    for (const c of chunks) if (c.branch !== 0) c.mesh.visible = branches.list[c.branch].open || (track.shifted && keeps.has(c.branch));
   };
   syncOpen();
 
@@ -716,14 +724,16 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const pickupGlow = { value: 0 };
   let glowTo = 0, glowNow = 0, glowTime = 0;
   let jumpMeshes: Mesh[] = [];
-  const addFeatures = () => {
+  /** the jumps a Final Lap Shift adds that its stage draws (it raises them: shiftStage.ts), left out of the merged ramps */
+  let ownsJumps: ReadonlySet<string> = new Set();
+  /** `src`'s balloons, coins and pads as instancers (and their slots) and its ramps and bumps, made but not yet in the scene */
+  type FeatureSet = { made: { name: string; m: InstancedMesh | null; slots: number[]; mats: Float32Array }[]; jumps: Mesh[] };
+  const makeFeatures = (src: Track): FeatureSet => {
+    const made: FeatureSet['made'] = [];
     for (const [name, kind, geo, colour] of featureNames) {
-      const old = instancers.get(name);
-      if (old) retire(old);
       const slots: number[] = [];
-      const mats = featureMatrices(track, kind, slots);
-      featureSlots.set(name, { slots, mats });
-      if (mats.length === 0) { instancers.delete(name); continue; }
+      const mats = featureMatrices(src, kind, slots);
+      if (mats.length === 0) { made.push({ name, m: null, slots, mats }); continue; }
       let m: InstancedMesh;
       if (kind === 'boostPad') {
         // a flat panel that glows, its chevrons scrolling forward (ramps.ts)
@@ -736,13 +746,28 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
         m = instancer(name, geometryFor(assets, geo), colour, mats);
         if (!m.userData.sharedMaterial) selfLit(m.material as MeshToonMaterial, pickupGlow);
       }
+      made.push({ name, m, slots, mats });
+    }
+    const jumps = buildJumpMeshes(src, palette, GRADIENT ?? null, (f) => !ownsJumps.has(f.id));
+    for (const m of jumps) OWNED.add(m.geometry);
+    return { made, jumps };
+  };
+  /** Put a feature set on show in place of the one there. */
+  const installFeatures = (set: FeatureSet) => {
+    for (const { name, m, slots, mats } of set.made) {
+      const old = instancers.get(name);
+      if (old && old !== m) retire(old);
+      featureSlots.set(name, { slots, mats });
+      if (!m) { instancers.delete(name); continue; }
+      m.visible = true;
       instancers.set(name, m);
-      group.add(m);
+      if (m.parent !== group) group.add(m);
     }
     for (const m of jumpMeshes) { (m.material as MeshToonMaterial).map?.dispose(); retire(m); }
-    jumpMeshes = buildJumpMeshes(track, palette, GRADIENT ?? null);
-    for (const m of jumpMeshes) { OWNED.add(m.geometry); group.add(m); }
+    jumpMeshes = set.jumps;
+    for (const m of jumpMeshes) { m.visible = true; if (m.parent !== group) group.add(m); }
   };
+  const addFeatures = () => installFeatures(makeFeatures(track));
   addFeatures();
   // loop-the-loops: the ring, its neon rails, its gantries
   for (const m of buildLoopMeshes(track, GRADIENT ?? null)) { OWNED.add(m.geometry); group.add(m); }
@@ -1008,6 +1033,64 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     withHull(landmark, def.landmark);
   }
 
+  // The Final Lap Shift, built ahead: the same track with its shift applied (the twin: the sim's own
+  // shift.ts run on a second copy, so nothing the race reads is touched), the shift's set piece
+  // (shiftStage.ts), and the twin's road, balloons, coins, pads, ramps and edge made now and hidden, so
+  // the race's warm-up compiles and uploads them (performance/warmup.ts) and the shift's tick only swaps
+  // them in (its rebuild was the race's one hitch left: Canyon 8 to 14 ms of script on an M4 Pro, 75 ms
+  // at 4x CPU).
+  const twin = track.shifted ? null : shiftedTwin(def);
+  const stage = buildShiftStage({
+    track, twin, palette, gradient: GRADIENT ?? null, group, groundY: groundKind === 'none' ? NaN : groundY, groundAt,
+    clear: (x, z, r) => !occupied.hits(x, z, r), geometry: (k) => geometryFor(assets, k, 'decor'), material: (k) => assets.materials?.[k],
+    roadMaterial, lake: assets.lake,
+  }) ?? undefined;
+  if (stage) {
+    group.add(stage.group);
+    keeps = stage.keepsBranches;
+    ownsJumps = stage.ownsJumps;
+    // the rope bridge's span is the stage's to draw: the road leaves a gap under its planks
+    const gap = stage.roadGap;
+    if (gap) for (const c of chunks) {
+      if (c.branch !== 0) continue;
+      const { i0, i1 } = sampleRange(branches.main.lut, c.u0, c.u1);
+      if (i1 < gap[0] || i0 > gap[1]) continue;
+      c.mesh.geometry.dispose();
+      c.mesh.geometry = buildRibbon(branches.main.lut, c.u0, c.u1, palette, { ...ribbonOptions(branches.main), gap });
+    }
+  }
+  /** The twin's new road (its main chunks), features and edge, made now and hidden; swapped in on the shift's tick. */
+  const prebuildShift = (tw: Track) => {
+    const shift = def.finalLapShift, tm = tw.branches.main;
+    const chunkGeos = new Map<number, BufferGeometry>(), holders: Mesh[] = [];
+    // a route change moves every main chunk; a surface change only the chunks it touches
+    const surfaces = (shift.surfaceOverrides ?? []).map((so) => [so.fromT, so.toT] as [number, number]);
+    if (shift.routeOverrides?.length || surfaces.length) {
+      for (const c of chunks) {
+        if (c.branch !== 0 || (!shift.routeOverrides?.length && !chunkTouched(c, tm, surfaces))) continue;
+        const g = buildRibbon(tm.lut, c.u0, c.u1, palette, ribbonOptions(tm));
+        OWNED.add(g);
+        chunkGeos.set(c.index, g);
+        // on show for the warm-up's one draw of everything only (that uploads it)
+        const h = new Mesh(g, roadMaterial);
+        h.name = `shift-road-${c.index}`;
+        h.visible = false;
+        h.receiveShadow = true;
+        h.userData.sharedMaterial = true;
+        group.add(h);
+        holders.push(h);
+      }
+    }
+    const features = makeFeatures(tw);
+    for (const { m } of features.made) if (m) { m.visible = false; group.add(m); }
+    for (const j of features.jumps) { j.visible = false; group.add(j); }
+    const edge = def.offroad ? null : buildBoundary(tw.branches, def.biome, GRADIENT ?? null);
+    if (edge) { OWNED.add(edge.geometry); edge.visible = false; group.add(edge); }
+    const open = tw.branches.list.reduce((m, b, i) => (b.open ? m | (1 << i) : m), 0);
+    return { chunkGeos, holders, features, edge, n: tm.lut.n, length: tm.lut.length, count: tw.features.length, open, used: false };
+  };
+  const pre = twin ? prebuildShift(twin) : null;
+
   /** whether the Low tier's thinning is on (cull), and the view its last run was for */
   let lowOn = false, sinceCull = 0, lastFov = 0, lastFar = 0;
   const lastEye = new Vector3(Infinity, Infinity, Infinity), lastDir = new Vector3();
@@ -1071,21 +1154,47 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     },
   };
 
+  scene.stage = stage;
+  const disposeScene = scene.dispose;
+  scene.dispose = () => {
+    stage?.dispose();
+    // the shift's ramps made ahead and never put on show still hold their own textures
+    if (pre && !pre.used) for (const j of pre.features.jumps) (j.material as MeshToonMaterial).map?.dispose();
+    disposeScene();
+  };
+
   // Final Lap Shift: instant swap of what changed
   let lastLut = branches.main.lut;
   const unsubscribe = track.onChanged((e: TrackChanged) => {
     // a route override replaces the main LUT object; that identity is the signal
     const routeMoved = branches.main.lut !== lastLut;
     lastLut = branches.main.lut;
-    // only the main LUT ever changes (route or baked surface); branch LUTs are visually fixed
-    for (const c of chunks) {
-      if (c.branch !== 0) continue;
-      if (routeMoved || chunkTouched(c, branches.main, e.changedRanges)) rebuildChunk(c, branches.main, palette);
+    const main = branches.main;
+    if (pre && !pre.used && main.lut.n === pre.n && Math.abs(main.lut.length - pre.length) < 1e-6 && track.features.length === pre.count && openMask() === pre.open) {
+      // built ahead from the twin, the same road and features: swap them in (no building on the tick)
+      pre.used = true;
+      for (const c of chunks) {
+        const g = c.branch === 0 ? pre.chunkGeos.get(c.index) : undefined;
+        if (!g) continue;
+        c.mesh.geometry.dispose();
+        c.mesh.geometry = g;
+      }
+      for (const h of pre.holders) h.removeFromParent();
+      installFeatures(pre.features);
+      if (pre.edge) { if (boundary) retire(boundary); boundary = pre.edge; boundary.visible = true; }
+      lastOpen = openMask();
+      syncOpen();
+    } else {
+      // only the main LUT ever changes (route or baked surface); branch LUTs are visually fixed
+      for (const c of chunks) {
+        if (c.branch !== 0) continue;
+        if (routeMoved || chunkTouched(c, main, e.changedRanges)) rebuildChunk(c, main, palette);
+      }
+      lastOpen = openMask();
+      syncOpen();
+      addBarriers();
+      addFeatures();
     }
-    lastOpen = openMask();
-    syncOpen();
-    addBarriers();
-    addFeatures();
     if (e.fogDensity !== undefined) scene.fog.density = e.fogDensity;
     if (e.sky !== undefined) scene.sky = e.sky;
     // the far vista's sky life hears the Final Lap Shift (the blizzard sends the eagles off, the finale starts the fireworks)
@@ -1093,4 +1202,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   });
 
   return scene;
+}
+
+/** The track as its Final Lap Shift leaves it, built beside the race's own (never the race's: nothing the sim reads is touched). */
+function shiftedTwin(def: Track['def']): Track {
+  const t = buildTrack(def);
+  t.applyFinalLapShift([]);
+  return t;
 }

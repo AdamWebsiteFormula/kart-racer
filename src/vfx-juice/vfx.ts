@@ -12,6 +12,9 @@ const CORAL: [number, number, number] = [1, 0.44, 0.38];
 const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
 const WHITE_HOT: readonly number[] = [2.4, 2.3, 2.1];
 const DUST: readonly number[] = [0.86, 0.77, 0.6], SCUFF: readonly number[] = [0.7, 0.66, 0.6];
+/** the Final Lap Shift's bursts: canyon dust in shadow, hot sparks, an oak's leaves */
+const DUST_DARK: readonly number[] = [0.66, 0.46, 0.32], SPARK_GOLD: readonly number[] = [2.2, 1.6, 0.5];
+const LEAVES: readonly (readonly [number, number, number])[] = [[0.12, 0.42, 0.08], [0.2, 0.55, 0.1], [0.3, 0.5, 0.06]];
 /** Linear RGB with one channel near zero, so each colour survives the tone mapping as a clear hue (no white, no pastels). */
 export const CONFETTI: readonly (readonly [number, number, number])[] = [
   [1, 0.04, 0.22], [1, 0.62, 0.02], [0.02, 0.62, 0.48], [0.04, 0.26, 1], [0.42, 0.06, 0.92], [1, 0.2, 0.02],
@@ -95,6 +98,7 @@ export class Vfx {
     if (fx.trauma > 0) this.trauma.add(fx.trauma);
     if (fx.kickBoost) this.kick.boost(now, fx.kickBoost);
     if (fx.kickHit) this.kick.hit(now);
+    if (fx.shiftPulse) this.kick.pulse(now);
     if (fx.hitStop && !reduced) this.time.hitStop(now);
     if (fx.slowMo && !reduced) this.time.slowMo(now);
     for (const q of fx.quakes) {
@@ -182,17 +186,48 @@ export class Vfx {
     }
   }
 
-  /** One firework burst at (x, y, z) in confetti hue `hue` (any integer). */
-  firework(x: number, y: number, z: number, hue: number, reduced = false): void {
+  /** One firework burst at (x, y, z) in confetti hue `hue` (any integer); `scale` grows it (a burst high over the road: 3). */
+  firework(x: number, y: number, z: number, hue: number, reduced = false, scale = 1): void {
     const F = FIREWORK, c = CONFETTI[((hue % CONFETTI.length) + CONFETTI.length) % CONFETTI.length], o = this.hot;
     o[0] = c[0] * F.heat + 0.3; o[1] = c[1] * F.heat + 0.3; o[2] = c[2] * F.heat + 0.3;
     const n = reduced ? F.reducedCount : F.count;
     for (let i = 0; i < n; i++) {
       // directions spread evenly round a sphere
-      const u = sym(), a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), sp = F.speed * (0.8 + rnd() * 0.4);
-      this.spawn(this.glow, x, y, z, Math.cos(a) * r * sp, u * sp, Math.sin(a) * r * sp, o, F.size, F.life + rnd() * 0.4, F.gravity, F.drag);
+      const u = sym(), a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), sp = F.speed * scale * (0.8 + rnd() * 0.4);
+      this.spawn(this.glow, x, y, z, Math.cos(a) * r * sp, u * sp, Math.sin(a) * r * sp, o, F.size * scale, F.life + rnd() * 0.4, F.gravity * scale, F.drag);
     }
-    for (let i = 0; i < 5; i++) this.spawn(this.glow, x, y, z, sym(), sym(), sym(), WHITE_HOT, F.size * 2.2, 0.3, 0, 2);
+    for (let i = 0; i < 5; i++) this.spawn(this.glow, x, y, z, sym() * scale, sym() * scale, sym() * scale, WHITE_HOT, F.size * 2.2 * scale, 0.3, 0, 2);
+  }
+
+  /**
+   * A Final Lap Shift set piece's burst (track-builder mesh/shiftStage.ts): dust where something lands
+   * (a big one near the player's kart shakes the camera a little), a plume rising out of a chasm,
+   * sparks, a tree's leaves, a firework high over the road. `size` scales it.
+   */
+  shiftBurst(kind: 'dust' | 'plume' | 'sparks' | 'leaves' | 'firework', x: number, y: number, z: number, size: number, hue: number, reduced: boolean): void {
+    switch (kind) {
+      case 'dust': {
+        const n = Math.round(18 * size);
+        for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; this.spawn(this.soft, x + Math.cos(a) * size, y + 0.3, z + Math.sin(a) * size, Math.cos(a) * 5 * size, 0.8 + rnd() * 2 * size, Math.sin(a) * 5 * size, DUST, 1.1 * size, 1 + rnd() * 0.5, 0, 1.6, 1.4); }
+        const me = this.lastPlayer;
+        if (me && size >= 1.4 && !reduced) {
+          const k = Math.max(0, 1 - Math.hypot(me.position[0] - x, me.position[2] - z) / JUICE.quakeReach);
+          if (k > 0) this.trauma.add(JUICE.traumaQuake * 0.45 * k);
+        }
+        break;
+      }
+      case 'plume':
+        // a slow column of dust rising out of the chasm, big enough to read from across the canyon
+        for (let i = 0; i < 26; i++) this.spawn(this.soft, x + sym() * 3 * size, y + rnd() * 2, z + sym() * 3 * size, sym() * 1.5, 4 + rnd() * 5, sym() * 1.5, DUST_DARK, 2.2 * size, 2.6 + rnd() * 1.2, -0.6, 0.5, 1.8);
+        break;
+      case 'sparks':
+        for (let i = 0; i < 22; i++) this.spawn(this.glow, x, y, z, sym() * 4 * size, 1 + rnd() * 5 * size, sym() * 4 * size, SPARK_GOLD, 0.16 * size, 0.45 + rnd() * 0.3, 9, 1);
+        break;
+      case 'leaves':
+        for (let i = 0; i < 30; i++) this.spawn(this.confetti, x + sym() * 3 * size, y + rnd() * 3, z + sym() * 3 * size, sym() * 3, 1 + rnd() * 3, sym() * 3, LEAVES[i % LEAVES.length], 0.3, 2 + rnd(), 2.5, 1.6);
+        break;
+      case 'firework': this.firework(x, y, z, hue, reduced, size); break;
+    }
   }
 
   /** `n` pieces of confetti drifting down over (x, y, z), within `radius` metres of it. */

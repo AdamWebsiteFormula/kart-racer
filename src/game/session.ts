@@ -72,6 +72,8 @@ export class RaceSession {
   private readonly startLight: SkyLight;
   /** a Final Lap Shift's sky change under way: the fog and the horizon ring ease from → to with the dome's fade */
   private skyChange: { horizon: [Color, Color]; ring: [Rgb, Rgb]; tint: [Rgb, Rgb] } | null = null;
+  /** the race time the Final Lap Shift fired at (its set piece plays from there; visuals only), or -1 */
+  private shiftAt = -1;
   /** each kart's look (the player's paint and body), and whether it was built code-only because its racer's model file was not in yet */
   private readonly looks: KartLook[] = [];
   private readonly coded: boolean[] = [];
@@ -157,6 +159,7 @@ export class RaceSession {
       if (e.type !== 'trackChanged') continue;
       splitShadowDepth(this.group); // the shift's rebuilt instancers
       if (e.event.sky) this.changeSky(e.event.sky);
+      this.shiftAt = st.time; // its set piece plays from this tick (frame)
     }
     // the views read the tick's karts and inputs (the kart animation, kart-controller anim.ts); they never write them
     for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT, this.inputs[k]);
@@ -187,6 +190,13 @@ export class RaceSession {
     live.coins = st.coinStates;
     if (sceneTime === undefined) this.trackScene.update(st.time, this.manager.lastActiveHazards, live);
     else this.trackScene.update(sceneTime, undefined, live);
+    // the Final Lap Shift's set piece (track-builder mesh/shiftStage.ts), from the shift's own tick; the
+    // fireworks go up ahead of the kart the camera follows
+    const stage = this.trackScene.stage;
+    if (stage) {
+      const fk = st.karts[this.playerIndex >= 0 ? this.playerIndex : this.leader()];
+      stage.update(this.shiftAt < 0 ? -1 : st.time - this.shiftAt + alpha * SIM_DT, sceneTime ?? st.time, fk.position, fk.heading, reduced);
+    }
     this.itemsView.onFrame(this.items, st.karts, this.roots, alpha, st.time, frameDt, this.track);
     this.rescueView.onFrame(st.trackers, (i) => this.views[i].root.position, frameDt, st.time);
   }

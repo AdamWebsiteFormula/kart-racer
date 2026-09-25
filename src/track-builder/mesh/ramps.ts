@@ -10,7 +10,7 @@ import {
 import { edgeTaper, jumpProfile } from '../../kart-controller/ground.ts';
 import { BUILDER } from '../constants.ts';
 import type { Track } from '../track.ts';
-import type { Vec3 } from '../types.ts';
+import type { BakedFeature, Vec3 } from '../types.ts';
 import type { Rgb, TrackPalette } from './palette.ts';
 
 /** Above the road, so the foot of a ramp never flickers into it. */
@@ -121,14 +121,16 @@ function humpTexture(palette: TrackPalette, biome: string): DataTexture {
 /**
  * The ramps and bumps of every open branch as up to two meshes, `ramps` and `humps`. Each
  * mesh's userData.count is how many it holds; its texture is its own (dispose with the material).
+ * `keep` picks which jumps (a Final Lap Shift's added ramp is drawn by its stage: mesh/shiftStage.ts).
  */
-export function buildJumpMeshes(track: Track, palette: TrackPalette, gradientMap: Texture | null): Mesh[] {
+export function buildJumpMeshes(track: Track, palette: TrackPalette, gradientMap: Texture | null, keep?: (f: BakedFeature) => boolean): Mesh[] {
   const ramps = part(), humps = part();
   let nRamps = 0, nHumps = 0;
   const L = track.length;
   for (const f of track.features) {
     if (f.kind !== 'jump' || !f.rise || !f.run) continue;
     if (f.branch !== 0 && !track.branches.list[f.branch]?.open) continue;
+    if (keep && !keep(f)) continue;
     const hump = f.shape === 'hump';
     const skirt = !hump && track.def.offroad === true ? BUILDER.rampSkirt : 0;
     const p = hump ? humps : ramps;

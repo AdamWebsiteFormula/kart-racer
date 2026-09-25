@@ -1,7 +1,9 @@
 // The mine on Canyon Rush (a shortcut's `tunnel`: track-builder/tunnel.ts). A rock bore portal to
 // portal (walls at the curb, an arched roof), timber frames every tunnelFrameSpacing metres, lanterns
 // on alternate walls, and a heavy timber portal with a header board at each end. The mesa over it is
-// the land (terrain.ts). One mesh, vertex colours, one draw call; the lanterns light themselves.
+// the land (terrain.ts). One mesh, vertex colours, one draw call; the lanterns light themselves: dim
+// embers until the Final Lap Shift, when they flicker on one after another from the mouth in (the
+// only route is the mine now, "now lit": design §6; the shift's stage sets `userData.lamps`).
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, Mesh, MeshToonMaterial, type Texture } from 'three';
 import { BUILDER } from '../constants.ts';
 import type { TunnelLine } from '../tunnel.ts';
@@ -21,13 +23,14 @@ const WOOD: Rgb = lin(0.42, 0.25, 0.13), WOOD_LIGHT: Rgb = lin(0.6, 0.4, 0.22), 
 /** Segments across the roof; the floor edge sits this far under the curb's top (the curb skirt meets it). */
 const ARCH = 8, FLOOR = -0.5;
 
-interface Buf { pos: number[]; col: number[]; idx: number[] }
+/** `lamp`: per vertex, metres into the bore from its mouth for a lantern's glass, else -1; `cur` is what the next quads get. */
+interface Buf { pos: number[]; col: number[]; idx: number[]; lamp: number[]; cur: number }
 
 const hash = (i: number): number => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 function quad(b: Buf, a: Vec3, c: Vec3, d: Vec3, e: Vec3, colour: Rgb): void {
   const i = b.pos.length / 3;
-  for (const p of [a, c, d, e]) { b.pos.push(p[0], p[1], p[2]); b.col.push(colour[0], colour[1], colour[2]); }
+  for (const p of [a, c, d, e]) { b.pos.push(p[0], p[1], p[2]); b.col.push(colour[0], colour[1], colour[2]); b.lamp.push(b.cur); }
   b.idx.push(i, i + 1, i + 2, i, i + 2, i + 3);
 }
 
@@ -49,7 +52,7 @@ const scale = (c: Rgb, k: number): Rgb => [c[0] * k, c[1] * k, c[2] * k];
 /** groundAt: the land as drawn (scene.ts), for the cliff face's outline; without it the face stands tunnelHill tall. */
 export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Texture | null, groundAt?: (x: number, z: number) => number): Mesh | null {
   if (!tunnels.length) return null;
-  const b: Buf = { pos: [], col: [], idx: [] };
+  const b: Buf = { pos: [], col: [], idx: [], lamp: [], cur: -1 };
   const { kerbWidth, tunnelWall: WALL, tunnelApex: APEX, tunnelHill: HILL, tunnelFrameSpacing, tunnelLanternSpacing } = BUILDER;
   for (const t of tunnels) {
     const L = t.lut, ds = L.length / L.step;
@@ -83,6 +86,7 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
         const bump = edge ? 0 : (hash(i * 31 + k * 7) - 0.5) * 0.35;
         const p = at(fr, l + nl * bump, h + nh * bump);
         b.pos.push(p[0], p[1], p[2]);
+        b.lamp.push(-1);
         const band = BANDS[Math.floor((p[1] + 40) / 1.6) % BANDS.length];
         const shade = (h > WALL ? 0.82 : 1) * (0.88 + 0.24 * hash(i * 13 + k));
         b.col.push(band[0] * shade, band[1] * shade, band[2] * shade);
@@ -108,7 +112,9 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
     for (let k = 1; k < lanterns; k++) {
       const fr = frame(t.i0 + Math.round(((k - 0.5) * tunnelLanternSpacing) / ds)), side = k % 2 === 0 ? 1 : -1;
       const mul = (v: Vec3, s: number): Vec3 => [v[0] * s, v[1] * s, v[2] * s];
+      b.cur = (k - 0.5) * tunnelLanternSpacing;
       box(b, at(fr, side * (fr.w - 0.38), WALL - 0.8), mul(fr.r, 0.17), mul(fr.up, 0.24), mul(fr.f, 0.17), LAMP);
+      b.cur = -1;
       box(b, at(fr, side * (fr.w - 0.38), WALL - 0.48), mul(fr.r, 0.22), mul(fr.up, 0.07), mul(fr.f, 0.22), IRON);
       box(b, at(fr, side * (fr.w - 0.2), WALL - 0.44), mul(fr.r, 0.2), mul(fr.up, 0.04), mul(fr.f, 0.05), IRON);
     }
@@ -140,6 +146,7 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
           const bulge = j === 0 || j === RINGS ? 0 : (hash(i * 17 + j * 5 + k) - 0.35) * 1.1;
           const p: Vec3 = [a[0] + (o[0] - a[0]) * u + fr.f[0] * dir * bulge, a[1] + (o[1] - a[1]) * u, a[2] + (o[2] - a[2]) * u + fr.f[2] * dir * bulge];
           b.pos.push(p[0], p[1], p[2]);
+          b.lamp.push(-1);
           const band = FACE[Math.floor((p[1] + 40) / 1.4) % FACE.length], shade = 0.86 + 0.26 * hash(i * 3 + j * 11 + k * 7);
           b.col.push(band[0] * shade, band[1] * shade, band[2] * shade);
         }
@@ -160,20 +167,58 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
       for (const side of [-1, 1]) box(b, out(at(fr, side * (W + 0.3), (APEX + 0.6 + FLOOR) / 2)), mul(fr.r, 0.45), mul(fr.up, (APEX + 0.6 - FLOOR) / 2), mul(fr.f, 0.5), WOOD);
       box(b, out(at(fr, 0, APEX + 0.35)), mul(fr.r, W + 1.1), mul(fr.up, 0.45), mul(fr.f, 0.55), WOOD);
       box(b, out(at(fr, 0, APEX + 1.35)), mul(fr.r, Math.min(3.2, W * 0.6)), mul(fr.up, 0.5), mul(fr.f, 0.18), WOOD_LIGHT);
-      // a lantern either side of the mouth
+      // a lantern either side of the mouth (the far mouth's light last)
+      b.cur = dir < 0 ? 0 : (t.i1 - t.i0) * ds;
       for (const side of [-1, 1]) box(b, out(at(fr, side * (W + 1.05), WALL)), mul(fr.r, 0.2), mul(fr.up, 0.28), mul(fr.f, 0.2), LAMP);
+      b.cur = -1;
     }
   }
   const g = new BufferGeometry();
   g.setAttribute('position', new Float32BufferAttribute(b.pos, 3));
   g.setAttribute('color', new Float32BufferAttribute(b.col, 3));
+  g.setAttribute('lamp', new Float32BufferAttribute(b.lamp, 1));
   g.setIndex(b.idx);
   g.computeVertexNormals();
   const mat = new MeshToonMaterial({ vertexColors: true, gradientMap, side: DoubleSide });
   glowFromVertexColours(mat);
+  const lamps = { since: { value: -1 }, reduced: { value: 0 } };
+  lanternsLight(mat, lamps);
   const m = new Mesh(g, mat);
   m.name = 'tunnels';
+  m.userData.lamps = lamps;
   m.castShadow = true;
   m.receiveShadow = true;
   return m;
+}
+
+/** When the lanterns light after the Final Lap Shift: `delay` s after it at the mouth, then `speed` m of bore a second. */
+export const LANTERNS = Object.freeze({ delay: 0.35, speed: 60 });
+
+/**
+ * The lanterns' light: an ember (5 % of its glow, the glass dim) until `since` (seconds since the Final
+ * Lap Shift) reaches each one, when it flickers on twice over 0.3 s and burns steady with a faint
+ * shimmer (reduced motion: straight on). Small lights, never a screen-sized flash.
+ */
+function lanternsLight(m: MeshToonMaterial, u: { since: { value: number }; reduced: { value: number } }): void {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, renderer) => {
+    prev.call(m, shader, renderer);
+    shader.uniforms.uLampSince = u.since;
+    shader.uniforms.uLampReduced = u.reduced;
+    shader.vertexShader = `attribute float lamp;\nvarying float vLamp;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vLamp = lamp;')}`;
+    shader.fragmentShader = `uniform float uLampSince;\nuniform float uLampReduced;\nvarying float vLamp;\n${shader.fragmentShader}`.replace('#include <aomap_fragment>', `#include <aomap_fragment>
+      if (vLamp > -0.5) {
+        float t = uLampSince - (${LANTERNS.delay.toFixed(2)} + vLamp / ${LANTERNS.speed.toFixed(1)});
+        float lit = 0.0;
+        if (uLampSince >= 0.0 && t > 0.0) {
+          float flick = uLampReduced > 0.5 || t >= 0.3 ? 1.0 : step(0.45, fract(t * 6.5 + vLamp * 0.37));
+          lit = flick * (0.95 + 0.05 * sin(uLampSince * 7.0 + vLamp));
+        }
+        totalEmissiveRadiance *= mix(0.05, 1.0, lit);
+        reflectedLight.directDiffuse *= mix(0.3, 1.0, lit);
+        reflectedLight.indirectDiffuse *= mix(0.3, 1.0, lit);
+      }`);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => `${key()}|lamps`;
 }

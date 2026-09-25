@@ -3,7 +3,7 @@ import type { Material, MeshToonMaterial } from 'three';
 import type { TrackAssets } from '../track-builder/mesh/index.ts';
 import { trackAssetsFor } from './decor.ts';
 import { PROP_MODELS } from './glb.ts';
-import { coastMaterial, groundMaterial, roadGrain, roadWear } from './surfaces.ts';
+import { coastMaterial, FROST_LAKE, groundMaterial, roadGrain, roadWear } from './surfaces.ts';
 import { toonRamp } from './toon.ts';
 import { buildVista } from './vista.ts';
 import { withCrowd } from './crowd.ts';
@@ -37,6 +37,8 @@ export function trackAssets(biome?: string): TrackAssets {
   const surfaces = biome ? {
     ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome),
     road: (m: MeshToonMaterial) => roadWear(m, biome),
+    // Frostbite's lake on the snow, frozen by its Final Lap Shift (surfaces.ts FROST_LAKE)
+    ...(biome === 'frost' ? { lake: FROST_LAKE } : {}),
   } : {};
   // the far vista: set-pieces, movers and glows past the scenery (vista.ts); the crowd by the road (crowd.ts)
   return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces };

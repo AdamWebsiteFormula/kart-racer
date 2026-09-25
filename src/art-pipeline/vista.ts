@@ -237,14 +237,16 @@ function mover(g: BufferGeometry, anchor: V3, yaw: number, move: V4, dir: V4 = [
 /**
  * Boardwalk's fireworks: where each point is, its beat and when it first bursts; the finale's points
  * are dark until the Final Lap Shift. Laps one and two: a burst every period/2 s from the two that
- * take turns; the finale adds three more (WCAG 2.3.1: under three flashes a second, all far and small).
+ * take turns; the finale adds three more, taking turns round the sky on one beat (a burst every 1.2 s
+ * from them), so no second ever holds more than three flashes with the rest (WCAG 2.3.1; the three had
+ * beats of their own, 3.2, 3.7 and 4.1 s, and drifted into three in 0.9 s, four with a lap-long point).
  */
 export const FIREWORKS: readonly { deg: number; period: number; phase: number; finaleOnly: boolean }[] = Object.freeze([
   { deg: -40, period: 10, phase: 0, finaleOnly: false },
   { deg: 55, period: 10, phase: 0.5, finaleOnly: false },
-  { deg: 18, period: 3.2, phase: 0, finaleOnly: true },
-  { deg: 205, period: 3.7, phase: 0.33, finaleOnly: true },
-  { deg: 262, period: 4.1, phase: 0.66, finaleOnly: true },
+  { deg: 18, period: 3.6, phase: 0, finaleOnly: true },
+  { deg: 205, period: 3.6, phase: 2 / 3, finaleOnly: true },
+  { deg: 262, period: 3.6, phase: 1 / 3, finaleOnly: true },
 ]);
 
 /** A small glowing blob (a spark, a beacon) with the attributes ModelBuilder parts carry. */

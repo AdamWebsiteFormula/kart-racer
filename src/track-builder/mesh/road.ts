@@ -34,6 +34,8 @@ export interface RibbonOptions {
   offroad?: boolean;
   /** local-u length at each end where kerbs and shoulders vanish and the ribbon sinks under the main road (branches) */
   blend?: number;
+  /** LUT samples [from, to] left undrawn: a stretch drawn by something else (Canyon's rope bridge: mesh/shiftStage.ts) */
+  gap?: readonly [number, number];
 }
 
 const BLEND_SINK = 0.03;
@@ -148,6 +150,12 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
     // quads a0 b0 / a1 b1 → (a0, a1, b0), (b0, a1, b1): normals face up (tangent × right)
     for (let k = 0; k < count - 1; k++) {
       const a0 = base + k * 2, b0 = a0 + 1, a1 = a0 + 2, b1 = a0 + 3;
+      const j = lut.idx(i0 + k), j1 = lut.idx(i0 + k + 1);
+      if (opts.gap && j >= opts.gap[0] && j1 <= opts.gap[1] && j1 > j) {
+        // not drawn: a degenerate pair
+        for (let q = 0; q < 6; q++) idx[f++] = a0;
+        continue;
+      }
       idx[f++] = a0; idx[f++] = a1; idx[f++] = b0;
       idx[f++] = b0; idx[f++] = a1; idx[f++] = b1;
     }
