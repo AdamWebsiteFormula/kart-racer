@@ -3,6 +3,8 @@
 // never in the race manager, so it cannot collide, rank, pop a balloon or trigger anything.
 import { Group, type Material, type Mesh, type Object3D } from 'three';
 import { buildRacerMesh, freeSkeletons, type KartLook } from '../art-pipeline/index.ts';
+import { newPose } from '../kart-controller/anim.ts';
+import { newDriverPose, type KartRig } from '../kart-controller/driverAnim.ts';
 import { ghostPose, type GhostPath, type GhostPose } from '../race-manager/ghost.ts';
 import { buildKartMesh } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
@@ -18,6 +20,10 @@ export class GhostView {
   readonly path: GhostPath;
   private readonly mats: Material[] = [];
   private shown = GHOST_OPACITY;
+  /** a rigged racer's bones (its wheels roll along the path), with a still pose for the rest */
+  private readonly rig: KartRig | null;
+  private readonly still = newPose();
+  private readonly drive = newDriverPose();
 
   /** `look`: the paint and body the run was set with (the save keeps them with the ghost) */
   constructor(path: GhostPath, racerId: string, look: KartLook = {}) {
@@ -44,7 +50,9 @@ export class GhostView {
     });
     this.root.name = 'ghost';
     this.root.add(mesh);
+    this.rig = (mesh.userData.rig as KartRig | undefined) ?? null;
   }
+
 
   /** Free its own see-through materials (it was replaced: its racer's model came in, session.ts), and a rigged one's bone texture. */
   dispose(): void {
@@ -57,6 +65,13 @@ export class GhostView {
   /** `ticks`: race time in sim ticks, fractional (the live kart is drawn at tick - 1 + alpha). */
   place(ticks: number, near?: { x: number; y: number; z: number }): Object3D {
     const p = ghostPose(this.path, ticks, this.pose);
+    // a rigged racer's wheels roll the way the ghost went (a jump of more than a few metres is a new start, not a roll)
+    if (this.rig) {
+      const dx = p.x - this.root.position.x, dz = p.z - this.root.position.z;
+      const along = dx * Math.sin(p.heading) + dz * Math.cos(p.heading);
+      if (Math.abs(along) < 3) this.drive.spin = (this.drive.spin + along / this.rig.wheelRadius) % (Math.PI * 2);
+      this.rig.apply(this.still, this.drive);
+    }
     this.root.position.set(p.x, p.y, p.z);
     const want = near ? ghostOpacity(Math.hypot(p.x - near.x, p.y - near.y, p.z - near.z)) : GHOST_OPACITY;
     if (Math.abs(want - this.shown) > 0.005) { this.shown = want; for (const m of this.mats) m.opacity = want; }
