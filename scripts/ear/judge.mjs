@@ -12,7 +12,9 @@
 //          (a plain question with no brief, so nothing leads the ear; --from = the excerpt's start in the song,
 //          added to each time). Settle a heard voice with two different cuts that agree on the time.
 //   flags: --model=gemini-pro-latest (falls back to gemini-3.1-pro-preview when busy), --thinking=low|high,
-//          --budget=8 (US dollars: no call starts once the ledger has spent this much), --patience=10 (minutes)
+//          --budget=8 (US dollars: no call starts once the ledger has spent this much), --patience=10 (minutes),
+//          --briefs=<file.json> (sfx, batch, file, compare: {id: prompt} or {id: {prompt, seconds}}, the brief new
+//          takes were made from, judged in place of the catalog's; every take in a compare is heard against it)
 //
 //   node scripts/ear/judge.mjs calibrate --model=<m>            known answers (finalLap brass, airHorn horn, crabClack clicky claw)
 //
@@ -39,6 +41,8 @@ const MODELS = flag('model') ? [flag('model')] : ['gemini-pro-latest', 'gemini-3
 const THINKING = flag('thinking', 'low');
 const BUDGET = Number(flag('budget', '8'));
 const PATIENCE = Number(flag('patience', '10')); // minutes to keep asking a busy model
+// a remake's new prompt (and length), so its takes are judged against what they were made to be
+const BRIEFS = flag('briefs') ? JSON.parse(readFileSync(flag('briefs'), 'utf8')) : {};
 
 const env = readFileSync(new URL('../../.env.local', import.meta.url), 'utf8');
 const key = /^GEMINI_API_KEY=(.+)$/m.exec(env)?.[1]?.trim();
@@ -205,8 +209,10 @@ const spec = (id) => SFX.find((s) => s.id === id);
 function brief(id) {
   const s = spec(id);
   if (!s) throw new Error(`no catalog sound ${id}`);
-  return `Sound: "${id}".\nBrief (what it was made to be): ${s.prompt}\nIn-game moment: ${MOMENT[id]}\n` +
-    `Requested length: about ${s.seconds} s${s.loop ? ', a seamless loop' : ''}. The game trims silence before and after the sound, ` +
+  const o = typeof BRIEFS[id] === 'string' ? { prompt: BRIEFS[id] } : BRIEFS[id] ?? {};
+  const prompt = o.prompt ?? s.prompt, seconds = o.seconds ?? s.seconds;
+  return `Sound: "${id}".\nBrief (what it was made to be): ${prompt}\nIn-game moment: ${MOMENT[id]}\n` +
+    `Requested length: about ${seconds} s${s.loop ? ', a seamless loop' : ''}. The game trims silence before and after the sound, ` +
     `levels its loudness and fades its edges, so judge the sound itself: its character, clarity, length and punch, not its volume. ` +
     `The clip you get has a quarter second of silence before the sound and silence after it; the silence is not part of the sound.`;
 }
