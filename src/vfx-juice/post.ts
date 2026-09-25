@@ -1,11 +1,49 @@
 // Post-processing in one EffectPass (SOP): bloom that only catches HDR colours (sparks, flames,
-// glints are brighter than 1.0; the toon world is not), chromatic aberration on boost only,
-// a soft vignette, and ACES tone mapping. `quality: low` turns the whole chain off.
+// glints are brighter than 1.0; the toon world is not), the boost lens (edge streaks and a colour
+// fringe, on boost only), a soft vignette, and ACES tone mapping. `quality: low` turns the whole chain off.
 import {
-  BloomEffect, BrightnessContrastEffect, ChromaticAberrationEffect, HueSaturationEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
+  BloomEffect, BrightnessContrastEffect, Effect, EffectAttribute, HueSaturationEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
 } from 'postprocessing';
-import { ACESFilmicToneMapping, HalfFloatType, NoToneMapping, Vector2, type Camera, type Scene, type WebGLRenderer } from 'three';
+import { ACESFilmicToneMapping, HalfFloatType, NoToneMapping, Uniform, type Camera, type Scene, type WebGLRenderer } from 'three';
 import { DAY_GRADE } from '../art-pipeline/index.ts';
+
+/**
+ * The boost lens (critiques of 24 Sept 2026: "no blur, weak sense of speed"): while a boost runs, the
+ * screen's edges streak toward its middle, a radial blur of `taps` samples (dithered, so no banding),
+ * and fringe a little, red out and blue in. Masked to an ellipse fitted to the screen, from `inner` to
+ * `inner + soft` of the way to its edges: the road ahead and your kart stay sharp. It samples the scene,
+ * so it takes the EffectPass's one convolution slot, the plain chromatic aberration's before it; off a
+ * boost it returns the colour untouched. Measured on an M4 Pro at 1920x1080: see docs/sops/vfx-juice.md.
+ */
+export const LENS = Object.freeze({ taps: 8, streak: 0.075, inner: 0.62, soft: 0.55, fringe: 0.0045 });
+
+const LENS_FRAG = `uniform float level;
+void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+  outputColor = inputColor;
+  if (level <= 0.0) return;
+  vec2 d = uv - 0.5;
+  float m = level * smoothstep(${LENS.inner.toFixed(3)}, ${(LENS.inner + LENS.soft).toFixed(3)}, length(d) * 2.0);
+  if (m <= 0.002) return;
+  vec3 base = texture2D(inputBuffer, uv).rgb;
+  // interleaved gradient noise: each pixel's taps start at a different point along the streak
+  float j = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  vec2 step = d * (${LENS.streak.toFixed(4)} * m / ${(LENS.taps - 1).toFixed(1)});
+  vec3 sum = vec3(0.0);
+  for (int i = 0; i < ${LENS.taps}; i++) sum += texture2D(inputBuffer, uv - step * (float(i) + j)).rgb;
+  float red = texture2D(inputBuffer, uv + d * (${LENS.fringe.toFixed(4)} * m)).r;
+  float blue = texture2D(inputBuffer, uv - d * (${LENS.fringe.toFixed(4)} * m)).b;
+  // added to what the chain has so far (the bloom is in it; the scene samples are not)
+  outputColor.rgb += sum / ${LENS.taps.toFixed(1)} - base + vec3(red - base.r, 0.0, blue - base.b);
+}`;
+
+/** The boost lens as one effect; `level` 0..1. */
+class BoostLensEffect extends Effect {
+  constructor() {
+    super('BoostLensEffect', LENS_FRAG, { attributes: EffectAttribute.CONVOLUTION, uniforms: new Map([['level', new Uniform(0)]]) });
+  }
+  get level(): number { return this.uniforms.get('level')!.value as number; }
+  set level(v: number) { this.uniforms.get('level')!.value = v; }
+}
 
 /** The colour lift eased toward `to` over `dt` seconds, at the rate the scene's lights ease (main.ts applyLight). */
 export const easeGrade = (from: number, to: number, dt: number): number => from + (to - from) * (1 - Math.exp(-dt * 1.6));
@@ -20,14 +58,13 @@ export const msaaSamples = (dprCap: number): number => (dprCap >= 1.5 ? 0 : 4);
 
 export class Post {
   private readonly composer: EffectComposer;
-  private readonly chroma: ChromaticAberrationEffect;
+  private readonly lens = new BoostLensEffect();
   private readonly grade: HueSaturationEffect;
   /** the colour lift the current sky wants (SkyLight.grade); render() eases to it with the lights */
   gradeTo = DAY_GRADE;
   private readonly renderer: WebGLRenderer;
   private readonly scene: Scene;
   private readonly camera: Camera;
-  private readonly offset = new Vector2();
   private level = 0;
   enabled = true;
 
@@ -38,14 +75,13 @@ export class Post {
     this.composer = new EffectComposer(renderer, { frameBufferType: HalfFloatType, multisampling: 4 });
     this.composer.addPass(new RenderPass(scene, camera));
     const bloom = new BloomEffect({ luminanceThreshold: 1.0, luminanceSmoothing: 0.15, intensity: 1.1, mipmapBlur: true, radius: 0.7 });
-    this.chroma = new ChromaticAberrationEffect({ offset: this.offset, radialModulation: true, modulationOffset: 0.35 });
     const vignette = new VignetteEffect({ darkness: 0.32, offset: 0.4 });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
     // the filmic curve flattens colour a little: give it back, cartoon-bright but not garish
     // (less under a sunset or a night: warm light on warm ground is saturated enough already)
     this.grade = new HueSaturationEffect({ saturation: DAY_GRADE });
     const punch = new BrightnessContrastEffect({ contrast: 0.07 });
-    this.composer.addPass(new EffectPass(camera, bloom, this.chroma, vignette, tone, this.grade, punch));
+    this.composer.addPass(new EffectPass(camera, bloom, this.lens, vignette, tone, this.grade, punch));
     this.setEnabled(true);
   }
 
@@ -63,13 +99,12 @@ export class Post {
   /** Change the MSAA samples (rebuilds the buffers, so only when they differ). */
   setSamples(n: number): void { if (this.composer.multisampling !== n) this.composer.multisampling = n; }
 
-  /** `boost` 0..1 drives the colour fringe; reduced motion keeps it at zero. */
-  render(dt: number, boost: boolean, reduced: boolean): void {
+  /** `boost` 0..1 (how hard the player's boost is felt, Vfx.boostLevel) drives the lens, eased in fast and out slower; reduced motion keeps it at zero. */
+  render(dt: number, boost: number, reduced: boolean): void {
     if (!this.enabled) { this.renderer.render(this.scene, this.camera); return; }
-    this.level += ((boost && !reduced ? 1 : 0) - this.level) * Math.min(1, dt * (boost ? 10 : 3));
-    // a hint of fringe on boost, never enough to split palms and roofs into red and cyan
-    this.offset.set(0.0012 * this.level, 0.0006 * this.level);
-    this.chroma.offset = this.offset;
+    const want = reduced ? 0 : Math.max(0, Math.min(1, boost));
+    this.level += (want - this.level) * Math.min(1, dt * (want > this.level ? 10 : 3));
+    this.lens.level = this.level > 0.005 ? this.level : 0;
     this.grade.saturation = easeGrade(this.grade.saturation, this.gradeTo, dt);
     this.composer.render(dt);
   }

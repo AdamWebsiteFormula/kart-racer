@@ -9,7 +9,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import canyonJson from '../track-builder/tracks/canyon-rush.json';
 import { JUICE } from '../vfx-juice/juice.ts';
-import { CAM, carry, clampToRoad, fovFor, idealPose, kickedFov, smoothTo } from './camera.ts';
+import { CAM, carry, clampToRoad, fovFor, idealPose, kickedFov, smoothTo, surgeOffset } from './camera.ts';
 import { TRAIL_BACK } from './itemsView.ts';
 
 const TRACKS = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
@@ -91,9 +91,10 @@ describe('chase camera', () => {
 describe('chase framing (plan §4.7): your kart big in the lower third at every speed', () => {
   const W = 1280, H = 720;
   const cam = new PerspectiveCamera(60, W / H, 0.3, 1400);
-  /** Frame a kart at the origin heading +z from its ideal chase pose; its box on screen (0..1, y down). */
-  const frame = (speed: number, fov: number) => {
+  /** Frame a kart at the origin heading +z from its ideal chase pose (`back` metres farther back); its box on screen (0..1, y down). */
+  const frame = (speed: number, fov: number, back = 0) => {
     const pose = idealPose([0, 0, 0], 0, speed, false);
+    pose.position[2] -= back;
     cam.fov = fov; cam.updateProjectionMatrix();
     cam.position.set(...pose.position); cam.lookAt(new Vector3(...pose.target)); cam.updateMatrixWorld(true);
     let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
@@ -105,11 +106,18 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
     return { width: x1 - x0, cy: (y0 + y1) / 2, bottom: y1 };
   };
 
-  it('standstill, top speed, and top speed with the boost kick: wide, below the middle, all on screen', () => {
+  // the strongest boost there is: a full-strength hold (+40%), the biggest punch, and a boost's surge (the
+  // kart gains about 7.5 m/s² near its top speed, so it runs 7.5 / surgeLag m/s ahead of the camera's own speed)
+  const P = JUICE.punch.ultra;
+  const held = fovFor(CAM.topSpeed) + JUICE.holdFov;
+  const boostSurge = surgeOffset(CAM.topSpeed + 7.5 / CAM.surgeLag, CAM.topSpeed);
+
+  it('standstill, top speed, and top speed through a boost: wide, below the middle, all on screen', () => {
     const cases = [
       frame(0, fovFor(0)),
       frame(CAM.topSpeed, fovFor(CAM.topSpeed)),
-      frame(CAM.topSpeed, kickedFov(fovFor(CAM.topSpeed), JUICE.fovBoost)),
+      // a boost's hold, once its punch has passed
+      frame(CAM.topSpeed, kickedFov(held, 0), JUICE.holdBack),
     ];
     for (const c of cases) {
       expect(c.width).toBeGreaterThan(1 / 9);
@@ -118,12 +126,19 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
     }
     // at a standstill the kart box reads about a seventh of the screen wide (the old 6.3 m at 66°: under a tenth)
     expect(cases[0].width).toBeGreaterThan(0.13);
+    // the punch's peak (a tenth of a second): wider and farther back, and still about a tenth of the screen wide
+    const peak = frame(CAM.topSpeed, kickedFov(held, P.fov), JUICE.holdBack + P.back + boostSurge);
+    expect(peak.width).toBeGreaterThan(0.09);
+    expect(peak.width).toBeLessThan(cases[1].width * 0.9); // a pull-back you can see
+    expect(peak.cy).toBeGreaterThan(0.55);
   });
 
-  it('the boost kick never widens the view past fovMax; a hit still narrows it', () => {
-    expect(kickedFov(fovFor(CAM.topSpeed), JUICE.fovBoost)).toBe(CAM.fovMax);
-    expect(kickedFov(fovFor(0), JUICE.fovBoost)).toBe(fovFor(0) + JUICE.fovBoost);
+  it('the boost punch never widens the view past fovMax; a hit still narrows it', () => {
+    expect(kickedFov(held, P.fov)).toBe(CAM.fovMax);
+    expect(kickedFov(fovFor(0), P.fov)).toBe(fovFor(0) + P.fov);
     expect(kickedFov(fovFor(CAM.topSpeed), JUICE.fovHit)).toBeLessThan(fovFor(CAM.topSpeed));
+    // the weakest mini-turbo at top speed is still clearly wider (not swallowed by the cap)
+    expect(kickedFov(fovFor(CAM.topSpeed) + JUICE.holdFov * 0.75, JUICE.punch.mini.fov) - fovFor(CAM.topSpeed)).toBeGreaterThan(5);
   });
 
   it('at top speed the camera rides with the kart: no trail of v/lag metres behind the ideal spot', () => {

@@ -4,7 +4,7 @@
 import type { Camera, Scene } from 'three';
 import { EXHAUST, flameColour } from '../art-pipeline/index.ts';
 import type { KartState } from '../kart-controller/types.ts';
-import { CameraKick, JUICE, TimeScale, Trauma, driftRoll, sparkColour, type Effects } from './juice.ts';
+import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, sparkColour, type Effects } from './juice.ts';
 import { ParticlePool, type SpawnOpts } from './particles.ts';
 import { Skids, SpeedLines } from './trails.ts';
 
@@ -49,6 +49,8 @@ export class Vfx {
   readonly lines = new SpeedLines();
   readonly trauma = new Trauma();
   readonly kick = new CameraKick();
+  /** the camera's roll into the player's drift, eased */
+  readonly camRoll = new DriftRoll();
   readonly time = new TimeScale();
   private readonly mem = new Map<string, KartMem>();
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
@@ -69,6 +71,7 @@ export class Vfx {
     this.trauma.value = 0;
     this.time.reset(); // a restart mid hit-stop or slow-mo must not start frozen
     this.kick.reset();
+    this.camRoll.value = 0;
   }
 
   private spawn(pool: ParticlePool, x: number, y: number, z: number, vx: number, vy: number, vz: number, c: readonly number[], size: number, life: number, gravity = 0, drag = 0, grow = 0): void {
@@ -84,7 +87,7 @@ export class Vfx {
 
   onTick(fx: Effects, kartOf: (racerId: string) => KartState | undefined, now: number, reduced: boolean): void {
     if (fx.trauma > 0) this.trauma.add(fx.trauma);
-    if (fx.kickBoost) this.kick.boost(now);
+    if (fx.kickBoost) this.kick.boost(now, fx.kickBoost);
     if (fx.kickHit) this.kick.hit(now);
     if (fx.hitStop && !reduced) this.time.hitStop(now);
     if (fx.slowMo && !reduced) this.time.slowMo(now);
@@ -183,7 +186,9 @@ export class Vfx {
     this.skids.setTime(t);
     this.trauma.update(dt);
     this.trauma.shake(t, this.shake, !reduced);
-    this.lines.update(t, dt, !reduced && player !== undefined && player.boost.remaining > 0 && player.speed > 8);
+    // the streaks run while a boost does, hardest at its punch; never under reduced motion
+    this.lines.update(t, dt, this.boostLevel(player, t, reduced));
+    this.camRoll.update(dt, player !== undefined && player.drift.active && player.grounded, player?.drift.direction ?? 0, player?.speed ?? 0, reduced);
   }
 
   private emit(k: KartState, dt: number, t: number, cam: readonly number[]): void {
@@ -251,9 +256,15 @@ export class Vfx {
     } else m.dustAcc = 0;
   }
 
-  /** Camera roll for the player's drift plus the trauma roll. */
-  roll(player: KartState | undefined, reduced: boolean): number {
-    return (player ? driftRoll(player.drift.active, player.drift.direction, reduced) : 0) + this.shake.roll;
+  /** Camera roll for the player's drift (eased, zero under reduced motion) plus the trauma roll. */
+  roll(player: KartState | undefined): number {
+    return (player ? this.camRoll.value : 0) + this.shake.roll;
+  }
+
+  /** 0..1: how hard the player's boost is felt now (its hold, or its punch while that is stronger); 0 at a crawl or under reduced motion. The speed lines and the post chain's streaks run on it. */
+  boostLevel(player: KartState | undefined, t: number, reduced: boolean): number {
+    if (reduced || !player || player.speed <= 8) return 0;
+    return Math.min(1, Math.max(boostHold(player.boost.remaining, player.boost.multiplier), this.kick.level(t)));
   }
 
   dispose(): void {

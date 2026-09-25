@@ -1,6 +1,6 @@
 // Tyre marks and speed lines. Each is one mesh and one draw call.
 import {
-  AdditiveBlending, BufferAttribute, BufferGeometry, CustomBlending, InstancedBufferAttribute, InstancedMesh, Mesh, PlaneGeometry,
+  BufferAttribute, BufferGeometry, CustomBlending, DoubleSide, InstancedBufferAttribute, InstancedMesh, Mesh, PlaneGeometry,
   ShaderMaterial, SrcColorFactor, ZeroFactor, type Camera,
 } from 'three';
 
@@ -88,58 +88,89 @@ export class Skids {
 }
 
 // ---------------------------------------------------------------- speed lines
+/**
+ * The boost streaks (critiques of 24 Sept 2026: "no wind lines"; they were 0.4 alpha, additive, and
+ * vanished against a bright sky). In screen units (1 = half the screen's height) so they are the same
+ * thickness at 1280x720 and 1920x1080 (a share of the height: 2.6 px either side of the core at 720p,
+ * 3.9 px at 1080p): an ellipse fitted to the screen, from `inner` to `outer` of the way to its edge,
+ * never the middle where the road ahead and the karts are, and none in the `under` cone straight
+ * down the screen (your kart and the road it is on). A weak boost shows `few` of them, faint; a
+ * punch shows them all at `alpha`.
+ */
+export const LINES = Object.freeze({
+  count: 72, inner: 0.74, outer: 1.2, length: [0.1, 0.24] as const, width: 0.0072, alpha: 0.62, few: 0.45,
+  /** each crosses the ring this many times a second (random between the two) */
+  rate: [1.5, 2.8] as const,
+  /** radians either side of straight down with no streaks (fading out over the next 15°) */
+  under: (40 * Math.PI) / 180,
+});
+
 const LINE_VERT = `
-attribute vec4 aLine; uniform float uTime; uniform float uOn; varying float vA; varying vec2 vUv;
+attribute vec4 aLine; uniform float uTime; uniform float uOn; uniform float uAspect; varying float vA; varying vec2 vUv;
 void main() {
-  // aLine: angle, size, phase, speed. Screen space: each streak rushes outward in the outer ring of
-  // the screen (never the middle, where the road and the karts are), tapered and soft.
+  // aLine: angle, rank (0..1: which show at a weak boost, and how long), phase, rate
   vUv = uv;
-  float t = fract(aLine.z + uTime * aLine.w * 0.7);
-  float r = mix(0.8, 1.3, t);
+  float t = fract(aLine.z + uTime * aLine.w);
+  float r = mix(${LINES.inner.toFixed(3)}, ${LINES.outer.toFixed(3)}, t);
   vec2 dir = vec2(cos(aLine.x), sin(aLine.x));
-  vec2 side = vec2(-dir.y, dir.x);
-  float len = 0.09 + 0.02 * aLine.y / 5.0;
-  vec2 p = dir * (r + position.y * len) + side * position.x * 0.007;
-  vA = uOn * smoothstep(0.0, 0.2, t) * (1.0 - smoothstep(0.65, 1.0, t)) * 0.4;
+  // along the ellipse fitted to the screen, in screen units (x times the aspect), so the width is true
+  vec2 d = normalize(vec2(dir.x * uAspect, dir.y));
+  vec2 side = vec2(-d.y, d.x);
+  float len = mix(${LINES.length[0].toFixed(3)}, ${LINES.length[1].toFixed(3)}, aLine.y) * (0.7 + 0.3 * uOn);
+  vec2 c = vec2(dir.x * uAspect, dir.y) * r;
+  vec2 p = c + d * position.y * len + side * position.x * ${(LINES.width * 2).toFixed(4)};
+  p.x /= uAspect;
+  float shown = step(aLine.y, ${LINES.few.toFixed(3)} + ${(1 - LINES.few).toFixed(3)} * uOn);
+  float down = 1.0 - smoothstep(cos(${(LINES.under + Math.PI / 12).toFixed(4)}), cos(${LINES.under.toFixed(4)}), -dir.y);
+  vA = uOn * shown * down * smoothstep(0.0, 0.2, t) * (1.0 - smoothstep(0.6, 1.0, t)) * ${LINES.alpha.toFixed(3)};
   gl_Position = vec4(p, 0.0, 1.0);
 }`;
 const LINE_FRAG = `varying float vA; varying vec2 vUv;
 void main() {
-  // thick in the middle, fading to both ends and both sides
-  float a = vA * (1.0 - abs(vUv.x * 2.0 - 1.0)) * smoothstep(0.0, 0.35, vUv.y) * (1.0 - smoothstep(0.65, 1.0, vUv.y));
+  // a bright core, fading to both ends and both sides
+  float across = 1.0 - abs(vUv.x * 2.0 - 1.0);
+  float a = vA * across * across * (2.0 - across) * smoothstep(0.0, 0.3, vUv.y) * (1.0 - smoothstep(0.6, 1.0, vUv.y));
   if (a <= 0.004) discard;
   gl_FragColor = vec4(1.0, 1.0, 1.0, a);
 }`;
 
-/** White streaks round the screen's edge; `on` fades them in and out (boosting only). */
+/** White streaks round the screen's edge; `update`'s level fades them in and out (boosting only). */
 export class SpeedLines {
   readonly mesh: InstancedMesh;
   private readonly mat: ShaderMaterial;
   private level = 0;
 
-  constructor(count = 56) {
+  constructor(count = LINES.count) {
     const g = new PlaneGeometry(1, 1);
     const a = new Float32Array(count * 4);
     let x = 12345;
     const rnd = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 0xffffffff; };
-    for (let i = 0; i < count; i++) a.set([rnd() * Math.PI * 2, 5 + rnd() * 5, rnd(), 0.9 + rnd() * 0.9], i * 4);
+    for (let i = 0; i < count; i++) a.set([rnd() * Math.PI * 2, rnd(), rnd(), LINES.rate[0] + rnd() * (LINES.rate[1] - LINES.rate[0])], i * 4);
     g.setAttribute('aLine', new InstancedBufferAttribute(a, 4));
+    // normal blending, not additive: white added to a bright sky was lost in it. Both sides: the
+    // streak's frame (across, along) mirrors the quad's (x, y), so one side faces away (the streaks
+    // before 24 Sept 2026 were culled for exactly that, and never drew at all)
     this.mat = new ShaderMaterial({
-      vertexShader: LINE_VERT, fragmentShader: LINE_FRAG, transparent: true, depthWrite: false, depthTest: false,
-      blending: AdditiveBlending, uniforms: { uTime: { value: 0 }, uOn: { value: 0 } },
+      vertexShader: LINE_VERT, fragmentShader: LINE_FRAG, transparent: true, depthWrite: false, depthTest: false, side: DoubleSide,
+      uniforms: { uTime: { value: 0 }, uOn: { value: 0 }, uAspect: { value: 16 / 9 } },
     });
     this.mesh = new InstancedMesh(g, this.mat, count);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 20;
   }
 
-  /** Attach to the camera so the streaks live in view space. */
-  attach(camera: Camera): void { camera.add(this.mesh); }
+  /** the camera they ride on (its aspect keeps them true to the screen) */
+  private camera: { aspect?: number } | null = null;
 
-  update(t: number, dt: number, on: boolean): void {
-    this.level += ((on ? 1 : 0) - this.level) * Math.min(1, dt * (on ? 8 : 3));
+  /** Attach to the camera so the streaks live in view space. */
+  attach(camera: Camera): void { camera.add(this.mesh); this.camera = camera as { aspect?: number }; }
+
+  /** `level` 0..1: how hard the boost is (0 hides them), eased in fast and out slower. */
+  update(t: number, dt: number, level: number): void {
+    this.level += (level - this.level) * Math.min(1, dt * (level > this.level ? 10 : 3));
     this.mat.uniforms.uTime.value = t;
     this.mat.uniforms.uOn.value = this.level;
+    this.mat.uniforms.uAspect.value = this.camera?.aspect ?? 16 / 9;
     this.mesh.visible = this.level > 0.01;
   }
 

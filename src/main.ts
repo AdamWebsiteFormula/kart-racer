@@ -26,7 +26,7 @@ import { decodeGhost } from './race-manager/ghost.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { mirrored } from './track-builder/mirror.ts';
-import { CAM, carry, chaseYaw, clampToRoad, easedSpeed, fovFor, idealPose, kickedFov, loopCamPose, smoothTo, travelYaw } from './game/camera.ts';
+import { ChaseCam, fovFor, kickedFov, smoothTo } from './game/camera.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
@@ -77,17 +77,29 @@ function sunOffset(dir: [number, number, number] | undefined): Vec3 {
 }
 /** the lights ease to the current sky's (a final-lap sunset falls over a couple of seconds) */
 const lightTo = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color() };
+/** the sky's light as eased so far, before the mine takes its share */
+const lightNow = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color(), sunI: 0, skyI: 0, ambientI: 0 };
+/**
+ * In a tunnel (Canyon's mine) the day gives way to the lanterns: its light this much dimmer and this
+ * warm, by how deep the camera is in the bore (ChaseCam.tunnel, eased over the portal). The sun is
+ * shadowed in there anyway; the bright mouth ahead stays bright.
+ */
+const MINE = Object.freeze({ sun: 0.85, sky: 0.6, ambient: 0.62, warm: new Color(0xffa860), tint: 0.4 });
 let lightFor: SkyLight | null = null;
-function applyLight(l: SkyLight, bounce: Color | null, dt: number, snap: boolean): void {
+function applyLight(l: SkyLight, bounce: Color | null, dt: number, snap: boolean, tunnel: number): void {
   if (l !== lightFor) {
     lightFor = l;
     lightTo.sun.set(l.sun); lightTo.sky.set(l.sky); lightTo.ambient.set(l.ambient); lightTo.earth.set(l.earth);
   }
-  const k = snap ? 1 : 1 - Math.exp(-dt * 1.6);
-  sun.color.lerp(lightTo.sun, k); sun.intensity += (l.sunI - sun.intensity) * k;
-  hemi.color.lerp(lightTo.sky, k); hemi.intensity += (l.skyI - hemi.intensity) * k;
-  hemi.groundColor.lerp(bounce ?? lightTo.earth, k);
-  fill.color.lerp(lightTo.ambient, k); fill.intensity += (l.ambientI - fill.intensity) * k;
+  const k = snap ? 1 : 1 - Math.exp(-dt * 1.6), n = lightNow;
+  n.sun.lerp(lightTo.sun, k); n.sunI += (l.sunI - n.sunI) * k;
+  n.sky.lerp(lightTo.sky, k); n.skyI += (l.skyI - n.skyI) * k;
+  n.earth.lerp(bounce ?? lightTo.earth, k);
+  n.ambient.lerp(lightTo.ambient, k); n.ambientI += (l.ambientI - n.ambientI) * k;
+  sun.color.copy(n.sun); sun.intensity = n.sunI * (1 + (MINE.sun - 1) * tunnel);
+  hemi.color.copy(n.sky).lerp(MINE.warm, MINE.tint * tunnel); hemi.intensity = n.skyI * (1 + (MINE.sky - 1) * tunnel);
+  hemi.groundColor.copy(n.earth);
+  fill.color.copy(n.ambient).lerp(MINE.warm, MINE.tint * tunnel); fill.intensity = n.ambientI * (1 + (MINE.ambient - 1) * tunnel);
 }
 let lightSnap = true;
 
@@ -97,14 +109,11 @@ post = new Post(renderer, scene, camera);
 /** a race's shaders compile before its countdown runs (performance/warmup.ts) */
 const warmup = new Warmup(renderer);
 const fxBuf = newEffects();
-const camPos: Vec3 = [0, 20, 40];
-const camLook: Vec3 = [0, 0, 0];
-/** where the chased kart was last frame: the camera rides along by its move before smoothing */
-const camKart: Vec3 = [0, 0, 0];
+/** the chase camera (game/camera.ts); its place and aim are the camera's (the attract TV camera writes them too) */
+const chase = new ChaseCam();
+const camPos: Vec3 = chase.pos;
+const camLook: Vec3 = chase.look;
 const lookTmp = new Vector3();
-let camYaw = 0;
-let camSpeed = 0;
-let camRide = 0; // 0..1, eased: how far the camera has lifted over a Strike Ball
 let orbit = 0;
 
 let settings: Settings | null = null;
@@ -223,12 +232,7 @@ function load(config: RaceConfig, isAttract: boolean): void {
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
   vfx.reset();
-  const k = session.player ?? session.state.karts[0];
-  camYaw = k.heading;
-  camSpeed = 0;
-  camPos[0] = k.position[0] - Math.sin(k.heading) * 12; camPos[1] = k.position[1] + 6; camPos[2] = k.position[2] - Math.cos(k.heading) * 12;
-  camLook[0] = k.position[0]; camLook[1] = k.position[1]; camLook[2] = k.position[2];
-  camKart[0] = k.position[0]; camKart[1] = k.position[1]; camKart[2] = k.position[2];
+  chase.reset(session.player ?? session.state.karts[0]);
   // every shader this race can draw, hidden and off-screen ones too, compiles now, before the countdown runs
   warmup.begin(scene, camera, post?.enabled ?? false, performance.now() / 1000);
   // and its skies' paintings, so neither is decoded and uploaded on the frame it first shows
@@ -368,46 +372,13 @@ function raceOver(): void {
 }
 
 // ---- cameras ----
-function chaseCamera(frameDt: number): void {
+/** The chase camera on the player (game/camera.ts ChaseCam), with the punch of the player's last boost pulling it back. */
+function chaseCamera(frameDt: number, nowS: number, reduced: boolean): void {
   const s = session!;
   const i = s.playerIndex >= 0 ? s.playerIndex : s.leader();
-  const k = s.state.karts[i];
-  const root = s.views[i].root.position;
-  const lookBack = s.inputs[i]?.lookBack ?? false;
-  const at: Vec3 = [root.x, root.y, root.z];
-  // on a loop-the-loop: stand back and watch the whole ring
-  const loop = k.status.loopIndex >= 0 ? s.track.loops[k.status.loopIndex] : undefined;
-  if (loop) {
-    const lp = loopCamPose(s.track, loop);
-    smoothTo(camPos, lp.position, CAM.loopLag, frameDt);
-    smoothTo(camLook, lp.target, CAM.loopLag * 1.5, frameDt);
-    camKart[0] = at[0]; camKart[1] = at[1]; camKart[2] = at[2]; // the side view stands still: nothing to ride along
-    camYaw = k.heading;
-    camSpeed = easedSpeed(camSpeed, k.speed, frameDt);
-    camera.fov = fovFor(camSpeed);
-    return;
-  }
-  const want = travelYaw(s.views[i].root.rotation.y, k.speed, k.lateralVelocity, k.drift.active);
-  camYaw = chaseYaw(camYaw, want, lookBack ? CAM.flipLag : CAM.yawLag, frameDt);
-  camSpeed = easedSpeed(camSpeed, k.speed, frameDt);
-  const pose = idealPose(at, camYaw, camSpeed, lookBack);
-  // inside a Strike Ball: lift the camera over the ball
-  camRide += ((k.status.rideRemaining > 0 ? 1 : 0) - camRide) * (1 - Math.exp(-CAM.rideEase * frameDt));
-  if (camRide > 0.001) {
-    const dir = lookBack ? -1 : 1, fx = Math.sin(camYaw) * dir, fz = Math.cos(camYaw) * dir;
-    pose.position[0] -= fx * CAM.rideBack * camRide; pose.position[2] -= fz * CAM.rideBack * camRide;
-    pose.position[1] += CAM.rideUp * camRide; pose.target[1] += CAM.rideUp * 0.5 * camRide;
-  }
-  const lag = lookBack ? CAM.flipLag : CAM.lag;
-  // ride with the kart, then ease the offset: turns and look-back still swing, speed adds no trail
-  carry(camPos, camKart, at);
-  carry(camLook, camKart, at);
-  camKart[0] = at[0]; camKart[1] = at[1]; camKart[2] = at[2];
-  smoothTo(camPos, pose.position, lag, frameDt);
-  // over the road under the camera, and under a tunnel's beams: the pose rides the kart's height
-  clampToRoad(s.track, camPos, k);
-  smoothTo(camLook, pose.target, lag, frameDt);
-  camera.fov = fovFor(camSpeed);
+  const root = s.views[i].root;
+  chase.update(s.track, s.state.karts[i], root.position, root.rotation.y, s.inputs[i]?.lookBack ?? false, vfx.kick.back(nowS, reduced), reduced, frameDt);
+  camera.fov = chase.fov;
 }
 
 /** Attract mode: a slow TV camera swinging around whoever leads. */
@@ -449,7 +420,7 @@ function step(now: number): void {
   const warmed = warmup.active;
   if (warmed) {
     if (!warmup.ready(now / 1000)) return;
-    warmup.finish(scene, () => post!.render(0, false, true));
+    warmup.finish(scene, () => post!.render(0, 0, true));
   }
 
   const racing = !attract && ui.app.screen === 'racing';
@@ -489,10 +460,10 @@ function step(now: number): void {
   if (warmup.active) return; // the attract loop just started its next race: compiling
   cur.frame(acc.alpha, frameDt, reduced);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
-  applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap);
+  applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap, attract ? 0 : chase.tunnel);
   if (post) { post.gradeTo = cur.skyLight.grade ?? DAY_GRADE; if (lightSnap) post.snapGrade(); }
   lightSnap = false;
-  if (attract) tvCamera(frameDt); else chaseCamera(frameDt);
+  if (attract) tvCamera(frameDt); else chaseCamera(frameDt, nowS, reduced);
   const pl = cur.player;
   vfx.frame(frameDt, simDt, nowS, cur.state.karts, attract ? undefined : pl, camPos, reduced);
   if (!attract) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));
@@ -502,7 +473,7 @@ function step(now: number): void {
   cur.dome?.position.copy(camera.position);
   cur.farRing?.position.set(camera.position.x, 0, camera.position.z);
   camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
-  camera.rotateZ(attract ? 0 : vfx.roll(pl, reduced));
+  camera.rotateZ(attract ? 0 : vfx.roll(pl));
   if (photo) { camera.position.set(...photo.pos); camera.lookAt(...photo.look); camera.fov = photo.fov; camera.updateProjectionMatrix(); }
   sun.target.position.set(camLook[0], camLook[1], camLook[2]);
   const so = sunOffset(cur.def.environment?.sunDirection);
@@ -522,7 +493,7 @@ function step(now: number): void {
       map: cur.track.minimap, itemDefs, trailing: cur.items.isTrailing(pi),
     }, now);
   }
-  post!.render(frameDt, !attract && !!pl && pl.boost.remaining > 0, reduced);
+  post!.render(frameDt, attract ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
   if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
   // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again
   if (warmed) { last = performance.now(); governor.reset(last / 1000); }
