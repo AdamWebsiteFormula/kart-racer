@@ -169,7 +169,6 @@
     { "t": 0.97, "lateral": 2 }
   ],
   "hazards": [
-    { "id": "goose", "type": "creature", "creature": "goose", "t": 0.3, "lateral": 1, "period": 11, "hit": "spin" },
     {
       "id": "haybale-1",
       "type": "rolling",

@@ -1,5 +1,5 @@
 // How to Play (title and pause menus): the controls, every item in a line (design §8), the course
-// creatures (design §6) and the tricks worth knowing. US English, short and plain. text.test.ts
+// creatures (design §6; none since 25 Sept 2026) and the tricks worth knowing. US English, short and plain. text.test.ts
 // checks the numbers and colors here against the game's own (items, kart schema, touch buttons).
 
 /** `touch`: the phone and tablet controls, named as the on-screen buttons read (render/touch.ts); `gas`: the row Auto-accelerate changes */
@@ -40,14 +40,13 @@ export const ITEM_LINES: Readonly<Record<string, string>> = Object.freeze({
 /** The key to the Item labels setting (Settings), under the items: each item's letter as its slot shows it (icons.ts glyph). */
 export const LETTERS_LEAD = 'Item labels (turn them on in Settings):';
 
-export const CREATURES: readonly { name: string; track: string; line: string }[] = Object.freeze([
-  { name: 'Rumblesaur', track: 'Canyon Rush', line: 'Rears up, then stomps. Hop over the shock ring.' },
-  { name: 'Yeti', track: 'Frostbite Pass', line: 'Throws snowballs. The shadow shows where one lands.' },
-  { name: 'Kraken', track: 'Boardwalk Nights', line: 'A dark line warns where its tentacle slams.' },
-  { name: 'Giant crab', track: 'Harbor Loop', line: 'Scuttles across the road and back.' },
-  { name: 'Giant goose', track: 'Meadow Run', line: 'Honks, then charges down the road at you.' },
-  { name: 'Sky whale', track: 'Skyline Circuit', line: 'Its tail slap blows a gust across the road.' },
-]);
+/**
+ * A line per course creature (design §6), under "Course creatures" in How to Play. None races since
+ * 25 Sept 2026 (Adam: extras out until they can move like real 3D characters), so the list is empty
+ * and How to Play shows no such section (render/screens.ts). A creature's line comes back with it;
+ * the six as they read until then: `git show af81e8d:src/ui-hud/data/howto.ts`.
+ */
+export const CREATURES: readonly { name: string; track: string; line: string }[] = Object.freeze([]);
 
 export const TIPS: readonly string[] = Object.freeze([
   // the driving aids first (Settings, game/assist.ts): a new player's way in

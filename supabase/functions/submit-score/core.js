@@ -345,15 +345,6 @@ var e = {
 	],
 	hazards: [
 		{
-			id: "kraken",
-			type: "creature",
-			creature: "kraken",
-			t: .42,
-			lateral: 1,
-			period: 7.6,
-			hit: "spin"
-		},
-		{
 			id: "bumper-cars",
 			type: "crossing",
 			t: .72,
@@ -865,15 +856,6 @@ var e = {
 		}
 	],
 	hazards: [
-		{
-			id: "rumblesaur",
-			type: "creature",
-			creature: "rumblesaur",
-			t: .8,
-			lateral: 1,
-			period: 5.6,
-			hit: "spin"
-		},
 		{
 			id: "rockfall-1",
 			type: "falling",
@@ -1706,15 +1688,6 @@ var e = {
 	],
 	hazards: [
 		{
-			id: "yeti",
-			type: "creature",
-			creature: "yeti",
-			t: .62,
-			lateral: -1,
-			period: 3.6,
-			hit: "spin"
-		},
-		{
 			id: "snowball-1",
 			type: "rolling",
 			t: .22,
@@ -2460,14 +2433,6 @@ var e = {
 		}
 	],
 	hazards: [{
-		id: "crab",
-		type: "creature",
-		creature: "crab",
-		t: .36,
-		lateral: 1,
-		period: 7.6,
-		hit: "spin"
-	}, {
 		id: "barrels",
 		type: "rolling",
 		t: .3689,
@@ -3002,14 +2967,6 @@ var e = {
 		}
 	],
 	hazards: [{
-		id: "goose",
-		type: "creature",
-		creature: "goose",
-		t: .3,
-		lateral: 1,
-		period: 11,
-		hit: "spin"
-	}, {
 		id: "haybale-1",
 		type: "rolling",
 		t: .16,
@@ -3510,13 +3467,6 @@ var e = {
 		}
 	],
 	hazards: [{
-		id: "whale",
-		type: "creature",
-		creature: "whale",
-		t: .5,
-		lateral: -1,
-		period: 12
-	}, {
 		id: "wake-gust",
 		type: "gust",
 		t: .12,
@@ -3784,7 +3734,7 @@ var e = {
 			.156
 		]
 	}
-]), s = "4", c = 262144, l = (e = /* @__PURE__ */ new Date()) => e.getUTCHours() * 60 + e.getUTCMinutes();
+]), s = "5", c = 262144, l = (e = /* @__PURE__ */ new Date()) => e.getUTCHours() * 60 + e.getUTCMinutes();
 function u(e) {
 	let t = e.trim().toLowerCase();
 	if (!t.includes(":")) return t;
@@ -3866,7 +3816,7 @@ function w(e, t, n = d(), r = l()) {
 	if (typeof i.racerId != "string" || !o.some((e) => e.id === i.racerId)) return "unknown racer";
 	if (!Number.isInteger(i.timeMs) || i.timeMs < 3e4) return "time is not a whole number of milliseconds of at least 30 s";
 	if (typeof i.inputLog != "string" || i.inputLog.length === 0 || i.inputLog.length > 262144) return "input log missing or too large";
-	if (i.clientVersion !== "4") return "please reload the game: new version";
+	if (i.clientVersion !== "5") return "please reload the game: new version";
 	if (i.mode === "daily") {
 		let e = i.dailySeed === T(n) && r < 15;
 		if (!Number.isInteger(i.dailySeed) || i.dailySeed !== n && !e) return "that daily challenge is closed";

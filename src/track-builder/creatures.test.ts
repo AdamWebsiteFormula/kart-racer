@@ -1,8 +1,11 @@
 // The course creatures (design §6): each one's script is race time only, warns before it can
-// hit, and hits only where it says. Built on the race-manager OVAL (a flat rounded square).
+// hit, and hits only where it says. Built on the race-manager OVAL (a flat rounded square). No track
+// races one since 25 Sept 2026 (Adam: extras out until they can move like real 3D characters); the
+// system stays for a later return, so the real-road checks put each creature back where it stood
+// (__tests__/fixtures.ts CREATURE_SPOTS).
 import { describe, expect, it } from 'vitest';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
-import { cloneDef } from './__tests__/fixtures.ts';
+import { CREATURE_SPOTS, withCreature } from './__tests__/fixtures.ts';
 import { BUILDER } from './constants.ts';
 import { CREATURE } from './creatures.ts';
 import { buildTrack, type Track } from './track.ts';
@@ -134,7 +137,7 @@ describe('course creatures', () => {
   it('Canyon Rush: the Rumblesaur stomps on the canyon floor, off the road the final lap replaces, and its ring rolls across the whole road every lap', () => {
     // bug hunt 2 (24 Sept 2026): authored at t 0.58, inside the collapse's route override (0.32-0.665);
     // on the final lap it moved 69 m into the mesa over the mine and its ring spun karts in the bore
-    const def = cloneDef(canyonJson as TrackDefinition);
+    const def = withCreature(canyonJson as TrackDefinition);
     const spot = def.hazards!.find((h) => h.id === 'rumblesaur')!;
     for (const ov of def.finalLapShift.routeOverrides!) expect(spot.t < ov.fromT || spot.t > ov.toT).toBe(true);
     const track = buildTrack(def);
@@ -164,7 +167,7 @@ describe('course creatures', () => {
     // bug hunt 2 (24 Sept 2026): both stood inside the drivable sand and snow, and karts drove through
     // the Rumblesaur's legs and the yeti's rock ledge with nothing to stop them
     for (const [json, id, footprint] of [[canyonJson, 'rumblesaur', CREATURE.rumblesaur.footprint], [frostbiteJson, 'yeti', CREATURE.yeti.footprint]] as const) {
-      const track = buildTrack(cloneDef(json as TrackDefinition));
+      const track = buildTrack(withCreature(json as TrackDefinition));
       const c = track.hazards.creatures.find((x) => x.id === id)!;
       const s = track.sample(c.t, 0), body = track.hazards.creaturePoses(0.1).find((p) => p.id === id)!.position;
       const lat = ((body[0] - s.position[0]) * s.tangent[2] - (body[2] - s.position[2]) * s.tangent[0]) / Math.hypot(s.tangent[0], s.tangent[2]);
@@ -185,7 +188,7 @@ describe('course creatures', () => {
   it('the goose, the crab and the Rumblesaur stand on the ground as drawn, and so does what hits', () => {
     // bug hunt 2 (24 Sept 2026): at the road centre's height the goose waited 0.96 m over Meadow's grass
     for (const [json, id, time] of [[meadowJson, 'goose', 1], [harbourJson, 'crab', 0.5], [canyonJson, 'rumblesaur', 1]] as const) {
-      const track = buildTrack(cloneDef(json as TrackDefinition));
+      const track = buildTrack(withCreature(json as TrackDefinition));
       const c = track.hazards.creatures.find((x) => x.id === id)!;
       const p = track.hazards.creaturePoses(time).find((x) => x.id === id)!.position;
       const s = track.sample(c.t, 0);
@@ -197,7 +200,7 @@ describe('course creatures', () => {
   });
 
   it('a creature on road a route change replaces is switched off with it: no hits, no pose', () => {
-    const def = cloneDef(canyonJson as TrackDefinition);
+    const def = withCreature(canyonJson as TrackDefinition);
     def.hazards!.find((h) => h.id === 'rumblesaur')!.t = 0.58; // where it stood until bug hunt 2
     const track = buildTrack(def);
     track.applyFinalLapShift([]);
@@ -213,5 +216,20 @@ describe('course creatures', () => {
     t.hazards.setEnabled('rumblesaur', false);
     expect(mine(t, CREATURE.rumblesaur.idle + CREATURE.rumblesaur.rear + 0.6)).toEqual([]);
     expect(t.hazards.isEnabled('rumblesaur')).toBe(false);
+  });
+
+  it('no track races a creature (Adam, 25 Sept 2026); each one put back at its old spot builds as before', () => {
+    const shipped = Object.values(import.meta.glob('./tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
+    for (const def of shipped) {
+      expect(def.hazards?.filter((h) => h.type === 'creature') ?? [], def.id).toEqual([]);
+      const track = buildTrack(def);
+      expect(track.hazards.creatures, def.id).toHaveLength(0);
+      expect(track.hazards.creaturePoses(3), def.id).toEqual([]);
+    }
+    for (const [id, spot] of Object.entries(CREATURE_SPOTS)) {
+      const def = shipped.find((d) => d.id === id);
+      expect(def, id).toBeDefined();
+      expect(buildTrack(withCreature(def!)).hazards.creatures.map((c) => c.kind), id).toEqual([spot.creature]);
+    }
   });
 });

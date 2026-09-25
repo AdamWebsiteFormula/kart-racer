@@ -91,8 +91,10 @@ describe('hazards', () => {
     const t = buildTrack(HARBOUR_LOOP);
     expect(t.hazards.isEnabled('barrels')).toBe(true);
     t.hazards.setEnabled('barrels', false);
-    // (the harbor crab, waiting on the sand at time 0, is solid there: karts can reach it)
-    expect(t.activeHazards(0).filter((h) => h.id === 'barrels')).toEqual([]);
-    expect(t.activeHazards(0).map((h) => h.id)).toEqual(['crab']);
+    expect(t.hazards.isEnabled('barrels')).toBe(false);
+    // Harbor's one hazard (its crab came off the track on 25 Sept 2026): nothing left to hit
+    expect(t.activeHazards(0)).toEqual([]);
+    t.hazards.setEnabled('barrels', true);
+    expect(t.activeHazards(0).map((h) => h.id)).toEqual(['barrels']);
   });
 });

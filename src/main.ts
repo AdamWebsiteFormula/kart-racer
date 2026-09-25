@@ -478,7 +478,9 @@ function backgroundFiles(): void {
   // the item art the roulette flicks through (the first race's first balloon); every other track's ground and scenery
   for (const id of Object.keys(ITEM_ICONS)) void files.add(() => prefetchImage(itemArt(id)), RANK.items);
   void files.add(async () => preloadSurfaces(), RANK.rest);
-  void PROP_MODELS.load(undefined, files.at(RANK.rest));
+  // only the models some track's scene asks for (trackProps): the course creatures' (off every track
+  // since 25 Sept 2026, 3.6 MB) are not fetched, and come back with a creature put back on its track
+  void PROP_MODELS.load([...TRACKS.values()].flatMap(trackProps), files.at(RANK.rest));
 }
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));

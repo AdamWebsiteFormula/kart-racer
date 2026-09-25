@@ -3,7 +3,7 @@ import { InstancedMesh, Matrix4, Mesh, PerspectiveCamera, Raycaster, Vector3, ty
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
-import { HARBOUR_LOOP, HARBOUR_WALLED, HARBOUR_WALLED_PIER, cloneDef } from '../__tests__/fixtures.ts';
+import { HARBOUR_LOOP, HARBOUR_WALLED, HARBOUR_WALLED_PIER, cloneDef, withCreature } from '../__tests__/fixtures.ts';
 import { chunkCountFor } from './chunks.ts';
 import { CREATURE_GHOST } from './creatures.ts';
 import { NearGhost } from './ghost.ts';
@@ -362,8 +362,9 @@ describe('Final Lap Shift swap and hazards', () => {
     scene.dispose();
   });
 
+  // (no track races a creature since 25 Sept 2026: these put Canyon's and Boardwalk's back where they stood)
   it('a creature the Final Lap Shift switches off is not drawn any more (bug hunt 2)', () => {
-    const d = cloneDef(canyonJson as TrackDefinition);
+    const d = withCreature(canyonJson as TrackDefinition);
     d.hazards!.find((h) => h.id === 'rumblesaur')!.t = 0.58; // on the road the collapse replaces
     const track = buildTrack(d);
     const scene = buildTrackScene(track);
@@ -378,7 +379,7 @@ describe('Final Lap Shift swap and hazards', () => {
 
   it('a creature near the lens fades as a clean ghost, only while it is near (review 25 Sept 2026: the goose, then the crab\'s and the tentacle\'s stipple over the kart)', () => {
     for (const json of [canyonJson, boardwalkJson]) {
-      const track = buildTrack(json as TrackDefinition);
+      const track = buildTrack(withCreature(json as TrackDefinition));
       const scene = buildTrackScene(track);
       scene.update(1);
       const bodies: Mesh[] = [];

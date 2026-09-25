@@ -84,21 +84,22 @@ export const INTRO = Object.freeze({
 /**
  * Per track, in its own terms (main-line t, metres right, metres up), from its geometry (probe of
  * 24 Sept 2026): the far landmark stands 330 to 610 m out, within 27° of straight ahead of the start.
- * The course creatures move meanwhile (the scene runs on toward the countdown: CourseIntro.sceneTime),
- * so a creature's stretch is timed to its act: the crab's crossing, the goose's charge, the yeti's throw.
- * The grandstand pass is laid from the stand as built (findStand), not authored.
+ * The hazards move meanwhile (the scene runs on toward the countdown: CourseIntro.sceneTime), so
+ * Harbor's barrels roll off the pier at the lens. Harbor's, Meadow's and Frostbite's stretches were
+ * their course creatures' until 25 Sept 2026 (design §6: none races now); each keeps its road, framed
+ * on the road alone. The grandstand pass is laid from the stand as built (findStand), not authored.
  */
 export const TRACK_INTROS: Readonly<Record<string, TrackIntro>> = Object.freeze({
   'harbour-loop': {
     vista: { from: { t: 0.975, lat: 20, up: 16 }, to: { t: 0.008, lat: -2, up: 30 }, bow: 16, drop: 75, tilt: 60 },
-    // the pier ramp on the harbor side, the crab's stretch ahead
+    // down the boost pads onto the pier ramp on the harbor side, the barrels rolling off the pier at the lens
     feature: { name: 'pier', from: { t: 0.300, lat: -2.5, up: 4.4 }, to: { t: 0.338, lat: -1, up: 5.2 }, aim: { ahead: 28, aimUp: 2 } },
   },
   'meadow-run': {
     vista: { from: { t: 0.018, lat: 20, up: 16 }, to: { t: 0.048, lat: -2, up: 30 }, bow: 16, drop: 60, tilt: 60 },
-    // the giant goose's charge down its straight: the lens backs away down the road ahead of it as it
-    // comes on honking (charging t 0.2745 → 0.2456 over this move, 16 m back to 10 m from the lens)
-    feature: { name: 'goose', from: { t: 0.258, lat: 2.5, up: 3.4 }, to: { t: 0.236, lat: 2, up: 3.8 }, aim: { ahead: 16, aimUp: 2, aimLat: -1 } },
+    // on down the long slipstream straight toward the giant oak by the hedgerow cut (the final lap's
+    // storm fells it across the cut) and the windmills; the road the goose charged down until 25 Sept 2026
+    feature: { name: 'straight', from: { t: 0.236, lat: 2, up: 3.8 }, to: { t: 0.258, lat: 2.5, up: 3.4 }, aim: { ahead: 40, aimUp: 2.5 } },
   },
   'canyon-rush': {
     vista: { from: { t: 0.975, lat: 20, up: 17 }, to: { t: 0.01, lat: -2, up: 32 }, bow: 16, drop: 55, tilt: 60 },
@@ -107,8 +108,9 @@ export const TRACK_INTROS: Readonly<Record<string, TrackIntro>> = Object.freeze(
   },
   'frostbite-pass': {
     vista: { from: { t: 0.985, lat: 20, up: 17 }, to: { t: 0.02, lat: -2, up: 32 }, bow: 16, drop: 170, tilt: 60 },
-    // up the road under the yeti's ledge as it winds up and throws: the snowball lands ahead and rolls at the lens
-    feature: { name: 'yeti', from: { t: 0.584, lat: 2, up: 3.4 }, to: { t: 0.604, lat: 1, up: 3.8 }, aim: { ahead: 30, aimUp: 3.5, aimLat: -7 } },
+    // up the road beside the lake (open water and floes; the final lap's blizzard freezes it into a
+    // shortcut), toward the balloon row, turned a little toward the water; under the yeti's ledge until 25 Sept 2026
+    feature: { name: 'lake', from: { t: 0.584, lat: 2, up: 3.4 }, to: { t: 0.604, lat: 1, up: 3.8 }, aim: { ahead: 30, aimUp: 2, aimLat: -4 } },
   },
   'boardwalk-nights': {
     vista: { from: { t: 0.075, lat: 20, up: 16 }, to: { t: 0.11, lat: -2, up: 28 }, bow: 13, drop: 55, tilt: 60 },

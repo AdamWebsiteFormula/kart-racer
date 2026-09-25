@@ -167,7 +167,6 @@
     { "t": 0.95, "lateral": 0 }
   ],
   "hazards": [
-    { "id": "rumblesaur", "type": "creature", "creature": "rumblesaur", "t": 0.8, "lateral": 1, "period": 5.6, "hit": "spin" },
     { "id": "rockfall-1", "type": "falling", "t": 0.22, "lateral": 2, "period": 5, "hit": "slow", "asset": "rockfall" },
     { "id": "minecart-1", "type": "crossing", "t": 0.74, "lateral": 0, "period": 6, "speed": 1.4, "hit": "spin", "asset": "minecart" },
     { "id": "geyser-1", "type": "vent", "asset": "geyser", "t": 0.145, "lateral": -4, "period": 4, "offset": 0 },

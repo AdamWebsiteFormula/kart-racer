@@ -493,7 +493,7 @@ export class SettingsView implements ScreenView {
   }
 }
 
-/** How to Play: controls, every item with its painted art, the course creatures, and tips. */
+/** How to Play: controls, every item with its painted art, the course creatures (while any races), and tips. */
 export class HowToView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
@@ -535,12 +535,15 @@ export class HowToView implements ScreenView {
       h('b', '', letters, iconFor(it.id)!.glyph);
       letters.append(` ${it.name}${i < keyed.length - 1 ? ' · ' : ''}`);
     });
-    h('h3', '', box, 'Course creatures');
-    const cl = h('ul', 'creatures', box);
-    for (const c of CREATURES) {
-      const li = h('li', '', cl);
-      h('b', '', li, `${c.name} (${c.track}): `);
-      h('span', '', li, c.line);
+    // (none races since 25 Sept 2026, data/howto.ts: no section while the list is empty)
+    if (CREATURES.length) {
+      h('h3', '', box, 'Course creatures');
+      const cl = h('ul', 'creatures', box);
+      for (const c of CREATURES) {
+        const li = h('li', '', cl);
+        h('b', '', li, `${c.name} (${c.track}): `);
+        h('span', '', li, c.line);
+      }
     }
     h('h3', '', box, 'Tips');
     const tl = h('ul', 'tips', box);
