@@ -5,7 +5,7 @@ import { GO_TICK, STEP_TICKS } from '../race-manager/countdown.ts';
 import { RACE } from '../race-manager/constants.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { feedHud, hudModel, newHudMemory } from './hudModel.ts';
+import { feedHud, hudModel, lapSplits, newHudMemory } from './hudModel.ts';
 
 const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
 
@@ -161,5 +161,27 @@ describe('Time Trial HUD', () => {
   it('hides the item slots: Time Trial has no items', () => {
     expect(hudModel(race({ mode: 'timeTrial' }), kart(), 1, 10, newHudMemory(), 0, defs, 0).items).toBe(false);
     expect(hudModel(race(), kart(), 1, 10, newHudMemory(), 0, defs, 0).items).toBe(true);
+  });
+});
+
+describe('solo runs (sweep 24 Sept 2026)', () => {
+  // SIM_HZ 120: 4800 ticks are 40 s
+  const tr = { lapTicks: [360 + 4800, 360 + 4800 + 4680] };
+  it('a Time Trial or Daily has nobody to be placed against: no place numeral, the finished laps instead, the fastest marked', () => {
+    const k = kart();
+    const vm = hudModel(race({ karts: [k], trackers: [tr], goTick: 360 } as never), k, 1, 10, newHudMemory(), 0, defs, 0);
+    expect(vm.solo).toBe(true);
+    expect(vm.splits).toEqual([{ lap: 1, time: '0:40.00', best: false }, { lap: 2, time: '0:39.00', best: true }]);
+    // a Time Trial's ghost is no racer
+    const ghost = { ...kart(), isGhost: true };
+    expect(hudModel(race({ karts: [k, ghost], trackers: [tr, tr], goTick: 360 } as never), k, 1, 10, newHudMemory(), 0, defs, 0).solo).toBe(true);
+    // a field: a place to show and no splits
+    const field = hudModel(race({ karts: [k, kart()], trackers: [tr, tr], goTick: 360 } as never), k, 1, 10, newHudMemory(), 0, defs, 0);
+    expect([field.solo, field.splits.length]).toEqual([false, 0]);
+  });
+
+  it('one lap has no fastest yet; none has no splits', () => {
+    expect(lapSplits([360 + 4800], 360)).toEqual([{ lap: 1, time: '0:40.00', best: false }]);
+    expect(lapSplits([], 360)).toEqual([]);
   });
 });

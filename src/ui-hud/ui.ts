@@ -148,6 +148,8 @@ export class UiRoot {
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
   private readonly onMove = (e: PointerEvent) => this.hover(e);
   private readonly onDown = (e: PointerEvent) => this.tapInRace(e);
+  /** the window lost the focus mid-race (alt-tab, a click on the address bar or another window) */
+  private readonly onBlur = () => { if (this.app.screen === 'racing' && !this.app.overlays.length) this.dispatch({ type: 'pause' }); };
   /** a phone or tablet held upright: the rotate prompt covers the screen (CSS, same query) */
   private readonly upright: MediaQueryList | undefined;
   private readonly onUpright = () => this.holdIfUpright();
@@ -199,6 +201,9 @@ export class UiRoot {
     this.osReduced = mq?.matches ?? false;
     mq?.addEventListener?.('change', (e) => { this.osReduced = e.matches; this.applyTheme(); });
     addEventListener('keydown', this.onKey);
+    // alt-tab mid-race leaves the window on screen (no visibilitychange): the race waits under the pause,
+    // as for a hidden tab, instead of the pack driving off from a kart whose keys the blur let go
+    addEventListener('blur', this.onBlur);
     this.applyTheme();
     this.show();
   }
@@ -207,6 +212,7 @@ export class UiRoot {
     removeEventListener('keydown', this.onKey);
     removeEventListener('pointermove', this.onMove);
     removeEventListener('pointerdown', this.onDown);
+    removeEventListener('blur', this.onBlur);
     clearTimeout(this.toastTimer);
     this.upright?.removeEventListener?.('change', this.onUpright);
     this.short?.removeEventListener?.('change', this.onShort);

@@ -95,6 +95,21 @@ export interface HudVM {
   keysHint: boolean;
   /** show the item slots (Time Trial has no items) */
   items: boolean;
+  /** a solo run (Time Trial, Daily): nobody to be placed against, so no place numeral; the lap splits instead */
+  solo: boolean;
+  /** a solo run: each lap finished so far and its time, the fastest marked once there are two */
+  splits: readonly LapSplit[];
+}
+
+export interface LapSplit { lap: number; time: string; best: boolean }
+const NO_SPLITS: readonly LapSplit[] = Object.freeze([]);
+
+/** The player's finished laps as splits (`lapTicks`: the tick of each line crossing after the start). */
+export function lapSplits(lapTicks: readonly number[], goTick: number): readonly LapSplit[] {
+  if (!lapTicks.length) return NO_SPLITS;
+  const ms = lapTicks.map((t, k) => ticksToMs(t - (k === 0 ? goTick : lapTicks[k - 1])));
+  const best = ms.length > 1 ? ms.indexOf(Math.min(...ms)) : -1;
+  return ms.map((m, k) => ({ lap: k + 1, time: formatMs(m), best: k === best }));
 }
 
 type Def = { id: string; name: string };
@@ -148,6 +163,10 @@ export function hudModel(
     knockout = final ? { text: 'WIN THE FINAL', danger: rank > 1 } : { text: `TOP ${cut} GO THROUGH`, danger: rank > cut };
   }
   const slots = itemSlots(player, defs, nowMs, trailing);
+  // a solo run: one racer (a Time Trial's ghost is no racer)
+  let racers = 0;
+  for (const k of state.karts ?? []) if (!k.isGhost) racers++;
+  const solo = racers === 1;
   return {
     // stops on the player's own time (the one the results show), not the race clock
     timer: player.finishTick !== undefined ? formatMs(ticksToMs(player.finishTick - state.goTick)) : formatTime(state.time),
@@ -166,5 +185,7 @@ export function hudModel(
     knockout,
     keysHint: counting || m.hintUntil > clock,
     items: state.mode !== 'timeTrial',
+    solo,
+    splits: solo ? lapSplits(state.trackers?.[state.karts.indexOf(player)]?.lapTicks ?? [], state.goTick) : NO_SPLITS,
   };
 }

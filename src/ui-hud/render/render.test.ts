@@ -449,23 +449,25 @@ describe('settings by pointer', () => {
     ui.dispatch({ type: 'boot' });
     ui.dispatch({ type: 'openSettings' });
     const box = () => document.querySelector<HTMLElement>('#ui .settings.on .box')!;
+    // the rows scroll inside the panel; Done sits in the foot under them (sweep: dialog())
+    const rows = () => box().querySelector<HTMLElement>(':scope > .scroll')!;
     const click = (sel: string) => document.querySelector(`#ui .settings ${sel}`)!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     const master = ui.save.settings.masterVolume;
     expect(box().classList.contains('redraw')).toBe(false); // it pops in when it opens
-    box().scrollTop = 197; // scrolled down by a thumb to Resolution (740x360: 506 px of rows in a 309 px box)
+    rows().scrollTop = 197; // scrolled down by a thumb to Resolution (740x360: 506 px of rows in a 309 px box)
     click('[data-id="resolutionScale"] .arrow:first-child');
-    expect(box().scrollTop).toBe(197); // a new panel, at the old scroll: it opened at 0, and the next tap hit Master volume
+    expect(rows().scrollTop).toBe(197); // a new panel, at the old scroll: it opened at 0, and the next tap hit Master volume
     expect(box().classList.contains('redraw')).toBe(true);
     click('[data-id="resolutionScale"] .arrow:first-child');
     expect(ui.save.settings.resolutionScale).toBeCloseTo(0.8);
     expect(ui.save.settings.masterVolume).toBe(master);
     key('ArrowLeft'); // keys too
     expect(ui.save.settings.resolutionScale).toBeCloseTo(0.7);
-    expect(box().scrollTop).toBe(197);
+    expect(rows().scrollTop).toBe(197);
     // closed and opened again: it starts at the top and pops in
     ui.dispatch({ type: 'back' });
     ui.dispatch({ type: 'openSettings' });
-    expect(box().scrollTop).toBe(0);
+    expect(rows().scrollTop).toBe(0);
     expect(box().classList.contains('redraw')).toBe(false);
     ui.dispose();
   });
@@ -863,12 +865,71 @@ describe('tall panels (a laptop or a phone on its side)', () => {
     reveal.mockClear();
     ui.dispatch({ type: 'openHowTo' });
     expect(reveal).not.toHaveBeenCalled(); // Back sits at the end: focusing it must not jump there
-    const by = sized(document.querySelector<HTMLElement>('#ui .howto.on .box')!, 1208, 570);
+    const by = sized(document.querySelector<HTMLElement>('#ui .howto.on .scroll')!, 1208, 570);
     key('ArrowDown'); key('ArrowDown'); key('ArrowUp');
     expect(by.mock.calls.map((c) => c[0].top)).toEqual([UI.panelScrollPx, UI.panelScrollPx, -UI.panelScrollPx]);
     expect(ui.app.overlays).toEqual(['howTo']);
     ui.nav('down'); // the pad goes through the same nav
     expect(by).toHaveBeenCalledTimes(4);
     ui.dispose();
+  });
+});
+
+describe('sweep of every screen (24 Sept 2026)', () => {
+  it('How to Play, Credits, Unlocks and Settings keep their own button in a foot under the content that scrolls', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    for (const [open, cls, id] of [['openHowTo', 'howto', 'back'], ['openCredits', 'credits', 'back'], ['openUnlocks', 'unlocks', 'back'], ['openSettings', 'settings', 'done']] as const) {
+      ui.dispatch({ type: open });
+      const box = document.querySelector(`#ui .${cls}.on .box`)!;
+      const body = box.querySelector(':scope > .scroll')!, foot = box.querySelector(':scope > .foot')!;
+      expect(body.querySelector('h2'), cls).not.toBeNull();
+      expect(foot.querySelector(`[data-id="${id}"]`), cls).not.toBeNull();
+      expect(body.querySelector(`[data-id="${id}"]`), cls).toBeNull();
+      expect((document.activeElement as HTMLElement).dataset.id, cls).toBe(open === 'openSettings' ? 'masterVolume' : id);
+      key('Escape');
+      expect(ui.app.overlays, cls).toEqual([]);
+    }
+    ui.dispose();
+  });
+
+  it('a solo run: the HUD hides the place, lists the finished laps under the timer, and a second render writes nothing', () => {
+    document.body.innerHTML = '';
+    const v = new HudView(document.body);
+    const k = kart();
+    const st = { ...race, karts: [k], trackers: [{ lapTicks: [360 + 4800] }], goTick: 360 } as unknown as RaceState;
+    const vm = () => hudModel(st, k, 1, 10, newHudMemory(), 1, defs, 0);
+    v.render(vm());
+    expect(v.root.classList.contains('solo')).toBe(true);
+    expect([...v.root.querySelectorAll('.tc .split')].map((e) => e.textContent)).toEqual(['Lap 10:40.00']);
+    const text = vi.spyOn(Node.prototype, 'textContent', 'set');
+    v.render(vm());
+    expect(text).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+    // a field of racers: the place shows, no splits
+    v.render(hudModel(race, kart(), 5, 10, newHudMemory(), 1, defs, 0));
+    expect(v.root.classList.contains('solo')).toBe(false);
+    expect(v.root.querySelectorAll('.split').length).toBe(0);
+  });
+
+  it('the window losing the focus mid-race (alt-tab: no visibilitychange) pauses it; on the menus it does nothing', () => {
+    document.body.innerHTML = '';
+    const h = host();
+    const ui = new UiRoot(document.body, h, null);
+    ui.dispatch({ type: 'boot' });
+    dispatchEvent(new Event('blur'));
+    expect([ui.app.screen, ui.app.overlays]).toEqual(['title', []]);
+    for (const a of [{ type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }] as const) ui.dispatch(a);
+    expect(ui.app.screen).toBe('racing');
+    dispatchEvent(new Event('blur'));
+    expect(ui.app.overlays).toEqual(['pause']);
+    expect(h.calls).toContain('paused:true');
+    dispatchEvent(new Event('blur')); // already paused: stays as it is
+    expect(ui.app.overlays).toEqual(['pause']);
+    ui.dispose();
+    const n = h.calls.length;
+    dispatchEvent(new Event('blur')); // disposed: no listener left
+    expect(h.calls.length).toBe(n);
   });
 });

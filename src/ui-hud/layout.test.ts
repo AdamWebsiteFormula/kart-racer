@@ -57,8 +57,8 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.logo .l2', 'font-size', PHONE)).toMatch(/vh/);
     expect(value('.title .menu', 'grid-template-columns', PHONE)).toBe('1fr 1fr');
     expect(value('.title .stage', 'justify-content', PHONE)).toBe('safe center');
-    // the desktop title is as it was
-    expect(value('.title .stage', 'justify-content')).toBe('center');
+    // on any screen a title taller than the window starts at the top (sweep: at 1366x657 plain centre cut the logo's top off)
+    expect(value('.title .stage', 'justify-content')).toBe('safe center');
   });
 
   it('the rotate prompt takes the taps, so none goes through to the buttons hidden under it', () => {
@@ -92,5 +92,58 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
   it('Settings drawn again after a change does not pop in again (seam review)', () => {
     expect(value('.overlay .box', 'animation')).toMatch(/pop-in/);
     expect(value('.overlay .box.redraw', 'animation')).toBe('none');
+  });
+});
+
+/** A @keyframes rule's keys ('from' or '0%', …). */
+function keyframes(name: string): string[] {
+  for (const r of rules()) if (r instanceof CSSKeyframesRule && r.name === name) return [...r.cssRules].map((k) => (k as CSSKeyframeRule).keyText);
+  return [];
+}
+
+describe('sweep of every screen (24 Sept 2026)', () => {
+  it('the enter animations end on the element\'s own style, so nothing stays pinned flat after them', () => {
+    // a `to { transform: none; opacity: 1 }` held by fill `both` killed the focus lift and the press on every
+    // popped-in card and button, the player's results row scale, and the dimming of dnf and knocked-out rows
+    for (const name of ['pop-in', 'slide-in']) {
+      const keys = keyframes(name);
+      expect(keys.length, name).toBe(1);
+      expect(keys[0], name).toMatch(/^(from|0%)$/);
+    }
+    for (const [sel, name] of [['.screen.on .enter', 'pop-in'], ['.row', 'slide-in'], ['.overlay .box', 'pop-in'], ['.stars .star.on', 'pop-in']]) {
+      expect(value(sel, 'animation'), sel).toMatch(new RegExp(`${name}.*backwards`));
+    }
+    expect(value('.row.out', 'opacity')).toBe('0.55');
+    expect(value('.btn.focused', 'transform')).toMatch(/scale/);
+  });
+
+  it('a dialog keeps its own button (Back, Done) in a foot under the content that scrolls', () => {
+    expect(value('.overlay .box.dialog', 'overflow')).toBe('hidden');
+    expect(value('.overlay .box.dialog', 'flex-direction')).toBe('column');
+    expect(value('.overlay .box.dialog > .scroll', 'overflow')).toBe('hidden auto');
+    expect(value('.overlay .box.dialog > .foot', 'flex')).toMatch(/^(none|0 0 auto)$/); // never squeezed out by the content
+  });
+
+  it('a dialog over the title or a menu hides the screen under it (the logo peeked round Settings)', () => {
+    expect(value('#ui .screen[inert] > .stage', 'opacity')).toBe('0');
+  });
+
+  it('a laptop window (1280x720, 1366x657) fits the title and the racer screen down to the class row', () => {
+    const LAPTOP = '(max-height: 800px)';
+    expect(value('.logo .l1', 'font-size', LAPTOP)).toMatch(/vh/);
+    expect(value('.logo .l2', 'font-size', LAPTOP)).toMatch(/vh/);
+    expect(value('.card .who', 'display', LAPTOP)).toBe('none');
+    expect(value('.pick-hint', 'display', LAPTOP)).toBe('none');
+    expect(value('.card .face.has-portrait', 'width', LAPTOP)).toBe('60px');
+  });
+
+  it('on a phone on its side the odd last button (Credits, or Quit without Restart) sits centred under the others', () => {
+    expect(value('.title .menu .btn:last-child:nth-child(odd)', 'grid-column', PHONE)).toBe('1 / -1');
+    expect(value('.pause .list .btn:last-child:nth-child(odd)', 'grid-column', PHONE)).toBe('1 / -1');
+  });
+
+  it('a solo run shows no place numeral; the count and GO! sit below the start lights', () => {
+    expect(value('.hud.solo .place', 'display')).toBe('none');
+    expect(value(".banner[data-kind='countdown']", 'top')).toBe('31%');
   });
 });

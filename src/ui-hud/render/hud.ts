@@ -4,7 +4,7 @@ import { UI } from '../constants.ts';
 import type { HudVM, ItemSlotVM } from '../hudModel.ts';
 import { iconFor, iconMarkup } from '../icons.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
-import { Attr, Flag, h, Markup, replay, TextField } from './dom.ts';
+import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
 
 class SlotView {
   readonly root: HTMLElement;
@@ -159,6 +159,10 @@ export class HudView {
   private keysHint: Flag;
   private lastFlourish = false;
   private readonly slots: HTMLElement;
+  /** a solo run: no place numeral, the lap splits under the timer */
+  private solo: Flag;
+  private splits: HTMLElement;
+  private splitsKey = '';
 
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen hud', parent);
@@ -174,6 +178,8 @@ export class HudView {
     this.koText = new TextField(this.ko);
     this.koDanger = new Flag(this.ko, 'danger');
     this.koShown = new Flag(this.ko, 'sr-only');
+    this.splits = h('div', 'splits', tc);
+    this.solo = new Flag(this.root, 'solo');
 
     const bl = h('div', 'bl', this.root);
     this.place = h('div', 'place', bl);
@@ -223,6 +229,19 @@ export class HudView {
     this.placeN.set(vm.position.n);
     this.placeSuf.set(vm.position.suffix);
     this.placeP1.set(vm.position.n === '1');
+    this.solo.set(vm.solo);
+    // the splits change once a lap: drawn again only then
+    let laps = '';
+    for (const s of vm.splits) laps += `${s.time}${s.best ? '*' : ''}|`;
+    if (laps !== this.splitsKey) {
+      this.splitsKey = laps;
+      clear(this.splits);
+      for (const s of vm.splits) {
+        const row = h('div', s.best ? 'split best' : 'split', this.splits);
+        h('span', 'n', row, `Lap ${s.lap}`);
+        h('span', 't', row, s.time);
+      }
+    }
     if (vm.flourish && !this.lastFlourish) replay(this.place, 'flourish');
     this.lastFlourish = vm.flourish;
     this.coins.set(vm.coins);

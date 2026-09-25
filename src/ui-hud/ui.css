@@ -78,6 +78,10 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 #ui .screen { position: absolute; inset: 0; pointer-events: auto; display: none; }
 #ui .screen.on { display: block; }
 #ui .hud { pointer-events: none; }
+/* a dialog over the title or a menu (Settings, How to Play, Credits, Unlocks): the screen under it steps
+   back, so no logo or button peeks round the panel; it fades back in when the dialog closes */
+#ui .screen > .stage { transition: opacity var(--t-med) ease; }
+#ui .screen[inert] > .stage { opacity: 0; }
 
 /* ---------- shared type ---------- */
 .display {
@@ -169,16 +173,20 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 }
 
 /* ---------- enter animations ---------- */
-@keyframes pop-in { from { opacity: 0; transform: translateY(26px) scale(0.92); } to { opacity: 1; transform: none; } }
+/* pop-in and slide-in have no `to`: they end on the element's own style, and their fill is `backwards`
+   (hidden through the stagger delay, nothing held after). A `to { transform: none; opacity: 1 }` with
+   fill `both` pinned every popped-in card and button flat for good: no focus lift, no press, the
+   player's results row unscaled, and dnf and knocked-out rows never dimmed (sweep, 24 Sept 2026) */
+@keyframes pop-in { from { opacity: 0; transform: translateY(26px) scale(0.92); } }
 @keyframes drop-in { 0% { opacity: 0; transform: translateY(-120px) rotate(-6deg) scale(0.8); } 60% { opacity: 1; transform: translateY(12px) rotate(2deg) scale(1.04); } 100% { transform: none; } }
 @keyframes wobble { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @keyframes bar-fill { from { transform: scaleX(0); } }
-@keyframes slide-in { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
+@keyframes slide-in { from { opacity: 0; transform: translateX(-60px); } }
 @keyframes banner-in { 0% { opacity: 0; transform: scale(2.2); } 55% { opacity: 1; transform: scale(0.92); } 100% { transform: scale(1); } }
 @keyframes flourish { 0% { transform: scale(1); } 40% { transform: scale(1.28) rotate(-4deg); } 100% { transform: scale(1); } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
-.screen.on .enter { animation: pop-in var(--t-slow) var(--pop) both; animation-delay: var(--delay, 0ms); }
+.screen.on .enter { animation: pop-in var(--t-slow) var(--pop) backwards; animation-delay: var(--delay, 0ms); }
 
 /* ---------- boot ---------- */
 .boot { background: var(--ink); display: flex !important; align-items: center; justify-content: center; }
@@ -187,7 +195,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 
 /* ---------- title ---------- */
 .title .dim { background: linear-gradient(180deg, rgba(27, 27, 47, 0) 30%, rgba(27, 27, 47, 0.55) 100%); }
-.title .stage { align-items: center; justify-content: center; }
+/* `safe`: a title taller than its window (1366x657, 1280x600) starts at the top and scrolls; plain
+   centre cut the logo's top off where nothing could scroll to it (sweep, 24 Sept 2026) */
+.title .stage { align-items: center; justify-content: safe center; }
 .logo { text-align: center; line-height: 0.86; animation: drop-in 900ms var(--pop) both; }
 .logo .l1 { display: block; font-size: clamp(64px, 11vw, 150px); color: var(--sun); transform: rotate(-3deg); }
 .logo .l2 { display: block; font-size: clamp(56px, 9.5vw, 128px); color: var(--coral); transform: rotate(2deg); margin-top: -0.08em; }
@@ -323,6 +333,30 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .track-card .biome { font: 700 13px/1 var(--body); color: var(--ink); background: var(--paper); border-radius: 999px; padding: 4px 10px; }
 .track-card .sub { font: 700 12px/1 var(--body); color: var(--paper); background: var(--ink); border-radius: 999px; padding: 4px 10px; }
 @media (max-width: 720px) { .track-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .track-card { min-height: 110px; } }
+/* a big screen: each menu is one centred column (heading, Back, cards, hints), not pinned to the left
+   edge with a third of the screen empty, and on a 1080p screen its cards grow (sweep, 24 Sept 2026) */
+@media (min-width: 1400px) {
+  :is(.mode-screen, .cup-screen, .track-screen) .stage > * { width: 100%; max-width: 1180px; margin-inline: auto; }
+  .roster-screen .stage > * { width: 100%; max-width: 1640px; margin-inline: auto; }
+  .modes, .cups { max-width: none; }
+  .track-cards { width: 100%; }
+}
+@media (min-width: 1600px) and (min-height: 940px) {
+  :is(.mode-screen, .cup-screen, .track-screen) .stage > * { max-width: 1320px; }
+  .modes { gap: 22px; }
+  .modes .btn { min-height: 168px; padding: 28px 30px; gap: 16px; }
+  .modes .btn .icon { font-size: 40px; }
+  .modes .btn .label { font-size: 36px; }
+  .modes .btn .sub { font-size: 18px; }
+  .cup { padding: 26px !important; }
+  .cup .cup-head .label { font-size: 34px; }
+  .cup .tracks { gap: 14px; margin-top: 16px; }
+  .cup .trk { min-height: 118px; padding: 12px 10px 10px; font-size: 15px; }
+  .track-cards { gap: 22px; }
+  .track-card { min-height: 220px; }
+  .track-card .label { font-size: 32px; }
+  .track-card .biome { font-size: 15px; }
+}
 
 /* ---------- HUD ---------- */
 .hud { font-variant-numeric: tabular-nums; }
@@ -362,6 +396,13 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .timer { font: 400 30px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; background: rgba(27, 27, 47, 0.35); padding: 8px 18px; border-radius: 999px; }
 .ko-strip { font: 700 15px/1 var(--body); letter-spacing: 0.08em; padding: 7px 14px; border-radius: 999px; background: var(--paper); color: var(--ink); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
 .ko-strip.danger { background: var(--danger); color: var(--paper); animation: pulse 0.8s ease-in-out infinite; }
+/* a solo run (Time Trial, Daily): no place to show ("1st" of one); each finished lap's time sits under
+   the timer, the fastest in green (sweep, 24 Sept 2026) */
+.hud.solo .place { display: none; }
+.splits { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.split { display: flex; gap: 10px; align-items: baseline; padding: 5px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.45); font: 400 22px/1 var(--display); color: var(--paper); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-med) var(--pop) backwards; }
+.split .n { font-size: 15px; letter-spacing: 0.06em; }
+.split.best .t { color: var(--grass); }
 
 .hud .bl { position: absolute; bottom: calc(14px + var(--safe-b)); left: calc(24px + var(--safe-l)); display: flex; flex-direction: column; }
 .place { display: flex; align-items: flex-start; line-height: 0.8; }
@@ -391,6 +432,10 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .banner .small { display: block; margin-top: 8px; font: 400 clamp(26px, 3.5vw, 44px)/1 var(--display); color: var(--sun); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
 .banner.show .big { animation: banner-in 520ms var(--pop) both; }
 .banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { color: var(--sun); }
+/* the count and GO! sit lower and bigger than the other banners: at 24% the numeral sat on the start
+   gantry's own lights, half its size (sweep, 24 Sept 2026) */
+.banner[data-kind='countdown'], .banner[data-kind='go'] { top: 31%; }
+.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, 15vw, 220px); }
 .banner[data-kind='go'] .big { color: var(--grass); }
 .banner[data-kind='wrongWay'] .big { color: var(--danger); font-size: clamp(48px, 7vw, 96px); animation: pulse 0.6s ease-in-out infinite; }
 .banner[data-kind='finalLap'] .big { color: var(--coral); }
@@ -429,6 +474,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* it takes the taps (#ui passes them through): none reaches the buttons hidden under it */
 .rotate-hint { display: none; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgb(27 27 47 / 0.92); color: var(--paper); font: 400 26px/1.2 var(--display); text-align: center; padding: 24px; pointer-events: auto; touch-action: none; }
 .rotate-hint .phone { width: 58px; height: 100px; border: 6px solid var(--paper); border-radius: 14px; animation: rotate-phone 1.8s ease-in-out infinite; }
+.rotate-hint p { margin: 0; max-width: 13em; text-wrap: balance; }
 @keyframes rotate-phone { 0%, 20% { transform: rotate(0); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
 @media (orientation: portrait) and (pointer: coarse) { .rotate-hint { display: flex; } }
 @media (max-width: 720px) { .keys-hint { white-space: normal; width: min(92vw, 420px); text-align: center; line-height: 1.4; border-radius: 16px; } }
@@ -436,16 +482,25 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* ---------- overlays: pause, settings, credits ---------- */
 .overlay { display: none; align-items: center; justify-content: center; }
 .overlay.on, #ui .overlay.on { display: flex; } /* (#ui .screen.on is more specific: without this, overlays sat top-left) */
-.overlay .box { position: relative; padding: 30px 34px; min-width: min(460px, 92vw); max-width: 92vw; max-height: 88vh; overflow: auto; animation: pop-in var(--t-med) var(--pop) both; }
+.overlay .box { position: relative; padding: 30px 34px; min-width: min(460px, 92vw); max-width: 92vw; max-height: 88vh; overflow: auto; animation: pop-in var(--t-med) var(--pop) backwards; }
 .overlay h2 { margin: 0 0 18px; font: 400 44px/1 var(--display); color: var(--ink); }
 .overlay .list { display: flex; flex-direction: column; gap: 12px; }
 .overlay .btn { justify-content: center; }
 /* Settings drawn again after a change: it does not pop in again (a quick second tap missed its row) */
 .overlay .box.redraw { animation: none; }
+/* a dialog with its own button (Settings' Done; Back on How to Play, Credits, Unlocks): the content
+   scrolls and the foot holding the button stays in sight (render/screens.ts dialog()) */
+.overlay .box.dialog { --pad-y: 30px; --pad-x: 34px; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.overlay .box.dialog > .scroll { min-height: 0; padding: var(--pad-y) var(--pad-x) 10px; overflow: hidden auto; overscroll-behavior: contain; }
+.overlay .box.dialog > .foot { flex: none; display: flex; justify-content: center; padding: 12px var(--pad-x) calc(var(--pad-y) - 6px); border-top: 3px dashed rgba(27, 27, 47, 0.12); }
+.overlay .box.dialog > .foot .btn { min-width: min(240px, 100%); }
+.overlay .box.dialog .scroll :is(.btn, .setting) { scroll-margin: 12px; }
 
 .setting { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; padding: 12px 18px !important; border-radius: var(--radius-sm) !important; box-shadow: 0 4px 0 var(--ink) !important; }
 .setting .label { font-size: 20px; }
 .setting .val { display: flex; align-items: center; gap: 10px; font: 700 16px/1 var(--body); }
+/* the value keeps one width, so the meters line up down the panel (80% and 100% moved Resolution's) */
+.setting .val > span:not([class]) { min-width: 3.3em; text-align: center; }
 .setting .val .arrow { font-size: 18px; opacity: 0.5; padding: 8px 6px; margin: -8px -6px; }
 .setting.focused .val .arrow, .setting .val .arrow:hover { opacity: 1; }
 .setting .meter { width: 120px; height: 12px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; background: #e9e2d0; }
@@ -503,7 +558,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   border-radius: var(--radius-sm);
   background: #fff;
   font: 600 18px/1 var(--body);
-  animation: slide-in var(--t-med) var(--out) both;
+  animation: slide-in var(--t-med) var(--out) backwards;
   animation-delay: var(--delay, 0ms);
 }
 .row .rk { font: 400 26px/1 var(--display); }
@@ -524,7 +579,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .stars .star { width: 54px; height: 54px; }
 .stars .star path { fill: #e9e2d0; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
 .stars .star.on path { fill: var(--gold); }
-.stars .star.on { animation: pop-in 500ms var(--pop) both; animation-delay: var(--delay, 0ms); }
+.stars .star.on { animation: pop-in 500ms var(--pop) backwards; animation-delay: var(--delay, 0ms); }
 .results .actions { display: flex; justify-content: center; padding: 14px 28px 22px; }
 .gained { color: #0a8f5a; font-weight: 700; }
 
@@ -584,6 +639,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 }
 @media (max-height: 900px) {
   .overlay .box { padding: 20px 24px; }
+  .overlay .box.dialog { --pad-y: 20px; --pad-x: 24px; }
   .overlay h2 { font-size: 36px; margin-bottom: 12px; }
   .overlay .list { gap: 8px; }
   .setting { padding: 8px 16px !important; }
@@ -594,8 +650,27 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .rows { gap: 6px; }
   .row { padding: 6px 12px; }
 }
+/* a laptop window (1280x720, 1536x730, 1366x657): the title and the racer screen fit without a scroll.
+   The title's name is sized by the height too and its buttons tighten; the racer cards drop the species
+   line (the card's label still says it) and the locked-paint hints (the Unlocks screen lists them), and
+   the portrait and garage shrink, so the 50/100/150cc row is on screen: at 1280x720 it sat wholly below
+   the window, and at 1366x657 the logo's top was cut off (sweep, 24 Sept 2026) */
+@media (max-height: 800px) {
+  .logo .l1 { font-size: min(11vw, 15.5vh); }
+  .logo .l2 { font-size: min(9.5vw, 13.5vh); }
+  .title .menu { gap: 10px; margin-top: 16px; }
+  .title .menu .btn { padding: 12px 30px; }
+  .card .who, .pick-hint { display: none; }
+  .card .face.has-portrait { width: 60px; height: 60px; }
+  .roster-main { gap: 12px; }
+  .btn.pick { padding: 6px 14px; }
+  .opt .sw { width: 38px; height: 26px; }
+  /* the focused card lifts less, so its ring and glow clear the heading over the top row */
+  .roster-screen .card.focused, .roster-screen .card:focus-visible { transform: translateY(-3px) scale(1.04); box-shadow: 0 0 0 4px #fff, 0 0 0 8px var(--sun), 0 0 22px 8px rgba(255, 210, 63, 0.65), 0 10px 0 var(--ink); }
+}
 @media (max-height: 680px) {
-  .card .who { display: none; }
+  .title .menu .btn { padding: 10px 28px; }
+  .card .stats { margin-top: 4px; }
 }
 /* a phone on its side (844x390, 740x360): every menu fits one screen, so nothing needs a scroll */
 @media (max-height: 500px) {
@@ -611,6 +686,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .logo .tag { margin-top: 10px; }
   .title .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 0; }
   .title .menu .btn { padding: 10px 20px; }
+  /* the fifth button (Credits) sits centred under the four, not alone on the left */
+  .title .menu .btn:last-child:nth-child(odd) { grid-column: 1 / -1; justify-self: center; width: calc(50% - 5px); }
   .title .press { margin-top: 0; }
   /* a phone on its side: the Paint and Body stay, their hints go */
   .pick-hint { display: none; }
@@ -625,7 +702,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .roster { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .card { padding: 8px 10px; }
   .card::before { height: 32px; }
-  .card .face.has-portrait { width: 48px; height: 48px; margin: 2px 0; }
+  .card .face.has-portrait { width: 44px; height: 44px; margin: 2px 0; }
+  .roster-main { gap: 8px; }
+  .roster-screen .card.focused, .roster-screen .card:focus-visible { transform: scale(1.03); box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--sun), 0 0 12px 4px rgba(255, 210, 63, 0.6), 0 6px 0 var(--ink); }
   .card .name { font-size: 18px; }
   .card .who, .card .stats { display: none; }
   .classes { gap: 10px; }
@@ -655,8 +734,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
    the six buttons two by two; UiRoot's focus grid matches (UI.shortScreenQuery). The other dialogs get the tighter panel too */
 @media (max-height: 500px) {
   .overlay .box { padding: 14px 20px; }
+  .overlay .box.dialog { --pad-y: 14px; --pad-x: 20px; }
+  .overlay .box.dialog > .foot { padding-top: 8px; }
+  .overlay .box.dialog > .foot .btn { padding: 10px 24px; }
+  .overlay .box.dialog > .foot .btn .label { font-size: 22px; }
   .overlay h2 { font-size: 28px; margin-bottom: 10px; }
   .pause .list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  /* five buttons (no Restart in a Grand Prix or Knockout): Quit sits centred under the four */
+  .pause .list .btn:last-child:nth-child(odd) { grid-column: 1 / -1; justify-self: center; width: calc(50% - 6px); }
   .pause .btn { padding: 10px 18px; }
   .pause .btn .label { font-size: 22px; }
 }

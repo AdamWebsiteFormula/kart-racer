@@ -342,6 +342,17 @@ export class OverlayMenuView implements ScreenView {
   }
 }
 
+/**
+ * A dialog's panel with its own button (Settings' Done, Back on How to Play, Credits and Unlocks): the
+ * content scrolls in `body` and the button sits in `foot`, always in sight. Back used to sit at the end
+ * of the scrolling panel, so it opened cut in half by the panel's edge (sweep, 24 Sept 2026).
+ */
+function dialog(root: HTMLElement, extra = ''): { box: HTMLElement; body: HTMLElement; foot: HTMLElement } {
+  h('div', 'dim', root);
+  const box = h('div', `panel box dialog${extra ? ` ${extra}` : ''}`, root);
+  return { box, body: h('div', 'scroll', box), foot: h('div', 'foot', box) };
+}
+
 export class SettingsView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
@@ -354,13 +365,12 @@ export class SettingsView implements ScreenView {
   /** `redraw`: a value changed, so the new panel keeps the old one's scroll and does not pop in again:
    *  the row stays under the finger (a phone on its side: at scroll 0, the next tap changed another setting) */
   render(rows: SettingRow[], redraw = false): void {
-    const top = redraw ? this.root.querySelector<HTMLElement>('.box')?.scrollTop ?? 0 : 0;
+    const top = redraw ? this.root.querySelector<HTMLElement>('.scroll')?.scrollTop ?? 0 : 0;
     clear(this.root);
     this.buttons.clear();
-    h('div', 'dim', this.root);
-    const box = h('div', redraw ? 'panel box redraw' : 'panel box', this.root);
-    h('h2', '', box, 'Settings');
-    const list = h('div', 'list', box);
+    const { body, foot } = dialog(this.root, redraw ? 'redraw' : '');
+    h('h2', '', body, 'Settings');
+    const list = h('div', 'list', body);
     for (const r of rows) {
       const b = button(list, r.id, 'btn setting');
       h('span', 'label', b, r.label);
@@ -376,10 +386,10 @@ export class SettingsView implements ScreenView {
       b.setAttribute('aria-label', `${r.label}: ${r.value}. Left and right change it.`);
       this.buttons.set(r.id, b);
     }
-    const done = button(list, 'done');
+    const done = button(foot, 'done');
     h('span', 'label', done, 'Done');
     this.buttons.set('done', done);
-    box.scrollTop = top;
+    body.scrollTop = top;
   }
 }
 
@@ -396,8 +406,7 @@ export class HowToView implements ScreenView {
   render(items: readonly { id: string; name: string }[]): void {
     clear(this.root);
     this.buttons.clear();
-    h('div', 'dim', this.root);
-    const box = h('div', 'panel box', this.root);
+    const { body: box, foot } = dialog(this.root);
     h('h2', '', box, 'How to Play');
     h('h3', '', box, 'Controls');
     const t = h('table', 'controls', box);
@@ -427,9 +436,8 @@ export class HowToView implements ScreenView {
     h('h3', '', box, 'Tips');
     const tl = h('ul', 'tips', box);
     for (const tip of TIPS) h('li', '', tl, tip);
-    const back = button(box, 'back');
+    const back = button(foot, 'back');
     h('span', 'label', back, 'Back');
-    back.style.marginTop = '16px';
     this.buttons.set('back', back);
   }
 }
@@ -446,8 +454,7 @@ export class CreditsView implements ScreenView {
   render(sections: CreditSection[]): void {
     clear(this.root);
     this.buttons.clear();
-    h('div', 'dim', this.root);
-    const box = h('div', 'panel box', this.root);
+    const { body: box, foot } = dialog(this.root);
     h('h2', '', box, 'Credits');
     for (const s of sections) {
       h('h3', '', box, s.title);
@@ -460,9 +467,8 @@ export class CreditsView implements ScreenView {
       }
     }
     h('p', 'made', box, CREDITS_MADE);
-    const back = button(box, 'back');
+    const back = button(foot, 'back');
     h('span', 'label', back, 'Back');
-    back.style.marginTop = '16px';
     this.buttons.set('back', back);
   }
 }
@@ -480,8 +486,7 @@ export class UnlocksView implements ScreenView {
   render(rows: readonly UnlockRow[]): void {
     clear(this.root);
     this.buttons.clear();
-    h('div', 'dim', this.root);
-    const box = h('div', 'panel box', this.root);
+    const { body: box, foot } = dialog(this.root);
     h('h2', '', box, 'Unlocks');
     h('p', 'made', box, `${rows.filter((r) => r.unlocked).length} of ${rows.length} unlocked`);
     const list = h('ul', 'unlock-list', box);
@@ -493,9 +498,8 @@ export class UnlocksView implements ScreenView {
       h('b', '', txt, r.name);
       h('span', '', txt, r.unlocked ? `Unlocked! ${r.use}` : r.how);
     }
-    const back = button(box, 'back');
+    const back = button(foot, 'back');
     h('span', 'label', back, 'Back');
-    back.style.marginTop = '16px';
     this.buttons.set('back', back);
   }
 }
