@@ -212,6 +212,8 @@ export interface TrackQuery {
   readonly voidY: number;
   /** Ground at main-equivalent t on `branch` (default 0), `lateral` metres to the right. */
   sample(t: number, lateral: number, branch?: number): TrackSample;
+  /** Same as sample(), written into `out` (allocation-free). track-builder's Track always has it; render-only per-wheel suspension (kart-controller view.ts, art-pipeline rigged.ts) uses it when present and falls back to sample() otherwise. */
+  sampleInto?(t: number, lateral: number, branch: number, out: TrackSample): TrackSample;
   /** Local search only: nearest t within ±window of hintT on the main line. */
   nearestT(position: Vec3, hintT: number, window: number): number;
   /** Local search across the current branch and any open branch in the window. */
