@@ -27,7 +27,9 @@ const CARTOON = 'Bright cartoon video game style, clean and punchy, no music, no
 export const SFX: readonly SfxSpec[] = [
   // race flow
   { id: 'count', seconds: 0.5, influence: 0.6, prompt: 'One single short bright electronic beep, a racing start light countdown tone. Clean synth, one beep only, no echo.' },
-  { id: 'go', seconds: 1.2, prompt: 'A bright powerful racing start horn: one short high synth horn blast with a sparkly shimmer tail. Arcade game style, energetic. No voice.' },
+  // remade 25 Sept 2026: the old take was a dry trumpet note to the judge and a car horn to the local ears (2/3 on
+  // the brief and the moment); of three new takes the judge picked a bright synth chord blast (6/7), CLAP's pick too
+  { id: 'go', seconds: 1.5, influence: 0.55, prompt: 'The GO signal at the start of a cartoon kart race: one big, bright synth-brass blast, full and punchy, that rings out into a sparkling shimmer. Exciting and triumphant, arcade style. No voice.' },
   { id: 'lap', seconds: 0.8, prompt: 'A short cheerful arcade chime for completing a lap: three quick rising bell and marimba notes. Bright and clean. No voice.' },
   { id: 'finalLap', seconds: 2, prompt: 'A short exciting brass fanfare sting announcing the final lap of a cartoon kart race: quick rising trumpet notes and a cymbal swell. No voice.' },
   { id: 'finish', seconds: 3.5, prompt: 'A triumphant short victory fanfare for winning a cartoon kart race: bright brass section, snare roll and a cymbal crash, joyful ending chord. No voice.' },
@@ -41,20 +43,26 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'koOut', seconds: 2.2, prompt: 'A short gentle arcade sting for being knocked out of a cartoon race: a slow descending four-note muted trombone phrase, a little sad but friendly and funny, soft ending. No voice.' },
   { id: 'finishLow', seconds: 2.2, prompt: 'A short friendly nice-try jingle for finishing a cartoon race in a lower place: soft marimba and muted trumpet, cheerful but modest, gentle ending. No voice.' },
   // pickups and items
-  { id: 'balloon', seconds: 0.6, prompt: `A party balloon popping: one crisp rubber pop with a tiny sparkly twinkle after it. ${CARTOON}` },
+  // remade 25 Sept 2026: the old pop was dry with no twinkle (the judge 5/6; the local ears a firecracker, even a
+  // gunshot); the judge picked this take of three at 10/10. CLAP ranks its prompt only 32nd of 102 (hitConfirm and
+  // boostTrick also ask for a pop or a swoosh with a chime) but picks it as the balloon over a firecracker, a gunshot,
+  // a door slam and a splat
+  { id: 'balloon', seconds: 0.7, influence: 0.6, prompt: `A cartoon item balloon popping as a kart drives through it: a bright, bouncy rubber pop, followed at once by a quick sparkly twinkle of magic chimes. Fun and rewarding, never harsh. ${CARTOON}` },
   // remade 24 Sept 2026 (the ears heard a click and a hammer on metal): the chime is the point
   { id: 'coin', seconds: 0.5, influence: 0.6, prompt: 'A classic arcade coin pickup: a bright, sparkly two-note chime going up, like a tiny glockenspiel. Clean and short. No voice.' },
   // remade 24 Sept 2026: the first was a 5 ms click, so spiky that at a level you could hear it
   // over the music it pushed the output past −1 dB true peak; a tick with a note has body
   { id: 'rouletteTick', seconds: 0.5, influence: 0.6, prompt: 'One single short bright wooden tock with a clear pitched note, like a prize wheel peg knocking once: a tiny marimba-like tick. Dry, no echo, no music, no voice.' },
-  { id: 'itemReady', seconds: 0.9, prompt: 'A magical sparkly shimmer when a mystery prize is revealed: a quick glittering bell arpeggio going up. Short. No voice.' },
+  // remade 25 Sept 2026: the old take was one bell ping, not an arpeggio (the judge 4/5); the judge picked this take of three at 9/9
+  { id: 'itemReady', seconds: 1, influence: 0.6, prompt: 'A mystery prize revealed in a cartoon game: a quick rising arpeggio of four or five bright glockenspiel notes going up, with a glittering sparkle on top. Magical and rewarding. No voice.' },
   { id: 'throw', seconds: 0.6, prompt: `A quick throwing whoosh: an object flung forward through the air, airy swish. ${CARTOON}` },
   // remade 24 Sept 2026 (the whistle took over: both ears heard a slide whistle): the flutter is the point
   { id: 'kite', seconds: 1.3, influence: 0.7, prompt: `A paper kite caught by the wind: a fast, soft papery fluttering that rises as it lifts off and drifts up and away on a light breeze. ${CARTOON}` },
   // retaken 24 Sept 2026 (same prompt): the old take tagged as a coin dropping; the kept one as a knock
   { id: 'drop', seconds: 0.6, prompt: `A small object dropped onto a road: soft plop and a little rubbery bounce. ${CARTOON}` },
   { id: 'shieldUp', seconds: 1, prompt: `A magical bubble shield forming: shimmering rising whoosh with a soft glassy ring. ${CARTOON}` },
-  { id: 'shieldPop', seconds: 0.8, prompt: `A magical soap bubble shield bursting into sparkles: glassy pop and a glittering shatter. ${CARTOON}` },
+  // remade 25 Sept 2026: the old take was a wet splat and a splash (the judge 4/3); the judge picked this take of three at 9/9
+  { id: 'shieldPop', seconds: 0.8, influence: 0.6, prompt: `A magic bubble shield bursting: a bright glassy pop and a shower of glittering crystal sparkles tinkling down. Dry, sparkly and magical. ${CARTOON}` },
   // remade 24 Sept 2026 (the ears heard a boing and a pop)
   { id: 'shieldEnd', seconds: 0.8, influence: 0.6, prompt: `A magic shield fading away: a soft, gentle glassy shimmer of tiny twinkling chimes drifting downward and dissolving into silence. ${CARTOON}` },
   // a thrown beach ball off a wall; a ball or a dropped toy popping
