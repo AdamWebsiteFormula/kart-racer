@@ -22,6 +22,15 @@ export const UI = Object.freeze({
   playerDotPx: 6.5,
   aiDotPx: 4.5,
   dotStrokePx: 2.5,
+  /** a rival's round face on the minimap, as a fraction of the map's width (23 px on the 210 px map: MKW's
+   *  are 20-24 px at 1080p), so a pack reads as a stack of faces; the player's is bigger. Never under minimapFaceMinPx */
+  minimapFace: 0.11,
+  minimapPlayerFace: 0.14,
+  minimapFaceMinPx: 12,
+  /** a face's ring (the racer's color; white for the player's) and the ink rim round it, CSS px */
+  minimapRingPx: 2,
+  minimapPlayerRingPx: 3,
+  minimapRimPx: 1.5,
   repeatDelayMs: 180,
   repeatRateMs: 90,
   countUpMs: 700,

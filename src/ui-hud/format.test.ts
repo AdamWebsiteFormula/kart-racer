@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatGap, formatMs, formatTime, mph, ordinal, ordinalParts } from './format.ts';
+import { formatGap, formatMs, formatTime, mph, ordinal, ordinalParts, twoDigits } from './format.ts';
 
 describe('format', () => {
   it('times are M:SS.ss across a minute boundary, and negative clamps', () => {
@@ -16,6 +16,10 @@ describe('format', () => {
     expect(ordinal(11)).toBe('11th');
     expect(ordinal(21)).toBe('21st');
     expect(ordinalParts(3)).toEqual({ n: '3', suffix: 'rd' });
+  });
+  it('two digits for the coin count, never negative', () => {
+    expect([0, 5, 9, 10, 12].map(twoDigits)).toEqual(['00', '05', '09', '10', '12']);
+    expect(twoDigits(-2)).toBe('00');
   });
   it('gaps and speed', () => {
     expect(formatGap(1.234)).toBe('+1.23');

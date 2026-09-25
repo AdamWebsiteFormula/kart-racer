@@ -173,6 +173,30 @@ describe('sweep of every screen (24 Sept 2026)', () => {
   });
 });
 
+describe('the race HUD beside real MKW footage (25 Sept 2026)', () => {
+  it('colors the place numeral by place: gold, silver and bronze bring their own face, side and suffix; 4th to 8th keep the yellow-orange', () => {
+    for (const tier of ['gold', 'silver', 'bronze']) {
+      for (const prop of ['--face', '--side', '--suf']) expect(value(`.place[data-tier='${tier}']`, prop), `${tier} ${prop}`).not.toBe('');
+    }
+    expect(value('.place', '--face')).toMatch(/linear-gradient/);
+    // the outline and face layers repeat the numeral from data-n, with '' for screen readers
+    expect(value('.place .n::after', 'content')).toMatch(/attr\(data-n\)/);
+    // the color change rides the rank-change flourish (its flash)
+    expect(value('.place.flourish', 'animation')).toMatch(/flourish/);
+  });
+
+  it('has no box behind the map, and the coins sit in a pill that glows at the cap', () => {
+    expect(value('.minimap', 'background')).toBe('');
+    expect(value('.minimap', 'border')).toBe('');
+    expect(value('.coins', 'border-radius')).toBe('999px');
+    expect(value('.coins', 'background')).not.toBe('');
+    expect(value('.coins.full', 'box-shadow')).toMatch(/var\(--sun\)/);
+    // smaller in a narrow window with keys (the controls strip reached its glow at 880 px); a phone has no strip
+    expect(value('.coins', 'font-size', '(max-width: 900px) and (pointer: fine)')).toBe('28px');
+    expect(value('.coins', 'font-size', '(max-width: 900px)')).toBe('');
+  });
+});
+
 describe('results on a phone on its side (sweep 24 Sept 2026)', () => {
   it('all eight rows in sight: more than four sit in two columns, 1st to 4th then 5th to 8th, the headline and the track share a line', () => {
     // at 852x344 with the notch rows 5 to 8, the player's among them, needed a scroll

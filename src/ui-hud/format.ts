@@ -29,6 +29,12 @@ export function ordinalParts(rank: number): { n: string; suffix: string } {
   return m ? { n: m[1], suffix: m[2] } : { n: o, suffix: '' };
 }
 
+/** Two digits, as the coin counter shows its count (05, 10); never negative */
+export function twoDigits(n: number): string {
+  const v = Math.max(0, Math.round(n));
+  return v < 10 ? `0${v}` : `${v}`;
+}
+
 /** +1.23 behind, −0.50 ahead, in seconds */
 export function formatGap(seconds: number): string {
   const sign = seconds < 0 ? '−' : '+';

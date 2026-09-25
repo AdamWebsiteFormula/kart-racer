@@ -22,6 +22,9 @@ describe('minimap', () => {
     for (const d of dots) { expect(d.u).toBeGreaterThanOrEqual(0); expect(d.u).toBeLessThanOrEqual(1); expect(d.v).toBeGreaterThanOrEqual(0); expect(d.v).toBeLessThanOrEqual(1); }
     expect(dots.at(-1)!.player).toBe(true);
     expect(dots.at(-1)!.radius).toBe(UI.playerDotPx);
+    // each dot names its racer, whose face the map draws once the art is in
+    expect(dots.map((d) => d.racerId).sort()).toEqual(['k0', 'k1', 'k2']);
+    expect(dots.at(-1)!.racerId).toBe('k1');
     expect(dots.find((d) => d.rank === 3)!.dim).toBe(true);
     expect(dots[0].rank).toBeGreaterThan(dots[1].rank); // AI back to front
     // reused, not reallocated

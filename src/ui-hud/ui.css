@@ -225,7 +225,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 @keyframes bar-fill { from { transform: scaleX(0); } }
 @keyframes slide-in { from { opacity: 0; transform: translateX(-60px); } }
 @keyframes banner-in { 0% { opacity: 0; transform: scale(2.2); } 55% { opacity: 1; transform: scale(0.92); } 100% { transform: scale(1); } }
-@keyframes flourish { 0% { transform: scale(1); } 40% { transform: scale(1.28) rotate(-4deg); } 100% { transform: scale(1); } }
+/* (the place numeral's: it flashes bright as its new color comes in) */
+@keyframes flourish { 0% { transform: scale(1); filter: brightness(1.7); } 40% { transform: scale(1.28) rotate(-4deg); filter: brightness(1.15); } 100% { transform: scale(1); filter: none; } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
 .screen.on .enter { animation: pop-in var(--t-slow) var(--pop) backwards; animation-delay: var(--delay, 0ms); }
 
@@ -452,18 +453,40 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .split .n { font-size: 15px; letter-spacing: 0.06em; }
 .split.best .t { color: var(--grass); }
 
-.hud .bl { position: absolute; bottom: calc(14px + var(--safe-b)); left: calc(24px + var(--safe-l)); display: flex; flex-direction: column; }
-.place { display: flex; align-items: flex-start; line-height: 0.8; }
-.place .n { font: 400 132px/0.8 var(--display); color: var(--sun); -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; text-shadow: 0 8px 0 var(--ink); }
-.place .suf { font: 400 44px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; margin-top: 6px; }
-.place.p1 .n { color: var(--gold); }
+/* the place, and the coin pill beside it on the numeral's baseline */
+.hud .bl { position: absolute; bottom: calc(14px + var(--safe-b)); left: calc(24px + var(--safe-l)); display: flex; align-items: flex-end; gap: 14px; }
+/* The place numeral, colored by place (MKW's idea, our own colors; 25 Sept 2026): 1st gold, 2nd icy
+   silver, 3rd copper-rose bronze, each struck like metal (a bright top, a hard horizon, a deep foot), and
+   4th to 8th in the HUD's painted yellow-orange. hudModel's positionTier sets data-tier with the numeral,
+   so the color changes on the flourish. Three layers of the one numeral: the ink outline round the whole
+   block (::before), the side, a darker shade dropped under the face (the text and its shadows), and the
+   face (::after, the gradient cut to the glyphs), so it reads on bright snow and on a night track */
+.place {
+  --face: linear-gradient(180deg, #fff3b5 6%, #ffd23f 44%, #ffb01f 72%, #ff9012 94%);
+  --side: #c25400;
+  --suf: var(--paper);
+  display: flex; align-items: flex-start; line-height: 0.8;
+}
+.place[data-tier='gold'] { --face: linear-gradient(180deg, #fffdf0 6%, #fff0a6 40%, #ffcc00 41%, #ffb300 68%, #f28c00 94%); --side: #a85200; --suf: #ff8aa1; }
+.place[data-tier='silver'] { --face: linear-gradient(180deg, #ffffff 6%, #eef8ff 40%, #c2dcf2 41%, #a3c3e0 68%, #82a6c9 94%); --side: #466891; --suf: #d7ecff; }
+.place[data-tier='bronze'] { --face: linear-gradient(180deg, #fff0e8 6%, #ffc9b2 40%, #f0916f 41%, #de7458 68%, #c35843 94%); --side: #7c3024; --suf: #ffb39c; }
+.place .n { position: relative; z-index: 0; font: 400 132px/0.8 var(--display); color: var(--side); text-shadow: 0 0.015em 0 var(--side), 0 0.03em 0 var(--side), 0 0.045em 0 var(--side), 0 0.06em 0 var(--side); }
+/* (the alt text '' keeps screen readers to the one numeral) */
+.place .n::before, .place .n::after { content: attr(data-n); content: attr(data-n) / ''; position: absolute; left: 0; top: 0; }
+.place .n::before { z-index: -1; color: var(--ink); -webkit-text-stroke: 0.09em var(--ink); text-shadow: 0 0.03em 0 var(--ink), 0 0.06em 0 var(--ink); }
+.place .n::after { color: transparent; background: var(--face); -webkit-background-clip: text; background-clip: text; text-shadow: none; }
+.place .suf { font: 400 44px/1 var(--display); color: var(--suf); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 4px 0 var(--ink); margin: 6px 0 0 2px; }
 .place.flourish { animation: flourish 400ms var(--pop); }
-.coins { display: flex; align-items: center; gap: 8px; margin-top: 10px; font: 400 28px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; }
-.coins .coin { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff6b0, var(--sun) 55%, #d49a00); border: 3px solid var(--ink); }
-.coins.full { color: var(--sun); }
+/* the coins: a pill with the lap counter's weight, a gold coin and two digits (05); at the cap (10,
+   coinsFull) it rings and glows gold, and pops as it gets there */
+.coins { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; padding: 5px 16px 5px 6px; border-radius: 999px; background: rgb(27 27 47 / 0.5); font: 400 36px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+.coins .coin { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--ink); background: radial-gradient(circle at 34% 30%, #fffbe3 0 13%, transparent 15%), radial-gradient(circle, #ffd84a 0 48%, #d99200 50% 57%, #ffc629 59%); box-shadow: 0 3px 0 var(--ink); }
+.coins.full { color: var(--sun); box-shadow: 0 0 0 3px var(--sun), 0 0 20px 6px rgb(255 210 63 / 0.6); animation: coins-full 520ms var(--pop); }
+@keyframes coins-full { 40% { transform: scale(1.16); } }
 
 .hud .br { position: absolute; bottom: calc(18px + var(--safe-b)); right: calc(22px + var(--safe-r)); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.minimap { width: 210px; height: 210px; border-radius: 26px; background: rgba(27, 27, 47, 0.28); border: 3px solid rgba(27, 27, 47, 0.6); }
+/* no box behind the map (MKW has none): the course's ink outline and its soft shadow carry it */
+.minimap { width: 210px; height: 210px; }
 .lap { font: 400 40px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
 .lap .of { font-size: 26px; }
 .lap .word { font-size: 22px; margin-right: 6px; }
@@ -756,6 +779,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results h2 { font-size: 42px; }
   .rows { gap: 6px; }
   .row { padding: 6px 12px; }
+}
+/* a narrow window with keys: the coin pill in step with the smaller numeral, and clear of the controls
+   strip, which reached its glow at 880 px (a phone has no strip and keeps the lap counter's weight) */
+@media (max-width: 900px) and (pointer: fine) {
+  .coins { padding: 4px 13px 4px 5px; font-size: 28px; -webkit-text-stroke-width: 3px; }
+  .coins .coin { width: 27px; height: 27px; }
 }
 /* a laptop window (1280x720, 1536x730, 1366x657): the title and the racer screen fit without a scroll.
    The title's name is sized by the height too and its buttons tighten; the racer cards drop the species
