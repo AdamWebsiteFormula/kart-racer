@@ -3,6 +3,7 @@
 // gas is on by itself (let go of nothing), as in mobile kart games; before it, a finger anywhere on
 // the screen is the gas, so thumbs down on the 2 make a rocket start, like the gas key. Shown only
 // on a coarse pointer, and only while racing. Multi-touch: every finger is tracked by its pointer id.
+import { arrowSvg } from '../icons.ts';
 import { h } from './dom.ts';
 
 export interface TouchInput { steer: number; throttle: number; brake: number; drift: boolean; item: boolean; lookBack: boolean }
@@ -30,7 +31,8 @@ export class TouchControls {
     this.root = h('div', 'touch', parent);
     this.root.setAttribute('aria-hidden', 'true');
     this.pad = h('div', 'pad', this.root);
-    h('span', 'arrows', this.pad, '◀     ▶');
+    // drawn: the ◀ ▶ characters turn into emoji on some phones
+    h('span', 'arrows', this.pad).innerHTML = arrowSvg(-1) + arrowSvg(1);
     this.knob = h('div', 'knob', this.pad);
     const right = h('div', 'buttons', this.root);
     const mk = (id: Button, label: string) => {

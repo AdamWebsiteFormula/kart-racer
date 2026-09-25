@@ -96,6 +96,42 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.overlay .box', 'animation')).toMatch(/pop-in/);
     expect(value('.overlay .box.redraw', 'animation')).toBe('none');
   });
+
+  it('Settings\' help line sits beside Done there, so the rows keep their room (sweep 25 Sept 2026)', () => {
+    expect(value('.settings .box.dialog > .foot', 'flex-direction', PHONE)).toBe('row');
+    expect(value('.settings .help', 'flex', PHONE)).toMatch(/^1/);
+    // over Done on a bigger screen
+    expect(value('.settings .box.dialog > .foot', 'flex-direction')).toBe('column');
+  });
+
+  it('the mode icons shrink with the cards (sweep 25 Sept 2026)', () => {
+    expect(value('.modes .btn .icon', 'width')).toBe('44px');
+    expect(value('.modes .btn .icon', 'width', PHONE)).toBe('30px');
+  });
+});
+
+describe('menu icons and the Settings help line (sweep 25 Sept 2026)', () => {
+  it('icons are sized by their box, never by their attributes', () => {
+    expect(value('.modes .btn .icon svg', 'width')).toBe('100%');
+    expect(value('.unlock .mark svg', 'width')).toBe('100%');
+    expect(value('.opt .lock svg', 'width')).toBe('100%');
+    expect(value('.arrow-svg', 'width')).toMatch(/em$/);
+  });
+
+  it('a locked swatch is grayed but its padlock is not (it sits beside the swatch)', () => {
+    expect(value('.opt.locked .sw', 'filter')).toMatch(/grayscale/);
+    expect(value('.opt.locked', 'opacity')).toBe('');
+    expect(value('.opt .sw-box', 'position')).toBe('relative');
+  });
+
+  it('the help line never widens the panel and keeps two lines\' room, so Done holds still as it changes', () => {
+    expect(value('.settings .help', 'width')).toBe('0px');
+    expect(value('.settings .help', 'min-width')).toBe('100%');
+    expect(value('.settings .help', 'min-height')).toBe('2.7em');
+    // its new line comes in on the tokens reduced motion cuts to 1 ms; a line kept after a change does not
+    expect(value('.settings .help > span', 'animation')).toMatch(/help-in var\(--t-med\)/);
+    expect(value('.settings .help > .still', 'animation')).toBe('none');
+  });
 });
 
 /** A @keyframes rule's keys ('from' or '0%', …). */

@@ -11,7 +11,8 @@ export const CONTROLS: readonly { action: string; keys: string; pad: string; tou
   { action: 'Use item (hold to keep it behind you)', keys: 'E or X', pad: 'X', touch: 'ITEM' },
   { action: 'Look back (throw backward)', keys: 'Q', pad: 'B', touch: 'LOOK' },
   { action: 'Horn', keys: 'H', pad: 'Y', touch: '—' },
-  { action: 'Pause', keys: 'Esc or P', pad: 'Start', touch: '⏸ at the top' },
+  // (words, not ⏸: that one is an emoji on some phones)
+  { action: 'Pause', keys: 'Esc or P', pad: 'Start', touch: 'Pause button, top right' },
 ]);
 
 /** One line per item, in the order the game lists them (items/data.ts). */
@@ -31,8 +32,8 @@ export const ITEM_LINES: Readonly<Record<string, string>> = Object.freeze({
   windUpMouse: 'Scurries ahead and bumps up to three racers.',
 });
 
-/** The key to the Item letters setting (Settings), under the items: each item's letter as its slot shows it (icons.ts glyph). */
-export const LETTERS_LEAD = 'Item letters (turn them on in Settings):';
+/** The key to the Item labels setting (Settings), under the items: each item's letter as its slot shows it (icons.ts glyph). */
+export const LETTERS_LEAD = 'Item labels (turn them on in Settings):';
 
 export const CREATURES: readonly { name: string; track: string; line: string }[] = Object.freeze([
   { name: 'Rumblesaur', track: 'Canyon Rush', line: 'Rears up, then stomps. Hop over the shock ring.' },

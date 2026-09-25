@@ -18,7 +18,7 @@ import type { RaceState } from '../race-manager/types.ts';
 import { HowToView } from './render/screens.ts';
 import { TouchControls } from './render/touch.ts';
 import { CREDITS_MADE, parseCredits } from './screens/credits.ts';
-import { MODES, settingsMenu, SPEED_CLASSES } from './screens/menus.ts';
+import { DONE_HELP, MODES, SETTING_HELP, settingsMenu, SPEED_CLASSES } from './screens/menus.ts';
 import { defaultSettings } from './store.ts';
 import { UNLOCKS } from './unlocks.ts';
 
@@ -89,7 +89,7 @@ describe('How to Play says what the game does', () => {
     expect(s.next.charges).toBe('×3');
   });
 
-  it('keys the Item letters setting: every item with the letter its slot shows', () => {
+  it('keys the Item labels setting: every item with the letter its slot shows', () => {
     const setting = settingsMenu(defaultSettings()).rows.find((r) => r.id === 'iconLabels')!.label;
     expect(LETTERS_LEAD.startsWith(setting)).toBe(true);
     const v = new HowToView(document.body);
@@ -152,8 +152,11 @@ describe('every word a player reads', () => {
       ...CAST.flatMap((c) => [c.name, c.species, c.personality, c.kart]), ...TRACKS.flatMap((t) => [t.name, t.biome, t.shift]),
       ...[...CUPS, ...KNOCKOUT_SETS].map((c) => c.name), ...SKINS.map((s) => s.name), ...BODIES.map((b) => b.name),
       ...UNLOCKS.flatMap((u) => [u.name, u.how, u.use]), ...MODES.flatMap((m) => [m.label, m.sub]), ...SPEED_CLASSES.flatMap((s) => [s.label, s.sub]),
+      ...settingsMenu(defaultSettings()).rows.map((r) => r.label), ...Object.values(SETTING_HELP).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))), DONE_HELP,
     ];
     for (const w of words) {
+      // no emoji (sweep 25 Sept 2026): an OS draws them its own way, off the game's art (⏸ in How to Play's Touch column)
+      expect(w, w).not.toMatch(/\p{Extended_Pictographic}/u);
       expect(w, w).not.toMatch(/colour|grey|tyre|kerb|harbour|centre|favourite|metre|licence|defence|behaviour|honour|neighbour|travell|cancell|organis|realis|apologis/i);
       expect(w, w).not.toMatch(/mario|nintendo|luigi|bowser|yoshi|koopa|lakitu|mushroom|shell|bob-?omb|banana|item ?box|mini-?turbo|rocket start|ultra turbo|super star/i);
       expect(w, w).not.toMatch(/\bjeep|jet[- ]?ski|waverunner|coca|pepsi|lego|hot wheels/i);

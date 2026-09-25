@@ -13,6 +13,7 @@ import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { UI } from './constants.ts';
+import { modeSvg } from './icons.ts';
 import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
@@ -28,7 +29,7 @@ import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, type 
 import { podiumModel } from './screens/podium.ts';
 import { PodiumView } from './render/podium.ts';
 import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
-import { cleanName, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
+import { cleanName, dailySeed, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
 import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Settings } from './store.ts';
 import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
 import { grantAll, grantUnlocks, unlockRows } from './unlocks.ts';
@@ -104,8 +105,6 @@ const NO_BUTTONS: readonly boolean[] = [];
 const NOT_A_PRESS: ReadonlySet<string> = new Set(['Meta', 'Control', 'Alt', 'AltGraph', 'OS', 'CapsLock', 'Fn']);
 const CAST_IDS: ReadonlySet<string> = new Set(CAST.map((c) => c.id));
 const NO_AXES: readonly number[] = [];
-
-const MODE_ICONS: Record<string, string> = { quick: '🏁', grandPrix: '🏆', knockout: '💥', timeTrial: '⏱️', daily: '📅' };
 
 export class UiRoot {
   readonly root: HTMLElement;
@@ -776,6 +775,7 @@ export class UiRoot {
       if (pb) { pb.classList.remove('focused'); pb.tabIndex = -1; } // one Tab stop per screen
     }
     this.focusBy.set(key, id);
+    view.focused?.(id); // Settings' help line says what the focused row does
     // a racer card focused: the garage dresses that racer now; one the pointer is only passing over on its
     // way down to Paint or Body does not (it would swap the rows under the pointer)
     clearTimeout(this.dressTimer);
@@ -879,7 +879,14 @@ export class UiRoot {
     const short = this.short?.matches ?? false;
     switch (key) {
       case 'title': { const vm = titleMenu(short); v.title.render(vm); this.models.set(key, vm.focus); break; }
-      case 'modeSelect': { const vm = modeMenu(this.host.availableModes); v.modes.render(vm, MODE_ICONS); this.models.set(key, vm.focus); break; }
+      case 'modeSelect': {
+        const vm = modeMenu(this.host.availableModes);
+        // our own icons (icons.ts); the Daily's calendar is on the Daily's own day (UTC, as its track and board)
+        const today = dailySeed();
+        v.modes.render(vm, Object.fromEntries(vm.entries.map((e) => [e.id, modeSvg(e.id, today)])));
+        this.models.set(key, vm.focus);
+        break;
+      }
       case 'rosterSelect': {
         if (entering) this.dressing = s.racerId;
         // a phone on its side sets the eight cards in one row, and so does the grid
