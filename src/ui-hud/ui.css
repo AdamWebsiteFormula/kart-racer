@@ -478,6 +478,17 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   :root .minimap { width: 128px; height: 128px; }
   :root .keys-hint { display: none; }
 }
+/* a phone on its side as its browser shows it, a toolbar up: 300 to 360 px tall (844x390 had room).
+   There the place sat on the item slot and the lap counter on Item and Drift (cross-browser sweep,
+   24 Sept 2026: 852x344 with the notch, 915x356, 780x304, 667x325). The corners draw smaller, the
+   coins sit beside the place, and the thumb buttons at 82 % (Look and Brake still 48 px) */
+@media (pointer: coarse) and (max-height: 420px) {
+  :root .hud .tl { transform: scale(0.72); transform-origin: top left; }
+  :root .hud .bl { bottom: calc(126px + var(--safe-b)); flex-direction: row; align-items: flex-end; gap: 10px; transform: scale(0.75); transform-origin: bottom left; }
+  :root .hud .bl .coins { margin: 0 0 6px; }
+  :root .hud .br { transform: scale(0.8); transform-origin: top right; }
+  :root .touch .buttons { transform: scale(0.82); transform-origin: bottom right; }
+}
 /* it takes the taps (#ui passes them through): none reaches the buttons hidden under it */
 .rotate-hint { display: none; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgb(27 27 47 / 0.92); color: var(--paper); font: 400 26px/1.2 var(--display); text-align: center; padding: 24px; pointer-events: auto; touch-action: none; }
 .rotate-hint .phone { width: 58px; height: 100px; border: 6px solid var(--paper); border-radius: 14px; animation: rotate-phone 1.8s ease-in-out infinite; }
