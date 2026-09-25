@@ -374,6 +374,9 @@ export class KartAnim {
 
   /** One sim tick: `s` is the kart after the step, `input` what it drove on. Reads both, writes neither. */
   tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number): void {
+    // a tick of no time moves nothing: the rates below divide by dt, and one NaN stays in the springs
+    // for good (the podium ticks on the frame's time, 0 while paused or hidden: its three vanished, 25 Sept 2026)
+    if (!(dt > 0)) return;
     const t = this.t;
     const prev = this.prev, curr = this.curr;
     prev.roll = curr.roll; prev.pitch = curr.pitch; prev.yaw = curr.yaw; prev.spin = curr.spin; prev.wobble = curr.wobble;

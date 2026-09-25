@@ -59,6 +59,17 @@ describe('the podium', () => {
     p.dispose();
   });
 
+  it('a frame of no time (paused, hidden, a warm-up\'s late clock) never loses the three: their poses stay finite', () => {
+    const p = new Podium(track, TOP, 'harbour');
+    p.start();
+    for (const dt of [1 / 60, 0, 0, 1 / 60, 0, 1 / 30]) p.update(dt, false, null);
+    for (const v of p.views) {
+      v.root.updateMatrixWorld(true);
+      v.root.traverse((o) => { for (const e of o.matrixWorld.elements) expect(Number.isFinite(e)).toBe(true); });
+    }
+    p.dispose();
+  });
+
   it('is hidden until the ceremony starts, and hides again after', () => {
     const p = new Podium(track, TOP, 'harbour');
     expect(p.group.visible).toBe(false);
