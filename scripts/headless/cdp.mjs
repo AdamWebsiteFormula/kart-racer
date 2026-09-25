@@ -22,6 +22,10 @@ export async function openChrome({ width = 1600, height = 900, dpr = 1, uncapped
   const args = ['--headless=new', '--mute-audio', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${width},${height}`, '--no-first-run', '--no-default-browser-check'];
   if (uncapped) args.push('--disable-gpu-vsync', '--disable-frame-rate-limit');
   const proc = spawn(CHROME, [...args, 'about:blank'], { stdio: 'ignore' });
+  // a check stopped midway (Ctrl-C, kill) must not leave the game running in an orphaned Chrome
+  const orphanGuard = () => { try { proc.kill(); } catch { /* gone */ } };
+  process.once('exit', orphanGuard);
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.once(sig, () => { orphanGuard(); process.exit(130); });
   let target;
   for (let i = 0; i < 75 && !target; i++) {
     await sleep(200);
