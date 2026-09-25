@@ -11,7 +11,8 @@ describe('the course intro title card', () => {
     expect(vm.sub).toBe('Quick Race · 150cc');
     expect(vm.racer).toEqual({ id: 'pip', name: 'Pip', accent: '#2EC4B6' });
     expect(vm.accent).toBe('#FF6F61');
-    expect(vm.skip).toBe('Press any button to skip');
+    // how to skip in the last input's words: the keys (a keyboard player may hold a pad too), or a pad's buttons
+    expect(vm.skip).toEqual({ keys: 'Press any key or button to skip', pad: 'Press any button to skip' });
   });
 
   it('a Grand Prix says which race of its cup this is', () => {
@@ -35,7 +36,7 @@ describe('the course intro title card', () => {
     expect(introCard({ trackId: 'frostbite-pass', mode: 'daily', speedClass: 150, racerId: 'momo', dailySeed: 20260925 }).sub).toBe('Daily Challenge · Sep 25');
     const m = introCard({ trackId: 'boardwalk-nights', mode: 'grandPrix', speedClass: 150, racerId: 'otto', seriesId: 'summit', race: { index: 0, count: 3 }, mirrored: true, touch: true });
     expect(m.sub).toBe('Race 1 of 3 · 150cc · Mirror');
-    expect(m.skip).toBe('Tap to skip');
+    expect(m.skip).toEqual({ keys: 'Tap to skip', pad: 'Tap to skip' });
   });
 
   it('a track the catalog does not know keeps the name from its file; no racer, no chip', () => {

@@ -33,11 +33,15 @@ export interface IntroCardVM {
   /** which race: "Race 1 of 3 · 150cc", "Round 2 of 3 · Top 4 go through", "Time Trial" */
   sub: string;
   racer: { id: string; name: string; accent: string } | null;
-  skip: string;
+  /** how to skip, in the words of the last input used (the stylesheet shows one: `data-input`); on a touch screen both are the tap's */
+  skip: { keys: string; pad: string };
   /** the track card's colors: the ribbon behind the name */
   bg: string;
   accent: string;
 }
+
+/** How to skip the intro: a keyboard player may have a pad in hand too; a pad player has only buttons; a touch screen taps. */
+export const INTRO_SKIP = Object.freeze({ keys: 'Press any key or button to skip', pad: 'Press any button to skip', touch: 'Tap to skip' });
 
 const MODE_NAMES: Readonly<Record<RaceMode, string>> = { quick: 'Quick Race', grandPrix: 'Grand Prix', knockout: 'Knockout', timeTrial: 'Time Trial', daily: 'Daily Challenge' };
 
@@ -60,7 +64,7 @@ export function introCard(i: IntroCardInput): IntroCardVM {
   return {
     cup, name: card?.name ?? i.trackName ?? i.trackId, sub: parts.join(' · '),
     racer: c ? { id: c.id, name: c.name, accent: c.accent } : null,
-    skip: i.touch ? 'Tap to skip' : 'Press any button to skip',
+    skip: i.touch ? { keys: INTRO_SKIP.touch, pad: INTRO_SKIP.touch } : { keys: INTRO_SKIP.keys, pad: INTRO_SKIP.pad },
     bg: card?.bg ?? '#1b1b2f', accent: card?.accent ?? '#ffd23f',
   };
 }

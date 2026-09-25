@@ -23,7 +23,7 @@ import {
   BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, UnlocksView, type ScreenView,
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
-import { adjustSetting, cupMenu, medalFor, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
+import { adjustSetting, cupMenu, medalFor, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
 import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
 import { podiumModel } from './screens/podium.ts';
 import { PodiumView } from './render/podium.ts';
@@ -138,8 +138,16 @@ export class UiRoot {
   private readonly nameNumber = 100 + Math.floor(Math.random() * 900);
   /** the player crossed the line: the save's counters stop (the autopilot drives on under the results) */
   private statsOff = false;
-  /** the racer the garage dresses on the racer screen: the card last focused */
+  /** the racer the garage dresses on the racer screen: the card last focused (by a key, a click, or the pointer resting on it) */
   private dressing = '';
+  /** a racer card under the pointer goes on show once the pointer rests on it (UI.hoverDressMs) */
+  private dressTimer: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * The screen change under way (UI.wipeMs): the views going (kept on show while they leave), the view
+   * coming, a view's old face when it is drawn again as the next screen (results → standings), and when
+   * it is over. Keys, clicks and the pad do nothing until then.
+   */
+  private wipe: { els: HTMLElement[]; ghost: HTMLElement | null; until: number; timer: ReturnType<typeof setTimeout> } | null = null;
   /** the unlock reveal (design §10), over whatever screen is up */
   private readonly toast: HTMLElement;
   /** the course intro's title card, in the race HUD (game/intro.ts flies the camera) */
@@ -188,7 +196,8 @@ export class UiRoot {
     const rotate = document.createElement('div');
     rotate.className = 'rotate-hint';
     rotate.setAttribute('role', 'status');
-    rotate.innerHTML = '<div class="phone" aria-hidden="true"></div><p>Turn your phone sideways to race</p>';
+    // a tablet held upright sees it too, so it says device, not phone
+    rotate.innerHTML = '<div class="phone" aria-hidden="true"></div><p>Turn your device sideways to race</p>';
     this.root.appendChild(rotate);
     this.toast = document.createElement('div');
     this.toast.className = 'toast';
@@ -226,6 +235,8 @@ export class UiRoot {
   }
 
   dispose(): void {
+    this.endWipe();
+    clearTimeout(this.dressTimer);
     removeEventListener('keydown', this.onKey);
     removeEventListener('pointermove', this.onMove);
     removeEventListener('pointerdown', this.onDown);
@@ -245,7 +256,8 @@ export class UiRoot {
     if (next === prev) return;
     this.app = next;
     this.effects(prev, next, a);
-    this.show();
+    // back and quit go the other way: the screen coming slides in from the left
+    this.show(false, a.type === 'back' || a.type === 'quit' ? -1 : 1);
     this.host.screenChanged?.(next);
     this.holdIfUpright(); // a race begun or resumed with the phone upright
   }
@@ -412,7 +424,9 @@ export class UiRoot {
   race(f: RaceFrame, nowMs: number): void {
     if (this.app.screen !== 'racing') return;
     this.playerDone = f.player.finishTick !== undefined;
-    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing);
+    // a Time Trial's finish shows the medal its time won
+    const medals = f.state.mode === 'timeTrial' ? this.host.medalTimes.get(f.state.trackId) : undefined;
+    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing, medals);
     this.views.hud.render(vm);
     minimapDots(f.state.karts, f.map, accentOf, this.dots);
     this.views.hud.minimap.render(f.map, this.dots, nowMs);
@@ -445,15 +459,17 @@ export class UiRoot {
     const start = buttons[9] ?? false;
     const stickOut = navFromPad(NO_BUTTONS, pad.axes) !== null;
     if (stickOut || buttons.some(Boolean)) this.usedInput('pad');
+    // a press while the screen changes is dropped, not kept for later (UI.wipeMs)
+    const wiping = this.inWipe();
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
-      if (start && !this.padStartWas) this.dispatch({ type: 'pause' });
+      if (start && !this.padStartWas && !wiping) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
       // the course intro: any button pressed afresh skips it (Start pauses, as in the race; the A that
       // started the race is still down, so it is no fresh press, nor is anything on a pad's first poll)
-      if (this.introOn && was.length && buttons.some((b, i) => b && i !== 9 && !was[i])) this.host.skipIntro?.();
+      if (this.introOn && !wiping && was.length && buttons.some((b, i) => b && i !== 9 && !was[i])) this.host.skipIntro?.();
       // over the line, a fresh A goes straight to the results (A held for a drift across it does not)
       const a = buttons[0] ?? false;
-      if (a && !this.padAWas && this.playerDone) this.host.skipToResults?.();
+      if (a && !this.padAWas && this.playerDone && !wiping) this.host.skipToResults?.();
       this.padAWas = a;
       // every button down in the race (the Start that paused, A held for a drift) is spent:
       // on the menu that opens next it counts only once let go and pressed again. So is the stick
@@ -472,7 +488,10 @@ export class UiRoot {
     }
     if (!stickOut) this.padStickSpent = false;
     const a = repeat(this.padRepeat, navFromPad(buttons, this.padStickSpent ? NO_AXES : pad.axes), nowMs);
-    if (a) this.nav(a);
+    if (!a || wiping) return;
+    // A pressed twice: the second press would pick the new screen's first entry unseen, as a key or a click would
+    if (a === 'confirm' && this.clock() - this.enteredAt < UI.screenGuardMs) return;
+    this.nav(a);
   }
 
   // ---------------------------------------------------------------- input
@@ -492,6 +511,11 @@ export class UiRoot {
       // type into the name box or move the focus on the dialog that opened; a new press counts
       if (e.repeat) { e.preventDefault(); return; }
       this.keySpent.delete(code);
+    }
+    // a key while the screen changes is dropped, not kept for later (UI.wipeMs); letters still type in the name box
+    if (this.inWipe(e)) {
+      if (racing ? isRaceKey(e.code) || isPauseKey(e.code, e.key) : navFromKey(e.code, e.key)) e.preventDefault();
+      return;
     }
     // typing in the name box: letters stay in the box; only Enter, Escape and up/down navigate
     if ((e.target as HTMLElement | null)?.tagName === 'INPUT') {
@@ -523,6 +547,10 @@ export class UiRoot {
    *  half of a double press: it picked the new screen's first entry unseen (Enter twice on the title chose
    *  Quick Race). Script-made events (the tests) are not held. */
   private tooSoon(e: Event): boolean { return this.trusted(e) && this.clock() - this.enteredAt < UI.screenGuardMs; }
+  /** A screen change is under way: a real key, click or tap now is dropped, and so is a pad press (always the player's). */
+  private inWipe(e?: Event): boolean { return this.wipe !== null && this.clock() < this.wipe.until && (!e || this.trusted(e)); }
+  /** A screen change is under way (UI.wipeMs): input waits it out. */
+  get changingScreen(): boolean { return this.inWipe(); }
   /** whether an input event came from the player, not a script; tests replace it */
   trusted: (e: Event) => boolean = (e) => e.isTrusted;
 
@@ -535,12 +563,13 @@ export class UiRoot {
   }
 
   private pointer(e: Event, click: boolean): void {
+    if (this.inWipe(e)) return; // the screen is changing under the pointer
     const b = (e.target as HTMLElement | null)?.closest?.('[data-id]') as HTMLElement | null;
     if (!b || !this.active || !this.active.view.root.contains(b)) return;
     const id = b.dataset.id as string;
     if (b.getAttribute('aria-disabled') === 'true') return;
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
-    this.setFocus(id, false); // under the pointer it is already in sight
+    this.setFocus(id, false, !click); // under the pointer it is already in sight
     if (!click || id === 'name') return; // a click in the name box is for typing
     if (this.tooSoon(e)) return; // the second click of a double click that opened this screen
     // a settings row's ◀ or ▶ steps that way, like left and right on the keys
@@ -589,16 +618,12 @@ export class UiRoot {
       this.changeLook(cur, a === 'left' ? -1 : 1);
       return;
     }
-    // the garage dresses the racer whose card was focused last: up from the top row of cards reaches it
-    // too (the bottom row reaches it going down), and up from it goes back to that racer's card, so no
-    // other card is passed (and dressed) on the way
-    if (key === 'rosterSelect' && model && cur && (a === 'up' || a === 'down')) {
-      const garage: string[] = model.rows.flat().filter((id) => id === 'paint' || id === 'body');
-      const jump = !garage.length ? null
-        : a === 'up' && model.rows[0].includes(cur) ? garage[0]
-        : a === 'up' && garage.includes(cur) && this.dressing ? this.dressing
-        : null;
-      if (jump) { this.host.uiSound?.('move'); this.setFocus(jump); return; }
+    // the rows under the racer cards (Paint, Body, the class) are the racer on show's: down from any card
+    // goes straight to them and up comes back to that card, so no other card is passed (and put on
+    // show) on the way; left and right run through the eight cards (screens/menus.ts rosterMove)
+    if (key === 'rosterSelect' && model && cur) {
+      const jump = rosterMove(model, cur, a, this.dressing || this.app.racerId);
+      if (jump) { if (jump !== cur) { this.host.uiSound?.('move'); this.setFocus(jump); } return; }
     }
     if (model && cur) {
       const next = move(model, cur, a);
@@ -675,6 +700,12 @@ export class UiRoot {
     }
   }
 
+  /** Put a racer on show: the hero turntable turns them and the garage dresses them. */
+  private dress(id: string): void {
+    this.dressing = id;
+    this.redrawGarage();
+  }
+
   /** Step the dressed racer's paint or body, save it, and draw the garage again (the cards stay put). */
   private changeLook(id: ChoiceId, dir: -1 | 1): void {
     const racerId = this.dressing || this.app.racerId;
@@ -687,7 +718,7 @@ export class UiRoot {
   private redrawGarage(): void {
     if (this.active?.key !== 'rosterSelect') return;
     const s = this.app;
-    const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras());
+    const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras(), this.short?.matches ?? false);
     if (!vm.garage) return;
     this.views.roster.renderGarage(vm.garage);
     this.views.roster.markDressed(vm.garage.racerId);
@@ -734,8 +765,9 @@ export class UiRoot {
   get reducedMotion(): boolean { return reducedMotion(this.save.settings, this.osReduced); }
 
   // ---------------------------------------------------------------- show
-  /** `reveal`: scroll it into sight inside its panel (a long results board, Settings on a phone) */
-  private setFocus(id: string, reveal = true): void {
+  /** `reveal`: scroll it into sight inside its panel (a long results board, Settings on a phone); `hover`: the
+   *  pointer moved onto it (a racer card goes on show only once the pointer rests there, UI.hoverDressMs) */
+  private setFocus(id: string, reveal = true, hover = false): void {
     if (!this.active) return;
     const { key, view } = this.active;
     const prevId = this.focusBy.get(key);
@@ -744,10 +776,12 @@ export class UiRoot {
       if (pb) { pb.classList.remove('focused'); pb.tabIndex = -1; } // one Tab stop per screen
     }
     this.focusBy.set(key, id);
-    // a racer card focused: the garage dresses that racer now
+    // a racer card focused: the garage dresses that racer now; one the pointer is only passing over on its
+    // way down to Paint or Body does not (it would swap the rows under the pointer)
+    clearTimeout(this.dressTimer);
     if (key === 'rosterSelect' && id !== this.dressing && CAST_IDS.has(id)) {
-      this.dressing = id;
-      this.redrawGarage();
+      if (hover) this.dressTimer = setTimeout(() => { if (this.active?.key === 'rosterSelect' && this.focusBy.get(key) === id) this.dress(id); }, UI.hoverDressMs);
+      else this.dress(id);
     }
     const b = view.buttons.get(id);
     if (b) {
@@ -758,8 +792,8 @@ export class UiRoot {
     }
   }
 
-  /** Which view is on top, rendered fresh when it changes (or when `force`). */
-  private show(force = false): void {
+  /** Which view is on top, rendered fresh when it changes (or when `force`). `dir`: -1 when going back (the transition's way). */
+  private show(force = false, dir: 1 | -1 = 1): void {
     const s = this.app;
     const v = this.views;
     const top = topOverlay(s);
@@ -769,16 +803,20 @@ export class UiRoot {
     };
     const baseView = base[s.screen];
     const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : top === 'howTo' ? v.howTo : top === 'unlocks' ? v.unlocks : null;
+    const key = top ?? s.screen;
+    const view = overlayView ?? baseView;
+    const entering = this.active?.key !== key;
+    const wasOn = entering ? Object.values(v).filter((x) => x.root.classList.contains('on')) : [];
     for (const x of Object.values(v)) x.root.classList.toggle('on', x === baseView || x === overlayView);
     // a dialog on top makes everything under it unreachable, by Tab and by pointer
     for (const x of Object.values(v)) x.root.inert = overlayView !== null && x !== overlayView;
-    const key = top ?? s.screen;
-    const view = overlayView ?? baseView;
-    if (!force && this.active?.key === key) return;
-    const entering = this.active?.key !== key;
+    if (!force && !entering) return;
+    const from = this.active;
     if (entering) this.enteredAt = this.clock();
     this.active = { key, view };
     if (entering && (key === 'results' || key === 'gpTable' || key === 'knockoutCut' || key === 'podium')) this.endGuardUntil = this.clock() + UI.endScreenGuardMs;
+    // (before the new screen is drawn: a view drawn again as the next screen leaves its old face as a ghost)
+    if (entering) this.beginWipe(from, view, wasOn, dir);
     this.renderScreen(key, entering);
     const model = this.models.get(key);
     if (!model) return;
@@ -791,6 +829,50 @@ export class UiRoot {
     if (id) this.setFocus(id, key !== 'howTo' && key !== 'credits' && key !== 'unlocks');
   }
 
+  /**
+   * A screen change's transition (ui.css "screen transitions"): every view that was on show and is not now
+   * stays on show while it leaves (`x-out`), the view coming slides in (`x-in`), and a view drawn again as
+   * the next screen (results → standings → the cut) leaves its old face behind as a ghost that leaves the
+   * same way. `dir` -1 goes back. None from the loading screen, and none with reduced motion: a plain cut.
+   * Transforms and opacity only (the race or attract camera behind never waits); input waits it out (inWipe).
+   */
+  private beginWipe(from: { key: string; view: ScreenView } | null, to: ScreenView, wasOn: readonly ScreenView[], dir: 1 | -1): void {
+    this.endWipe();
+    if (!from || from.key === 'boot' || this.reducedMotion) return;
+    const way = dir < 0 ? 'back' : 'fwd';
+    const els: HTMLElement[] = [];
+    for (const v of wasOn) if (!v.root.classList.contains('on')) els.push(v.root);
+    let ghost: HTMLElement | null = null;
+    if (from.view === to) {
+      // a copy of the old face (the view keeps its own until it is drawn again)
+      ghost = to.root.cloneNode(true) as HTMLElement;
+      ghost.classList.remove('on');
+      ghost.classList.add('x-ghost');
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.inert = true;
+      to.root.after(ghost);
+      // a copy starts unscrolled: it leaves as it was
+      const was = to.root.querySelectorAll<HTMLElement>('.stage, .scroll'), copy = ghost.querySelectorAll<HTMLElement>('.stage, .scroll');
+      was.forEach((e, i) => { if (copy[i]) copy[i].scrollTop = e.scrollTop; });
+      els.push(ghost);
+    }
+    for (const el of els) { el.classList.add('x-out'); el.dataset.x = way; }
+    // a view already on show (the screen under a dialog that closes) does not come in again
+    if (ghost || !wasOn.includes(to)) { to.root.classList.add('x-in'); to.root.dataset.x = way; els.push(to.root); }
+    if (!els.length) return;
+    this.wipe = { els, ghost, until: this.clock() + UI.wipeMs, timer: setTimeout(() => this.endWipe(), UI.wipeMs + 40) };
+  }
+
+  /** The transition is over (or another begins): every view as it stands, the ghost gone. */
+  private endWipe(): void {
+    const w = this.wipe;
+    if (!w) return;
+    this.wipe = null;
+    clearTimeout(w.timer);
+    for (const el of w.els) { el.classList.remove('x-out', 'x-in'); delete el.dataset.x; }
+    w.ghost?.remove();
+  }
+
   /** `entering`: false when the screen on top is drawn again (a setting changed) */
   private renderScreen(key: string, entering: boolean): void {
     const s = this.app, v = this.views, built = this.host.builtTracks;
@@ -800,7 +882,8 @@ export class UiRoot {
       case 'modeSelect': { const vm = modeMenu(this.host.availableModes); v.modes.render(vm, MODE_ICONS); this.models.set(key, vm.focus); break; }
       case 'rosterSelect': {
         if (entering) this.dressing = s.racerId;
-        const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras());
+        // a phone on its side sets the eight cards in one row, and so does the grid
+        const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras(), short);
         v.roster.render(vm);
         v.roster.markDressed(this.dressing);
         this.models.set(key, vm.focus);
@@ -835,6 +918,7 @@ export class UiRoot {
     const short = this.short?.matches ?? false;
     if (this.models.has('title')) this.models.set('title', titleMenu(short).focus);
     if (this.models.has('pause')) this.models.set('pause', pauseMenu(short, this.canRestart).focus);
+    if (this.models.has('rosterSelect')) this.models.set('rosterSelect', rosterMenu(this.app.speedClass, this.app.mode, this.rosterExtras(), short).focus);
   }
 
   /** A Grand Prix or Knockout race cannot be run again from the pause (it farmed stars and wins; Mario Kart hides it too) */
@@ -843,6 +927,7 @@ export class UiRoot {
   /** A tap or click anywhere once the player has finished goes straight to the results (not the pause button). */
   private tapInRace(e: PointerEvent): void {
     if (this.app.screen !== 'racing' || this.app.overlays.length) return;
+    if (this.inWipe(e)) return; // the menu still leaving: a double tap on the track must not skip the intro unseen
     if (this.introOn) { this.host.skipIntro?.(); return; } // a tap skips the course intro
     if (!this.playerDone) return;
     if ((e.target as HTMLElement | null)?.closest?.('[data-pause]')) return;
@@ -856,7 +941,8 @@ export class UiRoot {
     const series = s.mode === 'grandPrix' || s.mode === 'knockout';
     const nextLabel = key === 'results' ? (series ? 'Standings' : 'Back to menu') : s.seriesHasNext ? 'Next race' : s.podiumNext ? 'Continue' : 'Back to menu';
     if (key === 'results') {
-      const vm = resultsModel(o.results, o.playerId, o.trackName);
+      // a Time Trial: the medal its time won, and the ladder of medal times
+      const vm = resultsModel(o.results, o.playerId, o.trackName, UI.staggerResultsMs, o.medalTimesMs);
       if (this.ttNote) vm.headline = this.ttNote;
       const withBoard = !!o.board && !!this.host.leaderboard;
       // a first-timer gets a friendly name to post under (a pad has no keys to type one), selected so typing replaces it
@@ -873,6 +959,8 @@ export class UiRoot {
     }
     else if (key === 'gpTable' && o.gp) this.views.results.renderGp(gpModel(o.gp.before, o.gp.after, o.playerId), nextLabel);
     else if (key === 'knockoutCut' && o.ko) this.views.results.renderCut(knockoutCutModel(o.results, o.ko.after, o.playerId), nextLabel);
+    // the player's own row in sight (a phone on its side, the player low in the standings)
+    this.views.results.revealPlayer();
     this.models.set(key, { rows: [['continue']] });
   }
 }

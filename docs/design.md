@@ -143,7 +143,13 @@ Music: 6 files (title, 5 race themes reused across 6 tracks with one shared for 
 ## 12. UI
 Fonts Lilita One + Fredoka. HUD: balloon slot top-left, big position bottom-left, minimap + lap bottom-right, timer top-centre. Title: attract-mode camera rail around Harbour Loop with Pip drifting by. Roster screen: 8 cards, turntable, animated stat bars.
 
-Course intro title card (24 Sept 2026): lower left, the track's name big in Lilita One on a ribbon in the track's accent, its cup on a chip above and the race under it (Race 1 of 3 · 150cc, Round 2 of 3 · Top 4 go through, Time Trial, Daily Challenge · Sep 25, Mirror); the player's racer in a chip lower right; "Press any button to skip" ("Tap to skip" on touch). It sits on ink while the race's shaders compile, sweeps in, and leaves a beat before the countdown; the race HUD comes with the countdown.
+Course intro title card (24 Sept 2026): lower left, the track's name big in Lilita One on a ribbon in the track's accent, its cup on a chip above and the race under it (Race 1 of 3 · 150cc, Round 2 of 3 · Top 4 go through, Time Trial, Daily Challenge · Sep 25, Mirror); the player's racer in a chip lower right; "Press any key or button to skip" ("Press any button to skip" once a pad is in use, "Tap to skip" on touch). It sits on ink while the race's shaders compile, sweeps in, and leaves a beat before the countdown; the race HUD comes with the countdown.
+
+Screen transitions (24 Sept 2026): every screen change is one quick move, 240 ms: the screen going slides off the way you are heading, leaning into the move like the intro's title card, and is all but gone before the screen coming slides in; back runs the other way; a dialog pops in and shrinks away; the results, standings, podium and menu follow on the same way, and a menu slides off into a race's title card. Keys, clicks, taps and the pad wait the move out (dropped, never queued). Reduced motion: a plain cut.
+
+Time Trial medals (24 Sept 2026): our own badge, a stopwatch struck as a medal on coral and teal ribbon tails, in gold, silver or bronze, always named in words beside it: a sticker in the corner of a Time Trial track card (the best run's medal), by the results headline with the three medal times under the run (those the run reached in color), and under FINISH! in the race.
+
+Racer screen (24 Sept 2026): down from any card goes straight to Paint, Body and the class row, which belong to the racer on show; left and right run through the eight cards; up comes back to the racer on show. A phone on its side sets the eight cards in one row.
 
 Finish celebration (24 Sept 2026): the race HUD steps aside (FINISH! rises and shrinks under the timer; the item slots, map, speed and hints go; the place and time stay). Podium ceremony: no dim and no panel over it, the headline with the series and the player's stars at the top, the places as they stand (2nd, 1st, 3rd) and Continue along the bottom.
 

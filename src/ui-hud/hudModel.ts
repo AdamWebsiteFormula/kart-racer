@@ -8,6 +8,7 @@ import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
 import { formatMs, formatTime, mph, ordinal, ordinalParts } from './format.ts';
+import { medalFor, type MedalTimes, type MedalWon } from './screens/menus.ts';
 
 /** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
 /** Over the line, how to go on to the results, in the words of the last input used: the renderer draws all
@@ -102,6 +103,8 @@ export interface HudVM {
   solo: boolean;
   /** a solo run: each lap finished so far and its time, the fastest marked once there are two */
   splits: readonly LapSplit[];
+  /** a Time Trial over the line: the medal its time won (its badge under FINISH!), or null */
+  medal: MedalWon | null;
 }
 
 export interface LapSplit { lap: number; time: string; best: boolean }
@@ -142,11 +145,12 @@ export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number, tra
 
 /**
  * The whole HUD for one frame. `shownRank` is race-manager's debounced rank (trackers[i].shownRank),
- * so the numeral never flickers; it changes on the same frame positionChange fires.
+ * so the numeral never flickers; it changes on the same frame positionChange fires. `medalTimes`: a
+ * Time Trial's track's, for the medal its finish wins.
  */
 export function hudModel(
   state: RaceState, player: KartState, shownRank: number, coinCap: number, m: HudMemory, clock: number,
-  defs: readonly Def[], nowMs: number, trailing = false,
+  defs: readonly Def[], nowMs: number, trailing = false, medalTimes?: MedalTimes,
 ): HudVM {
   const rank = shownRank > 0 ? shownRank : player.rank;
   const lap = Math.min(Math.max(player.lap, 1), state.lapsTotal);
@@ -170,6 +174,8 @@ export function hudModel(
   let racers = 0;
   for (const k of state.karts ?? []) if (!k.isGhost) racers++;
   const solo = racers === 1;
+  const won = state.mode === 'timeTrial' && medalTimes && player.finishTick !== undefined && banner?.kind === 'finish' && banner.skip
+    ? medalFor(ticksToMs(player.finishTick - state.goTick), medalTimes) : 'none';
   return {
     // stops on the player's own time (the one the results show), not the race clock
     timer: player.finishTick !== undefined ? formatMs(ticksToMs(player.finishTick - state.goTick)) : formatTime(state.time),
@@ -191,5 +197,6 @@ export function hudModel(
     items: state.mode !== 'timeTrial',
     solo,
     splits: solo ? lapSplits(state.trackers?.[state.karts.indexOf(player)]?.lapTicks ?? [], state.goTick) : NO_SPLITS,
+    medal: won === 'none' ? null : won,
   };
 }

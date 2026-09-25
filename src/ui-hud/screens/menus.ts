@@ -8,7 +8,8 @@ import { CAST } from '../data/cast.ts';
 import { CUPS, KNOCKOUT_SETS, playableTracks, trackCard, TRACKS, type CupCard } from '../data/catalog.ts';
 import { formatMs } from '../format.ts';
 import type { Save, Settings } from '../store.ts';
-import type { FocusModel } from '../types.ts';
+import { move } from '../focus.ts';
+import type { FocusModel, NavAction } from '../types.ts';
 import type { GarageVM } from '../garage.ts';
 
 export interface Entry { id: string; label: string; sub?: string; disabled?: boolean; badge?: string }
@@ -71,8 +72,9 @@ export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: strin
  * Time Trial and Daily always run at 150cc (the leaderboard replays them so: soloConfig), so they have no class row.
  * `extras.garage`: the paint and body choices, a row under the cards when it has any; `extras.mirror`: the
  * Mirror switch's state, beside the classes, when Mirror is unlocked and the mode takes it (garage.ts mirrorAllowed).
+ * `oneRow`: a short screen (a phone on its side, UI.shortScreenQuery) sets the eight cards in one row, and so does the grid.
  */
-export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null, extras: { garage?: GarageVM; mirror?: boolean } = {}): RosterVM {
+export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null, extras: { garage?: GarageVM; mirror?: boolean } = {}, oneRow = false): RosterVM {
   const cards = CAST.map((c) => {
     const a = ARCHETYPES[c.archetype];
     return {
@@ -88,10 +90,43 @@ export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null,
   const classes: Entry[] = solo ? [] : SPEED_CLASSES.map((s) => ({ id: `cc${s.cc}`, label: s.label, sub: s.sub, badge: s.cc === selectedCc ? '●' : undefined }));
   if (!solo && extras.mirror !== undefined) classes.push({ id: 'mirror', label: 'Mirror', sub: extras.mirror ? 'On' : 'Off', badge: extras.mirror ? '●' : undefined });
   const ids = cards.map((c) => c.id);
-  const rows = [ids.slice(0, 4), ids.slice(4, 8)];
+  const rows = oneRow ? [ids] : [ids.slice(0, 4), ids.slice(4, 8)];
   const garage = extras.garage;
   if (garage?.choices.length) rows.push(garage.choices.map((c) => c.id));
   return { cards, classes, focus: { rows: classes.length ? [...rows, classes.map((c) => c.id)] : rows }, ...(garage ? { garage } : {}) };
+}
+
+/** The ids on the racer screen that are racer cards. */
+const CARD_IDS: ReadonlySet<string> = new Set(CAST.map((c) => c.id));
+
+/**
+ * How the focus moves on the racer screen, where the rows under the cards (Paint, Body, the class)
+ * belong to the racer on show (`dressed`). Moving down to them must never change who that is: down
+ * from Pip used to land on Otto's card first and put Otto on show (sweep, 24 Sept 2026). So:
+ * - down from any card goes straight to the first row under the cards, the racer on show kept;
+ * - left and right run through all eight cards in reading order, wrapping, so every card is a
+ *   press or two away without going down;
+ * - up from a card moves to the other row of cards (round inside them); with one row of cards it is the plain grid's;
+ * - from the rows under the cards, a move that would land on a card lands on the racer on show:
+ *   up from the first row, or down past the last one round to the top.
+ * Returns null for a move the plain grid (focus.ts move) makes as it is.
+ */
+export function rosterMove(focus: FocusModel, cur: string, dir: NavAction, dressed: string): string | null {
+  const cardRows = focus.rows.filter((r) => r.some((id) => CARD_IDS.has(id))).length;
+  const cards = focus.rows.slice(0, cardRows).flat();
+  const at = cards.indexOf(cur);
+  if (at >= 0) {
+    const r = focus.rows.findIndex((row) => row.includes(cur));
+    const col = focus.rows[r].indexOf(cur);
+    const nearest = (row: readonly string[]) => row[Math.min(col, row.length - 1)];
+    if (dir === 'left' || dir === 'right') return cards[(at + (dir === 'right' ? 1 : -1) + cards.length) % cards.length];
+    if (dir === 'down') { const below = focus.rows[cardRows]; return below?.length ? nearest(below) : null; }
+    if (dir === 'up' && cardRows > 1) return nearest(focus.rows[(r + cardRows - 1) % cardRows]);
+    return null;
+  }
+  if (dir !== 'up' && dir !== 'down') return null;
+  const next = move(focus, cur, dir);
+  return CARD_IDS.has(next) && cards.includes(dressed) ? dressed : null;
 }
 
 export interface CupEntry extends Entry { tracks: { id: string; name: string; bg: string; accent: string; built: boolean }[]; plays: string[] }
@@ -114,14 +149,27 @@ export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<strin
   return { title: mode === 'grandPrix' ? 'Pick a cup' : 'Pick a Knockout', cups, focus: grid([cups]) };
 }
 
-export interface TrackEntry extends Entry { biome: string; bg: string; accent: string }
+/** `medal`: a Time Trial card's best medal (its badge in the corner); absent for none */
+export interface TrackEntry extends Entry { biome: string; bg: string; accent: string; medal?: MedalWon }
 export interface TrackVM { title: string; tracks: TrackEntry[]; focus: FocusModel }
 
 /** A track's Time Trial medal times (its track file's `medalTimesMs`). */
 export interface MedalTimes { gold: number; silver: number; bronze: number }
 export type Medal = 'none' | 'bronze' | 'silver' | 'gold';
+/** A medal won, best first. */
+export type MedalWon = Exclude<Medal, 'none'>;
+export const MEDALS: readonly MedalWon[] = Object.freeze(['gold', 'silver', 'bronze']);
+/** A time on the line is the medal's: the times are "at most". */
 export function medalFor(ms: number, m: MedalTimes): Medal {
   return ms <= m.gold ? 'gold' : ms <= m.silver ? 'silver' : ms <= m.bronze ? 'bronze' : 'none';
+}
+/** "Gold", "Silver", "Bronze" */
+export const medalLabel = (m: MedalWon): string => `${m[0].toUpperCase()}${m.slice(1)}`;
+
+/** A Time Trial run against the track's medal times: the medal it won, and each medal's time, reached or not (the results screen's ladder). */
+export interface MedalLadderVM { won: Medal; steps: { medal: MedalWon; label: string; time: string; reached: boolean }[] }
+export function medalLadder(ms: number, m: MedalTimes): MedalLadderVM {
+  return { won: medalFor(ms, m), steps: MEDALS.map((k) => ({ medal: k, label: medalLabel(k), time: formatMs(m[k]), reached: ms <= m[k] })) };
 }
 
 /**
@@ -133,8 +181,11 @@ export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save
     const best = mode === 'timeTrial' ? save.timeTrial[t.id] : undefined;
     const times = medalTimes.get(t.id);
     const m = best && times ? medalFor(best.bestMs, times) : 'none';
-    const medal = m !== 'none' ? ` · ${m[0].toUpperCase()}${m.slice(1)}` : '';
-    return { id: t.id, label: t.name, biome: t.biome, bg: t.bg, accent: t.accent, sub: best ? `Best ${formatMs(best.bestMs)}${medal}` : undefined };
+    const medal = m !== 'none' ? ` · ${medalLabel(m)}` : '';
+    return {
+      id: t.id, label: t.name, biome: t.biome, bg: t.bg, accent: t.accent, sub: best ? `Best ${formatMs(best.bestMs)}${medal}` : undefined,
+      ...(m !== 'none' ? { medal: m } : {}),
+    };
   });
   const rows: TrackEntry[][] = [];
   for (let i = 0; i < tracks.length; i += 3) rows.push(tracks.slice(i, i + 3));

@@ -33,6 +33,11 @@
   --t-fast: 140ms;
   --t-med: 280ms;
   --t-slow: 520ms;
+  /* a screen change (UI.wipeMs, UI.wipeOutMs): the screen coming, the screen going */
+  --t-wipe: 240ms;
+  --t-wipe-out: 150ms;
+  /* the screen coming starts this late, once the one going is a trace */
+  --t-wipe-lag: 60ms;
 
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
@@ -80,8 +85,36 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 #ui .hud { pointer-events: none; }
 /* a dialog over the title or a menu (Settings, How to Play, Credits, Unlocks): the screen under it steps
    back, so no logo or button peeks round the panel; it fades back in when the dialog closes */
-#ui .screen > .stage { transition: opacity var(--t-med) ease; }
-#ui .screen[inert] > .stage { opacity: 0; }
+#ui .screen > .stage { transition: opacity var(--t-wipe) ease; }
+#ui .screen[inert]:not(.x-out) > .stage { opacity: 0; }
+
+/* ---------- screen transitions (UiRoot.beginWipe; UI.wipeMs, UI.wipeOutMs) ----------
+   Every screen change is one quick move in the house style: the screen going slides off the way we are
+   heading, leaning into the move like the course intro's title card, and is all but gone by the time the
+   screen coming slides in after it on the house ease (the two never sit on one another at half strength);
+   the backdrops cross-fade; going back runs the other way. A dialog pops in and shrinks away. The screen
+   going sits on top (at a race's start, over the title card's ink).
+   Transforms and opacity only: the compositor runs it, and the race or attract camera behind never waits.
+   Keys, clicks, taps and the pad wait it out (dropped, never queued). Reduced motion: none of it, a cut. */
+#ui .screen.x-out { display: block; z-index: 3; pointer-events: none; }
+#ui .overlay.x-out { display: flex; }
+#ui .screen.x-out > * { animation: x-fade-out var(--t-wipe-out) ease-out forwards; }
+#ui .screen.x-out > .stage { animation-name: x-leave; }
+#ui .screen.x-out[data-x='back'] > .stage { animation-name: x-leave-back; }
+#ui .overlay.x-out > .box { animation: x-pop-out var(--t-wipe-out) ease-in forwards; }
+/* what is inside the screen going holds still (a ghost's rows would slide in all over again) */
+#ui .screen.x-out > * * { animation: none; }
+#ui .screen.x-in > .stage { animation: x-arrive calc(var(--t-wipe) - var(--t-wipe-lag)) var(--out) var(--t-wipe-lag) backwards; }
+#ui .screen.x-in[data-x='back'] > .stage { animation-name: x-arrive-back; }
+#ui .screen.x-in > .dim { animation: x-fade-in var(--t-wipe) ease backwards; }
+/* (the opacity goes first: by the time the screen coming starts, the one going is a trace) */
+@keyframes x-leave { 45% { opacity: 0.12; } to { opacity: 0; transform: translateX(-72px) skewX(5deg); } }
+@keyframes x-leave-back { 45% { opacity: 0.12; } to { opacity: 0; transform: translateX(72px) skewX(-5deg); } }
+@keyframes x-arrive { from { opacity: 0; transform: translateX(96px) skewX(-5deg); } }
+@keyframes x-arrive-back { from { opacity: 0; transform: translateX(-96px) skewX(5deg); } }
+@keyframes x-fade-out { to { opacity: 0; } }
+@keyframes x-fade-in { from { opacity: 0; } }
+@keyframes x-pop-out { to { opacity: 0; transform: translateY(18px) scale(0.9); } }
 
 /* ---------- shared type ---------- */
 .display {
@@ -340,6 +373,10 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .track-card .label { font: 400 26px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; }
 .track-card .biome { font: 700 13px/1 var(--body); color: var(--ink); background: var(--paper); border-radius: 999px; padding: 4px 10px; }
 .track-card .sub { font: 700 12px/1 var(--body); color: var(--paper); background: var(--ink); border-radius: 999px; padding: 4px 10px; }
+/* Time Trial: the best run's medal, stuck on the card's corner like a sticker (its sub line names it) */
+.track-card > .medal-badge { position: absolute; top: 8px; right: 12px; width: 44px; transform: rotate(8deg); filter: drop-shadow(0 3px 0 rgb(27 27 47 / 0.55)); }
+.screen.on .track-card > .medal-badge { animation: medal-stick 520ms var(--pop) backwards; animation-delay: calc(var(--delay, 0ms) + 260ms); }
+@keyframes medal-stick { from { opacity: 0; transform: rotate(-30deg) scale(0.3); } }
 @media (max-width: 720px) { .track-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .track-card { min-height: 110px; } }
 /* a big screen: each menu is one centred column (heading, Back, cards, hints), not pinned to the left
    edge with a third of the screen empty, and on a 1080p screen its cards grow (sweep, 24 Sept 2026) */
@@ -439,6 +476,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .banner .big { display: inline-block; font-size: clamp(72px, 12vw, 160px); line-height: 1; }
 .banner .small { display: block; margin-top: 8px; font: 400 clamp(26px, 3.5vw, 44px)/1 var(--display); color: var(--sun); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
 .banner .skip { display: none; margin-top: 12px; font: 700 clamp(16px, 2vw, 22px)/1.2 var(--body); color: var(--paper); text-shadow: 0 2px 0 var(--ink), 0 0 6px var(--ink); }
+/* a Time Trial over the line: the medal its time won, under FINISH! */
+.banner .medal-won { display: none; }
+.banner .medal-won.on { display: flex; align-items: center; gap: 12px; width: max-content; margin: 14px auto 0; padding: 6px 26px 6px 10px; border: var(--stroke) solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 6px 0 var(--ink); animation: medal-in 700ms var(--pop) 350ms backwards; }
+.banner .medal-won .mw-icon { width: 84px; margin: -18px 0 -12px; }
+.banner .medal-won .mw-text { font: 400 clamp(32px, 3.6vw, 50px)/1 var(--display); color: var(--ink); }
 .banner .skip.on { display: block; }
 .banner.show .big { animation: banner-in 520ms var(--pop) both; }
 .banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { color: var(--sun); }
@@ -506,7 +548,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* ---------- overlays: pause, settings, credits ---------- */
 .overlay { display: none; align-items: center; justify-content: center; }
 .overlay.on, #ui .overlay.on { display: flex; } /* (#ui .screen.on is more specific: without this, overlays sat top-left) */
-.overlay .box { position: relative; padding: 30px 34px; min-width: min(460px, 92vw); max-width: 92vw; max-height: 88vh; overflow: auto; animation: pop-in var(--t-med) var(--pop) backwards; }
+.overlay .box { position: relative; padding: 30px 34px; min-width: min(460px, 92vw); max-width: 92vw; max-height: 88vh; overflow: auto; animation: pop-in var(--t-wipe) var(--pop) backwards; }
 .overlay h2 { margin: 0 0 18px; font: 400 44px/1 var(--display); color: var(--ink); }
 .overlay .list { display: flex; flex-direction: column; gap: 12px; }
 .overlay .btn { justify-content: center; }
@@ -606,12 +648,44 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .laps span { padding: 7px 10px; border: 2px solid var(--ink); border-radius: 999px; }
 .laps span.best { background: var(--grass); }
 .stars { display: flex; gap: 10px; justify-content: center; margin: 12px 0 4px; }
+/* a finished Grand Prix: the player's stars at the end of the headline's row */
+.res-head .stars { margin: 0 0 0 auto; flex: none; }
 .stars .star { width: 54px; height: 54px; }
 .stars .star path { fill: #e9e2d0; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
 .stars .star.on path { fill: var(--gold); }
 .stars .star.on { animation: pop-in 500ms var(--pop) backwards; animation-delay: var(--delay, 0ms); }
 .results .actions { display: flex; justify-content: center; padding: 14px 28px 22px; }
 .gained { color: #0a8f5a; font-weight: 700; }
+
+/* ---------- Time Trial medals (icons.ts medalSvg: a stopwatch struck as a medal) ---------- */
+.medal-svg { --m-base: #f2b705; --m-light: #ffe58f; --m-dark: #a26f00; display: block; width: 100%; height: auto; overflow: visible; }
+.medal-svg[data-medal='silver'] { --m-base: #c3ccd7; --m-light: #f4f7fb; --m-dark: #6f7d8e; }
+.medal-svg[data-medal='bronze'] { --m-base: #cd8246; --m-light: #f3c193; --m-dark: #7f4718; }
+.medal-svg .rim, .medal-svg .crown { fill: var(--m-base); }
+.medal-svg .face { fill: var(--m-light); stroke: var(--m-dark); }
+.medal-svg .ticks { stroke: var(--m-dark); }
+.medal-svg .shine { stroke: rgb(255 255 255 / 0.8); }
+.medal-svg .tail-l { fill: var(--coral); }
+.medal-svg .tail-r { fill: var(--teal); }
+.medal-svg .glint { fill: #fff; transform-box: fill-box; transform-origin: center; }
+/* it arrives with a bounce, and its glint twinkles twice (ends lit: reduced motion shows it still) */
+@keyframes medal-in { 0% { opacity: 0; transform: scale(0.2) rotate(-40deg); } 60% { opacity: 1; transform: scale(1.12) rotate(6deg); } }
+@keyframes medal-glint { 0%, 100% { transform: scale(1) rotate(0); } 40% { transform: scale(0.2) rotate(90deg); } 70% { transform: scale(1.35) rotate(45deg); } }
+.results .res-medal .glint, .banner .medal-won .glint { animation: medal-glint 900ms ease-in-out 2; animation-delay: 700ms; }
+
+/* the results' head: a Time Trial's medal by the headline, which names it */
+.res-head { display: flex; align-items: center; gap: 16px; }
+.res-words { min-width: 0; }
+.results .res-medal { flex: none; width: 76px; margin: -6px 0 4px -4px; filter: drop-shadow(0 4px 0 rgb(27 27 47 / 0.35)); animation: medal-in 700ms var(--pop) 200ms backwards; }
+/* a Time Trial's medal times under the run: each in color where the run reached it */
+.medal-ladder { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.rung { display: inline-flex; align-items: center; gap: 7px; padding: 4px 14px 4px 6px; border: 2px solid var(--ink); border-radius: 999px; background: #fff; font: 600 15px/1 var(--body); }
+.rung b { font: 400 17px/1 var(--display); }
+.rung .rung-ic { width: 24px; }
+.rung .rung-t { font-variant-numeric: tabular-nums; }
+.rung.won { background: var(--sun); box-shadow: 0 3px 0 var(--ink); }
+.rung.miss { opacity: 0.55; }
+.rung.miss .rung-ic { filter: grayscale(1); }
 
 /* ---------- leaderboard panel (Time Trial and Daily results) ---------- */
 .board { margin-top: 16px; padding-top: 14px; border-top: 3px dashed rgba(27, 27, 47, 0.18); }
@@ -702,40 +776,52 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .title .menu .btn { padding: 10px 28px; }
   .card .stats { margin-top: 4px; }
 }
-/* a phone on its side (844x390, 740x360): every menu fits one screen, so nothing needs a scroll */
+/* a phone on its side (844x390, 740x360): every menu fits one screen, so nothing needs a scroll. The sides
+   keep a small margin inside the notch's inset, not 48 px on top of it (852x344 with the notch lost 214 px of its width) */
 @media (max-height: 500px) {
-  .stage { gap: 10px; padding-top: calc(12px + var(--safe-t)); padding-bottom: calc(12px + var(--safe-b)); }
+  .stage { gap: 10px; padding: calc(12px + var(--safe-t)) calc(20px + var(--safe-r)) calc(12px + var(--safe-b)) calc(20px + var(--safe-l)); }
   .heading { font-size: 30px; }
   .stage-head .back-btn { padding: 6px 16px; }
   .stage-head .back-btn .label { font-size: 18px; }
   /* title: the name sized by the height too, the four buttons two by two; still too tall (a smaller
      phone), it starts at the top and scrolls instead of spilling off both edges */
   .title .stage { justify-content: safe center; }
-  .logo .l1 { font-size: min(11vw, 17vh); }
-  .logo .l2 { font-size: min(9.5vw, 14.5vh); }
+  .logo .l1 { font-size: min(11vw, 15.5vh); }
+  .logo .l2 { font-size: min(9.5vw, 13vh); }
   .logo .tag { margin-top: 10px; }
-  .title .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 0; }
-  .title .menu .btn { padding: 10px 20px; }
+  .title .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 0; }
+  /* (at 852x344 with the notch Credits sat on the screen's edge, its shadow cut off) */
+  .title .menu .btn { padding: 8px 20px; }
+  .title .menu .btn .label { font-size: 25px; }
   /* the fifth button (Credits) sits centred under the four, not alone on the left */
   .title .menu .btn:last-child:nth-child(odd) { grid-column: 1 / -1; justify-self: center; width: calc(50% - 5px); }
   .title .press { margin-top: 0; }
-  /* a phone on its side: the Paint and Body stay, their hints go */
+  /* a phone on its side: the Paint and Body stay, side by side on one row; their hints go */
   .pick-hint { display: none; }
-  .btn.pick { padding: 4px 10px; }
-  .opt .sw { width: 34px; height: 22px; }
+  .garage { gap: 10px; flex-wrap: nowrap; }
+  .btn.pick { padding: 3px 8px; gap: 6px; }
+  .btn.pick .label { font-size: 18px; min-width: 2.2em; }
+  .btn.pick .arrow { padding: 6px 2px; }
+  .btn.pick .opts { gap: 4px; }
+  .opt { padding: 3px 4px 2px; }
+  .opt .sw { width: 32px; height: 20px; }
+  .opt .nm { font-size: 11px; }
   .modes { gap: 10px; }
   .modes .btn { min-height: 0; padding: 10px 14px; gap: 4px; }
   .modes .btn .icon { font-size: 22px; }
   .modes .btn .label { font-size: 22px; }
   .modes .btn .sub { font-size: 13px; }
-  /* the roster: all eight on two rows of four, portrait, name and class (the stat bars wait for a bigger screen) */
-  .roster { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .card { padding: 8px 10px; }
-  .card::before { height: 32px; }
-  .card .face.has-portrait { width: 44px; height: 44px; margin: 2px 0; }
+  /* the roster: all eight in one row, each its class, portrait and name (the stat bars wait for a bigger
+     screen), so Paint, Body and the class row fit under them: at 852x344 with the notch they sat 147 px
+     below the screen (sweep, 24 Sept 2026). The focus grid is one row too (rosterMenu oneRow) */
+  .roster { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+  .card { display: flex; flex-direction: column; align-items: center; padding: 5px 4px 6px; text-align: center; }
+  .card::before { height: 26px; }
+  .card .cls { position: relative; top: auto; right: auto; font-size: 9px; padding: 3px 6px; letter-spacing: 0.05em; }
+  .card .face.has-portrait { width: 44px; height: 44px; margin: 3px 0 2px; }
   .roster-main { gap: 8px; }
-  .roster-screen .card.focused, .roster-screen .card:focus-visible { transform: scale(1.03); box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--sun), 0 0 12px 4px rgba(255, 210, 63, 0.6), 0 6px 0 var(--ink); }
-  .card .name { font-size: 18px; }
+  .roster-screen .card.focused, .roster-screen .card:focus-visible { transform: scale(1.04); box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--sun), 0 0 12px 4px rgba(255, 210, 63, 0.6), 0 6px 0 var(--ink); }
+  .card .name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(13px, 1.8vw, 16px); }
   .card .who, .card .stats { display: none; }
   .classes { gap: 10px; }
   .classes .btn { padding: 6px 16px; }
@@ -748,17 +834,33 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .track-card { min-height: 96px; padding: 10px 12px !important; }
   .track-card .label { font-size: 20px; }
 }
-/* a phone on its side: the results panel gives the rows more of the height */
+/* a phone on its side: all eight rows in sight at once. The headline and the track share a line, more
+   than four rows sit in two columns (1st to 4th, then 5th to 8th: ResultsView sets --half), and the panel
+   takes the width inside the notch; at 852x344 rows 5 to 8, the player's among them, needed a scroll
+   (sweep, 24 Sept 2026) */
 @media (max-height: 500px) {
-  .results .stage { padding-top: calc(10px + var(--safe-t)); padding-bottom: calc(10px + var(--safe-b)); }
-  .results .scroll { padding: 12px 18px 4px; }
-  .results h2 { font-size: 32px; }
-  .results .sub { margin: 4px 0 10px; }
-  .row { padding: 4px 10px; font-size: 16px; }
-  .row .rk { font-size: 22px; }
-  .results .actions { padding: 8px 18px 14px; }
-  .results .actions .btn { padding: 10px 24px; }
-  .results .actions .btn .label { font-size: 22px; }
+  .results .stage { padding: calc(10px + var(--safe-t)) calc(12px + var(--safe-r)) calc(10px + var(--safe-b)) calc(12px + var(--safe-l)); }
+  .results .box { width: min(840px, 100%); }
+  .results .scroll { padding: 8px 18px 2px; }
+  .res-head { gap: 10px; margin-bottom: 8px; }
+  .res-words { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 12px; }
+  .results h2 { font-size: 30px; }
+  .results .sub { margin: 0; }
+  .results .res-medal { width: 42px; margin: -4px 0 -2px; }
+  .rows.many { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--half, 4), auto); grid-auto-flow: column; gap: 5px 10px; }
+  .row { grid-template-columns: 34px 12px minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 10px; font-size: 15px; }
+  .row .rk { font-size: 19px; }
+  .row .sw { width: 12px; height: 12px; }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .gp { font-size: 13px; min-width: 44px; }
+  .rows .row:only-child { grid-template-columns: 12px minmax(0, 1fr) auto auto; }
+  .res-head .stars .star { width: 30px; height: 30px; }
+  .laps { margin-top: 6px; }
+  .laps span { padding: 5px 9px; }
+  .medal-ladder { margin-top: 6px; gap: 6px; }
+  .results .actions { padding: 8px 18px 12px; }
+  .results .actions .btn { padding: 8px 24px; }
+  .results .actions .btn .label { font-size: 21px; }
 }
 /* a phone on its side: the pause fits without a scroll (its Credits and Quit sat below the panel),
    the six buttons two by two; UiRoot's focus grid matches (UI.shortScreenQuery). The other dialogs get the tighter panel too */

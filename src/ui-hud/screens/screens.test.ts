@@ -4,10 +4,10 @@ import type { GrandPrixState, KnockoutState, RaceResults, RacerConfig } from '..
 import { UI } from '../constants.ts';
 import { CAST } from '../data/cast.ts';
 import { attractTrack, playableTracks } from '../data/catalog.ts';
-import { firstFocus, reachable } from '../focus.ts';
+import { firstFocus, move, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { CREDITS_MADE, parseCredits } from './credits.ts';
-import { cupMenu, MODES, modeMenu, pauseMenu, rosterMenu, settingsMenu, statBar, titleMenu } from './menus.ts';
+import { cupMenu, medalFor, medalLadder, MODES, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, statBar, titleMenu, trackMenu } from './menus.ts';
 import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, seedDate } from './results.ts';
 
 const racers: RacerConfig[] = CAST.map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 }));
@@ -236,5 +236,108 @@ describe('leaderboard panel model (audit 24 Sept 2026)', () => {
     expect([loading.buttonDisabled, loading.retry]).toEqual([false, false]);
     expect(boardModel('timeTrial', 'Harbor Loop', null, 'offline', { state: 'posting' }).buttonDisabled).toBe(true);
     expect(boardModel('timeTrial', 'Harbor Loop', null, [], { state: 'posted', id: 'x', rank: 3 }).buttonDisabled).toBe(true);
+  });
+});
+
+describe('Time Trial medals (sweep 24 Sept 2026)', () => {
+  const times = { gold: 119000, silver: 129000, bronze: 146000 };
+
+  it('a time on a medal\'s line is that medal; a hundredth over is the next one down', () => {
+    expect(medalFor(119000, times)).toBe('gold');
+    expect(medalFor(119010, times)).toBe('silver');
+    expect(medalFor(129000, times)).toBe('silver');
+    expect(medalFor(146000, times)).toBe('bronze');
+    expect(medalFor(146010, times)).toBe('none');
+    expect(medalFor(1, times)).toBe('gold');
+  });
+
+  it('the results ladder lists every medal\'s time, best first, and marks the ones the run reached', () => {
+    const silver = medalLadder(125000, times);
+    expect(silver.won).toBe('silver');
+    expect(silver.steps).toEqual([
+      { medal: 'gold', label: 'Gold', time: '1:59.00', reached: false },
+      { medal: 'silver', label: 'Silver', time: '2:09.00', reached: true },
+      { medal: 'bronze', label: 'Bronze', time: '2:26.00', reached: true },
+    ]);
+    expect(medalLadder(150000, times)).toMatchObject({ won: 'none', steps: [{ reached: false }, { reached: false }, { reached: false }] });
+  });
+
+  it('a finished Time Trial run carries its medal to the results; a DNF, or a run with no medal times, does not', () => {
+    const run = (timeMs: number, dnf = false): RaceResults => ({
+      mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
+      ranks: [{ racerId: 'pip', rank: 1, finishTick: 14000, timeMs, lapTimesMs: [timeMs], dnf, projectedMs: -1 }],
+    });
+    expect(resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, times).medal?.won).toBe('gold');
+    expect(resultsModel(run(140000), 'pip', 'Harbor Loop', UI.staggerResultsMs, times).medal?.won).toBe('bronze');
+    expect(resultsModel(run(-1, true), 'pip', 'Harbor Loop', UI.staggerResultsMs, times).medal).toBeUndefined();
+    expect(resultsModel(run(117500), 'pip', 'Harbor Loop').medal).toBeUndefined();
+  });
+
+  it('a Time Trial card carries its best run\'s medal for the corner badge, and still names it in words; other modes carry none', () => {
+    const save = defaultSave();
+    save.timeTrial['harbour-loop'] = { bestMs: 117500, medal: 'gold' };
+    save.timeTrial['meadow-run'] = { bestMs: 160000, medal: 'none' };
+    const built = new Set(['harbour-loop', 'meadow-run', 'canyon-rush']);
+    const medals = new Map([['harbour-loop', times], ['meadow-run', times], ['canyon-rush', times]]);
+    const tt = trackMenu('timeTrial', built, save, medals).tracks;
+    expect(tt.map((t) => [t.id, t.medal ?? null, t.sub ?? null])).toEqual([
+      ['harbour-loop', 'gold', 'Best 1:57.50 · Gold'],
+      ['meadow-run', null, 'Best 2:40.00'],
+      ['canyon-rush', null, null],
+    ]);
+    expect(trackMenu('quick', built, save, medals).tracks.every((t) => t.medal === undefined)).toBe(true);
+  });
+});
+
+describe('racer screen focus (sweep 24 Sept 2026)', () => {
+  // two rows of four cards, then Paint and Body, then the class row
+  const grid = { rows: [['pip', 'momo', 'nova', 'juniper'], ['otto', 'sprocket', 'boulder', 'gus'], ['paint', 'body'], ['cc50', 'cc100', 'cc150']] };
+  const at = (cur: string, dir: 'up' | 'down' | 'left' | 'right', dressed = 'pip') => rosterMove(grid, cur, dir, dressed) ?? move(grid, cur, dir);
+
+  it('down from any card goes straight to the rows under the cards, passing no card (down from Pip used to land on Otto and put him on show)', () => {
+    expect(at('pip', 'down')).toBe('paint');
+    expect(at('juniper', 'down')).toBe('body'); // the nearest one under it
+    expect(at('otto', 'down', 'otto')).toBe('paint');
+  });
+
+  it('up from the rows comes back to the racer on show, whichever card is nearer; so does down past the last row, round to the top', () => {
+    expect(at('paint', 'up')).toBe('pip');
+    expect(at('body', 'up', 'boulder')).toBe('boulder');
+    expect(at('cc150', 'down', 'nova')).toBe('nova');
+    // between the rows under the cards, the plain grid
+    expect(at('body', 'down')).toBe('cc100');
+    expect(at('cc50', 'up')).toBe('paint');
+  });
+
+  it('left and right run through all eight cards in reading order, round the ends; up moves to the other row of cards', () => {
+    expect(at('juniper', 'right')).toBe('otto');
+    expect(at('otto', 'left')).toBe('juniper');
+    expect(at('gus', 'right')).toBe('pip');
+    expect(at('pip', 'left')).toBe('gus');
+    expect(at('otto', 'up')).toBe('pip');
+    expect(at('pip', 'up')).toBe('otto');
+    // the rows under the cards step as ever
+    expect(at('paint', 'right')).toBe('body');
+  });
+
+  it('on a phone on its side the cards are one row, and so is the grid: up from a card wraps to the bottom row, never onto another card', () => {
+    const one = rosterMenu(100, 'quick', {}, true).focus;
+    expect(one.rows.map((r) => r.length)).toEqual([8, 3]);
+    expect(rosterMove(one, 'pip', 'down', 'pip')).toBe('cc50');
+    expect(rosterMove(one, 'pip', 'up', 'pip')).toBeNull(); // the plain grid: round to the class row
+    expect(move(one, 'pip', 'up')).toBe('cc50');
+    expect(rosterMove(one, 'cc150', 'up', 'otto')).toBe('otto');
+    expect(rosterMove(one, 'juniper', 'right', 'pip')).toBe('otto');
+    // every entry still reachable by arrows alone (SOP test 2)
+    const reach = (m: typeof one, from: string) => {
+      const seen = new Set([from]); const queue = [from];
+      while (queue.length) {
+        const id = queue.shift()!;
+        for (const d of ['up', 'down', 'left', 'right'] as const) { const n = rosterMove(m, id, d, 'pip') ?? move(m, id, d); if (!seen.has(n)) { seen.add(n); queue.push(n); } }
+      }
+      return seen;
+    };
+    expect(reach(one, 'pip').size).toBe(11);
+    expect(reach(grid, 'pip').size).toBe(13);
   });
 });

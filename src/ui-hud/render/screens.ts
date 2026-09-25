@@ -1,10 +1,10 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TITLE, UI } from '../constants.ts';
-import { iconFor, iconMarkup, SHAPE_PATHS } from '../icons.ts';
+import { iconFor, iconMarkup, medalSvg, SHAPE_PATHS } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
-import type { CupVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
+import type { CupVM, MedalLadderVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
 import type { UnlockRow } from '../unlocks.ts';
 import type { GarageVM } from '../garage.ts';
@@ -315,6 +315,8 @@ export class TrackView implements ScreenView {
       h('span', 'label', b, t.label);
       h('span', 'biome', b, t.biome);
       if (t.sub) h('span', 'sub', b, t.sub);
+      // Time Trial: the best run's medal, a badge in the corner (the sub line names it too)
+      if (t.medal) h('span', 'medal-badge', b).innerHTML = medalSvg(t.medal, 44);
       this.buttons.set(t.id, b);
     });
     hint(st);
@@ -514,6 +516,33 @@ export class UnlocksView implements ScreenView {
   }
 }
 
+/** A Time Trial's medal times under the run: each medal with its time, in color where the run reached it. */
+function medalLadder(parent: HTMLElement, m: MedalLadderVM): void {
+  const row = h('div', 'medal-ladder', parent);
+  row.setAttribute('role', 'list');
+  row.setAttribute('aria-label', 'Medal times');
+  for (const s of m.steps) {
+    const r = h('div', `rung${s.reached ? ' got' : ' miss'}${s.medal === m.won ? ' won' : ''}`, row);
+    r.setAttribute('role', 'listitem');
+    r.setAttribute('aria-label', `${s.label}: ${s.time}${s.medal === m.won ? ', yours' : s.reached ? ', beaten' : ''}`);
+    h('span', 'rung-ic', r).innerHTML = medalSvg(s.medal, 26);
+    h('b', '', r, s.label);
+    h('span', 'rung-t', r, s.time);
+  }
+}
+
+/**
+ * Where a scroller must scroll to show an item whole: its `top` and `height` measured from the top of the
+ * scroller's content, `margin` kept clear above or below. null when it is in sight already. Pure.
+ */
+export function scrollToShow(scrollTop: number, viewH: number, top: number, height: number, margin = 0): number | null {
+  const up = Math.max(0, top - margin);
+  if (up < scrollTop) return up;
+  const down = top + height + margin - viewH;
+  // taller than the view: its top wins
+  return down > scrollTop ? Math.min(up, down) : null;
+}
+
 function starSvg(on: boolean, i: number): string {
   return `<svg class="star${on ? ' on' : ''}" style="--delay:${600 + i * 180}ms" viewBox="-2 -2 28 28" aria-hidden="true"><path d="${SHAPE_PATHS.star}"/></svg>`;
 }
@@ -527,19 +556,37 @@ export class ResultsView implements ScreenView {
   }
 
   /** The panel: everything but the buttons scrolls inside it, so it never runs off the screen. */
-  /** `label`: the screen's name for assistive tech (the results, the standings, the cut) */
-  private frame(headline: string, sub: string, label = 'Results'): { box: HTMLElement; body: HTMLElement; rows: HTMLElement } {
+  /** `label`: the screen's name for assistive tech (the results, the standings, the cut); `n`: how many rows
+   *  (more than four sit in two columns on a phone on its side, ui.css, so all eight fit) */
+  private frame(headline: string, sub: string, label = 'Results', n = 0): { box: HTMLElement; head: HTMLElement; body: HTMLElement; rows: HTMLElement } {
     clear(this.root);
     this.buttons.clear();
     this.root.setAttribute('aria-label', label);
     const st = stage(this.root);
     const box = h('div', 'panel box enter', st);
     const body = h('div', 'scroll', box);
-    h('h2', '', body, headline);
-    h('div', 'sub', body, sub);
-    const rows = h('div', 'rows', body);
+    const head = h('div', 'res-head', body);
+    const words = h('div', 'res-words', head);
+    h('h2', '', words, headline);
+    h('div', 'sub', words, sub);
+    const rows = h('div', n > 4 ? 'rows many' : 'rows', body);
+    if (n > 4) rows.style.setProperty('--half', String(Math.ceil(n / 2)));
     rows.setAttribute('role', 'table');
-    return { box, body, rows };
+    return { box, head, body, rows };
+  }
+
+  /**
+   * The player's own row in sight inside the panel (a phone on its side showed the standings from the
+   * top, the player 7th below the fold). Only the panel scrolls; a row already in sight stays put.
+   */
+  revealPlayer(): void {
+    const sc = this.root.querySelector<HTMLElement>('.stage > .box > .scroll');
+    const me = sc?.querySelector<HTMLElement>('.row.me');
+    if (!sc || !me) return;
+    // (rects: the stage's slide in is sideways, so the heights and tops are as laid out)
+    const r = me.getBoundingClientRect();
+    const to = scrollToShow(sc.scrollTop, sc.clientHeight, r.top - sc.getBoundingClientRect().top + sc.scrollTop, r.height, 12);
+    if (to !== null) sc.scrollTop = to;
   }
 
   /** The button row, under the scrolling part: always in sight. */
@@ -622,7 +669,13 @@ export class ResultsView implements ScreenView {
 
   renderResults(vm: ResultsVM, next: string, board?: { name: string; suggested?: boolean }): void {
     this.board = null;
-    const { box, body, rows } = this.frame(vm.headline, vm.sub);
+    const { box, head, body, rows } = this.frame(vm.headline, vm.sub, 'Results', vm.rows.length);
+    // a Time Trial's medal: its badge by the headline (which names it)
+    if (vm.medal && vm.medal.won !== 'none') {
+      const m = h('div', 'res-medal');
+      m.innerHTML = medalSvg(vm.medal.won, 76);
+      head.prepend(m);
+    }
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.dnf ? ' dnf' : ''} r${i + 1}`, rows);
       delay(e, r.delayMs);
@@ -638,19 +691,20 @@ export class ResultsView implements ScreenView {
       const laps = h('div', 'laps', body);
       for (const l of vm.playerLaps) h('span', l.best ? 'best' : '', laps, `Lap ${l.lap} ${l.time}`);
     }
+    if (vm.medal) medalLadder(body, vm.medal);
     if (board) this.buildBoard(body, board.name, board.suggested);
     this.actions(box, next);
   }
 
   renderGp(vm: GpVM, next: string): void {
     this.board = null;
-    const { box, body, rows } = this.frame(vm.headline, vm.sub, 'Grand Prix standings');
+    const { box, head, rows } = this.frame(vm.headline, vm.sub, 'Grand Prix standings', vm.rows.length);
     if (vm.done) {
-      const s = h('div', 'stars', body);
+      // the player's stars at the end of the headline's row
+      const s = h('div', 'stars', head);
       s.innerHTML = [0, 1, 2].map((i) => starSvg(i < vm.stars, i)).join('');
       s.setAttribute('role', 'img');
       s.setAttribute('aria-label', `${vm.stars} of 3 stars`);
-      body.insertBefore(s, rows);
     }
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''} r${i + 1}`, rows);
@@ -668,7 +722,7 @@ export class ResultsView implements ScreenView {
 
   renderCut(vm: CutVM, next: string): void {
     this.board = null;
-    const { box, rows } = this.frame(vm.headline, vm.sub, 'Knockout results');
+    const { box, rows } = this.frame(vm.headline, vm.sub, 'Knockout results', vm.rows.length);
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.out ? ' out' : ''} r${i + 1}`, rows);
       delay(e, r.delayMs);

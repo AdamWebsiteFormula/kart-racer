@@ -4,11 +4,14 @@ import type { GrandPrixState, KnockoutState, RaceResults } from '../../race-mana
 import { UI } from '../constants.ts';
 import { accentOf, nameOf } from '../data/cast.ts';
 import { formatGap, formatMs, ordinal } from '../format.ts';
+import { medalLadder, type MedalLadderVM, type MedalTimes } from './menus.ts';
 
 export interface ResultRow { rank: string; racerId: string; name: string; accent: string; time: string; gap: string; dnf: boolean; player: boolean; delayMs: number }
-export interface ResultsVM { headline: string; sub: string; rows: ResultRow[]; playerLaps: { lap: number; time: string; best: boolean }[] }
+/** `medal`: a Time Trial the player finished, against the track's medal times (the badge by the headline and the ladder under the laps) */
+export interface ResultsVM { headline: string; sub: string; rows: ResultRow[]; playerLaps: { lap: number; time: string; best: boolean }[]; medal?: MedalLadderVM }
 
-export function resultsModel(res: RaceResults, playerId: string | null, trackName: string, staggerMs = UI.staggerResultsMs): ResultsVM {
+/** `medalTimes`: a Time Trial's track's medal times */
+export function resultsModel(res: RaceResults, playerId: string | null, trackName: string, staggerMs = UI.staggerResultsMs, medalTimes?: MedalTimes): ResultsVM {
   const winner = res.ranks.find((r) => !r.dnf)?.timeMs ?? -1;
   const rows = res.ranks.map((r, i) => ({
     rank: ordinal(r.rank), racerId: r.racerId, name: nameOf(r.racerId), accent: accentOf(r.racerId),
@@ -26,6 +29,7 @@ export function resultsModel(res: RaceResults, playerId: string | null, trackNam
   return {
     headline, sub: trackName, rows,
     playerLaps: laps.map((ms, i) => ({ lap: i + 1, time: formatMs(ms), best: ms === best })),
+    ...(medalTimes && me && !me.dnf ? { medal: medalLadder(me.timeMs, medalTimes) } : {}),
   };
 }
 

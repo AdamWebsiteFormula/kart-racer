@@ -3,6 +3,7 @@
 // race's shaders compile, over the flight, leaving before the countdown; the HUD waits under it; any
 // fresh key, pad button or tap skips it, but not a held or repeating one, and Escape still pauses.
 import { afterEach, describe, expect, it } from 'vitest';
+import { UI } from '../constants.ts';
 import { UiRoot, type UiHost } from '../ui.ts';
 import { introCard } from '../screens/intro.ts';
 import { IntroCardView } from './intro.ts';
@@ -35,6 +36,9 @@ function racing(): { ui: UiRoot; h: ReturnType<typeof host> } {
   for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }] as const) ui.dispatch(a);
   expect(ui.app.screen).toBe('racing');
   ui.introCard(card());
+  // the menu's transition into the race is over (a press during it is dropped: transition.test.ts)
+  const later = ui.clock() + UI.wipeMs + 1;
+  ui.clock = () => later;
   return { ui, h };
 }
 
@@ -51,7 +55,9 @@ describe('the course intro title card', () => {
     expect(v.root.querySelector('.cup')!.textContent).toBe('Sunrise Cup');
     expect(v.root.querySelector('.sub')!.textContent).toBe('Quick Race · 150cc');
     expect(v.root.querySelector('.who')!.textContent).toBe('Pip');
-    expect(v.root.querySelector('.skip')!.textContent).toBe('Press any button to skip');
+    // the keys' words or a pad's, whichever was used last (the stylesheet shows one)
+    expect([...v.root.querySelectorAll('.skip > span')].map((e) => `${e.className}: ${e.textContent}`))
+      .toEqual(['only-keys: Press any key or button to skip', 'only-pad: Press any button to skip']);
     expect((v.root.querySelector('.face') as HTMLElement).style.getPropertyValue('--portrait')).toContain('art/racers/pip.webp');
     expect(v.root.getAttribute('role')).toBe('status');
     expect(v.root.getAttribute('aria-live')).toBe('polite');

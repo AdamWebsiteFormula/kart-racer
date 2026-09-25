@@ -3,7 +3,8 @@
 // unlocked be chosen, steps with keys, gamepad and pointer alike, saves the choice, and hands the race the
 // look; Mirror shows only when unlocked and only for Quick Race and Grand Prix; the Unlocks list says
 // where to use each reward; a Time Trial best keeps the look its ghost is drawn in.
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { UI } from './constants.ts';
 import { garageModel, lookFor, mirrorAllowed, setChoice, stepChoice } from './garage.ts';
 import { rosterMenu } from './screens/menus.ts';
 import { SAVE_KEY, defaultSave, loadSave, type Backend } from './store.ts';
@@ -128,9 +129,10 @@ describe('garage on the racer screen (jsdom)', () => {
     expect(q('.garage')?.hidden).toBe(false);
     expect(q('.hero-name')?.textContent).toBe('Pip');
     expect(ui.turntable()).toMatchObject({ racerId: 'pip', look: {} });
-    // up from the top row reaches the garage with Pip still dressed; left and right step his paint
-    ui.nav('up');
+    // down from Pip goes straight to his garage, no card passed and Pip still on show; left and right step his paint
+    ui.nav('down');
     expect(document.activeElement?.getAttribute('data-id')).toBe('paint');
+    expect(q('.hero-name')?.textContent).toBe('Pip');
     ui.nav('right');
     expect(ui.save.settings.skinByRacer).toEqual({ pip: 'pip-alt' });
     expect(ui.turntable()?.look).toEqual({ paint: 'pip-alt' });
@@ -143,8 +145,8 @@ describe('garage on the racer screen (jsdom)', () => {
     // up from the garage goes back to Pip's card, not a card in between
     ui.nav('up');
     expect(document.activeElement?.getAttribute('data-id')).toBe('pip');
-    // down to Otto's card dresses Otto (no paint of his own: Body only), and down again reaches his garage
-    ui.nav('down');
+    // up from Pip goes round to the card under him: Otto goes on show (no paint of his own: Body only), and down reaches his garage
+    ui.nav('up');
     expect(q('.hero-name')?.textContent).toBe('Otto');
     expect(q('[data-id="paint"]')).toBeNull();
     ui.nav('down');
@@ -155,6 +157,50 @@ describe('garage on the racer screen (jsdom)', () => {
     expect(q('[data-id="body"] .opt.on')?.getAttribute('data-opt')).toBe('classic');
     expect(q('.card.dressed')?.getAttribute('data-id')).toBe('otto');
     ui.dispose();
+  });
+
+  it('down from the cards to the rows under them never changes the racer on show, up goes back to that card, and a card the pointer only passes over is not put on show (sweep 24 Sept 2026)', () => {
+    vi.useFakeTimers();
+    try {
+      const s = defaultSave();
+      s.unlocked = { skins: ['pip-alt'], bodies: [], mirror: false };
+      const b = fake();
+      b.setItem(SAVE_KEY, JSON.stringify(s));
+      const ui = new UiRoot(document.body, host(), b);
+      toRoster(ui, 'quick');
+      const on = () => document.activeElement?.getAttribute('data-id');
+      const hero = () => [q('.hero-name')?.textContent, q('.card.dressed')?.getAttribute('data-id')];
+      expect(hero()).toEqual(['Pip', 'pip']);
+      // down from Pip: straight to his Paint, Otto's card under him not passed (it used to put Otto on show)
+      ui.nav('down');
+      expect([on(), ...hero()]).toEqual(['paint', 'Pip', 'pip']);
+      ui.nav('down'); // Paint and Body share a row: the class row is next
+      expect(on()).toBe('cc50');
+      // down again goes round to the top: the racer on show's card, not the one above the class
+      ui.nav('down');
+      expect([on(), ...hero()]).toEqual(['pip', 'Pip', 'pip']);
+      // left and right read through the eight cards: right of Juniper is Otto, and a card the keys land on goes on show
+      for (let i = 0; i < 4; i++) ui.nav('right');
+      expect([on(), ...hero()]).toEqual(['otto', 'Otto', 'otto']);
+      ui.nav('down');
+      expect([on(), ...hero()]).toEqual(['body', 'Otto', 'otto']);
+      ui.nav('up');
+      expect(on()).toBe('otto');
+      // the pointer passing over Juniper's card on its way down to Body leaves Otto on show (and the rows under the pointer as they were)
+      let x = 10;
+      const over = (id: string) => q(`[data-id="${id}"]`)!.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: (x += 7), clientY: 300 }));
+      over('juniper');
+      expect(on()).toBe('juniper');
+      vi.advanceTimersByTime(UI.hoverDressMs / 2);
+      over('body');
+      vi.advanceTimersByTime(UI.hoverDressMs * 2);
+      expect([on(), ...hero()]).toEqual(['body', 'Otto', 'otto']);
+      // resting on a card puts that racer on show
+      over('momo');
+      vi.advanceTimersByTime(UI.hoverDressMs + 1);
+      expect(hero()).toEqual(['Momo', 'momo']);
+      ui.dispose();
+    } finally { vi.useRealTimers(); }
   });
 
   it('paint by pointer: a swatch picks itself, the arrows step, a click on the row steps on; the turntable follows; Mirror toggles and reaches the plan', () => {

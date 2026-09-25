@@ -8,8 +8,9 @@ import type { RaceState } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
 import { feedHud, hudModel, newHudMemory } from '../hudModel.ts';
 import { UiRoot, type UiHost } from '../ui.ts';
+import { resultsModel } from '../screens/results.ts';
 import { HudView } from './hud.ts';
-import { ResultsView } from './screens.ts';
+import { ResultsView, scrollToShow } from './screens.ts';
 
 const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
 const race = { mode: 'quick', lapsTotal: 3, time: 12.5, phase: 'racing' } as RaceState;
@@ -708,14 +709,111 @@ describe('Time Trial medals', () => {
     expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ bestMs: 149000, medal: 'bronze' });
     ui.dispose();
   });
+
+  it('badges (sweep 24 Sept 2026): the track card wears its best medal; the results put the medal by the headline and the medal times under the run', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    ui.save.timeTrial['harbour-loop'] = { bestMs: 125000, medal: 'gold' };
+    ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+    const card = document.querySelector('#ui .track-screen.on [data-id="harbour-loop"]')!;
+    expect(card.querySelector('.medal-badge svg')?.getAttribute('data-medal')).toBe('gold');
+    expect(card.querySelector('.sub')?.textContent).toBe('Best 2:05.00 · Gold'); // in words too, never color alone
+    ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    ui.raceOver({ results: run(130000), trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
+    const panel = document.querySelector('#ui .results.on')!;
+    expect(panel.querySelector('h2')?.textContent).toBe('Silver medal!');
+    expect(panel.querySelector('.res-head .res-medal svg')?.getAttribute('data-medal')).toBe('silver');
+    expect([...panel.querySelectorAll('.medal-ladder .rung')].map((r) => `${r.className}: ${r.textContent}`)).toEqual([
+      'rung miss: Gold2:06.00', 'rung got won: Silver2:16.00', 'rung got: Bronze2:34.00',
+    ]);
+    expect(panel.querySelector('.medal-ladder .rung.won')?.getAttribute('aria-label')).toBe('Silver: 2:16.00, yours');
+    // no medal: no badge by the headline, and the ladder shows what it takes
+    ui.dispatch({ type: 'continue' });
+    ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
+    ui.raceOver({ results: run(170000), trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
+    expect(document.querySelector('#ui .results.on .res-medal')).toBeNull();
+    expect(document.querySelectorAll('#ui .results.on .medal-ladder .rung.miss')).toHaveLength(3);
+    ui.dispose();
+  });
+
+  it('the race HUD: over the line in a Time Trial, the medal its time won under FINISH!', () => {
+    document.body.innerHTML = '';
+    const v = new HudView(document.body);
+    const m = newHudMemory();
+    const k = kart();
+    const st = { ...race, mode: 'timeTrial', goTick: 360 } as RaceState;
+    feedHud(m, [{ type: 'finish', racerId: 'p', rank: 1, tick: 360 + 14100, dnf: false }], [], 'p', 1);
+    k.finishTick = 360 + 14100; // 117.5 s
+    v.render(hudModel(st, k, 1, 10, m, 1, defs, 0, false, medalTimesMs));
+    const won = v.root.querySelector('.banner .medal-won')!;
+    expect(won.classList.contains('on')).toBe(true);
+    expect(won.querySelector('.mw-text')?.textContent).toBe('Gold medal!');
+    expect(won.querySelector('svg')?.getAttribute('data-medal')).toBe('gold');
+    // the order under FINISH!: the place (none in a solo run), the medal, then how to go on
+    expect([...v.root.querySelector('.banner')!.children].map((c) => c.className.split(' ')[0])).toEqual(['big', 'small', 'medal-won', 'skip']);
+    v.render(hudModel({ ...race, mode: 'timeTrial', goTick: 360 } as RaceState, kart(), 1, 10, newHudMemory(), 1, defs, 0, false, medalTimesMs));
+    expect(won.classList.contains('on')).toBe(false);
+  });
+});
+
+describe('results on a phone on its side (sweep 24 Sept 2026)', () => {
+  const field = (ids: string[], player: string) => ({
+    mode: 'quick', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
+    ranks: ids.map((id, i) => ({ racerId: id, rank: i + 1, finishTick: 12000 + i * 60, timeMs: 97000 + i * 500, lapTimesMs: [33000, 32000, 32000 + i * 500], dnf: false, projectedMs: -1 })),
+    player,
+  });
+  const IDS = ['momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'pip', 'gus'];
+
+  it('more than four rows are marked to sit in two columns there, four to a column (the stylesheet sets them, all eight in sight)', () => {
+    document.body.innerHTML = '';
+    const v = new ResultsView(document.body);
+    v.renderResults(resultsModel(field(IDS, 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    const rows = v.root.querySelector<HTMLElement>('.rows')!;
+    expect([rows.classList.contains('many'), rows.style.getPropertyValue('--half')]).toEqual([true, '4']);
+    v.renderResults(resultsModel(field(IDS.slice(0, 4), 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    expect(v.root.querySelector('.rows')!.classList.contains('many')).toBe(false);
+    v.renderResults(resultsModel(field(IDS.slice(0, 6), 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    expect(v.root.querySelector<HTMLElement>('.rows')!.style.getPropertyValue('--half')).toBe('3');
+  });
+
+  it('the player\'s own row is scrolled into sight inside the panel; only the panel scrolls, and a row in sight stays put', () => {
+    document.body.innerHTML = '';
+    const v = new ResultsView(document.body);
+    v.renderResults(resultsModel(field(IDS, 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    const sc = v.root.querySelector<HTMLElement>('.scroll')!;
+    const me = v.root.querySelector<HTMLElement>('.row.me')!;
+    Object.defineProperty(sc, 'clientHeight', { value: 200 });
+    let top = 0;
+    Object.defineProperty(sc, 'scrollTop', { get: () => top, set: (x: number) => { top = x; } });
+    sc.getBoundingClientRect = () => ({ top: 100 }) as DOMRect;
+    // 7th, 300 px down the panel, 30 tall: scrolled so it sits 12 px clear of the bottom
+    me.getBoundingClientRect = () => ({ top: 100 + 300 - top, height: 30 }) as DOMRect;
+    v.revealPlayer();
+    expect(top).toBe(300 + 30 + 12 - 200);
+    v.revealPlayer(); // in sight now: no move
+    expect(top).toBe(142);
+    expect(scrollToShow(0, 200, 50, 30, 12)).toBeNull();
+    expect(scrollToShow(100, 200, 40, 30, 12)).toBe(28); // above the view: its top in sight
+    expect(scrollToShow(0, 200, 100, 300, 12)).toBe(88); // taller than the view: its top wins
+  });
+
+  it('a tablet held upright is told to turn its device, not its phone', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    expect(document.querySelector('#ui .rotate-hint p')?.textContent).toBe('Turn your device sideways to race');
+    ui.dispose();
+  });
 });
 
 describe('gamepad', () => {
   const pad = { connected: true, buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0, 0, 0] };
+  /** the UI's clock and the pad's polls run on one time, as in the game */
   let t = 0;
   const frame = (ui: UiRoot) => ui.poll((t += 16));
   const set = (i: number, on: boolean) => { pad.buttons[i].pressed = on; };
-  const press = (ui: UiRoot, i: number) => { set(i, true); frame(ui); set(i, false); frame(ui); };
+  /** a player's beat before the next press: past a screen change and the double-press guard */
+  const beat = () => { t += UI.wipeMs; };
+  const press = (ui: UiRoot, i: number) => { set(i, true); frame(ui); set(i, false); frame(ui); beat(); };
   const A = 0, START = 9;
   const oneRow = {
     mode: 'quick', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
@@ -728,7 +826,9 @@ describe('gamepad', () => {
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
     const h = host();
     const ui = new UiRoot(document.body, h, null);
+    ui.clock = () => t;
     ui.dispatch({ type: 'boot' });
+    beat(); // the title has been up a moment (a press as it opens is a double press's second half)
     return { ui, h };
   }
   afterEach(() => { delete (navigator as { getGamepads?: unknown }).getGamepads; });
@@ -743,11 +843,13 @@ describe('gamepad', () => {
     expect(ui.paused).toBe(true);
     expect(h.calls.filter((c) => c.startsWith('paused'))).toEqual(['paused:true']);
     // Resume with A, then pause again: the same again
+    beat();
     press(ui, A);
     expect(ui.paused).toBe(false);
     set(START, true); frame(ui); frame(ui); frame(ui); set(START, false); frame(ui);
     expect(ui.paused).toBe(true);
     // a fresh press on the pause menu still works: B resumes
+    beat();
     press(ui, 1);
     expect(ui.paused).toBe(false);
     ui.dispose();
@@ -764,7 +866,7 @@ describe('gamepad', () => {
     expect(ui.app.screen).toBe('results');
     set(A, false); frame(ui);
     expect(ui.app.screen).toBe('results');
-    pastGuard(ui);
+    t += UI.endScreenGuardMs; // past the end screen's guard
     press(ui, A);
     expect(ui.app.screen).toBe('modeSelect');
     ui.dispose();
@@ -782,6 +884,7 @@ describe('gamepad', () => {
     for (let f = 0; f < 20; f++) { frame(ui); expect(focused(), `frame ${f}`).toBe('resume'); }
     set(START, false); frame(ui);
     pad.axes.fill(0); frame(ui); // let go
+    beat();
     press(ui, A);
     expect([ui.app.screen, ui.paused]).toEqual(['racing', false]);
     expect(h.calls).not.toContain('quit');
@@ -950,14 +1053,41 @@ describe('double presses (sweep 24 Sept 2026)', () => {
     now += 40;
     key('Enter'); // the second press of a double press: Quick Race is not picked unseen
     expect(ui.app.screen).toBe('modeSelect');
-    now += UI.screenGuardMs;
+    now += UI.wipeMs; // past the screen change (and the guard, which is shorter)
     key('Enter');
     expect(ui.app.screen).toBe('rosterSelect');
-    // arrows are never held back
-    now += 10;
+    // once the screen has changed, arrows are never held back
+    now += UI.wipeMs;
     key('ArrowRight');
     expect((document.activeElement as HTMLElement).dataset.id).not.toBe('pip');
     ui.dispose();
+  });
+
+  it('with reduced motion (no transition) the guard alone holds a double press back, for keys and a pad\'s A alike', () => {
+    document.body.innerHTML = '';
+    const pad = { connected: true, buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0, 0, 0] };
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
+    const ui = new UiRoot(document.body, host(), null);
+    ui.save.settings.reducedMotion = 'on';
+    let now = 1000;
+    ui.clock = () => now;
+    ui.trusted = () => true;
+    ui.dispatch({ type: 'boot' });
+    const a = (down: boolean) => { pad.buttons[0].pressed = down; ui.poll(now); };
+    now += 1000;
+    a(true); a(false); // A on the title: Race!
+    expect(ui.app.screen).toBe('modeSelect');
+    now += 60;
+    a(true); a(false); // the second half of a double press on the pad: Quick Race is not picked unseen
+    expect(ui.app.screen).toBe('modeSelect');
+    now += UI.screenGuardMs;
+    a(true); a(false); // a press of its own
+    expect(ui.app.screen).toBe('rosterSelect');
+    now += 60;
+    key('Enter'); // a key's double press, the same
+    expect(ui.app.screen).toBe('rosterSelect');
+    ui.dispose();
+    delete (navigator as { getGamepads?: unknown }).getGamepads;
   });
 });
 

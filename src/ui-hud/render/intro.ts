@@ -16,7 +16,8 @@ export class IntroCardView {
   private readonly name: TextField;
   private readonly sub: TextField;
   private readonly who: TextField;
-  private readonly skip: TextField;
+  private readonly skipKeys: TextField;
+  private readonly skipPad: TextField;
   private readonly phaseAttr: Attr;
   private now: IntroPhase = 'off';
 
@@ -35,7 +36,10 @@ export class IntroCardView {
     this.face = h('span', 'face', this.driver);
     this.face.setAttribute('aria-hidden', 'true');
     this.who = new TextField(h('span', 'who', this.driver));
-    this.skip = new TextField(h('div', 'skip', this.root));
+    // how to skip, in the words of the last input used (the stylesheet shows one)
+    const skip = h('div', 'skip', this.root);
+    this.skipKeys = new TextField(h('span', 'only-keys', skip));
+    this.skipPad = new TextField(h('span', 'only-pad', skip));
   }
 
   get phase(): IntroPhase { return this.now; }
@@ -45,7 +49,8 @@ export class IntroCardView {
     this.cup.set(vm.cup);
     this.name.set(vm.name);
     this.sub.set(vm.sub);
-    this.skip.set(vm.skip);
+    this.skipKeys.set(vm.skip.keys);
+    this.skipPad.set(vm.skip.pad);
     this.plate.style.setProperty('--track-bg', vm.bg);
     this.plate.style.setProperty('--track-accent', vm.accent);
     this.driver.style.display = vm.racer ? '' : 'none'; // (the stylesheet's display beats the hidden attribute)

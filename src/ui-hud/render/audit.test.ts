@@ -106,6 +106,8 @@ describe('over the line, a press goes straight to the results', () => {
     const h = host();
     const ui = new UiRoot(document.body, h, null);
     walk(ui, 'quick');
+    const later = ui.clock() + UI.wipeMs + 1; // the menu's transition into the race is over
+    ui.clock = () => later;
     const enter = () => dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', key: 'Enter' }));
     const skips = () => h.calls.filter((c) => c === 'skip').length;
     let t = 0;

@@ -110,6 +110,8 @@
    reaction. FINISH! rises out of the way and shrinks under the timer; the item slots, the map, the speed and
    the hints go; the place and the time stay (a press or a tap still goes straight to the results) */
 #ui .hud.celebrate .banner { top: 12%; transform: scale(0.56); transform-origin: 50% 0; transition: top 700ms var(--out), transform 700ms var(--out); }
+/* a solo run (Time Trial, the Daily) keeps its lap splits under the timer: FINISH! (and a Time Trial's medal) settles below them */
+#ui .hud.solo.celebrate .banner { top: max(21%, 196px); }
 #ui .hud.celebrate :is(.tl, .br, .speedo, .keys-hint) { opacity: 0; transition: opacity 500ms ease; }
 #ui:has(.hud.celebrate) .touch { display: none; }
 @media (max-height: 500px) {

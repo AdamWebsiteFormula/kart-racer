@@ -2,7 +2,8 @@
 import type { Minimap } from '../../track-builder/minimap.ts';
 import { UI } from '../constants.ts';
 import { SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
-import { iconFor, iconMarkup } from '../icons.ts';
+import { iconFor, iconMarkup, medalSvg } from '../icons.ts';
+import { medalLabel } from '../screens/menus.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
 import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
 
@@ -155,6 +156,10 @@ export class HudView {
   private bannerSmall: TextField;
   private bannerKind: Attr;
   private bannerSkip: Flag;
+  /** a Time Trial over the line: the medal its time won, under FINISH! */
+  private medalIcon: Markup;
+  private medalText: TextField;
+  private medalOn: Flag;
   private lastBanner = '';
   private flash: Flag;
   private keysHint: Flag;
@@ -212,6 +217,10 @@ export class HudView {
     this.bannerBig = new TextField(h('span', 'big display', this.banner));
     this.bannerSmall = new TextField(h('span', 'small', this.banner));
     this.bannerKind = new Attr(this.banner, 'data-kind');
+    const medal = h('span', 'medal-won', this.banner);
+    this.medalIcon = new Markup(h('span', 'mw-icon', medal));
+    this.medalText = new TextField(h('span', 'mw-text', medal));
+    this.medalOn = new Flag(medal, 'on');
     // over the line: how to go on to the results, in the last input's words (the stylesheet shows one)
     const skip = h('span', 'skip', this.banner);
     h('span', 'only-keys', skip, SKIP_PROMPTS.keys);
@@ -273,6 +282,9 @@ export class HudView {
       this.bannerSkip.set(b?.skip ?? false);
       if (b) replay(this.banner, 'show'); else this.banner.classList.remove('show');
     }
+    this.medalIcon.set(vm.medal ? medalSvg(vm.medal, 64) : '');
+    this.medalText.set(vm.medal ? `${medalLabel(vm.medal)} medal!` : '');
+    this.medalOn.set(vm.medal !== null);
     this.flash.set(vm.flash);
     this.keysHint.set(vm.keysHint);
   }

@@ -163,6 +163,31 @@ describe('Time Trial HUD', () => {
     expect(hudModel(race({ mode: 'timeTrial' }), kart(), 1, 10, newHudMemory(), 0, defs, 0).items).toBe(false);
     expect(hudModel(race(), kart(), 1, 10, newHudMemory(), 0, defs, 0).items).toBe(true);
   });
+
+  it('over the line, the finish shows the medal its time won against the track\'s medal times (sweep 24 Sept 2026)', () => {
+    const times = { gold: 119000, silver: 129000, bronze: 146000 };
+    const st = race({ mode: 'timeTrial', goTick: 360 });
+    // SIM_HZ 120: 14100 ticks after the go are 117.5 s
+    const finished = (ticks: number, dnf = false) => {
+      const m = newHudMemory();
+      const k = kart();
+      feedHud(m, [{ type: 'finish', racerId: 'p', rank: 1, tick: 360 + ticks, dnf }], [], 'p', 1);
+      k.finishTick = 360 + ticks;
+      return { m, k };
+    };
+    const gold = finished(14100);
+    expect(hudModel(st, gold.k, 1, 10, gold.m, 1, defs, 0, false, times).medal).toBe('gold');
+    const silver = finished(14100 + 120 * 8); // 125.5 s
+    expect(hudModel(st, silver.k, 1, 10, silver.m, 1, defs, 0, false, times).medal).toBe('silver');
+    const slow = finished(120 * 150); // 150 s: no medal, no badge
+    expect(hudModel(st, slow.k, 1, 10, slow.m, 1, defs, 0, false, times).medal).toBeNull();
+    // still racing, out of time, no medal times, or not a Time Trial: none
+    expect(hudModel(st, kart(), 1, 10, newHudMemory(), 1, defs, 0, false, times).medal).toBeNull();
+    const out = finished(14100, true);
+    expect(hudModel(st, out.k, 1, 10, out.m, 1, defs, 0, false, times).medal).toBeNull();
+    expect(hudModel(st, gold.k, 1, 10, gold.m, 1, defs, 0).medal).toBeNull();
+    expect(hudModel(race({ goTick: 360 }), gold.k, 1, 10, gold.m, 1, defs, 0, false, times).medal).toBeNull();
+  });
 });
 
 describe('solo runs (sweep 24 Sept 2026)', () => {

@@ -68,3 +68,26 @@ export function iconSvg(itemId: string, size = 48): string {
   return `<svg viewBox="-2 -2 28 28" width="${size}" height="${size}" aria-hidden="true" focusable="false">`
     + `<path d="${d}" fill="${ic.colour}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
 }
+
+/**
+ * A Time Trial medal badge (our own design, sweep 24 Sept 2026): a stopwatch struck as a medal, on two
+ * ribbon tails in the house coral and teal. The metal's rim, face and ticks take their colors from the
+ * stylesheet by `data-medal` (ui.css .medal-svg), the outlines are the house ink, and a glint twinkles
+ * at its shoulder. The text beside it always names the medal, so it never rests on color alone.
+ * Trusted, generated markup only.
+ */
+export function medalSvg(medal: 'gold' | 'silver' | 'bronze', width = 48): string {
+  const height = Math.round(width * 76 / 64);
+  return `<svg class="medal-svg" data-medal="${medal}" viewBox="0 0 64 76" width="${width}" height="${height}" aria-hidden="true" focusable="false">`
+    + '<g stroke="#1b1b2f" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">'
+    + '<path class="tail-l" d="M22 44 12 71l6.5-3.5L23 74l8-26Z"/><path class="tail-r" d="M42 44l10 27-6.5-3.5L41 74l-8-26Z"/>'
+    + '<rect class="crown" x="26.5" y="3" width="11" height="8" rx="2.5"/><path class="crown" d="M29.5 11v2.5h5V11"/>'
+    + '<circle class="rim" cx="32" cy="36" r="22"/>'
+    + '<circle class="face" cx="32" cy="36" r="15" stroke-width="2.5"/>'
+    + '</g>'
+    + '<g class="ticks" stroke-width="2.6" stroke-linecap="round"><path d="M32 24.5v3M43.5 36h-3M32 47.5v-3M20.5 36h3"/></g>'
+    + '<path d="M32 36l6.2-7.6" stroke="#1b1b2f" stroke-width="3.2" stroke-linecap="round"/><circle cx="32" cy="36" r="2.7" fill="#1b1b2f"/>'
+    + '<path class="shine" d="M15.5 30.5a17.5 17.5 0 0 1 10.5-11.4" fill="none" stroke-width="3" stroke-linecap="round"/>'
+    + '<path class="glint" d="M50 13l1.7 5.3L57 20l-5.3 1.7L50 27l-1.7-5.3L43 20l5.3-1.7Z" stroke="#1b1b2f" stroke-width="1.6" stroke-linejoin="round"/>'
+    + '</svg>';
+}

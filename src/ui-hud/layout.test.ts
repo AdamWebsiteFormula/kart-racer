@@ -45,9 +45,12 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.stage', 'overscroll-behavior')).toBe('contain');
   });
 
-  it('the roster keeps all eight racers on two rows of four, name and class only, so the 50/100/150cc row fits', () => {
+  it('the roster sets all eight racers in one row, class, portrait and name only, so Paint, Body and the 50/100/150cc row fit (852x344 needed a 147 px scroll)', () => {
     expect(value('.roster', 'grid-template-columns', '(max-width: 900px)')).toBe('repeat(2, minmax(0, 1fr))');
-    expect(value('.roster', 'grid-template-columns', PHONE)).toBe('repeat(4, minmax(0, 1fr))');
+    expect(value('.roster', 'grid-template-columns', PHONE)).toBe('repeat(8, minmax(0, 1fr))');
+    expect(value('.garage', 'flex-wrap', PHONE)).toBe('nowrap');
+    // the sides keep a small margin inside the notch's inset, not 48 px on top of it
+    expect(value('.stage', 'padding', PHONE)).toContain('calc(20px + var(--safe-l))');
     expect(value('.card .stats', 'display', PHONE)).toBe('none');
     expect(value('.card .who', 'display', PHONE)).toBe('none');
   });
@@ -125,7 +128,8 @@ describe('sweep of every screen (24 Sept 2026)', () => {
   });
 
   it('a dialog over the title or a menu hides the screen under it (the logo peeked round Settings)', () => {
-    expect(value('#ui .screen[inert] > .stage', 'opacity')).toBe('0');
+    // (not a screen on its way out: it fades on its own, and a ghost of one is inert from the start)
+    expect(value('#ui .screen[inert]:not(.x-out) > .stage', 'opacity')).toBe('0');
   });
 
   it('a laptop window (1280x720, 1366x657) fits the title and the racer screen down to the class row', () => {
@@ -166,5 +170,19 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(value('.hud.solo .place', 'display')).toBe('none');
     expect(value('.rows .row:only-child .rk', 'display')).toBe('none');
     expect(value(".banner[data-kind='countdown']", 'top')).toBe('30%');
+  });
+});
+
+describe('results on a phone on its side (sweep 24 Sept 2026)', () => {
+  it('all eight rows in sight: more than four sit in two columns, 1st to 4th then 5th to 8th, the headline and the track share a line', () => {
+    // at 852x344 with the notch rows 5 to 8, the player's among them, needed a scroll
+    expect(value('.rows.many', 'display', PHONE)).toBe('grid');
+    expect(value('.rows.many', 'grid-template-columns', PHONE)).toBe('repeat(2, minmax(0, 1fr))');
+    expect(value('.rows.many', 'grid-auto-flow', PHONE)).toBe('column');
+    expect(value('.rows.many', 'grid-template-rows', PHONE)).toBe('repeat(var(--half, 4), auto)');
+    expect(value('.res-words', 'display', PHONE)).toBe('flex');
+    // the desktop list is as it was: one column
+    expect(value('.rows', 'flex-direction')).toBe('column');
+    expect(value('.rows.many', 'display')).toBe('');
   });
 });
