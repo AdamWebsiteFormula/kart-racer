@@ -1,0 +1,158 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>compositor</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// The trailer's frame compositor: frame i of the edit (edl.json) drawn on a 1920x1080 canvas and handed
+// back as a JPEG. Shots are image sequences (frames/<clip>/0001.jpg...), text in the game's own fonts.
+const W = 1920, H = 1080;
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+const INK = '#1b1b2f', SUN = '#ffd23f', CORAL = '#ff6f61', PAPER = '#fffaf0', TEAL = '#2ec4b6';
+let EDL = null;
+const cache = new Map();
+async function img(url) {
+  if (cache.has(url)) return cache.get(url);
+  const p = fetch(url).then((r) => r.ok ? r.blob() : null).then((b) => b ? createImageBitmap(b) : null);
+  cache.set(url, p);
+  if (cache.size > 90) { const k = cache.keys().next().value; cache.get(k).then((b) => b && b.close && b.close()); cache.delete(k); }
+  return p;
+}
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ease = { out: (t) => 1 - Math.pow(1 - t, 3), in: (t) => t * t * t, outBack: (t) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }, inOut: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2 };
+
+window.setup = async (edl) => {
+  EDL = edl;
+  const faces = [['Lilita One', '/fonts/lilita.woff2', '400'], ['Fredoka', '/fonts/fredoka-600.woff2', '600'], ['Fredoka', '/fonts/fredoka-700.woff2', '700']];
+  for (const [fam, url, w] of faces) { const f = new FontFace(fam, `url(${url})`, { weight: w }); await f.load(); document.fonts.add(f); }
+  return true;
+};
+
+/** Outlined, drop-shadowed display text, as the game's UI draws it (ink stroke, ink drop). */
+function slabText(text, x, y, size, fill, { align = 'center', stroke = 0.11, drop = 0.07, font = 'Lilita One', weight = '400', rot = 0, alpha = 1, scale = 1, glow = null } = {}) {
+  g.save();
+  g.globalAlpha = alpha;
+  g.translate(x, y); g.rotate(rot); g.scale(scale, scale);
+  g.font = `${weight} ${size}px "${font}"`;
+  g.textAlign = align; g.textBaseline = 'middle';
+  g.lineJoin = 'round'; g.miterLimit = 2;
+  if (glow) { g.shadowColor = glow; g.shadowBlur = size * 0.35; }
+  // drop
+  g.strokeStyle = INK; g.fillStyle = INK; g.lineWidth = size * stroke * 2;
+  g.strokeText(text, 0, size * drop); g.fillText(text, 0, size * drop);
+  g.shadowBlur = 0;
+  // outline + face
+  g.strokeText(text, 0, 0);
+  if (Array.isArray(fill)) {
+    const gr = g.createLinearGradient(0, -size * 0.5, 0, size * 0.5);
+    fill.forEach((c, i) => gr.addColorStop(i / (fill.length - 1), c));
+    g.fillStyle = gr;
+  } else g.fillStyle = fill;
+  g.fillText(text, 0, 0);
+  g.restore();
+}
+
+/** The game's logo: "Rascal" sun yellow tilted left, "Rally!" coral tilted right, ink outline and drop. */
+function logo(cx, cy, size, t, alpha = 1) {
+  const s = size;
+  slabText('Rascal', cx - s * 0.02, cy - s * 0.42, s, ['#fff3b0', SUN, '#f2b705'], { rot: -0.05, alpha, drop: 0.08 });
+  slabText('Rally!', cx + s * 0.04, cy + s * 0.42, s * 0.86, ['#ffb3a8', CORAL, '#e84a3d'], { rot: 0.035, alpha, drop: 0.08 });
+}
+
+/** The frame scaled to cover the canvas, zoomed toward `focus` (0..1 of the frame; the middle by default). */
+function drawCover(bm, zoom = 1, ox = 0, oy = 0, alpha = 1, blurPx = 0, focus = [0.5, 0.5], dim = 0) {
+  if (!bm) return;
+  g.save(); g.globalAlpha = alpha;
+  if (blurPx > 0) g.filter = `blur(${blurPx}px)`;
+  const s = Math.max(W / bm.width, H / bm.height) * zoom;
+  const w = bm.width * s, h = bm.height * s;
+  // a blurred frame is drawn a little larger, so its soft edge stays off the canvas
+  const m = blurPx > 0 ? blurPx * 3 : 0;
+  g.drawImage(bm, (W - w) * focus[0] + ox - m, (H - h) * focus[1] + oy - m, w + 2 * m, h + 2 * m);
+  g.filter = 'none';
+  if (dim > 0) { g.fillStyle = `rgba(12,10,40,${dim})`; g.fillRect(0, 0, W, H); }
+  g.restore();
+}
+
+window.renderFrame = async (i) => {
+  const fps = EDL.fps, t = i / fps;
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  // shots: every clip whose [start, end) holds t (a crossfade overlaps two)
+  for (const c of EDL.clips) {
+    if (t < c.start || t >= c.end) continue;
+    const local = t - c.start, n = Math.min(c.frames, Math.floor(local * fps) + 1);
+    const bm = await img(`/frames/${c.id}/${String(n).padStart(4, '0')}.jpg`);
+    const dur = c.end - c.start;
+    // a punch-in at the cut (zoom from c.punch to 1 over 0.25 s), then a slow push or pull over the shot
+    let zoom = 1 + (c.push ?? 0.03) * (local / dur);
+    if (c.punch) zoom += (c.punch - 1) * (1 - ease.out(clamp(local / 0.25)));
+    let alpha = 1;
+    if (c.fadeIn) alpha = Math.min(alpha, ease.inOut(clamp(local / c.fadeIn)));
+    if (c.fadeOut) alpha = Math.min(alpha, ease.inOut(clamp((c.end - t) / c.fadeOut)));
+    // a whip: the first 0.12 s slides in from the side with blur
+    let ox = 0, blur = 0;
+    if (c.whip) { const k = 1 - ease.out(clamp(local / 0.14)); ox = c.whip * W * 0.35 * k; blur = 26 * k; }
+    drawCover(bm, zoom, ox, 0, alpha, Math.max(blur, c.blur ?? 0), c.focus ?? [0.5, 0.5], c.dim ?? 0);
+  }
+  // grade: a touch of vignette so the edges hold the eye
+  const vg = g.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 1.05);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,8,30,0.38)');
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  // letterbox bars (cinematic opening), sliding open at their end
+  for (const lb of EDL.letterbox ?? []) {
+    if (t < lb.start || t >= lb.end + lb.open) continue;
+    const k = t < lb.end ? 1 : 1 - ease.inOut((t - lb.end) / lb.open);
+    const bar = H * lb.size * k;
+    g.fillStyle = '#000'; g.fillRect(0, 0, W, bar); g.fillRect(0, H - bar, W, bar);
+  }
+  // texts
+  for (const x of EDL.texts) {
+    if (t < x.start || t >= x.end) continue;
+    const local = t - x.start, left = x.end - t;
+    const inK = clamp(local / (x.in ?? 0.2)), outK = clamp(left / (x.out ?? 0.14));
+    let scale = 1, alpha = 1, rot = x.rot ?? 0, dy = 0;
+    if (x.style === 'slam') { scale = 1.6 - 0.6 * ease.outBack(inK); alpha = clamp(inK * 3); }
+    else if (x.style === 'rise') { dy = 40 * (1 - ease.out(inK)); alpha = ease.out(inK); }
+    else if (x.style === 'type') { alpha = ease.out(inK); }
+    scale *= 1 + (x.drift ?? 0.04) * (local / (x.end - x.start));
+    if (outK < 1) { alpha *= outK; scale *= 1 + 0.25 * (1 - outK); }
+    const size = x.size ?? 120;
+    if (x.plate) {
+      // a ribbon behind the words, in the accent
+      g.save(); g.globalAlpha = alpha * 0.92; g.translate(W * (x.x ?? 0.5), H * (x.y ?? 0.5) + dy); g.rotate(rot); g.scale(scale, scale);
+      g.font = `400 ${size}px "Lilita One"`; const w = g.measureText(x.text).width + size * 0.9;
+      g.fillStyle = INK; g.beginPath(); g.roundRect(-w / 2 + 8, -size * 0.62 + 12, w, size * 1.24, size * 0.3); g.fill();
+      g.fillStyle = x.plate; g.beginPath(); g.roundRect(-w / 2, -size * 0.62, w, size * 1.24, size * 0.3); g.fill();
+      g.lineWidth = 8; g.strokeStyle = INK; g.stroke();
+      g.restore();
+    }
+    slabText(x.text, W * (x.x ?? 0.5), H * (x.y ?? 0.5) + dy, size, x.color ?? PAPER, { rot, alpha, scale, font: x.font ?? 'Lilita One', weight: x.weight ?? '400', glow: x.glow ?? null, stroke: x.stroke ?? 0.11 });
+  }
+  // the logo
+  for (const L of EDL.logos ?? []) {
+    if (t < L.start || t >= L.end) continue;
+    const local = t - L.start, left = L.end - t;
+    const inK = clamp(local / 0.28), outK = L.hold ? 1 : clamp(left / 0.16);
+    let sc = (1.8 - 0.8 * ease.outBack(inK)) * (1 + 0.035 * local) * (outK < 1 ? 1 + 0.3 * (1 - outK) : 1);
+    // a pop on the button: a quick swell that settles back
+    if (L.pop !== undefined && t >= L.pop) { const k = clamp((t - L.pop) / 0.35); sc *= 1 + 0.12 * Math.sin(Math.PI * k) * (1 - k * 0.3); }
+    if (L.dim) { g.fillStyle = `rgba(12,10,40,${L.dim * clamp(local / 0.2)})`; g.fillRect(0, 0, W, H); }
+    g.save(); g.translate(W * (L.x ?? 0.5), H * (L.y ?? 0.46)); g.scale(sc, sc);
+    logo(0, 0, L.size ?? 200, local, clamp(inK * 2.5) * outK);
+    g.restore();
+  }
+  // flashes: white (or tinted) frames that decay, on the big hits
+  for (const f of EDL.flashes ?? []) {
+    const d = t - f.t; if (d < 0 || d > f.len) continue;
+    g.fillStyle = f.color ?? '#ffffff'; g.globalAlpha = (f.peak ?? 0.85) * Math.pow(1 - d / f.len, 2);
+    g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  }
+  // fades to and from black
+  for (const f of EDL.fades ?? []) {
+    if (t < f.start || t > f.end) continue;
+    const k = (t - f.start) / (f.end - f.start);
+    g.fillStyle = '#000'; g.globalAlpha = f.to === 'black' ? ease.inOut(k) : 1 - ease.inOut(k);
+    g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  }
+  return cv.toDataURL('image/jpeg', 0.94);
+};
+</script></body></html>
