@@ -71,6 +71,12 @@ describe('no inline script anywhere (the policy refuses it)', () => {
     expect(hits).toEqual([]);
   });
 
+  it('index.html has no inline <script>: each one loads a file (an early splash script must be a file too)', () => {
+    const scripts = [...new DOMParser().parseFromString(HTML, 'text/html').querySelectorAll('script')];
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const s of scripts) expect({ src: s.getAttribute('src'), inline: s.textContent?.trim() ?? '' }).toMatchObject({ src: expect.stringMatching(/^\//), inline: '' });
+  });
+
   it('no item icon carries one either', () => {
     for (const d of ITEM_DEFINITIONS) expect(iconMarkup(d.id), d.id).not.toMatch(/\son[a-z]+\s*=/i);
   });
