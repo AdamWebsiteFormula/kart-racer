@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import PROPS_MANIFEST from '../../public/models/props.json';
 import { PropModels, RacerModels, trackAssets, trackProps } from '../art-pipeline/index.ts';
+import { CREATURE_SPOTS } from '../track-builder/__tests__/fixtures.ts';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
@@ -34,9 +35,9 @@ describe('trackProps (which scenery models a track needs)', () => {
     scene.dispose();
   }, 120_000);
 
-  it('covers every model file between the six tracks', () => {
+  it('covers every model file between the six tracks but the course creatures\' (off every track since 25 Sept 2026, kept for their return), which main.ts therefore never fetches', () => {
     const used = new Set(TRACKS.flatMap((d) => trackProps(d)));
-    expect(Object.keys(MANIFEST).filter((n) => !used.has(n))).toEqual([]);
+    expect(Object.keys(MANIFEST).filter((n) => !used.has(n)).sort()).toEqual(Object.values(CREATURE_SPOTS).map((c) => c.creature).sort());
   });
 });
 

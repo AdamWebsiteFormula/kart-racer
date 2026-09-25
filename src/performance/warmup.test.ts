@@ -1,6 +1,6 @@
 // The race-start warm-up (performance/warmup.ts, docs/sops/performance.md): the one draw of
 // everything really shows everything and puts the scene back exactly; and a whole race, items,
-// effects, creatures and the Final Lap Shift included, never needs a shader (a material's shader key)
+// effects and the Final Lap Shift included, never needs a shader (a material's shader key)
 // that no material in the scene had when the race loaded, so compiling the scene at load, and keeping
 // what it compiled, covers every shader the race draws. (A material made mid-race, the shift's
 // rebuilt balloons, is fine as long as its shader is one already compiled.)
@@ -180,7 +180,7 @@ function keys(root: Object3D): Map<Material, { keys: Set<string>; at: string }> 
 }
 
 describe('a whole race needs no shader the load-time compile did not see', () => {
-  // Boardwalk: a loop, a creature, a crossing, the night sky; Canyon: a mine, rockfalls, a dusk shift; Harbor: the sea and its whale
+  // Boardwalk: a loop, a crossing, the night sky; Canyon: a mine, rockfalls, a dusk shift; Harbor: the sea
   for (const id of ['boardwalk-nights', 'canyon-rush', 'harbour-loop']) {
     it(`${id}: 8 AI, items and effects, to the flag`, () => {
       const def = FILES[`../track-builder/tracks/${id}.json`];

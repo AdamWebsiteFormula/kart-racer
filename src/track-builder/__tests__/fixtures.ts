@@ -49,12 +49,36 @@ export const BANKED: ControlPoint[] = SQUARE.map((p) => ({ ...p, bank: 10 }));
 
 /** Harbour Loop as shipped. */
 import harbourLoopJson from '../tracks/harbour-loop.json';
-import type { TrackDefinition } from '../types.ts';
+import type { HazardDef, TrackDefinition } from '../types.ts';
 export const HARBOUR_LOOP = harbourLoopJson as TrackDefinition;
 
 /** Deep copy so a test can mutate a definition. */
 export function cloneDef(def: TrackDefinition): TrackDefinition {
   return JSON.parse(JSON.stringify(def)) as TrackDefinition;
+}
+
+/**
+ * The course creatures as the tracks shipped them until 25 Sept 2026, by track id (design §6: Adam
+ * took them off every track, "extras out until they can move like real 3D characters"; the system
+ * stays for a later return). Kept here so the creature tests still run on the real roads; a creature
+ * goes back on its track by putting its line back at the head of the track's `hazards`.
+ */
+export const CREATURE_SPOTS: Readonly<Record<string, HazardDef>> = {
+  'harbour-loop': { id: 'crab', type: 'creature', creature: 'crab', t: 0.36, lateral: 1, period: 7.6, hit: 'spin' },
+  'meadow-run': { id: 'goose', type: 'creature', creature: 'goose', t: 0.3, lateral: 1, period: 11, hit: 'spin' },
+  'canyon-rush': { id: 'rumblesaur', type: 'creature', creature: 'rumblesaur', t: 0.8, lateral: 1, period: 5.6, hit: 'spin' },
+  'frostbite-pass': { id: 'yeti', type: 'creature', creature: 'yeti', t: 0.62, lateral: -1, period: 3.6, hit: 'spin' },
+  'boardwalk-nights': { id: 'kraken', type: 'creature', creature: 'kraken', t: 0.42, lateral: 1, period: 7.6, hit: 'spin' },
+  'skyline-circuit': { id: 'whale', type: 'creature', creature: 'whale', t: 0.5, lateral: -1, period: 12 },
+};
+
+/** A copy of `def` with the creature it shipped with until 25 Sept 2026 back at its spot (CREATURE_SPOTS). */
+export function withCreature(def: TrackDefinition): TrackDefinition {
+  const d = cloneDef(def);
+  const c = CREATURE_SPOTS[def.id];
+  if (!c) throw new Error(`no creature spot for ${def.id}`);
+  d.hazards = [{ ...c }, ...(d.hazards ?? [])];
+  return d;
 }
 
 /**

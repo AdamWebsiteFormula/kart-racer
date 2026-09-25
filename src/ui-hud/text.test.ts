@@ -124,6 +124,15 @@ describe('How to Play says what the game does', () => {
     v.root.remove();
   });
 
+  it('How to Play names no course creature: none races since 25 Sept 2026 (design §6)', () => {
+    expect(CREATURES).toEqual([]);
+    const v = new HowToView(document.body);
+    v.render(ITEM_DEFINITIONS);
+    expect([...v.root.querySelectorAll('h3')].map((e) => e.textContent)).toEqual(['Controls', 'Items', 'Tips']);
+    expect(v.root.textContent).not.toMatch(/creature|Rumblesaur|yeti|kraken|goose|whale|crab/i);
+    v.root.remove();
+  });
+
   it('over the line: the place (none in a solo run), and the prompt to go on in each input\'s words', () => {
     expect(Object.values(SKIP_PROMPTS)).toEqual(['Press Enter for results', 'Press A for results', 'Tap for results']);
     const me = createKartState({ racerId: 'p', isPlayer: true });

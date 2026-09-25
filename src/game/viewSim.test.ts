@@ -28,7 +28,7 @@ function bare(def: TrackDefinition, config: RaceConfig): SimParts {
 }
 
 describe('the kart animation never touches the sim', () => {
-  // Harbor: grip turns, drifts, items and hits; Boardwalk: the loop-the-loop ride, a creature, bumps
+  // Harbor: grip turns, drifts, items and hits; Boardwalk: the loop-the-loop ride, bumper cars, bumps
   for (const id of ['harbour-loop', 'boardwalk-nights']) {
     it(`${id}: 8 karts animated to the flag race exactly as the bare sim`, () => {
       const def = FILES[`../track-builder/tracks/${id}.json`];
