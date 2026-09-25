@@ -77,7 +77,7 @@ export class Showroom {
 
   /** Put this racer in this look on the stand (built again only when it changes, or once the model files arrive). */
   show(racerId: string, look: KartLook): void {
-    const key = `${racerId}|${look.paint ?? ''}|${look.body ?? ''}|${RACER_MODELS.has(racerId)}`;
+    const key = `${racerId}|${look.paint ?? ''}|${look.body ?? ''}|${look.kartId ?? ''}|${RACER_MODELS.has(racerId)}`;
     if (this.kart?.key === key) return;
     this.clearKart();
     const root = buildRacerMesh(racerId, look);

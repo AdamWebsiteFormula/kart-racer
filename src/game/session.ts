@@ -16,7 +16,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, recolourBackdrop, type Rgb, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, fadeSky, freeSkeletons, isShared, lightOf, paintSky, RACER_MODELS, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
+import { buildRacerMesh, comboOwnerOf, fadeSky, freeSkeletons, isShared, lightOf, paintSky, RACER_MODELS, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { splitShadowDepth } from '../performance/shadowDepth.ts';
 import { GhostView } from './ghostView.ts';
@@ -119,8 +119,8 @@ export class RaceSession {
     this.views = this.manager.state.karts.map((s, i) => {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
       this.looks.push(config.racers[i].isPlayer ? look : {});
-      this.coded.push(!RACER_MODELS.has(config.racers[i].racerId));
-      const mesh = buildRacerMesh(config.racers[i].racerId, this.looks[i]) ?? buildKartMesh(r.accent, r.secondary);
+      this.coded.push(!isReady(config.racers[i].racerId, config.racers[i].kartId));
+      const mesh = buildRacerMesh(config.racers[i].racerId, this.lookFor(i)) ?? buildKartMesh(r.accent, r.secondary);
       const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s, i);
       this.flames.push(new ExhaustFlames(mesh, config.racers[i].racerId));
       // a rival against the lens turns to a ghost, flames and all; yours never does
@@ -155,6 +155,11 @@ export class RaceSession {
 
   get state() { return this.manager.state; }
   get player() { return this.playerIndex >= 0 ? this.manager.state.karts[this.playerIndex] : undefined; }
+
+  /** Kart index i's look, with the kart it races in (design §5; the sim's own, kart-controller karts.ts): `this.looks[i]`'s paint and body plus `config.racers[i].kartId`. */
+  private lookFor(i: number): KartLook {
+    return { ...this.looks[i], kartId: this.config.racers[i].kartId };
+  }
 
   /** A racer's kart index (-1: not in this race). */
   private indexOf(racerId: string): number {
@@ -254,9 +259,11 @@ export class RaceSession {
   waitingForModels(): string[] {
     const out: string[] = [];
     const add = (id: string) => { if (!out.includes(id)) out.push(id); };
-    if (this.playerIndex >= 0 && this.coded[this.playerIndex]) add(this.config.racers[this.playerIndex].racerId);
+    // a combo (design §5) waits on the kart owner's model too, never the kart owner's own driver
+    const addSlot = (i: number) => { add(this.config.racers[i].racerId); const owner = comboOwnerOf(this.config.racers[i].racerId, this.lookFor(i)); if (owner) add(owner); };
+    if (this.playerIndex >= 0 && this.coded[this.playerIndex]) addSlot(this.playerIndex);
     if (this.ghostSpec?.coded) add(this.ghostSpec.racerId);
-    this.coded.forEach((c, i) => { if (c) add(this.config.racers[i].racerId); });
+    this.coded.forEach((c, i) => { if (c) addSlot(i); });
     return out.filter((id) => !RACER_MODELS.settled(id) || RACER_MODELS.has(id));
   }
 
@@ -265,14 +272,16 @@ export class RaceSession {
    * build them (the player's own look and materials, the flames, a rival's see-through copies) into
    * `into`, beside the race, so their shaders compile and textures upload before swapInModels() puts
    * them in place. `into` is the caller's (hidden, never inside the race's group: a compile under
-   * way must not see its materials freed with the race). Returns how many were built.
+   * way must not see its materials freed with the race). A combo (design §5) stages only once both
+   * its driver's and its kart owner's models are in, so it is never swapped in half-finished (its
+   * own kart, silently, forever). Returns how many were built.
    */
   stageModels(ids: ReadonlySet<string>, into: Object3D): number {
     let n = 0;
     this.coded.forEach((c, i) => {
-      const id = this.config.racers[i].racerId;
-      if (!c || !ids.has(id) || !RACER_MODELS.has(id) || this.staged.some((x) => x.i === i)) return;
-      const mesh = buildRacerMesh(id, this.looks[i]);
+      const id = this.config.racers[i].racerId, owner = comboOwnerOf(id, this.lookFor(i));
+      if (!c || !(ids.has(id) || (owner && ids.has(owner))) || !isReady(id, this.config.racers[i].kartId) || this.staged.some((x) => x.i === i)) return;
+      const mesh = buildRacerMesh(id, this.lookFor(i));
       if (!mesh) return;
       const flames = new ExhaustFlames(mesh, id);
       if (i === this.playerIndex) ownKartMaterials(mesh); else this.fader.add(mesh);
@@ -356,3 +365,10 @@ function freeKart(root: Object3D): void {
 }
 
 const lerpRgb = (a: Rgb, b: Rgb, k: number): Rgb => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+
+/** `racerId` in `kartId` (design §5) has everything its mesh needs in already: its own model, and, for another racer's kart, that racer's model too. */
+function isReady(racerId: string, kartId: string | undefined): boolean {
+  if (!RACER_MODELS.has(racerId)) return false;
+  const owner = comboOwnerOf(racerId, { kartId });
+  return !owner || RACER_MODELS.has(owner);
+}

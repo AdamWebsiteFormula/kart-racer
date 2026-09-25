@@ -8,7 +8,7 @@
 // draws as a streak along its own motion, a white-hot core line inside the tier's color. A rival's
 // are fewer, so a pack drifting through a bend is not a wall of light.
 import { Vector3 } from 'three';
-import { exhaustFor, portDir, type Exhaust, type KartLook } from '../art-pipeline/index.ts';
+import { comboOwnerOf, exhaustFor, portDir, type Exhaust, type KartLook } from '../art-pipeline/index.ts';
 import { BODY_WHEELS, MODEL_WHEELS } from '../art-pipeline/rig.ts';
 import type { KartState } from '../kart-controller/types.ts';
 import { BoostTier, flamePalette, TIER_HOT, TIER_RGB, wheelContact } from './flames.ts';
@@ -127,9 +127,11 @@ export class KartFx {
   private memFor(k: KartState): KartMem {
     let m = this.mem.get(k.racerId);
     if (!m) {
-      const exhaust = exhaustFor(k.racerId, { body: k.bodyId as KartLook['body'], paint: k.skinId });
-      const body = k.bodyId === 'classic' || k.bodyId === 'buggy' ? k.bodyId : null;
-      const rear = body ? BODY_WHEELS[body].rear : MODEL_WHEELS[k.racerId]?.rear;
+      const look: KartLook = { body: k.bodyId as KartLook['body'], paint: k.skinId, kartId: k.kartId };
+      const exhaust = exhaustFor(k.racerId, look);
+      const body = k.bodyId === 'classic' || k.bodyId === 'buggy' ? k.bodyId : k.kartId === 'classic' || k.kartId === 'buggy' ? k.kartId : null;
+      // design §5: another racer's signature kart chosen puts the rear tires (the sparks) where that kart's own are
+      const rear = body ? BODY_WHEELS[body].rear : MODEL_WHEELS[comboOwnerOf(k.racerId, look) ?? k.racerId]?.rear;
       wheelContact(rear, contact);
       m = {
         l: [0, 0, 0], r: [0, 0, 0], skid: false, skidFor: 0, skidInk: 0, side: 1, sparkAcc: 0, emberAcc: 0, dustAcc: 0, puffAcc: 0, puffPipe: 0, smokeAcc: 0, smokeSide: 1,

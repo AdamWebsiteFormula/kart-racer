@@ -27,13 +27,14 @@ import { makeConstants } from './kart-controller/constants.ts';
 import { applyResults, createGrandPrix, createKnockout, isDone, nextRace, podiumOf } from './race-manager/series.ts';
 import { ticksToMs } from './race-manager/race.ts';
 import { decodeGhost } from './race-manager/ghost.ts';
-import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
+import type { GrandPrixState, RaceConfig, RaceMode, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { mirrored } from './track-builder/mirror.ts';
 import { ChaseCam, fovFor, kickedFov, restPose, smoothTo } from './game/camera.ts';
 import { CourseIntro, findStand, planIntro, type IntroKind } from './game/intro.ts';
 import { DriveAssist } from './game/assist.ts';
 import { Accumulator } from './game/loop.ts';
+import { lineup } from './game/lineup.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
 import { Showroom } from './game/showroom.ts';
@@ -43,7 +44,7 @@ import type { Crowd } from './art-pipeline/crowd.ts';
 import type { SfxId } from './audio/types.ts';
 import type { Reaction } from './kart-controller/anim.ts';
 import { medalFor } from './ui-hud/screens/menus.ts';
-import { CAST, UiRoot, attractTrack, browserBackend, introCard, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
+import { CAST, UI, UiRoot, attractTrack, browserBackend, introCard, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
 
 // ---- content: every track file present is a built track ----
@@ -233,6 +234,8 @@ const hudAssist = { autoAccelerate: false, steering: false, working: false };
 // ?mute: the game makes no sound at all, however it is played (automated checks in a browser
 // always load it so; docs/sops/audio.md)
 const MUTED = new URLSearchParams(location.search).has('mute');
+/** dev switch (design §5, K6): `?karts` turns on picking any racer's kart (UI.kartPick, shipped off) for testing, in dev and prod alike. */
+const KARTS_PICK = new URLSearchParams(location.search).has('karts');
 const audio = new GameAudio(MUTED ? AudioBus.silent() : undefined);
 /** Background files: a few at a time, in the order the player meets them (performance/loadQueue.ts). */
 const files = new LoadQueue(3);
@@ -282,12 +285,6 @@ const listener: Listener = {
 const input = new InputSource();
 const acc = new Accumulator();
 
-function roster(playerId: string | null): RacerConfig[] {
-  // the player first in racer order; race-manager puts them on the back row
-  const cast = playerId ? [...CAST.filter((c) => c.id === playerId), ...CAST.filter((c) => c.id !== playerId)] : [...CAST];
-  return cast.map((c) => ({ racerId: c.id, archetype: c.archetype, isPlayer: c.id === playerId }));
-}
-
 /** `introKind`: the course intro to fly before the countdown (game/intro.ts); none on a restart or the attract race. */
 function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | null = null): void {
   // the old race is freed once the new one's shaders are compiled, so the shaders both draw with carry over
@@ -308,8 +305,8 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   if (config.mode === 'timeTrial' && !isAttract) {
     const best = ui.save.timeTrial[def.id];
     const path = best?.ghost && best.racerId ? decodeGhost(best.ghost) : null;
-    // drawn in the paint and body the best was set in
-    if (path && best?.racerId) session.setGhost(path, best.racerId, artLook(best));
+    // drawn in the paint, body and kart the best was set in (design §5: save.schema.json timeTrial[track].kart)
+    if (path && best?.racerId) session.setGhost(path, best.racerId, { ...artLook(best), kartId: best.kart });
   }
   const pi = session.playerIndex;
   const kc = makeConstants(session.config.racers[Math.max(0, pi)].archetype, session.config.speedClass);
@@ -405,14 +402,15 @@ const withMirror = (c: RaceConfig): RaceConfig => (mirror ? { ...c, mirrored: tr
 function startAttract(): void {
   series = null;
   const seed = Math.floor(Math.random() * 1e6); // attract only: never recorded, never replayed
-  load({ mode: 'quick', trackId: ATTRACT_TRACK, speedClass: ATTRACT_CC, seed, racers: roster(null) }, true);
+  load({ mode: 'quick', trackId: ATTRACT_TRACK, speedClass: ATTRACT_CC, seed, racers: lineup(null) }, true);
 }
 
 function configFor(p: RacePlan): RaceConfig {
-  // leaderboard modes are the exact solo race the server replays (backend-leaderboard/rules.ts)
-  if (p.mode === 'timeTrial') return soloConfig('timeTrial', p.tracks[0] ?? FIRST_TRACK, p.racerId, 0);
-  if (p.mode === 'daily') return dailyConfig(p.racerId, [...TRACKS.keys()]);
-  return withMirror({ mode: p.mode, trackId: p.tracks[0] ?? FIRST_TRACK, speedClass: p.speedClass, seed: Date.now() % 1_000_000, racers: roster(p.racerId) });
+  // leaderboard modes are the exact solo race the server replays (backend-leaderboard/rules.ts); the
+  // kart is in the config it sends the server (backend-leaderboard/rules.ts soloConfig, dailyConfig)
+  if (p.mode === 'timeTrial') return soloConfig('timeTrial', p.tracks[0] ?? FIRST_TRACK, p.racerId, 0, p.kartId);
+  if (p.mode === 'daily') return dailyConfig(p.racerId, [...TRACKS.keys()], undefined, p.kartId);
+  return withMirror({ mode: p.mode, trackId: p.tracks[0] ?? FIRST_TRACK, speedClass: p.speedClass, seed: Date.now() % 1_000_000, racers: lineup(p.racerId, p.kartId) });
 }
 
 const host: UiHost = {
@@ -426,7 +424,7 @@ const host: UiHost = {
     look = artLook(p.look);
     // Mirror runs Quick Race and Grand Prix only (the UI offers it there); a leaderboard mode never
     mirror = p.mirrored === true && (p.mode === 'quick' || p.mode === 'grandPrix');
-    const racers = roster(p.racerId);
+    const racers = lineup(p.racerId, p.kartId);
     const seed = Date.now() % 1_000_000;
     if (p.mode === 'grandPrix' && p.cupId) series = createGrandPrix({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
     if (p.mode === 'knockout' && p.cupId) series = createKnockout({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
@@ -472,7 +470,7 @@ const host: UiHost = {
   },
 };
 
-const ui = new UiRoot(document.body, host, browserBackend());
+const ui = new UiRoot(document.body, host, browserBackend(), { kartPick: UI.kartPick || KARTS_PICK });
 // phones and tablets steer with on-screen thumbs, merged with any keys or gamepad; in the
 // countdown their gas waits for a finger, so a touch on the 2 is a rocket start
 input.setVirtual(() => ui.touch.state(session?.state.phase === 'countdown'));
@@ -560,6 +558,8 @@ function raceOver(): void {
     medalTimesMs: mode === 'timeTrial' ? session.def.medalTimesMs : undefined,
     ghost: mode === 'timeTrial' && mine && !mine.dnf ? session.ghostPath() : undefined,
     look,
+    // the kart it was raced in (design §5): a Time Trial best keeps it (save.schema.json timeTrial[track].kart)
+    ...(session.playerIndex >= 0 ? { kartId: session.manager.consts[session.playerIndex].kartId } : {}),
     ...(top.length ? { podium: top } : {}),
   });
 }
@@ -605,7 +605,10 @@ function buildPodium(top: readonly string[]): void {
   const s = session;
   if (!s) return;
   podium?.dispose();
-  const racers = top.map((id) => ({ racerId: id, archetype: CAST.find((c) => c.id === id)?.archetype ?? 'medium' as const, look: id === s.player?.racerId ? look : {} }));
+  const racers = top.map((id) => ({
+    racerId: id, archetype: CAST.find((c) => c.id === id)?.archetype ?? 'medium' as const,
+    look: id === s.player?.racerId ? { ...look, kartId: s.manager.consts[s.playerIndex]?.kartId } : {},
+  }));
   const crowd = (s.trackScene.group.getObjectByName('crowd')?.userData.crowd as Crowd | undefined) ?? null;
   podium = new Podium(s.track, racers, s.def.biome, crowd);
   scene.add(podium.group);
@@ -928,7 +931,8 @@ function step(now: number): void {
   // the creature, the hazards, the balloons and the coins the lens meets fade as clean ghosts; in the finish camera's close-up the pickups from farther out (scene.ts lens)
   cur.trackScene.lens(camera, !attract && celebrating && !ceremony);
   post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
-  if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
+  // the racer screen's hero (your racer in your current kart) and, with karts picked, the kart screen's (your racer in the focused kart)
+  if (ui.app.screen === 'rosterSelect' || ui.app.screen === 'kartSelect') drawTurntable(nowS, reduced);
   // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again
   if (warmed) { last = performance.now(); governor.reset(last / 1000); }
 }
@@ -943,7 +947,7 @@ function drawTurntable(nowS: number, reduced: boolean): void {
   if (!t) return;
   const r = t.canvas.getBoundingClientRect();
   if (r.width < 8 || r.height < 8) return; // hidden on a small screen
-  showroom.show(t.racerId, artLook(t.look));
+  showroom.show(t.racerId, { ...artLook(t.look), kartId: t.kartId });
   showroom.update(nowS, reduced, r.width / r.height);
   const x = Math.round(r.left), w = Math.round(r.width), h = Math.round(r.height), y = Math.round(innerHeight - r.bottom);
   const alpha = renderer.getClearAlpha();
@@ -1003,16 +1007,16 @@ if (import.meta.env.DEV) {
      * driver's seat) and the camera rides along with it, a close-up that keeps up with a race
      */
     photo: (p: { pos: Vec3; look: Vec3; fov?: number; kart?: number } | null) => { photo = p ? { fov: 50, ...p } : null; },
-    /** dev: jump straight into a quick race on any track */
-    race: (trackId: string, racerId = 'pip', opts: { intro?: IntroKind; mirror?: boolean } = {}) => {
+    /** dev: jump straight into a quick race on any track, `opts.kartId` in any kart (design §5, K6) */
+    race: (trackId: string, racerId = 'pip', opts: { intro?: IntroKind; mirror?: boolean; kartId?: string } = {}) => {
       // straight to the countdown, as it always was; `intro` flies the course intro first, `mirror` reflects the track
       devNoIntro = true;
       try {
         for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId }, { type: 'pickTrack', trackId }] as const) ui.dispatch(a);
       } finally { devNoIntro = false; }
       // from any other screen the menu walk does nothing: load the race directly
-      const cfg = configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] });
-      if (ui.app.screen !== 'racing' || session?.def.id !== trackId || opts.intro || opts.mirror) load(opts.mirror ? { ...cfg, mirrored: true } : cfg, false, opts.intro ?? null);
+      const cfg = configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId], kartId: opts.kartId });
+      if (ui.app.screen !== 'racing' || session?.def.id !== trackId || opts.intro || opts.mirror || opts.kartId) load(opts.mirror ? { ...cfg, mirrored: true } : cfg, false, opts.intro ?? null);
     },
     /** dev: hold the course intro at `s` seconds in (null lets it run), for checking its shots */
     introAt: (s: number | null) => { devIntroAt = s; },
