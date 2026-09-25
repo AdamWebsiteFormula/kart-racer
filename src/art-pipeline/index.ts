@@ -16,7 +16,7 @@ export { EXHAUST, portDir, RACER_IDS, racerModel, type Exhaust } from './racers.
 export { flameColour, flameGeometry, flameMaterial, JET_PROFILE, type FlameUniforms } from './flames.ts';
 export { ModelBuilder } from './model.ts';
 export { DECOR_NAMES, decorGeometry } from './decor.ts';
-export { DAY_GRADE, DAY_LIGHT, fadeSky, lightOf, paintSky, preloadSky, SKIES, SKY_FADE, skyTint, type SkyLight, type SkyPreset } from './sky.ts';
+export { DAY_GRADE, DAY_LIGHT, fadeSky, lightOf, paintSky, preloadSky, SKIES, SKY_FADE, SKY_FADE_FOR, skyTint, type SkyLight, type SkyPreset } from './sky.ts';
 export { isShared, toonRamp, vertexToon } from './toon.ts';
 export { BUBBLE_CLOCK, bubbleMaterial, ITEM_MODEL_KINDS, itemGeometry, oilSlickMaterial, strikeBallMaterial } from './items.ts';
 

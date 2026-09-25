@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Color, Group, Mesh, MeshBasicMaterial, SphereGeometry, SRGBColorSpace, type ShaderMaterial } from 'three';
-import { DAY_GRADE, fadeSky, lightOf, paintSky, preloadSky, SKIES, SKY_FADE, skyTint } from './sky.ts';
+import { SHOW } from '../track-builder/shiftShow.ts';
+import { DAY_GRADE, fadeSky, lightOf, paintSky, preloadSky, SKIES, SKY_FADE, SKY_FADE_FOR, skyTint } from './sky.ts';
 
 const hsl = (hex: string) => new Color(hex).getHSL({ h: 0, s: 0, l: 0 }, SRGBColorSpace);
 
@@ -73,6 +74,18 @@ describe('painted sky dome', () => {
     expect(fadeSky(dome, SKY_FADE / 4)).toBeGreaterThan(half);
     expect(fadeSky(dome, SKY_FADE)).toBe(1);
     expect(fadeSky(undefined, 1)).toBe(1);
+  });
+
+  it('the storm sky is in before its first strike (the bolt never lands under a blue sky); other shifts keep SKY_FADE', () => {
+    const { group, dome } = domeGroup();
+    paintSky(group, 'meadow-day');
+    paintSky(group, 'meadow-storm');
+    expect(SKY_FADE_FOR['meadow-storm']).toBeLessThan(SHOW.storm.strike);
+    expect(fadeSky(dome, SHOW.storm.strike)).toBeGreaterThan(0.99);
+    paintSky(group, 'canyon-day');
+    paintSky(group, 'canyon-dusk');
+    expect(fadeSky(dome, SHOW.storm.strike)).toBeLessThan(0.6);
+    expect(fadeSky(dome, SKY_FADE)).toBe(1);
   });
 
   it('preloading a sky with no painting, or none at all, resolves to nothing', async () => {

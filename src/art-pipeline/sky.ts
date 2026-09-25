@@ -117,6 +117,12 @@ export const PANORAMAS: ReadonlySet<string> = new Set<string>(Object.keys(SKIES)
 const PANO_SPAN = 0.85;
 /** Seconds a Final Lap Shift takes to turn one sky into the next (the lights ease over about the same, main.ts). */
 export const SKY_FADE = 1.5;
+/**
+ * Skies that come in faster than SKY_FADE. The storm rolls over before its first strike, 0.7 s after
+ * the shift (track-builder shiftShow.ts), so the bolt lands under dark cloud, not a blue sky (video
+ * review, 25 Sept 2026); its flash and the banner carry the quick change.
+ */
+export const SKY_FADE_FOR: Readonly<Record<string, number>> = Object.freeze({ 'meadow-storm': 0.65 });
 const panoCache = new Map<string, Promise<Texture | null>>();
 /** Panoramas already decoded, so a sky whose file is here paints on its first frame. */
 const panoReady = new Map<string, Texture>();
@@ -194,6 +200,7 @@ export function paintSky(group: Object3D, id: string | undefined, fallback: SkyP
         if (b instanceof Color) (u[`${k}A`].value as Color).copy(b); else u[`${k}A`].value = b;
       }
       u.fade.value = 0;
+      mat.userData.fadeSeconds = (id && SKY_FADE_FOR[id]) || SKY_FADE;
       setSide(mat, 'B', preset);
     }
     mat.userData.sky = id;
@@ -207,9 +214,10 @@ export function paintSky(group: Object3D, id: string | undefined, fallback: SkyP
 
 /** Move a Final Lap Shift's sky fade on by `dt` seconds; returns how far it has got (0..1, eased as the shader eases it). */
 export function fadeSky(dome: Object3D | undefined, dt: number): number {
-  const u = ((dome as Mesh | undefined)?.material as ShaderMaterial | undefined)?.uniforms?.fade;
+  const mat = (dome as Mesh | undefined)?.material as ShaderMaterial | undefined;
+  const u = mat?.uniforms?.fade;
   if (!u) return 1;
-  if (u.value < 1) u.value = Math.min(1, u.value + dt / SKY_FADE);
+  if (u.value < 1) u.value = Math.min(1, u.value + dt / ((mat!.userData.fadeSeconds as number | undefined) ?? SKY_FADE));
   const f = u.value as number;
   return f * f * (3 - 2 * f);
 }
