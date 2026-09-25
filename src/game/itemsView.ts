@@ -133,10 +133,13 @@ export class ItemsView {
       const dx = p.position[0] - p.prevPosition[0], dz = p.position[2] - p.prevPosition[2];
       const head = dx * dx + dz * dz > 1e-8 ? Math.atan2(dx, dz) : 0;
       if (p.itemId === 'beachBall') {
-        // rolling end over end in the direction it flies
+        // rolling end over end in the direction it flies; it leaves the hand at its held size and grows to
+        // full size over the thrower's grace (0.35 s), its bottom on the same line: no pop from the trail
         this.w.set(Math.cos(head), 0, -Math.sin(head));
         this.q.setFromAxisAngle(this.w, time * 14 + p.id);
-        this.put('beachBall', x, y + 0.25, z, this.q);
+        const grace = items.cfg.ownerGraceSeconds, k = grace > 0 ? Math.min(1, Math.max(0, 1 - p.graceRemaining / grace)) : 1;
+        const sc = TRAIL_BALL_SCALE + (1 - TRAIL_BALL_SCALE) * k * (2 - k);
+        this.put('beachBall', x, y - 0.35 + 0.6 * sc, z, this.q, sc);
       } else if (p.itemId === 'homingKite') {
         this.q.setFromAxisAngle(this.up, head);
         this.spin.setFromAxisAngle(this.w.set(0, 0, 1), Math.sin(time * 9 + p.id) * 0.25);
