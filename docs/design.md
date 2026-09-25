@@ -37,7 +37,20 @@ Rig: one blobby body rig (root, spine, head, 2 arms) shared by all eight; heads 
 Racers from parts (Adam, 25 Sept 2026: "the wheels don't even spin", "they don't turn their heads"): each racer is rebuilt as a skinned driver (a 24-bone humanoid), its kart body and one wheel used four times (public/models/racers/manifest.json), merged at load into one skinned mesh and seated by IK on the kart's own seat, grips and foot rests, so any driver can sit in any kart. The wheels roll and steer and bob on their springs, the steering wheel turns in the driver's hands, the head looks into turns and drifts, at a rival alongside and at the camera on the grid, over the line and on the podium, and the arms throw items, fly up on a hit and celebrate the placing (art-pipeline rigged.ts, kart-controller driverAnim.ts). Until a racer's parts land it keeps its fused model.
 
 ## 5. Vehicles
-Each racer has one signature kart (above) plus two shared body styles unlockable later (Classic, Buggy). Karts own the class; racers own the personality. Exhaust colour = racer accent. Horn = racer sound (Pip chirp, Momo purr-rev, Nova chime, Juniper whistle, Otto squeaky float, Sprocket tick-tock, Boulder rumble, Gus foghorn).
+Any racer in any kart (Adam, 25 Sept 2026, option B: "like Mario Kart World"). Ten karts: each racer's signature kart (above) plus Classic and Buggy, unlockable twins (the same stats as the Wind-Up Racer and the Scrap Buggy, so an unlock changes the look, never the speed). Four stats show as bars on the racer and kart screens: Speed, Accel, Handling, Weight. The racer owns the class (§4); the chosen kart's stats take the place of the racer's own kart's, so a racer in their own kart handles exactly as their class, and another kart changes how you are fast, not how fast: each kart trades one stat for another of equal lap-time value (1% top speed ≈ 12% accel ≈ 11% handling on our tracks), in whole steps (0.005 speed, 0.06 accel, 0.06 handling, 0.05 weight), and every racer-and-kart pair stays inside a fair band, proven by a test on all six tracks (no combo more than 1% from the same racer in their own kart, none fastest on more than 2 tracks). No hidden stats: no terrain stats, no mini-turbo stat (drifting pays the same in every kart). AI racers drive their own karts. Weight only moves bumps.
+
+| Kart | Owner | Speed | Accel | Handling | Weight | Character |
+|---|---|---|---|---|---|---|
+| Parcel Scooter | Pip | −0.005 | +0.06 | 0 | −0.05 | Zips off the line |
+| Scrap Buggy | Momo | −0.010 | +0.06 | +0.06 | −0.05 | Nimble everywhere, low top speed |
+| Comet Pod | Nova | −0.005 | 0 | +0.06 | −0.05 | Turns on a dime |
+| Timber Wagon | Juniper | 0 | 0 | 0 | +0.05 | The all-rounder, hard to push |
+| Wave Skimmer | Otto | 0 | +0.06 | −0.06 | 0 | Jumps off the line, wide in bends |
+| Wind-Up Racer | Sprocket | +0.005 | 0 | −0.06 | 0 | Quick on straights, stiff in bends |
+| Stone Stomper | Boulder | +0.005 | −0.06 | 0 | +0.05 | Heavy, slow to get going |
+| Snack Truck | Gus | +0.010 | −0.06 | −0.06 | +0.05 | Top speed, turns like a truck |
+
+These are the starting numbers; the balance test may move a kart one step toward neutral, and the final numbers live in kart.schema.json. Exhaust colour = racer accent. Horn = racer sound (Pip chirp, Momo purr-rev, Nova chime, Juniper whistle, Otto squeaky float, Sprocket tick-tock, Boulder rumble, Gus foghorn).
 
 ## 6. Biomes and tracks (2 cups × 3 tracks, stretch to 4 each)
 Lap target 45–60 s at 150cc-equivalent; width ≥ 4 karts at the start; one shortcut ≤ 2 s gain with risk; one verticality moment; one landmark visible from the start line.
@@ -149,13 +162,13 @@ Course intro (Adam, 24 Sept 2026: as in Mario Kart World). Before every race's c
 Finish celebration and podium ceremony (Adam, 24 Sept 2026: as in Mario Kart World). Over the line the camera swings round to the front of the player's kart in slow motion and circles it while the racer reacts to the place: 1st a leap with a whole turn in the air and fist pumps, 2nd a hop with a twist and a big wave, 3rd two happy hops and a nodded yes, a safe Knockout place a phew and a look back at the ones behind, the middle of the field a friendly shrug, the back a sag and a head shake that ends chin up (G-rated, never mocking); confetti only for the joyful ones. After about 4 s the results slide in; Enter, pad A or a tap on the finish banner skips straight to them. After a Grand Prix's final standings and after a Knockout final comes the podium ceremony, on the grid behind the last track's start line under its own sky: the top three on stepped blocks in the biome's grandstand colors (neon at night), each in their own kart, paint and body and reacting, our own gold cup with a red balloon on its lid popping up behind the winner, confetti, fireworks over the stands and the townsfolk cheering, the camera craning down and sweeping slowly, the finish fanfare then the results song; the headline, the places and the player's stars over it, then Continue. Everyone sees it: a player off the podium sees their own place under it. Reduced motion: no slow-mo or swoops, one cut to the front shot; still shots cut in turn on the podium. Pictures only: the sim, input logs and leaderboard replays are unchanged (game/celebrate.ts, game/podium.ts).
 
 ## 10. Unlocks (deterministic, visible)
-Skins: gold on every Sunrise track → Pip alt; win a Knockout → Boulder alt; 10 ultra turbos → Sprocket alt. Bodies: Classic (finish a GP), Buggy (finish a Knockout). Mirror: gold on every track.
+Skins: gold on every Sunrise track → Pip alt; win a Knockout → Boulder alt; 10 ultra turbos → Sprocket alt. Karts: Classic (finish a GP), Buggy (finish a Knockout); each is a twin of a kart you already have (§5). Mirror: gold on every track.
 
 ## 11. Audio
 Music: 6 files (title, 5 race themes reused across 6 tracks with one shared for the cup finale variant, results) + final-lap lift. Sunrise Cup = brass/ska; Summit Cup = synth-brass/funk; finale = orchestral pop. Commercial rights only (plan §7.3). SFX per plan §7.4; every racer has a horn and a hit yelp.
 
 ## 12. UI
-Fonts Lilita One + Fredoka. HUD: balloon slot top-left, big position bottom-left, minimap + lap bottom-right, timer top-centre. Title: attract-mode camera rail around Harbour Loop with Pip drifting by. Roster screen: 8 cards, turntable, animated stat bars.
+Fonts Lilita One + Fredoka. HUD: balloon slot top-left, big position bottom-left, minimap + lap bottom-right, timer top-centre. Title: attract-mode camera rail around Harbour Loop with Pip drifting by. Racer screen: 8 cards, each with the racer's own four stat bars, and a turntable. Then the Kart screen (§5): 10 cards; the stats panel shows the combined bars, with a ghost for the kart under focus (a gain extends the bar, a loss shows hatched, a chevron per step) and words for screen readers; the turntable shows your racer in that kart.
 
 Course intro title card (24 Sept 2026): lower left, the track's name big in Lilita One on a ribbon in the track's accent, its cup on a chip above and the race under it (Race 1 of 3 · 150cc, Round 2 of 3 · Top 4 go through, Time Trial, Daily Challenge · Sep 25, Mirror); the player's racer in a chip lower right; "Press any key or button to skip" ("Press any button to skip" once a pad is in use, "Tap to skip" on touch). It sits on ink while the race's shaders compile, sweeps in, and leaves a beat before the countdown; the race HUD comes with the countdown.
 

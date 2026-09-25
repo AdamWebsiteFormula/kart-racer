@@ -21,7 +21,7 @@ The live site is GitHub Pages (pushed builds publish themselves). Performance: A
 ## Where the truth lives
 - `docs/design.md` — design bible (world, cast, tracks, handling numbers, items, the Final Lap Shift twist). Anything not in it is not in the game.
 - `docs/first-principles.md` — what was deleted from scope and why. Don't re-add it.
-- `docs/schemas/*.schema.json` — the seven data shapes (track, kart, item, race-state, score, cups, save). Schemas before code. Bodies and skins are cosmetic only; the racer owns the class. Final Lap Shift fires once, globally, when the leader starts the last lap.
+- `docs/schemas/*.schema.json` — the seven data shapes (track, kart, item, race-state, score, cups, save). Schemas before code. Skins are cosmetic only; the racer owns the class, and the chosen kart swaps in its own balanced stats (any racer in any kart: design §5, Adam 25 Sept 2026). Final Lap Shift fires once, globally, when the leader starts the last lap.
 - `docs/sops/<system>.md` — one SOP per system: purpose, inputs/outputs, constraints, tests that must pass before merge. Append dated one-liners to **Decisions**; the repair loop writes error → cause → fix → rule into **Lessons**.
 - `docs/build-ritual.md` — the per-system research → plan → build → critique → verify loop with exact prompts.
 - `docs/research/plan.md`, `appendix.md` — the *why* behind every number.

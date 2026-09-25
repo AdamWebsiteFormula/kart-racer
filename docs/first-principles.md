@@ -19,6 +19,7 @@ Run before any code. Every requirement carries a person's name or it is an assum
 | 24 racers like MKW | nobody | Delete → 8 |
 | Open world / intermissions / Free Roam | nobody (and reviewers hated them) | Delete |
 | 30 tracks, 50 characters, 40 vehicles | nobody | Delete → 6–8 tracks, 8 racers, 3 archetypes |
+| Pick any racer and any kart, with stat bars | Adam, 25 Sept 2026 (option B: "like Mario Kart World") | Re-added, small: the same 8 racers, 10 karts (8 signature + 2 unlockable twins), 4 visible stats, balanced by a test (design §5) |
 | Online multiplayer | nobody | Delete (leaderboard gives the social loop) |
 | Rail grind / wall ride / charge jump | nobody | Delete from v1; one trick surface is a stretch |
 | Character customisation, stickers, unlock roulette | nobody | Delete |
