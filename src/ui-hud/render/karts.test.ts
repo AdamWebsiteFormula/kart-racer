@@ -297,8 +297,10 @@ describe('the Kart screen renderer (K5)', () => {
     // each card's picture: its own kart in its colors, hidden from assistive tech (the label says it)
     expect(cards.map((c) => c.querySelector('svg.kart-svg')!.getAttribute('data-kart'))).toEqual(cards.map((c) => c.dataset.id));
     expect(cards.every((c) => c.querySelector('svg.kart-svg')!.getAttribute('aria-hidden') === 'true')).toBe(true);
-    // the Back button in the heading's row
+    // the Back button in the heading's row; no emoji anywhere (the check on the chosen kart is text, as the class row's)
     expect(screen.querySelector('.stage-head [data-id="back"]')).not.toBeNull();
+    expect(/\p{Extended_Pictographic}/u.test(screen.textContent ?? '')).toBe(false);
+    expect(screen.querySelector('.stat-panel')!.getAttribute('role')).toBe('group');
     // the panel's words for a screen reader
     const words = [...screen.querySelectorAll('.stat-panel .sp-row > .sr-only')].map((e) => e.textContent);
     expect(words).toEqual(['Speed 8 of 10', 'Accel 2 of 10', 'Handling 3 of 10', 'Weight 10 of 10']);

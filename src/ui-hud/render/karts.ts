@@ -58,6 +58,11 @@ export class KartView implements ScreenView {
     const st = h('div', 'stage', this.root);
     const head = h('div', 'stage-head', st);
     h('h2', 'heading display enter', head, vm.title);
+    // who is picking, by the heading, where the hero has no room (karts.css: a narrower screen)
+    const who = h('div', 'kart-who enter', head);
+    who.setAttribute('aria-hidden', 'true'); // the panel names them: "Pip in the Snack Truck"
+    face(who, vm.racerId);
+    h('span', '', who, vm.racerName);
     const back = button(head, 'back', 'btn back-btn enter');
     h('span', 'label', back, 'Back');
     this.buttons.set('back', back);
@@ -79,6 +84,7 @@ export class KartView implements ScreenView {
     const words = h('div', 'kh-words', cap);
     const name = h('span', 'kh-name', words);
     const look = h('span', 'kh-look', words);
+    h('span', 'sep', look, '· ');
     const kart = h('b', '', look), paint = h('span', 'kh-paint', look);
     this.hero = { stage, art: new Markup(art), name: new TextField(name), kart: new TextField(kart), paint: new TextField(paint), lock: new TextField(lockText), face: null, cap };
     this.panel = new StatPanel(body, 'kart-stats enter');

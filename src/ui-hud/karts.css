@@ -1,1 +1,274 @@
-/* the Kart screen and the stats panel (K5 fills this in) */
+/* Any racer in any kart (design §5, §12; docs/plans/kart-combos.md K5): the Kart screen and the stats panel,
+   one piece on the Racer and Kart screens. Tokens from ui.css :root. Transforms and opacity only in motion. */
+
+/* the stats panel's motion and a chosen kart's pulse (UI.statBarMs, UI.statStaggerMs, UI.statGhostMs, UI.lockInMs) */
+:root { --t-bar: 240ms; --t-bar-stagger: 40ms; --t-ghost: 120ms; --t-lock-in: 220ms; }
+
+/* ---------- the stats panel ----------
+   Four bars on the fair band's scale. The solid bar is the combo chosen now; the one under the focus is a ghost:
+   a light extension past it for a gain, a hatched cut-back of it for a loss (the solid bar gives way to it),
+   and a chevron a step beside it, up to three. Every layer is the whole track scaled from the left (scaleX
+   only, never a width), 240 ms on the house ease, each bar 40 ms after the one above; a ghost fades in over
+   120 ms. With reduced motion, at once (no stagger either). */
+.stat-panel {
+  --bar-solid: var(--teal);
+  --bar-gain: #a4ece2;
+  --bar-loss: var(--coral);
+  --chev-up: #0f9d7e;
+  --chev-down: #e8483a;
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px 16px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-drop), var(--shadow-soft);
+}
+.sp-row { display: grid; grid-template-columns: 5.6em minmax(0, 1fr) 46px; align-items: center; gap: 12px; }
+.sp-label { font: 700 15px/1 var(--body); text-transform: uppercase; letter-spacing: 0.07em; }
+.sp-track { position: relative; display: block; height: 18px; border: 3px solid var(--ink); border-radius: 999px; background: #e9e2d0; overflow: hidden; box-shadow: inset 0 3px 0 rgb(27 27 47 / 0.12); }
+.sp-track > i {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--x, 0));
+  transition: transform var(--t-bar) var(--out) calc(var(--i, 0) * var(--t-bar-stagger)), opacity var(--t-ghost) ease;
+  will-change: transform;
+}
+.sp-fill { background: linear-gradient(180deg, #5ee0d3 0 38%, var(--bar-solid) 38% 100%); }
+/* the gain: a light extension past the solid bar, bright at its tip */
+.sp-gain { background: linear-gradient(180deg, #e2fcf8 0 38%, var(--bar-gain) 38% 100%); opacity: 0; }
+/* the loss: the part the solid bar gives up, hatched in coral */
+.sp-loss { background: repeating-linear-gradient(-45deg, var(--bar-loss) 0 4px, #ffd9d4 4px 8px); opacity: 0; }
+.sp-row[data-ghost='gain'] .sp-gain, .sp-row[data-ghost='loss'] .sp-loss { opacity: 1; }
+.sp-chev { display: flex; align-items: center; gap: 1px; height: 18px; }
+.sp-chev .chev-svg { display: block; width: 14px; height: 11px; flex: none; color: var(--chev-up); filter: drop-shadow(0 1.5px 0 rgb(27 27 47 / 0.35)); }
+.sp-chev[data-dir='down'] .chev-svg { color: var(--chev-down); transform: rotate(180deg); }
+.sp-chev[data-n='0'] .chev-svg, .sp-chev[data-n='1'] .chev-svg:nth-child(n + 2), .sp-chev[data-n='2'] .chev-svg:nth-child(3) { display: none; }
+/* reduced motion: at once, the stagger too (the house rule shortens durations, not delays) */
+:root[data-reduced-motion='on'] .sp-track > i { transition-delay: 0ms !important; }
+
+/* ---------- the Kart screen ---------- */
+/* the kart cards on the left (5 × 2), the hero and the panel on the right; a big screen centers it (as the racer screen) */
+.kart-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 30vw, 500px);
+  grid-template-rows: auto 1fr;
+  grid-template-areas: 'grid hero' 'grid panel';
+  column-gap: 28px;
+  row-gap: 14px;
+  align-items: start;
+  width: 100%;
+  max-width: 1640px;
+}
+.kart-grid { grid-area: grid; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; align-self: start; }
+.kart-hero { grid-area: hero; }
+.kart-stats { grid-area: panel; }
+@media (min-width: 1400px) { .kart-screen .stage > * { width: 100%; max-width: 1640px; margin-inline: auto; } }
+
+.kart-card {
+  appearance: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px 12px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  text-align: left;
+  box-shadow: var(--shadow-drop);
+  cursor: pointer;
+  outline: none;
+  transition: transform var(--t-fast) var(--pop), box-shadow var(--t-fast);
+}
+/* the picture on a tile tinted with the kart's own color, standing on its shadow */
+.kc-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 4px 0;
+  border-radius: 14px;
+  background: radial-gradient(ellipse at 50% 88%, rgb(255 255 255 / 0.9), transparent 62%), color-mix(in srgb, var(--kart-a) 26%, #fff6e0);
+  box-shadow: inset 0 0 0 2px rgb(27 27 47 / 0.12);
+}
+.kc-art .kart-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.kc-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 clamp(16px, 1.3vw, 22px)/1.1 var(--display); letter-spacing: 0.01em; }
+.kc-by { font: 700 12px/1.2 var(--body); opacity: 0.75; }
+.kc-line { font: 500 12.5px/1.25 var(--body); opacity: 0.8; }
+.kc-hint { font: 700 12px/1.25 var(--body); color: var(--ink); }
+.kc-hint .lk, .kh-lock .lk { display: inline-block; width: 1.3em; height: 1.3em; margin-right: 4px; vertical-align: -0.3em; }
+.kc-hint .lk svg, .kh-lock .lk svg, .kc-lock svg { display: block; width: 100%; height: 100%; }
+/* the kart the racer is in now: a coral check in the corner (the class row's chosen look) */
+.kc-chosen { position: absolute; top: -10px; right: -10px; display: grid; place-items: center; width: 30px; height: 30px; border: 3px solid var(--ink); border-radius: 50%; background: var(--coral); color: #fff; font: 800 16px/1 var(--body); box-shadow: 0 3px 0 var(--ink); }
+/* a twin still locked: grayed, with our padlock on its picture and how to earn it in place of its line */
+.kart-card.locked .kart-svg { filter: grayscale(0.95); opacity: 0.5; }
+.kart-card.locked .kc-name, .kart-card.locked .kc-by { opacity: 0.55; }
+.kart-card.locked .kc-art { background: #e4ded0; }
+.kc-lock { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; filter: drop-shadow(0 2px 0 #fff); }
+/* focus (the racer screen's): a thick white and sun ring, a glow and a lift; never a fill */
+.kart-card.focused, .kart-card:focus-visible {
+  z-index: 2;
+  transform: translateY(-6px) scale(1.05);
+  box-shadow: 0 0 0 5px #fff, 0 0 0 10px var(--sun), 0 0 34px 14px rgb(255 210 63 / 0.7), 0 14px 0 var(--ink);
+}
+.kart-card.focused .kart-svg { animation: kart-idle 1.2s ease-in-out infinite; }
+@keyframes kart-idle { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-2px) rotate(-1.2deg); } }
+/* chosen: "Locked in!" stamped over the picture and the card pulses, before the next screen (UI.lockInMs) */
+.kc-stamp {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  padding: 5px 12px 7px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--coral);
+  color: #fff;
+  font: 400 19px/1 var(--display);
+  white-space: nowrap;
+  box-shadow: 0 4px 0 var(--ink);
+  transform: translateX(-50%) rotate(-8deg) scale(0.3);
+  opacity: 0;
+  pointer-events: none;
+}
+/* (over the cards' entrance, .screen.on .enter: ui.css loads after this file) */
+.kart-screen.on .kart-card.locked-in { animation: lock-pulse var(--t-lock-in) var(--pop); }
+.kart-card.locked-in .kc-stamp { opacity: 1; transform: translateX(-50%) rotate(-8deg) scale(1); transition: transform 180ms var(--pop), opacity 80ms linear; }
+@keyframes lock-pulse { 40% { transform: translateY(-6px) scale(1.11); } }
+/* a locked twin refused: it shakes no */
+.kart-screen.on .kart-card.refused { animation: refuse-shake 320ms ease-in-out; }
+@keyframes refuse-shake { 20% { transform: translateX(-7px) rotate(-1deg); } 45% { transform: translateX(6px) rotate(1deg); } 70% { transform: translateX(-4px); } 90% { transform: translateX(2px); } }
+
+/* the hero: the kart under the focus shown large in the showroom's light (as the racer screen's turntable), the racer
+   and kart under it. The canvas over the picture is the turntable's (K6): transparent until the game draws into it */
+.kart-hero { display: flex; flex-direction: column; overflow: hidden; border: var(--stroke) solid var(--ink); border-radius: var(--radius); background: #211b38; box-shadow: var(--shadow-drop), var(--shadow-soft); }
+.kh-stage { position: relative; aspect-ratio: 16 / 9; background: radial-gradient(ellipse at 50% 38%, #5b4b93, #211b38 72%); }
+.kh-stage::after { content: ''; position: absolute; left: 12%; right: 12%; bottom: 9%; height: 12%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 241 214 / 0.55), transparent); }
+.kh-art { position: absolute; inset: 6% 7% 10%; display: grid; place-items: center; z-index: 1; }
+.kh-art .kart-svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 6px 0 rgb(0 0 0 / 0.18)); }
+.kart-screen.on .kh-art .kart-svg { animation: hero-in 260ms var(--pop), hero-bob 2.6s ease-in-out 260ms infinite; }
+@keyframes hero-in { from { transform: translateX(-18px) scale(0.94); opacity: 0.4; } }
+/* idling on the stand: a slow bob on its springs (still with reduced motion) */
+@keyframes hero-bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-0.6deg); } }
+.kh-canvas { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
+.kh-stage.locked .kart-svg { filter: grayscale(0.95) brightness(0.8); opacity: 0.6; }
+.kh-lock { position: absolute; left: 50%; top: 7%; z-index: 3; display: none; transform: translateX(-50%); padding: 6px 14px 7px 10px; border: 3px solid var(--ink); border-radius: 999px; background: var(--paper); color: var(--ink); font: 700 14px/1.1 var(--body); white-space: nowrap; box-shadow: 0 4px 0 var(--ink); }
+.kh-stage.locked .kh-lock { display: block; }
+/* chosen: the stand flashes a sun ring (an overlay's opacity: nothing but it moves) */
+.kh-stage::before { content: ''; position: absolute; inset: 0; z-index: 4; box-shadow: inset 0 0 0 6px var(--sun); opacity: 0; pointer-events: none; }
+.kh-stage.locked-in::before { animation: hero-flash var(--t-lock-in) ease-out; }
+@keyframes hero-flash { 30% { opacity: 1; } }
+.kh-cap { display: flex; align-items: center; gap: 12px; padding: 10px 16px 12px; background: var(--paper); border-top: var(--stroke) solid var(--ink); color: var(--ink); }
+.kh-cap .face-ic { --face: 44px; flex: none; border-color: var(--ink); }
+.kh-words { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; min-width: 0; }
+.kh-name { font: 400 32px/1 var(--display); }
+.kh-look { font: 400 22px/1.1 var(--display); }
+.kh-look b { font-weight: 400; }
+.kh-look .sep, .kh-paint { color: rgb(27 27 47 / 0.6); }
+/* who is picking, beside the heading, where the hero (and its caption) has no room: a narrower screen */
+.kart-who { display: none; align-items: center; gap: 8px; padding: 4px 14px 4px 5px; border: 3px solid var(--ink); border-radius: 999px; background: var(--paper); color: var(--ink); font: 400 20px/1 var(--display); box-shadow: 0 4px 0 var(--ink); }
+.kart-who .face-ic { --face: 30px; border-width: 2px; border-color: var(--ink); box-shadow: none; }
+
+/* ---------- the racer screen with karts picked: the stats panel under the turntable ---------- */
+.roster-body:has(> .roster-stats) { grid-template-rows: auto 1fr; grid-template-areas: 'main hero' 'main panel'; row-gap: 14px; }
+.roster-body:has(> .roster-stats) > .roster-main { grid-area: main; }
+.roster-body:has(> .roster-stats) > .hero { grid-area: hero; position: static; }
+.roster-stats { grid-area: panel; }
+/* the turntable gives the panel room under it: a wider picture */
+.roster-body:has(> .roster-stats) .hero-stage { aspect-ratio: 4 / 3; }
+
+/* ---------- a big screen (1600x940 and up): everything bigger, the cards and the bars (as the other menus grow) ---------- */
+@media (min-width: 1600px) and (min-height: 940px) {
+  .kart-screen .stage > * { max-width: 1760px; }
+  .kart-body { grid-template-columns: minmax(0, 1fr) 560px; column-gap: 32px; row-gap: 18px; max-width: 1760px; }
+  .kart-grid { gap: 18px; }
+  .kart-card { padding: 10px 12px 16px; gap: 4px; }
+  .kc-art { padding: 14px 10px 4px; margin-bottom: 6px; }
+  .kc-name { font-size: 24px; }
+  .kc-by { font-size: 13.5px; }
+  .kc-line, .kc-hint { font-size: 14px; }
+  .kh-name { font-size: 40px; }
+  .kh-look { font-size: 26px; }
+  .kh-cap .face-ic { --face: 52px; }
+  .stat-panel { gap: 13px; padding: 18px 22px 20px; }
+  .sp-row { grid-template-columns: 6.2em minmax(0, 1fr) 54px; }
+  .sp-label { font-size: 17px; }
+  .sp-track { height: 22px; }
+  .sp-chev { height: 22px; }
+  .sp-chev .chev-svg { width: 17px; height: 13px; }
+  .roster-stats .sp-track { height: 20px; }
+}
+
+/* ---------- a laptop window (1280x720, 1366x657) ---------- */
+@media (max-height: 800px) {
+  .kart-body { row-gap: 10px; }
+  .kart-grid { gap: 12px; }
+  .kart-card { padding: 6px 8px 9px; gap: 2px; }
+  .kc-line, .kc-hint { font-size: 11.5px; }
+  .kc-by { font-size: 11px; }
+  .kart-card.focused, .kart-card:focus-visible { transform: translateY(-3px) scale(1.04); box-shadow: 0 0 0 4px #fff, 0 0 0 8px var(--sun), 0 0 22px 8px rgb(255 210 63 / 0.65), 0 10px 0 var(--ink); }
+  .kh-name { font-size: 26px; }
+  .kh-cap { padding: 8px 14px 9px; }
+  .kh-cap .face-ic { --face: 36px; }
+  .stat-panel { padding: 10px 14px 12px; gap: 7px; }
+  .sp-track { height: 15px; }
+  .sp-label { font-size: 13px; }
+  .roster-body:has(> .roster-stats) .hero-stage { aspect-ratio: 16 / 10; }
+}
+@media (max-height: 700px) {
+  .roster-body:has(> .roster-stats) .hero-stage { aspect-ratio: 2 / 1; }
+  /* the racer screen with a Paint row fits a 1366x657 window, its hint strip too (it ran 21 px past the edge,
+     with the switch off as well): the gaps and the portraits a little tighter */
+  .roster-screen .stage { gap: 10px; }
+  .roster-screen .roster-main { gap: 9px; }
+  .roster-screen .card .face.has-portrait { width: 54px; height: 54px; }
+}
+
+/* ---------- no room for the hero beside the cards (a narrow window, a tablet, a phone): the panel is a strip over
+   the cards, its four bars side by side; the focused card's own picture is the kart shown ---------- */
+@media (max-width: 1100px), (max-height: 620px) {
+  .kart-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; grid-template-areas: 'panel' 'grid'; }
+  .kart-hero { display: none; }
+  .kart-who { display: inline-flex; }
+  .roster-body:has(> .roster-stats) { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'panel' 'main'; }
+  .stat-panel { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; padding: 8px 16px 10px; box-shadow: var(--shadow-drop); }
+  .sp-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; row-gap: 4px; column-gap: 6px; }
+  .sp-label { grid-column: 1; font-size: 12px; }
+  .sp-chev { grid-column: 2; grid-row: 1; height: 12px; justify-self: end; }
+  .sp-chev .chev-svg { width: 11px; height: 9px; }
+  .sp-track { grid-column: 1 / -1; height: 13px; border-width: 2.5px; }
+}
+@media (max-width: 720px) and (min-height: 501px) {
+  .kart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 8px; }
+}
+
+/* ---------- a phone on its side (852x393, 740x360): everything on one screen, no scroll. The strip a thin line,
+   the ten cards a picture and a name each ---------- */
+@media (max-height: 500px) {
+  .kart-body { row-gap: 8px; }
+  .kart-grid { gap: 7px; }
+  .kart-card { align-items: center; padding: 4px 5px 5px; gap: 1px; border-width: 3px; border-radius: 14px; box-shadow: 0 4px 0 var(--ink); text-align: center; }
+  .kc-art { margin-bottom: 1px; padding: 1px 2px 0; border-radius: 9px; }
+  .kc-art .kart-svg { max-height: 15vh; }
+  .kart-who { gap: 6px; padding: 2px 10px 2px 3px; font-size: 16px; box-shadow: 0 3px 0 var(--ink); }
+  .kart-who .face-ic { --face: 24px; }
+  .kc-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(12px, 1.9vw, 15px); }
+  .kc-by, .kc-line, .kc-hint { display: none; }
+  .kc-lock { width: 18px; height: 18px; top: 2px; right: 2px; }
+  .kc-chosen { width: 20px; height: 20px; top: -7px; right: -7px; border-width: 2px; font-size: 11px; box-shadow: 0 2px 0 var(--ink); }
+  .kc-stamp { top: 8%; padding: 3px 7px 4px; font-size: 13px; border-width: 2px; }
+  .kart-card.focused, .kart-card:focus-visible { transform: scale(1.04); box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--sun), 0 0 12px 4px rgb(255 210 63 / 0.6), 0 5px 0 var(--ink); }
+  .stat-panel { column-gap: 12px; padding: 5px 12px 7px; border-width: 3px; border-radius: 14px; }
+  .sp-row { row-gap: 2px; }
+  .sp-label { font-size: 10.5px; letter-spacing: 0.05em; }
+  .sp-track { height: 10px; border-width: 2px; }
+  .sp-chev { height: 10px; }
+  .sp-chev .chev-svg { width: 9px; height: 7px; }
+}

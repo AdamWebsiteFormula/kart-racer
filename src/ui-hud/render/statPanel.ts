@@ -21,10 +21,11 @@ export class StatPanel {
   private readonly rows: Row[] = [];
   private readonly who: TextField;
 
-  /** `cls`: the panel's place (`hero-stats` beside a turntable); `label`: the group's name before a combo is shown */
+  /** `cls`: the panel's place and entrance (`kart-stats enter` on the Kart screen, `roster-stats enter` by the racer screen's turntable) */
   constructor(parent: HTMLElement, cls = '') {
     this.root = h('div', `stat-panel${cls ? ` ${cls}` : ''}`, parent);
     this.root.setAttribute('role', 'group');
+    this.root.setAttribute('aria-label', 'Stats');
     this.who = new TextField(h('span', 'sr-only', this.root));
     STAT_KEYS.forEach((key, i) => {
       const row = h('div', 'sp-row', this.root);

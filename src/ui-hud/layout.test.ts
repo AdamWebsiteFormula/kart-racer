@@ -353,3 +353,68 @@ describe('the end buttons, the lap pop and the Knockout goal (25 Sept 2026)', ()
     expect(css).toMatch(/\.rows\.cut \.row\.cut-above::before \{[^}]*content: 'CUT';/);
   });
 });
+
+describe('the Kart screen and the stats panel (karts.css, K5)', () => {
+  let kcss = '';
+  beforeAll(async () => {
+    const fs = (await import('node:fs' as string)) as { readFileSync(p: string, enc: 'utf8'): string };
+    kcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'karts.css')), 'utf8');
+  });
+  /** `selector`'s `prop` in karts.css, top level or in the @media `media` */
+  const kvalue = (selector: string, prop: string, media?: string) => {
+    const saved = css;
+    css = kcss;
+    try { return value(selector, prop, media); } finally { css = saved; }
+  };
+  const NARROW = '(max-width: 1100px), (max-height: 620px)';
+
+  it('ten cards in 5 × 2 beside the hero and the panel; below 1100 px (or 620 tall) the hero goes and the panel is a strip over the cards', () => {
+    expect(kvalue('.kart-grid', 'grid-template-columns')).toBe('repeat(5, minmax(0, 1fr))');
+    expect(kvalue('.kart-body', 'grid-template-areas')).toBe("'grid hero' 'grid panel'");
+    expect(kvalue('.kart-hero', 'display', NARROW)).toBe('none');
+    expect(kvalue('.kart-body', 'grid-template-areas', NARROW)).toBe("'panel' 'grid'");
+    expect(kvalue('.stat-panel', 'grid-template-columns', NARROW)).toBe('repeat(4, minmax(0, 1fr))');
+    // the racer screen's panel too: under the turntable, a strip over the cards where the turntable has no room
+    expect(kvalue('.roster-body:has(> .roster-stats)', 'grid-template-areas')).toBe("'main hero' 'main panel'");
+    expect(kvalue('.roster-body:has(> .roster-stats)', 'grid-template-areas', NARROW)).toBe("'panel' 'main'");
+    // the hero's breakpoint is the racer screen's (ui.css): both screens change layout together
+    expect(value('.hero', 'display', NARROW)).toBe('none');
+  });
+
+  it('a phone on its side: each card its picture and name, sized by the screen\'s height, and the strip thin', () => {
+    for (const sel of ['.kc-by', '.kc-line', '.kc-hint']) expect(kvalue(sel, 'display', PHONE), sel).toBe('none');
+    expect(kvalue('.kc-art .kart-svg', 'max-height', PHONE)).toMatch(/vh$/);
+    expect(kvalue('.sp-track', 'height', PHONE)).toBe('10px');
+  });
+
+  it('the bars move by scaleX alone, on the UI\'s timings, and at once with reduced motion (no stagger either)', () => {
+    expect(kvalue('.sp-track > i', 'transform')).toBe('scaleX(var(--x, 0))');
+    expect(kvalue('.sp-track > i', 'transition')).toBe('transform var(--t-bar) var(--out) calc(var(--i, 0) * var(--t-bar-stagger)), opacity var(--t-ghost) ease');
+    expect(kvalue(':root', '--t-bar')).toBe(`${UI.statBarMs}ms`);
+    expect(kvalue(':root', '--t-bar-stagger')).toBe(`${UI.statStaggerMs}ms`);
+    expect(kvalue(':root', '--t-ghost')).toBe(`${UI.statGhostMs}ms`);
+    expect(kvalue(':root', '--t-lock-in')).toBe(`${UI.lockInMs}ms`);
+    expect(kvalue(":root[data-reduced-motion='on'] .sp-track > i", 'transition-delay')).toBe('0ms');
+    // a gain's light extension and a loss's hatching show only with a ghost
+    expect(kvalue('.sp-gain', 'opacity')).toBe('0');
+    expect(kvalue(".sp-row[data-ghost='gain'] .sp-gain", 'opacity')).toBe('1');
+    expect(kvalue('.sp-loss', 'background')).toMatch(/repeating-linear-gradient/);
+  });
+
+  it('its animations move only transforms and opacity', () => {
+    document.head.innerHTML = '';
+    const s = document.createElement('style');
+    s.textContent = kcss;
+    document.head.appendChild(s);
+    const names: string[] = [];
+    for (const r of s.sheet!.cssRules) {
+      if (!(r instanceof CSSKeyframesRule)) continue;
+      names.push(r.name);
+      for (const k of r.cssRules) {
+        const style = (k as CSSKeyframeRule).style;
+        for (let i = 0; i < style.length; i++) expect(['opacity', 'transform'], `${r.name} ${style[i]}`).toContain(style[i]);
+      }
+    }
+    expect(names.sort()).toEqual(['hero-bob', 'hero-flash', 'hero-in', 'kart-idle', 'lock-pulse', 'refuse-shake']);
+  });
+});
