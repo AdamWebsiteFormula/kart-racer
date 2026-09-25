@@ -20,6 +20,7 @@ import { CREATURE_GHOST, CreatureView } from './creatures.ts';
 import { NearGhost } from './ghost.ts';
 import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
+import { bakeTrackShading, type BakeReceiver } from './bake.ts';
 import { buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours, selfLit, sunlessBackFaces } from './glow.ts';
 import { buildStartGantry, setStartLamps } from './gantry.ts';
@@ -431,6 +432,8 @@ function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices
   (m.instanceMatrix.array as Float32Array).set(matrices.subarray(0, Math.min(matrices.length, m.instanceMatrix.array.length)));
   m.instanceMatrix.needsUpdate = true;
   m.castShadow = true;
+  // so a kart's real-time shadow falls on a prop, and (near the camera) props shade each other too
+  m.receiveShadow = true;
   return m;
 }
 
@@ -882,7 +885,14 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const addFeatures = () => installFeatures(makeFeatures(track));
   addFeatures();
   // loop-the-loops: the ring, its neon rails, its gantries
-  for (const m of buildLoopMeshes(track, GRADIENT ?? null)) { OWNED.add(m.geometry); group.add(m); }
+  const loopMeshes: Mesh[] = [];
+  for (const m of buildLoopMeshes(track, GRADIENT ?? null)) {
+    OWNED.add(m.geometry);
+    group.add(m);
+    // the neon rails are unlit and self-lit (glow.ts style, brighter than white for the bloom): baking
+    // AO onto them would only dim a light source, so only the toon-lit ring and its gantries take it
+    if ((m.material as { isMeshToonMaterial?: boolean }).isMeshToonMaterial) loopMeshes.push(m);
+  }
 
   // hazards: one instancer per asset, capacity = authored count, moved by update(time)
   const hazardAsset = new Map<string, string>();
@@ -1023,6 +1033,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   if (tunnels) { OWNED.add(tunnels.geometry); group.add(tunnels); }
 
   // ground: one plane (or water), none for sky tracks
+  /** the near land/coast mesh (bake target: fine grid, already vertex-coloured), when this track has one */
+  let coastMesh: Mesh | undefined;
   if (groundKind !== 'none') {
     const own = assets.ground?.(groundKind, GROUND_SIZE);
     const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), own ?? new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
@@ -1043,6 +1055,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       coast.name = 'coast';
       coast.receiveShadow = true;
       group.add(coast);
+      coastMesh = coast;
     }
   }
 
@@ -1105,6 +1118,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   }
 
   // landmark: at the loop's bounding-box centre on the ground
+  /** the landmark's mesh (bake target when it is not an art-pipeline model with its own shared material) */
+  let landmarkMesh: Mesh | undefined;
   if (def.landmark) {
     const lut = branches.main.lut;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -1146,6 +1161,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     landmark.castShadow = true;
     group.add(landmark);
     withHull(landmark, def.landmark);
+    landmarkMesh = landmark;
   }
 
   // The Final Lap Shift, built ahead: the same track with its shift applied (the twin: the sim's own
@@ -1205,6 +1221,26 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     return { chunkGeos, holders, features, edge, n: tm.lut.n, length: tm.lut.length, count: tw.features.length, open, used: false };
   };
   const pre = twin ? prebuildShift(twin) : null;
+
+  // baked soft shading (mesh/bake.ts, Adam 25 Sept 2026 "shading and shadows need to be for more
+  // things than just the karts"): contact AO and a soft sun shadow, multiplied into the vertex colours
+  // every toon and PBR material already reads, once now that every static mesh is at its final
+  // transform. The road takes less of it (BakeReceiver.strength): it already carries its own rich
+  // procedural shading (paintRoadLines) and should not go muddy. Skipped for a mesh whose material is
+  // an art-pipeline model's own (userData.sharedMaterial): that material may be drawn by other tracks
+  // too, and this bake never touches anything it does not own.
+  const bakeReceivers: BakeReceiver[] = [
+    ...chunks.map((c): BakeReceiver => ({ mesh: c.mesh, strength: 0.6 })),
+    ...dressing.map((mesh): BakeReceiver => ({ mesh })),
+    ...loopMeshes.map((mesh): BakeReceiver => ({ mesh })),
+  ];
+  if (boundary) bakeReceivers.push({ mesh: boundary });
+  if (tunnels) bakeReceivers.push({ mesh: tunnels });
+  bakeReceivers.push({ mesh: startLine });
+  if (coastMesh) bakeReceivers.push({ mesh: coastMesh });
+  if (landmarkMesh && !landmarkMesh.userData.sharedMaterial) bakeReceivers.push({ mesh: landmarkMesh });
+  const decorOccluders = Array.from(instancers.values()).filter((m) => m.name.startsWith('decor:'));
+  group.userData.bakeStats = bakeTrackShading(group, { receivers: bakeReceivers, decor: decorOccluders, sun: env.sunDirection ?? [0.4, 0.8, 0.3] });
 
   /** whether the Low tier's thinning is on (cull), and the view its last run was for */
   let lowOn = false, sinceCull = 0, lastFov = 0, lastFar = 0;
