@@ -72,7 +72,7 @@ export function racerGeometry(id: string, look: KartLook = {}, withDriver = true
 /**
  * The pipes a kart burns from in a look: a shared body's, else the racer's own (a racer built from
  * parts: the pipe mouths measured on its body, pointing where its pipes point, no splay); the flame in
- * the racer's colour, or their alt paint's.
+ * the racer's color, or their alt paint's.
  */
 export function exhaustFor(racerId: string, look: KartLook = {}): Exhaust | undefined {
   const own = EXHAUST[racerId];

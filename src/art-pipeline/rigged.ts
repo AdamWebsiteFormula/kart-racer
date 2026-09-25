@@ -9,7 +9,7 @@
 // the body on a `body` bone (it rides the springs), each wheel on a `wheel` bone under a `hub` bone
 // (it rolls, the fronts steer, each bobs on its spring), the steering wheel cut out of the body onto a
 // `steer` bone (it turns with the stick), and the driver on its own 24 bones under the body. The three
-// textures share one canvas atlas (plus a swatch per attachment colour), so a kart is one draw call and
+// textures share one canvas atlas (plus a swatch per attachment color), so a kart is one draw call and
 // one shadow draw, as a fused model was. The driver is seated by IK on points of the KART (its seat,
 // grips and foot rests), so any driver can sit in any kart (seatDriver). Each kart is a SkeletonUtils
 // clone: geometry and material shared, bones its own; RiggedKart puts the kart and driver animation on
@@ -28,11 +28,11 @@ import type { V3 } from './model.ts';
 /** A small code-built part on a driver's bone (a beak, a feather): a tapered cone, root at `offset` from the bone (the kart's frame, the driver standing as fitted), pointing +Z turned by `rotation` (radians, XYZ). */
 export interface Attachment { bone: string; shape: 'cone'; length: number; radiusRoot: number; radiusTip: number; color: string; offset: V3; rotation?: V3 }
 /** The steering wheel in the body's fitted frame: its middle, its column's axis toward the driver, the rim's radius (to its tube's middle). */
-export interface SteeringSpec { centre: V3; axis: V3; radius: number }
+export interface SteeringSpec { center: V3; axis: V3; radius: number }
 /** Pipe mouths in the body's fitted frame and the way they point (vfx-juice flames burn from them). */
 export interface ExhaustSpec { ports: V3[]; dir: V3 }
 /**
- * Where a kart holds its driver, in its fitted frame (metres; +X the driver's left): the hip point
+ * Where a kart holds its driver, in its fitted frame (meters; +X the driver's left): the hip point
  * (`seat`), the hands' targets on the wheel or bars (`grips`, the left hand's first) and the feet's
  * (`feet`, the left's first). Any driver sits in any kart by IK on these (seatDriver).
  */
@@ -106,7 +106,7 @@ export const poseFor = (racerId: string): SeatedPose => ({ ...SEATED, ...(RACER_
 // ---------------------------------------------------------------- the atlas
 /**
  * The atlas the three textures share (flipY off, as glTF's): driver and body at 1024 side by side, the
- * wheel at 512 under the driver, and a row of 16 px colour swatches for attachments. Rects [x, y, w, h]
+ * wheel at 512 under the driver, and a row of 16 px color swatches for attachments. Rects [x, y, w, h]
  * in pixels from the top left.
  */
 export const ATLAS = Object.freeze({
@@ -189,7 +189,7 @@ function boxOf(o: Object3D): { min: Vector3; max: Vector3 } {
   return { min, max };
 }
 
-/** The body's fitting: turned to face +Z, `length` long, centred on X and Z, its lowest point at `y`. Returns its mesh's matrix into the kart's frame. */
+/** The body's fitting: turned to face +Z, `length` long, centered on X and Z, its lowest point at `y`. Returns its mesh's matrix into the kart's frame. */
 export function fitBody(scene: Object3D, spec: PartsSpec['body']): Matrix4 {
   const holder = new Group();
   holder.add(scene);
@@ -204,7 +204,7 @@ export function fitBody(scene: Object3D, spec: PartsSpec['body']): Matrix4 {
   return firstMesh(scene)!.matrixWorld.clone();
 }
 
-/** The wheel's fitting: `radius` (half its larger side across the axle), centred on its hub. Returns its mesh's matrix to a hub at the origin. */
+/** The wheel's fitting: `radius` (half its larger side across the axle), centered on its hub. Returns its mesh's matrix to a hub at the origin. */
 export function fitWheel(scene: Object3D, radius: number): Matrix4 {
   const holder = new Group();
   holder.add(scene);
@@ -334,9 +334,9 @@ export function mergeParts(parts: readonly Part[]): BufferGeometry {
 /** How the steering wheel is cut out of the body: vertices within `slab` m of its plane and `rim` m past its rim's middle (and dark, where the texture can be read). */
 export const STEER_CUT = Object.freeze({ slab: 0.04, rim: 0.045, dark: 90 });
 
-/** Put the body's steering wheel on bone `bone` (in place): its disc, and its dark colour where `dark` can tell. Returns how many vertices moved. */
+/** Put the body's steering wheel on bone `bone` (in place): its disc, and its dark color where `dark` can tell. Returns how many vertices moved. */
 export function cutSteering(p: Part, st: SteeringSpec, bone: number, dark: ((u: number, v: number) => boolean) | null): number {
-  const c = new Vector3(...st.centre), n = new Vector3(...st.axis).normalize(), v = new Vector3();
+  const c = new Vector3(...st.center), n = new Vector3(...st.axis).normalize(), v = new Vector3();
   let moved = 0;
   for (let i = 0; i < p.pos.length / 3; i++) {
     v.set(p.pos[i * 3], p.pos[i * 3 + 1], p.pos[i * 3 + 2]).sub(c);
@@ -476,7 +476,7 @@ export interface RiggedTemplate {
 /**
  * Build a racer's rigged template from its three loaded parts: fitted, merged, skinned, seated.
  * `atlas` is the shared texture (null: no canvas, as in tests) and `dark(u, v)` says whether the body's
- * texture is dark there (the steering wheel is cut out of the body by its disc and its dark colour; null:
+ * texture is dark there (the steering wheel is cut out of the body by its disc and its dark color; null:
  * by the disc alone).
  */
 export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: LoadedParts, atlas: Texture | null, dark: ((u: number, v: number) => boolean) | null = null): RiggedTemplate {
@@ -501,7 +501,7 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
   const kart = add('kart', null, new Vector3());
   const body = add('body', kart, new Vector3());
   const st = spec.body.steering;
-  add('steer', body, st ? new Vector3(...st.centre) : new Vector3(0, 0.75, 0.25));
+  add('steer', body, st ? new Vector3(...st.center) : new Vector3(0, 0.75, 0.25));
   const hubAt: V3[] = [[0.5, spec.wheel.radius, 0.6], [-0.5, spec.wheel.radius, 0.6], [0.5, spec.wheel.radius, -0.6], [-0.5, spec.wheel.radius, -0.6]];
   for (const h of spec.wheel.hubs) hubAt[hubSlot(h)] = h;
   HUB_BONE.forEach((name, i) => {
@@ -583,7 +583,7 @@ function skinnedOf(root: Object3D): SkinnedMesh[] {
   return out;
 }
 
-/** The racers' look, as the fused model files had it: lit PBR at a high roughness, no metal, no glow (Meshy's driver comes with its colour as emission). */
+/** The racers' look, as the fused model files had it: lit PBR at a high roughness, no metal, no glow (Meshy's driver comes with its color as emission). */
 export function riggedMaterial(map: Texture | null): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ map, roughness: 0.82, metalness: 0, color: new Color(1, 1, 1) });
   m.name = 'rigged-racer';
@@ -592,8 +592,8 @@ export function riggedMaterial(map: Texture | null): MeshStandardMaterial {
 }
 
 /**
- * The atlas on a canvas (a browser only; null elsewhere): the parts' colour images drawn into their
- * rects, the attachments' colours as swatches. Returns the texture and a reader of the body's pixels
+ * The atlas on a canvas (a browser only; null elsewhere): the parts' color images drawn into their
+ * rects, the attachments' colors as swatches. Returns the texture and a reader of the body's pixels
  * (is it dark at the body's own (u, v)?) for the steering wheel's cut.
  */
 export function drawAtlas(images: { driver: CanvasImageSource | null; body: CanvasImageSource | null; wheel: CanvasImageSource | null }, swatches: readonly string[]): { texture: Texture; dark: (u: number, v: number) => boolean } | null {
@@ -609,7 +609,7 @@ export function drawAtlas(images: { driver: CanvasImageSource | null; body: Canv
   draw(images.body, ATLAS.body);
   draw(images.wheel, ATLAS.wheel);
   swatches.forEach((hex, i) => { const r = swatchRect(i); g.fillStyle = hex; g.fillRect(r[0], r[1], r[2], r[3]); });
-  // the body's colours at a quarter size are plenty to tell the steering wheel's dark from the paint (a sixteenth of the read)
+  // the body's colors at a quarter size are plenty to tell the steering wheel's dark from the paint (a sixteenth of the read)
   const S = 256, small = document.createElement('canvas');
   small.width = small.height = S;
   const sg = small.getContext?.('2d', { willReadFrequently: true });
@@ -732,7 +732,7 @@ export class RiggedKart implements KartRig {
     }
     this.arms = [this.chain(bone('LeftArm'), bone('LeftForeArm'), bone('LeftHand'), 1), this.chain(bone('RightArm'), bone('RightForeArm'), bone('RightHand'), -1)];
     this.grips = grips ? [new Vector3(...grips[0]), new Vector3(...grips[1])] : null;
-    this.steering = steering ? { c: new Vector3(...steering.centre), n: new Vector3(...steering.axis).normalize() } : null;
+    this.steering = steering ? { c: new Vector3(...steering.center), n: new Vector3(...steering.axis).normalize() } : null;
   }
 
   private chain(upper: Object3D | null, fore: Object3D | null, hand: Object3D | null, side: number): Chain | null {

@@ -99,7 +99,7 @@ describe('the merge: one skinned mesh', () => {
   it('the steering wheel is cut out of the body onto its own bone: its disc, nothing past it', () => {
     const names = mesh(t.root).skeleton.bones.map((b) => b.name);
     const g = mesh(t.root).geometry, P = g.getAttribute('position'), J = g.getAttribute('skinIndex');
-    const st = spec.body.steering!, c = new Vector3(...st.centre), n = new Vector3(...st.axis).normalize(), v = new Vector3();
+    const st = spec.body.steering!, c = new Vector3(...st.center), n = new Vector3(...st.axis).normalize(), v = new Vector3();
     let onSteer = 0;
     for (let i = 0; i < J.count; i++) {
       if (J.getX(i) !== names.indexOf('steer')) continue;
@@ -163,7 +163,7 @@ describe('RiggedKart: the animation on the bones', () => {
     for (const n of ['wheelFL', 'wheelFR', 'wheelRL', 'wheelRR']) expect(bone(k, n).rotation.x).toBeCloseTo(7.5 % (2 * Math.PI), 6);
     expect(bone(k, 'hubFL').rotation.y).toBeCloseTo(a.steer, 6);
     expect(bone(k, 'hubRR').rotation.y).toBe(0);
-    const turn = DRIVER_ANIM.wheelTurn, st = spec.body.steering!, n = new Vector3(...st.axis).normalize(), c = new Vector3(...st.centre);
+    const turn = DRIVER_ANIM.wheelTurn, st = spec.body.steering!, n = new Vector3(...st.axis).normalize(), c = new Vector3(...st.center);
     expect(bone(k, 'steer').quaternion.angleTo(new Quaternion())).toBeCloseTo(turn, 3);
     // the left grip, turned with the wheel about its column: the left wrist follows it there
     const grip = new Vector3(...spec.body.grips![0]).sub(c).applyAxisAngle(n, turn).add(c);

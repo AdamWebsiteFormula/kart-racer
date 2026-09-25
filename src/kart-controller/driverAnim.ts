@@ -200,7 +200,7 @@ const AIM = Object.freeze({
 });
 type Dir = readonly [number, number, number];
 
-/** out = the unit direction between a and b at k (normalised lerp: the aims are never opposite). */
+/** out = the unit direction between a and b at k (normalized lerp: the aims are never opposite). */
 function mix(out: Vec3, a: Dir, b: Dir, k: number): Vec3 {
   const x = lerp(a[0], b[0], k), y = lerp(a[1], b[1], k), z = lerp(a[2], b[2], k);
   const l = Math.hypot(x, y, z) || 1;
@@ -252,7 +252,7 @@ function upArm(a: ArmPose): void { set(a.upper, AIM.up); set(a.fore, AIM.upFore)
 function waveArm(a: ArmPose, t: number, hz: number): void {
   set(a.upper, AIM.wave);
   a.fore[0] = -0.3 + 0.55 * Math.sin(TAU * hz * t); a.fore[1] = 1; a.fore[2] = 0.25;
-  normalise(a.fore);
+  normalize(a.fore);
   a.wheel = 0;
 }
 
@@ -478,7 +478,7 @@ export class DriverAnim {
       const f = t.flail * Math.sin(TAU * t.flailHz * now);
       set(R.upper, AIM.up); R.fore[0] = -0.2 + f; R.fore[1] = 1; R.fore[2] = 0.1;
       set(L.upper, AIM.up); L.fore[0] = -0.2 - f; L.fore[1] = 1; L.fore[2] = 0.1;
-      normalise(R.fore); normalise(L.fore); mirror(L);
+      normalize(R.fore); normalize(L.fore); mirror(L);
       R.wheel = L.wheel = 1 - k;
       curr.headRoll += t.wobble * k * Math.sin(TAU * t.wobbleHz * now);
     } else if (tt < t.trickSeconds) {
@@ -517,7 +517,7 @@ export class DriverAnim {
   }
 }
 
-function normalise(v: Vec3): void { const l = Math.hypot(v[0], v[1], v[2]) || 1; v[0] /= l; v[1] /= l; v[2] /= l; }
+function normalize(v: Vec3): void { const l = Math.hypot(v[0], v[1], v[2]) || 1; v[0] /= l; v[1] /= l; v[2] /= l; }
 
 /** A spring step whose speed never passes `vmax` (its move this tick included). */
 function stepLimited(s: { x: number; v: number }, target: number, tune: SpringTune, dt: number, vmax: number): void {
@@ -537,7 +537,7 @@ function easeArm(shown: ArmPose, want: ArmPose, k: number): void {
 function lerpArm(out: ArmPose, a: ArmPose, b: ArmPose, t: number): void {
   out.wheel = lerp(a.wheel, b.wheel, t);
   for (let i = 0; i < 3; i++) { out.upper[i] = lerp(a.upper[i], b.upper[i], t); out.fore[i] = lerp(a.fore[i], b.fore[i], t); }
-  normalise(out.upper); normalise(out.fore);
+  normalize(out.upper); normalize(out.fore);
 }
 
 function copyArm(to: ArmPose, from: ArmPose): void {

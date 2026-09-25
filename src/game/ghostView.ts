@@ -65,7 +65,7 @@ export class GhostView {
   /** `ticks`: race time in sim ticks, fractional (the live kart is drawn at tick - 1 + alpha). */
   place(ticks: number, near?: { x: number; y: number; z: number }): Object3D {
     const p = ghostPose(this.path, ticks, this.pose);
-    // a rigged racer's wheels roll the way the ghost went (a jump of more than a few metres is a new start, not a roll)
+    // a rigged racer's wheels roll the way the ghost went (a jump of more than a few meters is a new start, not a roll)
     if (this.rig) {
       const dx = p.x - this.root.position.x, dz = p.z - this.root.position.z;
       const along = dx * Math.sin(p.heading) + dz * Math.cos(p.heading);

@@ -17,7 +17,7 @@ const UP = unit([0, 1, -0.3]);
 /**
  * Exhaust (design §5: the exhaust burns in the racer's colour). Where each pipe's mouth sits, the
  * way it points (back and a little up; Boulder's truck stacks point up), and the flame colour:
- * the racer's accent, or their second colour where the accent is too dark to burn. `splay`: how
+ * the racer's accent, or their second color where the accent is too dark to burn. `splay`: how
  * far a side pipe turns out (SPLAY when absent; 0 for pipes measured on a racer's body, which point
  * where they point: models/racers/manifest.json body.exhaust).
  */

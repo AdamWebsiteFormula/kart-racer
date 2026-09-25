@@ -1,7 +1,7 @@
 // Racer models from files (made with AI image-to-3D, listed in public/models/manifest.json).
 // Loaded once at boot; a racer without a model, or before its model arrives, keeps its
 // code-built kart (racers.ts). Every model is fitted to the kart footprint: facing +Z,
-// centred on the kart, wheels on y = 0, one uniform scale. A racer listed in
+// centered on the kart, wheels on y = 0, one uniform scale. A racer listed in
 // public/models/racers/manifest.json is built from its parts instead (rigged.ts: a skinned driver,
 // its kart body and four wheels, one skinned mesh); its fused file stays the fallback.
 import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, Source, type Material, type MeshStandardMaterial, type Object3D, type Texture } from 'three';
