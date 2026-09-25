@@ -16,7 +16,11 @@ const LIMIT_PER_DAY = 60;
 /** names one client may hold on one board: room for a shared home, not for a flood of copies (the trigger in migration 20260925000001 holds the same 3) */
 const NAMES_PER_BOARD = 3;
 const MAX_BODY = MAX_LOG_BYTES + 4096;
-/** the whole body must arrive within this: a trickle (slowloris) cannot hold the worker for minutes */
+/**
+ * The whole body must arrive within this. A second line: measured 24 Sept 2026, Supabase's gateway
+ * holds a stalled or trickled body itself (a byte every 10 s kept it waiting past a minute) and the
+ * function never started (no rate-limit row); should that change, a trickle cannot hold the worker.
+ */
 const READ_MS = 15_000;
 
 /**
