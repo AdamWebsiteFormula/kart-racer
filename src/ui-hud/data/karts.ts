@@ -51,10 +51,10 @@ export function kartFor(racerId: string, chosen: string | null | undefined): str
 /** A twin that is still locked in this save (unlocked.bodies keeps the unlock ids: the plan keeps its name). */
 export const kartLocked = (k: KartCard, unlockedBodies: readonly string[]): boolean => !!k.unlock && !unlockedBodies.includes(k.unlock);
 
-/** The name a card says the owner by: their own name without a nickname ("Gus's kart", design §5's owner column). */
-const ownerName = (racerId: string): string => (castCard(racerId)?.name ?? racerId).split(' ').pop() ?? racerId;
+/** The name a card says the owner by: their full cast name, as everywhere else ("Big Gus's kart"; Adam's cast table). */
+const ownerName = (racerId: string): string => castCard(racerId)?.name ?? racerId;
 
-/** The card's second line: whose kart it is ("Gus's kart"), or what a twin is ("Same stats as the Wind-Up Racer"). */
+/** The card's second line: whose kart it is ("Big Gus's kart"), or what a twin is ("Same stats as the Wind-Up Racer"). */
 export function byLine(k: KartCard): string {
   if (k.twinOf) return `Same stats as the ${kartName(k.twinOf)}`;
   return k.owner ? `${ownerName(k.owner)}'s kart` : '';

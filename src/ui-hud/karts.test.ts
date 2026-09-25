@@ -26,7 +26,7 @@ describe('the ten karts on the cards (design §5)', () => {
 
   it('each card says whose kart it is, or what a twin is, and how it drives', () => {
     expect(KARTS.map(byLine)).toEqual([
-      "Pip's kart", "Momo's kart", "Nova's kart", "Juniper's kart", "Otto's kart", "Sprocket's kart", "Boulder's kart", "Gus's kart",
+      "Pip's kart", "Momo's kart", "Nova's kart", "Juniper's kart", "Otto's kart", "Sprocket's kart", "Boulder's kart", "Big Gus's kart",
       'Same stats as the Wind-Up Racer', 'Same stats as the Scrap Buggy',
     ]);
     expect(kartCard('snacktruck')!.line).toBe('Top speed, turns like a truck');

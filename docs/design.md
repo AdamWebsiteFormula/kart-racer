@@ -48,7 +48,7 @@ Any racer in any kart (Adam, 25 Sept 2026, option B: "like Mario Kart World"). T
 | Wave Skimmer | Otto | 0 | +0.06 | −0.06 | 0 | Jumps off the line, wide in bends |
 | Wind-Up Racer | Sprocket | +0.005 | 0 | −0.06 | 0 | Quick on straights, stiff in bends |
 | Stone Stomper | Boulder | +0.005 | −0.06 | 0 | +0.05 | Heavy, slow to get going |
-| Snack Truck | Gus | +0.010 | −0.06 | −0.06 | +0.05 | Top speed, turns like a truck |
+| Snack Truck | Big Gus | +0.010 | −0.06 | −0.06 | +0.05 | Top speed, turns like a truck |
 
 These starting numbers passed the balance gate unchanged (25 Sept 2026) and are the final ones; kart.schema.json holds them. Exhaust colour = racer accent. Horn = racer sound (Pip chirp, Momo purr-rev, Nova chime, Juniper whistle, Otto squeaky float, Sprocket tick-tock, Boulder rumble, Gus foghorn).
 

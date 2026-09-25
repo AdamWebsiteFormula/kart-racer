@@ -295,7 +295,7 @@ describe('the Kart screen renderer (K5)', () => {
     expect(screen.querySelectorAll('.focused').length).toBe(1);
     expect(screen.querySelectorAll('[tabindex="0"]').length).toBe(1);
     const truck = cards.find((c) => c.dataset.id === 'snacktruck')!;
-    expect(truck.getAttribute('aria-label')).toBe(`Snack Truck, Gus's kart. Top speed, turns like a truck. Your kart now. ${truck.getAttribute('aria-label')!.split('Your kart now. ')[1]}`);
+    expect(truck.getAttribute('aria-label')).toBe(`Snack Truck, Big Gus's kart. Top speed, turns like a truck. Your kart now. ${truck.getAttribute('aria-label')!.split('Your kart now. ')[1]}`);
     expect(truck.getAttribute('aria-label')).toMatch(/Speed 8 of 10\. Accel 2 of 10\. Handling 3 of 10\. Weight 10 of 10\.$/);
     const classic = cards.find((c) => c.dataset.id === 'classic')!;
     expect(classic.getAttribute('aria-label')).toMatch(/^Classic, Same stats as the Wind-Up Racer\. Quick on straights, stiff in bends\. Locked: Finish a Grand Prix\. Speed/);

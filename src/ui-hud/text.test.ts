@@ -161,7 +161,7 @@ describe('How to Play says what the game does', () => {
 describe('the karts\' words (design §5, §12)', () => {
   it('each card names its owner as the design does, a twin its twin, and the twins\' unlocks say kart, not body', () => {
     for (const k of KARTS) {
-      if (k.owner) expect(byLine(k), k.id).toBe(`${CAST.find((c) => c.id === k.owner)!.name.split(' ').pop()}'s kart`);
+      if (k.owner) expect(byLine(k), k.id).toBe(`${CAST.find((c) => c.id === k.owner)!.name}'s kart`);
       else expect(byLine(k), k.id).toBe(`Same stats as the ${KARTS.find((x) => x.id === k.twinOf)!.name}`);
     }
     for (const [id, w] of Object.entries(KART_UNLOCK_WORDS)) {
