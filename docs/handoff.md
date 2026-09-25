@@ -2,6 +2,36 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
+## State at 25 Sept 2026, 16:00 EDT (read this first)
+
+**Model limit:** the account hit its weekly Opus limit at ~15:40 EDT (resets 30 Sept, 20:00 EDT). Opus subagents fail with HTTP 429; use `model: "sonnet"` or `"haiku"` for helpers.
+
+**Live on main (all verify-green, pushed):**
+- All eight racers are rigged racers from parts (public/models/racers/<id>/{driver,body,wheel}.glb, manifest.json): IK seats, spinning and steering wheels, head turns, arm gestures, flames from measured pipe mouths.
+- The stylized-PBR look is the default (look.ts DEFAULT_LOOK 'pbr'; `?look=toon` for the old one); karts take the world's sun and sky light and receive shadows.
+- New boost flames and drift sparks (vfx-juice jet.ts, flames.ts).
+- Racer + kart combos: the sim (kart-controller/karts.ts, K1), the fairness gate (K3, Hard AI, option A) and the Racer and Kart screens (K4, K5) are on main behind `UI.kartPick` (off). Plan: docs/plans/kart-combos.md.
+- Creatures parked (docs), no mph readout, controls strip only in the first countdown.
+
+**Waiting:**
+1. **Low-back kart bodies (drivers hidden from the chase camera).** Seven new Tripo bodies are done (nothing behind or beside the seat above its backrest). Result GLBs:
+   - juniper https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260925_185535_5120d0c5-3cf4-4eeb-bd84-552bb0a4d7b0.glb
+   - pip https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260925_185539_94239ea7-af13-4cc9-9db7-3ce59c38c83d.glb
+   - boulder https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260925_185544_03a14638-f2bb-4ca9-b936-833f37b5d901.glb
+   - gus https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260925_185548_dfe21192-711b-4da9-a670-f6ebf91ad3ee.glb
+   - momo https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260925_185624_3a6499ff-4689-4393-8b38-87cb7190fa42.glb
+   - sprocket https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260925_185629_f723306a-fb42-4892-8b5a-f0d99bae426b.glb
+   - nova https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260925_185711_765d7fee-0d88-4b3d-8b1d-ab1db30ca93e.glb
+   Refit each with scripts/models/fit/ (README there; `RACERS_DIR` = a work folder): `node scripts/models/fit/intake.mjs <id> body <url>`, measure hubs/seat/grips/feet/steering/exhaust as in scripts/models/fit/JOBS.md and fit-first-bodies.json, optimize (`npx --yes @gltf-transform/cli@4 optimize in out --texture-compress webp --texture-size 1024 --compress quantize --simplify false`), copy to public/models/racers/<id>/body.glb, `bash scripts/models/racer-parts.sh <id>` (budget: body ≤ 8 k triangles; the rigged.test.ts budget test), update manifest.json, verify, photograph in the game (the chase view must show each driver's head, shoulders and arms).
+2. **Kart column + v6 score checker (K2).** Branch `worktree-agent-a4f101d2be1a26a71` (commit 7236c92): CLIENT_VERSION 6, kartId in every run, migration supabase/migrations/20260926000001_kart_id.sql. Adam OK'd the migration in chat ("2. A"), but the auto-mode classifier blocked apply_migration: ask Adam to confirm once more, then in this order: apply the migration (Supabase connector, project thuvqdejckcphwuooyhx), merge the branch, verify, push, `node scripts/fn-deploy-entry.mjs` → deploy submit-score (verify_jwt true), smoke test (v5 → 400 "please reload"; v6 with a kart and a bad log → 422).
+3. **K6:** main.ts ignores `RacePlan.kartId`; draw the chosen racer in the chosen kart (buildRiggedTemplate with the racer's driver and the kart owner's body and wheel), the turntable on the Kart screen, `RaceOver.kartId`, "Pip in the Snack Truck" on board rows. Then K7: `UI.kartPick` on.
+4. **Sound judge pass after 20:00 EDT** (Adam: "you pick the sounds, highest quality"): the audition pack's NOTES.md §6 (/Users/Adam/Desktop/rascal-rally-audio-audition-2026-09-25/), Gemini Pro; winners into the game; mini-turbo tier 1 and 2 need new takes. A session cron was set for 20:07; a new session must run it by hand.
+5. **World shading (Adam: "shading and shadows need to be for more things than just the karts"):** decor instancers receive shadows; ambient occlusion (pmndrs postprocessing) under karts and where things meet the ground; softer shadow edges; check the cost (fps.mjs).
+6. PBR polish list (from the look builder): faceted low-poly props, the lawn past ~40 m, far curb stripes, pale horizons, Boardwalk planks and snow roads.
+
+**Credits:** Higgsfield ≈ 13 left. Gemini Pro resets 00:00 UTC.
+
+
 ## Where the game stands
 - Live: https://adamwebsiteformula.github.io/kart-racer/ (GitHub Pages; CI runs `npm run verify`, then publishes main).
 - 1577 tests, verify green (verify also runs the frame budget and the bundle gate).
