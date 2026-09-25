@@ -10,6 +10,7 @@ import type { RaceConfig } from '../race-manager/types.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
 import { Vfx } from '../vfx-juice/vfx.ts';
+import { DEFAULT_LOOK, setLook } from '../art-pipeline/look.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 
@@ -34,20 +35,40 @@ function count(o: Object3D): { draws: number; shadow: number; tris: number } {
   return { draws, shadow, tris };
 }
 
+/** A race's scene with 8 karts and the effects layer, counted on its first frame. */
+function race(def: TrackDefinition): ReturnType<typeof count> {
+  const config: RaceConfig = {
+    mode: 'quick', trackId: def.id, speedClass: 150, seed: 1, laps: 3,
+    racers: CAST.map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 })),
+  };
+  const scene = new Scene();
+  const s = new RaceSession(scene, def, config);
+  new Vfx(scene, new PerspectiveCamera());
+  s.frame(0, 1 / 60);
+  const c = count(scene);
+  expect(s.state.karts.length).toBe(8);
+  s.dispose();
+  return c;
+}
+
 describe('frame budget (performance SOP)', () => {
   it.each(TRACKS.map((d) => [d.id, d] as const))('%s with 8 karts stays under the draw-call and triangle budget', (_id, def) => {
-    const config: RaceConfig = {
-      mode: 'quick', trackId: def.id, speedClass: 150, seed: 1, laps: 3,
-      racers: CAST.map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 })),
-    };
-    const scene = new Scene();
-    const s = new RaceSession(scene, def, config);
-    new Vfx(scene, new PerspectiveCamera());
-    s.frame(0, 1 / 60);
-    const c = count(scene);
-    expect(s.state.karts.length).toBe(8);
+    const c = race(def);
     expect(c.draws + c.shadow, `${def.id}: ${c.draws} draws + ${c.shadow} shadow`).toBeLessThanOrEqual(SCENE_AND_SHADOW_DRAWS);
     expect(c.tris, def.id).toBeLessThanOrEqual(SCENE_TRIANGLES);
-    s.dispose();
   }, 120_000); // CI runs about 3.5x slower than the Mac
+
+  // the PBR look prototype (art-pipeline look.ts, ?look=pbr): the same meshes in other materials, and on a
+  // lawn one instancer of grass tufts in place of the verge's tufts and flower clumps
+  it.each(TRACKS.filter((d) => d.id === 'harbour-loop' || d.id === 'meadow-run').map((d) => [d.id, d] as const))('%s in the PBR look stays under it too, within a draw of the toon look', (_id, def) => {
+    const toon = race(def);
+    setLook('pbr');
+    try {
+      const c = race(def);
+      expect(c.draws + c.shadow, `${def.id}: ${c.draws} draws + ${c.shadow} shadow`).toBeLessThanOrEqual(SCENE_AND_SHADOW_DRAWS);
+      expect(c.draws + c.shadow).toBeLessThanOrEqual(toon.draws + toon.shadow + 1);
+      expect(c.shadow).toBe(toon.shadow);
+      expect(c.tris, def.id).toBeLessThanOrEqual(SCENE_TRIANGLES);
+    } finally { setLook(DEFAULT_LOOK); }
+  }, 120_000);
 });

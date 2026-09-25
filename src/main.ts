@@ -3,7 +3,7 @@
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, NoToneMapping, PCFShadowMap,
-  Group, PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Mesh, type MeshStandardMaterial, type Texture,
+  Group, PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Mesh, type MeshStandardMaterial, type ShaderMaterial, type Texture,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
@@ -12,7 +12,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isPbr, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { Warmup } from './performance/warmup.ts';
@@ -74,6 +74,11 @@ const scene = new Scene();
 // the toon materials ignore it
 scene.environment = new PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.7;
+/**
+ * The PBR look (?look=pbr, art-pipeline look.ts): the world reflects the race's own painted sky, one map
+ * painted again in place as the sky changes (followSky). Made now, so every world material made later has it.
+ */
+const skyEnv = isPbr() ? new SkyEnvironment(renderer) : null;
 const sun = new DirectionalLight(0xfff4e0, 2.2);
 sun.position.set(60, 120, 40);
 setSunShadow(sun);
@@ -114,6 +119,24 @@ function applyLight(l: SkyLight, bounce: Color | null, dt: number, snap: boolean
   fill.color.copy(n.ambient).lerp(MINE.warm, MINE.tint * tunnel); fill.intensity = n.ambientI * (1 + (MINE.ambient - 1) * tunnel);
 }
 let lightSnap = true;
+
+/** The earth's shade under the sky map's horizon: the hemisphere's ground colour, darker (linear). */
+const skyEarth = new Color();
+/** The sky fade (sky.ts fadeSky) the sky map was last painted at. */
+let skyEnvAt = 1;
+/** Paint the PBR look's sky map from `s`'s sky dome as it stands. */
+function paintSkyEnv(s: RaceSession): void {
+  const dome = s.dome as Mesh | undefined;
+  if (!skyEnv || !dome) return;
+  skyEnv.capture(dome.material as ShaderMaterial, skyEarth.set(s.skyLight.earth).multiplyScalar(0.55));
+  skyEnvAt = ((dome.material as ShaderMaterial).uniforms?.fade?.value as number | undefined) ?? 1;
+}
+/** Through a Final Lap Shift's sky fade the map follows it, three times (a capture is a few ms of GPU work, so not every frame). */
+function followSky(s: RaceSession): void {
+  const f = (((s.dome as Mesh | undefined)?.material as ShaderMaterial | undefined)?.uniforms?.fade?.value as number | undefined) ?? 1;
+  if (f < skyEnvAt) skyEnvAt = f; // a new fade began
+  else if (f - skyEnvAt >= 0.33 || (f >= 1 && skyEnvAt < 1)) paintSkyEnv(s);
+}
 
 const camera = new PerspectiveCamera(fovFor(0), 1, 0.3, 1400);
 const vfx = new Vfx(scene, camera);
@@ -305,6 +328,12 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   // files crowded it out, so nothing new starts till it is in (at most as long as the warm-up would wait)
   const startSky = preloadSky(session.trackScene.sky);
   files.hold(Promise.race([startSky, new Promise((r) => setTimeout(r, isAttract ? 2000 : 3000))]));
+  // the PBR look's sky map: this race's sky now, and again once its painting is on the dome (sky.ts set it first)
+  if (skyEnv) {
+    const s = session;
+    paintSkyEnv(s);
+    void startSky.then(() => { if (session === s) paintSkyEnv(s); });
+  }
   // the Final Lap Shift's painted sky comes down in the background, its turn in the line after the race's
   // own models and song (the race start used to wait for it too: on Slow 4G the warm-up's 3 s cap). The
   // leader is laps away from the shift, and a painting not in by then fades in when it lands (sky.ts paintSky)
@@ -839,6 +868,7 @@ function step(now: number): void {
   const cur = session!;
   if (warmup.active) return; // the attract loop just started its next race: compiling
   cur.frame(acc.alpha, frameDt, reduced, intro ? intro.sceneTime(cur.state.time) : undefined);
+  if (skyEnv) followSky(cur);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap, attract ? 0 : chase.tunnel);
   showShift(cur, racing && !ui.paused, reduced);

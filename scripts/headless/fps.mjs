@@ -23,8 +23,11 @@ try {
     const f = (t) => { ft.push(t - last); last = t; if (ft.length < ${frames}) requestAnimationFrame(f); else res(ft); }; requestAnimationFrame(f); })
     .then((ft) => { const a = ft.slice(10).sort((x, y) => x - y), n = a.length, avg = a.reduce((s, x) => s + x, 0) / n;
       const gl = document.createElement('canvas').getContext('webgl2'), e = gl.getExtension('WEBGL_debug_renderer_info');
+      // a dev server's page also says what the last frame drew (kart.stats: draw calls, triangles, pixel ratio, Low)
+      const s = window.kart?.stats?.();
       return { gpu: e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : '?', fps: +(1000 / avg).toFixed(1), p50: +a[n >> 1].toFixed(2),
-        p95: +a[Math.floor(n * 0.95)].toFixed(2), p99: +a[Math.floor(n * 0.99)].toFixed(2), max: +a[n - 1].toFixed(1), over20ms: a.filter((x) => x > 20).length, frames: n }; })`);
+        p95: +a[Math.floor(n * 0.95)].toFixed(2), p99: +a[Math.floor(n * 0.99)].toFixed(2), max: +a[n - 1].toFixed(1), over20ms: a.filter((x) => x > 20).length, frames: n,
+        ...(s ? { drawCalls: s.drawCalls, triangles: s.triangles, dpr: s.dpr, low: s.low } : {}) }; })`);
   const shot = join(tmpdir(), `rascal-fps-${width}x${height}.jpg`);
   writeFileSync(shot, await c.jpeg());
   console.log(JSON.stringify({ url, size: `${width}x${height}@${dpr ?? 1}`, cpu, uncapped: args.includes('--uncapped'), ...r, shot }));

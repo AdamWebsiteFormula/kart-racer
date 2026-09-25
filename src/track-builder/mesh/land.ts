@@ -5,7 +5,8 @@
 // takes the height of the nearest road sample (any branch) and falls away past the flat band. The
 // coastline is where that slope meets the water plane, so it is smooth even on a coarse grid.
 // Attributes: world-space `uv` (metres), `blend` 0 on the flat top → 1 on the slope (the material
-// mixes its two textures by it), and `color` darkening the wet sand at the waterline.
+// mixes its two textures by it), `color` darkening the wet sand at the waterline, and `curb`, metres
+// past the nearest curb (the PBR look's soft dirt edge there; the toon look reads none of it).
 import { BufferAttribute, BufferGeometry, CylinderGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Branches } from '../branches.ts';
@@ -51,6 +52,8 @@ const BORE_LOW = 1, BORE_MESA = 2, BORE_ROAD = 4, BORE_PULL = 8;
 /** A cell with low land and the mesa, over the road, would be a sheet across a tunnel's mouth: it is never drawn. */
 const SHEET = BORE_LOW | BORE_MESA | BORE_ROAD;
 const OUT = { y: 0, mix: 0, edge: 0, under: false, bore: 0 };
+/** The land's `curb` attribute where no curb is near (or far past one): no dirt edge there. */
+const CURB_FAR = 99;
 
 /**
  * The drawn land at (x, z) on an off-road track: terrain.ts's land (what the kart drives on) out to
@@ -134,6 +137,8 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
   const x0 = minX - reach, z0 = minZ - reach;
   const nx = Math.ceil((maxX - minX + 2 * reach) / o.cell) + 1, nz = Math.ceil((maxZ - minZ + 2 * reach) / o.cell) + 1;
   const pos = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2), col = new Float32Array(nx * nz * 3), blend = new Float32Array(nx * nz);
+  /** metres past the nearest curb (negative under a road): the PBR look's soft dirt edge (art-pipeline surfaces.ts) */
+  const curb = new Float32Array(nx * nz).fill(CURB_FAR);
   /** a vertex wholly under a road that is always drawn (a cell of four is never drawn) */
   const under = new Uint8Array(nx * nz);
   /** landAt's `bore` bits (a SHEET cell is never drawn) */
@@ -162,7 +167,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
       const inFixed = fk >= 0 ? edges[fk] - BUILDER.shoulderWidth - Math.sqrt(fixedBest) : -1, onFixed = inFixed > 0.5;
       let y = o.waterY - UNDER, mix = 1;
       if (o.land) {
-        if (at) { y = at.y; mix = at.mix; under[v] = at.under && onFixed ? 1 : 0; bore[v] = at.bore; }
+        if (at) { y = at.y; mix = at.mix; under[v] = at.under && onFixed ? 1 : 0; bore[v] = at.bore; curb[v] = Math.min(CURB_FAR, at.edge); }
         // under a road that is always drawn the land never stands above it (at a shortcut's mouth the
         // two roads' land blend; a kept cell reaching over from the shortcut's side must not show),
         // unless it is a mesa over a tunnel
@@ -187,6 +192,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
         }
         mix = Math.max(0, Math.min(1, (d - lip + 1.5) / 3));
         under[v] = onFixed ? 1 : 0;
+        curb[v] = Math.min(CURB_FAR, d - (edges[bk] - BUILDER.shoulderWidth));
       }
       pos[v * 3] = x; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z;
       uv[v * 2] = x; uv[v * 2 + 1] = z;
@@ -219,6 +225,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
   g.setAttribute('uv', new BufferAttribute(uv, 2));
   g.setAttribute('color', new BufferAttribute(col, 3));
   g.setAttribute('blend', new BufferAttribute(blend, 1));
+  g.setAttribute('curb', new BufferAttribute(curb, 1));
   g.setIndex(index);
   g.computeVertexNormals();
   g.computeBoundingSphere();

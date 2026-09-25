@@ -3,10 +3,12 @@ import type { Material, MeshToonMaterial } from 'three';
 import type { TrackAssets } from '../track-builder/mesh/index.ts';
 import { trackAssetsFor } from './decor.ts';
 import { PROP_MODELS } from './glb.ts';
-import { coastMaterial, FROST_LAKE, groundMaterial, roadGrain, roadWear } from './surfaces.ts';
+import { coastMaterial, FROST_LAKE, groundMaterial, roadDetail, roadGrain, roadWear } from './surfaces.ts';
 import { toonRamp } from './toon.ts';
 import { buildVista } from './vista.ts';
 import { withCrowd } from './crowd.ts';
+import { applyLook, isPbr } from './look.ts';
+import { grassMaterial, tuftGeometry } from './grass.ts';
 
 export { bodyColours, buildRacerMesh, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
 export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } from './bodies.ts';
@@ -22,12 +24,17 @@ export { isShared, toonRamp, vertexToon } from './toon.ts';
 export { BUBBLE_CLOCK, bubbleMaterial, ITEM_MODEL_KINDS, itemGeometry, oilSlickMaterial, strikeBallMaterial } from './items.ts';
 
 export { preloadSurfaces, ROAD_LOOKS, roadWear, WATER_CLOCK, type RoadLook } from './surfaces.ts';
+export { applyLook, DEFAULT_LOOK, isPbr, look, lookFromSearch, LOOKS, PBR, setLook, SkyEnvironment, worldEnvironment, type Look } from './look.ts';
 
 /**
  * The TrackAssets a track scene gets: the modelled decor and the toon ramp, with every prop that
  * has a model file (AI-made, textured) in place of its code-built one, and for a known biome its
  * painted ground or animated water and the road grain.
  */
+let tuft: ReturnType<typeof tuftGeometry> | null = null;
+/** The one tuft every lawn's grass clones (grass.ts). */
+const tuftTemplate = () => (tuft ??= tuftGeometry());
+
 export function trackAssets(biome?: string): TrackAssets {
   const { geometries } = trackAssetsFor();
   const materials: Record<string, Material> = {};
@@ -37,10 +44,16 @@ export function trackAssets(biome?: string): TrackAssets {
   }
   const surfaces = biome ? {
     ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome),
-    road: (m: MeshToonMaterial) => roadWear(m, biome),
+    // (the PBR look adds the road's racing line, tire marks and asphalt grain: roadDetail)
+    road: (m: MeshToonMaterial) => { roadWear(m, biome); if (isPbr()) roadDetail(m); },
     // Frostbite's lake on the snow, frozen by its Final Lap Shift (surfaces.ts FROST_LAKE)
     ...(biome === 'frost' ? { lake: FROST_LAKE } : {}),
   } : {};
   // the far vista: set-pieces, movers and glows past the scenery (vista.ts); the crowd by the road (crowd.ts)
-  return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces };
+  // the PBR prototype (look.ts, ?look=pbr): the world's materials swapped for their stylized-PBR twins once
+  // built, and on a lawn (Harbor, Meadow) tufts of grass and flowers along the curbs in place of the old
+  // verge tufts and flower clumps (grass.ts)
+  const lawn = biome === 'harbour' || biome === 'meadow';
+  const pbr = isPbr() ? { look: applyLook, ...(lawn ? { grass: { geometry: tuftTemplate(), material: grassMaterial(biome), replaces: ['tuft', 'flowers'] } } : {}) } : {};
+  return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces, ...pbr };
 }

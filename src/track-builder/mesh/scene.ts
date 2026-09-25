@@ -4,8 +4,8 @@
 // supplies real ones through `assets`.
 import {
   BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Frustum, Group,
-  InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
-  RepeatWrapping, RGBAFormat, SphereGeometry, Quaternion, Vector3, SRGBColorSpace, Matrix4, type Camera, type Material, type Texture,
+  InstancedBufferAttribute, InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
+  RepeatWrapping, RGBAFormat, SphereGeometry, Quaternion, Vector3, SRGBColorSpace, Matrix4, type Camera, type Material, type Object3D, type Texture,
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
@@ -27,6 +27,7 @@ import { buildTunnels } from './tunnel.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
+import { placeGrass } from './verge.ts';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -54,6 +55,19 @@ export interface TrackAssets {
   vista?: (ctx: VistaContext) => VistaParts | null;
   /** a lake painted on the snow that freezes at the Final Lap Shift (art-pipeline surfaces.ts; Frostbite): the stage sets it */
   lake?: LakeHook;
+  /**
+   * the world's look (art-pipeline look.ts applyLook, the PBR prototype): run over the scene once it is
+   * built and again whenever it makes new meshes (a shortcut opening, the shift's features); it swaps
+   * materials in place and must leave what it has done already
+   */
+  look?: (root: Object3D) => void;
+  /**
+   * the PBR look's grass by the road (art-pipeline grass.ts; placed by verge.ts): one tuft's geometry and
+   * its material (shared, never disposed by the scene), drawn as one instancer along the curbs of an
+   * off-road track; it takes the place of the verge entries named in `replaces` (their places are still
+   * worked out, so everything else stands where it did)
+   */
+  grass?: { geometry: BufferGeometry; material: Material; replaces: readonly string[] };
 }
 
 /** What a far vista is laid out from: the track's middle and reach, its start, its ground and sun. */
@@ -221,6 +235,29 @@ const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
 });
 
 /**
+ * The PBR look's own parts of the road shader (art-pipeline look.ts; only a MeshStandardMaterial twin
+ * compiles them): the racing line and curbs from the ribbon (road.ts `lane`, `curb`), and how worn the
+ * lane paint is at a point: patchy along the road, chipped in small flecks, and worn through where the
+ * racing line's tires cross a line (0 fresh, up to 0.85).
+ */
+const PBR_ROAD_PARS = `#ifdef STANDARD
+varying vec2 vLane;
+varying float vCurb;
+float plHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float plNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(plHash(i), plHash(i + vec2(1.0, 0.0)), u.x), mix(plHash(i + vec2(0.0, 1.0)), plHash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float roadPaintWear(vec2 road, vec2 lane) {
+  float along = road.y * 10.0, across = road.x * 2.0 * lane.y;
+  float patches = smoothstep(0.5, 0.85, plNoise(vec2(along * 0.09, across * 0.35)));
+  float chips = step(0.72, plHash(floor(vec2(along * 7.0, across * 9.0)))) * 0.6;
+  float tires = exp(-pow((road.x - lane.x) * 2.0 * lane.y, 2.0) * 0.5);
+  return min(0.85, patches * 0.6 + chips * 0.45 + tires * 0.45);
+}
+#endif`;
+
+/**
  * The road edge in each track's style (EDGES), and painted road lines: an edge line inside each
  * edge and a dashed centre line (asphalt only), and mud patches with ragged edges, wet blotches and
  * ruts, where the lines stop. Reads the ribbon's `mark`, `bend` and `surf` attributes (road.ts);
@@ -244,11 +281,13 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
     shader.uniforms.uOffA = { value: new Color(...off[0]) };
     shader.uniforms.uOffB = { value: new Color(...off[1]) };
     shader.uniforms.uMud = { value: new Color(...palette.surfaces.mud) };
+    // (a MeshStandardMaterial twin in the PBR look, art-pipeline look.ts, also reads the racing line and the
+    // inside-corner curbs, road.ts `lane` and `curb`: under STANDARD only, so the toon's shader is as it was)
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nattribute float surf;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvSurf = surf;\nvRoad = uv;');
+      .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nattribute float surf;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n#ifdef STANDARD\nattribute vec2 lane;\nattribute float curb;\nvarying vec2 vLane;\nvarying float vCurb;\n#endif')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvSurf = surf;\nvRoad = uv;\n#ifdef STANDARD\nvLane = lane;\nvCurb = curb;\n#endif');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nuniform vec3 uMud;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;')
+      .replace('#include <common>', `#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nuniform vec3 uMud;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n${PBR_ROAD_PARS}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         if (vMark > 0.5 && vMark < 1.5) {
           // a neon line along the edge (Boardwalk): it lights itself
@@ -257,10 +296,19 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
         }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float mudMask = 0.0;
+        #ifdef STANDARD
+          // the PBR look reads where the paint is (it is smoother) and where a curb is striped
+          float roadPaint = 0.0, roadCurb = 0.0;
+        #endif
         // after the vertex colours (the ribbon's old two-colour curb), so the edge is exactly its own colour
         if (vMark > 0.5 && vMark < 1.5) {
           // striped curb: hard stripes, anti-aliased so they do not shimmer far away
-          float p = vRoad.y * 2.0;
+          #ifdef STANDARD
+            // the PBR look: a circuit's blocks, 1.2 m each
+            float p = vRoad.y * 10.0 / 2.4;
+          #else
+            float p = vRoad.y * 2.0;
+          #endif
           float w = fwidth(p) * 1.5;
           float t = abs(fract(p) - 0.5) * 2.0;
           vec3 stripes = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
@@ -269,6 +317,11 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           float seam = uEdgeJoints > 0.0 ? 1.0 - smoothstep(0.0, 0.08, abs(fract(vRoad.y * uEdgeJoints) - 0.5) * 2.0 - 0.9) : 0.0;
           vec3 plain = mix(uEdgeA, uEdgeB, q) * (1.0 - uEdgeJoint * (1.0 - seam));
           float corner = uEdgeMode > 1.5 ? 0.0 : uEdgeMode > 0.5 ? smoothstep(0.25, 0.6, vBend) : 1.0;
+          #ifdef STANDARD
+            // the PBR look: red-and-white curbs on the inside of tight corners only (road.ts insideCurbs)
+            if (uEdgeMode > 0.5 && uEdgeMode < 1.5) corner = smoothstep(0.3, 0.6, vCurb);
+            roadCurb = corner;
+          #endif
           diffuseColor.rgb = mix(plain, stripes, corner);
         } else if (vMark > 1.5 && vMark < 2.5 && uOffroad > 0.5) {
           // an off-road track: no strip beside the road, the land itself meets the curb (land.ts)
@@ -308,7 +361,13 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           float dash = step(fract(vRoad.y * 0.6), 0.45);
           float centre = (1.0 - smoothstep(0.006, 0.006 + wx, c)) * dash;
           // the lines stop at a mud patch (no paint on mud)
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.88), max(edge, centre) * 0.9 * (1.0 - mudMask));
+          float paint = max(edge, centre) * 0.9 * (1.0 - mudMask);
+          #ifdef STANDARD
+            // the PBR look: worn paint, patchy and chipped, thinnest where the racing line's tires cross it
+            paint *= 1.0 - roadPaintWear(vRoad, vLane);
+            roadPaint = paint;
+          #endif
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.88), paint);
         }`);
   };
   m.customProgramCacheKey = () => `road-lines-${lines ? 1 : 0}`;
@@ -708,6 +767,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const extent = { across: Math.max(-bb.min.x, bb.max.x, 0), along: Math.max(-bb.min.z, bb.max.z, 0) };
     const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, occupied);
     decor.push(p);
+    // the PBR look's grass by the road (below) takes the place of this ground cover
+    if (entry.band === 'verge' && assets.grass?.replaces.includes(entry.asset)) continue;
     // a code-built prop marked `merge` joins the merged dressing: no instancer of its own
     if (entry.merge && geo.hasAttribute('color') && !assets.materials?.[entry.asset]) {
       // the roadside band and spans cast shadows, as the roadside instancers do; far scenery and ground cover do not
@@ -738,6 +799,27 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
 
   const dressing = buildDressing(toMerge, branches.main.lut);
   for (const m of dressing) group.add(m);
+
+  // the PBR look's grass by the road (verge.ts, art-pipeline grass.ts): one instancer of tufts along the
+  // curbs, no shadow of its own; each tuft's flowers and seed ride in `aTuft`
+  if (assets.grass && def.offroad) {
+    const g = placeGrass(branches, def.id, groundAt, track.jumps);
+    if (g.count > 0) {
+      const geo = assets.grass.geometry.clone();
+      geo.setAttribute('aTuft', new InstancedBufferAttribute(g.kinds, 2));
+      OWNED.add(geo);
+      const m = new InstancedMesh(geo, assets.grass.material, g.count);
+      (m.instanceMatrix.array as Float32Array).set(g.matrices);
+      m.instanceMatrix.needsUpdate = true;
+      m.name = 'verge-grass';
+      m.userData.sharedMaterial = true;
+      m.castShadow = false;
+      m.receiveShadow = true;
+      instancers.set(m.name, m);
+      group.add(m);
+      pools.push(newPool(m, 'verge'));
+    }
+  }
 
   // features: balloons, coins, glowing boost pads; ramps and trick bumps are merged meshes
   const featureNames: [string, BakedFeature['kind'], string, Rgb][] = [
@@ -888,7 +970,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     glowNow += (glowTo - glowNow) * (1 - Math.exp(-dt * PICKUP_EASE));
     pickupGlow.value = glowNow * (1 + PICKUP_PULSE * Math.sin((time / PICKUP_PULSE_S) * Math.PI * 2));
     const open = openMask();
-    if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); }
+    if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); assets.look?.(group); }
     if (live) { syncLive('balloons', live.pickups); syncLive('coins', live.coins); }
     hazardCounts.fill(0);
     for (const h of active) {
@@ -1201,6 +1283,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   };
 
   scene.stage = stage;
+  // the world's look (the PBR prototype): every mesh made so far, the shift's hidden ones too
+  assets.look?.(group);
   const disposeScene = scene.dispose;
   scene.dispose = () => {
     stage?.dispose();
@@ -1240,6 +1324,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       syncOpen();
       addBarriers();
       addFeatures();
+      assets.look?.(group);
     }
     if (e.fogDensity !== undefined) scene.fog.density = e.fogDensity;
     if (e.sky !== undefined) scene.sky = e.sky;

@@ -102,3 +102,32 @@ describe("Canyon's mine portals", () => {
     scene.dispose();
   });
 });
+
+describe('the land knows how far it is past the curb (the PBR look\'s soft dirt edge)', () => {
+  it.each(DEFS.filter((d) => d.environment?.ground?.kind !== 'none').map((d) => [d.id, d] as const))('%s: `curb` is metres past the nearest curb, about 0 at the curb and growing away from it', (_id, raw) => {
+    const def = cloneDef(raw);
+    const track = buildTrack(def);
+    const scene = buildTrackScene(track);
+    const coast = scene.group.getObjectByName('coast') as Mesh | undefined;
+    if (!coast) { scene.dispose(); return; } // a land track with no raised road draws no land
+    const curb = coast.geometry.getAttribute('curb'), pos = coast.geometry.getAttribute('position');
+    expect(curb.count).toBe(pos.count);
+    let checked = 0;
+    for (let v = 0; v < pos.count; v += 17) {
+      const x = pos.getX(v), z = pos.getZ(v);
+      // metres past the nearest curb of any road (its samples a metre or so apart)
+      let past = Infinity;
+      for (const b of track.branches.list) {
+        const L = b.lut;
+        for (let k = 0; k < L.n; k += 2) past = Math.min(past, Math.hypot(L.px[k] - x, L.pz[k] - z) - L.hw[k] - BUILDER.kerbWidth);
+      }
+      if (past > -2 && past < 5) {
+        expect(Math.abs(curb.getX(v) - past), `vertex ${v} at ${x.toFixed(1)}, ${z.toFixed(1)}`).toBeLessThan(1.2);
+        checked++;
+      }
+      expect(curb.getX(v)).toBeLessThanOrEqual(99);
+    }
+    expect(checked).toBeGreaterThan(20);
+    scene.dispose();
+  });
+});

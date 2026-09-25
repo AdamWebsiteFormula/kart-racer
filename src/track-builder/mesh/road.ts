@@ -68,6 +68,87 @@ export function mudDepth(lut: Lut): { depth: Float32Array; near: Int32Array } {
   return { depth, near };
 }
 
+/**
+ * The road's signed turn at sample `i`, radians a metre, read from sample i − k to i + k (fewer at an
+ * open road's ends): positive where it turns toward +lateral (the side the LUT's right vector points
+ * to), which is then the corner's inside.
+ */
+export function turnAt(lut: Lut, i: number, k: number): number {
+  const a = lut.idx(i - k), b = lut.idx(i + k);
+  const samples = lut.closed ? 2 * k : b - a;
+  if (samples <= 0) return 0;
+  const along = lut.tx[b] * lut.tx[a] + lut.tz[b] * lut.tz[a];
+  const across = lut.tx[b] * lut.rx[a] + lut.tz[b] * lut.rz[a];
+  return Math.atan2(across, along) / ((samples * lut.length) / lut.step);
+}
+
+/** Every sample's turn (turnAt over ±`metres` / 2), then averaged over ±`smooth` metres (a box, wrapped or clamped). */
+function turns(lut: Lut, metres: number, smooth: number): Float32Array {
+  const ds = lut.length / lut.step, k = Math.max(1, Math.round(metres / 2 / ds)), n = lut.n;
+  const raw = new Float32Array(n);
+  for (let i = 0; i < n; i++) raw[i] = turnAt(lut, i, k);
+  const w = Math.round(smooth / ds);
+  if (w < 1) return raw;
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0;
+    for (let d = -w; d <= w; d++) s += raw[lut.idx(i + d)];
+    out[i] = s / (2 * w + 1);
+  }
+  return out;
+}
+
+/**
+ * The racing line (the PBR look's darker, polished line and its tire marks: art-pipeline surfaces.ts):
+ * it swings toward each corner's inside, fully at a turn of `full` (radius about 35 m), `share` of the
+ * way from the middle to the edge less `margin`, easing in and out over `smooth` metres; on a straight
+ * it runs down the middle. `window`: metres the turn is read over.
+ */
+export const RACING_LINE = Object.freeze({ window: 6, smooth: 18, full: 1 / 35, share: 0.6, margin: 1.6 });
+
+/** Per LUT sample, the racing line's lateral in metres (+ toward +lateral). */
+export function racingLine(lut: Lut): Float32Array {
+  const k = turns(lut, RACING_LINE.window, RACING_LINE.smooth), out = new Float32Array(lut.n);
+  for (let i = 0; i < lut.n; i++) {
+    const pull = Math.min(1, Math.abs(k[i]) / RACING_LINE.full), room = Math.max(0, lut.hw[i] - RACING_LINE.margin);
+    out[i] = Math.sign(k[i]) * pull * room * RACING_LINE.share;
+  }
+  return out;
+}
+
+/**
+ * Red-and-white curbs on the inside of tight corners (the PBR look, where the track's edge style takes
+ * stripes: scene.ts EDGES): from a turn of `from` (radius 70 m) to certain at `full` (radius 45 m),
+ * read over `window` metres, then run on `runOn` metres before and after the corner so a curb starts
+ * ahead of the turn-in and ends past the exit, as a circuit's do.
+ */
+export const CURBS = Object.freeze({ window: 6, from: 1 / 70, full: 1 / 45, runOn: 7 });
+
+/** Per LUT sample, which side's curb is a tight corner's inside and how surely: + the +lateral side, − the other, 0..1 (0: no curb). */
+export function insideCurbs(lut: Lut): Float32Array {
+  const k = turns(lut, CURBS.window, 0), n = lut.n, w = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = Math.max(0, Math.min(1, (Math.abs(k[i]) - CURBS.from) / (CURBS.full - CURBS.from)));
+    w[i] = Math.sign(k[i]) * x * x * (3 - 2 * x);
+  }
+  // run on past the corner: each sample takes the surest curb within runOn metres
+  const r = Math.round(CURBS.runOn / (lut.length / lut.step)), out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let best = 0;
+    for (let d = -r; d <= r; d++) { const v = w[lut.idx(i + d)]; if (Math.abs(v) > Math.abs(best)) best = v; }
+    out[i] = best;
+  }
+  return out;
+}
+
+/** Each LUT's racing line and curbs, worked out once (a LUT never moves; a route change makes a new one). */
+const LANES = new WeakMap<Lut, { line: Float32Array; curbs: Float32Array }>();
+function lanesOf(lut: Lut): { line: Float32Array; curbs: Float32Array } {
+  let l = LANES.get(lut);
+  if (!l) LANES.set(lut, (l = { line: racingLine(lut), curbs: insideCurbs(lut) }));
+  return l;
+}
+
 export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPalette, opts: RibbonOptions = {}): BufferGeometry {
   const { kerbWidth: kw, kerbHeight: kh, shoulderWidth: sw, shoulderDrop: drop, roadTileLength: tile } = BUILDER;
   const blend = opts.blend ?? 0;
@@ -103,6 +184,11 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   const mark = new Float32Array(total);
   const bend = new Float32Array(total);
   const surf = new Float32Array(total);
+  // the PBR look's road (art-pipeline surfaces.ts roadDetail): the racing line across the road (0..1, as
+  // uv.x) and the half-width, and a kerb strip's inside-corner curb (0..1); the toon look reads neither
+  const lane = new Float32Array(total * 2);
+  const curb = new Float32Array(total);
+  const lanes = lanesOf(lut);
   // how sharply the road turns here: the heading change across a few samples, per metre, eased
   // from a gentle sweep (radius ~80 m) to a real corner (radius ~40 m)
   const K = 4, ds = (2 * K * lut.length) / lut.step;
@@ -118,6 +204,8 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   let v = 0, f = 0;
   for (const strip of strips) {
     const base = v;
+    // which side of the road a kerb strip is on (-1, 1)
+    const stripSide = Math.sign(strip.a(1) + strip.b(1));
     for (let i = i0; i <= i1; i++) {
       const j = lut.idx(i);
       const hw = lut.hw[j];
@@ -144,6 +232,8 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
           : strip.mark === M.shoulder && sideOpen ? M.cliffShoulder : strip.mark;
         bend[v] = lut.closed || (i - K >= 0 && i + K <= lut.step) ? bendAt(i) : 0;
         surf[v] = strip.mark === M.road ? mud.depth[j] : 0;
+        lane[v * 2] = 0.5 + lanes.line[j] / (2 * hw); lane[v * 2 + 1] = hw;
+        curb[v] = strip.mark === M.kerb ? Math.max(0, lanes.curbs[j] * stripSide) : 0;
         v++;
       }
     }
@@ -168,6 +258,8 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
   g.setAttribute('mark', new BufferAttribute(mark, 1));
   g.setAttribute('bend', new BufferAttribute(bend, 1));
   g.setAttribute('surf', new BufferAttribute(surf, 1));
+  g.setAttribute('lane', new BufferAttribute(lane, 2));
+  g.setAttribute('curb', new BufferAttribute(curb, 1));
   g.setIndex(new BufferAttribute(idx, 1));
   g.computeVertexNormals();
   g.computeBoundingSphere();
