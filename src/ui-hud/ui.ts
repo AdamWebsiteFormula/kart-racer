@@ -123,6 +123,8 @@ export class UiRoot {
   private padAWas = true;
   /** confirms on a new end screen wait until then (UI.endScreenGuardMs) */
   private endGuardUntil = 0;
+  /** when the screen or dialog on top opened (UI.screenGuardMs) */
+  private enteredAt = -Infinity;
   /** a number for the suggested leaderboard name ("Pip 427"), fixed for the session */
   private readonly nameNumber = 100 + Math.floor(Math.random() * 900);
   /** the player crossed the line: the save's counters stop (the autopilot drives on under the results) */
@@ -463,8 +465,16 @@ export class UiRoot {
     }
     if (!a) return;
     e.preventDefault();
+    if (a === 'confirm' && this.tooSoon(e)) return; // the second press of a double press that opened this screen
     this.nav(a);
   }
+
+  /** A confirm from a real key or click this soon after the screen or dialog on top opened is the second
+   *  half of a double press: it picked the new screen's first entry unseen (Enter twice on the title chose
+   *  Quick Race). Script-made events (the tests) are not held. */
+  private tooSoon(e: Event): boolean { return this.trusted(e) && this.clock() - this.enteredAt < UI.screenGuardMs; }
+  /** whether an input event came from the player, not a script; tests replace it */
+  trusted: (e: Event) => boolean = (e) => e.isTrusted;
 
   /** Every pointer move on the page (over the race too, so a move in place is known as one wherever it lands). */
   private hover(e: PointerEvent): void {
@@ -482,6 +492,7 @@ export class UiRoot {
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
     this.setFocus(id, false); // under the pointer it is already in sight
     if (!click || id === 'name') return; // a click in the name box is for typing
+    if (this.tooSoon(e)) return; // the second click of a double click that opened this screen
     // a settings row's ◀ or ▶ steps that way, like left and right on the keys
     const dir = (e.target as HTMLElement).closest?.('[data-dir]')?.getAttribute('data-dir');
     if (dir && this.active.key === 'settings' && id !== 'done') {
@@ -715,6 +726,7 @@ export class UiRoot {
     const view = overlayView ?? baseView;
     if (!force && this.active?.key === key) return;
     const entering = this.active?.key !== key;
+    if (entering) this.enteredAt = this.clock();
     this.active = { key, view };
     if (entering && (key === 'results' || key === 'gpTable' || key === 'knockoutCut')) this.endGuardUntil = this.clock() + UI.endScreenGuardMs;
     this.renderScreen(key, entering);

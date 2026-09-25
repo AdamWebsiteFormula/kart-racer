@@ -31,4 +31,6 @@ export const UI = Object.freeze({
   shortScreenQuery: '(max-height: 500px)',
   /** a new end screen (results, standings, the cut) ignores confirms this long: a double click on Continue skipped the Grand Prix standings (audit 24 Sept 2026) */
   endScreenGuardMs: 300,
+  /** a confirm (a real key or click) this soon after any screen or dialog opened is ignored: Enter pressed twice on the title picked Quick Race unseen (sweep, 24 Sept 2026) */
+  screenGuardMs: 180,
 });

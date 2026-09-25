@@ -933,3 +933,28 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(h.calls.length).toBe(n);
   });
 });
+
+describe('double presses (sweep 24 Sept 2026)', () => {
+  it('a confirm from the player this soon after a screen opened is the second half of a double press: held back; later it counts', () => {
+    document.body.innerHTML = '';
+    const ui = new UiRoot(document.body, host(), null);
+    let now = 1000;
+    ui.clock = () => now;
+    ui.trusted = () => true; // as a real key press
+    ui.dispatch({ type: 'boot' });
+    now += 1000;
+    key('Enter'); // Race! on the title
+    expect(ui.app.screen).toBe('modeSelect');
+    now += 40;
+    key('Enter'); // the second press of a double press: Quick Race is not picked unseen
+    expect(ui.app.screen).toBe('modeSelect');
+    now += UI.screenGuardMs;
+    key('Enter');
+    expect(ui.app.screen).toBe('rosterSelect');
+    // arrows are never held back
+    now += 10;
+    key('ArrowRight');
+    expect((document.activeElement as HTMLElement).dataset.id).not.toBe('pip');
+    ui.dispose();
+  });
+});
