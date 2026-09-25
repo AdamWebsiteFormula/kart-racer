@@ -11,33 +11,60 @@ export type Schedule = <T>(job: () => Promise<T>) => Promise<T>;
 /** Runs a job straight away: loading with no queue. */
 export const atOnce: Schedule = (job) => job();
 
-interface Job { run: () => Promise<unknown>; rank: number; ok: (v: unknown) => void; fail: (e: unknown) => void }
+interface Job { run: () => Promise<unknown>; rank: number; weight: number; tag: string | undefined; seq: number; ok: (v: unknown) => void; fail: (e: unknown) => void }
 
-/** Jobs run `limit` at a time, the lowest rank first and, within a rank, first come first served. */
+/**
+ * Jobs run `limit` at a time, the lowest rank first and, within a rank, first come first served. A
+ * job can weigh less than one (a sound effect of 10 to 70 KB: 0.5), so small files fill the line
+ * two to a turn while a model or a song takes a whole one: 3 models, or 6 sounds, or 2 and 2; or as
+ * much as the whole line (the racer a race start waits on most: it comes down alone, at full speed).
+ * The order stays strict: a light job never jumps a heavy one waiting ahead of it. A tagged job can
+ * be moved to another rank while it waits (rerank): what a race start wants now, what can wait.
+ */
 export class LoadQueue {
   private readonly waiting: Job[] = [];
   private running = 0;
+  /** the weight of the jobs running */
+  private used = 0;
   private held = 0;
-  /** jobs running at once at most */
+  /** jobs added so far: first come first served within a rank, a moved job keeping its place in time */
+  private added = 0;
+  /** weight running at once at most (jobs of weight 1: this many) */
   readonly limit: number;
 
   constructor(limit = 3) {
     this.limit = limit;
   }
 
-  /** Run `job` when its turn comes; settles as the job does. */
-  add<T>(job: () => Promise<T>, rank = 0): Promise<T> {
+  /**
+   * Run `job` when its turn comes; settles as the job does. `weight`: its share of the line, in turns
+   * (0.05 up to `limit`: the whole line); `tag`: a name to move it by while it waits (rerank).
+   */
+  add<T>(job: () => Promise<T>, rank = 0, weight = 1, tag?: string): Promise<T> {
     return new Promise<T>((ok, fail) => {
-      let i = this.waiting.length;
-      while (i > 0 && this.waiting[i - 1].rank > rank) i--;
-      this.waiting.splice(i, 0, { run: job, rank, ok: ok as (v: unknown) => void, fail });
+      this.insert({ run: job, rank, weight: Math.min(this.limit, Math.max(0.05, weight)), tag, seq: this.added++, ok: ok as (v: unknown) => void, fail });
       this.pump();
     });
   }
 
-  /** This queue at one rank, for a loader that takes a Schedule. */
-  at(rank: number): Schedule {
-    return (job) => this.add(job, rank);
+  /** This queue at one rank (and weight and tag), for a loader that takes a Schedule. */
+  at(rank: number, weight = 1, tag?: string): Schedule {
+    return (job) => this.add(job, rank, weight, tag);
+  }
+
+  /** Every waiting job tagged `tag` to `rank` (in the order they were added, among the jobs there); running ones are not touched. */
+  rerank(tag: string, rank: number): void {
+    const moved = this.waiting.filter((j) => j.tag === tag && j.rank !== rank);
+    if (!moved.length) return;
+    for (const j of moved) { this.waiting.splice(this.waiting.indexOf(j), 1); j.rank = rank; this.insert(j); }
+    this.pump();
+  }
+
+  /** Into its place: after every job of a lower rank, and of its own rank added before it. */
+  private insert(j: Job): void {
+    let i = this.waiting.length;
+    while (i > 0 && (this.waiting[i - 1].rank > j.rank || (this.waiting[i - 1].rank === j.rank && this.waiting[i - 1].seq > j.seq))) i--;
+    this.waiting.splice(i, 0, j);
   }
 
   /** Start nothing new until `until` settles (jobs already running go on): a race start wants the line. */
@@ -51,12 +78,13 @@ export class LoadQueue {
   get pending(): number { return this.waiting.length + this.running; }
 
   private pump(): void {
-    while (this.held === 0 && this.running < this.limit && this.waiting.length > 0) {
+    while (this.held === 0 && this.waiting.length > 0 && (this.running === 0 || this.used + this.waiting[0].weight <= this.limit + 1e-9)) {
       const j = this.waiting.shift()!;
       this.running++;
+      this.used += j.weight;
       let p: Promise<unknown>;
       try { p = Promise.resolve(j.run()); } catch (e) { p = Promise.reject(e); }
-      void p.then(j.ok, j.fail).finally(() => { this.running--; this.pump(); });
+      void p.then(j.ok, j.fail).finally(() => { this.running--; this.used -= j.weight; this.pump(); });
     }
   }
 }

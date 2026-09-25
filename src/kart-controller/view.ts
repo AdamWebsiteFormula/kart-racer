@@ -42,7 +42,8 @@ function findRigs(root: Object3D): Rig[] {
 
 export class KartView {
   readonly root = new Group(); // sim pose: position + heading
-  readonly chassis: Object3D; // the kart's animation under root
+  /** the kart's animation under root (setChassis swaps the model under it) */
+  chassis: Object3D;
   /** the kart's secondary animation (springs), stepped per sim tick */
   readonly anim: KartAnim;
   private prev: Pose;
@@ -51,7 +52,7 @@ export class KartView {
   private snapYaw = 0;
   private tiltPitch = 0;
   private tiltRoll = 0;
-  private readonly rigs: Rig[];
+  private rigs: Rig[];
   private readonly posed = newPose();
 
   /** `seed`: the kart's index, so the field's idle shivers are out of step */
@@ -61,6 +62,23 @@ export class KartView {
     this.prev = this.curr = KartView.pose(s);
     this.anim = new KartAnim(c, seed);
     this.rigs = findRigs(mesh);
+  }
+
+  /**
+   * Another model for the same kart (its racer's model file came in while the race loaded: game
+   * session.ts): it takes the old one's place and pose under root, and the animation carries on
+   * on it, morph targets and all. Returns the old one (the caller frees it).
+   */
+  setChassis(mesh: Object3D): Object3D {
+    const old = this.chassis;
+    mesh.position.copy(old.position);
+    mesh.rotation.copy(old.rotation);
+    mesh.scale.copy(old.scale);
+    this.root.remove(old);
+    this.root.add(mesh);
+    this.chassis = mesh;
+    this.rigs = findRigs(mesh);
+    return old;
   }
 
   private static pose(s: KartState): Pose {

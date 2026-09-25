@@ -65,7 +65,8 @@ export class GameAudio {
   constructor(bus = new AudioBus(), bank = new SampleBank()) {
     this.bus = bus;
     this.bank = bank;
-    bank.onLoaded = () => this.samplesReady();
+    // the manifest is enough to ask for the recorded song (the synth plays it till the file is in)
+    bank.onManifest = () => this.samplesReady();
     const unlock = () => {
       if (this.bus.unlock()) { this.start(); return; }
       // resume() settles asynchronously: start the scheduler the moment the context runs,
@@ -87,7 +88,7 @@ export class GameAudio {
     if (!this.awaitGo && (this.wantSong || this.wantKey)) this.play(this.wantSong, this.wantKey);
   }
 
-  /** The recordings arrived: swap the synth song for the recorded one if there is one. */
+  /** The recordings' list arrived: ask for the recorded song if there is one (the synth plays on till it is decoded). */
   private samplesReady(): void {
     if (!this.bus.running || this.awaitGo || !this.wantKey || this.songKey === this.wantKey || !this.bank.hasSong(this.wantKey)) return;
     this.play(this.wantSong, this.wantKey);
@@ -100,7 +101,8 @@ export class GameAudio {
 
   /**
    * Switch songs: the recording `key` when there is one, else the synth `song`. Queued until the
-   * context is unlocked. The results song waits for the finish sting's last chord.
+   * context is unlocked. The results song waits for the finish sting's last chord. A recording still
+   * coming down (the files take turns, performance/loadQueue.ts) has the synth play the song meanwhile.
    */
   play(song: SongId | null, key: string | null = song): void {
     this.wantSong = song;
@@ -110,28 +112,32 @@ export class GameAudio {
     if (!ctx || !this.bus.running) return;
     const after = song === 'results' ? this.stingEnds : 0;
     if (key && this.bank.hasSong(key)) {
-      this.seq = null;
-      this.songId = null;
       if (this.songKey !== key) this.startSong(ctx, key, after);
+      if (this.bank.isReady(key)) { this.seq = null; this.songId = null; } else this.synth(ctx, song, after);
       return;
     }
     this.stopSong();
+    this.synth(ctx, song, after);
+  }
+
+  /** The synth plays `song` (from context time `after`), unless it already is. */
+  private synth(ctx: AudioContext, song: SongId | null, after: number): void {
     if (song === this.songId && this.seq) return;
     this.songId = song;
     this.seq = song ? new Sequencer(SONGS[song], Math.max(ctx.currentTime + 0.1, after)) : null;
   }
 
-  /** Start the recording `key`, not before context time `after`. */
+  /** Start the recording `key`, not before context time `after`; the synth stand-in, if any, stops as it starts. */
   private startSong(ctx: AudioContext, key: string, after = 0): void {
     this.songKey = key;
     this.song ??= new SongPlayer(ctx, this.bus.music!);
     this.song.stop(ctx.currentTime, 0.3);
     void this.bank.song(ctx, key).then((s) => {
       if (this.songKey !== key) return; // another song was asked for while this one decoded
-      if (s) { this.song!.start(s, Math.max(ctx.currentTime + 0.05, after)); return; }
+      if (s) { this.seq = null; this.songId = null; this.song!.start(s, Math.max(ctx.currentTime + 0.05, after)); return; }
       // it would not decode: the synth plays instead
       this.songKey = null;
-      if (this.wantSong) { this.songId = this.wantSong; this.seq = new Sequencer(SONGS[this.wantSong], Math.max(ctx.currentTime + 0.1, after)); }
+      if (this.wantSong) this.synth(ctx, this.wantSong, after);
     });
   }
 
@@ -232,7 +238,8 @@ export class GameAudio {
       if (m.type === 'finalLap') {
         if (this.songKey) this.song?.lift(this.bus.time); else this.seq?.lift(this.bus.time);
       } else if (m.type === 'drums') {
-        if (m.on && this.awaitGo && this.wantKey && this.bus.ctx) { this.awaitGo = false; this.startSong(this.bus.ctx, this.wantKey); }
+        // the recorded race song on the go (the synth stands in if its file is still coming down)
+        if (m.on && this.awaitGo && this.wantKey && this.bus.ctx) this.play(this.wantSong, this.wantKey);
         else if (this.seq) this.seq.drums = m.on;
       } else if (m.type === 'duck') this.bus.duck();
       else if (m.type === 'finish') this.finish(m.win);

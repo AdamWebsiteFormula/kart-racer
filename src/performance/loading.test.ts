@@ -7,7 +7,7 @@ import { PropModels, RacerModels, trackAssets, trackProps } from '../art-pipelin
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import type { Schedule } from './loadQueue.ts';
+import { LoadQueue, type Schedule } from './loadQueue.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 const MANIFEST: Record<string, { url: string }> = PROPS_MANIFEST;
@@ -60,6 +60,28 @@ describe('model loaders take turns (a schedule per file)', () => {
     const offline = new PropModels('/', (() => Promise.reject(new Error('offline'))) as typeof fetch);
     await offline.load(['crab'], c.schedule);
     expect(c.jobs()).toBe(0);
+  });
+
+  it('RacerModels.want puts a race\'s own racers first: each takes a turn of its own at the better rank', async () => {
+    const racers = new RacerModels('/', serving({ a: { url: 'models/a.glb' }, b: { url: 'models/b.glb' }, c: { url: 'models/c.glb' }, d: { url: 'models/d.glb' } }));
+    const fetched: string[] = [];
+    // no files in tests: each "load" is logged and fails, so the racer stays code-built
+    (racers as unknown as { loader: unknown }).loader = { loadAsync: async (u: string) => { fetched.push(u.replace(/^\/models\/|\.glb$/g, '')); throw new Error('no file'); } };
+    const line = new LoadQueue(1);
+    let open!: () => void;
+    void line.add(() => new Promise<void>((r) => { open = r; })); // the line is busy when the race is picked
+    const all = racers.load(line.at(1));
+    const mine = racers.want(['d', 'b', 'nobody'], line.at(-1));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(racers.settled('d')).toBe(false);
+    expect(racers.settled('nobody'), 'no file: nothing to wait for').toBe(true);
+    open();
+    await mine;
+    expect(fetched.slice(0, 2)).toEqual(['d', 'b']);
+    expect(racers.settled('d') && racers.settled('b')).toBe(true);
+    await all;
+    expect(fetched).toEqual(['d', 'b', 'a', 'c']); // each once
+    expect(racers.has('d')).toBe(false);
   });
 
   it('RacerModels puts each racer file through the schedule', async () => {

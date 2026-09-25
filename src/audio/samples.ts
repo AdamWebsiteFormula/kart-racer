@@ -423,15 +423,55 @@ export function songLevel(chs: readonly Float32Array[], rate: number, start: num
 const KEEP_SONGS: ReadonlySet<string> = new Set(['title', 'results']);
 const RACE_SONGS_KEPT = 2;
 
-/** The manifest, every decoded sound effect, and songs decoded on demand (title, results and two race songs kept: they are big). */
+// ---------------------------------------------------------------- the order the files come down in
+
+/**
+ * The sound effects' turns in the download line, first to last (24 Sept 2026: on the first key press
+ * all 102 files and the title song were asked for at once, the same flood the models had): 0 the
+ * menus' clicks (the title song comes with them), 1 a race's first seconds (the countdown and go, the
+ * engines, the drift, its sparks and hop, the boosts), 2 the items and the hits (the first balloon, the
+ * jostle after the go, the yelps), 3 the rest (the course's creatures and surfaces, the horns, the lap
+ * and finish stings). A sound not in yet plays on the synth (or, for a loop, waits), as before.
+ */
+export const SFX_TIERS: readonly (readonly string[])[] = Object.freeze([
+  ['uiMove', 'uiConfirm', 'uiBack'],
+  ['count', 'go', 'engine-idle', 'engine-mid', 'engine-high', 'drift', 'sparks', 'hop', 'land', 'tierUp', 'tierUp2', 'tierUp3',
+    'boost1', 'boost2', 'boost3', 'boostStart', 'boostPad'],
+  ['balloon', 'rouletteTick', 'itemReady', 'coin', 'throw', 'kite', 'drop', 'shieldUp', 'shieldPop', 'shieldEnd', 'airHorn', 'fog', 'fizz',
+    'strikeRoll', 'strike', 'boing', 'slam', 'anchor', 'slingshot', 'mouse', 'blocked', 'trail', 'hitConfirm', 'hit', 'spin', 'bounce',
+    'pop', 'denied', 'bump', 'wall', 'gainPlace', 'losePlace'],
+]);
+const TIER_OF: ReadonlyMap<string, number> = new Map(SFX_TIERS.flatMap((ids, tier) => ids.map((id) => [id, tier] as const)));
+/** A sound effect's turn (SFX_TIERS): the hit yelps go with the hits, everything unlisted last. */
+export const sfxTier = (id: string): number => TIER_OF.get(id) ?? (id.startsWith('yelp:') ? 2 : SFX_TIERS.length);
+/** The turn a song is fetched at: one is only asked for when it is wanted now (the title on the first key press, a race's as it loads). */
+export const SONG_TIER = 0;
+
+/**
+ * Runs a file's download when its turn comes (main.ts: the game's one background line,
+ * performance/loadQueue.ts): `tier` its turn (sfxTier, SONG_TIER), `song` the song's key when it is
+ * one (big, and wanted at a moment of its own: the title's on the menus, a race's on its go).
+ */
+export type AudioSchedule = <T>(job: () => Promise<T>, tier: number, song?: string) => Promise<T>;
+
+/**
+ * The manifest, every decoded sound effect, and songs decoded on demand (title, results and two race
+ * songs kept: they are big). Every file comes down through `schedule`, in turn.
+ */
 export class SampleBank {
   private manifest: Manifest | null = null;
   private readonly sfx = new Map<string, Sample>();
   private readonly songs = new Map<string, Promise<Sample | null>>();
+  /** songs whose recording is decoded and kept */
+  private readonly ready = new Set<string>();
   private loading: Promise<void> | null = null;
   private readonly base: string;
   private readonly get_: typeof fetch;
-  /** called once the manifest and the sound effects are ready */
+  /** how each file waits its turn (the game's background line); unset, everything is fetched at once */
+  schedule: AudioSchedule = (job) => job();
+  /** called once the manifest is in (the songs can be asked for) */
+  onManifest: (() => void) | null = null;
+  /** called once the manifest and every sound effect are in */
   onLoaded: (() => void) | null = null;
 
   constructor(base: string = import.meta.env?.BASE_URL ?? '/', f: typeof fetch = (...a) => fetch(...a)) {
@@ -439,14 +479,22 @@ export class SampleBank {
     this.get_ = f;
   }
 
-  /** Fetch the manifest and decode every sound effect. Safe to call again; fails soft. */
+  /**
+   * Fetch the manifest, then every sound effect in turn (SFX_TIERS: the menus', the race start's, the
+   * items' and hits', the rest), each decoded as it lands. Safe to call again; fails soft.
+   */
   load(ctx: BaseAudioContext): Promise<void> {
     this.loading ??= (async () => {
       const r = await this.get_(`${this.base}audio/manifest.json`).catch(() => null);
       if (!r?.ok) return;
-      this.manifest = (await r.json()) as Manifest;
-      await Promise.all(Object.entries(this.manifest.sfx).map(async ([id, m]) => {
-        const b = await this.decode(ctx, m.url);
+      const manifest = (await r.json()) as Manifest;
+      this.manifest = manifest;
+      this.onManifest?.();
+      // asked for in turn order (a stable sort: the manifest's order within a turn)
+      const ids = Object.keys(manifest.sfx).sort((a, b) => sfxTier(a) - sfxTier(b));
+      await Promise.all(ids.map(async (id) => {
+        const m = manifest.sfx[id];
+        const b = await this.decode(ctx, m.url, sfxTier(id));
         if (b) this.sfx.set(id, cutSfx(b, !!m.loop, id));
       }));
       this.onLoaded?.();
@@ -454,10 +502,14 @@ export class SampleBank {
     return this.loading;
   }
 
-  private async decode(ctx: BaseAudioContext, url: string): Promise<AudioBuffer | null> {
+  /** The file's bytes when its turn comes (the line is free again once they are in), then decoded. */
+  private async decode(ctx: BaseAudioContext, url: string, tier: number, song?: string): Promise<AudioBuffer | null> {
     try {
-      const r = await this.get_(`${this.base}${url}`);
-      return r.ok ? await ctx.decodeAudioData(await r.arrayBuffer()) : null;
+      const bytes = await this.schedule(async () => {
+        const r = await this.get_(`${this.base}${url}`);
+        return r.ok ? await r.arrayBuffer() : null;
+      }, tier, song);
+      return bytes ? await ctx.decodeAudioData(bytes) : null;
     } catch {
       return null;
     }
@@ -465,19 +517,26 @@ export class SampleBank {
 
   get(id: string): Sample | undefined { return this.sfx.get(id); }
   hasSong(key: string): boolean { return !!this.manifest?.music[key]; }
+  /** Whether the song's recording is decoded (else the synth stands in while it comes down). */
+  isReady(key: string): boolean { return this.ready.has(key); }
 
-  /** A decoded song, fetched on first ask. */
+  /** A decoded song, fetched on first ask (at SONG_TIER: it is wanted now). */
   song(ctx: BaseAudioContext, key: string): Promise<Sample | null> {
     const m = this.manifest?.music[key];
     if (!m) return Promise.resolve(null);
     let p = this.songs.get(key);
     if (!p) {
-      p = this.decode(ctx, m.url).then((b) => (b ? cutSong(b, m.bpm) : null));
+      const mine: Promise<Sample | null> = this.decode(ctx, m.url, SONG_TIER, key).then((b) => {
+        const s = b ? cutSong(b, m.bpm) : null;
+        if (s && this.songs.get(key) === mine) this.ready.add(key);
+        return s;
+      });
+      p = mine;
       this.songs.set(key, p);
       // a decoded song is tens of MB: title and results stay (every race comes back to them), and the
       // two most recent race songs (a Grand Prix's next track, a retry)
       const race = [...this.songs.keys()].filter((k) => !KEEP_SONGS.has(k));
-      for (let i = 0; i < race.length - RACE_SONGS_KEPT; i++) this.songs.delete(race[i]);
+      for (let i = 0; i < race.length - RACE_SONGS_KEPT; i++) { this.songs.delete(race[i]); this.ready.delete(race[i]); }
     } else {
       this.songs.delete(key);
       this.songs.set(key, p);

@@ -106,6 +106,94 @@ describe('the course intro, timing and skip', () => {
     expect(intro.sceneTime(raceTime)).toBe(raceTime);
   });
 
+  it('waiting on something (the race\'s racer models): the card stays up past its time, then leaves as it comes, the countdown a beat later', () => {
+    let ready = false;
+    const intro = new CourseIntro(plan);
+    intro.waitFor(() => ready, 2);
+    intro.advance(plan.cardOut + 0.2);
+    expect(intro.cardLeaving, 'held up while it waits').toBe(false);
+    intro.advance(plan.duration);
+    expect(intro.flightOver).toBe(true);
+    expect(intro.done).toBe(false);
+    expect(intro.waiting).toBe(true);
+    // the camera rests on the chase camera's pose meanwhile
+    expect(dist(intro.camera(false).pos, plan.rest.position)).toBeLessThan(1e-9);
+    intro.advance(0.6);
+    ready = true;
+    intro.advance(1 / 60);
+    expect(intro.cardLeaving).toBe(true);
+    expect(intro.done).toBe(false);
+    intro.advance(INTRO.holdBeat);
+    expect(intro.done).toBe(true);
+    expect(intro.clock).toBeCloseTo(plan.duration + 0.6 + 1 / 60 + INTRO.holdBeat, 6);
+  });
+
+  it('what it waits for already here (or here before the card is due): the intro runs exactly as with nothing to wait for', () => {
+    let ready = true;
+    const early = new CourseIntro(plan);
+    early.waitFor(() => ready, 2);
+    early.advance(plan.cardOut - 0.01);
+    expect(early.cardLeaving).toBe(false);
+    early.advance(0.02);
+    expect(early.cardLeaving).toBe(true);
+    early.advance(plan.duration);
+    expect(early.done).toBe(true);
+    expect(early.clock).toBeCloseTo(plan.duration, 9);
+    // here a little after the card was due, well before the end: the card goes then, the countdown on time
+    ready = false;
+    const mid = new CourseIntro(plan);
+    mid.waitFor(() => ready, 2);
+    mid.advance(plan.cardOut + 0.3);
+    expect(mid.cardLeaving).toBe(false);
+    ready = true;
+    mid.advance(0.01);
+    expect(mid.cardLeaving).toBe(true);
+    mid.advance(plan.duration);
+    expect(mid.done).toBe(true);
+    expect(mid.clock).toBeCloseTo(plan.duration, 9);
+  });
+
+  it('never waits past its cap: the card leaves a beat before it, the countdown at it', () => {
+    const intro = new CourseIntro(plan);
+    intro.waitFor(() => false, 2);
+    intro.advance(plan.duration);
+    let t = 0;
+    while (!intro.cardLeaving && t < 5) { intro.advance(0.01); t += 0.01; }
+    expect(t).toBeCloseTo(2 - INTRO.holdBeat, 1);
+    while (!intro.done && t < 5) { intro.advance(0.01); t += 0.01; }
+    expect(t).toBeCloseTo(2, 1);
+  });
+
+  it('a skip: at once when nothing is waited for; else on the rest pose, card up, until it comes', () => {
+    const now = new CourseIntro(plan);
+    now.waitFor(() => true, 2);
+    now.advance(1);
+    now.skip();
+    expect(now.done).toBe(true);
+    let ready = false;
+    const intro = new CourseIntro(plan);
+    intro.waitFor(() => ready, 2);
+    intro.advance(1);
+    intro.skip();
+    expect(intro.done).toBe(false);
+    expect(intro.cardLeaving).toBe(false);
+    expect(dist(intro.camera(false).pos, plan.rest.position)).toBeLessThan(1e-9);
+    expect(intro.move).toBe(plan.moves.length);
+    intro.advance(0.3);
+    ready = true;
+    intro.advance(0.01);
+    expect(intro.cardLeaving).toBe(true);
+    intro.advance(INTRO.holdBeat);
+    expect(intro.done).toBe(true);
+  });
+
+  it('knows the move on screen, so a cut can be told from the frame before', () => {
+    const intro = new CourseIntro(plan);
+    const seen: number[] = [];
+    for (let t = 0; t < plan.duration; t += 0.05) { intro.advance(0.05); seen.push(intro.move); }
+    expect([...new Set(seen)]).toEqual([...plan.moves.map((_, i) => i), plan.moves.length]);
+  });
+
   it('the title card leaves before the last move, a beat before the countdown', () => {
     const intro = new CourseIntro(plan);
     const crane = plan.moves[plan.moves.length - 1];

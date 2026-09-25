@@ -186,6 +186,16 @@ export class KartFader {
     for (let i = 0; i < g.length; i++) order(g[i], GHOST.order + i);
   }
 
+  /** Stop following a rival's kart (its model was swapped for another: session.ts); its own materials are put back. */
+  remove(root: Object3D): void {
+    const i = this.rivals.findIndex((r) => r.root === root);
+    if (i < 0) return;
+    const r = this.rivals[i];
+    order(r, 0);
+    for (const p of r.parts) p.mesh.material = p.solid;
+    this.rivals.splice(i, 1);
+  }
+
   /** The race is over: stop following its karts (their copies' materials go with the race's). */
   dispose(): void {
     const i = LIVE.indexOf(this);

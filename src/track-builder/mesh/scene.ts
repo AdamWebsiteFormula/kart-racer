@@ -3,9 +3,9 @@
 // count is the draw-call count. Placeholder geometries stand in until art-pipeline
 // supplies real ones through `assets`.
 import {
-  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Group,
+  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Frustum, Group,
   InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
-  RepeatWrapping, RGBAFormat, SphereGeometry, Quaternion, Vector3, SRGBColorSpace, Matrix4, type Material, type Texture,
+  RepeatWrapping, RGBAFormat, SphereGeometry, Quaternion, Vector3, SRGBColorSpace, Matrix4, type Camera, type Material, type Texture,
 } from 'three';
 import { headingOf } from '../../kart-controller/types.ts';
 import { BUILDER } from '../constants.ts';
@@ -119,6 +119,15 @@ export interface TrackScene {
   setPickupGlow(amount: number, snap?: boolean): void;
   /** Mesh + InstancedMesh objects in the group (draw-call proxy) */
   drawables(): number;
+  /**
+   * The governor's Low tier (`low`: no shadow map, so no pass needs a prop the lens cannot see; a weak
+   * or software-drawn GPU): each decor instancer draws only its copies in `camera`'s view, the far and
+   * sky bands every other one, and the far vista's movers and the crowd are not drawn at all. Off Low,
+   * everything is drawn as placed (High and Medium never change). `fogFar`: past it a copy is all fog,
+   * so at Low it is not drawn either. Once a frame, after the camera is placed and before the frame is
+   * drawn; allocates nothing.
+   */
+  cull(camera: Camera, low: boolean, fogFar?: number): void;
   dispose(): void;
 }
 
@@ -453,6 +462,114 @@ function plankTexture(): DataTexture {
   return t;
 }
 
+/**
+ * A decor instancer as the Low tier sees it (TrackScene.cull): every copy as placed, each copy's
+ * bounding sphere in the world, which copies Low keeps at all (the far and sky bands every other one:
+ * placed in little groups, so every other one thins each group evenly), and the copies it drew last.
+ */
+interface Pool {
+  mesh: InstancedMesh;
+  /** the ink hull sharing its copies' matrices (withHull), whose count follows */
+  hull: InstancedMesh | null;
+  full: Float32Array;
+  n: number;
+  /** x, y, z, r per copy, made on the first Low frame */
+  spheres: Float32Array | null;
+  keep: Uint8Array;
+  /** the copies drawn, in order (the first `count`) */
+  shown: Int32Array;
+  count: number;
+  thinned: boolean;
+}
+
+/** Bands the Low tier keeps every other copy of: out past the scenery, where half as many still reads as a skyline. */
+const THIN_BANDS: ReadonlySet<string> = new Set(['far', 'sky']);
+/**
+ * At Low a copy smaller than this share of the screen's half height is not drawn (about 2 px across
+ * at 720 lines): a tuft or a pebble patch 100 m off, never a tree, a house or a windmill in sight.
+ */
+export const LOW_MIN_SIZE = 0.006;
+
+function newPool(mesh: InstancedMesh, band: string): Pool {
+  const n = mesh.count, keep = new Uint8Array(n);
+  for (let i = 0; i < n; i++) keep[i] = !THIN_BANDS.has(band) || i % 2 === 0 ? 1 : 0;
+  const hull = (mesh.userData.hull as InstancedMesh | undefined) ?? null;
+  return { mesh, hull: hull?.isInstancedMesh ? hull : null, full: Float32Array.from((mesh.instanceMatrix.array as Float32Array).subarray(0, n * 16)), n, spheres: null, keep, shown: new Int32Array(n), count: n, thinned: false };
+}
+
+/**
+ * The Low tier's cull runs again only once the view could show something new: it is set for a view
+ * `margin` degrees wider than the lens's, so between runs the lens may move `move` metres or turn
+ * `turn` degrees (or `frames` frames pass) and no copy it should show is missing. A cut (the intro's,
+ * a respawn) moves or turns it past both at once. Most frames then cost nothing and upload nothing.
+ */
+export const LOW_RECULL = Object.freeze({ margin: 10, move: 2, turn: 4, frames: 10 });
+const CULL_PV = new Matrix4(), CULL_PROJ = new Matrix4(), CULL_FRUSTUM = new Frustum(), CULL_M = new Matrix4(), CULL_V = new Vector3(), CULL_EYE = new Vector3(), CULL_DIR = new Vector3();
+/** the view's six planes as (nx, ny, nz, constant), from CULL_FRUSTUM once a frame: tested inline, no objects per copy */
+const CULL_PLANES = new Float32Array(24);
+
+/** Each copy's bounding sphere in the world (its geometry's, through its matrix); the instancer's own bound over every copy first, so three never shrinks it to the copies drawn. */
+function poolSpheres(p: Pool): Float32Array {
+  const g = p.mesh.geometry;
+  if (!g.boundingSphere) g.computeBoundingSphere();
+  if (!p.mesh.boundingSphere) p.mesh.computeBoundingSphere();
+  const c = g.boundingSphere!.center, r = g.boundingSphere!.radius, out = new Float32Array(p.n * 4);
+  for (let i = 0; i < p.n; i++) {
+    CULL_M.fromArray(p.full, i * 16);
+    CULL_V.copy(c).applyMatrix4(CULL_M);
+    out[i * 4] = CULL_V.x; out[i * 4 + 1] = CULL_V.y; out[i * 4 + 2] = CULL_V.z;
+    out[i * 4 + 3] = r * CULL_M.getMaxScaleOnAxis();
+  }
+  return out;
+}
+
+/**
+ * Draw only the kept copies in view (`planes`: CULL_PLANES), big enough to see from the eye at (ex,
+ * ey, ez) (`reach`: metres of distance a metre of radius stays visible) and nearer than `fogFar` (past
+ * it, all fog), packed to the front of the instance buffer, uploaded only when the set changes.
+ */
+function cullPool(p: Pool, planes: Float32Array, ex: number, ey: number, ez: number, reach: number, fogFar: number): void {
+  const sp = (p.spheres ??= poolSpheres(p)), keep = p.keep, shown = p.shown;
+  let k = 0, changed = !p.thinned;
+  copies: for (let i = 0; i < p.n; i++) {
+    if (!keep[i]) continue;
+    const o = i * 4, x = sp[o], y = sp[o + 1], z = sp[o + 2], r = sp[o + 3], far = Math.min(r * reach, fogFar + r);
+    const dx = x - ex, dy = y - ey, dz = z - ez;
+    if (dx * dx + dy * dy + dz * dz > far * far) continue;
+    // wholly behind any one plane of the view: out (three's Frustum.intersectsSphere, inline)
+    for (let q = 0; q < 24; q += 4) if (planes[q] * x + planes[q + 1] * y + planes[q + 2] * z + planes[q + 3] < -r) continue copies;
+    if (shown[k] !== i) { shown[k] = i; changed = true; }
+    k++;
+  }
+  if (k !== p.count) changed = true;
+  p.thinned = true;
+  p.count = k;
+  if (changed) {
+    const a = p.mesh.instanceMatrix.array as Float32Array, f = p.full;
+    for (let j = 0; j < k; j++) { const from = shown[j] * 16, to = j * 16; for (let c = 0; c < 16; c++) a[to + c] = f[from + c]; }
+    p.mesh.instanceMatrix.clearUpdateRanges();
+    if (k > 0) p.mesh.instanceMatrix.addUpdateRange(0, k * 16);
+    p.mesh.instanceMatrix.needsUpdate = true;
+  }
+  p.mesh.count = k;
+  // none in view: no draw at all (an instancer of no copies still binds its program and draws nothing)
+  p.mesh.visible = k > 0;
+  if (p.hull) { p.hull.count = k; p.hull.visible = k > 0; }
+}
+
+/** Every copy as placed again (the tier left Low). */
+function restorePool(p: Pool): void {
+  if (!p.thinned) return;
+  p.thinned = false;
+  (p.mesh.instanceMatrix.array as Float32Array).set(p.full);
+  p.mesh.instanceMatrix.clearUpdateRanges();
+  p.mesh.instanceMatrix.needsUpdate = true;
+  p.count = p.n;
+  p.mesh.count = p.n;
+  p.mesh.visible = true;
+  if (p.hull) { p.hull.count = p.n; p.hull.visible = true; }
+}
+
 export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackScene {
   const def = track.def;
   const env = def.environment ?? {};
@@ -541,6 +658,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const groundAt = offLand && coastOpts ? (x: number, z: number) => Math.max(groundY, landAt(offLand, coastOpts, x, z)?.y ?? -Infinity) : undefined;
   const rng = mulberry32(hashString(def.id));
   const decor: DecorPlacement[] = [];
+  /** the decor instancers (and their piers) the Low tier thins (cull) */
+  const pools: Pool[] = [];
   const toMerge: { item: MergeItem; far: boolean }[] = [];
   let farLandmark: [number, number, number] | undefined;
   let vistaParts: VistaParts | undefined;
@@ -568,6 +687,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     instancers.set(m.name, m);
     group.add(m);
     withHull(m, entry.asset);
+    if (m.count > 0) pools.push(newPool(m, entry.band));
     if (entry.footing === 'pier') {
       // each one out at sea stands on its own pier, sized to what stands on it
       const box = m.geometry.boundingBox ?? (m.geometry.computeBoundingBox(), m.geometry.boundingBox!);
@@ -578,6 +698,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       pier.name = `pier:${entry.asset}`;
       pier.receiveShadow = true;
       group.add(pier);
+      if (p.count > 0) pools.push(newPool(pier, entry.band));
     }
   }
 
@@ -887,6 +1008,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     withHull(landmark, def.landmark);
   }
 
+  /** whether the Low tier's thinning is on (cull), and the view its last run was for */
+  let lowOn = false, sinceCull = 0, lastFov = 0, lastFar = 0;
+  const lastEye = new Vector3(Infinity, Infinity, Infinity), lastDir = new Vector3();
   const scene: TrackScene = {
     group, palette, chunks, decor, dressing, farLandmark, vista: vistaParts, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
@@ -900,6 +1024,37 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       let n = 0;
       group.traverse((o) => { if (isDrawn(o as Mesh)) n++; });
       return n;
+    },
+    cull: (camera, low, fogFar = Infinity) => {
+      if (low !== lowOn) {
+        lowOn = low;
+        // the far vista's movers (its fliers, already folded away at Low in its shader) and the crowd (drawn with no copies at Low) skip their draws
+        for (const m of vistaParts?.world ?? []) if (m.name === 'vista-movers' || m.name.startsWith('crowd') && m.name !== 'crowd-stands') m.visible = !low;
+        if (!low) for (const p of pools) restorePool(p);
+        lastEye.set(Infinity, Infinity, Infinity); // a fresh run the next time Low comes
+      }
+      if (!low) return;
+      camera.updateMatrixWorld();
+      CULL_EYE.setFromMatrixPosition(camera.matrixWorld);
+      camera.getWorldDirection(CULL_DIR);
+      const cam = camera as Camera & { fov?: number; aspect?: number; near?: number; far?: number; zoom?: number; isPerspectiveCamera?: boolean };
+      const fov = cam.fov ?? 60, R = LOW_RECULL;
+      // the view has not moved enough to show anything new: last run's copies still cover it
+      if (CULL_EYE.distanceToSquared(lastEye) < R.move * R.move && CULL_DIR.dot(lastDir) > Math.cos((R.turn * Math.PI) / 180)
+        && Math.abs(fov - lastFov) < 1 && fogFar === lastFar && ++sinceCull < R.frames) return;
+      sinceCull = 0;
+      lastEye.copy(CULL_EYE); lastDir.copy(CULL_DIR); lastFov = fov; lastFar = fogFar;
+      // the lens's view, `margin` degrees wider
+      if (cam.isPerspectiveCamera) {
+        const top = (cam.near! * Math.tan((((fov + R.margin) * Math.PI) / 180) / 2)) / (cam.zoom ?? 1), side = top * cam.aspect!;
+        CULL_PROJ.makePerspective(-side, side, top, -top, cam.near!, cam.far!);
+      } else CULL_PROJ.copy(camera.projectionMatrix);
+      CULL_PV.multiplyMatrices(CULL_PROJ, camera.matrixWorldInverse);
+      CULL_FRUSTUM.setFromProjectionMatrix(CULL_PV);
+      for (let q = 0; q < 6; q++) { const pl = CULL_FRUSTUM.planes[q]; CULL_PLANES[q * 4] = pl.normal.x; CULL_PLANES[q * 4 + 1] = pl.normal.y; CULL_PLANES[q * 4 + 2] = pl.normal.z; CULL_PLANES[q * 4 + 3] = pl.constant; }
+      // a copy of radius r covers r / (d tan(fov / 2)) of the screen's half height at distance d
+      const reach = 1 / (LOW_MIN_SIZE * Math.tan(((fov * Math.PI) / 180) / 2));
+      for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
     },
     dispose: () => {
       unsubscribe();

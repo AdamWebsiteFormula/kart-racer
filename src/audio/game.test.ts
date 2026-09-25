@@ -49,7 +49,7 @@ class FakeCtx {
 const SONG: Sample = { buffer: { duration: 40 } as AudioBuffer, start: 0.5, end: 32.5, gain: 1 };
 /** The recorded race and results songs, or none (the synth plays). */
 function bank(recorded: boolean): SampleBank {
-  return { onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => recorded && (k === 'race-harbour' || k === 'results'), song: async () => SONG } as unknown as SampleBank;
+  return { onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => recorded && (k === 'race-harbour' || k === 'results'), isReady: () => true, song: async () => SONG } as unknown as SampleBank;
 }
 const L: Listener = { playerId: 'p', position: [0, 0, 0], heading: 0, positionOf: () => undefined };
 const finish = (rank: number): RaceEvent => ({ type: 'finish', racerId: 'p', rank, tick: 1, dnf: false });
@@ -124,6 +124,80 @@ describe('the finish line (the sting plays alone, then the results song)', () =>
     const notes = inner.seq!.take(40 + STING_SECONDS.finish + 1);
     expect(notes.length).toBeGreaterThan(0);
     expect(Math.min(...notes.map((n) => n.time))).toBeGreaterThanOrEqual(40 + STING_SECONDS.finish - 1e-9);
+  });
+});
+
+describe('a recording still coming down (the files take turns: performance/loadQueue.ts)', () => {
+  /** A bank whose one recorded song (`key`) arrives when the test says so. */
+  function slowBank(key: string) {
+    let arrive!: (s: Sample) => void;
+    const file = new Promise<Sample>((r) => { arrive = r; });
+    const state = { ready: false };
+    const b = {
+      onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => k === key, isReady: (k: string) => k === key && state.ready, song: () => file,
+    } as unknown as SampleBank;
+    return { b, land: () => { state.ready = true; arrive(SONG); } };
+  }
+  const recordings = (ctx: FakeCtx) => ctx.sources.filter((s) => s.kind === 'buffer' && s.offset === SONG.start);
+
+  it('the synth plays the title until its recording is decoded, then the recording takes over', async () => {
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const slow = slowBank('title');
+    const audio = new GameAudio(bus, slow.b);
+    bus.unlock();
+    const ctx = FakeCtx.last;
+    audio.play('title');
+    const inner = audio as unknown as { seq: { drums: boolean } | null };
+    expect(inner.seq, 'the synth stands in while the file comes down').not.toBeNull();
+    await flush();
+    expect(recordings(ctx)).toHaveLength(0);
+    slow.land();
+    await flush();
+    expect(inner.seq, 'the synth stops as the recording starts').toBeNull();
+    expect(recordings(ctx)).toHaveLength(1);
+  });
+
+  it('a race song not in by the go: the synth plays it, drums and all, until the recording comes', async () => {
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const slow = slowBank('race-harbour');
+    const audio = new GameAudio(bus, slow.b);
+    bus.unlock();
+    const ctx = FakeCtx.last;
+    audio.newRace('raceSunrise', 'harbour-loop', 8);
+    const inner = audio as unknown as { seq: { drums: boolean } | null };
+    expect(inner.seq, 'silent till the go, as always').toBeNull();
+    audio.tick([{ type: 'go' }], [], L);
+    expect(inner.seq?.drums).toBe(true);
+    slow.land();
+    await flush();
+    expect(inner.seq).toBeNull();
+    expect(recordings(ctx)).toHaveLength(1);
+  });
+
+  it('the list in: the title\'s recording is asked for at once, the synth playing on till it lands', async () => {
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    let listed = false, asked = 0;
+    const b = {
+      onLoaded: null, onManifest: null as (() => void) | null, load: async () => undefined, get: () => undefined,
+      hasSong: (k: string) => listed && k === 'title', isReady: () => false, song: () => { asked++; return new Promise<Sample>(() => undefined); },
+    };
+    const audio = new GameAudio(bus, b as unknown as SampleBank);
+    bus.unlock();
+    audio.play('title');
+    const inner = audio as unknown as { seq: unknown };
+    expect(inner.seq, 'no list yet: the synth').not.toBeNull();
+    expect(asked).toBe(0);
+    listed = true;
+    b.onManifest?.();
+    expect(asked, 'asked for the moment the list is in').toBe(1);
+    expect(inner.seq, 'the synth plays on meanwhile').not.toBeNull();
+  });
+
+  it('a sound effect not in yet plays on the synth', () => {
+    const { audio, ctx } = game(true);
+    const n = ctx.sources.length;
+    audio.sfx('go');
+    expect(ctx.sources.slice(n).some((s) => s.kind === 'osc')).toBe(true);
   });
 });
 

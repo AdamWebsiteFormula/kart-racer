@@ -3,16 +3,16 @@
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, NoToneMapping, PCFShadowMap,
-  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Mesh, type MeshStandardMaterial,
+  Group, PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Mesh, type MeshStandardMaterial, type Texture,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
-import { AudioBus, finishLine, GameAudio, songForTrack, type Listener } from './audio/index.ts';
+import { AudioBus, finishLine, GameAudio, SampleBank, songForTrack, themeForTrack, type Listener } from './audio/index.ts';
 import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, isBodyId, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, DAY_GRADE, isBodyId, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { Warmup } from './performance/warmup.ts';
@@ -205,6 +205,44 @@ let topSpeed = 25;
 // always load it so; docs/sops/audio.md)
 const MUTED = new URLSearchParams(location.search).has('mute');
 const audio = new GameAudio(MUTED ? AudioBus.silent() : undefined);
+/** Background files: a few at a time, in the order the player meets them (performance/loadQueue.ts). */
+const files = new LoadQueue(3);
+/** The background line's turns, first to last. */
+const RANK = Object.freeze({
+  /** what a race being loaded still waits for: its racers' models (its course intro holds the countdown for them) */
+  race: -1,
+  /** then its own song (the go) and its first seconds of sound (countdown, go, engines, drift, boosts), and its final-lap sky */
+  raceNext: -0.5,
+  /** the menus' clicks (27 KB, on the first key press): ahead of the pictures, which a screen fetches for itself anyway */
+  clicks: -0.25,
+  /** the pictures on the next screens; the title song (on the first key press); the results song */
+  screens: 0,
+  /** the eight racers' models (every race); then a race's first seconds of sound (countdown, go, engines, drift, boosts) */
+  racers: 1,
+  /** the title's track's scenery models */
+  title: 2,
+  /** the item art the roulette flicks through and the item and hit sounds (the first race's first balloon) */
+  items: 3,
+  /** every other track's ground and scenery, the rest of the sounds (the course's creatures, the horns, the stings) */
+  rest: 4,
+});
+/** A sound's turn (audio/samples.ts SFX_TIERS) → its place in the line. */
+const SOUND_RANK = [RANK.clicks, RANK.racers, RANK.items, RANK.rest] as const;
+// every sound file waits its turn in the same line as the models (on the first key press all 102 and the
+// title song used to be asked for at once): a song takes a whole turn, a sound effect half of one. Tagged,
+// so a race start can move them: its first seconds' sounds forward, the title song back (raceLine)
+audio.bank.schedule = (job, tier, song) => song
+  ? files.add(job, song === 'title' ? (attract ? RANK.screens : RANK.rest) : song === 'results' ? RANK.screens : RANK.raceNext, 1, `song:${song}`)
+  : files.add(job, SOUND_RANK[Math.min(tier, SOUND_RANK.length - 1)], 0.5, `sfx:${tier}`);
+/**
+ * The line as a race or the menus want it: a race wants its racers' models, then its song and first
+ * seconds of sound, and the title song can wait; the menus want the title song back (a slow line's
+ * files still waiting move; nothing running stops).
+ */
+function raceLine(racing: boolean): void {
+  files.rerank('song:title', racing ? RANK.rest : RANK.screens);
+  if (racing) files.rerank('sfx:1', RANK.raceNext);
+}
 /** racerId → kart index for the current session (audio needs positions by racer) */
 const indexOf = new Map<string, number>();
 const kartOf = (id: string) => { const i = indexOf.get(id); return i === undefined ? undefined : session?.state.karts[i]; };
@@ -255,8 +293,15 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   if ((governor.newRace(performance.now() / 1000) && autoQuality()) || pendingQuality >= 0) { pendingQuality = -1; applyRender(); }
   if (import.meta.env.DEV) session.ai.drivePlayer = autopilot;
   lightSnap = true; // a new race starts under its own light, no fade from the last one
-  // the Final Lap Shift's painted sky, fetched and uploaded now so the shift fades straight into it
-  const shiftSky = preloadSky(def.finalLapShift?.sky).then((t) => { if (t) renderer.initTexture(t); });
+  // its starting sky's painting (the warm-up waits on it, below) wants the line: on a slow line the background
+  // files crowded it out, so nothing new starts till it is in (at most as long as the warm-up would wait)
+  const startSky = preloadSky(session.trackScene.sky);
+  files.hold(Promise.race([startSky, new Promise((r) => setTimeout(r, isAttract ? 2000 : 3000))]));
+  // the Final Lap Shift's painted sky comes down in the background, its turn in the line after the race's
+  // own models and song (the race start used to wait for it too: on Slow 4G the warm-up's 3 s cap). The
+  // leader is laps away from the shift, and a painting not in by then fades in when it lands (sky.ts paintSky)
+  const shiftId = def.finalLapShift?.sky;
+  if (shiftId) void files.add(() => preloadSky(shiftId), isAttract ? RANK.title : RANK.raceNext).then(uploadSky);
   scene.background = session.horizon.clone();
   scene.fog = new Fog(session.horizon.clone(), 140, 850);
   acc.reset();
@@ -278,12 +323,38 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
     race: series ? { index: series.kind === 'grandPrix' ? series.raceIndex : series.segment, count: series.trackIds.length } : undefined,
     cutLine: config.knockout?.cutLine, dailySeed: config.mode === 'daily' ? config.seed : undefined, touch: coarse,
   }) : null);
+  // racers whose model files were not in yet (a race picked early on a slow line) are asked for first; with a
+  // course intro, each is swapped in as it lands and the countdown waits for them a little (upgradeKarts)
+  dropUpgrade();
+  raceLine(!isAttract);
+  const missing = isAttract ? [] : session.waitingForModels();
+  if (missing.length) {
+    // (with an intro, turns of their own at the front of the line, moved back once the countdown starts: endIntro;
+    // the first, the player's own kart, comes down alone at the line's full speed)
+    let turn = 0;
+    const rank = intro ? RANK.race : RANK.racers;
+    void RACER_MODELS.want(missing, (job) => files.add(job, rank, turn++ === 0 ? files.limit : 1, 'race-models'));
+    if (intro) {
+      const u: Upgrade = { session, want: new Set(missing), staging: null, compiled: false, lastMove: -1 };
+      upgrade = u;
+      intro.waitFor(() => u.want.size === 0, MODEL_WAIT);
+    }
+  }
   // every shader this race can draw, hidden and off-screen ones too, compiles now, before the countdown runs
   warmup.begin(scene, camera, post?.enabled ?? false, performance.now() / 1000);
-  // and its skies' paintings, so neither is decoded and uploaded on the frame it first shows
-  warmup.waitFor(preloadSky(session.trackScene.sky));
-  warmup.waitFor(shiftSky);
+  // and its starting sky's painting, so it is not decoded and uploaded on the frame it first shows
+  warmup.waitFor(startSky);
   old?.dispose();
+}
+
+/**
+ * A painting fetched ahead of its moment (the Final Lap Shift's sky), decoded off the main thread and
+ * uploaded now, so the frame the shift first draws it does neither (25 to 28 ms together).
+ */
+function uploadSky(t: Texture | null): void {
+  if (!t) return;
+  const img = t.image as HTMLImageElement | undefined;
+  void (img?.decode?.() ?? Promise.resolve()).catch(() => undefined).then(() => renderer.initTexture(t));
 }
 
 /** A look from the UI's ids (the store has checked them against the unlocks). */
@@ -383,24 +454,22 @@ requestAnimationFrame(() => setTimeout(afterFirstPaint));
 setTimeout(afterFirstPaint, 300);
 bootScreens({ titleUp: () => ui.app.screen !== 'boot', firstFrame: () => session !== null && !warmup.active, canvas: renderer.domElement });
 
-/** Background files: a few at a time, in the order the player meets them (performance/loadQueue.ts). */
-const files = new LoadQueue(3);
 function backgroundFiles(): void {
   const base = import.meta.env.BASE_URL;
   // the title's own sky painting first (the page preloads its fonts): nothing else shares the line till then
   files.hold(Promise.race([preloadSky(session?.trackScene.sky), new Promise((r) => setTimeout(r, 2000))]));
-  // 0: the pictures on the next screens (racer portraits, track cards: ui-hud render/screens.ts addresses)
-  for (const c of CAST) void files.add(() => prefetchImage(`${base}art/racers/${c.id}.webp`), 0);
-  for (const id of TRACKS.keys()) void files.add(() => prefetchImage(`${base}art/tracks/${id}.webp`), 0);
-  // 1: the eight racers' model files (every race), 2: the title's track's scenery models. Both in, the
+  // the pictures on the next screens (racer portraits, track cards: ui-hud render/screens.ts addresses)
+  for (const c of CAST) void files.add(() => prefetchImage(`${base}art/racers/${c.id}.webp`), RANK.screens);
+  for (const id of TRACKS.keys()) void files.add(() => prefetchImage(`${base}art/tracks/${id}.webp`), RANK.screens);
+  // the eight racers' model files (every race), then the title's track's scenery models. Both in, the
   // title's race restarts, so the first thing a player sees is the modelled cast (fails soft: code-built)
   const titleTrack = TRACKS.get(ATTRACT_TRACK);
-  void Promise.all([RACER_MODELS.load(files.at(1)), PROP_MODELS.load(titleTrack ? trackProps(titleTrack) : [], files.at(2))])
+  void Promise.all([RACER_MODELS.load(files.at(RANK.racers)), PROP_MODELS.load(titleTrack ? trackProps(titleTrack) : [], files.at(RANK.title))])
     .then(() => { if (attract) startAttract(); warmLooks(); });
-  // 3: the item art the roulette flicks through (the first race's first balloon); 4: every other track's ground and scenery
-  for (const id of Object.keys(ITEM_ICONS)) void files.add(() => prefetchImage(itemArt(id)), 3);
-  void files.add(async () => preloadSurfaces(), 4);
-  void PROP_MODELS.load(undefined, files.at(4));
+  // the item art the roulette flicks through (the first race's first balloon); every other track's ground and scenery
+  for (const id of Object.keys(ITEM_ICONS)) void files.add(() => prefetchImage(itemArt(id)), RANK.items);
+  void files.add(async () => preloadSurfaces(), RANK.rest);
+  void PROP_MODELS.load(undefined, files.at(RANK.rest));
 }
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));
@@ -554,7 +623,75 @@ function endIntro(): void {
   if (intro && s?.player) chase.reset(s.player, intro.plan.rest);
   intro = null;
   ui.introCard(null);
+  dropUpgrade(); // what has not come by now stays code-built for this race (nothing new mid-race)
+  files.rerank('race-models', RANK.racers); // and its own turns for them wait behind its song and sounds
   acc.reset(); // the countdown starts from this frame, never catching up on the flight
+}
+
+/** Seconds a race's countdown may wait past its course intro for racer models still coming down. */
+const MODEL_WAIT = 2;
+/**
+ * A race built before some of its racers' model files were in (24 Sept 2026: on Fast 4G a race picked
+ * in the first 5.5 s kept the code-built karts to the flag). Its racers are asked for first (load);
+ * each model that lands during the course intro is built beside the race, its textures uploaded and
+ * shaders compiled in the background (performance/warmup.ts precompile), then swapped in on a cut
+ * between moves, or while the countdown waits at the flight's end (CourseIntro.waitFor, MODEL_WAIT).
+ */
+interface Upgrade { session: RaceSession; want: Set<string>; staging: Group | null; compiled: boolean; lastMove: number }
+let upgrade: Upgrade | null = null;
+
+/** One frame of the race's upgrade (while its course intro plays). */
+function upgradeKarts(): void {
+  const u = upgrade;
+  if (!u) return;
+  if (u.session !== session || !intro) { dropUpgrade(); return; }
+  // a file that failed leaves its racer code-built
+  for (const id of u.want) if (RACER_MODELS.settled(id) && !RACER_MODELS.has(id)) u.want.delete(id);
+  if (!u.staging) {
+    const landed = new Set([...u.want].filter((id) => RACER_MODELS.has(id)));
+    if (landed.size) {
+      const g = new Group();
+      g.name = 'kart-staging';
+      g.visible = false;
+      g.position.y = -1e4; // far from every lens: the rivals' fader leaves its copies alone
+      scene.add(g);
+      if (u.session.stageModels(landed, g) > 0) {
+        u.staging = g;
+        void warmup.precompile(g, camera, scene, post?.enabled ?? false).then(() => {
+          u.compiled = true;
+          if (upgrade !== u) freeStaging(g); // dropped while compiling: its materials could only go now
+        });
+      } else {
+        g.removeFromParent();
+        for (const id of landed) u.want.delete(id);
+      }
+    }
+  }
+  // swapped on a cut, before the flight moves, or while the countdown waits for them: never mid-move
+  const move = intro.move, cut = move !== u.lastMove;
+  u.lastMove = move;
+  if (u.staging && u.compiled && (cut || !intro.moving || intro.flightOver)) {
+    for (const id of u.session.swapInModels()) u.want.delete(id);
+    u.staging.removeFromParent();
+    u.staging = null;
+    u.compiled = false;
+  }
+}
+
+/** Stop upgrading (the countdown started, or another race loaded): karts staged and not swapped in are freed. */
+function dropUpgrade(): void {
+  const u = upgrade;
+  upgrade = null;
+  // (a staging still compiling is freed when its compile is done: its materials must live till then)
+  if (u?.staging && u.compiled) freeStaging(u.staging);
+}
+
+function freeStaging(g: Group): void {
+  g.removeFromParent();
+  g.traverse((o) => {
+    const m = (o as Mesh).material;
+    for (const x of Array.isArray(m) ? m : m ? [m] : []) if (!isShared(x)) x.dispose();
+  });
 }
 
 /** Attract mode: a slow TV camera swinging around whoever leads. */
@@ -621,6 +758,7 @@ function step(now: number): void {
       if (import.meta.env.DEV && devIntroAt !== null) intro.time = Math.min(devIntroAt, intro.plan.duration - 1e-3);
       if (intro.cardLeaving) ui.introPhase('out');
     }
+    upgradeKarts();
     if (intro.done) endIntro();
   }
   let simDt = 0;
@@ -690,6 +828,8 @@ function step(now: number): void {
       map: cur.track.minimap, itemDefs, trailing: cur.items.isTrailing(pi),
     }, now);
   }
+  // the governor's Low tier draws only the scenery copies in view (track-builder scene.ts cull): weak and software GPUs
+  cur.trackScene.cull(camera, !renderer.shadowMap.enabled, (scene.fog as Fog | null)?.far);
   post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
   if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
   // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again
@@ -745,6 +885,9 @@ requestAnimationFrame(frame);
 
 // dev hook: tuning and the perf check read the live objects from the console
 if (import.meta.env.DEV) {
+  /** dev: the last kart.audioLoad()'s files, as they come down, and a way to ask its bank for a song */
+  let devAudioLog: unknown[] = [];
+  let devSong: ((key: string) => void) | null = null;
   (globalThis as unknown as Record<string, unknown>).kart = {
     get session() { return session; }, ui, audio, vfx, post, renderer, governor, warmup,
     /** dev: run `n` frames of the real loop by hand, `ms` apart (works while the tab is hidden) */
@@ -779,5 +922,42 @@ if (import.meta.env.DEV) {
     /** dev: the podium, when there is one */
     get podium() { return podium; },
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
+    /**
+     * dev: the sound files coming down as the game asks for them on the first key press, for checks
+     * under ?mute (which never makes an audio context): the real bank through the real background line
+     * at the same turns, the title song asked for once the list is in (and `trackId`'s race song, if
+     * given), each file "decoded" by a stand-in that makes silence of its length (128 kbps) so the trim
+     * and level analysis runs as it would, and nothing is played. Each file's start and end (ms from the
+     * call) and size, in the order they started; kart.audioLog holds it as it fills.
+     */
+    audioLoad: async (trackId?: string) => {
+      const t0 = performance.now(), log: { file: string; start: number; end: number; kb: number }[] = [];
+      devAudioLog = log;
+      const traced = (async (input: string) => {
+        const e = { file: String(input).replace(import.meta.env.BASE_URL, ''), start: Math.round(performance.now() - t0), end: -1, kb: 0 };
+        log.push(e);
+        const r = await fetch(input);
+        const bytes = await r.arrayBuffer();
+        e.end = Math.round(performance.now() - t0);
+        e.kb = Math.round(bytes.byteLength / 1024);
+        return new Response(bytes, { status: r.status });
+      }) as unknown as typeof fetch;
+      const silence = (bytes: number) => {
+        const rate = 44100, length = Math.max(1, Math.round(((bytes * 8) / 128000) * rate)), chs = [new Float32Array(length), new Float32Array(length)];
+        return { sampleRate: rate, numberOfChannels: 2, length, duration: length / rate, getChannelData: (c: number) => chs[c] } as unknown as AudioBuffer;
+      };
+      const stand = { decodeAudioData: async (b: ArrayBuffer) => silence(b.byteLength) } as unknown as BaseAudioContext;
+      const bank = new SampleBank(import.meta.env.BASE_URL, traced);
+      bank.schedule = audio.bank.schedule;
+      const songs: Promise<unknown>[] = [];
+      devSong = (key) => songs.push(bank.song(stand, key));
+      bank.onManifest = () => { songs.push(bank.song(stand, 'title')); if (trackId) songs.push(bank.song(stand, themeForTrack(trackId))); };
+      await bank.load(stand);
+      await Promise.all(songs);
+      return log;
+    },
+    /** dev: a race's song asked for from the last kart.audioLoad()'s bank, as a race start asks for it (its turn in the line) */
+    audioSong: (trackId: string) => { devSong?.(themeForTrack(trackId)); },
+    get audioLog() { return devAudioLog; },
   };
 }

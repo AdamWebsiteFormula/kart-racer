@@ -46,6 +46,13 @@ export class GhostView {
     this.root.add(mesh);
   }
 
+  /** Free its own see-through materials (it was replaced: its racer's model came in, session.ts). */
+  dispose(): void {
+    this.root.removeFromParent();
+    for (const m of this.mats) m.dispose();
+    this.mats.length = 0;
+  }
+
   /** `ticks`: race time in sim ticks, fractional (the live kart is drawn at tick - 1 + alpha). */
   place(ticks: number, near?: { x: number; y: number; z: number }): Object3D {
     const p = ghostPose(this.path, ticks, this.pose);

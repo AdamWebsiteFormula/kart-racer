@@ -50,6 +50,85 @@ describe('LoadQueue (background files take turns)', () => {
     expect(log).toEqual(['busy', 'high', 'low']);
   });
 
+  it('light jobs share a turn (sounds two to a turn), heavy ones take a whole one, and the order stays strict', async () => {
+    const log: string[] = [];
+    const q = new LoadQueue(3);
+    const sounds = Array.from({ length: 8 }, (_, i) => gate(log, `s${i}`));
+    const model = gate(log, 'model');
+    const all = [...sounds.slice(0, 6).map((g) => q.add(g.job, 0, 0.5)), q.add(model.job, 1, 1), ...sounds.slice(6).map((g) => q.add(g.job, 2, 0.5))];
+    await tick();
+    expect(log, 'six half-weight sounds fill a line of 3').toEqual(['s0', 's1', 's2', 's3', 's4', 's5']);
+    sounds[0].open();
+    await tick();
+    expect(log, 'one sound done frees half a turn: the model (a whole one) still waits, and the sounds behind it too').toEqual(['s0', 's1', 's2', 's3', 's4', 's5']);
+    sounds[1].open();
+    await tick();
+    expect(log).toEqual(['s0', 's1', 's2', 's3', 's4', 's5', 'model']);
+    sounds[2].open();
+    await tick();
+    expect(log.slice(-1)).toEqual(['s6']);
+    for (const g of [...sounds, model]) g.open();
+    await Promise.all(all);
+    expect(log).toEqual(['s0', 's1', 's2', 's3', 's4', 's5', 'model', 's6', 's7']);
+    expect(q.pending).toBe(0);
+  });
+
+  it('at(rank, weight) schedules at that weight; a job heavier than the room left still runs alone', async () => {
+    const log: string[] = [];
+    const q = new LoadQueue(1);
+    const a = gate(log, 'a'), b = gate(log, 'b');
+    void q.at(0, 0.5)(a.job);
+    void q.at(0, 0.5)(b.job);
+    await tick();
+    expect(log).toEqual(['a', 'b']);
+    a.open(); b.open();
+    const big = new LoadQueue(0.5);
+    expect(await big.add(async () => 'whole', 0, 1), 'an empty queue always runs its next job').toBe('whole');
+  });
+
+  it('a job can take the whole line: it waits for the line to clear, runs alone, and nothing starts beside it', async () => {
+    const log: string[] = [];
+    const q = new LoadQueue(3);
+    const a = gate(log, 'a'), mine = gate(log, 'mine'), b = gate(log, 'b');
+    void q.add(a.job, 1);
+    const all = [q.add(mine.job, 0, 3), q.add(b.job, 0, 1), q.add(async () => { log.push('c'); }, 0, 1)];
+    await tick();
+    expect(log, 'the whole-line job waits for the running one').toEqual(['a']);
+    a.open();
+    await tick();
+    expect(log).toEqual(['a', 'mine']);
+    await tick();
+    expect(log, 'alone').toEqual(['a', 'mine']);
+    mine.open();
+    await tick();
+    expect(log).toEqual(['a', 'mine', 'b', 'c']);
+    b.open();
+    await Promise.all(all);
+    expect(await q.add(async () => 'capped', 0, 99)).toBe('capped');
+  });
+
+  it('rerank moves waiting jobs by tag (a race start: its sounds forward, the title song back), keeping their order in time', async () => {
+    const log: string[] = [];
+    const q = new LoadQueue(1);
+    const busy = gate(log, 'busy');
+    void q.add(busy.job);
+    const jobs = [
+      q.add(async () => { log.push('title'); }, 0, 1, 'song:title'),
+      q.add(async () => { log.push('ui'); }, 0, 0.5, 'sfx:0'),
+      q.add(async () => { log.push('models'); }, 1),
+      q.add(async () => { log.push('count'); }, 1, 0.5, 'sfx:1'),
+      q.add(async () => { log.push('go'); }, 1, 0.5, 'sfx:1'),
+      q.add(async () => { log.push('racer'); }, -1, 1, 'race-models'),
+      q.add(async () => { log.push('race song'); }, -0.5, 1, 'song:race'),
+    ];
+    q.rerank('sfx:1', -0.5);
+    q.rerank('song:title', 4);
+    q.rerank('nothing', 0);
+    busy.open();
+    await Promise.all(jobs);
+    expect(log).toEqual(['busy', 'racer', 'count', 'go', 'race song', 'ui', 'models', 'title']);
+  });
+
   it('passes a failure to the caller and keeps going', async () => {
     const q = new LoadQueue(1);
     const bad = q.add(async () => { throw new Error('404'); });

@@ -3,8 +3,10 @@ import { AUDIO } from './constants.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
 import {
   bakeLoop, bandRate, bandWeights, barLength, cutSfx, ENGINE_BANDS, envelope, FANFARE_SECONDS, kWeight, leadIn, LEVELS, levelGain, loopPhase, loopPoints, meanRms,
-  evenLoop, cutDb, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, shapeEdges, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
+  evenLoop, cutDb, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, SFX_TIERS, sfxTier, shapeEdges, SONG_TIER, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
 } from './samples.ts';
+import { LoadQueue } from '../performance/loadQueue.ts';
+import MANIFEST from '../../public/audio/manifest.json';
 import { engineCutoff, OFFROAD_BY_TRACK, racerPitch, ROAD_BY_TRACK } from './engine.ts';
 import { PATCHES } from './sfx.ts';
 import { MOMENT, SFX, sfxBody, SONG_MOMENT, SONGS, songBody } from '../../scripts/elevenlabs/catalog.ts';
@@ -382,6 +384,52 @@ describe('sample bank', () => {
     expect(await bank.song(ctx, 'nope')).toBeNull();
     // a loop's wrap is baked seamless and its loop points set
     expect(bank.get('engine-mid')!.loopEnd).toBeCloseTo(0.1, 6);
+  });
+
+  it('asks for every file through its schedule, in turn: the menus\' clicks, the race start, the items and hits, the rest; songs when asked', async () => {
+    const ids = ['roar', 'hit', 'uiBack', 'yelp:pip', 'engine-mid', 'horn:gus', 'go', 'balloon', 'uiMove', 'road-wood', 'count', 'drift'];
+    const manifest = { sfx: Object.fromEntries(ids.map((id) => [id, { url: `audio/sfx/${id}.mp3` }])), music: { title: { url: 'audio/music/title.mp3', bpm: 128 }, 'race-meadow': { url: 'audio/music/race-meadow.mp3', bpm: 146 } } };
+    const fetched: string[] = [];
+    const f = (async (u: string) => {
+      fetched.push(String(u).replace(/^\/audio\/(sfx\/|music\/)?|\.(mp3|json)$/g, ''));
+      return { ok: true, json: async () => manifest, arrayBuffer: async () => new ArrayBuffer(8) };
+    }) as unknown as typeof fetch;
+    const data = new Float32Array(4410);
+    const ctx = { decodeAudioData: async () => ({ duration: 0.1, sampleRate: 44100, numberOfChannels: 1, getChannelData: () => data.slice() }) as unknown as AudioBuffer } as unknown as BaseAudioContext;
+    // the real line, one file at a time: the order it runs them in is the order they are wanted in
+    const line = new LoadQueue(1);
+    const asked: { tier: number; song?: string }[] = [];
+    const bank = new SampleBank('/', f);
+    bank.schedule = (job, tier, song) => { asked.push({ tier, song }); return line.add(job, tier); };
+    let manifestIn = 0;
+    // as GameAudio does: the title's recording is asked for the moment the list is in
+    bank.onManifest = () => { manifestIn++; void bank.song(ctx, 'title'); };
+    await bank.load(ctx);
+    expect(manifestIn).toBe(1);
+    expect(bank.isReady('title')).toBe(true);
+    expect(bank.isReady('race-meadow'), 'a race\'s song only when it is asked for').toBe(false);
+    expect(fetched).not.toContain('race-meadow');
+    await bank.song(ctx, 'race-meadow');
+    expect(bank.isReady('race-meadow')).toBe(true);
+    expect(fetched).toEqual(['manifest', 'title', 'uiBack', 'uiMove', 'engine-mid', 'go', 'count', 'drift', 'hit', 'yelp:pip', 'balloon', 'roar', 'horn:gus', 'road-wood', 'race-meadow']);
+    // each file once; the songs at their own turn, flagged as songs
+    expect(asked).toHaveLength(ids.length + 2);
+    expect(asked.filter((a) => a.song).map((a) => [a.song, a.tier])).toEqual([['title', SONG_TIER], ['race-meadow', SONG_TIER]]);
+    expect(asked.filter((a) => !a.song).map((a) => a.tier)).toEqual([0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3]);
+    for (const id of ids) expect(bank.get(id), id).toBeDefined();
+  });
+
+  it('every sound the game ships has a turn: the menus\' first, then the race start (countdown, go, engines, drift, boosts), the items and hits, the rest', () => {
+    const ids = Object.keys(MANIFEST.sfx);
+    for (const tier of SFX_TIERS) for (const id of tier) expect(ids, `${id} is a shipped sound`).toContain(id);
+    expect(SFX_TIERS[0]).toEqual(['uiMove', 'uiConfirm', 'uiBack']);
+    for (const id of ['count', 'go', 'engine-idle', 'engine-mid', 'engine-high', 'drift', 'boost1', 'boost2', 'boost3', 'boostStart']) expect(sfxTier(id), id).toBe(1);
+    for (const id of ['balloon', 'rouletteTick', 'itemReady', 'throw', 'hit', 'spin', 'hitConfirm', 'yelp:gus']) expect(sfxTier(id), id).toBe(2);
+    for (const id of ['roar', 'krakenRise', 'honk', 'whaleSong', 'geyser', 'horn:pip', 'road-wood', 'finish', 'shift']) expect(sfxTier(id), id).toBe(3);
+    // the first two turns are small: a few hundred KB between them, so a race's first seconds come early
+    const counts = [0, 1, 2, 3].map((t) => ids.filter((id) => sfxTier(id) === t).length);
+    expect(counts[0] + counts[1]).toBeLessThan(25);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(ids.length);
   });
 
   it('keeps title and results decoded always, and the two most recent race songs', async () => {

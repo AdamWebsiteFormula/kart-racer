@@ -70,6 +70,11 @@ export const INTRO = Object.freeze({
   balloonClear: 3.5,
   /** metres between the points a low move is laid through along the road */
   step: 3,
+  /**
+   * Seconds between a held title card leaving and the countdown (CourseIntro.waitFor: the card stayed
+   * up while the race waited on something): its exit (380 ms, ui-hud intro.css) and a breath.
+   */
+  holdBeat: 0.45,
   /** a low move keeps this far inside the road's walls (on top of the chase camera's own margin) */
   wallMargin: 0.4,
 });
@@ -490,6 +495,9 @@ export function sampleIntro(plan: IntroPlan, time: number, reduced: boolean, out
 /**
  * One race's intro as it plays: its clock runs only once the race's shaders are ready (performance
  * warm-up: never a compile stall mid-move) and while the game is not paused; a skip ends it at once.
+ * A race can have its countdown wait past the flight for something (waitFor: its racers' models, on
+ * a slow line), with a cap: the camera rests on the chase camera's pose and the title card stays up
+ * until it comes, then leaves, and the countdown follows a beat later (INTRO.holdBeat).
  */
 export class CourseIntro {
   readonly plan: IntroPlan;
@@ -498,23 +506,78 @@ export class CourseIntro {
   /** the flight has started to move (the warm-up is over and its first frame is drawn) */
   moving = false;
   private skipped = false;
+  /** what the countdown waits for past the flight, and for how long at most (seconds past its end) */
+  private hold: { ready: () => boolean; cap: number } | null = null;
+  /** seconds since the flight ended (played through or skipped): the wait */
+  private over = 0;
+  /** the clock (flight and wait) when the wait was over: what it waited for came, or the cap was a card's exit away */
+  private freeAt: number | null = null;
   private readonly view: IntroView = { pos: [0, 0, 0], look: [0, 0, 0], fov: CAM.fov, roll: 0, move: 0 };
 
   constructor(plan: IntroPlan) { this.plan = plan; }
 
-  /** Over: played through or skipped. */
-  get done(): boolean { return this.skipped || this.time >= this.plan.duration; }
+  /** The flight is over: played through or skipped (the countdown may still wait: waitFor). */
+  get flightOver(): boolean { return this.skipped || this.time >= this.plan.duration; }
+
+  /** Seconds since the flight began, the wait past its end included. */
+  get clock(): number { return this.time + this.over; }
+
+  /**
+   * Over: the flight played through or skipped, and anything waited for is here (or the wait ran
+   * out). Free before the card was due, the countdown comes on time (a skip: at once); later, a beat
+   * after the card leaves.
+   */
+  get done(): boolean {
+    if (!this.flightOver) return false;
+    if (!this.hold) return true;
+    if (this.freeAt === null) return false;
+    return this.freeAt <= (this.skipped ? this.time : this.plan.cardOut) || this.clock >= this.freeAt + INTRO.holdBeat - 1e-9;
+  }
 
   /** Skip what is left (any button or a tap). */
-  skip(): void { this.skipped = true; }
+  skip(): void { this.skipped = true; this.release(); }
+
+  /**
+   * Hold the countdown past the flight until `ready()` (checked each frame), at most `cap` seconds
+   * past the flight's end; the title card stays up meanwhile.
+   */
+  waitFor(ready: () => boolean, cap: number): void {
+    this.hold = { ready, cap };
+    this.release();
+  }
+
+  /** Whether the countdown is being held past the flight (the flight over, the wait not). */
+  get waiting(): boolean { return this.flightOver && !this.done; }
 
   /** The title card is leaving (or gone). */
-  get cardLeaving(): boolean { return this.done || this.time >= this.plan.cardOut; }
+  get cardLeaving(): boolean {
+    if (this.done) return true;
+    if (!this.hold) return this.time >= this.plan.cardOut;
+    return this.freeAt !== null && (this.time >= this.plan.cardOut || this.flightOver);
+  }
 
-  /** One drawn frame: `dt` seconds of flight, when it runs (the caller passes 0 while paused or warming up). */
+  /** One drawn frame: `dt` seconds of flight (or of the wait past it), when it runs (the caller passes 0 while paused or warming up). */
   advance(dt: number): void {
     if (this.done) return;
-    this.time = Math.min(this.plan.duration, this.time + Math.max(0, dt));
+    const d = Math.max(0, dt);
+    if (this.flightOver) this.over += d; else this.time = Math.min(this.plan.duration, this.time + d);
+    this.release();
+  }
+
+  /** Latch the moment the wait is over: what it waits for is here, or the cap is a card's exit away. */
+  private release(): void {
+    const h = this.hold;
+    if (!h || this.freeAt !== null) return;
+    if (h.ready() || (this.flightOver && this.over >= h.cap - INTRO.holdBeat)) this.freeAt = this.clock;
+  }
+
+  /** The move on screen (plan.moves index; its length once the flight is over): a change from the last frame is a cut. */
+  get move(): number {
+    if (this.flightOver) return this.plan.moves.length;
+    const m = this.plan.moves;
+    let i = 0;
+    while (i < m.length - 1 && this.time >= m[i].start + m[i].secs) i++;
+    return i;
   }
 
   /** Race time to draw the course at meanwhile (its creatures and hazards): `raceTime` (the sim's, frozen at tick 0) less the flight still to come, so it runs on into the countdown without a jump. */
@@ -522,8 +585,8 @@ export class CourseIntro {
     return this.done ? raceTime : raceTime - (this.plan.duration - this.time);
   }
 
-  /** The camera now. */
+  /** The camera now (the chase camera's rest pose once the flight is over, through any wait). */
   camera(reduced: boolean): Readonly<IntroView> {
-    return sampleIntro(this.plan, this.done ? this.plan.duration : this.time, reduced, this.view);
+    return sampleIntro(this.plan, this.flightOver ? this.plan.duration : this.time, reduced, this.view);
   }
 }

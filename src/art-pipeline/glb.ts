@@ -37,6 +37,17 @@ export function fitToKart(min: V3, max: V3, fit = KART_FIT): { scale: number; of
 export class RacerModels {
   private readonly templates = new Map<string, Group>();
   private loading: Promise<void> | null = null;
+  private list: Promise<ModelManifest | null> | null = null;
+  /** the manifest once in (null: not yet, or none) */
+  private manifest: ModelManifest | null = null;
+  private listFailed = false;
+  /** racers not started yet, the most wanted first (want() puts a race's own racers at the front) */
+  private todo: string[] | null = null;
+  /** each racer's load, from the moment it starts */
+  private readonly started = new Map<string, Promise<void>>();
+  /** racers whose file failed (they stay on their code-built karts) */
+  private readonly failed = new Set<string>();
+  private loader: GLTFLoader | null = null;
   private readonly base: string;
   private readonly get_: typeof fetch;
 
@@ -45,24 +56,70 @@ export class RacerModels {
     this.get_ = f;
   }
 
+  /** The manifest, fetched once (not through the line: it is a few hundred bytes). */
+  private files(): Promise<ModelManifest | null> {
+    this.list ??= this.get_(`${this.base}models/manifest.json`)
+      .then((r) => (r.ok ? r.json() as Promise<ModelManifest> : null))
+      .catch(() => null)
+      .then((m) => {
+        this.manifest = m && typeof m === 'object' ? m : null;
+        this.listFailed = this.manifest === null;
+        this.todo ??= this.manifest ? Object.keys(this.manifest).filter((id) => !this.started.has(id)) : [];
+        return this.manifest;
+      });
+    return this.list;
+  }
+
   /**
    * Fetch the manifest and every model, each file through `schedule` (performance/loadQueue.ts: a
-   * few at a time, in turn). Safe to call again; fails soft (no file: code karts).
+   * few at a time, in turn); each turn loads the most wanted racer not started yet, so a race asking
+   * for its own racers (want) jumps the line. Safe to call again; fails soft (no file: code karts).
    */
   load(schedule: Schedule = atOnce): Promise<void> {
     this.loading ??= (async () => {
-      const r = await this.get_(`${this.base}models/manifest.json`).catch(() => null);
-      if (!r?.ok) return;
-      const manifest = (await r.json().catch(() => ({}))) as ModelManifest;
-      const loader = new GLTFLoader();
-      await Promise.all(Object.entries(manifest).map(([racerId, spec]) => schedule(async () => {
-        try {
-          const gltf = await loader.loadAsync(`${this.base}${spec.url}`);
-          this.templates.set(racerId, rigRacer(this.fitted(gltf.scene, spec.yaw ?? 0), racerId));
-        } catch { /* a broken file leaves that racer on its code-built kart */ }
-      })));
+      const manifest = await this.files();
+      if (!manifest) return;
+      await Promise.all(Object.keys(manifest).map(() => schedule(() => this.next())));
     })();
     return this.loading;
+  }
+
+  /**
+   * These racers first (a race picked before their models came down: main.ts, its racers, the
+   * player's first): each one not started yet moves to the front of the line and gets a turn of its
+   * own through `schedule` (a better rank than the rest). Resolves once each of them is in or failed.
+   */
+  want(ids: readonly string[], schedule: Schedule): Promise<void> {
+    return (async () => {
+      const manifest = await this.files();
+      if (!manifest) return;
+      const listed = ids.filter((id) => Object.hasOwn(manifest, id));
+      const fresh = listed.filter((id) => !this.started.has(id));
+      this.todo = [...fresh, ...(this.todo ?? []).filter((id) => !fresh.includes(id))];
+      // each turn takes the front of the line: the wanted racers, whichever turn comes first
+      await Promise.all(fresh.map(() => schedule(() => this.next())));
+      await Promise.all(listed.map((id) => this.started.get(id)));
+    })();
+  }
+
+  /** Load the most wanted racer not started yet (nothing when every one has started). */
+  private next(): Promise<void> {
+    const id = this.todo?.shift();
+    const spec = id !== undefined ? this.manifest?.[id] : undefined;
+    if (id === undefined || !spec) return Promise.resolve();
+    const p = (async () => {
+      try {
+        const gltf = await (this.loader ??= new GLTFLoader()).loadAsync(`${this.base}${spec.url}`);
+        this.templates.set(id, rigRacer(this.fitted(gltf.scene, spec.yaw ?? 0), id));
+      } catch { this.failed.add(id); /* a broken file leaves that racer on its code-built kart */ }
+    })();
+    this.started.set(id, p);
+    return p;
+  }
+
+  /** Nothing more will come for this racer: its model is in, its file failed, or it has none (once the list is in or failed). */
+  settled(racerId: string): boolean {
+    return this.templates.has(racerId) || this.failed.has(racerId) || this.listFailed || (this.manifest !== null && !Object.hasOwn(this.manifest, racerId));
   }
 
   private fitted(scene: Object3D, yaw: number): Group {

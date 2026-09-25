@@ -1,7 +1,7 @@
 // One race, from its config to its disposal: track, scene objects, race manager, items, AI
 // and kart views. The game builds a fresh session for every race, restart and attract loop.
 // Tick order is the one every SOP assumes: AI fills inputs → manager.step → items.step → views.
-import { Color, Group, type Object3D, type Scene } from 'three';
+import { Color, Group, type Material, type Object3D, type Scene } from 'three';
 import { AiDriver } from '../ai-driver/index.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { SIM_DT } from '../kart-controller/step.ts';
@@ -15,7 +15,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, recolourBackdrop, type Rgb, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
+import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, RACER_MODELS, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { splitShadowDepth } from '../performance/shadowDepth.ts';
 import { GhostView } from './ghostView.ts';
@@ -72,6 +72,14 @@ export class RaceSession {
   private readonly startLight: SkyLight;
   /** a Final Lap Shift's sky change under way: the fog and the horizon ring ease from → to with the dome's fade */
   private skyChange: { horizon: [Color, Color]; ring: [Rgb, Rgb]; tint: [Rgb, Rgb] } | null = null;
+  /** each kart's look (the player's paint and body), and whether it was built code-only because its racer's model file was not in yet */
+  private readonly looks: KartLook[] = [];
+  private readonly coded: boolean[] = [];
+  /** Time Trial's ghost as asked for, and whether it too waits for its racer's model */
+  private ghostSpec: { path: GhostPath; racerId: string; look: KartLook; coded: boolean } | null = null;
+  /** model karts built beside the race, ready to swap in (stageModels, swapInModels) */
+  private staged: { i: number; mesh: Object3D; flames: ExhaustFlames }[] = [];
+  private stagedGhost: GhostView | null = null;
 
   /** `look`: the player's paint and body (design §10, cosmetic only); rivals always wear their own */
   constructor(scene: Scene, def: TrackDefinition, config: RaceConfig, look: KartLook = {}) {
@@ -102,7 +110,9 @@ export class RaceSession {
     this.fader = new KartFader(scene);
     this.views = this.manager.state.karts.map((s, i) => {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
-      const mesh = buildRacerMesh(config.racers[i].racerId, config.racers[i].isPlayer ? look : {}) ?? buildKartMesh(r.accent, r.secondary);
+      this.looks.push(config.racers[i].isPlayer ? look : {});
+      this.coded.push(!RACER_MODELS.has(config.racers[i].racerId));
+      const mesh = buildRacerMesh(config.racers[i].racerId, this.looks[i]) ?? buildKartMesh(r.accent, r.secondary);
       const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s, i);
       this.flames.push(new ExhaustFlames(mesh, config.racers[i].racerId));
       // a rival against the lens turns to a ghost, flames and all; yours never does
@@ -183,10 +193,80 @@ export class RaceSession {
 
   /** Time Trial: race against this recorded run (a picture only: it never touches the race). */
   setGhost(path: GhostPath, racerId: string, look: KartLook = {}): void {
-    if (this.ghost) this.group.remove(this.ghost.root);
+    this.ghost?.dispose();
     this.ghost = new GhostView(path, racerId, look);
+    this.ghostSpec = { path, racerId, look, coded: !RACER_MODELS.has(racerId) };
     this.ghost.place(0);
     this.group.add(this.ghost.root);
+  }
+
+  /**
+   * The racers whose karts (or ghost) are code-built only because their model file was not in when
+   * the race was built (a race picked early on a slow line): the player's first. main.ts asks for
+   * them first and swaps them in during the course intro (stageModels, swapInModels).
+   */
+  waitingForModels(): string[] {
+    const out: string[] = [];
+    const add = (id: string) => { if (!out.includes(id)) out.push(id); };
+    if (this.playerIndex >= 0 && this.coded[this.playerIndex]) add(this.config.racers[this.playerIndex].racerId);
+    if (this.ghostSpec?.coded) add(this.ghostSpec.racerId);
+    this.coded.forEach((c, i) => { if (c) add(this.config.racers[i].racerId); });
+    return out.filter((id) => !RACER_MODELS.settled(id) || RACER_MODELS.has(id));
+  }
+
+  /**
+   * Model karts for the waiting racers whose models are in now (of `ids`), built as the race would
+   * build them (the player's own look and materials, the flames, a rival's see-through copies) into
+   * `into`, beside the race, so their shaders compile and textures upload before swapInModels() puts
+   * them in place. `into` is the caller's (hidden, never inside the race's group: a compile under
+   * way must not see its materials freed with the race). Returns how many were built.
+   */
+  stageModels(ids: ReadonlySet<string>, into: Object3D): number {
+    let n = 0;
+    this.coded.forEach((c, i) => {
+      const id = this.config.racers[i].racerId;
+      if (!c || !ids.has(id) || !RACER_MODELS.has(id) || this.staged.some((x) => x.i === i)) return;
+      const mesh = buildRacerMesh(id, this.looks[i]);
+      if (!mesh) return;
+      const flames = new ExhaustFlames(mesh, id);
+      if (i === this.playerIndex) ownKartMaterials(mesh); else this.fader.add(mesh);
+      into.add(mesh);
+      this.staged.push({ i, mesh, flames });
+      n++;
+    });
+    const g = this.ghostSpec;
+    if (g?.coded && ids.has(g.racerId) && RACER_MODELS.has(g.racerId) && !this.stagedGhost) {
+      this.stagedGhost = new GhostView(g.path, g.racerId, g.look);
+      into.add(this.stagedGhost.root);
+      n++;
+    }
+    return n;
+  }
+
+  /** Put the staged model karts in place of the code-built ones (the animation carries on); the old ones are freed. Returns the racers swapped. */
+  swapInModels(): string[] {
+    const out: string[] = [];
+    for (const { i, mesh, flames } of this.staged) {
+      const old = this.views[i].setChassis(mesh);
+      if (i !== this.playerIndex) this.fader.remove(old);
+      this.flames[i] = flames;
+      this.coded[i] = false;
+      freeKart(old);
+      out.push(this.config.racers[i].racerId);
+    }
+    this.staged = [];
+    const g = this.stagedGhost, spec = this.ghostSpec;
+    if (g && spec) {
+      this.ghost?.dispose();
+      this.ghost = g;
+      spec.coded = false;
+      g.place(this.manager.state.tick);
+      this.group.add(g.root);
+      if (!out.includes(spec.racerId)) out.push(spec.racerId);
+    }
+    this.stagedGhost = null;
+    splitShadowDepth(this.group);
+    return out;
   }
 
   /** Time Trial: this run's ghost path so far ('' when not recording). Complete once the player has finished. */
@@ -216,6 +296,15 @@ export class RaceSession {
       for (const x of mats) if (!isShared(x as never)) x.dispose();
     });
   }
+}
+
+/** A kart's own materials, freed (the racers' shared ones stay: every race and the showroom use them). */
+function freeKart(root: Object3D): void {
+  root.removeFromParent();
+  root.traverse((o) => {
+    const m = (o as unknown as { material?: Material | Material[] }).material;
+    for (const x of Array.isArray(m) ? m : m ? [m] : []) if (!isShared(x as never)) x.dispose();
+  });
 }
 
 const lerpRgb = (a: Rgb, b: Rgb, k: number): Rgb => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
