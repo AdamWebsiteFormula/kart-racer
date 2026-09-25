@@ -590,6 +590,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .row.r1 .rk { color: var(--gold); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
 .row.r2 .rk { color: var(--silver); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
 .row.r3 .rk { color: var(--bronze); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+/* a solo run's results (Time Trial, Daily): one row and no place to show ("1st" of one), as in the HUD */
+.rows .row:only-child { grid-template-columns: 16px 1fr auto auto; }
+.rows .row:only-child .rk { display: none; }
 .laps { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; font: 600 15px/1 var(--body); }
 .laps span { padding: 7px 10px; border: 2px solid var(--ink); border-radius: 999px; }
 .laps span.best { background: var(--grass); }
