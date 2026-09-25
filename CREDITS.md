@@ -22,6 +22,7 @@ Every third-party asset and library shipped in the game, with its license, and t
 | Racer concept art and portraits (8) and painted skies (12), made for this game with GPT Image 2.5 via Higgsfield, Sept 2026 | Higgsfield (GPT Image 2.5), prompts by the Rascal Rally! team | Higgsfield paid-plan terms |
 | Item art (13) and painted ground textures (4), made for this game with AI images via Higgsfield, Sept 2026 | Higgsfield, prompts by the Rascal Rally! team | Higgsfield paid-plan terms |
 | Racer 3D models (8), made for this game with Tripo H3.1 image-to-3D via Higgsfield, Sept 2026 | Higgsfield (Tripo H3.1), from the concept art above | Higgsfield paid-plan terms |
+| Racers from parts (8 × a rigged driver, a kart body and a wheel), made for this game with Meshy v7 image-to-3D and auto-rigging and Tripo H3.1 image-to-3D via Higgsfield, from A-pose and kart images made with GPT Image 2.5 via Higgsfield, 25 Sept 2026 | Higgsfield (Meshy v7, Tripo H3.1, GPT Image 2.5), prompts by the Rascal Rally! team | Higgsfield paid-plan terms |
 | Creature, landmark and scenery 3D models (31), made for this game with image-to-3D via Higgsfield, Sept 2026 | Higgsfield, from AI concept images by the Rascal Rally! team | Higgsfield paid-plan terms |
 | Tracks, scenery, karts, spectators and effects, modeled in code | Rascal Rally! team | Original work |
 
