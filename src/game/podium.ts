@@ -14,7 +14,7 @@ import {
   type BufferGeometry, type Material, type Object3D,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { glowFromVertexColours } from '../track-builder/mesh/glow.ts';
+import { glowFromVertexColours, sunlessBackFaces } from '../track-builder/mesh/glow.ts';
 import { buildRacerMesh, isShared, ModelBuilder, toonRamp, vertexToon, type KartLook } from '../art-pipeline/index.ts';
 import { BIOMES, type Crowd } from '../art-pipeline/crowd.ts';
 import type { Paint as Colour } from '../art-pipeline/model.ts';
@@ -31,8 +31,11 @@ export const PODIUM = Object.freeze({
    * enough that the start gantry frames the winners from behind and the cup stands above it, against the sky
    */
   back: 14,
-  /** a block's width and depth, the gap between blocks; heights for 1st, 2nd, 3rd */
-  width: 2.5, depth: 2.9, gap: 0.08, heights: [1.15, 0.8, 0.5] as const,
+  /**
+   * a block's width and depth, the gap between blocks; heights for 1st, 2nd, 3rd (the 3rd was 0.5: its
+   * front showed 0.24 m between its trims, room for a 0.2 m plate; at 0.6 its 0.3 m plate reads from the ceremony camera)
+   */
+  width: 2.5, depth: 2.9, gap: 0.08, heights: [1.15, 0.8, 0.6] as const,
   /** the cup: its column behind the winner (height, radius, metres back from the podium's middle), the cup's height, the pop-up (s after the start, s long) */
   column: 2.8, columnRadius: 0.45, columnBack: 2.05, cup: 1.9, cupAt: 2.3, cupPop: 0.6,
   /** the camera: circling radius and height over the road, aim height; its sweep either side (rad) and the sweep's period (s); the crane in (start radius, height, seconds); field of view */
@@ -51,6 +54,24 @@ export const PODIUM = Object.freeze({
 
 /** Each place's reaction on its step: 1st, 2nd, 3rd. */
 export const PODIUM_REACTIONS: readonly Reaction[] = Object.freeze(['champion', 'cheer', 'bounce']);
+
+/**
+ * A block's trims (metres): the coloured top (`lip` thick, overhanging the front by `overhang`) and the
+ * band round its foot (`foot` high), and the place plate's clearance from each: under the lip (the
+ * overhang hides a sliver of the front from a camera above) and over the band.
+ */
+export const BLOCK = Object.freeze({ lip: 0.12, overhang: 0.06, foot: 0.14, underLip: 0.025, overFoot: 0.015, plateMax: 0.95 });
+
+/**
+ * The place plate on the front of a block `h` tall: as big as the front shows between the band round
+ * its foot and the lip of its top (never bigger than BLOCK.plateMax), and centred there. It was sized
+ * and set by the block's whole height, so the short 3rd block's "3" ran under its lip and its band
+ * (review, 25 Sept 2026).
+ */
+export function platePlace(h: number): { size: number; y: number } {
+  const lo = BLOCK.foot + BLOCK.overFoot, hi = h - BLOCK.lip - BLOCK.underLip;
+  return { size: Math.min(BLOCK.plateMax, hi - lo), y: (lo + hi) / 2 };
+}
 
 /** A racer on the podium: who, their class (their kart's springs) and their look (the player's paint and body; a rival's own). */
 export interface PodiumRacer { racerId: string; archetype: Archetype; look?: KartLook }
@@ -192,12 +213,13 @@ export class Podium {
     const m = new ModelBuilder(0);
     const across = P.width + P.gap;
     const xs = [0, -across, across];
+    const B = BLOCK;
     for (let i = 0; i < 3; i++) {
       const h = P.heights[i], x = xs[i];
-      m.box([P.width, h - 0.12, P.depth], pal.body, [x, (h - 0.12) / 2, 0]);
+      m.box([P.width, h - B.lip, P.depth], pal.body, [x, (h - B.lip) / 2, 0]);
       // a coloured top with a lip, and a band round the foot
-      m.box([P.width + 0.12, 0.12, P.depth + 0.12], pal.trim, [x, h - 0.06, 0]);
-      m.box([P.width + 0.06, 0.14, P.depth + 0.06], pal.band, [x, 0.07, 0]);
+      m.box([P.width + 2 * B.overhang, B.lip, P.depth + 2 * B.overhang], pal.trim, [x, h - B.lip / 2, 0]);
+      m.box([P.width + 0.06, B.foot, P.depth + 0.06], pal.band, [x, B.foot / 2, 0]);
     }
     // a low plinth under all three, and the cup's column behind the winner
     m.box([3 * P.width + 2 * P.gap + 0.8, 0.12, P.depth + 0.8], pal.plinth, [0, 0.06, 0]);
@@ -205,22 +227,23 @@ export class Podium {
     m.cyl(P.columnRadius * 1.25, P.columnRadius * 1.35, 0.22, pal.band, [0, 0.11, cz], undefined, 24);
     m.cyl(P.columnRadius, P.columnRadius, P.column - 0.3, pal.body, [0, 0.07 + (P.column - 0.3) / 2 + 0.15, cz], undefined, 24);
     m.cyl(P.columnRadius * 1.2, P.columnRadius * 1.1, 0.16, pal.trim, [0, P.column - 0.08, cz], undefined, 24);
-    // (at night its own toon, whose neon trims light themselves; by day the shared one)
+    // (at night its own toon, whose neon trims light themselves; by day the shared one. Either way the
+    // fronts turned from the sun take no sun and no shadow lookup: they streaked with acne, glow.ts)
     const nightMat = pal.night ? new MeshToonMaterial({ color: 0xffffff, vertexColors: true, gradientMap: toonRamp() }) : null;
-    if (nightMat) { glowFromVertexColours(nightMat); this.own.push(nightMat); }
+    if (nightMat) { glowFromVertexColours(nightMat); sunlessBackFaces(nightMat); this.own.push(nightMat); }
     const blocks = new Mesh(m.build(), nightMat ?? vertexToon());
     blocks.name = 'podium-blocks';
     blocks.castShadow = true;
     blocks.receiveShadow = true;
     this.own.push(blocks.geometry);
     this.stage.add(blocks);
-    // the places on the block fronts: one strip of three plates, one draw
+    // the places on the block fronts, each centred on its own block's front: one strip of three plates, one draw
     const plateGeos: BufferGeometry[] = [];
     for (let i = 0; i < 3; i++) {
-      const size = Math.min(0.95, P.heights[i] * 0.82), g = new PlaneGeometry(size, size);
+      const { size, y } = platePlace(P.heights[i]), g = new PlaneGeometry(size, size);
       const uv = g.getAttribute('uv') as BufferAttribute;
       for (let k = 0; k < uv.count; k++) uv.setX(k, (i + uv.getX(k)) / 3);
-      g.translate(xs[i], (P.heights[i] - 0.12) / 2 + 0.02, P.depth / 2 + 0.012);
+      g.translate(xs[i], y, P.depth / 2 + 0.012);
       plateGeos.push(g);
     }
     const plates = mergeGeometries(plateGeos, false)!;
@@ -231,6 +254,7 @@ export class Podium {
       color: tex ? 0xffffff : 0xf2b705, map: tex, gradientMap: toonRamp(), transparent: !!tex, alphaTest: tex ? 0.5 : 0,
       ...(pal.night ? { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.45 } : {}),
     });
+    sunlessBackFaces(plateMat);
     const plateMesh = new Mesh(plates, plateMat);
     plateMesh.name = 'podium-places';
     plateMesh.receiveShadow = true;

@@ -881,6 +881,8 @@ function step(now: number): void {
   }
   // the governor's Low tier draws only the scenery copies in view (track-builder scene.ts cull): weak and software GPUs
   cur.trackScene.cull(camera, !renderer.shadowMap.enabled, (scene.fog as Fog | null)?.far);
+  // the creature, the hazards, the balloons and the coins the lens meets fade as clean ghosts; in the finish camera's close-up the pickups from farther out (scene.ts lens)
+  cur.trackScene.lens(camera, !attract && celebrating && !ceremony);
   post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
   if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
   // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again

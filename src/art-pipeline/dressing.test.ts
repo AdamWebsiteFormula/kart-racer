@@ -2,7 +2,8 @@
 // and far, most of it baked into the track's merged dressing (track-builder mesh/merge.ts). Real art
 // (trackAssets), so footprints, rows and spans are the game's own.
 import { describe, expect, it } from 'vitest';
-import { BoxGeometry, BufferAttribute, Matrix4, Vector3, type BufferGeometry, type Mesh } from 'three';
+import { BoxGeometry, BufferAttribute, Matrix4, ShaderChunk, ShaderLib, Vector3, type BufferGeometry, type Material, type Mesh, type WebGLRenderer } from 'three';
+import { SUN_LIGHTS } from '../track-builder/mesh/glow.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
@@ -62,6 +63,19 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
     expect(scene.dressing.length).toBeLessThanOrEqual(DRESSING_SLICES.near + DRESSING_SLICES.far);
     for (const e of entries.filter((x) => x.merge)) expect(scene.instancers.has(`decor:${e.asset}`), e.asset).toBe(false);
     for (const m of scene.dressing) expect(m.castShadow).toBe(m.name.includes(':near:'));
+  });
+
+  it('its faces turned from the sun take none of it, with no shadow lookup: no acne on a thin flag (review 25 Sept 2026: a sawtooth across the bunting)', () => {
+    expect(SUN_LIGHTS, 'three still writes the sun\'s shadow line as glow.ts expects').not.toBe(ShaderChunk.lights_fragment_begin);
+    for (const m of scene.dressing) {
+      expect(m.receiveShadow).toBe(true);
+      const mat = m.material as Material;
+      const shader = { vertexShader: ShaderLib.toon.vertexShader, fragmentShader: ShaderLib.toon.fragmentShader, uniforms: {} } as Parameters<Material['onBeforeCompile']>[0];
+      mat.onBeforeCompile(shader, undefined as unknown as WebGLRenderer);
+      expect(shader.fragmentShader).not.toContain('#include <lights_fragment_begin>');
+      expect(shader.fragmentShader).toContain('dot( geometryNormal, directLight.direction ) > 0.0 ? getShadow( directionalShadowMap[ i ]');
+      expect(mat.customProgramCacheKey()).toContain('|sunless');
+    }
   });
 
   it('no prop stands where a kart can drive: every ground prop past the course limit (ground cover off the road and curb)', () => {

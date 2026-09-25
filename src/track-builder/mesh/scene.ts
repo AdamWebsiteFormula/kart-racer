@@ -16,11 +16,12 @@ import { buildRibbon, sampleRange } from './road.ts';
 import { buildShiftStage, type LakeHook, type ShiftStage } from './shiftStage.ts';
 import { hashString, mulberry32, Occupancy, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
-import { CreatureView } from './creatures.ts';
+import { CREATURE_GHOST, CreatureView } from './creatures.ts';
+import { NearGhost } from './ghost.ts';
 import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
 import { buildBoundary } from './boundary.ts';
-import { fadeNearCamera, glowFromVertexColours, selfLit } from './glow.ts';
+import { fadeNearCamera, glowFromVertexColours, selfLit, sunlessBackFaces } from './glow.ts';
 import { buildStartGantry, setStartLamps } from './gantry.ts';
 import { buildTunnels } from './tunnel.ts';
 import { buildLoopMeshes } from './loop.ts';
@@ -134,8 +135,27 @@ export interface TrackScene {
    * drawn; allocates nothing.
    */
   cull(camera: Camera, low: boolean, fogFar?: number): void;
+  /**
+   * What the lens meets fades out as a clean ghost (ghost.ts): the course creature, its snowball,
+   * tentacles and dust, the hazards (barrels, hay bales, snowballs, mine carts, bumper cars, teacups),
+   * and the balloons and coins. `closeUp`: the finish camera's close-up of the
+   * player's kart, which flies through a row of balloons: they fade from farther out (PICKUP_GHOST).
+   * Once a frame, after the camera is placed and before the frame is drawn (like cull); allocates nothing.
+   */
+  lens(camera: Camera, closeUp?: boolean): void;
   dispose(): void;
 }
+
+/**
+ * The balloons and coins near the lens (ghost.ts): gone at the first number of metres, whole from the
+ * second. In a race they fade where they used to dissolve, 2.6 m out, never the one your kart is about
+ * to pop (5.5 m ahead of the lens). The finish camera circles your kart 4.4 m off with a narrow view
+ * and flies through the balloon row past the line (review, 25 Sept 2026: one filled a quarter of the
+ * frame as a giant stippled blob), so there they fade from 6 m and are gone by 2.4.
+ */
+export const PICKUP_GHOST = Object.freeze({ race: [0.8, 2.6] as const, closeUp: [2.4, 6] as const });
+const PICKUP_GHOSTED = ['balloons', 'coins'] as const;
+const LENS_EYE = new Vector3();
 
 /** Race-manager timers, by feature index within its kind; a feature with respawnRemaining > 0 is hidden. */
 export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[]; coins?: readonly { respawnRemaining: number }[] }
@@ -329,19 +349,22 @@ function reachOf(g: BufferGeometry): number {
 /** Placeholder geometries the scene made itself; caller-owned `assets` geometries are never disposed. */
 const OWNED = new WeakSet<BufferGeometry>();
 
-/** Toon material for a geometry: its own vertex colours when it carries them, else the palette colour. */
-function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | undefined): MeshToonMaterial {
+/**
+ * Toon material for a geometry: its own vertex colours when it carries them, else the palette colour.
+ * `dither`: it dissolves near the lens (glow.ts); off for what fades as a ghost instead (ghost.ts).
+ */
+function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | undefined, dither = true): MeshToonMaterial {
   const vc = geometry.hasAttribute('color');
   const m = new MeshToonMaterial({ color: vc ? 0xffffff : toColor(colour), vertexColors: vc, gradientMap: gradientMap ?? null });
   if (vc) glowFromVertexColours(m); // lamp globes, bulbs and neon signs light themselves (glow.ts)
-  fadeNearCamera(m); // and nothing fills the screen when the camera brushes past it
+  if (dither) fadeNearCamera(m); // and nothing fills the screen when the camera brushes past it
   return m;
 }
 
 let GRADIENT: Texture | undefined; // set per buildTrackScene call from assets.gradientMap
 
-function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices: Float32Array, capacity = matrices.length / 16, own?: Material): InstancedMesh {
-  const mat = own ?? toon(geometry, colour, GRADIENT);
+function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices: Float32Array, capacity = matrices.length / 16, own?: Material, dither = true): InstancedMesh {
+  const mat = own ?? toon(geometry, colour, GRADIENT, dither);
   const m = new InstancedMesh(geometry, mat, Math.max(1, capacity));
   if (own) m.userData.sharedMaterial = true;
   m.name = name;
@@ -388,6 +411,8 @@ function buildDressing(items: readonly { item: MergeItem; far: boolean }[], lut:
       m.name = `dressing:${far ? 'far' : 'near'}:${k}`;
       m.castShadow = !far;
       m.receiveShadow = true;
+      // (it takes the sun's shadows, as the instanced props do not: its faces turned from the sun striped with acne, glow.ts)
+      sunlessBackFaces(m.material as MeshToonMaterial);
       out.push(m);
     });
   }
@@ -403,6 +428,7 @@ export function isDrawn(m: Mesh): boolean {
 
 /** Free everything a mesh owns: its material (and a texture made for it alone), its geometry if the scene made it, its instance buffer. */
 function retire(m: Mesh): void {
+  (m.userData.nearGhost as NearGhost | undefined)?.dispose(); // its see-through copies (ghost.ts)
   m.removeFromParent();
   if (m.userData.ownMap) (m.material as MeshBasicMaterial).map?.dispose();
   if (!m.userData.sharedMaterial) (m.material as MeshToonMaterial).dispose();
@@ -743,8 +769,12 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
         m.userData.sharedMaterial = false;
         m.castShadow = false;
       } else {
-        m = instancer(name, geometryFor(assets, geo), colour, mats);
-        if (!m.userData.sharedMaterial) selfLit(m.material as MeshToonMaterial, pickupGlow);
+        m = instancer(name, geometryFor(assets, geo), colour, mats, undefined, undefined, false);
+        if (!m.userData.sharedMaterial) {
+          selfLit(m.material as MeshToonMaterial, pickupGlow);
+          // near the lens a balloon or a coin fades out as a clean ghost, not a stipple (ghost.ts, TrackScene.lens)
+          new NearGhost(m, PICKUP_GHOST.race[0], PICKUP_GHOST.race[1]);
+        }
       }
       made.push({ name, m, slots, mats });
     }
@@ -786,9 +816,12 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const hazardMeshes: InstancedMesh[] = [];
   const hazardMeshByAsset = new Map<string, number>();
   for (const [asset, cap] of hazardCapacity) {
-    const m = instancer(`hazard:${asset}`, geometryFor(assets, asset, 'hazard'), palette.accent, new Float32Array(0), cap);
+    const m = instancer(`hazard:${asset}`, geometryFor(assets, asset, 'hazard'), palette.accent, new Float32Array(0), cap, undefined, false);
     m.frustumCulled = false;
     m.instanceMatrix.setUsage(DynamicDrawUsage);
+    // a barrel, hay bale or snowball rolled past the kart, a mine cart or bumper car crossing, fades at
+    // the lens as a creature does (a whole barrel filled a third of the frame, solid, until 2.6 m)
+    if (!m.userData.sharedMaterial) new NearGhost(m, CREATURE_GHOST.near, CREATURE_GHOST.fade);
     hazardMeshByAsset.set(asset, hazardMeshes.length);
     hazardMeshes.push(m);
     instancers.set(m.name, m);
@@ -1139,11 +1172,24 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       const reach = 1 / (LOW_MIN_SIZE * Math.tan(((fov * Math.PI) / 180) / 2));
       for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
     },
+    lens: (camera, closeUp = false) => {
+      camera.getWorldPosition(LENS_EYE);
+      creatures?.lens(LENS_EYE);
+      for (let i = 0; i < hazardMeshes.length; i++) (hazardMeshes[i].userData.nearGhost as NearGhost | undefined)?.update(LENS_EYE);
+      const range = closeUp ? PICKUP_GHOST.closeUp : PICKUP_GHOST.race;
+      for (let i = 0; i < PICKUP_GHOSTED.length; i++) {
+        const g = instancers.get(PICKUP_GHOSTED[i])?.userData.nearGhost as NearGhost | undefined;
+        if (!g) continue;
+        g.setRange(range[0], range[1]);
+        g.update(LENS_EYE);
+      }
+    },
     dispose: () => {
       unsubscribe();
       const chunkMeshes = new Set(chunks.map((c) => c.mesh));
       const others: Mesh[] = [];
-      group.traverse((o) => { if ((o as Mesh).isMesh && !chunkMeshes.has(o as Mesh)) others.push(o as Mesh); });
+      // (a ghost's see-through copies go with the mesh they copy: retire frees them)
+      group.traverse((o) => { if ((o as Mesh).isMesh && !chunkMeshes.has(o as Mesh) && !o.userData.ghostCopy) others.push(o as Mesh); });
       for (const m of others) { if (jumpMeshes.includes(m)) (m.material as MeshToonMaterial).map?.dispose(); retire(m); }
       for (const c of chunks) c.mesh.geometry.dispose();
       creatures?.dispose();

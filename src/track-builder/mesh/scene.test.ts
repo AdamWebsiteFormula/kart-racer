@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { InstancedMesh, Matrix4, Mesh, Raycaster, Vector3, type BufferGeometry, type MeshBasicMaterial, type Texture } from 'three';
+import { InstancedMesh, Matrix4, Mesh, PerspectiveCamera, Raycaster, Vector3, type BufferGeometry, type Material, type MeshBasicMaterial, type Texture } from 'three';
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
 import { HARBOUR_LOOP, HARBOUR_WALLED, HARBOUR_WALLED_PIER, cloneDef } from '../__tests__/fixtures.ts';
 import { chunkCountFor } from './chunks.ts';
-import { CREATURE_NEAR_FADE } from './creatures.ts';
+import { CREATURE_GHOST } from './creatures.ts';
+import { NearGhost } from './ghost.ts';
 import { insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
-import { buildTrackScene, isDrawn } from './scene.ts';
+import { buildTrackScene, isDrawn, PICKUP_GHOST } from './scene.ts';
 import boardwalkJson from '../tracks/boardwalk-nights.json';
 import canyonJson from '../tracks/canyon-rush.json';
 
@@ -375,15 +376,62 @@ describe('Final Lap Shift swap and hazards', () => {
     scene.dispose();
   });
 
-  it('a creature dissolves near the lens instead of filling the screen (review 25 Sept 2026: the goose charged through the chase camera)', () => {
+  it('a creature near the lens fades as a clean ghost, only while it is near (review 25 Sept 2026: the goose, then the crab\'s and the tentacle\'s stipple over the kart)', () => {
     for (const json of [canyonJson, boardwalkJson]) {
-      const scene = buildTrackScene(buildTrack(json as TrackDefinition));
+      const track = buildTrack(json as TrackDefinition);
+      const scene = buildTrackScene(track);
+      scene.update(1);
       const bodies: Mesh[] = [];
       scene.group.traverse((o) => { if (o.name.startsWith('creature:') && o.name !== 'creature:ledge') bodies.push(o as Mesh); });
       expect(bodies.length).toBeGreaterThan(0);
-      for (const b of bodies) expect((b.material as MeshBasicMaterial).customProgramCacheKey(), b.name).toContain(`|near${CREATURE_NEAR_FADE.toFixed(2)}`);
+      const camera = new PerspectiveCamera();
+      for (const b of bodies) {
+        const ghost = b.userData.nearGhost as NearGhost;
+        expect(ghost, b.name).toBeInstanceOf(NearGhost);
+        expect(ghost.range.value.toArray()).toEqual([CREATURE_GHOST.near, CREATURE_GHOST.fade]);
+        expect((b.material as Material).customProgramCacheKey()).toContain('|ghostsolid');
+        expect((b.material as Material).customProgramCacheKey(), 'no stipple any more').not.toContain('|near');
+        // far off: nothing extra drawn
+        camera.position.set(1e4, 1e4, 1e4);
+        scene.lens(camera);
+        expect(ghost.active).toBe(false);
+        expect(b.children.filter((c) => c.userData.ghostCopy && c.visible)).toHaveLength(0);
+        // the lens against it: its two copies draw after the effects, casting no shadow
+        b.updateWorldMatrix(true, false);
+        b.getWorldPosition(camera.position);
+        scene.lens(camera);
+        expect(ghost.active, b.name).toBe(true);
+        const copies = b.children.filter((c) => c.userData.ghostCopy) as Mesh[];
+        expect(copies).toHaveLength(2);
+        for (const c of copies) { expect(c.visible).toBe(true); expect(c.castShadow).toBe(false); expect(c.renderOrder).toBeGreaterThan(20); }
+      }
+      // its snowball, tentacles and dust fade too, and so do the hazards (rocks and mine carts, bumper cars and teacups)
+      for (const name of ['creature-dust', 'creature-snow', 'creature-arms']) expect(scene.group.getObjectByName(name)?.userData.nearGhost, name).toBeInstanceOf(NearGhost);
+      const hazards = [...scene.instancers.keys()].filter((k) => k.startsWith('hazard:'));
+      expect(hazards.length).toBeGreaterThan(0);
+      for (const k of hazards) expect(scene.instancers.get(k)!.userData.nearGhost, k).toBeInstanceOf(NearGhost);
       scene.dispose();
     }
+  });
+
+  it('balloons and coins near the lens fade as ghosts; the finish camera\'s close-up fades them from farther out', () => {
+    const scene = buildTrackScene(buildTrack(HARBOUR_LOOP));
+    const balloons = scene.instancers.get('balloons')!, coins = scene.instancers.get('coins');
+    const ghost = balloons.userData.nearGhost as NearGhost;
+    expect(ghost).toBeInstanceOf(NearGhost);
+    if (coins) expect(coins.userData.nearGhost).toBeInstanceOf(NearGhost);
+    expect((balloons.material as Material).customProgramCacheKey(), 'no stipple').not.toContain('|near');
+    const at = new Vector3().setFromMatrixPosition(new Matrix4().fromArray(balloons.instanceMatrix.array, 0));
+    const camera = new PerspectiveCamera();
+    // 4 m from a balloon's middle: outside a race's fade, inside the close-up's
+    camera.position.copy(at).add(new Vector3(0, 4, 0));
+    scene.lens(camera);
+    expect(ghost.active).toBe(false);
+    expect(ghost.range.value.toArray()).toEqual([...PICKUP_GHOST.race]);
+    scene.lens(camera, true);
+    expect(ghost.active).toBe(true);
+    expect(ghost.range.value.toArray()).toEqual([...PICKUP_GHOST.closeUp]);
+    scene.dispose();
   });
 
   it('dispose unsubscribes: a later shift does not touch the group', () => {
