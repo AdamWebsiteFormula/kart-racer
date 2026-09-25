@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { requestBoost } from './boost.ts';
 import { collideKarts, collisionMass, stepWalls } from './collide.ts';
 import { makeConstants } from './constants.ts';
+import { KART_IDS, RACER_CLASSES } from './karts.ts';
 import { createKartState, type Archetype, type KartEvent, type KartState } from './types.ts';
 
 const c = makeConstants('medium', 150);
@@ -116,6 +117,23 @@ describe('kart vs kart', () => {
     const { a: light, b: heavy } = bump('light', 'heavy', true);
     expect(collisionMass(light, makeConstants('light', 150))).toBeGreaterThan(collisionMass(heavy, makeConstants('heavy', 150)));
     expect(shove(heavy)).toBeGreaterThan(shove(light));
+  });
+
+  it('any racer in any kart (design §5): at the extremes the lighter kart takes at most 0.65 × bumpForce, and a boost still wins the bump', () => {
+    const all = Object.keys(RACER_CLASSES).flatMap((r) => KART_IDS.map((k) => makeConstants(RACER_CLASSES[r], 150, r, k)));
+    const lightest = all.reduce((m, x) => (x.mass < m.mass ? x : m)), heaviest = all.reduce((m, x) => (x.mass > m.mass ? x : m));
+    const a = createKartState({ racerId: 'a', position: [0, 0, 0], heading: Math.PI / 2 });
+    const b = createKartState({ racerId: 'b', position: [1, 0, 0], heading: Math.PI / 2 });
+    collideKarts(a, b, heaviest, lightest, c, 1 / 120, [], []);
+    expect(shove(b)).toBeLessThanOrEqual(0.65 * c.bumpForce);
+    expect(shove(b)).toBeGreaterThan(shove(a));
+    // the lightest pair on a boost outweighs the heaviest pair coasting (the mass spread is under dashMassBonus)
+    const boosted = createKartState({ racerId: 'l', position: [0, 0, 0], heading: Math.PI / 2 });
+    const coasting = createKartState({ racerId: 'h', position: [1, 0, 0], heading: Math.PI / 2 });
+    requestBoost(boosted, 'drift', 1.3, 2, []);
+    expect(collisionMass(boosted, lightest)).toBeGreaterThan(collisionMass(coasting, heaviest));
+    collideKarts(boosted, coasting, lightest, heaviest, c, 1 / 120, [], []);
+    expect(shove(coasting)).toBeGreaterThan(shove(boosted));
   });
 
   it('ghosts and intangible karts skip contact', () => {

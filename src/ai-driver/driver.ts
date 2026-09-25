@@ -85,7 +85,11 @@ export class AiDriver {
     this.onlyShortcut = opts.onlyShortcut;
     const byId = new Map(config.racers.map((r) => [r.racerId, r]));
     const karts = state.karts;
-    this.consts = karts.map((k) => makeConstants(byId.get(k.racerId)?.archetype ?? 'medium', config.speedClass));
+    // each kart's own racer and kart (design §5), so the autopilot after the finish drives the player's real combo
+    this.consts = karts.map((k) => {
+      const r = byId.get(k.racerId);
+      return makeConstants(r?.archetype ?? 'medium', config.speedClass, k.racerId, r?.kartId);
+    });
     this.outputs = karts.map(() => ({ ...NEUTRAL_INPUT }));
     this.playerIndex = karts.findIndex((k) => k.isPlayer);
 

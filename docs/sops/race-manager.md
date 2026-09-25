@@ -123,6 +123,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-24 (audit): `inputLog` stops at the player's finish tick (the server's replay stops there, `verify.ts replay`), so it no longer grows behind the results screens.
 - 2026-09-24 (audit): `endRace()`: a finished player pressing on cuts the field off on the next tick exactly as the grace does (dnf rows, projected times); it does nothing before the player's finish, so a solo board run is never touched.
 - 2026-09-24 (audit): the Time Trial ghost is a recorded path, not inputs (`ghost.ts`: position, heading and loop angle every 4 ticks, varint deltas, base64, about 7 bytes a sample); it lives only in the game session as a see-through kart, never in `karts[]`, so it cannot collide, rank, pop a balloon or fire the shift. The `isGhost` kart path stays unused.
+- 2026-09-25 (any racer in any kart, design §5): `RacerConfig.kartId?` (absent or unknown: the racer's own kart). The manager builds each kart's constants with `makeConstants(archetype, cc, racerId, kartId)` and writes the kart onto `KartState.kartId` (race-state schema: `kartId` on every kart). A Grand Prix and a Knockout carry it race to race (the series keeps the RacerConfigs whole). karts.test.ts: Gus in the Scrap Buggy on Harbor Loop replays byte for byte from the inputs, and the same inputs in his own kart give another race.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

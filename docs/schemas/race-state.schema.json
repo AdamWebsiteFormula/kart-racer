@@ -22,10 +22,11 @@
       "type": "array", "minItems": 1, "maxItems": 8,
       "items": {
         "type": "object",
-        "required": ["racerId", "isPlayer", "position", "heading", "speed", "lateralVelocity", "verticalVelocity", "t", "lap", "checkpointsHit", "drift", "boost", "item", "coins", "rank"],
+        "required": ["racerId", "kartId", "isPlayer", "position", "heading", "speed", "lateralVelocity", "verticalVelocity", "t", "lap", "checkpointsHit", "drift", "boost", "item", "coins", "rank"],
         "properties": {
           "racerId": { "type": "string" }, "isPlayer": { "type": "boolean" },
           "isGhost": { "type": "boolean", "default": false, "description": "Time Trial ghost: rendered, no collision, no items" },
+          "kartId": { "type": "string", "description": "The kart it drives (kart.schema.json karts id): the one picked, or the racer's own when none was (every AI racer drives their own; design §5). Looks and the leaderboard only: its handling is already in the kart's constants (race-manager consts). Empty only for a racer the kart table does not know (test fixtures)." },
           "bodyId": { "type": "string" }, "skinId": { "type": "string" },
           "slipstreamSeconds": { "type": "number", "description": "Time spent in another kart's wake" },
           "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },

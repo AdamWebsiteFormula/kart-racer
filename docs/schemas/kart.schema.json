@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "kart.schema.json",
   "title": "KartArchetype and Racer",
-  "description": "Base handling constants, the three archetype multipliers, the eight racers, and the shared kart bodies. Bodies and skins are cosmetic only; the racer owns the class.",
+  "description": "Base handling constants, the three archetype multipliers, the eight racers, the ten karts and the rules that keep every racer-and-kart pair fair. Skins are cosmetic only. The racer owns the class; the chosen kart's stats take the place of the racer's own kart's (any racer in any kart: design §5, Adam 25 Sept 2026), so a racer in their own kart handles exactly as their class and another kart changes how they are fast, not how fast (src/kart-controller/karts.ts).",
   "type": "object",
   "required": ["base", "archetypes", "racers", "bodies"],
   "properties": {
@@ -123,8 +123,14 @@
       }
     },
     "archetypes": {
+      "description": "The three classes (design §4): multipliers on the shared base, a racer in their own kart. Why speed is only −1% / +1%: bug hunt 2, 24 Sept 2026 (design §4). Moved here from kart-controller constants.ts on 25 Sept 2026 with the same values; src/kart-controller/karts.ts reads them.",
       "type": "object",
       "required": ["light", "medium", "heavy"],
+      "default": {
+        "light": { "speed": -0.01, "accel": 0.12, "handling": 0.12, "weight": -0.15, "hook": "none" },
+        "medium": { "speed": 0, "accel": 0, "handling": 0, "weight": 0, "hook": "none" },
+        "heavy": { "speed": 0.01, "accel": -0.12, "handling": -0.10, "weight": 0.18, "hook": "hardBump" }
+      },
       "additionalProperties": {
         "type": "object", "required": ["speed", "accel", "handling", "weight", "hook"],
         "properties": {
@@ -153,9 +159,71 @@
       }
     },
     "bodies": {
-      "description": "Shared kart body styles. Cosmetic only: no stat change, so leaderboard times stay comparable.",
+      "description": "The old shared kart bodies' ids (classic, buggy), kept because the save's unlocked.bodies holds them. Since 25 Sept 2026 they are the karts Classic and Buggy (karts: twins of the Wind-Up Racer and the Scrap Buggy), picked on the kart screen, so an unlock changes the look, never the speed.",
       "type": "array",
       "items": { "$ref": "#/$defs/unlockable" }
+    },
+    "racerClasses": {
+      "description": "Each racer's class (design §4). The class sets the racer's stats, and the racer's own kart (karts[].owner) is the zero a chosen kart is measured from. The racers' names, colors and art live in the game (src/game/racers.ts, src/ui-hud/data/cast.ts); kart-controller karts.test.ts keeps the three in step.",
+      "type": "object",
+      "additionalProperties": { "type": "string", "enum": ["light", "medium", "heavy"] },
+      "default": { "pip": "light", "momo": "light", "nova": "light", "juniper": "medium", "otto": "medium", "sprocket": "medium", "boulder": "heavy", "gus": "heavy" }
+    },
+    "karts": {
+      "description": "The ten karts (design §5; Adam, 25 Sept 2026, option B: any racer in any kart, like Mario Kart World). Each racer's signature kart (owner) and two unlockable twins (twinOf: the stats of that kart, so an unlock changes the look, never the speed; a twin carries no numbers of its own). The numbers are fractions of the base in whole kartSteps, at most kartLimits steps each, and balanced (kartPace): a kart trades one stat for another of equal lap-time value. Combine (src/kart-controller/karts.ts), in exactly this order: total = archetypes[the racer's class] + (this kart − the racer's own kart), so a racer in their own kart (or its twin) gets their class to the last bit. Then topSpeed = base.topSpeed × speedClasses[cc] × (1 + speed), accel = base.accel × (1 + accel), steerRate = base.steerRate × (1 + handling) (the grip turn and the drift turn), mass = 1 + weight (the dash, Bubble and Strike Ball bonuses on top, as ever). An unknown kart is the racer's own; an unknown racer takes the class alone. No hidden stats: no terrain stats, no mini-turbo stat. The balance gate (src/game/combos.e2e.test.ts) may move a kart one step toward neutral; these are the final numbers.",
+      "type": "array", "minItems": 10, "maxItems": 10,
+      "items": { "$ref": "#/$defs/kart" },
+      "default": [
+        { "id": "scooter", "name": "Parcel Scooter", "owner": "pip", "speed": -0.005, "accel": 0.06, "handling": 0, "weight": -0.05 },
+        { "id": "scrap", "name": "Scrap Buggy", "owner": "momo", "speed": -0.010, "accel": 0.06, "handling": 0.06, "weight": -0.05 },
+        { "id": "pod", "name": "Comet Pod", "owner": "nova", "speed": -0.005, "accel": 0, "handling": 0.06, "weight": -0.05 },
+        { "id": "wagon", "name": "Timber Wagon", "owner": "juniper", "speed": 0, "accel": 0, "handling": 0, "weight": 0.05 },
+        { "id": "skimmer", "name": "Wave Skimmer", "owner": "otto", "speed": 0, "accel": 0.06, "handling": -0.06, "weight": 0 },
+        { "id": "windup", "name": "Wind-Up Racer", "owner": "sprocket", "speed": 0.005, "accel": 0, "handling": -0.06, "weight": 0 },
+        { "id": "stomper", "name": "Stone Stomper", "owner": "boulder", "speed": 0.005, "accel": -0.06, "handling": 0, "weight": 0.05 },
+        { "id": "snacktruck", "name": "Snack Truck", "owner": "gus", "speed": 0.010, "accel": -0.06, "handling": -0.06, "weight": 0.05 },
+        { "id": "classic", "name": "Classic", "twinOf": "windup" },
+        { "id": "buggy", "name": "Buggy", "twinOf": "scrap" }
+      ]
+    },
+    "kartSteps": {
+      "description": "One step of each kart stat, about equal in lap time on our tracks (design §5: 1% top speed ≈ 12% accel ≈ 11% handling; weight only moves bumps). A kart's numbers are whole steps, and the stat screens show one chevron per step.",
+      "type": "object", "required": ["speed", "accel", "handling", "weight"],
+      "properties": {
+        "speed": { "type": "number", "default": 0.005 },
+        "accel": { "type": "number", "default": 0.06 },
+        "handling": { "type": "number", "default": 0.06 },
+        "weight": { "type": "number", "default": 0.05 }
+      }
+    },
+    "kartLimits": {
+      "description": "The most whole steps a kart's stat may sit from zero (design §5): two of speed, one of each of the others.",
+      "type": "object", "required": ["speed", "accel", "handling", "weight"],
+      "properties": {
+        "speed": { "type": "integer", "default": 2 },
+        "accel": { "type": "integer", "default": 1 },
+        "handling": { "type": "integer", "default": 1 },
+        "weight": { "type": "integer", "default": 1 }
+      }
+    },
+    "comboBounds": {
+      "description": "[low, high] for each stat's total over every racer-and-kart pair (kart-controller karts.test.ts checks all of them). Also the ends of the stat bars on the racer and kart screens: bar = 0.08 + 0.92 × (total − low) / (high − low). The weight ends are the lightest and the heaviest class in their own karts (mass 0.85 to 1.18), so no pair bumps harder or softer than today's classes.",
+      "type": "object", "required": ["speed", "accel", "handling", "weight"],
+      "properties": {
+        "speed": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "default": [-0.015, 0.015] },
+        "accel": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "default": [-0.18, 0.18] },
+        "handling": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "default": [-0.18, 0.18] },
+        "weight": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "default": [-0.15, 0.18] }
+      }
+    },
+    "kartPace": {
+      "description": "The lap-time model a kart is balanced by (design §5; bug hunt 2, 24 Sept 2026: our tracks are fast and flowing, so top speed sets most of a lap): its predicted effect on lap pace is speed + accel / accel + handling / handling, and it must be within ±balance of zero. The real gate is src/game/combos.e2e.test.ts, which drives every distinct total on all six tracks.",
+      "type": "object", "required": ["accel", "handling", "balance"],
+      "properties": {
+        "accel": { "type": "number", "description": "An accel fraction this many times larger is worth the same lap time as a top-speed fraction.", "default": 12 },
+        "handling": { "type": "number", "description": "A handling fraction this many times larger is worth the same lap time as a top-speed fraction.", "default": 11 },
+        "balance": { "type": "number", "description": "The most a kart's predicted lap effect may sit from zero (a fraction: 0.001 = 0.1%).", "default": 0.001 }
+      }
     },
     "ai": {
       "description": "AI driver constants (docs/sops/ai-driver.md Approach). Never set per race; the defaults are the only values. src/ai-driver/constants.ts reads them. Seconds, metres, radians; fractions are of top speed or half-width as named.",
@@ -312,6 +380,16 @@
     }
   },
   "$defs": {
+    "kart": {
+      "description": "One kart (see karts). An owned kart has an owner and its four numbers; a twin has twinOf and no numbers.",
+      "type": "object", "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" }, "name": { "type": "string" },
+        "owner": { "type": "string", "description": "The racer whose signature kart it is (design §4); each racer owns exactly one." },
+        "twinOf": { "type": "string", "description": "An unlockable twin (design §10): the stats of this owned kart." },
+        "speed": { "type": "number" }, "accel": { "type": "number" }, "handling": { "type": "number" }, "weight": { "type": "number" }
+      }
+    },
     "aiPersonality": {
       "description": "Per-racer AI flavour (design §4). lateralBias −1..1 as a fraction of laneHalf; aggression and driftUse 0..1 are seeded roll thresholds.",
       "type": "object", "required": ["lateralBias", "aggression", "driftUse"],

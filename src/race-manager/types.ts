@@ -11,6 +11,11 @@ export interface RacerConfig {
   archetype: Archetype;
   isPlayer?: boolean;
   isGhost?: boolean;
+  /**
+   * The kart it drives (kart-controller karts.ts; design §5). Absent, or unknown: the racer's own kart,
+   * which handles exactly as the class. A Grand Prix or Knockout carries it race to race.
+   */
+  kartId?: string;
   bodyId?: string;
   skinId?: string;
 }
