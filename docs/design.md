@@ -68,7 +68,7 @@ No stumps, no painted strips and no walls along the road. On Harbor Loop, Meadow
 The mine shortcut runs through a mesa across the canyon floor, not under the ground: a timber portal in a red-rock cliff face, a rock bore lit by lanterns on alternate walls with timber frames every 8 m, climbing inside the rock to come out on the high road. Rock walls hold the karts in; the sand beside the approach narrows to the mouth over the last 16 m. On the final lap the main road takes the same bore (the bridge is down). (track-builder tunnel.ts, mesh/tunnel.ts; the mesa is the land, terrain.ts.)
 
 ### Course creatures (Adam, 23 Sept 2026)
-Removed from every track 25 Sept 2026 (Adam: extras out until they can move like real 3D characters); the system stays for a later return.
+**Parked (Adam, 25 Sept 2026): off every track until they can move like real 3D characters.** The code stays, dormant (track-builder/creatures.ts; the six spots are kept in the test fixtures as CREATURE_SPOTS). What follows describes them for when they return.
 
 Each track has one big original creature at a set spot: a hazard with a readable warning (a shadow, a rumble, a wind-up) that knocks or spins karts, or throws something that does. Skill beats luck: the warning always comes first, and the AI sees and dodges it like any hazard. Deterministic in the sim like every other hazard; animated in code.
 
