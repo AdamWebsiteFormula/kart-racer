@@ -58,9 +58,10 @@ describe('frame budget (performance SOP)', () => {
     expect(c.tris, def.id).toBeLessThanOrEqual(SCENE_TRIANGLES);
   }, 120_000); // CI runs about 3.5x slower than the Mac
 
-  // the PBR look prototype (art-pipeline look.ts, ?look=pbr): the same meshes in other materials, and on a
-  // lawn one instancer of grass tufts in place of the verge's tufts and flower clumps
-  it.each(TRACKS.filter((d) => d.id === 'harbour-loop' || d.id === 'meadow-run').map((d) => [d.id, d] as const))('%s in the PBR look stays under it too, within a draw of the toon look', (_id, def) => {
+  // the game's look is PBR (art-pipeline look.ts; the loop above runs in it): the same meshes as the old toon
+  // look in other materials, and on a lawn one instancer of grass tufts in place of the verge's tufts
+  it.each(TRACKS.filter((d) => d.id === 'harbour-loop' || d.id === 'meadow-run').map((d) => [d.id, d] as const))('%s in the PBR look is within a draw of the old toon look', (_id, def) => {
+    setLook('toon');
     const toon = race(def);
     setLook('pbr');
     try {

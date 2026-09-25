@@ -69,6 +69,7 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
   afterEach(() => setLook(DEFAULT_LOOK));
 
   it('the toon road compiles none of it: no grain, no racing line, the glint as it was', () => {
+    setLook('toon');
     const { fs } = road(HARBOUR);
     expect(fs).not.toContain('uRoadGrain');
     expect(fs).not.toContain('lkBend');
@@ -97,12 +98,16 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
     expect(vs).toContain('vCurb = curb;');
     expect(fs).toContain('uRoadGrain');
     expect(fs).toContain('marks += exp(');
-    expect(fs).toContain('normal = lkBend(normal, lkSlope(uRoadGrain');
+    expect(fs).toContain('vec2 rdS = lkSlope(uRoadGrain');
+    expect(fs).toContain('normal = lkBend(normal, rdS * rdFade, 1.0);');
+    // the rumble strip's blocks at an inside corner
+    expect(fs).toContain('rdS += rdDir * cos(fract(vRoad.y * 10.0 / 1.2)');
+    // the world's aerial haze
+    expect(fs).toContain('LOOK_HAZE( lookFogK )');
     // the roughness is set after three reads its own, and before the lights read it
     const set = fs.indexOf('roughnessFactor = clamp(rdR');
     expect(set).toBeGreaterThan(fs.indexOf('#include <roughnessmap_fragment>'));
     expect(set).toBeLessThan(fs.indexOf('#include <lights_physical_fragment>'));
-    expect(fs).toContain('#define LOOK_SUN');
     scene.dispose();
   });
 

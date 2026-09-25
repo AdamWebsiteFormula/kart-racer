@@ -29,6 +29,16 @@ export function sampleRange(lut: Lut, u0: number, u1: number): { i0: number; i1:
   return { i0: Math.floor(u0 * lut.step), i1: Math.ceil(u1 * lut.step) };
 }
 
+/**
+ * The road's style set by the look (scene.ts, from TrackAssets.flatCurbs): `flatCurbs` lays a raised kerb
+ * down to a flush rumble strip (CURB_FLAT of its height left) where an inside-corner curb is (insideCurbs),
+ * as Mario Kart World's circuits have them; the kerb stays raised elsewhere (Harbor's sidewalk). Visual
+ * only: the sim never reads the kerb's height.
+ */
+export const RIBBON_STYLE = { flatCurbs: false };
+/** A flush rumble strip keeps this share of the kerb's height. */
+export const CURB_FLAT = 0.25;
+
 export interface RibbonOptions {
   /** an off-road track: no shoulder strip on a walled side (the land meets the curb), a skirt under the curb */
   offroad?: boolean;
@@ -213,10 +223,14 @@ export function buildRibbon(lut: Lut, u0: number, u1: number, palette: TrackPale
       const tanB = Math.tan(lut.bank[j]);
       const c = strip.colour(j, (j / lut.step) * lut.length); // wrapped so the seam vertex gets one stripe colour
       const inBlend = blended(i);
+      // a flush rumble strip where the inside-corner curb is (RIBBON_STYLE), eased in and out with the curb
+      const cw = RIBBON_STYLE.flatCurbs && strip.mark === M.kerb ? Math.max(0, lanes.curbs[j] * stripSide) : 0;
+      const flat = 1 - (1 - CURB_FLAT) * Math.min(1, Math.max(0, (cw - 0.2) / 0.5));
       for (const side of [0, 1] as const) {
         const l = side === 0 ? strip.a(hw) : strip.b(hw);
         // in the blend the kerb and shoulder lie flat and the whole ribbon sinks so the main road draws on top
-        const h = (inBlend ? 0 : side === 0 ? strip.ah : strip.bh) - (inBlend ? BLEND_SINK : 0);
+        const raw = side === 0 ? strip.ah : strip.bh;
+        const h = (inBlend ? 0 : raw === kh ? raw * flat : raw) - (inBlend ? BLEND_SINK : 0);
         pos[v * 3] = lut.px[j] + lut.rx[j] * l;
         pos[v * 3 + 1] = lut.py[j] - l * tanB + h;
         pos[v * 3 + 2] = lut.pz[j] + lut.rz[j] * l;

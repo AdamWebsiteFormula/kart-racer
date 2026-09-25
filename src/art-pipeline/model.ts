@@ -77,6 +77,11 @@ export class ModelBuilder {
   recolor: ((c: Color) => Color) | null = null;
   /** the first part of a seated driver (racers.ts racerModel), -1 when there is none */
   driverPart = -1;
+  /**
+   * The fewest segments round a ball: the PBR look's smooth shading shows a coarse sphere's facets that the
+   * toon ramp's three bands hid (look review, 25 Sept 2026); a big far model (a vista's hills and trees) sets it.
+   */
+  minBallDetail = 0;
   constructor(ink = 0.045) { this.ink = ink; }
 
   private push(geo: BufferGeometry, colour: Paint, pos: V3, rot: V3 = [0, 0, 0], scale: V3 = [1, 1, 1], outline = true): this {
@@ -91,7 +96,8 @@ export class ModelBuilder {
   }
   /** A sphere of radius 1 scaled to `radii` (an ellipsoid). */
   ball(radii: V3, colour: Paint, pos: V3, rot?: V3, detail = 14, outline = true): this {
-    return this.push(new SphereGeometry(1, detail, Math.max(4, detail * 0.66 | 0)), colour, pos, rot, radii, outline);
+    const d = Math.max(detail, this.minBallDetail);
+    return this.push(new SphereGeometry(1, d, Math.max(4, d * 0.66 | 0)), colour, pos, rot, radii, outline);
   }
   cyl(rTop: number, rBottom: number, h: number, colour: Paint, pos: V3, rot?: V3, seg = 12, outline = true): this {
     return this.push(new CylinderGeometry(rTop, rBottom, h, seg), colour, pos, rot, [1, 1, 1], outline);

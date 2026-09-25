@@ -1,6 +1,7 @@
 // Frame times of a real race in silent headless Chrome (real GPU).
-//   node scripts/headless/fps.mjs [url] [--cpu=4] [--size=1920x1080@1] [--uncapped] [--frames=1200]
+//   node scripts/headless/fps.mjs [url] [--cpu=4] [--size=1920x1080@1] [--uncapped] [--frames=1200] [--track=meadow-run] [--racer=juniper]
 // Starts a Quick Race from the title with Enter, holds the throttle, and measures requestAnimationFrame gaps.
+// With --track (a dev server: the kart console helper), that track's race instead, the AI driving your kart.
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,7 +16,9 @@ const cpu = Number(flag('cpu', '1')), frames = Number(flag('frames', '1200'));
 const c = await openChrome({ width, height, dpr: Number(dpr ?? 1), uncapped: args.includes('--uncapped') });
 try {
   await c.goto(url, 6000);
-  for (let i = 0; i < 4; i++) { await c.key('Enter', 'Enter', 13); await sleep(900); } // title → mode → racer → track
+  const track = flag('track', '');
+  if (track) await c.eval(`kart.race('${track}', '${flag('racer', 'juniper')}'); kart.autopilot(true);`);
+  else for (let i = 0; i < 4; i++) { await c.key('Enter', 'Enter', 13); await sleep(900); } // title → mode → racer → track
   if (cpu > 1) await c.send('Emulation.setCPUThrottlingRate', { rate: cpu });
   await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 });
   await sleep(5000); // past the countdown
@@ -30,5 +33,5 @@ try {
         ...(s ? { drawCalls: s.drawCalls, triangles: s.triangles, dpr: s.dpr, low: s.low } : {}) }; })`);
   const shot = join(tmpdir(), `rascal-fps-${width}x${height}.jpg`);
   writeFileSync(shot, await c.jpeg());
-  console.log(JSON.stringify({ url, size: `${width}x${height}@${dpr ?? 1}`, cpu, uncapped: args.includes('--uncapped'), ...r, shot }));
+  console.log(JSON.stringify({ url, ...(track ? { track } : {}), size: `${width}x${height}@${dpr ?? 1}`, cpu, uncapped: args.includes('--uncapped'), ...r, shot }));
 } finally { await c.close(); }

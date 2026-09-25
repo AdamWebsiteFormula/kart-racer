@@ -115,8 +115,8 @@ const MODELS: Record<string, { build: Build }> = {
       // party balloon (radius 0.9): one glossy color, a teardrop body, a shine on each face, a
       // tied knot and a wavy ribbon. Never striped: stripes read as a beach ball (Adam, 24 Sept 2026)
       const SKIN = '#ff2e63';
-      m.ball([0.78, 0.92, 0.78], SKIN, [0, 0.12, 0], undefined, 18);         // body
-      m.ball([0.5, 0.56, 0.5], SKIN, [0, -0.42, 0], undefined, 12, false);    // the taper to the neck
+      m.ball([0.78, 0.92, 0.78], SKIN, [0, 0.12, 0], undefined, 22);         // body (22 round: smooth up close in the PBR look)
+      m.ball([0.5, 0.56, 0.5], SKIN, [0, -0.42, 0], undefined, 14, false);    // the taper to the neck
       m.cone(0.13, 0.16, SKIN, [0, -0.93, 0], undefined, 8, false);            // knot, flared below the neck
       for (const z of [0.67, -0.67]) {                                         // shine, seen from either way along the road
         m.ball([0.13, 0.24, 0.06], '#ffffff', [-0.3, 0.4, z], [0, 0, 0.4], 10, false);
@@ -224,10 +224,11 @@ const MODELS: Record<string, { build: Build }> = {
   },
   bush: {
     build: (m) => {
-      // a low round shrub with a few red berries, knee-high to a kart
-      m.ball([0.7, 0.36, 0.62], '#3f8f3a', [0, 0.26, 0], undefined, 7);
-      m.ball([0.46, 0.3, 0.46], '#52a845', [0.42, 0.34, 0.18], undefined, 6);
-      m.ball([0.42, 0.28, 0.42], '#5cb84d', [-0.38, 0.32, -0.14], undefined, 6);
+      // a low round shrub with a few red berries, knee-high to a kart (rounder since the PBR look: its smooth
+      // shading showed the old 6- and 7-sided balls' facets)
+      m.ball([0.7, 0.36, 0.62], '#3f8f3a', [0, 0.26, 0], undefined, 11);
+      m.ball([0.46, 0.3, 0.46], '#52a845', [0.42, 0.34, 0.18], undefined, 9);
+      m.ball([0.42, 0.28, 0.42], '#5cb84d', [-0.38, 0.32, -0.14], undefined, 9);
       for (const [x, y, z] of [[0.3, 0.6, 0.32], [-0.26, 0.56, 0.24], [0.08, 0.6, -0.44]] as const) m.box([0.09, 0.09, 0.09], '#ff5d73', [x, y, z], [0.6, 0.6, 0], false);
     },
   },

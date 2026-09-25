@@ -106,7 +106,7 @@ describe('track dressing', () => {
   it('every model exists, and the per-instance triangle budget holds', async () => {
     const { DECOR_NAMES, decorGeometry } = await import('./decor.ts');
     // budgets per instance: the kerb repeats a thousand times, the lighthouse once
-    const budget: Record<string, number> = { 'harbour-barrier': 80, 'meadow-barrier': 80, 'canyon-barrier': 80, fence: 150, palm: 1100, oak: 700, cactus: 700, gull: 400, balloon: 1200, coin: 260, lighthouse: 3000, windmill: 3000, arch: 1500, mesa: 800, 'frost-barrier': 80, 'skyline-barrier': 80, 'boardwalk-barrier': 80, pine: 500, snowman: 1000, lamp: 300, stall: 500, cloud: 700, 'cloud-sea': 700, 'sky-lamp': 600, peak: 1500, airship: 4000, 'ferris-wheel': 6000, tent: 1200, island: 900, gust: 1200, tuft: 80, flowers: 240, bush: 220, scrub: 200, pebbles: 80, sapling: 150, stones: 120, crate: 80, umbrella: 120, 'rope-post': 180 };
+    const budget: Record<string, number> = { 'harbour-barrier': 80, 'meadow-barrier': 80, 'canyon-barrier': 80, fence: 150, palm: 1100, oak: 700, cactus: 700, gull: 400, balloon: 1200, coin: 260, lighthouse: 3000, windmill: 3000, arch: 1500, mesa: 800, 'frost-barrier': 80, 'skyline-barrier': 80, 'boardwalk-barrier': 80, pine: 500, snowman: 1000, lamp: 300, stall: 500, cloud: 700, 'cloud-sea': 700, 'sky-lamp': 600, peak: 1500, airship: 4000, 'ferris-wheel': 6000, tent: 1200, island: 900, gust: 1200, tuft: 80, flowers: 240, bush: 330, scrub: 200, pebbles: 80, sapling: 150, stones: 120, crate: 80, umbrella: 120, 'rope-post': 180 };
     for (const name of DECOR_NAMES) {
       const g = decorGeometry(name)!;
       const tris = g.body.index!.count / 3;
@@ -141,7 +141,8 @@ describe('track dressing', () => {
       // scaled up to 1.3 by placeDecor: still under a kart's roof (about 1.4 m), and no wider than a kart
       expect(b.max.y * 1.3, name).toBeLessThan(1.45);
       expect(Math.max(-b.min.x, b.max.x, -b.min.z, b.max.z), name).toBeLessThan(1.0);
-      expect(decorGeometry(name)!.body.index!.count / 3, name).toBeLessThan(250);
+      // (the bush rounder since the PBR look showed a 6-sided ball's facets: 110 of them a track)
+      expect(decorGeometry(name)!.body.index!.count / 3, name).toBeLessThan(name === 'bush' ? 330 : 250);
     }
   });
 });
@@ -229,7 +230,8 @@ describe('painted surfaces', () => {
     for (const f of ['grass', 'sand', 'snow', 'asphalt']) expect(fs.existsSync(new URL(`../../public/textures/${f}.webp`, import.meta.url)), f).toBe(true);
     const { groundMaterial } = await import('./surfaces.ts');
     expect(groundMaterial('harbour', 'water', 2400)?.type).toBe('ShaderMaterial');
-    expect(groundMaterial('meadow', 'plane', 2400)?.type).toBe('MeshToonMaterial');
+    // the game's look (PBR, look.ts) paints it on a standard material; the old toon look on a toon one
+    expect(groundMaterial('meadow', 'plane', 2400)?.type).toBe('MeshStandardMaterial');
     expect(groundMaterial('skyline', 'none', 2400)).toBeUndefined();
   });
 });

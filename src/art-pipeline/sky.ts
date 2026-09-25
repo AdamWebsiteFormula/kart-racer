@@ -7,9 +7,13 @@ import { BackSide, Color, Mesh, ShaderMaterial, SRGBColorSpace, TextureLoader, t
 /**
  * The scene's lights under a sky: the sun (or moon), the sky's own light, and the fill. `grade` is
  * the post chain's colour lift under it (post.ts, DAY_GRADE when absent); `glow` how much the
- * balloons and coins light themselves (0 by day), so pickups still read on a night road.
+ * balloons and coins light themselves (0 by day), so pickups still read on a night road. The PBR look
+ * (look.ts) takes a dark sky's own light and the fill up by `pbrEnv` and `pbrFill` (1 when absent):
+ * a night sky's light is a fraction of a day's, and the racers and the stalls went to silhouettes.
+ * `pbrCool`: how far the PBR look cools its horizon toward its aerial haze (HORIZON_COOL when absent):
+ * a pale cream day horizon washed the distance out; a dawn's, a sunset's or a night's glow is the point.
  */
-export interface SkyLight { sun: string; sunI: number; sky: string; skyI: number; ambient: string; ambientI: number; earth: string; grade?: number; glow?: number }
+export interface SkyLight { sun: string; sunI: number; sky: string; skyI: number; ambient: string; ambientI: number; earth: string; grade?: number; glow?: number; pbrEnv?: number; pbrFill?: number; pbrCool?: number }
 
 /** `panoHorizon`: how far up its file the painting's own horizon sits (0 = the bottom edge); below it, a painted cloud sea. */
 export interface SkyPreset { top: string; horizon: string; ground: string; sun: string; light?: SkyLight; panoHorizon?: number }
@@ -26,17 +30,17 @@ const LIGHTS: Readonly<Record<string, SkyLight>> = Object.freeze({
   'harbour-day': { sun: '#ffdcb0', sunI: 2.6, sky: '#cfe6ff', skyI: 0.6, ambient: '#b8d4ff', ambientI: 0.25, earth: '#7a6a4f' },
   'meadow-day': { sun: '#fff0cc', sunI: 2.6, sky: '#d2ecff', skyI: 0.6, ambient: '#c0dcff', ambientI: 0.25, earth: '#6a7a3f' },
   'canyon-day': { sun: '#ffd9a8', sunI: 2.7, sky: '#bcd8ff', skyI: 0.55, ambient: '#c8b8e8', ambientI: 0.25, earth: '#8a4a2f' },
-  'harbour-tide': { sun: '#ffb27a', sunI: 2.0, sky: '#ffc9a8', skyI: 0.75, ambient: '#ffcfb0', ambientI: 0.45, earth: '#8a5a4a' },
-  'meadow-storm': { sun: '#c9d4e0', sunI: 1.0, sky: '#9aa8b8', skyI: 0.85, ambient: '#8a9aad', ambientI: 0.55, earth: '#4f5a4a' },
+  'harbour-tide': { sun: '#ffb27a', sunI: 2.0, sky: '#ffc9a8', skyI: 0.75, ambient: '#ffcfb0', ambientI: 0.45, earth: '#8a5a4a', pbrCool: 0 },
+  'meadow-storm': { sun: '#c9d4e0', sunI: 1.0, sky: '#9aa8b8', skyI: 0.85, ambient: '#8a9aad', ambientI: 0.55, earth: '#4f5a4a', pbrEnv: 1.3, pbrFill: 1.2 },
   // a peach key and violet shade (detail review 2026-09-24: an orange sun on orange sand, pink fog
   // and the day's colour lift turned the whole final lap one clipped red)
-  'canyon-dusk': { sun: '#ffc49a', sunI: 1.7, sky: '#8f86e0', skyI: 0.9, ambient: '#8a7ad0', ambientI: 0.55, earth: '#6a3a3a', grade: 0.03, glow: 0.12 },
+  'canyon-dusk': { sun: '#ffc49a', sunI: 1.7, sky: '#8f86e0', skyI: 0.9, ambient: '#8a7ad0', ambientI: 0.55, earth: '#6a3a3a', grade: 0.03, glow: 0.12, pbrEnv: 1.6, pbrFill: 1.3, pbrCool: 0 },
   'frost-day': { sun: '#fff0dc', sunI: 1.9, sky: '#c6dcff', skyI: 0.55, ambient: '#a8c4f0', ambientI: 0.28, earth: '#8898b8' },
   'frost-blizzard': { sun: '#e8f0ff', sunI: 1.1, sky: '#dde8f5', skyI: 1.05, ambient: '#c8d6e8', ambientI: 0.65, earth: '#a8b4c4' },
-  'boardwalk-night': { sun: '#8fa6ff', sunI: 0.6, sky: '#4a3aa0', skyI: 0.42, ambient: '#5a4ac0', ambientI: 0.22, earth: '#1a1040', glow: 0.5 },
-  'boardwalk-fireworks': { sun: '#c8b0ff', sunI: 1.05, sky: '#8a4ab0', skyI: 0.75, ambient: '#9a6ad0', ambientI: 0.5, earth: '#3a1a50', glow: 0.4 },
-  'skyline-dawn': { sun: '#ffc890', sunI: 2.4, sky: '#ffc0d8', skyI: 0.6, ambient: '#d0b8f0', ambientI: 0.3, earth: '#9fb8ec' },
-  'skyline-night': { sun: '#a8c0ff', sunI: 1.0, sky: '#4060c0', skyI: 0.7, ambient: '#5068c8', ambientI: 0.5, earth: '#2a3a78', grade: 0.06, glow: 0.3 },
+  'boardwalk-night': { sun: '#8fa6ff', sunI: 0.6, sky: '#4a3aa0', skyI: 0.42, ambient: '#5a4ac0', ambientI: 0.22, earth: '#1a1040', glow: 0.5, pbrEnv: 2.8, pbrFill: 1.8, pbrCool: 0 },
+  'boardwalk-fireworks': { sun: '#c8b0ff', sunI: 1.05, sky: '#8a4ab0', skyI: 0.75, ambient: '#9a6ad0', ambientI: 0.5, earth: '#3a1a50', glow: 0.4, pbrEnv: 3, pbrFill: 1.6, pbrCool: 0 },
+  'skyline-dawn': { sun: '#ffc890', sunI: 2.4, sky: '#ffc0d8', skyI: 0.6, ambient: '#d0b8f0', ambientI: 0.3, earth: '#9fb8ec', pbrCool: 0 },
+  'skyline-night': { sun: '#a8c0ff', sunI: 1.0, sky: '#4060c0', skyI: 0.7, ambient: '#5068c8', ambientI: 0.5, earth: '#2a3a78', grade: 0.06, glow: 0.3, pbrEnv: 2.5, pbrFill: 1.5, pbrCool: 0 },
 });
 
 /** The lights under a sky preset (a plain day when it has none of its own). */
@@ -76,6 +80,7 @@ uniform sampler2D panoA; uniform float hasPanoA; uniform float panoHorizonA;
 uniform vec3 topB; uniform vec3 horizonB; uniform vec3 groundB; uniform vec3 sunB;
 uniform sampler2D panoB; uniform float hasPanoB; uniform float panoHorizonB;
 uniform vec3 sunDir; uniform float panoSpan; uniform float fade;
+uniform vec3 horizonTint; uniform float horizonMix;
 varying vec3 vDir;
 vec3 paint(vec3 d, vec3 top, vec3 horizon, vec3 ground, vec3 sun, sampler2D pano, float hasPano, float panoHorizon) {
   float y = d.y;
@@ -108,8 +113,30 @@ void main() {
   vec3 d = normalize(vDir);
   vec3 c = paint(d, topB, horizonB, groundB, sunB, panoB, hasPanoB, panoHorizonB);
   if (fade < 1.0) c = mix(paint(d, topA, horizonA, groundA, sunA, panoA, hasPanoA, panoHorizonA), c, smoothstep(0.0, 1.0, fade));
+  // the PBR look's cooler horizon (HORIZON_TINT: the fog takes the same colour, so the far land meets it on no seam)
+  c = mix(c, horizonTint, horizonMix * (1.0 - smoothstep(0.0, 0.16, abs(d.y))));
   gl_FragColor = vec4(c, 1.0);
 }`;
+
+/**
+ * The PBR look's aerial haze under a sky (look.ts AERIAL): its horizon a third of the way to its top, mixed
+ * as the eye sees colour (sRGB), so a day's haze is a soft blue and a night's a deep violet, never whiter
+ * than the horizon. Linear RGB, into `out`.
+ */
+export function aerialOf(id: string | undefined, out = new Color()): Color {
+  const p = (id && SKIES[id]) || SKIES['harbour-day'];
+  const h = new Color(p.horizon), t = new Color(p.top);
+  const hs = h.clone().convertLinearToSRGB(), ts = t.clone().convertLinearToSRGB();
+  out.copy(hs.lerp(ts, AERIAL_TOP)).convertSRGBToLinear();
+  return out;
+}
+/** How far from a sky's horizon toward its top its aerial haze is (aerialOf). */
+export const AERIAL_TOP = 0.35;
+/**
+ * How far the PBR look cools a sky's horizon (and the fog with it) toward its aerial haze: less cream, never
+ * whiter. A sky may name its own (SkyLight.pbrCool: none for a dawn, a sunset or a night, whose glow is the point).
+ */
+export const HORIZON_COOL = 0.4;
 
 /** The painted panoramas that ship with the game (public/skies). */
 export const PANORAMAS: ReadonlySet<string> = new Set<string>(Object.keys(SKIES));
@@ -169,8 +196,17 @@ function setPano(mat: ShaderMaterial, side: Side, t: Texture): void {
   mat.uniforms[`hasPano${side}`].value = 1;
 }
 
+/**
+ * The horizon band every sky dome cools toward (the PBR look: main.ts sets it each frame, with the fog;
+ * `mix` 0 leaves the painting as it is: the toon look).
+ */
+export const HORIZON_TINT = { tint: { value: new Color() }, mix: { value: 0 } };
+
 export function skyMaterial(p: SkyPreset): ShaderMaterial {
-  const uniforms: Record<string, { value: unknown }> = { sunDir: { value: [0.45, 0.8, 0.35] }, panoSpan: { value: PANO_SPAN }, fade: { value: 1 } };
+  const uniforms: Record<string, { value: unknown }> = {
+    sunDir: { value: [0.45, 0.8, 0.35] }, panoSpan: { value: PANO_SPAN }, fade: { value: 1 },
+    horizonTint: HORIZON_TINT.tint, horizonMix: HORIZON_TINT.mix,
+  };
   for (const side of ['A', 'B'] as const) for (const k of SIDE_KEYS) uniforms[`${k}${side}`] = { value: COLOUR_KEYS.has(k) ? new Color() : null };
   const mat = new ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, side: BackSide, depthWrite: false, fog: false, uniforms });
   setSide(mat, 'A', p);

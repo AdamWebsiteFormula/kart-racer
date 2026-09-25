@@ -7,7 +7,7 @@ import {
 } from 'three';
 import { toonRamp } from './toon.ts';
 import { detailTexture } from './detail.ts';
-import { isPbr, litWorld, look, PBR } from './look.ts';
+import { aerialFog, isPbr, litWorld, look, PBR } from './look.ts';
 import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts';
 
 /** Seconds, advanced by the game loop; every water surface animates from it. */
@@ -61,10 +61,10 @@ const WATERS: Readonly<Record<string, { deep: string; shallow: string; sparkle: 
 const waterCache = new Map<string, ShaderMaterial>();
 /** The water for a biome (harbour blue by default), shared by every race on it. */
 export function waterMaterial(biome: string): ShaderMaterial {
-  const key = WATERS[biome] ? biome : 'harbour';
+  const kind = WATERS[biome] ? biome : 'harbour', key = `${kind}:${look()}`;
   let m = waterCache.get(key);
   if (!m) {
-    const w = WATERS[key];
+    const w = WATERS[kind];
     m = new ShaderMaterial({
       vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, fog: true,
       uniforms: UniformsUtils.merge([UniformsLib.fog, {
@@ -73,6 +73,8 @@ export function waterMaterial(biome: string): ShaderMaterial {
       }]),
     });
     m.uniforms.time = WATER_CLOCK; // one clock for every water surface
+    // the PBR look's aerial haze over the far sea (look.ts), as over the land
+    if (isPbr()) { m.onBeforeCompile = (shader) => aerialFog(shader); m.customProgramCacheKey = () => 'water-aerial'; }
     m.userData.shared = true;
     waterCache.set(key, m);
   }
@@ -259,6 +261,20 @@ vec3 lkGroundTint(vec2 w, vec3 lush, vec3 dry, float size, float vary) {
   float n = lkNoise(w / size) * 0.62 + lkNoise(w * (3.7 / size) + 11.3) * 0.38;
   return mix(vec3(1.0), mix(lush, dry, smoothstep(0.3, 0.7, n)), vary);
 }
+// The far ground (look review, 25 Sept 2026: past the tufts a lawn went back to flat bright paint): out
+// from 25 m the texture's own pattern at five times its size and broad patches three times the near
+// ones' come in, and a clumpy grain between 25 and 130 m, so the land keeps its variation to the horizon.
+// Returns what to multiply the colour by, at 'dist' metres from the lens.
+vec3 lkFarGround(vec2 w, vec3 macro, vec3 mean, vec3 lush, vec3 dry, float size, float vary, float dist) {
+  float far = smoothstep(20.0, 110.0, dist);
+  float ml = dot(macro, vec3(0.2126, 0.7152, 0.0722)) / max(dot(mean, vec3(0.2126, 0.7152, 0.0722)), 1e-3);
+  vec3 m = mix(vec3(1.0), vec3(clamp(ml, 0.5, 1.5)), 0.7 * far);
+  vec3 big = mix(vec3(1.0), lkGroundTint(w, lush, dry, size * 3.0, min(1.0, vary * 1.4)) / max(lkGroundTint(w, lush, dry, size, vary), vec3(0.2)), far);
+  float clump = lkNoise(w * 0.3) * 0.6 + lkNoise(w * 0.9 + 3.1) * 0.4;
+  float cw = smoothstep(16.0, 36.0, dist) * (1.0 - smoothstep(110.0, 180.0, dist));
+  // a touch deeper out there, where the bright paint read flat
+  return m * big * mix(1.0, 0.72 + 0.5 * clump, cw) * mix(1.0, 0.86, far);
+}
 ${SATURATE}`;
 
 const groundCache = new Map<string, Material>();
@@ -302,7 +318,11 @@ function pbrGround(biome: string, map: Texture, file: string): MeshStandardMater
     shader.vertexShader = `varying vec3 vLkW;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vLkW = (modelMatrix * vec4(transformed, 1.0)).xyz;')}`;
     shader.fragmentShader = `uniform sampler2D uRelief; uniform vec3 uLush; uniform vec3 uDry; varying vec3 vLkW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n${shader.fragmentShader}`
       .replace('#include <map_fragment>', `#include <map_fragment>
-  diffuseColor.rgb = lkSaturate(diffuseColor.rgb * lkGroundTint(vLkW.xz, uLush, uDry, ${gl.size.toFixed(1)}, ${gl.vary.toFixed(2)}), ${gl.sat.toFixed(2)});`)
+  diffuseColor.rgb = lkSaturate(diffuseColor.rgb * lkGroundTint(vLkW.xz, uLush, uDry, ${gl.size.toFixed(1)}, ${gl.vary.toFixed(2)}), ${gl.sat.toFixed(2)});
+  {
+    vec3 lkMacro = texture2D(map, vMapUv * 0.2).rgb, lkMean = textureLod(map, vMapUv, 12.0).rgb;
+    diffuseColor.rgb *= lkFarGround(vLkW.xz, lkMacro, lkMean, uLush, uDry, ${gl.size.toFixed(1)}, ${gl.vary.toFixed(2)}, length(vViewPosition));
+  }`)
       // the plane's v runs along -Z (PlaneGeometry turned flat)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   normal = lkBend(normal, lkSlope(uRelief, vMapUv) * ${gl.relief.toFixed(2)} * (1.0 - smoothstep(15.0, 60.0, length(vViewPosition))), -1.0);`)
@@ -494,28 +514,67 @@ export function roadWear(m: MeshToonMaterial, biome: string): void {
 export const ROAD_GRAIN_METRES = 4;
 
 /**
+ * Each biome's road in the PBR look (roadDetail): what its surface is made of (`kind`), the texture its
+ * relief is read from (detail.ts) and how many metres a tile of it covers, how strong the relief is, its
+ * roughness (`rough`: at the relief's hollows and its tops) and its share of the sky's light (`env`, the
+ * look.ts PBR.env scale). asphalt: grain, a polished racing line, tire marks; planks (Boardwalk's deck):
+ * boards across the road with bevelled seams, grain along each board and wet patches that shine;
+ * snow (Frostbite's packed road): soft relief, icy where the karts run, glints near the lens; panels
+ * (Skyline's sky road): a fine, smoother grain.
+ */
+export interface RoadDetail { kind: 'asphalt' | 'planks' | 'snow' | 'panels'; file: string; metres: number; relief: number; rough: readonly [number, number]; env: number }
+export const ROAD_DETAILS: Readonly<Record<string, RoadDetail>> = Object.freeze({
+  harbour: { kind: 'asphalt', file: 'asphalt', metres: ROAD_GRAIN_METRES, relief: 0.9, rough: [0.97, 0.82], env: 0.22 },
+  meadow: { kind: 'asphalt', file: 'asphalt', metres: ROAD_GRAIN_METRES, relief: 0.9, rough: [0.97, 0.82], env: 0.22 },
+  canyon: { kind: 'asphalt', file: 'asphalt', metres: ROAD_GRAIN_METRES, relief: 0.8, rough: [0.97, 0.85], env: 0.22 },
+  frost: { kind: 'snow', file: 'snow', metres: 4.5, relief: 0.3, rough: [0.82, 0.66], env: 0.22 },
+  boardwalk: { kind: 'planks', file: 'asphalt', metres: 2.5, relief: 0.25, rough: [0.82, 0.7], env: 0.3 },
+  skyline: { kind: 'panels', file: 'asphalt', metres: 2.2, relief: 0.45, rough: [0.85, 0.72], env: 0.26 },
+});
+/** The road's share of the sky's light in the PBR look where a biome names none (look.ts PBR.env for the rest of the world). */
+export const ROAD_ENV = 0.22;
+
+/**
+ * GLSL: which way the road runs at this pixel, in world XZ, from how its along coordinate `v` (vRoad.y)
+ * changes with the world position `w` across the screen. Called outside any branch (it takes derivatives).
+ */
+const ROAD_ALONG = `
+vec2 rdAlong(vec2 w, float v) {
+  vec2 dwx = dFdx(w), dwy = dFdy(w);
+  float dvx = dFdx(v), dvy = dFdy(v);
+  float det = dwx.x * dwy.y - dwx.y * dwy.x;
+  vec2 g = vec2(dvx * dwy.y - dvy * dwx.y, dwx.x * dvy - dwy.x * dvx) / (abs(det) > 1e-9 ? det : 1e-9);
+  float l = length(g);
+  return l > 1e-6 ? g / l : vec2(0.0, 1.0);
+}`;
+
+/**
  * The road in the PBR look (look.ts), chained after its lines and wear (it reads their vRoad, vMark,
- * vBend, mudMask and the PBR parts of scene.ts paintRoadLines: vLane, vCurb, roadPaint, roadCurb):
- * - the racing line (road.ts racingLine: toward each corner's inside) a little darker and smoother,
- *   where the karts have polished it, with faint tire marks along it, two wheel tracks a kart apart
- *   and a second pair a little wide, broken along the road, darker in the corners, gone before they
- *   could shimmer (by distance and by how wide a pixel is);
- * - the asphalt's grain (the albedo's own relief, detail.ts) in the normal, in world space, faded with
- *   distance, and in the roughness: rough in the cavities, smoother on the polished line, the paint
- *   and the curbs, never a mirror.
+ * vBend, mudMask and the PBR parts of scene.ts paintRoadLines: vLane, vCurb, roadPaint, roadCurb), in the
+ * biome's own make (ROAD_DETAILS):
+ * - the racing line (road.ts racingLine: toward each corner's inside) a little darker and smoother, where
+ *   the karts have polished it, with faint tire marks along it (asphalt, panels; on snow the packed line
+ *   turns to ice), gone before they could shimmer (by distance and by how wide a pixel is);
+ * - the surface's own relief (detail.ts) in the normal, in world space, faded with distance, and in the
+ *   roughness; on the planks, bevelled seams and a grain along each board, and wet patches that shine;
+ * - the inside-corner curbs (scene.ts) as a rumble strip: each block a low dome along the road.
  * Same material, same draw calls. Only a MeshStandardMaterial compiles it (STANDARD).
  */
-export function roadDetail(m: MeshToonMaterial): void {
-  const uniforms = { uRoadGrain: { value: detailMap('asphalt') } };
-  const g = ROAD_GRAIN_METRES.toFixed(2);
+export function roadDetail(m: MeshToonMaterial, biome: string): void {
+  const rd = ROAD_DETAILS[biome] ?? ROAD_DETAILS.harbour;
+  const uniforms = { uRoadGrain: { value: detailMap(rd.file) } };
+  const f = (x: number) => x.toFixed(3);
+  const g = rd.metres.toFixed(2);
+  const kind = `#define RD_${rd.kind.toUpperCase()}`;
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `#ifdef STANDARD\nvarying vec3 vRdW;\n#endif\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef STANDARD\n  vRdW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif')}`;
-    shader.fragmentShader = `#ifdef STANDARD\nuniform sampler2D uRoadGrain;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n#endif\n${shader.fragmentShader}`
+    shader.fragmentShader = `#ifdef STANDARD\n${kind}\nuniform sampler2D uRoadGrain;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n${ROAD_ALONG}\n#endif\n${shader.fragmentShader}`
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 #ifdef STANDARD
+  float rdIce = 0.0;
   {
     float rdH = texture2D(uRoadGrain, vRdW.xz / ${g}).b;
     float rdView = length(vViewPosition);
@@ -537,30 +596,70 @@ export function roadDetail(m: MeshToonMaterial): void {
       }
       float px = fwidth(lat);
       marks = min(marks, 1.0) * (0.55 + 0.45 * vBend) * (1.0 - smoothstep(0.04, 0.12, px)) * (1.0 - smoothstep(25.0, 60.0, rdView)) * (1.0 - mudMask) * (1.0 - roadPaint);
+      rdR = mix(${f(rd.rough[0])}, ${f(rd.rough[1])}, rdH) - 0.1 * band - 0.1 * marks;
+  #if defined( RD_PLANKS )
+      // boards across the road, 16 to a 10 m tile (the plank map): each its own shade, a grain along it, a
+      // dark gap at each end (all of it fading to the deck's mean where a board is a few pixels deep), wet patches that shine
+      float pk = vRoad.y * 16.0, board = floor(pk), q = fract(pk);
+      float pkW = fwidth(pk), pkFar = smoothstep(0.12, 0.4, pkW);
+      float grain = lkNoise(vec2(vRoad.x * 2.0 * vLane.y * 0.9 + board * 7.3, q * 6.0 + board * 3.1));
+      float gap = 1.0 - smoothstep(0.018, 0.018 + 1.5 * pkW, min(q, 1.0 - q));
+      gap = mix(gap, 0.06, pkFar);
+      float shade = mix(0.9 + 0.2 * lkHash(vec2(board, 5.7)), 1.0, pkFar);
+      float wet = smoothstep(0.45, 0.75, lkNoise(vRdW.xz * 0.12 + 2.0));
+      diffuseColor.rgb *= shade * (0.92 + 0.16 * grain) * (1.0 - 0.1 * band) * (1.0 - 0.55 * gap);
+      rdR = mix(mix(0.8, 0.66, grain), 0.26, wet) - 0.08 * band;
+  #elif defined( RD_SNOW )
+      // packed snow: soft blue-white mottling; where the karts run it is polished to ice (smooth, a touch darker)
+      rdIce = band * 0.7 * (1.0 - mudMask);
+      diffuseColor.rgb *= mix(vec3(0.94, 0.97, 1.02), vec3(1.04, 1.03, 1.0), rdH) * (1.0 - 0.14 * rdIce) * (1.0 - 0.22 * marks);
+      rdR = mix(rdR, 0.62, rdIce);
+  #else
       diffuseColor.rgb *= (1.0 - 0.12 * band) * (1.0 - 0.3 * marks) * (0.84 + 0.16 * rdH);
-      rdR = mix(0.97, 0.82, rdH) - 0.1 * band - 0.1 * marks;
+  #endif
       rdR = mix(rdR, 0.55, roadPaint);
       rdR = mix(rdR, 0.92, mudMask);
     } else if (vMark < 1.5) {
       diffuseColor.rgb *= 0.94 + 0.12 * rdH;
-      rdR = mix(0.9, 0.9, roadCurb);
+      rdR = mix(0.9, 0.8, roadCurb);
     }
-    roughnessFactor = clamp(rdR, 0.3, 1.0);
+    roughnessFactor = clamp(rdR, 0.22, 1.0);
   }
 #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 #ifdef STANDARD
-  if (vMark < 1.5) normal = lkBend(normal, lkSlope(uRoadGrain, vRdW.xz / ${g}) * 0.9 * (1.0 - smoothstep(10.0, 40.0, length(vViewPosition))), 1.0);
+  // (the derivatives and the relief's lookup before any branch: the road's strips meet inside a pixel quad)
+  vec2 rdDir = rdAlong(vRdW.xz, vRoad.y);
+  vec2 rdS = lkSlope(uRoadGrain, vRdW.xz / ${g}) * ${f(rd.relief)};
+  if (vMark < 1.5) {
+    float rdFade = 1.0 - smoothstep(10.0, 40.0, length(vViewPosition));
+  #if defined( RD_PLANKS )
+    // each board's two ends round down into its gap, a little (a strong bevel read as a staircase)
+    if (vMark < 0.5) {
+      float q = fract(vRoad.y * 16.0);
+      rdS += rdDir * (smoothstep(0.9, 0.975, q) - (1.0 - smoothstep(0.0, 0.025, q))) * 0.2;
+    }
+  #endif
+    // the rumble strip: each 1.2 m block a low dome along the road
+    if (vMark > 0.5 && roadCurb > 0.01) rdS += rdDir * cos(fract(vRoad.y * 10.0 / 1.2) * 3.14159) * 0.45 * roadCurb;
+    normal = lkBend(normal, rdS * rdFade, 1.0);
+  }
+#endif`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+#if defined( STANDARD ) && defined( RD_SNOW )
+  // ice glints near the lens, a few, bright enough for the bloom (as the snow beside the road has)
+  if (vMark < 1.5) {
+    vec2 gc = floor(vRdW.xz * 2.4), gf = fract(vRdW.xz * 2.4) - 0.5;
+    float glint = step(0.985, lkHash(gc)) * (1.0 - smoothstep(0.04, 0.11, length(gf))) * (1.0 - smoothstep(10.0, 34.0, length(vViewPosition)));
+    totalEmissiveRadiance += vec3(0.85, 0.93, 1.0) * glint * (1.0 + 1.5 * rdIce);
+  }
 #endif`);
   };
   const key = m.customProgramCacheKey.bind(m);
-  m.customProgramCacheKey = () => `${key()}|detail`;
-  // a little less of the pale sky's sheen than the props take: the road read washed out
-  m.userData.lookEnv = ROAD_ENV;
+  m.customProgramCacheKey = () => `${key()}|detail-${rd.kind}`;
+  // its share of the sky's light: less than the props (a pale sky's sheen washed the asphalt out); the wet deck more
+  m.userData.lookEnv = rd.env;
 }
-
-/** The road's share of the sky's light in the PBR look (look.ts PBR.env for the rest of the world). */
-export const ROAD_ENV = 0.22;
 
 /** A wide wooden deck (Boardwalk Nights): warm planks with grain and dark gaps, 4 planks a tile. */
 function planks(): Texture {
@@ -684,6 +783,10 @@ function pbrCoast(shader: WebGLProgramParametersWithUniforms, biome: string, spe
     .replace('diffuseColor.rgb *= mix(topTexel, sandTexel, smoothstep(0.0, 1.0, vBlend));', `diffuseColor.rgb *= mix(topTexel, sandTexel, smoothstep(0.0, 1.0, vBlend));
   float lkTop = 1.0 - smoothstep(0.0, 1.0, vBlend);
   diffuseColor.rgb = lkSaturate(diffuseColor.rgb * mix(vec3(1.0), lkGroundTint(vWorldUv, uLush, uDry, ${f(gl.size)}, ${f(gl.vary)}), lkTop), mix(1.0, ${f(gl.sat)}, lkTop));
+  {
+    vec3 lkMacro = texture2D(topMap, vWorldUv * topScale * 0.2).rgb, lkMean = textureLod(topMap, vWorldUv * topScale, 12.0).rgb;
+    diffuseColor.rgb *= mix(vec3(1.0), lkFarGround(vWorldUv, lkMacro, lkMean, uLush, uDry, ${f(gl.size)}, ${f(gl.vary)}, length(vViewPosition)), lkTop);
+  }
   // the soft dirt edge where a grass top meets the curb, wandering in and out a metre or so
   float lkE = vLkCurb + (lkNoise(vWorldUv * 0.16) - 0.5) * 2.4 + (lkNoise(vWorldUv * 0.6) - 0.5) * 1.1 + (lkNoise(vWorldUv * 2.1 + 5.0) - 0.5) * 0.45;
   float lkDirt = ${spec.dirt ? '1.0' : '0.0'} * (1.0 - smoothstep(0.3, 2.3, lkE)) * lkTop * step(-0.6, vLkCurb);

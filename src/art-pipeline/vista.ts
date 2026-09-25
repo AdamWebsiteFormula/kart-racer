@@ -207,8 +207,12 @@ function vistaMaterial(sun: V3, glow: boolean, life: LifeUniforms, fog = true): 
 const UP = new Vector3(0, 1, 0);
 const M = new Matrix4(), Q = new Quaternion(), P = new Vector3(), S = new Vector3();
 
+/** A vista's balls are tens of metres across: at least this many segments, or their facets show (VISTA_BALL_DETAIL). */
+export const VISTA_BALL_DETAIL = 16;
+
 function model(build: (m: ModelBuilder) => void): BufferGeometry {
   const m = new ModelBuilder();
+  m.minBallDetail = VISTA_BALL_DETAIL;
   build(m);
   return m.build();
 }

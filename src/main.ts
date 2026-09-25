@@ -12,7 +12,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isPbr, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { AERIAL, aerialOf, AIR, BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, HORIZON_COOL, HORIZON_TINT, isBodyId, isPbr, isShared, PAINTS, PBR, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { Warmup } from './performance/warmup.ts';
@@ -72,13 +72,16 @@ document.body.appendChild(renderer.domElement);
 const scene = new Scene();
 // a soft studio reflection for the model-file racers (their PBR metal is black without one);
 // the toon materials ignore it
-scene.environment = new PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.7;
+const roomEnv = new PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 /**
- * The PBR look (?look=pbr, art-pipeline look.ts): the world reflects the race's own painted sky, one map
- * painted again in place as the sky changes (followSky). Made now, so every world material made later has it.
+ * The PBR look (the game's; art-pipeline look.ts): the world and the racers reflect the race's own painted
+ * sky, one map painted again in place as the sky changes (followSky). Made now, so every world material
+ * made later has it; the racers take it as the race scene's environment. The toon look keeps the studio
+ * reflection for the racers, and so does the racer screen's turntable in either (it has lights of its own).
  */
 const skyEnv = isPbr() ? new SkyEnvironment(renderer) : null;
+scene.environment = skyEnv?.texture ?? roomEnv;
+scene.environmentIntensity = skyEnv ? PBR.env : 0.7;
 const sun = new DirectionalLight(0xfff4e0, 2.2);
 sun.position.set(60, 120, 40);
 setSunShadow(sun);
@@ -94,8 +97,8 @@ function sunOffset(dir: [number, number, number] | undefined): Vec3 {
 }
 /** the lights ease to the current sky's (a final-lap sunset falls over a couple of seconds) */
 const lightTo = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color() };
-/** the sky's light as eased so far, before the mine takes its share */
-const lightNow = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color(), sunI: 0, skyI: 0, ambientI: 0 };
+/** the sky's light as eased so far, before the mine takes its share; `envG` and `fillG` the PBR look's gains for a dark sky (SkyLight.pbrEnv, pbrFill) */
+const lightNow = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color(), sunI: 0, skyI: 0, ambientI: 0, envG: 1, fillG: 1, cool: 0 };
 /**
  * In a tunnel (Canyon's mine) the day gives way to the lanterns: its light this much dimmer and this
  * warm, by how deep the camera is in the bore (ChaseCam.tunnel, eased over the portal). The sun is
@@ -113,13 +116,20 @@ function applyLight(l: SkyLight, bounce: Color | null, dt: number, snap: boolean
   n.sky.lerp(lightTo.sky, k); n.skyI += (l.skyI - n.skyI) * k;
   n.earth.lerp(bounce ?? lightTo.earth, k);
   n.ambient.lerp(lightTo.ambient, k); n.ambientI += (l.ambientI - n.ambientI) * k;
+  // the PBR look: a dark sky's own light and the fill taken up (SkyLight.pbrEnv, pbrFill), on the world and the racers alike
+  const envTo = skyEnv ? l.pbrEnv ?? 1 : 1, fillTo = skyEnv ? l.pbrFill ?? 1 : 1;
+  n.envG += (envTo - n.envG) * k; n.fillG += (fillTo - n.fillG) * k;
+  n.cool += ((skyEnv ? l.pbrCool ?? HORIZON_COOL : 0) - n.cool) * k;
   sun.color.copy(n.sun); sun.intensity = n.sunI * (1 + (MINE.sun - 1) * tunnel);
-  hemi.color.copy(n.sky).lerp(MINE.warm, MINE.tint * tunnel); hemi.intensity = n.skyI * (1 + (MINE.sky - 1) * tunnel);
+  hemi.color.copy(n.sky).lerp(MINE.warm, MINE.tint * tunnel); hemi.intensity = n.skyI * n.fillG * (1 + (MINE.sky - 1) * tunnel);
   hemi.groundColor.copy(n.earth);
-  fill.color.copy(n.ambient).lerp(MINE.warm, MINE.tint * tunnel); fill.intensity = n.ambientI * (1 + (MINE.ambient - 1) * tunnel);
+  fill.color.copy(n.ambient).lerp(MINE.warm, MINE.tint * tunnel); fill.intensity = n.ambientI * n.fillG * (1 + (MINE.ambient - 1) * tunnel);
+  if (skyEnv) scene.environmentIntensity = PBR.env * n.envG * (1 + (MINE.sky - 1) * tunnel);
 }
 let lightSnap = true;
 
+/** The aerial haze the race's sky asks for (sky.ts aerialOf), eased toward each frame, and the fog's colour this frame. */
+const aerialTo = new Color(), fogTo = new Color();
 /** The earth's shade under the sky map's horizon: the hemisphere's ground colour, darker (linear). */
 const skyEarth = new Color();
 /** The sky fade (sky.ts fadeSky) the sky map was last painted at. */
@@ -869,8 +879,17 @@ function step(now: number): void {
   if (warmup.active) return; // the attract loop just started its next race: compiling
   cur.frame(acc.alpha, frameDt, reduced, intro ? intro.sceneTime(cur.state.time) : undefined);
   if (skyEnv) followSky(cur);
-  if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap, attract ? 0 : chase.tunnel);
+  // the PBR look's aerial haze follows the race's sky (sky.ts aerialOf), eased with the lights; its horizon
+  // (the fog, and the dome's band at it) is cooled toward that haze by the sky's own share (SkyLight.pbrCool)
+  if (skyEnv) {
+    aerialOf(cur.trackScene.sky, aerialTo);
+    AERIAL.value.lerp(aerialTo, lightSnap ? 1 : 1 - Math.exp(-frameDt * 1.6));
+    fogTo.copy(cur.horizon).lerp(AERIAL.value, lightNow.cool);
+    HORIZON_TINT.tint.value.copy(fogTo);
+    HORIZON_TINT.mix.value = lightNow.cool > 0.001 ? 1 : 0;
+  } else fogTo.copy(cur.horizon);
+  if (scene.fog && !(scene.fog as Fog).color.equals(fogTo)) { (scene.fog as Fog).color.copy(fogTo); (scene.background as Color).copy(fogTo); }
   showShift(cur, racing && !ui.paused, reduced);
   if (post) { post.gradeTo = cur.skyLight.grade ?? DAY_GRADE; if (lightSnap) post.snapGrade(); }
   lightSnap = false;
@@ -933,7 +952,7 @@ function step(now: number): void {
 }
 
 // ---- the racer screen's hero turntable: the focused racer in their paint and body (design §12, §10 rewards) ----
-const showroom = new Showroom(scene.environment);
+const showroom = new Showroom(roomEnv);
 const clearWas = new Color();
 
 /** Render the showroom into the main canvas under the hero box, then copy it into the box's own canvas (over the menu's dim). */
@@ -1019,7 +1038,7 @@ if (import.meta.env.DEV) {
     get intro() { return intro; },
     camera, scene, acc,
     /** dev: the PBR look's sky map (?look=pbr; null in the toon look), and a capture of the race's sky into it now */
-    skyEnv, paintSkyEnv: () => { if (session) paintSkyEnv(session); },
+    skyEnv, paintSkyEnv: () => { if (session) paintSkyEnv(session); }, air: AIR,
     /** dev: grant all six design §10 unlocks (three paints, two bodies, Mirror) to try them; saved like any earned unlock */
     unlockAll: () => ui.grantAllUnlocks(),
     /** dev: the podium ceremony on this race's track with these three (1st to 3rd), for checking it (no overlay) */

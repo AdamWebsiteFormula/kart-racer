@@ -6,9 +6,9 @@
 import {
   AmbientLight, BufferAttribute, CircleGeometry, Color, CylinderGeometry, DirectionalLight, Group, HemisphereLight,
   Mesh, MeshBasicMaterial, MeshToonMaterial, PerspectiveCamera, Scene, TorusGeometry,
-  type BufferGeometry, type Material, type Texture, type WebGLRenderer,
+  type BufferGeometry, type Material, type MeshStandardMaterial, type Texture, type WebGLRenderer,
 } from 'three';
-import { buildRacerMesh, freeSkeletons, isShared, RACER_MODELS, toonRamp, type KartLook } from '../art-pipeline/index.ts';
+import { applyLook, buildRacerMesh, freeSkeletons, isPbr, isShared, PBR, RACER_MODELS, toonRamp, type KartLook } from '../art-pipeline/index.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { createKartState, NEUTRAL_INPUT, type KartState } from '../kart-controller/types.ts';
 import { KartView } from '../kart-controller/view.ts';
@@ -48,11 +48,14 @@ export class Showroom {
   constructor(environment: Texture | null = null) {
     this.scene.environment = environment; // the model-file racers' PBR metal needs a reflection
     this.scene.environmentIntensity = 0.7;
-    const key = new DirectionalLight(0xfff2de, 2.6);
+    // the PBR look lights every standard material its own way (art-pipeline look.ts: the sun gained, the fill
+    // scaled): the stand's lights are scaled back by the same, so a racer here looks as it always has
+    const sun = isPbr() ? 1 / PBR.sun : 1, fill = isPbr() ? 1 / PBR.ambient : 1;
+    const key = new DirectionalLight(0xfff2de, 2.6 * sun);
     key.position.set(3, 7, 5);
-    const rim = new DirectionalLight(0xa9c4ff, 1.1);
+    const rim = new DirectionalLight(0xa9c4ff, 1.1 * sun);
     rim.position.set(-4, 3, -5);
-    this.scene.add(key, rim, new HemisphereLight(0xe6f0ff, 0x3c3358, 1.2), new AmbientLight(0xbcd8ff, 0.3));
+    this.scene.add(key, rim, new HemisphereLight(0xe6f0ff, 0x3c3358, 1.2 * fill), new AmbientLight(0xbcd8ff, 0.3 * fill));
     // the spotlight: a soft pool of light on the floor and a glow on the wall behind
     const wall = glowDisc(7, '#5b4b93', SHOWROOM_BG);
     wall.position.set(0, 1.6, -4.5);
@@ -69,6 +72,11 @@ export class Showroom {
     rimRing.rotation.x = Math.PI / 2;
     rimRing.position.y = 0;
     this.stand.add(drum, rimRing);
+    if (isPbr()) {
+      // the pedestal in the PBR look too, lit as the racer on it (its twins reflect the stand's own studio, not a race's sky)
+      applyLook(this.stand);
+      for (const m of [drum, rimRing]) (m.material as unknown as MeshStandardMaterial).envMap = null;
+    }
     this.scene.add(wall, floor, this.stand);
     this.own.push(drumGeo, rimGeo, drumMat, rimMat, wall.geometry, floor.geometry, wall.material as Material, floor.material as Material);
     this.camera.position.set(0, 2.5, 8.2);

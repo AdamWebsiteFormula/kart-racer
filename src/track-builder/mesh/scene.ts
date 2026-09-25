@@ -12,7 +12,7 @@ import { BUILDER } from '../constants.ts';
 import { buildTrack, type Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, ribbonOptions, type Chunk } from './chunks.ts';
-import { buildRibbon, sampleRange } from './road.ts';
+import { buildRibbon, RIBBON_STYLE, sampleRange } from './road.ts';
 import { buildShiftStage, type LakeHook, type ShiftStage } from './shiftStage.ts';
 import { hashString, mulberry32, Occupancy, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
@@ -64,10 +64,12 @@ export interface TrackAssets {
   /**
    * the PBR look's grass by the road (art-pipeline grass.ts; placed by verge.ts): one tuft's geometry and
    * its material (shared, never disposed by the scene), drawn as one instancer along the curbs of an
-   * off-road track; it takes the place of the verge entries named in `replaces` (their places are still
-   * worked out, so everything else stands where it did)
+   * off-road track; it takes the place of the verge entries named in `replaces`, and keeps the share
+   * `thins` names of others (their places are still worked out, so everything else stands where it did)
    */
-  grass?: { geometry: BufferGeometry; material: Material; replaces: readonly string[] };
+  grass?: { geometry: BufferGeometry; material: Material; replaces: readonly string[]; thins?: Readonly<Record<string, number>> };
+  /** a raised edge that takes corner stripes (EDGES mode 1) lies flush at an inside-corner curb: a rumble strip (road.ts RIBBON_STYLE) */
+  flatCurbs?: boolean;
 }
 
 /** What a far vista is laid out from: the track's middle and reach, its start, its ground and sun. */
@@ -304,14 +306,19 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
         if (vMark > 0.5 && vMark < 1.5) {
           // striped curb: hard stripes, anti-aliased so they do not shimmer far away
           #ifdef STANDARD
-            // the PBR look: a circuit's blocks, 1.2 m each
+            // the PBR look: a circuit's blocks, 1.2 m each, filtered by the pixel's true reach along them (not
+            // fwidth's sum, which washed the far blocks to pink), and where they do blur, still a red curb
             float p = vRoad.y * 10.0 / 2.4;
+            float w = length(vec2(dFdx(p), dFdy(p))) * 0.8;
+            float t = abs(fract(p) - 0.5) * 2.0;
+            vec3 stripes = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
+            stripes = mix(stripes, mix(uKerbA, uKerbB, 0.3), smoothstep(0.35, 0.9, w));
           #else
             float p = vRoad.y * 2.0;
+            float w = fwidth(p) * 1.5;
+            float t = abs(fract(p) - 0.5) * 2.0;
+            vec3 stripes = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
           #endif
-          float w = fwidth(p) * 1.5;
-          float t = abs(fract(p) - 0.5) * 2.0;
-          vec3 stripes = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
           // the place's own edge: two tones broken up along the road, with seams (slabs, planks)
           float q = sin(vRoad.y * 11.0 + vRoad.x * 3.0) * sin(vRoad.y * 4.3 - vRoad.x * 1.7) * 0.5 + 0.5;
           float seam = uEdgeJoints > 0.0 ? 1.0 - smoothstep(0.0, 0.08, abs(fract(vRoad.y * uEdgeJoints) - 0.5) * 2.0 - 0.9) : 0.0;
@@ -387,7 +394,14 @@ function lessHaze(m: Material, k: number): void {
   #else
     float hazeK = smoothstep( fogNear, fogFar, vFogDepth );
   #endif
-  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, hazeK * ${k.toFixed(2)} );
+  // (the PBR look's aerial haze colour and its air when its patch named them: art-pipeline look.ts aerialFog)
+  #ifndef LOOK_HAZE
+    #define LOOK_HAZE( f ) fogColor
+  #endif
+  #ifndef LOOK_AIR
+    #define LOOK_AIR( d ) 0.0
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, LOOK_HAZE( hazeK ), 1.0 - ( 1.0 - hazeK * ${k.toFixed(2)} ) * ( 1.0 - LOOK_AIR( vFogDepth ) ) );
 #endif`);
   };
   const key = m.customProgramCacheKey.bind(m);
@@ -403,6 +417,19 @@ function reachOf(g: BufferGeometry): number {
   for (let i = 0; i < p.count; i++) r = Math.max(r, Math.hypot(p.getX(i), p.getZ(i)));
   g.userData.groundReach = r;
   return r;
+}
+
+/** Keep `share` of a placement's copies, spread evenly through them (its count and matrices shrink in place). */
+export function thinPlacement(p: DecorPlacement, share: number): void {
+  let kept = 0;
+  for (let i = 0; i < p.count; i++) {
+    // copy i stays when the running share passes a whole copy: evenly spread, the first always kept
+    if (Math.floor((i + 1) * share) === Math.floor(i * share) && i > 0) continue;
+    if (kept !== i) p.matrices.copyWithin(kept * 16, i * 16, i * 16 + 16);
+    kept++;
+  }
+  p.matrices = p.matrices.subarray(0, kept * 16);
+  p.count = kept;
 }
 
 /** Placeholder geometries the scene made itself; caller-owned `assets` geometries are never disposed. */
@@ -671,6 +698,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const branches = track.branches;
 
   GRADIENT = assets.gradientMap;
+  // the look's road: flush rumble strips at inside corners where the edge takes corner stripes (RIBBON_STYLE)
+  RIBBON_STYLE.flatCurbs = assets.flatCurbs === true && (EDGES[def.biome] ?? EDGES.harbour).mode === 1;
   /** an ink hull that shares the model's instance matrices, so it follows it for free */
   const withHull = <T extends Mesh>(src: T, key: string): T => {
     const hg = assets.hulls?.[key];
@@ -769,6 +798,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     decor.push(p);
     // the PBR look's grass by the road (below) takes the place of this ground cover
     if (entry.band === 'verge' && assets.grass?.replaces.includes(entry.asset)) continue;
+    const keep = entry.band === 'verge' ? assets.grass?.thins?.[entry.asset] : undefined;
+    if (keep !== undefined && keep < 1) thinPlacement(p, keep);
     // a code-built prop marked `merge` joins the merged dressing: no instancer of its own
     if (entry.merge && geo.hasAttribute('color') && !assets.materials?.[entry.asset]) {
       // the roadside band and spans cast shadows, as the roadside instancers do; far scenery and ground cover do not
