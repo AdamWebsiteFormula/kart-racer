@@ -77,7 +77,13 @@ export class TouchControls {
       // a button's own attribute: <html data-touch="on"> matched too, so a tap off the buttons (the
       // countdown's gas) was held as a button called "on" and put a `down` class on the page (sweep)
       const b = t.closest('.tb[data-touch]') as HTMLElement | null;
-      if (t.closest('.pad')) { this.held.set(id, 'pad'); this.root.setPointerCapture?.(id); this.steerTo(e.clientX); }
+      if (t.closest('.pad')) {
+        this.held.set(id, 'pad');
+        // a pointer already up when this runs has nothing to capture, and WebKit and Chromium throw
+        // NotFoundError (sweep 25 Sept 2026): the thumb still steers, it just is not held past the pad
+        try { this.root.setPointerCapture?.(id); } catch { /* nothing to capture */ }
+        this.steerTo(e.clientX);
+      }
       else if (b) { const k = b.dataset.touch as Button; this.held.set(id, k); this.down[k]++; b.classList.add('down'); }
       else this.held.set(id, 'screen');
       return;

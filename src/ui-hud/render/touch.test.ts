@@ -38,6 +38,21 @@ describe('touch gas before the green light (bug hunt 3: a phone could never make
     expect([t.state(true)!.throttle, t.state(false)!.throttle]).toEqual([0, 1]);
   });
 
+  it('a thumb on the pad steers even when its pointer cannot be captured (WebKit and Chromium throw NotFoundError for a pointer already up)', () => {
+    const t = new TouchControls(document.body);
+    t.show(true);
+    t.root.setPointerCapture = () => { throw new DOMException('No active pointer with the given id is found.', 'NotFoundError'); };
+    const errors: unknown[] = [];
+    const onError = (e: ErrorEvent) => { errors.push(e.error); e.preventDefault(); };
+    window.addEventListener('error', onError);
+    t.root.querySelector('.pad')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 4, clientX: 50 }));
+    window.removeEventListener('error', onError);
+    expect(errors).toEqual([]);
+    expect(t.state(false)!.steer).toBe(-1); // right of the pad's middle: steer right (left is positive)
+    up(t.root, 4);
+    expect(t.state(false)!.steer).toBe(0);
+  });
+
   /** One countdown with the touch controls up and a thumb put down at `touchAt` (null: never). */
   function countdown(touchAt: number | null) {
     const k = spawnKart(buildTrack(OVAL), 0);
