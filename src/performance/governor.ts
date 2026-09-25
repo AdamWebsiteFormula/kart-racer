@@ -124,9 +124,12 @@ export class Governor {
   /** Feed one frame. True when the quality changed and the renderer should apply it. */
   sample(dtMs: number, nowS: number): boolean {
     if (!this.started) this.reset(nowS);
-    if (nowS - this.since < this.o.warmup || dtMs > this.o.hitchMs || dtMs <= 0) return false;
-    // one stall (a shader, a texture, a GC) says nothing about the resolution: judge the frames around it
-    if (this.typical > 0 && dtMs > this.typical * this.o.hitchRatio) { if (++this.streak <= HITCH_STREAK) return false; } else this.streak = 0;
+    if (nowS - this.since < this.o.warmup || dtMs <= 0) return false;
+    // one stall (a shader, a texture, a GC) says nothing about the resolution: judge the frames around it.
+    // Long frames that keep coming are the machine's pace: WebGL drawn in software (a blocklisted GPU,
+    // a VM) ran 350 ms frames and, every one skipped as a hitch, kept full quality at 3 fps (SwiftShader, 24 Sept 2026)
+    const long = dtMs > this.o.hitchMs || (this.typical > 0 && dtMs > this.typical * this.o.hitchRatio);
+    if (long) { if (++this.streak <= HITCH_STREAK) return false; } else this.streak = 0;
     this.frames++;
     this.seconds += dtMs / 1000;
     this.raceFrames++;

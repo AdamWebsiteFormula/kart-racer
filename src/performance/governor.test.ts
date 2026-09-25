@@ -136,6 +136,21 @@ describe('auto quality governor', () => {
     expect(g.scale).toBeLessThan(1);
   });
 
+  it('a machine drawing in software (350 ms frames, every one past the hitch limit) is judged: it goes Low and to the floor', () => {
+    // SwiftShader at 1600x900 (24 Sept 2026): 350 ms a frame at full quality, the pixels most of it
+    const soft = (g: Governor) => 1000 / (60 + 250 * (g.dpr / 1) ** 2 + (g.low ? 0 : 40));
+    const g = new Governor(1);
+    expect(soft(g)).toBeLessThan(1000 / GOVERNOR.hitchMs);
+    run(g, soft, 30, 0);
+    expect([g.low, g.scale]).toEqual([true, GOVERNOR.min]);
+    // a lone long frame in a steady 60 still is not
+    const h = new Governor(1);
+    let t = run(h, 60, 4, 0).t;
+    t += 0.4; h.sample(400, t);
+    run(h, 60, 4, t);
+    expect([h.low, h.scale]).toEqual([false, 1]);
+  });
+
   it('one short window (a second of explosions) changes nothing; two in a row do', () => {
     const g = new Governor(2);
     let t = run(g, 60, 4, 0).t;
