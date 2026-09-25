@@ -48,7 +48,12 @@ export class Attr {
   }
 }
 
-/** innerHTML that remembers its source (icons are trusted, generated markup only). */
+/**
+ * innerHTML that remembers its source (icons are trusted, generated markup only). A picture in it
+ * that fails to load removes itself, so the shape under it shows (ui.css hides the shape while an
+ * .art image is there). That is a listener, never an inline onerror: the page's Content-Security-
+ * Policy refuses inline handlers (index.html, red-team 24 Sept 2026).
+ */
 export class Markup {
   private last: string | null = null;
   readonly el: HTMLElement;
@@ -57,6 +62,8 @@ export class Markup {
     if (v === this.last) return;
     this.last = v;
     this.el.innerHTML = v;
+    // the error event is a task queued after this, so the listener is always in time
+    for (const img of this.el.querySelectorAll('img')) img.addEventListener('error', () => img.remove(), { once: true });
   }
 }
 

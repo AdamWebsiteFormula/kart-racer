@@ -45,11 +45,14 @@ export function itemArt(itemId: string): string {
   return ITEM_ICONS[itemId] ? `${import.meta.env?.BASE_URL ?? '/'}art/items/${itemId}.webp` : '';
 }
 
-/** Icon markup for a slot: the painted art over its shape (the shape shows while it loads, or if it fails). */
+/**
+ * Icon markup for a slot: the painted art over its shape (the shape shows while it loads, or if it
+ * fails: render/dom.ts Markup removes a picture that fails; no inline onerror, the CSP refuses it).
+ */
 export function iconMarkup(itemId: string, size = 48): string {
   const art = itemArt(itemId);
   if (!art) return '';
-  return `<span class="shape">${iconSvg(itemId, size)}</span><img class="art" src="${art}" width="${size}" height="${size}" alt="" draggable="false" onerror="this.remove()">`;
+  return `<span class="shape">${iconSvg(itemId, size)}</span><img class="art" src="${art}" width="${size}" height="${size}" alt="" draggable="false">`;
 }
 
 export function iconFor(itemId: string): ItemIcon | null {

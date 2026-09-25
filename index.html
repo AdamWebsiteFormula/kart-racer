@@ -2,6 +2,12 @@
 <html lang="en-US">
   <head>
     <meta charset="UTF-8" />
+    <!-- GitHub Pages sends no security headers, so the policy is set here, before anything loads (red-team 24 Sept 2026):
+         scripts from this site only (no inline code, no eval); inline styles (Vite's dev CSS, style attributes); images, fonts
+         and fetches from here plus data: and blob: (textures inside the GLB models, small font files); the network reaches
+         this site and the leaderboard (src/backend-leaderboard/config.ts) and nothing else. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: https://thuvqdejckcphwuooyhx.supabase.co; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta name="referrer" content="no-referrer" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Rascal Rally!</title>
