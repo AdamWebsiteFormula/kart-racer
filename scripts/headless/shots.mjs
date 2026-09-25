@@ -16,8 +16,10 @@ const c = await openChrome();
 try {
   await c.goto(flag('url', 'http://localhost:5173/'));
   for (const [track, t] of list) {
+    // a breath between steps: the race waits at its countdown until the warm-up (shaders, sky) is done, and that needs the page's own turns
     const info = await c.eval(`(async () => { kart.race('${track}', 'pip'); kart.autopilot(true); const S = () => kart.session;
-      for (let n = 0; n < 400; n++) { if (kart.ui.paused) kart.ui.dispatch({ type: 'resume' }); kart.step(30);
+      const breathe = () => new Promise((r) => setTimeout(r, 0));
+      for (let n = 0; n < 4000; n++) { if (kart.ui.paused) kart.ui.dispatch({ type: 'resume' }); kart.step(30); await breathe();
         const k = S().state.karts[S().playerIndex]; if (S().state.phase !== 'countdown' && k.lap === 1 && k.t >= ${t}) break; }
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       return { t: +S().state.karts[S().playerIndex].t.toFixed(3), ...kart.stats() }; })()`);
