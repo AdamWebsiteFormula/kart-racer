@@ -27,6 +27,9 @@
   user-select: none;
 }
 #splash.done { opacity: 0; visibility: hidden; pointer-events: none; }
+/* the title screen comes up under the fading splash with its own logo, higher up the screen: the
+   splash's logo leaves at once, so the two are never on screen together (a double logo, 25 Sept 2026) */
+#splash.done .splash-logo { opacity: 0; transition: opacity 80ms ease; }
 
 #splash .splash-logo {
   margin-bottom: 18px;
