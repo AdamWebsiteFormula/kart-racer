@@ -13,6 +13,8 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 - Racer + kart combos: the sim (kart-controller/karts.ts, K1), the fairness gate (K3, Hard AI, option A) and the Racer and Kart screens (K4, K5) are on main behind `UI.kartPick` (off). Plan: docs/plans/kart-combos.md.
 - Creatures parked (docs), no mph readout, controls strip only in the first countdown.
 
+**CI lesson (25 Sept):** a push is live only when the Deploy to GitHub Pages run is green. From 13:46 to 18:35 EDT every run failed on allocation.test.ts (CI kept 68 B a frame, limit 64) and the live game stayed at c41783c while submit-score v19 (v6) was already live, so live scores were refused. Fixed by 569438c (limit 96 for now; a helper is fixing the real retention). Check `gh run list` after every push.
+
 **Waiting:**
 1. **Low-back kart bodies: DONE and live 25 Sept ~17:00 EDT** (seven new bodies; every driver shows from the chase camera; Otto kept his). Rivals also stay solid near the camera now, as in MKW (CAM.kartFade 1.3 m).
 2. **Kart column + v6 score checker (K2): DONE and live 25 Sept ~17:40 EDT.** Migration kart_id applied (Adam's OK in chat), game CLIENT_VERSION 6 pushed, submit-score v19 (core-205cb26e8245084a pinned at 7236c92); smoke test: v5 → 400 reload, no kart → 400 unknown kart, kart + bad log → 422.
