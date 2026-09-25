@@ -663,6 +663,8 @@ export class UiRoot {
     // a kart card on the Kart screen: a locked one still takes the pointer, to preview (a click on it is refused)
     const kartCardHit = this.active.key === 'kartSelect' && isKart(id);
     if (b.getAttribute('aria-disabled') === 'true' && !kartCardHit) return;
+    // a finger moving over the kart cards is no hover: a slow tap would put its card on show, and then choose it on release
+    if (!click && kartCardHit && (e as PointerEvent).pointerType === 'touch') return;
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
     // a touch screen has no hover: a first tap on a kart previews it, a second tap on the same one chooses it
     if (click && kartCardHit && this.pointerKind === 'touch' && this.previewing !== id) {

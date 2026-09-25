@@ -177,6 +177,14 @@ describe('choosing a kart', () => {
       card.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }));
       card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     };
+    // it opens on Nova's own Comet Pod; a finger sliding over another card is no hover (a slow tap would put it on
+    // show, then choose it on release)
+    expect([focused(), heroKart()]).toEqual(['pod', 'pod']);
+    vi.useFakeTimers();
+    q('[data-id="windup"]')!.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'touch', clientX: 40, clientY: 60 }));
+    vi.advanceTimersByTime(UI.hoverDressMs * 2);
+    vi.useRealTimers();
+    expect([focused(), heroKart()]).toEqual(['pod', 'pod']);
     tap('wagon');
     expect([ui.app.screen, focused(), heroKart()]).toEqual(['kartSelect', 'wagon', 'wagon']);
     tap('stomper');

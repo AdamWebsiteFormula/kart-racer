@@ -10,6 +10,7 @@ import { COMBO_BOUNDS, comboStats, KART_STEP, STAT_KEYS } from './data/kartStats
 import { kartMenu, kartMove, KART_COLUMNS } from './screens/karts.ts';
 import { comboBar, MAX_CHEVRONS, panelWords, statLevel, statPanel } from './screens/stats.ts';
 import { defaultSave } from './store.ts';
+import { garageModel, lookFor } from './garage.ts';
 
 const ids = KARTS.map((k) => k.id);
 
@@ -116,6 +117,23 @@ describe('the stats panel (design §12)', () => {
       pairs++;
     }
     expect(pairs).toBe(80);
+  });
+});
+
+describe('the garage and the look with karts picked (design §12: the Body row goes)', () => {
+  it('no Body row; a twin kart is drawn as its shared body once unlocked, any other kart draws none, and the old body is never read', () => {
+    const save = defaultSave();
+    save.unlocked = { skins: ['pip-alt'], bodies: ['buggy'], mirror: false };
+    save.settings.selectedBodyId = 'buggy';
+    save.settings.skinByRacer = { pip: 'pip-alt' };
+    expect(garageModel(save, 'pip', 'snacktruck').choices.map((c) => c.id)).toEqual(['paint']);
+    expect(garageModel(save, 'momo', 'scooter').choices).toEqual([]);
+    expect(garageModel(save, 'pip').choices.map((c) => c.id)).toEqual(['paint', 'body']); // the switch off: as ever
+    expect(lookFor(save, 'pip', 'buggy')).toEqual({ paint: 'pip-alt', body: 'buggy' });
+    expect(lookFor(save, 'pip', 'classic')).toEqual({ paint: 'pip-alt' }); // Classic still locked: no body
+    expect(lookFor(save, 'pip', 'snacktruck')).toEqual({ paint: 'pip-alt' });
+    expect(lookFor(save, 'gus', 'scooter')).toEqual({});
+    expect(lookFor(save, 'gus')).toEqual({ body: 'buggy' }); // the switch off: the Body row's body
   });
 });
 
