@@ -28,6 +28,10 @@ function preloadTitleFonts(): Plugin {
 
 export default defineConfig({
   plugins: [preloadTitleFonts()],
+  // the dev server's dependency scan starts from our page only: it also crawled the reference repos in
+  // refs/ (study copies, not ours), failed on their imports and skipped pre-bundling three.js altogether
+  optimizeDeps: { entries: ['index.html'] },
+  server: { watch: { ignored: ['**/refs/**', '**/.claude/worktrees/**'] } },
   build: {
     // font files stay files: inlined, the rarely used latin-ext faces put 29 KB of base64 into the
     // stylesheet that blocks the first paint (a browser only fetches a face when the page uses it)
