@@ -22,6 +22,8 @@ export const TRAIL_BACK = 1.9;
  * it from its own chase camera all lap (video review, 25 Sept 2026). Thrown, it is full size again.
  */
 export const TRAIL_BALL_SCALE = 0.55;
+/** A held Decoy Balloon bobs small and low behind the kart for the same reason (its body stood 1 to 2.6 m high, over the kart and its driver). */
+export const TRAIL_DECOY_SCALE = 0.45;
 const LINK = 0.2; // chain link spacing, metres
 
 class Kind {
@@ -203,7 +205,7 @@ export class ItemsView {
         switch (s.item.held) {
           case 'beachBall': p = this.local(r, h, pitch, 0, 0.6 * TRAIL_BALL_SCALE + bob, -TRAIL_BACK); this.put('beachBall', p.x, p.y, p.z, this.yaw(time * 3), TRAIL_BALL_SCALE); break;
           case 'oilCan': p = this.local(r, h, pitch, -0.55, bob, -TRAIL_BACK); this.put('oilCan', p.x, p.y, p.z, this.yaw(h + Math.PI / 2)); break;
-          case 'decoyBalloon': p = this.local(r, h, pitch, 0, 1.7 + bob, -TRAIL_BACK); this.put('decoyBalloon', p.x, p.y, p.z, this.yaw(h), 0.8); break;
+          case 'decoyBalloon': p = this.local(r, h, pitch, 0, 0.98 * TRAIL_DECOY_SCALE + bob, -TRAIL_BACK); this.put('decoyBalloon', p.x, p.y, p.z, this.yaw(h), TRAIL_DECOY_SCALE); break;
           case 'windUpMouse': p = this.local(r, h, pitch, 0, bob, -TRAIL_BACK); this.put('windUpMouse', p.x, p.y, p.z, this.yaw(h)); break;
         }
       }
