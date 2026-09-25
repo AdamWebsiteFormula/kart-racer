@@ -154,6 +154,8 @@ export class RacerModels {
       return img;
     };
     const atlas = drawAtlas({ driver: image(driver.scene), body: image(body.scene), wheel: image(wheel.scene) }, (spec.driver.attachments ?? []).map((a) => a.color));
+    // (two short tasks, not one long one: a racer can land mid-flight in a course intro)
+    await new Promise((r) => setTimeout(r, 0));
     const t = buildRiggedTemplate(id, spec, { driver: driver.scene, body: body.scene, wheel: wheel.scene }, atlas?.texture ?? null, atlas?.dark ?? null);
     // the files' own materials and textures are not drawn (the atlas holds their pictures): free them
     for (const s of [driver.scene, body.scene, wheel.scene]) s.traverse((x) => {

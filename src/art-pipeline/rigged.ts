@@ -216,30 +216,48 @@ export function fitWheel(scene: Object3D, radius: number): Matrix4 {
 }
 
 /** The skinned driver as fitted: `height` tall, its Hips at `hips` (or its origin at `origin` when there is none). */
-function fitDriver(scene: Object3D, height: number, hips: V3 | null, origin: V3): SkinnedMesh {
+function fitDriver(scene: Object3D, height: number, hips: V3 | null, origin: V3): { mesh: SkinnedMesh; part: Part } {
   const root = new Group();
   root.add(scene);
-  const box = boxOf(root);
-  root.scale.setScalar(height / Math.max(1e-6, box.max.y - box.min.y));
   root.updateMatrixWorld(true);
   let mesh: SkinnedMesh | undefined;
   scene.traverse((o) => { if (!mesh && (o as SkinnedMesh).isSkinnedMesh) mesh = o as SkinnedMesh; });
   if (!mesh) throw new Error('driver has no skinned mesh');
+  // the rest pose once, as three draws it; its height fits the driver, then it moves with the fit
+  const part = restPart(mesh);
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 1; i < part.pos.length; i += 3) { lo = Math.min(lo, part.pos[i]); hi = Math.max(hi, part.pos[i]); }
+  const s = height / Math.max(1e-6, hi - lo);
+  root.scale.setScalar(s);
+  root.updateMatrixWorld(true);
   const h = mesh.skeleton.bones.find((b) => b.name === 'Hips');
   if (hips && h) {
     const at = new Vector3().setFromMatrixPosition(h.matrixWorld);
     root.position.set(hips[0] - at.x, hips[1] - at.y, hips[2] - at.z);
   } else root.position.set(origin[0], origin[1], origin[2]);
   root.updateMatrixWorld(true);
-  return mesh;
+  const t = root.position;
+  for (let i = 0; i < part.pos.length; i += 3) {
+    part.pos[i] = part.pos[i] * s + t.x; part.pos[i + 1] = part.pos[i + 1] * s + t.y; part.pos[i + 2] = part.pos[i + 2] * s + t.z;
+  }
+  return { mesh, part };
 }
 
-/** The driver's rest pose baked into the kart's frame (what three draws at rest), skinned to `map[old joint]`. */
-function driverPart(mesh: SkinnedMesh, map: readonly number[]): Part {
+/** A part's joints from the file's skeleton onto the new one (in place). */
+function remapJoints(p: Part, map: readonly number[]): Part {
+  for (let i = 0; i < p.joints.length; i++) p.joints[i] = map[p.joints[i]] ?? 0;
+  return p;
+}
+
+/**
+ * The driver's rest pose where it stands now (what three draws at rest: each bone's whole transform
+ * from the file's bind space, blended by the weights), with the file's own joints. One pass of four
+ * matrix blends a vertex (three's own per-vertex skinning multiplies four matrices each time).
+ */
+function restPart(mesh: SkinnedMesh): Part {
   const g = mesh.geometry, n = g.getAttribute('position').count;
   const P = g.getAttribute('position'), N = g.getAttribute('normal'), U = g.getAttribute('uv');
   const J = g.getAttribute('skinIndex'), W = g.getAttribute('skinWeight');
-  // each bone's whole transform from the file's bind space to the kart's frame (three's skinning, at rest)
   const K = mesh.skeleton.bones.map((b, i) => new Matrix4().multiplyMatrices(mesh.matrixWorld, mesh.bindMatrixInverse)
     .multiply(new Matrix4().multiplyMatrices(b.matrixWorld, mesh.skeleton.boneInverses[i])).multiply(mesh.bindMatrix).elements);
   const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2);
@@ -250,7 +268,7 @@ function driverPart(mesh: SkinnedMesh, map: readonly number[]): Part {
     let sum = 0;
     for (let k = 0; k < 4; k++) {
       const w = W.getComponent(i, k), j = J.getComponent(i, k);
-      joints[i * 4 + k] = map[j] ?? 0;
+      joints[i * 4 + k] = j;
       weights[i * 4 + k] = w;
       sum += w;
       if (w === 0) continue;
@@ -491,7 +509,7 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
     add(name.replace('hub', 'wheel'), hub, new Vector3(...hubAt[i]));
   });
   // the driver: fitted, its Hips on the seat, its bones rebuilt in the kart's frame at unit scale
-  const dmesh = fitDriver(parts.driver, spec.driver.height * pose.scale, spec.body.seat ?? null, spec.driver.seat);
+  const { mesh: dmesh, part: dp } = fitDriver(parts.driver, spec.driver.height * pose.scale, spec.body.seat ?? null, spec.driver.seat);
   const src = dmesh.skeleton.bones;
   const wp = new Vector3(), wq = new Quaternion(), ws = new Vector3();
   for (const b of [...src].sort((x, y) => depth(x) - depth(y))) {
@@ -517,7 +535,7 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
     toAtlas(p.uv, ATLAS.wheel);
     return p;
   });
-  const dp = driverPart(dmesh, map);
+  remapJoints(dp, map);
   toAtlas(dp.uv, ATLAS.driver);
   const extras = (spec.driver.attachments ?? []).flatMap((a, i) => {
     const b = byName.get(a.bone);
@@ -591,11 +609,15 @@ export function drawAtlas(images: { driver: CanvasImageSource | null; body: Canv
   draw(images.body, ATLAS.body);
   draw(images.wheel, ATLAS.wheel);
   swatches.forEach((hex, i) => { const r = swatchRect(i); g.fillStyle = hex; g.fillRect(r[0], r[1], r[2], r[3]); });
-  const [bx, by, bw, bh] = ATLAS.body;
-  const px = g.getImageData(bx, by, bw, bh).data;
+  // the body's colours at a quarter size are plenty to tell the steering wheel's dark from the paint (a sixteenth of the read)
+  const S = 256, small = document.createElement('canvas');
+  small.width = small.height = S;
+  const sg = small.getContext?.('2d', { willReadFrequently: true });
+  if (sg && images.body) sg.drawImage(images.body, 0, 0, S, S);
+  const px = sg ? sg.getImageData(0, 0, S, S).data : new Uint8ClampedArray(S * S * 4);
   const dark = (u: number, v: number) => {
-    const x = Math.min(bw - 1, Math.max(0, Math.floor(u * bw))), y = Math.min(bh - 1, Math.max(0, Math.floor(v * bh)));
-    const k = (y * bw + x) * 4;
+    const x = Math.min(S - 1, Math.max(0, Math.floor(u * S))), y = Math.min(S - 1, Math.max(0, Math.floor(v * S)));
+    const k = (y * S + x) * 4;
     return Math.max(px[k], px[k + 1], px[k + 2]) < STEER_CUT.dark;
   };
   const t = new CanvasTexture(c);

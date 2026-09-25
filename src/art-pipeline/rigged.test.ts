@@ -4,13 +4,17 @@
 // the seat, hands at the grips, feet on the rests; in a shared body too), and the rig putting the
 // animation on the bones (wheels roll and steer, the steering wheel turns and the hands go with it,
 // head, spine, body on its springs, a gesture's aim).
-import { beforeAll, describe, expect, it } from 'vitest';
-import { Matrix4, Quaternion, Vector3, type Bone, type Object3D, type SkinnedMesh } from 'three';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { DataTexture, Matrix4, Quaternion, Vector3, type Bone, type MeshStandardMaterial, type Object3D, type SkinnedMesh, type Texture } from 'three';
 import { newPose } from '../kart-controller/anim.ts';
 import { DRIVER_ANIM, newDriverPose } from '../kart-controller/driverAnim.ts';
 import { KART_ANIM } from '../kart-controller/anim.ts';
 import { SEATS } from './bodies.ts';
-import { cutSteering, hubSlot, isPartsSpec, KART_BONES, makeRigged, makeRiggedDriver, partOf, type PartsSpec, type RiggedKart, type RiggedTemplate } from './rigged.ts';
+import { RACER_MODELS, RacerModels, textureWithImage } from './glb.ts';
+import { buildRacerMesh, exhaustFor } from './kart.ts';
+import { portDir } from './racers.ts';
+import { isShared } from './toon.ts';
+import { cutSteering, hubSlot, isPartsSpec, KART_BONES, makeRigged, makeRiggedDriver, partOf, riggedMaterial, type PartsSpec, type RiggedKart, type RiggedTemplate } from './rigged.ts';
 import { partsManifest, riggedTemplate, trianglesIn } from './__tests__/parts.ts';
 
 /** The triangle budget per part file (scripts/models/racer-parts.sh shrinks a racer's files to it). */
@@ -192,5 +196,36 @@ describe('RiggedKart: the animation on the bones', () => {
     const hand = world(bone(k, 'RightHand')).sub(world(bone(k, 'RightForeArm'))).normalize();
     expect(hand.y).toBeGreaterThan(0.95);
     for (const b of mesh(k).skeleton.bones) expect(Number.isFinite(b.quaternion.x)).toBe(true);
+  });
+});
+
+describe('a rigged racer\'s look: paint and pipes', () => {
+  it('an alt paint repaints its one atlas once, into one shared material on every kart; the pipes burn from the measured mouths, riding the body', () => {
+    const models = new RacerModels('/', () => Promise.reject(new Error('no network in tests')));
+    const map = new DataTexture(new Uint8Array([0x2e, 0xc4, 0xb6, 255]), 1, 1);
+    const own = riggedMaterial(map);
+    const pip: RiggedTemplate = { ...t, racerId: 'pip', material: own };
+    (models as unknown as { rigs: Map<string, RiggedTemplate> }).rigs.set('pip', pip);
+    const repaint = vi.fn((x: Texture) => textureWithImage(x, { data: new Uint8Array([200, 30, 90, 255]), width: 1, height: 1 }));
+    models.repaintTexture = repaint;
+    const skinned = (o: Object3D) => { const out: SkinnedMesh[] = []; o.traverse((x) => { if ((x as SkinnedMesh).isSkinnedMesh) out.push(x as SkinnedMesh); }); return out; };
+    const a = models.make('pip', 'pip-alt')!, b = models.make('pip', 'pip-alt')!;
+    const ma = skinned(a)[0].material as MeshStandardMaterial;
+    expect(ma).toBe(skinned(b)[0].material);
+    expect(ma).not.toBe(own);
+    expect(repaint).toHaveBeenCalledTimes(1);
+    expect(isShared(ma)).toBe(true);
+    expect(map.image).not.toBe(ma.map!.image); // the racer's own atlas untouched
+    // the pipes: the manifest's mouths, no splay, and the flames hang off the body bone (its springs)
+    (RACER_MODELS as unknown as { rigs: Map<string, RiggedTemplate> }).rigs.set('juniper', t);
+    try {
+      const e = exhaustFor('juniper')!;
+      expect(e.ports).toEqual(spec.body.exhaust!.ports);
+      expect(e.dir).toEqual(spec.body.exhaust!.dir);
+      expect(e.splay).toBe(0);
+      expect(portDir(e, e.ports[0])).toEqual(portDir({ ...e, ports: [[0, 0, 0]] }, [0, 0, 0]));
+      const k = buildRacerMesh('juniper')!;
+      expect(k.userData.exhaustAnchor).toBe(k.getObjectByName('body'));
+    } finally { (RACER_MODELS as unknown as { rigs: Map<string, RiggedTemplate> }).rigs.delete('juniper'); }
   });
 });
