@@ -4,7 +4,7 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 
 ## Where the game stands
 - Live: https://adamwebsiteformula.github.io/kart-racer/ (GitHub Pages; CI runs `npm run verify`, then publishes main).
-- 1466 tests, verify green (verify also runs the frame budget and the bundle gate).
+- 1577 tests, verify green (verify also runs the frame budget and the bundle gate).
 - Done this month: four AI bug hunts (68 bugs fixed), a seam review, and a 35-point detail review. The review covered:
   - camera: 5.5 m back, 2.4 m up, fov 60-66, and rival karts fade near the lens.
   - effects: start lamps count red, red, red, then green.
@@ -17,10 +17,19 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 - Board hide switch is live: `update public.scores set hidden = true where name = 'X';` takes a row off the board. The rate limit cannot be dodged with fake address headers (tested live).
 - The deadline for the "AI Automations with Jack" contest is 30 Sept 2026.
 
+## Done 25 Sept (the MKW-parity /loop, studied against real Mario Kart World footage)
+- Tools: `scripts/headless/watch.mjs` (Gemini watches a YouTube video), `frames.mjs` (muted stills from one), `scripts/trailer/` (the promo trailer pipeline; the 54 s trailer is on Adam's Desktop, rascal-rally-share-2026-09-25).
+- Race HUD: place numeral colored by place (gold, silver, bronze), racer faces on the minimap, a coin pill, the Knockout goal under the place.
+- Results: racer faces in every row; the finish banner readable and gone before the results; Grand Prix standings count up and flip into order with rank arrows; Next track / Race again / Change track / Change racer / Menu after Quick Race, Retry in Time Trial, Race again in the Daily; Time Trial lap splits against your best; a CUT line on the Knockout cut.
+- Menus: our own SVG icons (no emoji anywhere), cup emblems, a Settings help line, Auto-accelerate, Steering assist (deterministic: it rewrites the input before it is logged), Fullscreen (row + F key).
+- Bugs fixed: cut-off racers' projected times (was "670:07.36"), photo-finish order changing after the banner, a double logo at boot, creatures and props near the lens (clean fade now), the finish camera through balloons, the podium "3" badge, bunting shadow stripes, the dev server's dependency scan and watcher.
+- Score function: the core file is rebuilt (`core-8e4365e9b4edf93c`); the live function is still v17 (`core-019f61ef2f9600d9`). Solo verdicts read nothing that changed, so a redeploy is optional.
+
 ## Pending (25 Sept 2026)
 - **Sound judge pass, after 20:00 EDT.** Gemini Pro allows 250 requests a day for gemini-3.1-pro and its aliases; the day resets at 00:00 UTC (20:00 EDT). Run the runbook: `scratchpad/ear3/RUNBOOK-after-2000EDT.md` in the 25 Sept session's scratchpad, or its durable copy `~/.cache/rascal-ear/pass-2026-09-25/ear3/RUNBOOK-after-2000EDT.md` (same layout; swap the path prefix if the scratchpad is gone). About 45 requests: splice checks for two song voices, compares for 23 remade sounds (drift, hop, six sounds with human-like voices, boosts, tier-ups and more), the 4 unjudged songs. Install only takes that pass its accept rules; then `npm run verify`, push, live smoke.
 - **Adam decided (25 Sept):** keep the title song's "Hey!" shout at 13.5-14.2 s (option B). The runbook skips the title splice; do not install `title.splice13.*`.
 - The `land` sound has no usable take (all six came back too quiet); it needs a new prompt.
+- The goose `honk` reads as a sheep bleat to the local ear (AudioSet: Bleat 0.63, Sheep 0.26): check it in the judge pass.
 - 25 Sept fixes, all live: the podium's winners no longer vanish (a 0 s frame put NaN in their springs), creatures dissolve near the lens (the goose ran through the camera), held items ride small so they never hide your kart, the storm sky rolls in before its first bolt, the mode screen's second row is centred, the steering pad never throws on a phone.
 
 ## Adam's rules (all agents)
