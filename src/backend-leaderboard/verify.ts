@@ -13,9 +13,12 @@ import { soloConfig, type BoardMode } from './rules.ts';
 
 export interface Replay { finished: boolean; timeMs: number; lapTimesMs: number[]; ticks: number }
 
-/** Run a solo leaderboard race from a decoded log. Stops at the finish or when the log runs out. */
-export function replay(def: TrackDefinition, mode: BoardMode, racerId: string, seed: number, log: readonly InputState[]): Replay {
-  const config = soloConfig(mode, def.id, racerId, seed);
+/**
+ * Run a solo leaderboard race from a decoded log, in `kartId` (absent or null: the racer's own kart,
+ * as every run before 26 Sept 2026). Stops at the finish or when the log runs out.
+ */
+export function replay(def: TrackDefinition, mode: BoardMode, racerId: string, seed: number, log: readonly InputState[], kartId?: string | null): Replay {
+  const config = soloConfig(mode, def.id, racerId, seed, kartId);
   const track = buildTrack(def);
   const manager = new RaceManager(track, config);
   const items = new Items(track, manager);
@@ -39,14 +42,17 @@ export type Verdict = { ok: true; timeMs: number; lapTimesMs: number[]; canonica
  */
 export const CLAIM_TOLERANCE_MS = 1000;
 
-/** Decode, replay, compare. The stored time is always the replay's, never the claim. */
-export function verifyRun(def: TrackDefinition, mode: BoardMode, racerId: string, seed: number, inputLog: string, claimedMs: number): Verdict {
+/**
+ * Decode, replay in the claimed kart, compare. The stored time is always the replay's, never the
+ * claim; the same log claimed in another kart replays to another time and is refused.
+ */
+export function verifyRun(def: TrackDefinition, mode: BoardMode, racerId: string, seed: number, inputLog: string, claimedMs: number, kartId?: string | null): Verdict {
   let log: InputState[];
   try { log = decodeLog(inputLog); } catch (e) { return { ok: false, reason: `bad input log: ${(e as Error).message}` }; }
-  const r = replay(def, mode, racerId, seed, log);
+  const r = replay(def, mode, racerId, seed, log, kartId);
   if (!r.finished) return { ok: false, reason: 'the replay never reached the finish line' };
   if (Math.abs(r.timeMs - claimedMs) > CLAIM_TOLERANCE_MS) return { ok: false, reason: `claimed ${claimedMs} ms but the replay finished in ${r.timeMs} ms` };
-  return { ok: true, timeMs: r.timeMs, lapTimesMs: r.lapTimesMs, canonicalLog: encodeLog(canonicalize(def, mode, racerId, seed, log.slice(0, r.ticks), r.timeMs)) };
+  return { ok: true, timeMs: r.timeMs, lapTimesMs: r.lapTimesMs, canonicalLog: encodeLog(canonicalize(def, mode, racerId, seed, log.slice(0, r.ticks), r.timeMs, kartId)) };
 }
 
 /**
@@ -56,7 +62,7 @@ export function verifyRun(def: TrackDefinition, mode: BoardMode, racerId: string
  * held" counts (the start boost); in Time Trial the items are inert, so item and look-back go.
  * If the cleaned log ever replays to a different time, the raw log is kept instead.
  */
-export function canonicalize(def: TrackDefinition, mode: BoardMode, racerId: string, seed: number, log: readonly InputState[], timeMs: number): InputState[] {
+export function canonicalize(def: TrackDefinition, mode: BoardMode, racerId: string, seed: number, log: readonly InputState[], timeMs: number, kartId?: string | null): InputState[] {
   const out = log.map((raw, t) => {
     const i = quantize(raw, { ...NEUTRAL_INPUT });
     i.horn = false;
@@ -64,6 +70,6 @@ export function canonicalize(def: TrackDefinition, mode: BoardMode, racerId: str
     if (mode === 'timeTrial') { i.item = false; i.lookBack = false; }
     return i;
   });
-  const again = replay(def, mode, racerId, seed, out);
+  const again = replay(def, mode, racerId, seed, out, kartId);
   return again.finished && again.timeMs === timeMs ? out : log.map((i) => (i.horn ? { ...i, horn: false } : i));
 }

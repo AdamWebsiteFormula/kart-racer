@@ -180,7 +180,7 @@ describe('a Time Trial\'s results', () => {
     let answer: unknown = { ok: true, id: 'x', timeMs: 117000, rank: 3 };
     const ui = tt(host(), { fetchBoard: async () => [] as never, post: async () => answer as never });
     ui.save.playerName = 'Ada';
-    const draft = { trackId: 'meadow-run', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 117000, lapTimesMs: [40000, 39000, 38000], racerId: 'pip', inputLog: 'AQ==', clientVersion: '1' };
+    const draft = { trackId: 'meadow-run', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 117000, lapTimesMs: [40000, 39000, 38000], racerId: 'pip', kartId: 'scooter', inputLog: 'AQ==', clientVersion: '1' };
     ui.raceOver({ ...over(117000, [40000, 39000, 38000]), board: { mode: 'timeTrial', dailySeed: null, draft } });
     await flush();
     pastGuard(ui);
@@ -205,7 +205,7 @@ describe('a Time Trial\'s results', () => {
     const ui = tt(host(), { fetchBoard: async () => [] as never, post: async () => ({ ok: false, error: '' }) as never });
     ui.save.playerName = 'Ada';
     ui.save.timeTrial['meadow-run'] = { bestMs: 116000, medal: 'gold', racerId: 'pip', splitsMs: [39000, 78000, 116000] };
-    const draft = { trackId: 'meadow-run', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 117000, lapTimesMs: [40000, 39000, 38000], racerId: 'pip', inputLog: 'AQ==', clientVersion: '1' };
+    const draft = { trackId: 'meadow-run', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 117000, lapTimesMs: [40000, 39000, 38000], racerId: 'pip', kartId: 'scooter', inputLog: 'AQ==', clientVersion: '1' };
     ui.raceOver({ ...over(117000, [40000, 39000, 38000]), board: { mode: 'timeTrial', dailySeed: null, draft } });
     await flush();
     expect(focused()).toBe('again');

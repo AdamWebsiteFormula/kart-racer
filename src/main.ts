@@ -550,6 +550,7 @@ function raceOver(): void {
     draft: {
       trackId: session.def.id, mode, ...(mode === 'daily' ? { dailySeed: session.config.seed } : {}), speedClass: 150 as const,
       timeMs: mine.timeMs, lapTimesMs: mine.lapTimesMs, racerId: player.racerId,
+      kartId: session.manager.consts[session.playerIndex].kartId, // the kart it was raced in: the server replays it there
       inputLog: encodeLog(session.state.inputLog), clientVersion: CLIENT_VERSION,
     },
   } : undefined;

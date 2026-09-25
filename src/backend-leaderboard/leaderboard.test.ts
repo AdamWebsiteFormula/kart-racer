@@ -7,16 +7,18 @@ import { RaceManager } from '../race-manager/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { simTick } from '../game/simtick.ts';
+import { KART_IDS } from '../kart-controller/karts.ts';
+import { postError } from './client.ts';
 import { decodeLog, encodeLog, quantize } from './inputlog.ts';
 import { CLIENT_VERSION, checkSubmission, cleanName, DAILY_GRACE_MINUTES, dailySeed, dailyTrack, ipBucket, restartConfig, soloConfig, type BoardMode } from './rules.ts';
-import { CLAIM_TOLERANCE_MS, verifyRun } from './verify.ts';
+import { CLAIM_TOLERANCE_MS, replay, verifyRun } from './verify.ts';
 
 const TRACKS = Object.fromEntries(Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>).map((d) => [d.id, d]));
 const IDS = Object.keys(TRACKS);
 
-/** A "client" run exactly as the game plays it: the shared sim tick, a scripted player, the race's own input log. */
-function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0) {
-  const config = soloConfig(mode, trackId, racerId, seed);
+/** A "client" run exactly as the game plays it: the shared sim tick, a scripted player, the race's own input log; in `kartId` (absent: the racer's own). */
+function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string) {
+  const config = soloConfig(mode, trackId, racerId, seed, kartId);
   const track = buildTrack(TRACKS[trackId]);
   const manager = new RaceManager(track, config);
   const items = new Items(track, manager);
@@ -59,14 +61,32 @@ describe('input log', () => {
 });
 
 describe('submission rules', () => {
-  const good = { name: 'Adam 2', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 95000, racerId: 'pip', inputLog: 'AQ==', clientVersion: CLIENT_VERSION };
+  const good = { name: 'Adam 2', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 95000, racerId: 'pip', kartId: 'scooter', inputLog: 'AQ==', clientVersion: CLIENT_VERSION };
   it('accepts a well-formed payload and rejects every bad field', () => {
     expect(checkSubmission(good, IDS)).toBeNull();
     for (const bad of [
       { name: '' }, { name: 'x'.repeat(17) }, { name: '<script>' }, { name: 'sh1t head' },
       { trackId: 'moon' }, { mode: 'quick' }, { speedClass: 100 }, { racerId: 'mario' },
       { timeMs: 29999 }, { timeMs: 95000.5 }, { inputLog: '' }, { clientVersion: '0' },
+      { kartId: 'standard' }, { kartId: '' }, { kartId: 7 }, { kartId: null },
     ]) expect(checkSubmission({ ...good, ...bad }, IDS), JSON.stringify(bad)).not.toBeNull();
+  });
+  it('any racer in any kart (v6): a known kart is required, the twins Classic and Buggy too; a game from before karts is told to reload', () => {
+    for (const kartId of ['scooter', 'snacktruck', 'windup', 'classic', 'buggy']) expect(checkSubmission({ ...good, kartId }, IDS), kartId).toBeNull();
+    const { kartId: _, ...noKart } = good;
+    void _;
+    expect(checkSubmission(noKart, IDS)).toBe('unknown kart'); // the server's 400
+    expect(checkSubmission({ ...good, kartId: 'rocket' }, IDS)).toBe('unknown kart');
+    // a v5 game sends no kartId: it hears "please reload" (400), which the board words as "The game was updated"
+    expect(CLIENT_VERSION).toBe('6');
+    expect(checkSubmission({ ...noKart, clientVersion: '5' }, IDS)).toBe('please reload the game: new version');
+    expect(postError(400, 'please reload the game: new version')).toMatch(/Reload the page/);
+  });
+  it('a solo run carries its kart, and a restarted Daily keeps it', () => {
+    expect(soloConfig('timeTrial', 'harbour-loop', 'gus', 0, 'scrap').racers).toEqual([{ racerId: 'gus', archetype: 'heavy', isPlayer: true, kartId: 'scrap' }]);
+    expect(soloConfig('timeTrial', 'harbour-loop', 'gus', 0, null).racers).toEqual([{ racerId: 'gus', archetype: 'heavy', isPlayer: true }]);
+    const again = restartConfig(soloConfig('daily', dailyTrack(20260924, IDS), 'pip', 20260924, 'buggy'), IDS, 20260925);
+    expect(again).toEqual(soloConfig('daily', dailyTrack(20260925, IDS), 'pip', 20260925, 'buggy'));
   });
   it('daily runs must be today (or yesterday in the first minutes after midnight) on the day\'s track', () => {
     const seed = dailySeed(new Date(Date.UTC(2026, 8, 30, 12)));
@@ -120,7 +140,7 @@ describe('submission rules', () => {
 });
 
 describe('the word filter after the red-team (2026-09-24)', () => {
-  const good = { name: 'Rascal', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 90_000, racerId: 'pip', inputLog: 'AQ==', clientVersion: CLIENT_VERSION };
+  const good = { name: 'Rascal', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 90_000, racerId: 'pip', kartId: 'scooter', inputLog: 'AQ==', clientVersion: CLIENT_VERSION };
   it('refuses digit spellings, look-alike letters and the words it missed', () => {
     for (const name of ['N166ER', '8itch', '1488', 'Nlgger', 'Niqqer', 'Fvck', 'Phuck', 'Cvnt', 'Kike', 'Chink', 'Spic', 'Coon', 'Tranny', 'Wetback', 'Beaner', 'Sieg Heil', 'Kkk']) {
       expect(cleanName(name), name).toBe(false);
@@ -148,7 +168,7 @@ describe('the word filter, red-team 3 (24 Sept 2026): a G-rated board', () => {
       'Cummings', 'Scum', 'Janus', 'Uranus', 'Analyst', 'Titan', 'Titus', 'Arsenal', 'Shiitake', 'Fukuda', 'Fluke', 'Buck', 'Kunta', 'Hommie', 'Coco', 'Cocco', 'Mississippi',
     ]) {
       expect(cleanName(name), name).toBe(true);
-      expect(checkSubmission({ name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 90_000, racerId: 'pip', inputLog: 'AQ==', clientVersion: CLIENT_VERSION }, IDS), name).toBeNull();
+      expect(checkSubmission({ name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 90_000, racerId: 'pip', kartId: 'scooter', inputLog: 'AQ==', clientVersion: CLIENT_VERSION }, IDS), name).toBeNull();
     }
   });
 });
@@ -177,6 +197,28 @@ describe('re-simulation (SOP gate)', () => {
     expect(verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'gus', 0, log, run.result.timeMs).ok).toBe(false);
     expect(verifyRun(TRACKS['meadow-run'], 'timeTrial', 'momo', 0, log, run.result.timeMs).ok).toBe(false);
     expect(verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, 'not base64!!', run.result.timeMs).ok).toBe(false);
+  });
+  it('a run in another kart replays in that kart: it verifies as raced, and the same log claimed in any other kart is refused', () => {
+    const inTruck = clientRun('harbour-loop', 'timeTrial', 'momo', 0, 0, 'snacktruck');
+    expect(inTruck.result.dnf).toBe(false);
+    expect(Math.abs(inTruck.result.timeMs - run.result.timeMs), 'the kart changed the run').toBeGreaterThan(CLAIM_TOLERANCE_MS);
+    const truckLog = encodeLog(inTruck.log);
+    expect(verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, truckLog, inTruck.result.timeMs, 'snacktruck'))
+      .toMatchObject({ ok: true, timeMs: inTruck.result.timeMs, lapTimesMs: inTruck.result.lapTimesMs });
+    // the same log claimed in her own kart (named, or null as a row from before karts) replays to another time: refused (the server's 422)
+    for (const kartId of ['scrap', null]) {
+      expect(verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, truckLog, inTruck.result.timeMs, kartId).ok, String(kartId)).toBe(false);
+    }
+    // in any other kart it is refused too (all nine on 26 Sept 2026); were one ever within the claim tolerance, it
+    // would be stored at that kart's own replay time, never the claim
+    for (const kartId of KART_IDS.filter((k) => k !== 'snacktruck')) {
+      const v = verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, truckLog, inTruck.result.timeMs, kartId);
+      if (v.ok) expect(v.timeMs, kartId).toBe(replay(TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, inTruck.log, kartId).timeMs);
+    }
+    // a run in her own kart replays the same named or not (null: rows from before karts), and a twin gains nothing
+    for (const kartId of ['scrap', 'buggy', null, undefined]) {
+      expect(verifyRun(TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, log, run.result.timeMs, kartId), String(kartId)).toMatchObject({ ok: true, timeMs: run.result.timeMs });
+    }
   });
   it('a daily run with balloons live replays exactly too', () => {
     const seed = 20260930;
@@ -248,5 +290,10 @@ describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => 
       const v = core.verifyRun(core.TRACKS[id], 'timeTrial', 'momo', 0, encodeLog(run.log), run.result.timeMs);
       expect(v, `${id} lane ${lane}: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: run.result.timeMs });
     }
+    // any racer in any kart (26 Sept 2026): a changed kart replays in that kart, so kart tuning without a rebuild fails here
+    const inTruck = clientRun('harbour-loop', 'timeTrial', 'momo', 0, 0, 'snacktruck');
+    expect(inTruck.result.dnf).toBe(false);
+    const v = core.verifyRun(core.TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, encodeLog(inTruck.log), inTruck.result.timeMs, 'snacktruck');
+    expect(v, 'Momo in the Snack Truck: the bundle is stale, run npm run build:function').toMatchObject({ ok: true, timeMs: inTruck.result.timeMs });
   }, 120_000);
 });
