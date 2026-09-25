@@ -1,6 +1,7 @@
 // Fresh-eyes review of the game in motion: records a real-time clip of a race in silent headless Chrome
 // (the WebGL canvas only, so no HUD) and asks Gemini to critique it against Mario Kart World.
-//   node scripts/headless/review.mjs 'harbour-loop,canyon-rush' [--secs=20] [--fps=8] [--url=http://localhost:5173/] [--out=dir] [--model=gemini-pro-latest] [--ask="..."]
+//   node scripts/headless/review.mjs 'harbour-loop,canyon-rush' [--secs=20] [--fps=8] [--url=http://localhost:5173/] [--out=dir] [--model=gemini-pro-latest] [--ask="..."] [--final]
+// --final records from a few seconds before the leader starts the last lap, through the Final Lap Shift.
 // Needs the dev server (the `kart` console helper) and GEMINI_API_KEY in .env.local (scripts/set-gemini-key.sh).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -25,8 +26,17 @@ if (!key) { console.error('No GEMINI_API_KEY in .env.local. Run: bash scripts/se
 async function record(c, track) {
   const b64 = await c.eval(`(async () => {
     kart.race('${track}', 'pip'); kart.autopilot(true);
-    for (let n = 0; n < 20; n++) { if (kart.ui.paused) kart.ui.dispatch({ type: 'resume' }); kart.step(30); if (kart.session.state.phase !== 'countdown') break; }
+    // a breath between steps: the race waits at its countdown until the warm-up (shaders, sky) is done, and that needs the page's own turns
+    const breathe = () => new Promise((r) => setTimeout(r, 0));
+    for (let n = 0; n < 400; n++) { if (kart.ui.paused) kart.ui.dispatch({ type: 'resume' }); kart.step(30); await breathe(); if (kart.session.state.phase !== 'countdown') break; }
     kart.step(120); // a couple of seconds into the race: the pack has spread a little
+    // --final: on to a few seconds before the leader starts the last lap (the Final Lap Shift fires then)
+    for (let n = 0; ${args.includes('--final')} && n < 4000; n++) {
+      if (kart.ui.paused) kart.ui.dispatch({ type: 'resume' });
+      const S = kart.session, L = S.state.karts[S.leader()];
+      if (L.lap >= S.state.lapsTotal || (L.lap === S.state.lapsTotal - 1 && L.t > 0.92)) break;
+      kart.step(30); await breathe();
+    }
     const canvas = document.querySelector('canvas');
     const rec = new MediaRecorder(canvas.captureStream(30), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 5e6 });
     const chunks = [];

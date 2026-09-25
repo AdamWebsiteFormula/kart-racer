@@ -9,10 +9,17 @@ import {
 } from 'three';
 import { CREATURE, type CreaturePose } from '../creatures.ts';
 import type { Track } from '../track.ts';
+import { fadeNearCamera } from './glow.ts';
 
 const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
 const RING_PUFFS = 44;
 const TENTACLE_SEGMENTS = 16;
+/**
+ * Metres from the lens within which a creature dissolves instead of filling the screen (glow.ts
+ * fadeNearCamera). The goose's charge runs through the chase camera (a white wall over a quarter of the
+ * frame, review 25 Sept 2026); the player's kart, 6 m ahead of the lens, stays clear of it.
+ */
+export const CREATURE_NEAR_FADE = 4.5;
 
 class Pool {
   readonly mesh: InstancedMesh;
@@ -52,6 +59,7 @@ export class CreatureView {
       let mat = materialFor(c.kind);
       const shared = !!mat;
       if (!mat) mat = new MeshToonMaterial({ vertexColors: true, gradientMap: gradient ?? null });
+      fadeNearCamera(mat, CREATURE_NEAR_FADE);
       const body = new Mesh(g, mat);
       if (shared) body.userData.sharedMaterial = true;
       body.castShadow = true;
@@ -75,6 +83,8 @@ export class CreatureView {
     this.dust = new Pool(new SphereGeometry(1, 10, 6), new MeshToonMaterial({ color: 0xe8c9a0, gradientMap: gradient ?? null }), RING_PUFFS * 2);
     this.snow = new Pool(new SphereGeometry(1, 18, 12), new MeshToonMaterial({ color: 0xf6fbff, gradientMap: gradient ?? null }), 4, true);
     this.arms = new Pool(new SphereGeometry(1, 12, 8), new MeshToonMaterial({ color: 0xa24be6, emissive: 0x3a1066, gradientMap: gradient ?? null }), TENTACLE_SEGMENTS * 4, true);
+    // a snowball or a tentacle swung past the lens dissolves too
+    for (const p of [this.dust, this.snow, this.arms]) fadeNearCamera(p.mesh.material as Material, CREATURE_NEAR_FADE);
     for (const p of [this.shadows, this.stripe, this.dust, this.snow, this.arms]) this.group.add(p.mesh);
   }
 

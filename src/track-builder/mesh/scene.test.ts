@@ -5,6 +5,7 @@ import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
 import { HARBOUR_LOOP, HARBOUR_WALLED, HARBOUR_WALLED_PIER, cloneDef } from '../__tests__/fixtures.ts';
 import { chunkCountFor } from './chunks.ts';
+import { CREATURE_NEAR_FADE } from './creatures.ts';
 import { insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
@@ -372,6 +373,17 @@ describe('Final Lap Shift swap and hazards', () => {
     scene.update(1);
     expect(holder.visible).toBe(false);
     scene.dispose();
+  });
+
+  it('a creature dissolves near the lens instead of filling the screen (review 25 Sept 2026: the goose charged through the chase camera)', () => {
+    for (const json of [canyonJson, boardwalkJson]) {
+      const scene = buildTrackScene(buildTrack(json as TrackDefinition));
+      const bodies: Mesh[] = [];
+      scene.group.traverse((o) => { if (o.name.startsWith('creature:') && o.name !== 'creature:ledge') bodies.push(o as Mesh); });
+      expect(bodies.length).toBeGreaterThan(0);
+      for (const b of bodies) expect((b.material as MeshBasicMaterial).customProgramCacheKey(), b.name).toContain(`|near${CREATURE_NEAR_FADE.toFixed(2)}`);
+      scene.dispose();
+    }
   });
 
   it('dispose unsubscribes: a later shift does not touch the group', () => {

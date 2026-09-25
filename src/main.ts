@@ -929,6 +929,9 @@ if (import.meta.env.DEV) {
     step: (n = 1, ms = 1000 / 60) => {
       devStepping = true;
       try { for (let i = 0; i < n; i++) step(last + ms); } finally { devStepping = false; }
+      // the frames run by hand ran the clock ahead of the page's: the real loop carries on from now,
+      // else it stood still (0 s frames) until the page caught up, 11 minutes after a whole race
+      last = performance.now();
     },
     /** dev: let the AI drive the player's kart (soak tests); applies to this race and the next */
     autopilot: (on: boolean) => { autopilot = on; if (session) session.ai.drivePlayer = on; },
