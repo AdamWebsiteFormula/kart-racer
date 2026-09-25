@@ -9,17 +9,20 @@ import {
 } from 'three';
 import { CREATURE, type CreaturePose } from '../creatures.ts';
 import type { Track } from '../track.ts';
-import { fadeNearCamera } from './glow.ts';
+import { NearGhost } from './ghost.ts';
 
 const smooth = (x: number) => { const k = Math.max(0, Math.min(1, x)); return k * k * (3 - 2 * k); };
 const RING_PUFFS = 44;
 const TENTACLE_SEGMENTS = 16;
 /**
- * Metres from the lens within which a creature dissolves instead of filling the screen (glow.ts
- * fadeNearCamera). The goose's charge runs through the chase camera (a white wall over a quarter of the
- * frame, review 25 Sept 2026); the player's kart, 6 m ahead of the lens, stays clear of it.
+ * Metres from the lens where a creature (and its snowball, tentacles and dust) has faded away, and from
+ * where it is whole (ghost.ts): between them it is a clean see-through layer. The goose's charge ran
+ * through the chase camera as a white wall (review, 25 Sept 2026); the stipple that followed left the
+ * crab and the kraken's tentacle as noisy shapes over a third of the frame, the kart buried under them.
+ * The player's kart is 5.7 to 6.3 m from the lens: what stands beside it is whole, what comes between
+ * it and the lens is half gone by 4.6 m (a tentacle slammed down just behind the kart shows it through).
  */
-export const CREATURE_NEAR_FADE = 4.5;
+export const CREATURE_GHOST = Object.freeze({ near: 2.5, fade: 5.5 });
 
 class Pool {
   readonly mesh: InstancedMesh;
@@ -46,6 +49,8 @@ export class CreatureView {
   private readonly stripe: Pool;
   /** geometry this view made itself (the yeti's ledge) */
   private readonly made: BufferGeometry[] = [];
+  /** each body's and pool's fade near the lens (ghost.ts) */
+  private readonly ghosts: NearGhost[] = [];
   private readonly m = new Matrix4();
   private readonly q = new Quaternion();
   private readonly v = new Vector3();
@@ -54,14 +59,15 @@ export class CreatureView {
 
   constructor(track: Track, geometryFor: (kind: string) => BufferGeometry, materialFor: (kind: string) => Material | undefined, gradient: Texture | undefined) {
     this.track = track;
+    const G = CREATURE_GHOST;
     for (const c of track.hazards.creatures) {
       const g = geometryFor(c.kind);
-      let mat = materialFor(c.kind);
-      const shared = !!mat;
-      if (!mat) mat = new MeshToonMaterial({ vertexColors: true, gradientMap: gradient ?? null });
-      fadeNearCamera(mat, CREATURE_NEAR_FADE);
+      // its own copy of a model file's material (never the shared one: the ghost patches it; the race frees it)
+      const shared = materialFor(c.kind);
+      const mat = shared ? shared.clone() : new MeshToonMaterial({ vertexColors: true, gradientMap: gradient ?? null });
+      mat.userData.shared = false;
       const body = new Mesh(g, mat);
-      if (shared) body.userData.sharedMaterial = true;
+      this.ghosts.push(new NearGhost(body, G.near, G.fade));
       body.castShadow = true;
       body.name = `creature:${c.kind}`;
       const holder = new Object3D();
@@ -83,9 +89,15 @@ export class CreatureView {
     this.dust = new Pool(new SphereGeometry(1, 10, 6), new MeshToonMaterial({ color: 0xe8c9a0, gradientMap: gradient ?? null }), RING_PUFFS * 2);
     this.snow = new Pool(new SphereGeometry(1, 18, 12), new MeshToonMaterial({ color: 0xf6fbff, gradientMap: gradient ?? null }), 4, true);
     this.arms = new Pool(new SphereGeometry(1, 12, 8), new MeshToonMaterial({ color: 0xa24be6, emissive: 0x3a1066, gradientMap: gradient ?? null }), TENTACLE_SEGMENTS * 4, true);
-    // a snowball or a tentacle swung past the lens dissolves too
-    for (const p of [this.dust, this.snow, this.arms]) fadeNearCamera(p.mesh.material as Material, CREATURE_NEAR_FADE);
+    // a snowball, a tentacle or the dust swung past the lens fades too
+    this.dust.mesh.name = 'creature-dust'; this.snow.mesh.name = 'creature-snow'; this.arms.mesh.name = 'creature-arms';
+    for (const p of [this.dust, this.snow, this.arms]) this.ghosts.push(new NearGhost(p.mesh, G.near, G.fade));
     for (const p of [this.shadows, this.stripe, this.dust, this.snow, this.arms]) this.group.add(p.mesh);
+  }
+
+  /** Each body and its marks fade near the lens at `eye` (world): once a frame, after update() and the camera, before the draw. */
+  lens(eye: Vector3): void {
+    for (let i = 0; i < this.ghosts.length; i++) this.ghosts[i].update(eye);
   }
 
   private put(pool: Pool, x: number, y: number, z: number, sx: number, sy = sx, sz = sx, q: Quaternion = this.q.identity()): void {
@@ -229,8 +241,9 @@ export class CreatureView {
     }
   }
 
-  /** The pools' own geometry (the scene's retire() handles meshes, materials and model geometry). */
+  /** The pools' own geometry and the ghosts' copies (the scene's retire() handles meshes, materials and model geometry). */
   dispose(): void {
+    for (const g of this.ghosts) g.dispose();
     for (const p of [this.shadows, this.stripe, this.dust, this.snow, this.arms]) p.mesh.geometry.dispose();
     for (const g of this.made) g.dispose();
   }

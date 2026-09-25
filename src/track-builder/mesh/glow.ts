@@ -1,7 +1,7 @@
 // Material patches for props. Lights that light themselves: a vertex colour brighter than white (a lamp globe, a bulb, a neon
 // sign, a flag tip; art-pipeline models write linear RGB above 1 for these) also emits that colour,
 // so it glows through the bloom at night as well as by day, however dark the scene light is.
-import type { Material, MeshToonMaterial } from 'three';
+import { ShaderChunk, type Material, type MeshToonMaterial } from 'three';
 
 export function glowFromVertexColours(m: MeshToonMaterial): void {
   const prev = m.onBeforeCompile;
@@ -36,6 +36,37 @@ export function selfLit(m: MeshToonMaterial, amount: { value: number }): void {
   };
   const key = m.customProgramCacheKey.bind(m);
   m.customProgramCacheKey = () => `${key()}|pickup`;
+}
+
+/** The sun's shadow on a face (three's lights_fragment_begin, directional lights), as three writes it. */
+const SUN_SHADOW_LINE = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
+/** ...and ours: a face turned from the sun is in its own shadow, with no lookup. */
+const SUN_SHADOW_FACING = 'directLight.color *= ( directLight.visible && receiveShadow ) ? ( dot( geometryNormal, directLight.direction ) > 0.0 ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0 - directionalLightShadow.shadowIntensity ) : 1.0;';
+/** three's light loop with ours in it (the art-pipeline dressing test fails if three rewrites that line) */
+export const SUN_LIGHTS = ShaderChunk.lights_fragment_begin.replace(SUN_SHADOW_LINE, SUN_SHADOW_FACING);
+
+/**
+ * A prop that takes the sun's shadow (the merged dressing, the podium) shows no acne on its faces
+ * turned from the sun. The shadow pass draws a caster by its back faces, so such a face is tested
+ * against its own depth, and the toon ramp still gives it a third of the sun (a dot under zero reads
+ * the ramp's lowest step): at an angle to the sun a bunting flag, its rope and its badge striped in
+ * texel-wide bands, a sawtooth where two flags overlapped near the finish camera (review, 25 Sept
+ * 2026), and the podium's fronts streaked. A face turned from the sun is in its own shadow anyway: it
+ * now takes none of the sun and skips the lookup (the shade the bias meant it to have, without the
+ * stripes). A face toward the sun is tested as before, against the far side of whatever casts on it.
+ * Only a mesh drawn with receiveShadow changes; patching one twice is a no-op.
+ */
+const SUNLESS = new WeakSet<Material>();
+export function sunlessBackFaces(m: Material): void {
+  if (SUNLESS.has(m)) return;
+  SUNLESS.add(m);
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, renderer) => {
+    prev.call(m, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_begin>', SUN_LIGHTS);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => `${key()}|sunless`;
 }
 
 /**

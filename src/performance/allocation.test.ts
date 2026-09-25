@@ -43,6 +43,7 @@ describe('render-side garbage per frame', () => {
     const fx = newEffects();
     const kartOf = (r: string) => s.state.karts.find((k) => k.racerId === r);
     const cam = [0, 0, 0];
+    const lens = new PerspectiveCamera();
     let t = 0;
     const frame = () => {
       t += 1 / 60;
@@ -50,6 +51,10 @@ describe('render-side garbage per frame', () => {
       const p = s.player!.position;
       cam[0] = p[0]; cam[1] = p[1] + 3; cam[2] = p[2] - 6;
       vfx.frame(1 / 60, 2 / 120, t, s.state.karts, s.player, cam, false);
+      // what the lens meets fades (track-builder ghost.ts): every other frame from right on the kart, so the ghosts switch on
+      lens.position.set(cam[0], cam[1], cam[2]);
+      if (t * 60 % 2 < 1) lens.position.set(p[0], p[1] + 1, p[2]);
+      s.trackScene.lens(lens, t * 60 % 4 < 2);
     };
     // 40 s in: the pack spread out, items flying, boosts and sparks going
     for (let i = 0; i < 120 * 40; i++) {

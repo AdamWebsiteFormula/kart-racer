@@ -9,7 +9,7 @@ import { isShared } from '../art-pipeline/index.ts';
 import type { TrackSample } from '../kart-controller/types.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { Podium, PODIUM, PODIUM_REACTIONS, podiumSpot, type PodiumFx } from './podium.ts';
+import { BLOCK, platePlace, Podium, PODIUM, PODIUM_REACTIONS, podiumSpot, type PodiumFx } from './podium.ts';
 
 const DEFS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 const TOP = [{ racerId: 'boulder', archetype: 'heavy' as const }, { racerId: 'pip', archetype: 'light' as const, look: { paint: 'pip-alt' } }, { racerId: 'otto', archetype: 'medium' as const }];
@@ -57,6 +57,40 @@ describe('the podium', () => {
     p.group.traverseVisible((o) => { if ((o as Mesh).isMesh) draws++; });
     expect(draws).toBeLessThanOrEqual(10);
     p.dispose();
+  });
+
+  it('each place plate sits whole and centred on its own block\'s front, between the band round its foot and the lip of its top (review 25 Sept 2026: the "3" ran under its lip)', () => {
+    const p = new Podium(track, TOP, 'harbour');
+    const plates = p.group.getObjectByName('podium-places') as Mesh;
+    const pos = plates.geometry.getAttribute('position');
+    // (in the podium's own frame: 1st in the middle, 2nd on the audience's left, 3rd on the right)
+    const across = PODIUM.width + PODIUM.gap, xs = [0, -across, across];
+    for (let i = 0; i < 3; i++) {
+      const h = PODIUM.heights[i];
+      let lo = Infinity, hi = -Infinity;
+      for (let k = 0; k < pos.count; k++) {
+        if (Math.abs(pos.getX(k) - xs[i]) > PODIUM.width / 2) continue;
+        lo = Math.min(lo, pos.getY(k)); hi = Math.max(hi, pos.getY(k));
+      }
+      expect(lo, `plate ${i + 1} clears the band`).toBeGreaterThanOrEqual(BLOCK.foot);
+      expect(hi, `plate ${i + 1} stays under the lip`).toBeLessThanOrEqual(h - BLOCK.lip - 0.02);
+      // centred on the front the block shows between them
+      expect((lo + hi) / 2).toBeCloseTo((BLOCK.foot + h - BLOCK.lip) / 2, 1);
+      expect(platePlace(h).size, `plate ${i + 1} big enough to read from the ceremony camera`).toBeGreaterThanOrEqual(0.28);
+    }
+    p.dispose();
+  });
+
+  it('the blocks and the plates take the karts\' shadows, but their fronts turned from the sun no shadow lookup (they streaked with acne), by day and by night', () => {
+    for (const biome of ['harbour', 'boardwalk']) {
+      const p = new Podium(track, TOP, biome);
+      for (const name of ['podium-blocks', 'podium-places']) {
+        const m = p.group.getObjectByName(name) as Mesh;
+        expect(m.receiveShadow, name).toBe(true);
+        expect((m.material as Material).customProgramCacheKey(), `${biome} ${name}`).toContain('|sunless');
+      }
+      p.dispose();
+    }
   });
 
   it('a frame of no time (paused, hidden, a warm-up\'s late clock) never loses the three: their poses stay finite', () => {
