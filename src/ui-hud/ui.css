@@ -559,14 +559,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .mirror-badge { display: none; align-self: flex-end; margin-top: 6px; padding: 4px 12px; border: 3px solid var(--ink); border-radius: 999px; background: var(--sky); color: #fff; font: 400 18px/1 var(--display); letter-spacing: 0.08em; box-shadow: 0 3px 0 var(--ink); }
 .mirror-badge.on { display: inline-block; }
 
-.speedo { position: absolute; bottom: calc(26px + var(--safe-b)); left: 50%; transform: translateX(-50%); font: 400 26px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; opacity: 0.85; }
-.speedo small { font-size: 14px; }
-/* Steering assist on (Settings; game/assist.ts): a small wheel before the speed, as MKW shows an antenna on
-   the kart; it lights up, sun-bright, while the assist turns the wheel */
-.speedo .assist { display: none; width: 26px; height: 26px; margin-right: 8px; vertical-align: -4px; opacity: 0.7; transition: opacity 160ms ease, transform 160ms var(--pop), filter 160ms ease; }
-.speedo .assist[data-state='on'], .speedo .assist[data-state='working'] { display: inline-block; }
-.speedo .assist[data-state='working'] { opacity: 1; transform: scale(1.18); filter: drop-shadow(0 0 5px rgb(255 210 63 / 0.95)); }
-.speedo .assist svg { display: block; width: 100%; height: 100%; }
+/* no speed readout (Mario Kart World shows none, 25 Sept 2026): the foot of the screen holds only the badge below */
+.assist-dock { position: absolute; bottom: calc(26px + var(--safe-b)); left: 50%; transform: translateX(-50%); line-height: 0; opacity: 0.85; }
+/* Steering assist on (Settings; game/assist.ts): a small wheel, as MKW shows an antenna on the kart; it
+   lights up, sun-bright, while the assist turns the wheel */
+.assist-dock .assist { display: none; width: 26px; height: 26px; opacity: 0.7; transition: opacity 160ms ease, transform 160ms var(--pop), filter 160ms ease; }
+.assist-dock .assist[data-state='on'], .assist-dock .assist[data-state='working'] { display: inline-block; }
+.assist-dock .assist[data-state='working'] { opacity: 1; transform: scale(1.18); filter: drop-shadow(0 0 5px rgb(255 210 63 / 0.95)); }
+.assist-dock .assist svg { display: block; width: 100%; height: 100%; }
 
 .banner { position: absolute; top: 24%; left: 0; right: 0; text-align: center; pointer-events: none; }
 .banner .big { display: inline-block; font-size: clamp(72px, 12vw, 160px); line-height: 1; }

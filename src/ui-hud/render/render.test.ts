@@ -89,11 +89,14 @@ describe('HUD renderer', () => {
     expect(v.root.querySelector('.coins')!.textContent).toBe('02');
   });
 
-  it('the driving assists: Steering assist\'s wheel by the speed (lit while it works), and the strip says the gas is automatic', () => {
+  it('the driving assists: Steering assist\'s wheel at the foot of the screen (lit while it works), and the strip says the gas is automatic', () => {
     document.body.innerHTML = '';
     const v = new HudView(document.body);
     const vm = (assist?: { autoAccelerate: boolean; steering: boolean; working: boolean }) => hudModel(race, kart(), 4, 10, newHudMemory(), 1, defs, 0, false, undefined, undefined, assist);
-    const badge = v.root.querySelector<HTMLElement>('.speedo .assist')!;
+    const badge = v.root.querySelector<HTMLElement>('.assist-dock .assist')!;
+    // no speed readout (Mario Kart World shows none): the dock holds the badge alone
+    expect(v.root.querySelector('.speedo')).toBeNull();
+    expect(v.root.textContent).not.toContain('mph');
     const strip = () => [...v.root.querySelectorAll('.keys-hint > span')].map((e) => e.textContent);
     v.render(vm());
     expect(badge.getAttribute('data-state')).toBe('off');

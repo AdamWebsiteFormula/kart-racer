@@ -7,7 +7,7 @@ import { STEP_TICKS } from '../race-manager/countdown.ts';
 import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { bestDelta, formatMs, formatTime, mph, ordinal, ordinalParts, twoDigits, type BestDelta } from './format.ts';
+import { bestDelta, formatMs, formatTime, ordinal, ordinalParts, twoDigits, type BestDelta } from './format.ts';
 import { medalFor, type MedalTimes, type MedalWon } from './screens/menus.ts';
 
 /** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
@@ -41,11 +41,15 @@ export interface HudMemory {
   shiftLabel: string;
   /** the player has started their own last lap */
   finalLap: boolean;
-  /** the controls strip shows a moment after the go (through the countdown it shows from state) */
-  hintUntil: number;
+  /**
+   * this race's countdown shows the controls strip: only the player's first race of the session (MKW shows
+   * none; a new player learns the keys once, then the strip stays out of the way, never in lap 1)
+   */
+  strip: boolean;
 }
 
-export const newHudMemory = (): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, hintUntil: -1 });
+/** A race's HUD memory; `firstRace`: the player's first race of the session (its countdown shows the controls strip). */
+export const newHudMemory = (firstRace = false): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, strip: firstRace });
 
 function show(m: HudMemory, kind: BannerKind, text: string, sub: string, until: number, clock: number, skip = false): void {
   const cur = m.banner && m.banner.until > clock ? m.banner : null;
@@ -58,7 +62,7 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
   const hold = clock + UI.bannerHoldSeconds;
   for (const e of race) {
     switch (e.type) {
-      case 'go': show(m, 'go', 'GO!', '', clock + 1, clock); m.hintUntil = clock + UI.keysHintSeconds; break;
+      case 'go': show(m, 'go', 'GO!', '', clock + 1, clock); break;
       case 'trackChanged': m.shiftLabel = e.event.label; break;
       // FINAL LAP is the player's own last lap; the shift fires on the leader's. A leading player
       // gets both on one tick (lap first, then the label): FINAL LAP under the shift's label.
@@ -110,7 +114,6 @@ export interface HudVM {
   /** two digits (05), as the coin pill shows them */
   coins: string;
   coinsFull: boolean;
-  speed: string;
   held: ItemSlotVM;
   next: ItemSlotVM;
   /** `skip`: show the prompt to go on to the results (SKIP_PROMPTS) */
@@ -118,7 +121,7 @@ export interface HudVM {
   flash: boolean;
   /** a Knockout race's goal, by the place numeral ("6th or better goes through"; the final's "Only 1st wins"); `danger`: outside it */
   knockout: { text: string; danger: boolean } | null;
-  /** show the controls strip */
+  /** show the controls strip: through the countdown of the player's first race of the session only */
   keysHint: boolean;
   /** show the item slots (Time Trial has no items) */
   items: boolean;
@@ -130,7 +133,7 @@ export interface HudVM {
   lapPop: LapPop | null;
   /** a Time Trial over the line: the medal its time won (its badge under FINISH!), or null */
   medal: MedalWon | null;
-  /** Steering assist: its badge by the speed readout (MKW puts an antenna on the kart), lit while it turns the wheel */
+  /** Steering assist: its badge at the foot of the screen (MKW puts an antenna on the kart), lit while it turns the wheel */
   steeringAssist: 'off' | 'on' | 'working';
   /** Auto-accelerate: the controls strip says the gas is automatic */
   autoGas: boolean;
@@ -235,14 +238,13 @@ export function hudModel(
     flourish: m.flourishUntil > clock,
     coins: twoDigits(player.coins),
     coinsFull: player.coins >= coinCap,
-    speed: `${mph(player.speed)}`,
     held: slots.held,
     next: slots.next,
     // a solo run's finish names no place ("1st" of one), as its HUD and results show none
     banner: banner ? { text: banner.text, sub: banner.kind === 'finish' && solo ? '' : banner.sub, kind: banner.kind, skip: banner.skip } : null,
     flash: m.flashUntil > clock,
     knockout,
-    keysHint: counting || m.hintUntil > clock,
+    keysHint: counting && m.strip,
     items: state.mode !== 'timeTrial',
     solo,
     splits: solo ? lapSplits(lapTicks, state.goTick) : NO_SPLITS,

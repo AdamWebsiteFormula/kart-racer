@@ -110,11 +110,11 @@
 /* the finish celebration (game/celebrate.ts, UiRoot.celebrate): the race HUD steps aside for the racer's
    reaction. FINISH! and the place on its pill beside it rise out of the way and shrink under the timer, above
    the kart the camera circles (the prompt for the results waits on its pill below it, ui.css .finish-go); the
-   item slots, the map, the speed and the hints go; the place and the time stay (a press or a tap still goes
+   item slots, the map, the assist badge and the hints go; the place and the time stay (a press or a tap still goes
    straight to the results). --banner-scale: FINISH! keeps it as it rises away for the results (ui.css x-rise-out) */
 #ui .hud.celebrate .banner { --banner-scale: 0.56; top: 12%; transform: scale(var(--banner-scale)); transform-origin: 50% 0; transition: top 700ms var(--out), transform 700ms var(--out); }
 /* (the Knockout's TOP 6 strip goes too: under the timer it crowded FINISH! on a laptop; the cut screen comes next) */
-#ui .hud.celebrate :is(.tl, .br, .speedo, .keys-hint, .ko-strip) { opacity: 0; transition: opacity 500ms ease; }
+#ui .hud.celebrate :is(.tl, .br, .assist-dock, .keys-hint, .ko-strip) { opacity: 0; transition: opacity 500ms ease; }
 #ui:has(.hud.celebrate) .touch { display: none; }
 /* a short window (a laptop, 1366x657): FINISH! a little smaller and higher, so it clears the racer's hat */
 @media (max-height: 700px) {

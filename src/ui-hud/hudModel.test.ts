@@ -21,7 +21,9 @@ function kart() {
 describe('hud model', () => {
   it('steady readouts come from state', () => {
     const vm = hudModel(race(), kart(), 4, 10, newHudMemory(), 0, defs, 0);
-    expect([vm.timer, vm.lap, vm.lapFinal, vm.coins, vm.coinsFull, vm.speed]).toEqual(['1:05.50', '2/3', false, '03', false, '56']);
+    expect([vm.timer, vm.lap, vm.lapFinal, vm.coins, vm.coinsFull]).toEqual(['1:05.50', '2/3', false, '03', false]);
+    // no speed readout: Mario Kart World shows none (25 Sept 2026)
+    expect('speed' in vm).toBe(false);
     expect(vm.position).toEqual({ n: '4', suffix: 'th' });
     expect(vm.banner).toBeNull();
     // Mirror mode (design §10): the MIRROR badge by the lap counter, only in a mirrored race
@@ -142,14 +144,19 @@ describe('hud model', () => {
 });
 
 describe('controls strip', () => {
-  it('shows through the countdown and a moment after the go, then hides', () => {
-    const m = newHudMemory();
-    const at = (clock: number, st = race()) => hudModel(st, kart(), 4, 10, m, clock, defs, 0).keysHint;
-    expect(at(0)).toBe(false);
-    expect(at(1.2, race({ phase: 'countdown', tick: 1, goTick: GO_TICK }))).toBe(true);
-    feedHud(m, [{ type: 'go' } as never], [], 'p', 4);
-    expect(at(4 + UI.keysHintSeconds - 0.1)).toBe(true);
-    expect(at(4 + UI.keysHintSeconds + 0.1)).toBe(false);
+  it('shows through the countdown of the first race of the session only, and never once the race is on', () => {
+    const first = newHudMemory(true);
+    const at = (m: ReturnType<typeof newHudMemory>, clock: number, st = race()) => hudModel(st, kart(), 4, 10, m, clock, defs, 0).keysHint;
+    expect(at(first, 0)).toBe(false);
+    expect(at(first, 1.2, race({ phase: 'countdown', tick: 1, goTick: GO_TICK }))).toBe(true);
+    expect(at(first, 3.9, race({ phase: 'countdown', tick: GO_TICK, goTick: GO_TICK }))).toBe(true);
+    // the go: gone at once (it used to stay 3.5 s into lap 1)
+    feedHud(first, [{ type: 'go' } as never], [], 'p', 4);
+    for (const clock of [4, 4.5, 6, 30]) expect(at(first, clock, race({ phase: 'racing', tick: GO_TICK + 1, goTick: GO_TICK }))).toBe(false);
+    // any later race (or a restart): none, not even in its countdown
+    const later = newHudMemory(false);
+    for (let tick = 1; tick <= GO_TICK; tick += 30) expect(at(later, tick / 120, race({ phase: 'countdown', tick, goTick: GO_TICK }))).toBe(false);
+    expect(newHudMemory().strip).toBe(false);
   });
 });
 
@@ -157,7 +164,7 @@ describe('countdown', () => {
   const counting = (tick: number) => race({ phase: 'countdown', tick, goTick: GO_TICK });
 
   it('each number shows from the tick race-manager announces it until the next one (bug hunt 3)', () => {
-    const m = newHudMemory();
+    const m = newHudMemory(true);
     // tick is the next tick to step: nothing has been announced before the first
     expect(hudModel(counting(0), kart(), 4, 10, m, 0, defs, 0).banner).toBeNull();
     for (let stepped = 0; stepped < GO_TICK; stepped++) {
@@ -168,7 +175,7 @@ describe('countdown', () => {
   });
 
   it('a pause (or a hidden tab) holds the number and the controls strip: the wall clock runs on, the sim does not (bug hunt 3)', () => {
-    const m = newHudMemory();
+    const m = newHudMemory(true);
     const at = (tick: number, clock: number) => { const vm = hudModel(counting(tick), kart(), 4, 10, m, clock, defs, 0); return [vm.banner?.text, vm.keysHint]; };
     expect(at(41, 0.33)).toEqual(['3', true]); // paused here
     expect(at(41, 3.33)).toEqual(['3', true]); // three seconds later, still paused

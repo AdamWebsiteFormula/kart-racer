@@ -4,8 +4,6 @@ export const GAME_TITLE = Object.freeze(['Rascal', 'Rally!'] as const);
 
 export const UI = Object.freeze({
   bannerHoldSeconds: 2.2,
-  /** the controls strip stays this long after the go (it shows through the countdown) */
-  keysHintSeconds: 3.5,
   bannerFadeMs: 260,
   flashMs: 180,
   staggerResultsMs: 120,

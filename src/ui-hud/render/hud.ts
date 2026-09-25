@@ -231,7 +231,6 @@ export class HudView {
   private lapOf: TextField;
   private lapFinal: Flag;
   private mirror: Flag;
-  private speed: TextField;
   private banner: HTMLElement;
   private bannerBig: TextField;
   private bannerSmall: TextField;
@@ -249,7 +248,7 @@ export class HudView {
   /** the strip's two lines (keys, a pad's buttons): the gas's words follow Auto-accelerate */
   private stripKeys: TextField;
   private stripPad: TextField;
-  /** Steering assist's badge by the speed readout: off, on, or lit while it turns the wheel */
+  /** Steering assist's badge at the foot of the screen: off, on, or lit while it turns the wheel */
   private assist: Attr;
   private lastFlourish = false;
   private readonly slots: HTMLElement;
@@ -302,14 +301,13 @@ export class HudView {
     this.lapFinal = new Flag(lap, 'final');
     this.mirror = new Flag(h('div', 'mirror-badge', br, 'MIRROR'), 'on');
 
-    const sp = h('div', 'speedo', this.root);
-    const wheel = h('span', 'assist', sp);
+    // no speed readout (Mario Kart World shows none): the foot of the screen holds only Steering assist's badge
+    const dock = h('div', 'assist-dock', this.root);
+    const wheel = h('span', 'assist', dock);
     wheel.innerHTML = wheelSvg();
     wheel.setAttribute('role', 'img');
     wheel.setAttribute('aria-label', 'Steering assist on');
     this.assist = new Attr(wheel, 'data-state');
-    this.speed = new TextField(h('span', '', sp));
-    h('small', '', sp, ' mph');
 
     this.banner = h('div', 'banner', this.root);
     this.banner.setAttribute('aria-live', 'polite');
@@ -395,7 +393,6 @@ export class HudView {
     this.lapOf.set(`/${of}`);
     this.lapFinal.set(vm.lapFinal);
     this.mirror.set(vm.mirrored);
-    this.speed.set(vm.speed);
     const b = vm.banner;
     const key = b ? `${b.kind}|${b.text}|${b.sub}|${b.skip}` : '';
     if (key !== this.lastBanner) {

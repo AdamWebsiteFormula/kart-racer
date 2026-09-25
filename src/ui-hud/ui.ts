@@ -127,6 +127,8 @@ export class UiRoot {
   private readonly focusBy = new Map<string, string>();
   private active: { key: string; view: ScreenView } | null = null;
   private hudMem: HudMemory = newHudMemory();
+  /** races the player has started this session (a restart counts): only the first one's countdown shows the controls strip */
+  private racesStarted = 0;
   private dots: MinimapDot[] = [];
   private lastOver: RaceOver | null = null;
   private ttNote = '';
@@ -294,14 +296,14 @@ export class UiRoot {
   private effects(prev: AppState, next: AppState, a: AppAction): void {
     const wasPaused = isPaused(prev), nowPaused = isPaused(next);
     if (next.screen === 'racing' && prev.screen !== 'racing') {
-      this.hudMem = newHudMemory();
+      this.hudMem = newHudMemory(this.racesStarted++ === 0);
       this.playerDone = false;
       this.statsOff = false;
       if (prev.screen === 'gpTable' || prev.screen === 'knockoutCut') this.host.nextRace();
       // one more go from the results: no course intro for the same race again, a short one for the next track
       else this.host.startRace({ ...this.plan(next), ...(a.type === 'raceAgain' ? { intro: 'none' as const } : a.type === 'nextTrack' ? { intro: 'short' as const } : {}) });
     }
-    if (a.type === 'restart' && prev.screen === 'racing') { this.hudMem = newHudMemory(); this.playerDone = false; this.statsOff = false; this.host.restartRace(); }
+    if (a.type === 'restart' && prev.screen === 'racing') { this.hudMem = newHudMemory(this.racesStarted++ === 0); this.playerDone = false; this.statsOff = false; this.host.restartRace(); }
     if (a.type === 'quit' && prev.screen === 'racing') writeSave(this.backend, this.save); // the race's counters (ultra turbos, hits)
     if (a.type === 'quit' && prev.screen === 'racing') this.host.quitRace();
     if (wasPaused !== nowPaused) this.host.setPaused(nowPaused);
@@ -453,7 +455,7 @@ export class UiRoot {
     this.toastTimer = setTimeout(() => this.toast.classList.remove('on'), 5000);
   }
 
-  /** The player's finish celebration (main.ts, game/celebrate.ts): the race HUD steps aside for it (podium.css): the banner up and small, the item slots, map, speed and hints away. */
+  /** The player's finish celebration (main.ts, game/celebrate.ts): the race HUD steps aside for it (podium.css): the banner up and small, the item slots, map, assist badge and hints away. */
   celebrate(on: boolean): void { this.views.hud.root.classList.toggle('celebrate', on); }
 
   /** Once per rendered frame while racing (paused or not). */
