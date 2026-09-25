@@ -8,14 +8,14 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 - **Code:** https://github.com/AdamWebsiteFormula/kart-racer
 - Keyboard, gamepad or touch (a phone turned sideways); tested in Chrome, Firefox and Safari. Sound on, or add `?mute` to the address for a silent game.
 
-![Canyon Rush: the Rumblesaur towers over the road as the pack races through the canyon](img/canyon-rumblesaur.jpg)
+![Harbor Loop: the pack races along the seaside road past the lighthouse](img/harbour-loop.jpg)
 
 ## At a glance
 
 | What | Detail |
 |---|---|
 | Racers | 8 originals in 3 classes; 3 unlockable paints and 2 unlockable kart bodies |
-| Tracks | 6 in 2 cups, each with a giant creature and a Final Lap Shift |
+| Tracks | 6 in 2 cups, each with a Final Lap Shift |
 | Items | 13 originals, two held at a time |
 | Modes | Quick Race, Grand Prix, Knockout, Time Trial, Daily Challenge, plus Mirror |
 | Sound | 102 sound effects and 7 instrumental songs |
@@ -62,18 +62,17 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 
 ### Tracks
 
-| Track | Cup | World | Creature | Thrills | Final Lap Shift |
-|---|---|---|---|---|---|
-| Harbor Loop | Sunrise | Seaside town | A giant crab scuttles across the road | Pier ramp, beach shortcut, barrels rolling off the pier | The tide comes in and closes the beach shortcut |
-| Meadow Run | Sunrise | Rolling farmland | A giant goose honks, then charges down the road | Hairpin, long slipstream straight, haystack ramp, hay-hump trick bumps, runaway hay bales | A storm rolls in: the sky darkens, grip drops and the hedgerow shortcut closes |
-| Canyon Rush | Sunrise | Red-rock desert | The Rumblesaur rears up and stomps a shock ring across the road | Geysers that throw you into the air, a mine shortcut through a mesa, dune bumps, mine carts, cliff edges with no walls | The rope bridge falls; the only way on is through the lantern-lit mine |
-| Frostbite Pass | Summit | Snowy mountain village | A yeti lobs snowballs from its ledge | Ski jump, mogul bumps, steam vents, ice | A blizzard closes in and the frozen lake opens as a shortcut |
-| Boardwalk Nights | Summit | Night carnival | A kraken slams a tentacle across the planks | Neon loop-the-loop, bumper cars, teacups, an arcade-alley shortcut | Fireworks finale: a ramp opens at the Ferris wheel |
-| Skyline Circuit | Summit | Cloud islands | A sky whale's tail slap sends a gust across the road | A climb to 94 m, an island-hop jump, airship wake gusts, open edges | Sunset to starlight: the narrow sky rail becomes the only road |
+| Track | Cup | World | Thrills | Final Lap Shift |
+|---|---|---|---|---|
+| Harbor Loop | Sunrise | Seaside town | Pier ramp, beach shortcut, barrels rolling off the pier | The tide comes in and closes the beach shortcut |
+| Meadow Run | Sunrise | Rolling farmland | Hairpin, long slipstream straight, haystack ramp, hay-hump trick bumps, runaway hay bales | A storm rolls in: the sky darkens, grip drops and the hedgerow shortcut closes |
+| Canyon Rush | Sunrise | Red-rock desert | Geysers that throw you into the air, a mine shortcut through a mesa, dune bumps, mine carts, cliff edges with no walls | The rope bridge falls; the only way on is through the lantern-lit mine |
+| Frostbite Pass | Summit | Snowy mountain village | Ski jump, mogul bumps, steam vents, ice | A blizzard closes in and the frozen lake opens as a shortcut |
+| Boardwalk Nights | Summit | Night carnival | Neon loop-the-loop, bumper cars, teacups, an arcade-alley shortcut | Fireworks finale: a ramp opens at the Ferris wheel |
+| Skyline Circuit | Summit | Cloud islands | A climb to 94 m, an island-hop jump, airship wake gusts, open edges | Sunset to starlight: the narrow sky rail becomes the only road |
 
 - The Final Lap Shift fires once, for everyone, when the leader starts the last lap, with a banner, a new sky and its own 4.5-second rumble, whoosh and shimmer.
 - Each shift plays a set piece that reads from the chase camera in 2 to 3 seconds: the tide rolls in over the beach road, lightning fells an oak across the hedgerow cut, the rope bridge snaps and falls plank by plank, the lake freezes out from the crossing, two Ferris-wheel spokes swing down into the new ramp under fireworks, and the old sky bridges retract. Flashes stay at most three a second; reduced motion cuts instead of sweeping.
-- Every creature warns first (a shadow, a rumble, a wind-up), and the AI sees and dodges it like any hazard.
 - Every track has 5 or 6 boost pads and a shortcut, and every shortcut is tested to be worth taking: a Hard AI forced onto it must be at least as fast as the road.
 
 ### Racers
@@ -183,7 +182,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 | Second-opinion code reviews | Codex |
 | Racer concept art and portraits, 12 painted skies | GPT Image 2.5 via Higgsfield |
 | Item art and ground textures | AI images via Higgsfield |
-| 8 racer models; 31 creature, landmark and scenery models | Image-to-3D via Higgsfield (Tripo H3.1 for the racers) |
+| 8 racer models; 25 landmark and scenery models | Image-to-3D via Higgsfield (Tripo H3.1 for the racers) |
 | Tracks, the Classic and Buggy bodies, spectators, vistas, sky life and effects | Modeled in code |
 | 7 songs and 102 sound effects | ElevenLabs (Eleven Music, Sound Effects) |
 | Listening checks | CLAP, AST and Qwen2.5-Omni (local), Gemini Pro |
@@ -193,8 +192,8 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 
 ## A five-minute tour
 
-- **Canyon Rush** (Quick Race, Sunrise Cup): watch the intro, ride a geyser early in the lap, hop the Rumblesaur's shock ring near the end, and on the last lap take the mine. To see the claw, drive off an unwalled edge about halfway round the lap.
-- **Boardwalk Nights** (Summit Cup): the kraken, then the neon loop right after it; fireworks and the Ferris-wheel ramp on the last lap.
+- **Canyon Rush** (Quick Race, Sunrise Cup): watch the intro, ride a geyser early in the lap, and on the last lap take the mine. To see the claw, drive off an unwalled edge about halfway round the lap.
+- **Boardwalk Nights** (Summit Cup): the neon loop-the-loop; fireworks and the Ferris-wheel ramp on the last lap.
 - **Drift** a long bend until the sparks go purple and feel the camera punch.
 - **From the back of the pack**, look for a Strike Ball: the back draws the big items.
 - **Finish a Grand Prix** for the podium ceremony.
@@ -204,8 +203,8 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 ## Which prize fits
 
 - **Best Game:** the full package: five modes plus Mirror, a replay-verified global leaderboard, 1,466 tests and three red-team passes.
-- **Most Creative:** the Final Lap Shift, the course creatures, the claw rescue, the neon loop, and items of our own (Strike Ball, Grapple Anchor, Pogo Spring).
-- **Eye Candy:** the AI-made 3D cast and creatures, painted skies, course intros, far vistas, crowds and sky life, and night neon on Boardwalk Nights.
+- **Most Creative:** the Final Lap Shift, the claw rescue, the neon loop, and items of our own (Strike Ball, Grapple Anchor, Pogo Spring).
+- **Eye Candy:** the AI-made 3D cast, painted skies, course intros, far vistas, crowds and sky life, and night neon on Boardwalk Nights.
 - **One More Go:** drifting that pays, Time Trial ghosts and medals, and a new Daily Challenge every day.
 
 ## Honest notes
@@ -223,7 +222,6 @@ Code: https://github.com/AdamWebsiteFormula/kart-racer
 
 What's in it:
 - 8 original racers, 6 tracks, and drifting that pays: hold a turn for blue, orange, then purple sparks and a mini-turbo
-- A giant creature on every track: a rock dinosaur whose stomp sends a shock ring across the road, a snowball-throwing yeti, a kraken that slams a tentacle across the boardwalk, and more
 - **Final Lap Shift:** on the last lap every track changes (the tide comes in, a blizzard freezes the lake into a shortcut, the bridge goes down and the only way on is a lantern-lit mine)
 - 13 original items, held two at a time: bowl rivals over as a giant **Strike Ball**, boing over trouble on a **Pogo Spring**, hook the racer ahead with a **Grapple Anchor** and slingshot past
 - A camera fly-through before every race, a slow-motion finish, and a podium ceremony after a Grand Prix or Knockout
@@ -232,7 +230,7 @@ What's in it:
 
 How AI built it:
 - **Claude Code** (Opus) designed and wrote the whole game: physics, AI rivals, items, tracks, UI, the leaderboard server and 1,466 tests. It also ran teams of AI agents that hunted bugs, red-teamed the security and checked every screen in silent headless Chrome
-- **Higgsfield:** the racer, creature and scenery 3D models (AI images turned into 3D), the painted skies and the item art
+- **Higgsfield:** the racer and scenery 3D models (AI images turned into 3D), the painted skies and the item art
 - **ElevenLabs:** 7 songs and 102 sound effects, checked by AI listening models
 - **Supabase:** the leaderboard
 
@@ -247,14 +245,14 @@ Start on the title screen (a race runs behind the logo). Keep the game full scre
 | 0–5 s | The title screen | "This is Rascal Rally, a kart racer I built with AI, and you can play it in your browser right now." |
 | 5–12 s | A Quick Race on **Canyon Rush**: the course intro sweeps down onto your kart | "Every race opens with a fly-through of the course." |
 | 12–20 s | Drift a long bend until the sparks go purple, then boost | "Eight racers, six tracks, and drifting that pays: hold a turn for blue, orange, then purple sparks." |
-| 20–28 s | Ride a geyser for a trick, then hop the Rumblesaur's shock ring | "Geysers throw you up for a trick boost. Every track has a giant creature: this rock dinosaur stomps, and you hop its shock wave." |
+| 20–28 s | Ride a geyser for a trick, then drift a long bend until the sparks go purple | "Geysers throw you up for a trick boost. Drifting that pays: hold a turn for blue, orange, then purple sparks." |
 | 28–38 s | Items: pop a balloon, fire a Wind-Up Mouse, then (from the back) a Strike Ball | "Thirteen original items, held two at a time, like the giant bowling ball that knocks everyone flying." |
 | 38–44 s | **Boardwalk Nights**: the neon loop-the-loop | "There's a neon loop-the-loop at the night carnival." |
 | 44–50 s | Canyon Rush, the last lap: the **Final Lap Shift** banner, then the mine | "And on the last lap, every track changes. Here the bridge goes down, so it's through the mine." |
 | 50–56 s | Over the line: the slow-motion finish, then the results and the leaderboard | "Grand Prix, Knockout, Time Trial and a Daily Challenge on a global leaderboard." |
 | 56–60 s | Back on the track | "Claude Code wrote it, Higgsfield made the 3D art, ElevenLabs made the music. Link's below. Beat my time!" |
 
-Tips: the tour above has where to find each shot. For a shorter take, pick Time Trial or 150cc. The kraken at night is the best-looking creature shot if there is time for a second clip.
+Tips: the tour above has where to find each shot. For a shorter take, pick Time Trial or 150cc.
 
 ## Credits and license
 

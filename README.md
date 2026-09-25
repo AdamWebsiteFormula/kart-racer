@@ -5,7 +5,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 **Play now: https://adamwebsiteformula.github.io/kart-racer/**
 Keyboard, gamepad or a phone turned sideways; tested in Chrome, Firefox and Safari. Sound on.
 
-![Canyon Rush: the Rumblesaur towers over the road as the pack races through the canyon](docs/img/canyon-rumblesaur.jpg)
+![Harbor Loop: the pack races along the seaside road past the lighthouse](docs/img/harbour-loop.jpg)
 
 Inspired by the feel of Mario Kart World. Every racer, track, item and sound is our own.
 
@@ -37,7 +37,7 @@ Time Trial and the Daily post to a global leaderboard.
 ## Highlights
 
 - **8 original racers** in light, medium and heavy classes, from Pip the hummingbird courier to Big Gus the walrus chef, each with a signature kart, horn and yelp. Unlock 3 alt paints and 2 more kart bodies.
-- **6 tracks, 6 giant creatures:** a crab, a goose, the stomping Rumblesaur, a snowball-throwing yeti, a kraken and a sky whale, each with a warning you can read. Plus a neon loop-the-loop, geysers, a ski jump, trick bumps, boost pads and cliff edges with no walls (fall off and a claw carries you back).
+- **6 tracks** with a neon loop-the-loop, geysers, a ski jump, trick bumps, boost pads and cliff edges with no walls (fall off and a claw carries you back).
 - **The Final Lap Shift.** When the leader starts the last lap, every track changes: the tide comes in, a storm rolls over, the rope bridge falls and the only way on is a lantern-lit mine, a blizzard freezes the lake into a shortcut, fireworks open a ramp at the Ferris wheel, and at nightfall the sky rail becomes the only road.
 - **13 original items**, two held at a time: become a giant **Strike Ball** and bowl the pack over, boing over trouble on a **Pogo Spring**, hook the racer ahead with a **Grapple Anchor** and slingshot past, send a **Wind-Up Mouse** weaving through the field.
 - **Drifting that pays.** Blue, orange and purple sparks at 0.55, 1.33 and 2.33 s. A test races every track with and without drifting: drifting wins by 3.8 to 7.7 s a race.
@@ -65,7 +65,7 @@ Made for the *AI Automations with Jack* September 2026 game competition, from a 
 |---|---|
 | Design, code, tests, tuning and reviews | Claude Code (Claude Opus), with agents working in parallel |
 | Racer concept art, portraits, painted skies, item art | AI images via Higgsfield (GPT Image 2.5 for the racers and skies) |
-| 3D racers, creatures, landmarks and scenery | Image-to-3D via Higgsfield (Tripo H3.1 for the racers) |
+| 3D racers, landmarks and scenery | Image-to-3D via Higgsfield (Tripo H3.1 for the racers) |
 | Music and sound effects | ElevenLabs (Eleven Music, Sound Effects) |
 | Listening and gameplay review | Local audio models (CLAP, AST, Qwen2.5-Omni) and Gemini |
 | Engine and leaderboard | Three.js, TypeScript, Vite; Supabase |
