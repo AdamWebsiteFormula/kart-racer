@@ -1,6 +1,7 @@
 // The race HUD renderer: design §12 layout. Diffed writes only; the minimap redraws at 30 Hz.
 import type { Minimap } from '../../track-builder/minimap.ts';
 import { UI } from '../constants.ts';
+import { castCard } from '../data/cast.ts';
 import { SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
 import { iconFor, iconMarkup, medalSvg } from '../icons.ts';
 import { medalLabel } from '../screens/menus.ts';
@@ -37,13 +38,63 @@ class SlotView {
   }
 }
 
+const INK = '#1b1b2f';
+const TAU = Math.PI * 2;
+
+/**
+ * The racers' concept art (public/art/racers, the roster cards' pictures), asked for once for every race
+ * to come. Null until it has loaded, and for anyone not in the cast: the map draws their dot meanwhile.
+ */
+const FACE_ART = new Map<string, HTMLImageElement>();
+function faceArt(racerId: string): HTMLImageElement | null {
+  let img = FACE_ART.get(racerId);
+  if (!img) {
+    if (!castCard(racerId)) return null;
+    img = new Image();
+    img.decoding = 'async';
+    img.src = `${import.meta.env.BASE_URL}art/racers/${racerId}.webp`;
+    FACE_ART.set(racerId, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
+}
+
+/** A map marker: the head at `crop` in `art` cut round, `size` px across, in a `ring` px ring of `colour` over an ink rim. Drawn once per racer and size. */
+function faceSprite(art: HTMLImageElement, crop: readonly [number, number, number], size: number, colour: string, ring: number, rim: number): HTMLCanvasElement {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const c = cv.getContext('2d');
+  if (!c) return cv;
+  const r = size / 2, face = r - rim - ring;
+  c.beginPath();
+  c.arc(r, r, r, 0, TAU);
+  c.fillStyle = INK;
+  c.fill();
+  c.beginPath();
+  c.arc(r, r, r - rim, 0, TAU);
+  c.fillStyle = colour;
+  c.fill();
+  c.save();
+  c.beginPath();
+  c.arc(r, r, face, 0, TAU);
+  c.clip();
+  c.imageSmoothingQuality = 'high';
+  const w = art.naturalWidth, [x, y, cr] = crop;
+  c.drawImage(art, (x - cr) * w, y * art.naturalHeight - cr * w, 2 * cr * w, 2 * cr * w, r - face, r - face, 2 * face, 2 * face);
+  c.restore();
+  return cv;
+}
+
 export class MinimapView {
   readonly canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D | null;
   private road: HTMLCanvasElement;
   private roadKey = '';
   private px = 0;
+  private css = 0;
   private lastDraw = -Infinity;
+  /** each racer's face at this map's size, cut once its art is in (by racer id): the rivals', the player's */
+  private faces = new Map<string, HTMLCanvasElement>();
+  private playerFaces = new Map<string, HTMLCanvasElement>();
   constructor(parent: HTMLElement) {
     this.canvas = h('canvas', 'minimap', parent);
     this.canvas.setAttribute('role', 'img');
@@ -56,11 +107,29 @@ export class MinimapView {
     const dpr = Math.min(UI.minimapMaxDpr, globalThis.devicePixelRatio || 1);
     const css = this.canvas.clientWidth || 210;
     const px = Math.round(css * dpr);
-    if (px === this.px) return;
+    if (px === this.px && css === this.css) return;
     this.px = px;
+    this.css = css;
     this.canvas.width = this.canvas.height = px;
     this.road.width = this.road.height = px;
     this.roadKey = '';
+    this.faces.clear();
+    this.playerFaces.clear();
+  }
+
+  /** `d`'s face at this map's size (the player's bigger and ringed in white), or null until its art is in */
+  private face(d: MinimapDot, dpr: number): HTMLCanvasElement | null {
+    const cut = d.player ? this.playerFaces : this.faces;
+    const hit = cut.get(d.racerId);
+    if (hit) return hit;
+    const art = faceArt(d.racerId);
+    const crop = art && castCard(d.racerId)?.face;
+    if (!art || !crop) return null;
+    const across = Math.max(UI.minimapFaceMinPx, this.css * (d.player ? UI.minimapPlayerFace : UI.minimapFace));
+    const sprite = faceSprite(art, crop, Math.round(across * dpr), d.player ? '#fffaf0' : d.colour,
+      (d.player ? UI.minimapPlayerRingPx : UI.minimapRingPx) * dpr, UI.minimapRimPx * dpr);
+    cut.set(d.racerId, sprite);
+    return sprite;
   }
 
   private strokeRoad(map: Minimap): void {
@@ -71,6 +140,11 @@ export class MinimapView {
     c.lineJoin = 'round';
     c.lineCap = 'round';
     for (const pass of [0, 1]) {
+      // no box behind the map (MKW has none): the ink outline casts a soft shadow, so the course
+      // stands off a bright scene (snow, sand) as well as a dark one
+      c.shadowColor = pass === 0 ? 'rgba(27, 27, 47, 0.45)' : 'transparent';
+      c.shadowBlur = s * 0.03;
+      c.shadowOffsetY = s * 0.015;
       for (const o of map.outlines) {
         if (!o.open) continue;
         // road = the centre between the edges, stroked fat: an outline pass then a fill pass
@@ -83,7 +157,7 @@ export class MinimapView {
           const x = pad + u * span, y = pad + v * span;
           if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
         }
-        c.strokeStyle = pass === 0 ? '#1b1b2f' : o.branch === 0 ? '#fffaf0' : '#ffd23f';
+        c.strokeStyle = pass === 0 ? INK : o.branch === 0 ? '#fffaf0' : '#ffd23f';
         c.lineWidth = s * (pass === 0 ? 0.075 : 0.045);
         c.stroke();
       }
@@ -99,18 +173,23 @@ export class MinimapView {
     const key = outlineKey(map);
     if (key !== this.roadKey) { this.roadKey = key; this.strokeRoad(map); }
     const c = this.ctx, s = this.px, pad = s * 0.08, span = s - 2 * pad;
-    const dpr = s / (this.canvas.clientWidth || 210);
+    const dpr = s / this.css;
     c.clearRect(0, 0, s, s);
     c.drawImage(this.road, 0, 0);
+    // each racer as their face (MKW's minimap): in paint order, so the leaders sit on the pack and the
+    // player on everyone; a kart over the line dimmed
     for (const d of dots) {
       const x = pad + d.u * span, y = pad + d.v * span, r = d.radius * dpr;
       c.globalAlpha = d.dim ? 0.45 : 1;
+      const face = this.face(d, dpr);
+      if (face) { c.drawImage(face, x - face.width / 2, y - face.height / 2); continue; }
+      // the art not in yet: the racer's dot
       c.beginPath();
-      c.arc(x, y, r + UI.dotStrokePx * dpr * 0.5, 0, Math.PI * 2);
-      c.fillStyle = '#1b1b2f';
+      c.arc(x, y, r + UI.dotStrokePx * dpr * 0.5, 0, TAU);
+      c.fillStyle = INK;
       c.fill();
       c.beginPath();
-      c.arc(x, y, r, 0, Math.PI * 2);
+      c.arc(x, y, r, 0, TAU);
       c.fillStyle = d.colour;
       c.fill();
       if (d.player) {
@@ -118,7 +197,7 @@ export class MinimapView {
         c.strokeStyle = '#fffaf0';
         c.stroke();
         c.beginPath();
-        c.arc(x, y, r + 5 * dpr, 0, Math.PI * 2);
+        c.arc(x, y, r + 5 * dpr, 0, TAU);
         c.lineWidth = 1.5 * dpr;
         c.strokeStyle = '#fffaf0';
         c.stroke();
@@ -142,8 +221,10 @@ export class HudView {
   private koShown: Flag;
   private place: HTMLElement;
   private placeN: TextField;
+  /** the numeral again for the stylesheet's outline and face layers (`content: attr(data-n)`) */
+  private placeLayers: Attr;
   private placeSuf: TextField;
-  private placeP1: Flag;
+  private placeTier: Attr;
   private coins: TextField;
   private coinsFull: Flag;
   private lapN: TextField;
@@ -190,9 +271,11 @@ export class HudView {
     const bl = h('div', 'bl', this.root);
     this.place = h('div', 'place', bl);
     this.place.setAttribute('aria-label', 'Position');
-    this.placeN = new TextField(h('span', 'n', this.place));
+    const n = h('span', 'n', this.place);
+    this.placeN = new TextField(n);
+    this.placeLayers = new Attr(n, 'data-n');
     this.placeSuf = new TextField(h('span', 'suf', this.place));
-    this.placeP1 = new Flag(this.place, 'p1');
+    this.placeTier = new Attr(this.place, 'data-tier');
     const coins = h('div', 'coins', bl);
     h('span', 'coin', coins);
     this.coins = new TextField(h('span', '', coins));
@@ -247,8 +330,10 @@ export class HudView {
     this.koText.set(vm.knockout?.text ?? '');
     this.koDanger.set(vm.knockout?.danger ?? false);
     this.placeN.set(vm.position.n);
+    this.placeLayers.set(vm.position.n);
     this.placeSuf.set(vm.position.suffix);
-    this.placeP1.set(vm.position.n === '1');
+    // the color rides the flourish: both change on the rank change's frame
+    this.placeTier.set(vm.positionTier);
     this.solo.set(vm.solo);
     // the splits change once a lap: drawn again only then
     let laps = '';

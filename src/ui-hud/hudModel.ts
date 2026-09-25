@@ -7,7 +7,7 @@ import { STEP_TICKS } from '../race-manager/countdown.ts';
 import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { formatMs, formatTime, mph, ordinal, ordinalParts } from './format.ts';
+import { formatMs, formatTime, mph, ordinal, ordinalParts, twoDigits } from './format.ts';
 import { medalFor, type MedalTimes, type MedalWon } from './screens/menus.ts';
 
 /** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
@@ -75,6 +75,11 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
   }
 }
 
+/** The place numeral's color (ui.css `.place[data-tier]`): gold, silver and bronze for 1st to 3rd, the pack's yellow-orange behind them */
+export type PositionTier = 'gold' | 'silver' | 'bronze' | 'pack';
+const PODIUM_TIERS: readonly PositionTier[] = ['gold', 'silver', 'bronze'];
+export const positionTier = (rank: number): PositionTier => PODIUM_TIERS[rank - 1] ?? 'pack';
+
 /** ready: use it; active: a power running from this slot (Strike Ball); trailing: held behind the kart */
 export interface ItemSlotVM { state: 'empty' | 'rolling' | 'ready' | 'active' | 'trailing'; itemId: string; label: string; charges: string }
 
@@ -85,7 +90,10 @@ export interface HudVM {
   /** Mirror mode (design §10): a MIRROR badge by the lap counter */
   mirrored: boolean;
   position: { n: string; suffix: string };
+  /** the numeral's color by place: it changes with the numeral, on the frame the flourish starts */
+  positionTier: PositionTier;
   flourish: boolean;
+  /** two digits (05), as the coin pill shows them */
   coins: string;
   coinsFull: boolean;
   speed: string;
@@ -183,8 +191,9 @@ export function hudModel(
     lapFinal: lap === state.lapsTotal && state.lapsTotal > 1,
     mirrored: state.mirrored === true,
     position: ordinalParts(rank),
+    positionTier: positionTier(rank),
     flourish: m.flourishUntil > clock,
-    coins: `${player.coins}`,
+    coins: twoDigits(player.coins),
     coinsFull: player.coins >= coinCap,
     speed: `${mph(player.speed)}`,
     held: slots.held,

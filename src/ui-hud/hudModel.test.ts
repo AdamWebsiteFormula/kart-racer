@@ -5,7 +5,7 @@ import { GO_TICK, STEP_TICKS } from '../race-manager/countdown.ts';
 import { RACE } from '../race-manager/constants.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { feedHud, hudModel, lapSplits, newHudMemory } from './hudModel.ts';
+import { feedHud, hudModel, lapSplits, newHudMemory, positionTier } from './hudModel.ts';
 
 const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
 
@@ -21,7 +21,7 @@ function kart() {
 describe('hud model', () => {
   it('steady readouts come from state', () => {
     const vm = hudModel(race(), kart(), 4, 10, newHudMemory(), 0, defs, 0);
-    expect([vm.timer, vm.lap, vm.lapFinal, vm.coins, vm.coinsFull, vm.speed]).toEqual(['1:05.50', '2/3', false, '3', false, '56']);
+    expect([vm.timer, vm.lap, vm.lapFinal, vm.coins, vm.coinsFull, vm.speed]).toEqual(['1:05.50', '2/3', false, '03', false, '56']);
     expect(vm.position).toEqual({ n: '4', suffix: 'th' });
     expect(vm.banner).toBeNull();
     // Mirror mode (design §10): the MIRROR badge by the lap counter, only in a mirrored race
@@ -37,7 +37,24 @@ describe('hud model', () => {
     const vm = hudModel(race(), k, 3, 10, m, 1, defs, 0);
     expect(vm.position.n).toBe('3');
     expect(vm.flourish).toBe(true);
+    // the color comes with the numeral, on the flourish's frame
+    expect(vm.positionTier).toBe('bronze');
     expect(hudModel(race(), k, 3, 10, m, 1.5, defs, 0).flourish).toBe(false);
+  });
+
+  it('the place numeral is colored by place: gold, silver, bronze, then the pack', () => {
+    const tiers = [1, 2, 3, 4, 5, 6, 7, 8].map((r) => hudModel(race(), kart(), r, 10, newHudMemory(), 0, defs, 0).positionTier);
+    expect(tiers).toEqual(['gold', 'silver', 'bronze', 'pack', 'pack', 'pack', 'pack', 'pack']);
+    expect(positionTier(12)).toBe('pack');
+  });
+
+  it('the coin pill reads two digits, and full at the cap', () => {
+    const k = kart();
+    k.coins = 0;
+    expect(hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0).coins).toBe('00');
+    k.coins = 10;
+    const full = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
+    expect([full.coins, full.coinsFull]).toEqual(['10', true]);
   });
 
   it('banner priority: finish beats final lap beats wrong way beats countdown, and each clears after its hold', () => {

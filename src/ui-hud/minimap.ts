@@ -1,9 +1,11 @@
-// Minimap dots: which karts show, where, how big and in what colour. Pure; the canvas draws it.
+// Minimap dots: which karts show, where, how big and in what colour. Pure; the canvas draws it
+// (each racer's face once its art is in, the dot until then).
 import type { KartState } from '../kart-controller/types.ts';
 import type { Minimap } from '../track-builder/minimap.ts';
 import { UI } from './constants.ts';
 
-export interface MinimapDot { u: number; v: number; colour: string; radius: number; player: boolean; dim: boolean; rank: number }
+/** `radius`: the plain dot's, drawn until the racer's face has loaded */
+export interface MinimapDot { u: number; v: number; racerId: string; colour: string; radius: number; player: boolean; dim: boolean; rank: number }
 
 /**
  * Dots in paint order: AI first (back to front by rank), the player last so it is never hidden.
@@ -15,9 +17,9 @@ export function minimapDots(
   let n = 0;
   for (const k of karts) {
     if (k.isGhost) continue;
-    const d = out[n] ?? (out[n] = { u: 0, v: 0, colour: '', radius: 0, player: false, dim: false, rank: 0 });
+    const d = out[n] ?? (out[n] = { u: 0, v: 0, racerId: '', colour: '', radius: 0, player: false, dim: false, rank: 0 });
     const [u, v] = map.toMinimap(k.position);
-    d.u = u; d.v = v; d.colour = colourOf(k.racerId); d.rank = k.rank;
+    d.u = u; d.v = v; d.racerId = k.racerId; d.colour = colourOf(k.racerId); d.rank = k.rank;
     d.radius = k.isPlayer ? UI.playerDotPx : UI.aiDotPx;
     d.player = k.isPlayer; d.dim = k.finishTick !== undefined;
     n++;

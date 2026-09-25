@@ -74,6 +74,20 @@ describe('HUD renderer', () => {
     const banner = v.root.querySelector('.banner')!;
     expect(banner.getAttribute('aria-live')).toBe('polite');
   });
+
+  it('the place numeral takes its place color with the numeral and the flourish; the coin pill shows two digits', () => {
+    document.body.innerHTML = '';
+    const v = new HudView(document.body);
+    const m = newHudMemory();
+    v.render(hudModel(race, kart(), 4, 10, m, 1, defs, 0));
+    const place = v.root.querySelector('.place')!, n = place.querySelector('.n')!;
+    // data-n: the numeral again, for the stylesheet's outline and face layers
+    expect([place.getAttribute('data-tier'), n.getAttribute('data-n')]).toEqual(['pack', '4']);
+    feedHud(m, [{ type: 'positionChange', racerId: 'p', rank: 1 }], [], 'p', 1);
+    v.render(hudModel(race, kart(), 1, 10, m, 1, defs, 0));
+    expect([place.getAttribute('data-tier'), n.getAttribute('data-n'), n.textContent, place.classList.contains('flourish')]).toEqual(['gold', '1', '1', true]);
+    expect(v.root.querySelector('.coins')!.textContent).toBe('02');
+  });
 });
 
 describe('Knockout cut screen', () => {
