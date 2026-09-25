@@ -10,7 +10,7 @@ import type { TrackDefinition } from '../track-builder/types.ts';
 import canyonJson from '../track-builder/tracks/canyon-rush.json';
 import { JUICE } from '../vfx-juice/juice.ts';
 import { CAM, carry, clampToRoad, fovFor, idealPose, kickedFov, smoothTo, surgeOffset } from './camera.ts';
-import { TRAIL_BACK } from './itemsView.ts';
+import { TRAIL_BACK, TRAIL_BALL_SCALE } from './itemsView.ts';
 
 const TRACKS = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
 
@@ -201,7 +201,7 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
         for (const lookBack of [false, true]) {
           const cam = idealPose([0, 0, 0], yaw, speed, lookBack).position;
           // held items trailing behind it (itemsView: height with the bob, scale), the Triple Fizz orbit, the Strike Ball
-          for (const [name, x, y, s] of [['beachBall', 0, 0.65, 1], ['oilCan', -0.55, 0.05, 1], ['decoyBalloon', 0, 1.75, 0.8], ['windUpMouse', 0, 0.05, 1]] as const) {
+          for (const [name, x, y, s] of [['beachBall', 0, 0.6 * TRAIL_BALL_SCALE + 0.05, TRAIL_BALL_SCALE], ['oilCan', -0.55, 0.05, 1], ['decoyBalloon', 0, 1.75, 0.8], ['windUpMouse', 0, 0.05, 1]] as const) {
             check(nearestItem(cam, name, [x, y, -TRAIL_BACK], s), name);
           }
           for (let a = 0; a < 2 * Math.PI; a += Math.PI / 12) {
@@ -210,6 +210,19 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
           check(nearest(cam, [0, 1.2, 0], 1.3), 'strike ball');
         }
       }
+    }
+  });
+
+  it('a held Beach Ball never hides the kart that holds it from its own chase camera (video review 25 Sept 2026)', () => {
+    // the ball as itemsView draws it (top of its bob), and the sight line from the lens to the kart's body
+    const r = 0.6 * TRAIL_BALL_SCALE, ball: Vec3 = [0, r + 0.05, -TRAIL_BACK], body: Vec3 = [0, 0.5, 0];
+    for (const speed of [0, CAM.topSpeed]) {
+      const cam = idealPose([0, 0, 0], 0, speed, false).position;
+      const d: Vec3 = [body[0] - cam[0], body[1] - cam[1], body[2] - cam[2]];
+      const len2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+      const k = Math.max(0, Math.min(1, ((ball[0] - cam[0]) * d[0] + (ball[1] - cam[1]) * d[1] + (ball[2] - cam[2]) * d[2]) / len2));
+      const miss = Math.hypot(cam[0] + d[0] * k - ball[0], cam[1] + d[1] * k - ball[1], cam[2] + d[2] * k - ball[2]);
+      expect(miss, `speed ${speed}`).toBeGreaterThan(r + 0.15);
     }
   });
 

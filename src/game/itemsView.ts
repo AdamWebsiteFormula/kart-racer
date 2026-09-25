@@ -17,6 +17,11 @@ import { CAM } from './camera.ts';
 const RIDE_RADIUS = 1.3;
 /** metres behind the kart a held item trails */
 export const TRAIL_BACK = 1.9;
+/**
+ * A held Beach Ball rides small, on the road: at full size (1.2 m across) it hid the kart that held
+ * it from its own chase camera all lap (video review, 25 Sept 2026). Thrown, it is full size again.
+ */
+export const TRAIL_BALL_SCALE = 0.55;
 const LINK = 0.2; // chain link spacing, metres
 
 class Kind {
@@ -196,7 +201,7 @@ export class ItemsView {
         const bob = Math.sin(time * 8 + i) * 0.05;
         let p: Vector3;
         switch (s.item.held) {
-          case 'beachBall': p = this.local(r, h, pitch, 0, 0.6 + bob, -TRAIL_BACK); this.put('beachBall', p.x, p.y, p.z, this.yaw(time * 3)); break;
+          case 'beachBall': p = this.local(r, h, pitch, 0, 0.6 * TRAIL_BALL_SCALE + bob, -TRAIL_BACK); this.put('beachBall', p.x, p.y, p.z, this.yaw(time * 3), TRAIL_BALL_SCALE); break;
           case 'oilCan': p = this.local(r, h, pitch, -0.55, bob, -TRAIL_BACK); this.put('oilCan', p.x, p.y, p.z, this.yaw(h + Math.PI / 2)); break;
           case 'decoyBalloon': p = this.local(r, h, pitch, 0, 1.7 + bob, -TRAIL_BACK); this.put('decoyBalloon', p.x, p.y, p.z, this.yaw(h), 0.8); break;
           case 'windUpMouse': p = this.local(r, h, pitch, 0, bob, -TRAIL_BACK); this.put('windUpMouse', p.x, p.y, p.z, this.yaw(h)); break;
