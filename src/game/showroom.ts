@@ -8,7 +8,10 @@ import {
   Mesh, MeshBasicMaterial, MeshToonMaterial, PerspectiveCamera, Scene, TorusGeometry,
   type BufferGeometry, type Material, type Texture, type WebGLRenderer,
 } from 'three';
-import { buildRacerMesh, isShared, RACER_MODELS, toonRamp, type KartLook } from '../art-pipeline/index.ts';
+import { buildRacerMesh, freeSkeletons, isShared, RACER_MODELS, toonRamp, type KartLook } from '../art-pipeline/index.ts';
+import { makeConstants } from '../kart-controller/constants.ts';
+import { createKartState, NEUTRAL_INPUT, type KartState } from '../kart-controller/types.ts';
+import { KartView } from '../kart-controller/view.ts';
 import { ownKartMaterials } from './kartMesh.ts';
 
 /** The backdrop's colour where the spotlight fades out; the renderer clears to it too. */
@@ -35,8 +38,9 @@ export class Showroom {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(30, 0.9, 0.5, 60);
   readonly background = new Color(SHOWROOM_BG);
-  /** the kart on the stand, and what it is */
-  private kart: { key: string; root: Group } | null = null;
+  /** the kart on the stand, and what it is; a rigged racer (art-pipeline rigged.ts) sits in a KartView and idles, looking at you */
+  private kart: { key: string; root: Group; view: KartView | null; state: KartState } | null = null;
+  private last = -1;
   private readonly stand = new Group();
   /** the pedestal's own geometries and materials, freed with the showroom */
   private readonly own: (BufferGeometry | Material)[] = [];
@@ -79,16 +83,30 @@ export class Showroom {
     const root = buildRacerMesh(racerId, look);
     if (!root) return;
     ownKartMaterials(root);
-    this.stand.add(root);
-    this.kart = { key, root };
+    const state = createKartState({ racerId });
+    const view = root.userData.rig ? new KartView(makeConstants('medium', 150), root, state) : null;
+    this.stand.add(view ? view.root : root);
+    this.kart = { key, root, view, state };
   }
 
   /** What stands on the stand now ('' for nothing). */
   get showing(): string { return this.kart?.key ?? ''; }
 
-  /** Turn the stand; `aspect` is the box's width over its height. */
+  /** Turn the stand; `aspect` is the box's width over its height. A rigged driver idles and looks at the camera while it can. */
   update(nowS: number, reduced: boolean, aspect: number): void {
     this.stand.rotation.y = reduced ? STILL_YAW : (nowS * TURN_RATE) % (Math.PI * 2);
+    const k = this.kart, dt = this.last < 0 ? 0 : Math.min(0.1, Math.max(0, nowS - this.last));
+    this.last = nowS;
+    if (k?.view && dt > 0) {
+      // the camera in the stand's turning frame: faced while it is anywhere in front of the kart
+      const a = -this.stand.rotation.y, c = Math.cos(a), s = Math.sin(a), p = this.camera.position;
+      const eye = k.view.look.eye as [number, number, number] | null ?? [0, 0, 0];
+      eye[0] = p.x * c + p.z * s; eye[1] = p.y; eye[2] = -p.x * s + p.z * c;
+      k.view.look.eye = eye;
+      k.view.look.faceEye = eye[2] > -1.5;
+      k.view.onTick(k.state, dt, NEUTRAL_INPUT);
+      k.view.onFrame(1, k.state, 0, dt, reduced);
+    }
     if (Math.abs(this.camera.aspect - aspect) > 1e-3) {
       this.camera.aspect = aspect;
       // a narrow box pulls back so the whole kart fits across it
@@ -106,11 +124,12 @@ export class Showroom {
 
   private clearKart(): void {
     if (!this.kart) return;
-    this.stand.remove(this.kart.root);
+    this.stand.remove(this.kart.view ? this.kart.view.root : this.kart.root);
     this.kart.root.traverse((o) => {
       const m = (o as Mesh).material as Material | Material[] | undefined;
       for (const x of Array.isArray(m) ? m : m ? [m] : []) if (!isShared(x)) x.dispose();
     });
+    freeSkeletons(this.kart.root);
     this.kart = null;
   }
 

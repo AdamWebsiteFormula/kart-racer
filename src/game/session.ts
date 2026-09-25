@@ -4,8 +4,9 @@
 import { Color, Group, type Material, type Object3D, type Scene } from 'three';
 import { AiDriver } from '../ai-driver/index.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
+import { gestureFor } from '../kart-controller/driverAnim.ts';
 import { SIM_DT } from '../kart-controller/step.ts';
-import { NEUTRAL_INPUT, type InputState } from '../kart-controller/types.ts';
+import { NEUTRAL_INPUT, type InputState, type Vec3 } from '../kart-controller/types.ts';
 import { KartView } from '../kart-controller/view.ts';
 import { Items } from '../items/items.ts';
 import type { ItemEvent } from '../items/types.ts';
@@ -15,7 +16,7 @@ import type { RaceConfig, RaceEvent } from '../race-manager/types.ts';
 import { buildTrackScene, recolourBackdrop, type Rgb, type TrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { buildRacerMesh, fadeSky, isShared, lightOf, paintSky, RACER_MODELS, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
+import { buildRacerMesh, fadeSky, freeSkeletons, isShared, lightOf, paintSky, RACER_MODELS, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { splitShadowDepth } from '../performance/shadowDepth.ts';
 import { GhostView } from './ghostView.ts';
@@ -25,6 +26,9 @@ import { simTick, type SimParts } from './simtick.ts';
 import { KartFader } from './kartFade.ts';
 import { buildKartMesh, ownKartMaterials } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
+
+/** Seconds before GO the player's rigged driver stops looking at the camera and faces the road. */
+export const FACE_CAMERA_UNTIL = 1.1;
 
 export class RaceSession {
   readonly track: Track;
@@ -82,6 +86,8 @@ export class RaceSession {
   /** model karts built beside the race, ready to swap in (stageModels, swapInModels) */
   private staged: { i: number; mesh: Object3D; flames: ExhaustFlames }[] = [];
   private stagedGhost: GhostView | null = null;
+  /** the camera's place (main.ts points it at its own each frame): a rigged driver looks at it on the grid and over the line */
+  eye: Vec3 | null = null;
 
   /** `look`: the player's paint and body (design §10, cosmetic only); rivals always wear their own */
   constructor(scene: Scene, def: TrackDefinition, config: RaceConfig, look: KartLook = {}) {
@@ -150,6 +156,13 @@ export class RaceSession {
   get state() { return this.manager.state; }
   get player() { return this.playerIndex >= 0 ? this.manager.state.karts[this.playerIndex] : undefined; }
 
+  /** A racer's kart index (-1: not in this race). */
+  private indexOf(racerId: string): number {
+    const ks = this.manager.state.karts;
+    for (let i = 0; i < ks.length; i++) if (ks[i].racerId === racerId) return i;
+    return -1;
+  }
+
   /** One 120 Hz tick. `playerInput` is the live sample, or null to leave the slot to the AI autopilot. */
   tick(playerInput: InputState | null): { race: RaceEvent[]; items: ItemEvent[] } {
     // the same tick the leaderboard server replays (game/simtick.ts)
@@ -160,6 +173,21 @@ export class RaceSession {
       splitShadowDepth(this.group); // the shift's rebuilt instancers
       if (e.event.sky) this.changeSky(e.event.sky);
       this.shiftAt = st.time; // its set piece plays from this tick (frame)
+    }
+    // an item used: the rigged driver throws it forward, tosses it back or holds it up (kart-controller driverAnim.ts)
+    for (const e of ev.items) {
+      if (e.type !== 'itemUsed') continue;
+      const k = this.indexOf(e.racerId);
+      if (k >= 0 && this.views[k].rigged) this.views[k].driver.itemUsed(gestureFor(this.items.roles[e.itemId], this.inputs[k].lookBack));
+    }
+    // what each driver can see: the others, and the camera (the player turns to it on the grid until just before GO)
+    const toGo = (st.goTick - st.tick) * SIM_DT;
+    for (let k = 0; k < this.views.length; k++) {
+      const look = this.views[k].look;
+      look.eye = this.eye;
+      look.karts = st.karts;
+      look.self = k;
+      look.faceEye = st.phase === 'countdown' && k === this.playerIndex && toGo > FACE_CAMERA_UNTIL;
     }
     // the views read the tick's karts and inputs (the kart animation, kart-controller anim.ts); they never write them
     for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT, this.inputs[k]);
@@ -181,6 +209,14 @@ export class RaceSession {
       if (k < 1) this.horizon.lerpColors(ch.horizon[0], ch.horizon[1], k); else this.horizon.copy(ch.horizon[1]);
       recolourBackdrop(this.farRing, lerpRgb(ch.ring[0], ch.ring[1], k), lerpRgb(ch.tint[0], ch.tint[1], k));
       if (k >= 1) this.skyChange = null;
+    }
+    // while the sim waits (the course intro) the rigged drivers still look about on the grid
+    if (sceneTime !== undefined && frameDt > 0) {
+      for (let k = 0; k < this.views.length; k++) {
+        const look = this.views[k].look;
+        look.eye = this.eye; look.karts = st.karts; look.self = k; look.faceEye = false;
+        this.views[k].idle(st.karts[k], frameDt);
+      }
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt, reduced);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
@@ -305,16 +341,18 @@ export class RaceSession {
       const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
       for (const x of mats) if (!isShared(x as never)) x.dispose();
     });
+    freeSkeletons(this.group);
   }
 }
 
-/** A kart's own materials, freed (the racers' shared ones stay: every race and the showroom use them). */
+/** A kart's own materials, freed (the racers' shared ones stay: every race and the showroom use them), and a rigged one's bone texture. */
 function freeKart(root: Object3D): void {
   root.removeFromParent();
   root.traverse((o) => {
     const m = (o as unknown as { material?: Material | Material[] }).material;
     for (const x of Array.isArray(m) ? m : m ? [m] : []) if (!isShared(x as never)) x.dispose();
   });
+  freeSkeletons(root);
 }
 
 const lerpRgb = (a: Rgb, b: Rgb, k: number): Rgb => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];

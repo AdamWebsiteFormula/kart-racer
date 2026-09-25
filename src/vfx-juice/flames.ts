@@ -116,7 +116,8 @@ export class ExhaustFlames {
     mesh.name = 'exhaust-flame';
     mesh.visible = false;
     mesh.renderOrder = 2; // after the karts, like the other glows
-    chassis.add(mesh);
+    // on a rigged kart the pipes ride the body's springs: the flames hang off its body bone (art-pipeline rigged.ts)
+    ((chassis.userData.exhaustAnchor as Object3D | undefined) ?? chassis).add(mesh);
     this.mesh = mesh;
     this.u = mat.uniforms;
   }

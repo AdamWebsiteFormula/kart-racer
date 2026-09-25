@@ -12,7 +12,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, isBodyId, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { Warmup } from './performance/warmup.ts';
@@ -273,6 +273,7 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   // Mirror mode races the track reflected left to right (track-builder/mirror.ts); never on a leaderboard mode
   const def = config.mirrored && !isBoardMode(config.mode) ? mirrored(base) : base;
   session = new RaceSession(scene, def, { ...config, trackId: def.id, mirrored: def.mirrored === true }, isAttract ? {} : look);
+  session.eye = camPos; // the rigged drivers look at the camera on the grid and over the line (kart-controller driverAnim.ts)
   attract = isAttract;
   overSent = false;
   skipResults = false;
@@ -703,6 +704,7 @@ function freeStaging(g: Group): void {
     const m = (o as Mesh).material;
     for (const x of Array.isArray(m) ? m : m ? [m] : []) if (!isShared(x)) x.dispose();
   });
+  freeSkeletons(g);
 }
 
 /** How much brighter the lights go at a full lightning flash (Meadow Run's storm): sky, ambient, sun. */
@@ -751,8 +753,9 @@ function tvCamera(frameDt: number): void {
 }
 
 // ---- loop ----
-/** dev only: a fixed camera for checking art up close (kart.photo) */
-let photo: { pos: Vec3; look: Vec3; fov: number } | null = null;
+/** dev only: a fixed camera for checking art up close (kart.photo); with `kart`, pos and look are in that kart's frame and the camera rides along */
+let photo: { pos: Vec3; look: Vec3; fov: number; kart?: number } | null = null;
+const photoAt = new Vector3(), photoLook = new Vector3();
 let last = performance.now();
 let frames = 0;
 const itemDefs = ITEMS_CONFIG.items;
@@ -856,7 +859,15 @@ function step(now: number): void {
   cur.farRing?.position.set(camera.position.x, 0, camera.position.z);
   camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
   camera.rotateZ(attract ? 0 : intro ? introRoll : vfx.roll(pl));
-  if (photo) { camera.position.set(...photo.pos); camera.lookAt(...photo.look); camera.fov = photo.fov; camera.updateProjectionMatrix(); }
+  if (photo) {
+    const rider = photo.kart !== undefined ? cur.views[photo.kart]?.root : undefined;
+    if (rider) {
+      rider.updateMatrixWorld(true);
+      camera.position.copy(rider.localToWorld(photoAt.set(...photo.pos)));
+      camera.lookAt(rider.localToWorld(photoLook.set(...photo.look)));
+    } else { camera.position.set(...photo.pos); camera.lookAt(...photo.look); }
+    camera.fov = photo.fov; camera.updateProjectionMatrix();
+  }
   const at = intro ? sunAt : camLook;
   sun.target.position.set(at[0], at[1], at[2]);
   const so = sunOffset(cur.def.environment?.sunDirection);
@@ -955,8 +966,12 @@ if (import.meta.env.DEV) {
     },
     /** dev: let the AI drive the player's kart (soak tests); applies to this race and the next */
     autopilot: (on: boolean) => { autopilot = on; if (session) session.ai.drivePlayer = on; },
-    /** dev: hold the camera still at `pos` looking at `look` (null to let go), for checking art */
-    photo: (p: { pos: Vec3; look: Vec3; fov?: number } | null) => { photo = p ? { fov: 50, ...p } : null; },
+    /**
+     * dev: hold the camera still at `pos` looking at `look` (null to let go), for checking art; with
+     * `kart` (a kart index), both are in that kart's frame (+Z its nose, +X its left seen from the
+     * driver's seat) and the camera rides along with it, a close-up that keeps up with a race
+     */
+    photo: (p: { pos: Vec3; look: Vec3; fov?: number; kart?: number } | null) => { photo = p ? { fov: 50, ...p } : null; },
     /** dev: jump straight into a quick race on any track */
     race: (trackId: string, racerId = 'pip', opts: { intro?: IntroKind; mirror?: boolean } = {}) => {
       // straight to the countdown, as it always was; `intro` flies the course intro first, `mirror` reflects the track

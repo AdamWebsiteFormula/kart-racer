@@ -13,7 +13,7 @@
 // insides. The copies' materials are made up front and live in the scene hidden, so the race's
 // warm-up (performance/warmup.ts) compiles them with the rest. The switch runs from the scene's
 // onBeforeRender, where the camera for this very frame is known.
-import { Mesh, MeshBasicMaterial, type Camera, type Material, type Object3D, type Scene, type ShaderMaterial } from 'three';
+import { Mesh, MeshBasicMaterial, SkinnedMesh, type Camera, type Material, type Object3D, type Scene, type ShaderMaterial } from 'three';
 import { KART_FIT } from '../art-pipeline/index.ts';
 import { CAM } from './camera.ts';
 
@@ -92,6 +92,20 @@ function depthMaterial(src: Material, alpha: { value: number }): Material {
 
 const each = <T>(m: Material | Material[], f: (x: Material) => T): T | T[] => (Array.isArray(m) ? m.map(f) : f(m));
 
+/**
+ * A copy of a kart's mesh in other materials, sharing its geometry: a rigged kart's (art-pipeline
+ * rigged.ts) is skinned to the kart's own skeleton with its bind, so the ghost moves as the kart does
+ * (a plain mesh on a skinned geometry would draw the driver standing at the bind pose).
+ */
+function copyOf(mesh: Mesh, material: Material | Material[]): Mesh {
+  const sk = mesh as SkinnedMesh;
+  if (!sk.isSkinnedMesh) return new Mesh(mesh.geometry, material);
+  const c = new SkinnedMesh(mesh.geometry, material);
+  c.bind(sk.skeleton, sk.bindMatrix);
+  c.boundingSphere = sk.boundingSphere?.clone() ?? null;
+  return c;
+}
+
 /** Rival karts near the lens, for one race. Build it, `add` each rival's kart once its flames are on, `dispose` with the race. */
 export class KartFader {
   private readonly rivals: Rival[] = [];
@@ -123,8 +137,8 @@ export class KartFader {
       meshes.push(m);
     });
     const parts: Part[] = meshes.map((mesh) => {
-      const depth = new Mesh(mesh.geometry, each(mesh.material, (x) => depthMaterial(x, alpha)));
-      const ghost = new Mesh(mesh.geometry, each(mesh.material, (x) => ghostMaterial(x, alpha)));
+      const depth = copyOf(mesh, each(mesh.material, (x) => depthMaterial(x, alpha)));
+      const ghost = copyOf(mesh, each(mesh.material, (x) => ghostMaterial(x, alpha)));
       depth.name = 'ghost-depth';
       ghost.name = 'ghost';
       depth.renderOrder = mesh.renderOrder - 1;

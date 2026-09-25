@@ -15,7 +15,8 @@ import {
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { glowFromVertexColours, sunlessBackFaces } from '../track-builder/mesh/glow.ts';
-import { buildRacerMesh, isShared, ModelBuilder, toonRamp, vertexToon, type KartLook } from '../art-pipeline/index.ts';
+import { buildRacerMesh, freeSkeletons, isShared, ModelBuilder, toonRamp, vertexToon, type KartLook } from '../art-pipeline/index.ts';
+import { splitShadowDepth } from '../performance/shadowDepth.ts';
 import { BIOMES, type Crowd } from '../art-pipeline/crowd.ts';
 import type { Paint as Colour } from '../art-pipeline/model.ts';
 import type { Reaction } from '../kart-controller/anim.ts';
@@ -285,10 +286,14 @@ export class Podium {
       const st = createKartState({ racerId: r.racerId, position: [wx, sp.middle[1] + h, wz], heading: sp.facing });
       const v = new KartView(makeConstants(r.archetype, 150), mesh, st, i + 3);
       v.root.name = `podium-kart-${i + 1}`;
+      // a rigged driver faces the ceremony's camera (kart-controller driverAnim.ts)
+      v.look.eye = this.pos;
+      v.look.faceEye = true;
       this.states.push(st);
       this.views.push(v);
       this.group.add(v.root); // in world space: the group itself is never moved
     }
+    splitShadowDepth(this.group); // (a rigged racer's skinned shadow keeps a depth material of its own)
     this.reset();
   }
 
@@ -377,7 +382,7 @@ export class Podium {
     this.fov = P.fov;
   }
 
-  /** Free its own geometry, materials and texture, and the karts' own material copies. */
+  /** Free its own geometry, materials and texture, and the karts' own material copies (and a rigged one's bone texture). */
   dispose(): void {
     this.group.removeFromParent();
     for (const x of this.own) x.dispose();
@@ -386,6 +391,7 @@ export class Podium {
         const mm = (o as Mesh).material as Material | Material[] | undefined;
         for (const x of Array.isArray(mm) ? mm : mm ? [mm] : []) if (!isShared(x)) x.dispose();
       });
+      freeSkeletons(v.root);
     }
   }
 }
