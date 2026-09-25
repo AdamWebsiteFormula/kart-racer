@@ -22,7 +22,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 | Sim | Fixed 120 Hz, deterministic, bit-identical across chips and JavaScript engines |
 | Leaderboard | Global; the server replays every run and stores its own time |
 | Speed | 60 fps measured; title on screen in under 1 s on fast 4G; 446 KB of gzipped code |
-| Tests | 1,465 automated, run before every deploy |
+| Tests | 1,466 automated, run before every deploy |
 
 ## How to play
 
@@ -167,7 +167,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 - Every word a player reads is US English and rated G, and a test pins every number in How to Play to the code.
 
 ### Tests
-- 1,465 automated tests in 159 files, all headless: kart physics, AI gates on every track, whole races, the leaderboard replay, the drift payoff, the frame and allocation budgets, and jsdom accessibility checks.
+- 1,466 automated tests in 159 files, all headless: kart physics, AI gates on every track, whole races, the leaderboard replay, the drift payoff, the frame and allocation budgets, and jsdom accessibility checks.
 - `npm run verify` (type check, tests, build, 1.5 MB bundle gate) runs in CI on every push before GitHub Pages publishes the site.
 
 ## How it was built
@@ -203,7 +203,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 
 ## Which prize fits
 
-- **Best Game:** the full package: five modes plus Mirror, a replay-verified global leaderboard, 1,465 tests and three red-team passes.
+- **Best Game:** the full package: five modes plus Mirror, a replay-verified global leaderboard, 1,466 tests and three red-team passes.
 - **Most Creative:** the Final Lap Shift, the course creatures, the claw rescue, the neon loop, and items of our own (Strike Ball, Grapple Anchor, Pogo Spring).
 - **Eye Candy:** the AI-made 3D cast and creatures, painted skies, course intros, far vistas, crowds and sky life, and night neon on Boardwalk Nights.
 - **One More Go:** drifting that pays, Time Trial ghosts and medals, and a new Daily Challenge every day.
@@ -231,7 +231,7 @@ What's in it:
 - Plays on keyboard, gamepad and phone (turn it sideways)
 
 How AI built it:
-- **Claude Code** (Opus) designed and wrote the whole game: physics, AI rivals, items, tracks, UI, the leaderboard server and 1,465 tests. It also ran teams of AI agents that hunted bugs, red-teamed the security and checked every screen in silent headless Chrome
+- **Claude Code** (Opus) designed and wrote the whole game: physics, AI rivals, items, tracks, UI, the leaderboard server and 1,466 tests. It also ran teams of AI agents that hunted bugs, red-teamed the security and checked every screen in silent headless Chrome
 - **Higgsfield:** the racer, creature and scenery 3D models (AI images turned into 3D), the painted skies and the item art
 - **ElevenLabs:** 7 songs and 102 sound effects, checked by AI listening models
 - **Supabase:** the leaderboard
