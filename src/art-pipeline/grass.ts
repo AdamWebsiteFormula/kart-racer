@@ -12,7 +12,7 @@ import { groundLook, NOISE_GLSL, WATER_CLOCK } from './surfaces.ts';
 export const GRASS_FADE = Object.freeze([30, 52] as const);
 
 /** The blades' colours at the root and the tip (sRGB), and the three flowers' (1 white, 2 yellow, 3 coral). */
-const BLADE = Object.freeze({ root: '#5f9e30', tip: '#c6e57a' });
+const BLADE = Object.freeze({ root: '#74b23a', tip: '#d0ea88' });
 export const FLOWER_COLOURS = Object.freeze(['#fff8ec', '#ffd23f', '#ff6f91'] as const);
 
 /**
@@ -90,13 +90,14 @@ export function grassMaterial(biome: string): MeshStandardMaterial {
   vec3 tuftAt = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
   #ifdef USE_COLOR
     // the lawn's own variation at its root, a shade of its own, and its flowers' colour
-    vColor.rgb *= lkGroundTint(tuftAt.xz, uLush, uDry, ${f(gl.size)}, ${f(gl.vary)}) * (0.86 + 0.28 * aTuft.y);
+    vColor.rgb = lkSaturate(vColor.rgb * lkGroundTint(tuftAt.xz, uLush, uDry, ${f(gl.size)}, ${f(gl.vary)}), ${f(gl.sat)}) * (0.86 + 0.28 * aTuft.y);
     vec3 tuftPetal = aTuft.x < 1.5 ? uPetals[0] : aTuft.x < 2.5 ? uPetals[1] : uPetals[2];
     vColor.rgb = mix(vColor.rgb, tuftPetal, step(0.75, head));
   #endif`);
   };
   mat.customProgramCacheKey = () => `verge-grass-${biome}`;
   mat.userData.shared = true;
+  mat.userData.lookEnv = gl.env;
   m = litWorld(mat);
   cache.set(biome, m);
   return m;

@@ -179,7 +179,8 @@ export function pbrTwin(src: MeshToonMaterial): MeshStandardMaterial {
   t.roughness = PBR.roughness;
   t.metalness = PBR.metalness;
   t.envMap = env;
-  t.envMapIntensity = PBR.env;
+  // (a toon may name its own share of the sky's light: litWorld)
+  t.envMapIntensity = (ud.lookEnv as number | undefined) ?? PBR.env;
   t.onBeforeCompile = (shader, renderer) => {
     src.onBeforeCompile(shader, renderer);
     lookLights(shader);
@@ -191,10 +192,14 @@ export function pbrTwin(src: MeshToonMaterial): MeshStandardMaterial {
   return t;
 }
 
-/** A MeshStandardMaterial of the world's (a model file's, a surface's): the world's lights and the sky map, once. */
+/**
+ * A MeshStandardMaterial of the world's (a model file's, a surface's): the world's lights and the sky map,
+ * once. Its `userData.lookEnv`, when set, is its own share of the sky's light (a lawn takes less: its sheen
+ * washed it out), else PBR.env.
+ */
 export function litWorld(m: MeshStandardMaterial): MeshStandardMaterial {
   m.envMap = env;
-  m.envMapIntensity = PBR.env;
+  m.envMapIntensity = (m.userData.lookEnv as number | undefined) ?? PBR.env;
   if (LIT.has(m)) return m;
   LIT.add(m);
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey.bind(m);
