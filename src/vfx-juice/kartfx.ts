@@ -89,6 +89,8 @@ let seed = 0x2545f491;
 const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0xffffffff; };
 const sym = () => rnd() * 2 - 1;
 const pick = (r: Range) => r[0] + rnd() * (r[1] - r[0]);
+/** Squared distance from (x, z) to a stored [x, y, z]'s x/z (compared only against another squared length: no sqrt). */
+const moved2 = (x: number, z: number, p: readonly [number, number, number]): number => { const dx = x - p[0], dz = z - p[2]; return dx * dx + dz * dz; };
 
 interface KartMem {
   l: [number, number, number]; r: [number, number, number];
@@ -179,7 +181,7 @@ export class KartFx {
       const ink = Math.min(1, m.skidFor / MARK.rampIn);
       if (!m.skid) {
         m.l[0] = lx; m.l[1] = py; m.l[2] = lz; m.r[0] = rx; m.r[1] = py; m.r[2] = rz; m.skidInk = 0;
-      } else if (Math.hypot(lx - m.l[0], lz - m.l[2]) >= MARK.spacing || Math.hypot(rx - m.r[0], rz - m.r[2]) >= MARK.spacing) {
+      } else if (moved2(lx, lz, m.l) >= MARK.spacing * MARK.spacing || moved2(rx, rz, m.r) >= MARK.spacing * MARK.spacing) {
         this.skids.add(m.l[0], m.l[1], m.l[2], lx, py, lz, MARK.width, t, m.skidInk, ink);
         this.skids.add(m.r[0], m.r[1], m.r[2], rx, py, rz, MARK.width, t, m.skidInk, ink);
         m.l[0] = lx; m.l[1] = py; m.l[2] = lz; m.r[0] = rx; m.r[1] = py; m.r[2] = rz; m.skidInk = ink;

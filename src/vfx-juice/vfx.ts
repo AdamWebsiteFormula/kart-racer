@@ -246,7 +246,8 @@ export class Vfx {
    */
   frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean): void {
     this.lastPlayer = player;
-    if (simDt > 0) for (const k of karts) this.kartFx.emit(k, simDt, t, camPos, k === player, reduced);
+    // (an index loop, not for-of: an iterator is garbage every frame)
+    if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced);
     this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt);
     this.skids.setTime(t);
     this.trauma.update(dt);
