@@ -6,9 +6,11 @@ import { leaderboardClient } from './client.ts';
 import { CLIENT_VERSION } from './rules.ts';
 
 let replayMs = 0;
+/** what the entry handed the replay last (verifyRun's arguments) */
+let replayed: unknown[] = [];
 vi.mock('../../supabase/functions/submit-score/core.js', async () => ({
   ...(await import('./server.ts')),
-  verifyRun: () => ({ ok: true, timeMs: replayMs, lapTimesMs: [1, 2, 3], canonicalLog: `log${replayMs}` }),
+  verifyRun: (...args: unknown[]) => { replayed = args; return { ok: true, timeMs: replayMs, lapTimesMs: [1, 2, 3], canonicalLog: `log${replayMs}` }; },
 }));
 
 interface Row { id: string; name: string; racer_id: string; time_ms: number; created_at: number; ip_hash?: string; track_id?: string; mode?: string; daily_seed?: number | null }
@@ -60,7 +62,7 @@ beforeAll(async () => {
 
 async function post(name: string, timeMs: number) {
   replayMs = timeMs;
-  const body = { name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION };
+  const body = { name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs, racerId: 'momo', kartId: 'scrap', inputLog: 'x', clientVersion: CLIENT_VERSION };
   const res = await handler(new Request('http://fn', { method: 'POST', body: JSON.stringify(body) }));
   return { status: res.status, ...(await res.json()) } as { status: number; id: string; timeMs: number; rank: number | null; bestId: string | null; bestMs: number | null };
 }
@@ -85,7 +87,7 @@ describe('submit-score: the rank it returns (bug hunt 3)', () => {
   });
 
   it('the game\'s client hands the name\'s best on, and takes the run itself as best from an older server', async () => {
-    const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 150000, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION };
+    const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 150000, racerId: 'momo', kartId: 'scrap', inputLog: 'x', clientVersion: CLIENT_VERSION };
     replayMs = 150000;
     const game = leaderboardClient((_url, init) => handler(new Request('http://fn', init)));
     const r = await game.post({ ...draft, name: 'Judge' });
@@ -102,7 +104,7 @@ describe('submit-score: one drive cannot flood the board (red-team 2026-09-24)',
     expect(await post('Ada', 99000)).toMatchObject({ status: 201 });
     const game = leaderboardClient(async () => new Response(JSON.stringify({ error: 'you already post under 3 names on this board' }), { status: 400 }));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(await game.post({ name: 'Zed', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 1, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION }))
+    expect(await game.post({ name: 'Zed', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 1, racerId: 'momo', kartId: 'scrap', inputLog: 'x', clientVersion: CLIENT_VERSION }))
       .toEqual({ ok: false, error: 'You already post under 3 names here. Use one of those.' });
     warn.mockRestore();
   });
@@ -118,7 +120,7 @@ describe('submit-score: one drive cannot flood the board (red-team 2026-09-24)',
 });
 
 describe('submit-score: what the player reads when a post is refused (detail review)', () => {
-  const draft = { name: 'Judge', trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 150000, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION };
+  const draft = { name: 'Judge', trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 150000, racerId: 'momo', kartId: 'scrap', inputLog: 'x', clientVersion: CLIENT_VERSION };
   const refused = (status: number, error: string) => leaderboardClient(async () => new Response(JSON.stringify({ error }), { status }));
   const cases: [number, string, string][] = [
     [422, 'claimed 83421 ms but the replay finished in 83433 ms', 'We could not confirm that run, so it was not posted.'],
@@ -155,7 +157,7 @@ describe('client: the 12 s timeout covers the body too (audit 24 Sept 2026)', ()
   it('a post whose body stalls fails with the connection line', async () => {
     vi.useFakeTimers();
     try {
-      const got = leaderboardClient(stalled).post({ name: 'Kit', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 60000, racerId: 'pip', inputLog: 'x', clientVersion: CLIENT_VERSION });
+      const got = leaderboardClient(stalled).post({ name: 'Kit', trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 60000, racerId: 'pip', kartId: 'scooter', inputLog: 'x', clientVersion: CLIENT_VERSION });
       await vi.advanceTimersByTimeAsync(12_001);
       expect(await got).toEqual({ ok: false, error: 'Could not reach the leaderboard. Check your connection.' });
     } finally { vi.useRealTimers(); }
@@ -205,7 +207,7 @@ describe('submit-score: red-team 3 (24 Sept 2026; live once the function is rede
   it('posts sent together keep to 3 names a board: the database counts again inside the insert', async () => {
     const post = (ip: string, name: string) => handler(new Request('http://fn', {
       method: 'POST', headers: { 'cf-connecting-ip': ip },
-      body: JSON.stringify({ name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 101000, racerId: 'momo', inputLog: 'x', clientVersion: CLIENT_VERSION }),
+      body: JSON.stringify({ name, trackId: 'harbour-loop', mode: 'timeTrial', speedClass: 150, timeMs: 101000, racerId: 'momo', kartId: 'scrap', inputLog: 'x', clientVersion: CLIENT_VERSION }),
     })).then(async (r) => ({ status: r.status, ...(await r.json()) as { error?: string } }));
     replayMs = 101000;
     overlap = 6;
@@ -223,5 +225,38 @@ describe('submit-score: red-team 3 (24 Sept 2026; live once the function is rede
     // a name the client already holds still posts
     expect((await post('198.51.100.8', names[held.findIndex((r) => r.status === 201)])).status).toBe(201);
     dbNamesCap = false;
+  });
+});
+
+describe('submit-score: any racer in any kart (v6, 26 Sept 2026)', () => {
+  const run = { name: 'Kartie', trackId: 'meadow-run', mode: 'timeTrial', speedClass: 150, timeMs: 118000, racerId: 'momo', kartId: 'snacktruck', inputLog: 'x', clientVersion: CLIENT_VERSION };
+  const send = async (body: Record<string, unknown>) => {
+    const res = await handler(new Request('http://fn', { method: 'POST', body: JSON.stringify(body) }));
+    return { status: res.status, ...(await res.json()) } as { status: number; id?: string; error?: string };
+  };
+
+  it('replays the run in the kart it names, and stores that kart with it', async () => {
+    replayMs = 118000;
+    const r = await send(run);
+    expect(r.status).toBe(201);
+    expect(replayed.slice(2)).toEqual(['momo', 0, 'x', 118000, 'snacktruck']); // verifyRun(def, mode, racer, seed, log, claim, kart)
+    expect(db.find((x) => x.id === r.id)).toMatchObject({ racer_id: 'momo', kart_id: 'snacktruck', time_ms: 118000 });
+  });
+
+  it('no kart, or one it does not know, is refused (400) before the replay; a game from before karts is told to reload', async () => {
+    const { kartId: _, ...noKart } = run;
+    void _;
+    replayed = [];
+    expect(await send(noKart)).toMatchObject({ status: 400, error: 'unknown kart' });
+    expect(await send({ ...run, kartId: 'rocket' })).toMatchObject({ status: 400, error: 'unknown kart' });
+    expect(await send({ ...noKart, clientVersion: '5' })).toMatchObject({ status: 400, error: 'please reload the game: new version' });
+    expect(replayed).toEqual([]);
+  });
+
+  it("the board reads each row's kart; a row from before karts (kart_id null) reads as the racer's own kart", async () => {
+    const row = (racer_id: string, kart_id?: string | null) => ({ id: racer_id, name: racer_id, racer_id, ...(kart_id === undefined ? {} : { kart_id }), time_ms: 100000, lap_times_ms: [], created_at: '2026-09-26' });
+    const rows = [row('pip', 'snacktruck'), row('gus', null), row('momo'), row('sprocket', 'classic')];
+    const board = await leaderboardClient(async () => new Response(JSON.stringify(rows), { status: 200 })).fetchBoard('meadow-run', 'timeTrial', null);
+    expect(board?.map((r) => [r.racerId, r.kartId])).toEqual([['pip', 'snacktruck'], ['gus', 'snacktruck'], ['momo', 'scrap'], ['sprocket', 'classic']]);
   });
 });

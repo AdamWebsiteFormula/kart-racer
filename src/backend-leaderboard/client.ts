@@ -1,9 +1,14 @@
 // The game's side of the leaderboard: post a run, read a board. Both fail soft (offline, blocked,
 // timed out): the game never breaks because the network did.
+import { ownKartOf } from '../kart-controller/karts.ts';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.ts';
 import type { BoardMode, Submission } from './rules.ts';
 
-export interface BoardRow { id: string; name: string; racerId: string; timeMs: number; lapTimesMs: number[]; createdAt: string }
+/**
+ * `kartId`: the kart the run was raced in. A row from before karts (kart_id null, 26 Sept 2026) was
+ * raced in what is now the racer's own kart, which handles the same, so it reads as that kart.
+ */
+export interface BoardRow { id: string; name: string; racerId: string; kartId: string; timeMs: number; lapTimesMs: number[]; createdAt: string }
 
 /**
  * rank is the name's place on its board (null outside the top 50). The board keeps each name's
@@ -73,8 +78,11 @@ export function leaderboardClient(f: typeof fetch = (...a) => fetch(...a)): Lead
       try {
         const r = await call('/rest/v1/rpc/get_leaderboard', { p_track_id: trackId, p_mode: mode, p_daily_seed: mode === 'daily' ? dailySeed : null, p_limit: limit }, f);
         if (!r.ok || !Array.isArray(r.body)) return null;
-        const rows = r.body as { id: string; name: string; racer_id: string; time_ms: number; lap_times_ms: number[]; created_at: string }[];
-        return rows.map((x) => ({ id: x.id, name: x.name, racerId: x.racer_id, timeMs: x.time_ms, lapTimesMs: x.lap_times_ms, createdAt: x.created_at }));
+        const rows = r.body as { id: string; name: string; racer_id: string; kart_id?: string | null; time_ms: number; lap_times_ms: number[]; created_at: string }[];
+        return rows.map((x) => ({
+          id: x.id, name: x.name, racerId: x.racer_id, kartId: x.kart_id || (ownKartOf(x.racer_id) ?? ''),
+          timeMs: x.time_ms, lapTimesMs: x.lap_times_ms, createdAt: x.created_at,
+        }));
       } catch {
         return null;
       }

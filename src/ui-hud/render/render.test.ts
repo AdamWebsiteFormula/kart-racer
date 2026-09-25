@@ -538,7 +538,7 @@ describe('leaderboard panel', () => {
     mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
     ranks: [{ racerId: 'pip', rank: 1, finishTick: 12000, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], dnf: false }],
   } as never;
-  const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], racerId: 'pip', inputLog: 'AQ==', clientVersion: '1' };
+  const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], racerId: 'pip', kartId: 'scooter', inputLog: 'AQ==', clientVersion: '1' };
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
   function setup(board: unknown, postResult: unknown = { ok: true, id: 'new', timeMs: 97000, rank: 2 }, inRace?: (ui: UiRoot) => void, boardNow?: () => unknown) {
@@ -963,7 +963,7 @@ describe('tall panels (a laptop or a phone on its side)', () => {
     mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
     ranks: [{ racerId: 'pip', rank: 1, finishTick: 12000, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], dnf: false }],
   } as never;
-  const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], racerId: 'pip', inputLog: 'AQ==', clientVersion: '1' };
+  const draft = { trackId: 'harbour-loop', mode: 'timeTrial' as const, speedClass: 150 as const, timeMs: 97000, lapTimesMs: [33000, 32000, 32000], racerId: 'pip', kartId: 'scooter', inputLog: 'AQ==', clientVersion: '1' };
   const rows = Array.from({ length: 10 }, (_, i) => ({ id: `r${i}`, name: `Racer ${i + 1}`, racerId: 'gus', timeMs: 95000 + i * 700 }));
   const flush = () => new Promise((r) => setTimeout(r, 0));
   /** jsdom has no layout: give the panel a size and a scroll position by hand */
