@@ -1,6 +1,6 @@
 // Fresh-eyes review of the game in motion: records a real-time clip of a race in silent headless Chrome
 // (the WebGL canvas only, so no HUD) and asks Gemini to critique it against Mario Kart World.
-//   node scripts/headless/review.mjs 'harbour-loop,canyon-rush' [--secs=20] [--fps=8] [--url=http://localhost:5173/] [--out=dir] [--model=gemini-pro-latest] [--ask="..."] [--final]
+//   node scripts/headless/review.mjs 'harbour-loop,canyon-rush' [--secs=20] [--fps=8] [--url=http://localhost:5173/] [--out=dir] [--model=gemini-3.5-flash,gemini-3.8-flash] [--ask="..."] [--final]
 // --final records from a few seconds before the leader starts the last lap, through the Final Lap Shift.
 // Needs the dev server (the `kart` console helper) and GEMINI_API_KEY in .env.local (scripts/set-gemini-key.sh).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -13,7 +13,9 @@ const flag = (name, dflt) => args.find((a) => a.startsWith(`--${name}=`))?.split
 const tracks = args.find((a) => !a.startsWith('--')).split(',');
 const secs = Number(flag('secs', '20'));
 const out = flag('out', join(tmpdir(), 'rascal-review'));
-const model = flag('model', 'gemini-pro-latest');
+// Flash by default: it is fine for video, and Gemini Pro's 250 requests a day (00:00 UTC reset) are
+// kept for the sound judge (scripts/ear/judge.mjs); Flash fails known-answer sound checks
+const model = flag('model', 'gemini-3.5-flash,gemini-3.8-flash');
 const ASK = `You are a senior art director and game designer who knows Mario Kart World (2025) deeply. This is a ${secs} s real-time clip of an ORIGINAL cartoon kart racer (not a Nintendo game; the player's kart is driven by an autopilot, the HUD is not shown). Critique it against Mario Kart World's standard: sense of speed, chase camera feel, kart weight and animation, drift sparks and boost effects, environment density and far scenery, readability of the road ahead, visual clutter, color and lighting, and anything that looks broken, glitchy or cheap. List the 6 most important issues, most important first, each with a timestamp, what is wrong, and a concrete fix. Then list up to 3 things that already look Mario Kart World-grade. Be specific and brief.`;
 const ask = flag('ask', ASK);
 mkdirSync(out, { recursive: true });
