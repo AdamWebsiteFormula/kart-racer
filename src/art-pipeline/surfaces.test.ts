@@ -5,7 +5,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { ROAD_LOOKS, trackAssets } from './index.ts';
 import { DEFAULT_LOOK, setLook } from './look.ts';
-import { coastMaterial, groundMaterial } from './surfaces.ts';
+import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR } from './surfaces.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 
@@ -99,6 +99,8 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
     expect(fs).toContain('uRoadGrain');
     expect(fs).toContain('marks += exp(');
     expect(fs).toContain('normal = lkBend(normal, lkSlope(uRoadGrain');
+    // the relief keeps some bump well past a short straight, not flat by 40 m (Adam, 25 Sept 2026)
+    expect(fs).toContain(`smoothstep(${ROAD_RELIEF_FAR[0].toFixed(1)}, ${ROAD_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))`);
     // the roughness is set after three reads its own, and before the lights read it
     const set = fs.indexOf('roughnessFactor = clamp(rdR');
     expect(set).toBeGreaterThan(fs.indexOf('#include <roughnessmap_fragment>'));
@@ -117,6 +119,7 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
       expect(fs).toContain('lkGroundTint(vWorldUv');
       expect(fs).toContain(`float lkDirt = ${biome === 'harbour' || biome === 'meadow' ? '1.0' : '0.0'} *`);
       expect(fs).toContain('normal = lkBend(normal, lkS * lkFar, 1.0);');
+      expect(fs).toContain(`smoothstep(${GROUND_RELIEF_FAR[0].toFixed(1)}, ${GROUND_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))`);
       // the frost's snow still paints the land
       expect(fs.includes('vSnowW'), biome).toBe(biome === 'frost');
     }
@@ -133,8 +136,16 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
     const { fs } = compile(m);
     expect(fs).toContain('lkGroundTint(vLkW.xz');
     expect(fs).toContain('lkSlope(uRelief, vMapUv)');
+    expect(fs).toContain(`smoothstep(${GROUND_RELIEF_FAR[0].toFixed(1)}, ${GROUND_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))`);
     expect(groundMaterial('harbour', 'water', 2400)?.type).toBe('ShaderMaterial'); // the sea is its own
     setLook('toon');
     expect((groundMaterial('meadow', 'plane', 2400) as MeshToonMaterial).isMeshToonMaterial).toBe(true);
+  });
+
+  it('the relief stays past a long straight, and well into the fog (Adam, 25 Sept 2026: "the lawn ... goes back to flat paint" by 60 m, before the 140 m fog even starts)', () => {
+    expect(GROUND_RELIEF_FAR[1]).toBeGreaterThan(140);
+    expect(ROAD_RELIEF_FAR[1]).toBeGreaterThan(100);
+    expect(GROUND_RELIEF_FAR[0]).toBeGreaterThan(15); // still crisp close up, not blurred near the kart
+    expect(ROAD_RELIEF_FAR[0]).toBeGreaterThan(10);
   });
 });

@@ -2,7 +2,7 @@
 // far landmark ahead of its start line (design §6: "one landmark visible from the start line"),
 // Mirror mode included; all of it casts no shadow, costs at most three draws and frees with the scene.
 import { describe, expect, it } from 'vitest';
-import { Color, SRGBColorSpace, type Material, type Mesh } from 'three';
+import { Color, SRGBColorSpace, type Material, type Mesh, type ShaderMaterial } from 'three';
 import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { mirrorTrack } from '../track-builder/mirror.ts';
@@ -64,6 +64,31 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the far vista', (_id, 
     expect(n).toBeGreaterThan(0);
     expect(geos).toBe(n);
     expect(mats).toBe(n);
+  });
+
+  it("hazes its movers and glows the same accelerating, height-thinning way as the rest of the world (look.ts HAZE), grounded at the track's own floor", () => {
+    const track = buildTrack(def), scene = buildTrackScene(track, trackAssets(def.biome));
+    let movers: Mesh | undefined;
+    // Boardwalk has no orbiting movers (its vista is buildings, glow and the moon): either name will do
+    scene.group.traverse((o) => { if (o.name === 'vista-movers' || o.name === 'vista-glow') movers ??= o as Mesh; });
+    expect(movers, def.id).toBeDefined();
+    const mat = movers!.material as ShaderMaterial;
+    expect(mat.vertexShader).toContain('varying float vLkHazeY;');
+    expect(mat.vertexShader).toContain('vLkHazeY = world.y - lkHazeGroundY;');
+    if (movers!.name === 'vista-movers') {
+      expect(mat.fragmentShader).toContain('pow( lkHazeDist,'); // the solids: the world's own accelerating curve
+      expect(mat.fragmentShader).toContain('float lkHazeUp = mix('); // and thin going up
+    } else {
+      expect(mat.fragmentShader).toContain('pow(smoothstep(fogNear, fogFar, vFogDepth),'); // the glow: the same curve, no height term
+    }
+    const groundY = (mat.uniforms.lkHazeGroundY as { value: number }).value;
+    if (def.environment?.ground?.kind === 'none') {
+      // Skyline: no ground plane, so its own vista grounds its haze at the road's own lowest point
+      expect(groundY).toBeCloseTo(track.branches.main.lut.minY, 3);
+    } else {
+      expect(Math.abs(groundY)).toBeLessThan(5); // every other track's ground sits close to y 0
+    }
+    scene.dispose();
   });
 });
 

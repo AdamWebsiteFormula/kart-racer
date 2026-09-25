@@ -118,6 +118,18 @@ export function detailMap(file: string): Texture {
 }
 
 /**
+ * How far the ground, the land and the road keep some of their painted relief before the surface
+ * goes dead flat (the view-space distance `lkBend`'s caller fades it over). The ask that found this
+ * (Adam, 25 Sept 2026: "the lawn ... goes back to flat paint") measured it gone by 60 m on the ground
+ * and 40 m on the road — well short of a long straight or a wide view, and long before the scene's
+ * own fog even starts (140 m, main.ts), so there was a dead band of flat, unhazed colour in between.
+ * Atmospheric haze (look.ts HAZE) now carries the far distance; these just keep the near-to-mid ground
+ * honest so the two hand off with nothing flat showing between them.
+ */
+export const GROUND_RELIEF_FAR: readonly [number, number] = [50, 320];
+export const ROAD_RELIEF_FAR: readonly [number, number] = [30, 170];
+
+/**
  * GLSL the PBR look's surfaces share: a detail map's relief at a (mirrored) tile position
  * as a tangent-space normal (x along world +X, y along world +Z; `flip` -1 where v runs along -Z), and a
  * view-space normal bent by such a relief laid flat in the world. A face far from level takes less of
@@ -305,7 +317,7 @@ function pbrGround(biome: string, map: Texture, file: string): MeshStandardMater
   diffuseColor.rgb = lkSaturate(diffuseColor.rgb * lkGroundTint(vLkW.xz, uLush, uDry, ${gl.size.toFixed(1)}, ${gl.vary.toFixed(2)}), ${gl.sat.toFixed(2)});`)
       // the plane's v runs along -Z (PlaneGeometry turned flat)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-  normal = lkBend(normal, lkSlope(uRelief, vMapUv) * ${gl.relief.toFixed(2)} * (1.0 - smoothstep(15.0, 60.0, length(vViewPosition))), -1.0);`)
+  normal = lkBend(normal, lkSlope(uRelief, vMapUv) * ${gl.relief.toFixed(2)} * (1.0 - smoothstep(${GROUND_RELIEF_FAR[0].toFixed(1)}, ${GROUND_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))), -1.0);`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
   reflectedLight.directSpecular *= ${gl.spec.toFixed(2)};
   reflectedLight.indirectSpecular *= ${gl.spec.toFixed(2)};`);
@@ -550,7 +562,7 @@ export function roadDetail(m: MeshToonMaterial): void {
 #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 #ifdef STANDARD
-  if (vMark < 1.5) normal = lkBend(normal, lkSlope(uRoadGrain, vRdW.xz / ${g}) * 0.9 * (1.0 - smoothstep(10.0, 40.0, length(vViewPosition))), 1.0);
+  if (vMark < 1.5) normal = lkBend(normal, lkSlope(uRoadGrain, vRdW.xz / ${g}) * 0.9 * (1.0 - smoothstep(${ROAD_RELIEF_FAR[0].toFixed(1)}, ${ROAD_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))), 1.0);
 #endif`);
   };
   const key = m.customProgramCacheKey.bind(m);
@@ -693,7 +705,7 @@ function pbrCoast(shader: WebGLProgramParametersWithUniforms, biome: string, spe
   roughnessFactor = mix(mix(${f(gl.rough)}, ${f(beach.rough)}, smoothstep(0.0, 1.0, vBlend)), 0.95, lkDirt);`)
     .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   {
-    float lkFar = 1.0 - smoothstep(15.0, 60.0, length(vViewPosition));
+    float lkFar = 1.0 - smoothstep(${GROUND_RELIEF_FAR[0].toFixed(1)}, ${GROUND_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition));
     vec2 lkS = mix(lkSlope(uTopRelief, vWorldUv * topScale) * ${f(gl.relief)}, lkSlope(uBeachRelief, vWorldUv * beachScale) * ${f(beach.relief)}, smoothstep(0.0, 1.0, vBlend));
     lkS = mix(lkS, lkSlope(uBeachRelief, vWorldUv / ${f(DIRT_METRES)}) * 0.6, lkDirt);
     normal = lkBend(normal, lkS * lkFar, 1.0);
