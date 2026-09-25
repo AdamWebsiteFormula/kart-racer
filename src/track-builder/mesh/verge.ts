@@ -15,8 +15,8 @@ import { hashString, insideRoadEnvelope, mulberry32, pushTransform } from './dec
  * `clearJump` metres before and after a ramp or bump with none (their skirts stand past the curb).
  */
 export const VERGE_GRASS = Object.freeze({
-  edge: [0.2, 3] as const, bias: 1.5, edgeEvery: 0.33,
-  field: [3, 9] as const, fieldEvery: 1.2,
+  edge: [0.2, 3] as const, bias: 1.5, edgeEvery: 0.4,
+  field: [3, 9] as const, fieldEvery: 1.5,
   flowers: 0.14, scale: [0.75, 1.35] as const, clearJump: 6,
 });
 

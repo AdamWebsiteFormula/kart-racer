@@ -237,8 +237,8 @@ const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
 /**
  * The PBR look's own parts of the road shader (art-pipeline look.ts; only a MeshStandardMaterial twin
  * compiles them): the racing line and curbs from the ribbon (road.ts `lane`, `curb`), and how worn the
- * lane paint is at a point: patchy along the road, chipped in small flecks, and worn through where the
- * racing line's tires cross a line (0 fresh, up to 0.85).
+ * lane paint is at a point: patchy along the road, chipped in small flecks, and thinner where the
+ * racing line's tires cross a line (0 fresh, up to 0.6: a line always reads).
  */
 const PBR_ROAD_PARS = `#ifdef STANDARD
 varying vec2 vLane;
@@ -250,10 +250,10 @@ float plNoise(vec2 p) {
 }
 float roadPaintWear(vec2 road, vec2 lane) {
   float along = road.y * 10.0, across = road.x * 2.0 * lane.y;
-  float patches = smoothstep(0.5, 0.85, plNoise(vec2(along * 0.09, across * 0.35)));
-  float chips = step(0.72, plHash(floor(vec2(along * 7.0, across * 9.0)))) * 0.6;
+  float patches = smoothstep(0.55, 0.9, plNoise(vec2(along * 0.09, across * 0.35)));
+  float chips = step(0.75, plHash(floor(vec2(along * 7.0, across * 9.0))));
   float tires = exp(-pow((road.x - lane.x) * 2.0 * lane.y, 2.0) * 0.5);
-  return min(0.85, patches * 0.6 + chips * 0.45 + tires * 0.45);
+  return min(0.6, patches * 0.4 + chips * 0.22 + tires * 0.22);
 }
 #endif`;
 

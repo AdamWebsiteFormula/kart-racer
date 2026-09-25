@@ -51,9 +51,9 @@ export function trackAssets(biome?: string): TrackAssets {
   } : {};
   // the far vista: set-pieces, movers and glows past the scenery (vista.ts); the crowd by the road (crowd.ts)
   // the PBR prototype (look.ts, ?look=pbr): the world's materials swapped for their stylized-PBR twins once
-  // built, and on a lawn (Harbor, Meadow) tufts of grass and flowers along the curbs in place of the old
-  // verge tufts and flower clumps (grass.ts)
+  // built, and on a lawn (Harbor, Meadow) tufts of grass and a few flowers along the curbs in place of the
+  // old verge tufts (grass.ts; the flower clumps stay, for their colour)
   const lawn = biome === 'harbour' || biome === 'meadow';
-  const pbr = isPbr() ? { look: applyLook, ...(lawn ? { grass: { geometry: tuftTemplate(), material: grassMaterial(biome), replaces: ['tuft', 'flowers'] } } : {}) } : {};
+  const pbr = isPbr() ? { look: applyLook, ...(lawn ? { grass: { geometry: tuftTemplate(), material: grassMaterial(biome), replaces: ['tuft'] } } : {}) } : {};
   return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces, ...pbr };
 }

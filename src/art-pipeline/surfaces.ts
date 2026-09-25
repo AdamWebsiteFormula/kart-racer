@@ -560,7 +560,7 @@ export function roadDetail(m: MeshToonMaterial): void {
 }
 
 /** The road's share of the sky's light in the PBR look (look.ts PBR.env for the rest of the world). */
-export const ROAD_ENV = 0.3;
+export const ROAD_ENV = 0.22;
 
 /** A wide wooden deck (Boardwalk Nights): warm planks with grain and dark gaps, 4 planks a tile. */
 function planks(): Texture {
@@ -685,7 +685,7 @@ function pbrCoast(shader: WebGLProgramParametersWithUniforms, biome: string, spe
   float lkTop = 1.0 - smoothstep(0.0, 1.0, vBlend);
   diffuseColor.rgb = lkSaturate(diffuseColor.rgb * mix(vec3(1.0), lkGroundTint(vWorldUv, uLush, uDry, ${f(gl.size)}, ${f(gl.vary)}), lkTop), mix(1.0, ${f(gl.sat)}, lkTop));
   // the soft dirt edge where a grass top meets the curb, wandering in and out a metre or so
-  float lkE = vLkCurb + (lkNoise(vWorldUv * 0.55) - 0.5) * 1.3 + (lkNoise(vWorldUv * 2.1 + 5.0) - 0.5) * 0.45;
+  float lkE = vLkCurb + (lkNoise(vWorldUv * 0.16) - 0.5) * 2.4 + (lkNoise(vWorldUv * 0.6) - 0.5) * 1.1 + (lkNoise(vWorldUv * 2.1 + 5.0) - 0.5) * 0.45;
   float lkDirt = ${spec.dirt ? '1.0' : '0.0'} * (1.0 - smoothstep(0.3, 2.3, lkE)) * lkTop * step(-0.6, vLkCurb);
   vec3 lkDirtC = uDirt * (0.78 + 0.44 * dot(texture2D(beachMap, vWorldUv / ${f(DIRT_METRES)}).rgb, vec3(0.3333)));
   diffuseColor.rgb = mix(diffuseColor.rgb, lkDirtC, lkDirt);`)
