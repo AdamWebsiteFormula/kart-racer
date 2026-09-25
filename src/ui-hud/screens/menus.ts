@@ -203,19 +203,40 @@ export function pauseMenu(twoByTwo = false, canRestart = true): MenuVM {
 
 // ---- settings ----
 export type SettingId = 'masterVolume' | 'musicVolume' | 'sfxVolume' | 'quality' | 'resolutionScale' | 'reducedMotion' | 'iconLabels';
-export interface SettingRow { id: SettingId; label: string; value: string; fraction?: number }
+/** `help`: one short line on what the row does (the panel shows the focused row's, as MKW's options do) */
+export interface SettingRow { id: SettingId; label: string; value: string; fraction?: number; help: string }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
+/**
+ * What each setting does, in a line (sweep 25 Sept 2026: the panel listed them with no word on any).
+ * Graphics and Reduce motion say what the value on show does (main.ts applyRender: Auto has the
+ * performance governor trade resolution, then shadows and effects, for a smooth frame rate; Low turns
+ * the shadows and the post effects off). Item labels is the colorblind-safe letter on the held item (icons.ts glyph).
+ */
+export const SETTING_HELP = Object.freeze({
+  masterVolume: 'Every sound in the game: music and effects together.',
+  musicVolume: 'The songs in the menus and on every track.',
+  sfxVolume: 'Engines, drifts, items, horns and menu clicks.',
+  quality: { auto: 'Auto picks the best look your device can keep smooth.', high: 'Shadows and every effect on. Best on a fast device.', low: 'No shadows or screen effects, for a smoother race.' },
+  resolutionScale: 'How sharp the picture is. Lower it if the race stutters.',
+  reducedMotion: { auto: "Follows your device's own reduce motion setting.", on: 'Calmer camera and screens: no swoops, shakes or slides.', off: 'Full motion: camera swoops, shakes and screen slides.' },
+  iconLabels: 'A letter on your item, to tell items apart at a glance.',
+});
+/** Done's line: nothing waits to be saved */
+export const DONE_HELP = 'Changes save as you make them.';
+
 export function settingsMenu(s: Settings): { title: string; rows: SettingRow[]; focus: FocusModel } {
+  const H = SETTING_HELP;
   const rows: SettingRow[] = [
-    { id: 'masterVolume', label: 'Master volume', value: pct(s.masterVolume), fraction: s.masterVolume },
-    { id: 'musicVolume', label: 'Music', value: pct(s.musicVolume), fraction: s.musicVolume },
-    { id: 'sfxVolume', label: 'Sound effects', value: pct(s.sfxVolume), fraction: s.sfxVolume },
-    { id: 'quality', label: 'Graphics', value: s.quality === 'auto' ? 'Auto' : s.quality === 'high' ? 'High' : 'Low' },
-    { id: 'resolutionScale', label: 'Resolution', value: pct(s.resolutionScale), fraction: (s.resolutionScale - 0.5) / 0.5 },
-    { id: 'reducedMotion', label: 'Reduce motion', value: s.reducedMotion === 'auto' ? 'Follow system' : s.reducedMotion === 'on' ? 'On' : 'Off' },
-    { id: 'iconLabels', label: 'Item letters', value: s.iconLabels ? 'On' : 'Off' },
+    { id: 'masterVolume', label: 'Master volume', value: pct(s.masterVolume), fraction: s.masterVolume, help: H.masterVolume },
+    { id: 'musicVolume', label: 'Music', value: pct(s.musicVolume), fraction: s.musicVolume, help: H.musicVolume },
+    { id: 'sfxVolume', label: 'Sound effects', value: pct(s.sfxVolume), fraction: s.sfxVolume, help: H.sfxVolume },
+    { id: 'quality', label: 'Graphics', value: s.quality === 'auto' ? 'Auto' : s.quality === 'high' ? 'High' : 'Low', help: H.quality[s.quality] },
+    { id: 'resolutionScale', label: 'Resolution', value: pct(s.resolutionScale), fraction: (s.resolutionScale - 0.5) / 0.5, help: H.resolutionScale },
+    { id: 'reducedMotion', label: 'Reduce motion', value: s.reducedMotion === 'auto' ? 'Follow system' : s.reducedMotion === 'on' ? 'On' : 'Off', help: H.reducedMotion[s.reducedMotion] },
+    // "Item letters" said what it drew, not what it is for (sweep 25 Sept 2026)
+    { id: 'iconLabels', label: 'Item labels', value: s.iconLabels ? 'On' : 'Off', help: H.iconLabels },
   ];
   return { title: 'Settings', rows, focus: { rows: [...rows.map((r) => [r.id]), ['done']] } };
 }

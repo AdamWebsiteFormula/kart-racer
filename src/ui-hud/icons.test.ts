@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
-import { ITEM_ICONS, OKABE_ITO, iconSvg, itemArt, medalSvg } from './icons.ts';
+import { ITEM_ICONS, OKABE_ITO, arrowSvg, iconSvg, itemArt, lockSvg, medalSvg, modeSvg, starIcon } from './icons.ts';
 
 describe('item icons', () => {
   it('every item has painted art, an Okabe-Ito fallback shape and its own colourblind glyph', async () => {
@@ -39,5 +39,43 @@ describe('Time Trial medal badges (sweep 24 Sept 2026)', () => {
     // the same drawing in each metal: only the tier differs
     expect(new Set(svgs.map((s) => s.replace(/data-medal="\w+"/, ''))).size).toBe(1);
     expect(medalSvg('gold', 84)).toContain('width="84" height="100"');
+  });
+});
+
+describe('menu icons (sweep 25 Sept 2026: the OS emoji differed on every system, and a Mac\'s calendar read "JUL 17")', () => {
+  const MODES = ['quick', 'grandPrix', 'knockout', 'timeTrial', 'daily'];
+  const EMOJI = /\p{Extended_Pictographic}/u;
+
+  it('one drawing per mode, in the house outline, hidden from assistive tech (the card names it), with no ids to clash', () => {
+    const svgs = MODES.map((m) => modeSvg(m, 20260925));
+    MODES.forEach((m, i) => {
+      expect(svgs[i]).toMatch(new RegExp(`^<svg class="mode-svg" data-mode="${m}" viewBox="0 0 48 48" [^>]*aria-hidden="true" focusable="false">`));
+      expect(svgs[i]).not.toMatch(/\sid=/);
+      expect(svgs[i]).toContain('#1b1b2f'); // the ink outline
+      expect(EMOJI.test(svgs[i]), m).toBe(false);
+    });
+    expect(new Set(svgs.map((s) => s.replace(/data-mode="\w+"/, ''))).size).toBe(MODES.length);
+    expect(modeSvg('mirror', 20260925)).toBe('');
+  });
+
+  it('the Daily\'s calendar shows the day and month of the date it is given (the Daily\'s own, yyyymmdd)', () => {
+    const text = (s: string) => [...s.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
+    expect(text(modeSvg('daily', 20260925))).toEqual(['SEP', '25']);
+    expect(text(modeSvg('daily', 20261201))).toEqual(['DEC', '1']);
+    // the other cards carry no words
+    for (const m of MODES.slice(0, 4)) expect(text(modeSvg(m, 20260925)), m).toEqual([]);
+  });
+
+  it('the padlock, the stars and the step arrows are drawn too, each hidden from assistive tech, with no ids', () => {
+    for (const s of [lockSvg(), starIcon(true), starIcon(false), arrowSvg(-1), arrowSvg(1)]) {
+      expect(s).toMatch(/^<svg [^>]*aria-hidden="true" focusable="false">/);
+      expect(s).not.toMatch(/\sid=/);
+    }
+    // an earned star is gold, one still to earn pale, as the results' stars
+    expect(starIcon(true)).toContain('fill="#f2b705"');
+    expect(starIcon(false)).toContain('fill="#e9e2d0"');
+    // the arrows take the text's color, and point each way
+    expect(arrowSvg(-1)).toContain('fill="currentColor"');
+    expect(arrowSvg(-1)).not.toBe(arrowSvg(1));
   });
 });

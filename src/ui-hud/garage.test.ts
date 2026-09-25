@@ -104,7 +104,7 @@ describe('garage on the racer screen (jsdom)', () => {
     toRoster(ui, 'quick');
     expect(q('.garage')?.hidden).toBe(false);
     expect([...document.querySelectorAll('#ui .roster-screen.on [data-id="paint"] .opt')].map((o) => [o.getAttribute('data-opt'), o.classList.contains('locked')])).toEqual([['default', false], ['pip-alt', true]]);
-    expect(q('[data-id="body"] .opt.locked .lock')?.textContent).toBe('🔒');
+    expect(q('[data-id="body"] .opt.locked .lock > svg.lock-svg')).not.toBeNull(); // our own padlock, not the OS emoji
     expect(q('.pick-hint')?.textContent).toContain('Berry: Get gold in Time Trial on every Sunrise Cup track');
     expect(q('[data-id="mirror"]')).toBeNull();
     expect(q('.hero-name')?.textContent).toBe('Pip');

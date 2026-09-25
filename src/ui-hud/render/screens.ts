@@ -1,10 +1,10 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TITLE, UI } from '../constants.ts';
-import { iconFor, iconMarkup, medalSvg, SHAPE_PATHS } from '../icons.ts';
+import { arrowSvg, iconFor, iconMarkup, lockSvg, medalSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
-import type { CupVM, MedalLadderVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
+import { DONE_HELP, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
 import type { UnlockRow } from '../unlocks.ts';
 import type { GarageVM } from '../garage.ts';
@@ -13,6 +13,8 @@ import { button, clear, h, Markup } from './dom.ts';
 export interface ScreenView {
   readonly root: HTMLElement;
   readonly buttons: Map<string, HTMLElement>;
+  /** the focus moved to `id` (keys, a pad or the pointer): Settings' help line follows it */
+  focused?(id: string): void;
 }
 
 /** The keys, or a gamepad's buttons once one is pressed (UiRoot sets `data-input`; the stylesheet shows one set) */
@@ -40,6 +42,14 @@ function heading(st: HTMLElement, title: string, buttons: Map<string, HTMLElemen
 }
 
 const delay = (e: HTMLElement, ms: number) => e.style.setProperty('--delay', `${ms}ms`);
+
+/** A row's ◀ or ▶ (a setting, Paint, Body): under a pointer it steps that way (UiRoot.pointer). Drawn:
+ *  the triangle characters turn into emoji on some phones. */
+function stepArrow(parent: HTMLElement, dir: -1 | 1): void {
+  const a = h('span', 'arrow', parent);
+  a.innerHTML = arrowSvg(dir);
+  a.dataset.dir = String(dir);
+}
 
 /** A results or board row as a table row: each part a cell, the color swatch left to the eyes. */
 function asRow(row: HTMLElement): void {
@@ -101,6 +111,7 @@ export class ListView implements ScreenView {
     this.root = h('section', `screen ${cls}`, parent);
     this.root.setAttribute('aria-label', label);
   }
+  /** `icons`: each entry's icon, SVG markup (icons.ts modeSvg); the label beside it names the thing */
   render(vm: MenuVM, icons: Record<string, string> = {}): void {
     clear(this.root);
     this.buttons.clear();
@@ -109,7 +120,11 @@ export class ListView implements ScreenView {
     const grid = h('div', 'modes', st);
     vm.entries.forEach((e, i) => {
       const b = button(grid, e.id);
-      if (icons[e.id]) h('span', 'icon', b, icons[e.id]).setAttribute('aria-hidden', 'true');
+      if (icons[e.id]) {
+        const ic = h('span', 'icon', b);
+        ic.innerHTML = icons[e.id];
+        ic.setAttribute('aria-hidden', 'true');
+      }
       h('span', 'label', b, e.label);
       if (e.sub) h('span', 'sub', b, e.sub);
       if (e.badge) h('span', 'badge', b, e.badge);
@@ -210,22 +225,31 @@ export class RosterView implements ScreenView {
       const b = button(wrap, c.id, 'btn pick');
       h('span', 'label', b, c.label);
       // the arrows step that way under a pointer (UiRoot.pointer); a swatch picks itself
-      h('span', 'arrow', b, '◀').dataset.dir = '-1';
+      stepArrow(b, -1);
       const opts = h('span', 'opts', b);
       c.options.forEach((o, i) => {
         const chip = h('span', `opt${i === c.index ? ' on' : ''}${o.locked ? ' locked' : ''}`, opts);
         chip.dataset.opt = o.id;
-        const sw = h('span', 'sw', chip);
+        // (the lock sits beside the swatch, not in it: a locked swatch is grayed, its lock is not)
+        const box = h('span', 'sw-box', chip);
+        const sw = h('span', 'sw', box);
         if (typeof o.swatch === 'string') { sw.classList.add('icon'); sw.innerHTML = `<svg viewBox="0 0 48 28" aria-hidden="true">${BODY_ICONS[o.swatch] ?? ''}</svg>`; }
         else sw.style.background = `linear-gradient(135deg, ${o.swatch[0]} 0 55%, ${o.swatch[1]} 55% 100%)`;
-        if (o.locked) h('span', 'lock', sw, '🔒');
+        if (o.locked) h('span', 'lock', box).innerHTML = lockSvg();
         h('span', 'nm', chip, o.name);
       });
-      h('span', 'arrow', b, '▶').dataset.dir = '1';
+      stepArrow(b, 1);
       const locked = c.options.filter((o) => o.locked);
       b.setAttribute('aria-label', `${g.racerName}'s ${c.label.toLowerCase()}: ${c.value}. Left and right change it.${locked.map((o) => ` ${o.name} is locked: ${o.hint}.`).join('')}`);
-      // how to earn each locked one, under its row
-      if (locked.length) h('div', 'pick-hint', wrap, locked.map((o) => `🔒 ${o.name}: ${o.hint}`).join('   ·   '));
+      // how to earn each locked one, under its row, each behind its lock
+      if (locked.length) {
+        const hint = h('div', 'pick-hint', wrap);
+        locked.forEach((o, k) => {
+          if (k) hint.append(' · ');
+          h('span', 'lk', hint).innerHTML = lockSvg();
+          hint.append(`${o.name}: ${o.hint}`);
+        });
+      }
       this.buttons.set(c.id, b);
     }
     const cap = this.heroCap;
@@ -269,9 +293,15 @@ export class CupView implements ScreenView {
       const row = h('div', 'cup-head', b);
       h('span', 'label', row, c.label);
       if (c.badge) {
-        const bd = h('span', 'badge', row, c.badge);
-        // ★★☆ reads as "black star, black star, white star": say how many
-        if (/^[★☆]+$/.test(c.badge)) { bd.setAttribute('role', 'img'); bd.setAttribute('aria-label', `${[...c.badge].filter((x) => x === '★').length} of ${c.badge.length} stars`); }
+        const bd = h('span', 'badge', row);
+        // ★★☆: drawn as the results draw their stars (a font's stars differ on every system), and read
+        // as how many ("black star, black star, white star" otherwise)
+        if (/^[★☆]+$/.test(c.badge)) {
+          bd.classList.add('star-badge');
+          bd.innerHTML = [...c.badge].map((x) => starIcon(x === '★')).join('');
+          bd.setAttribute('role', 'img');
+          bd.setAttribute('aria-label', `${[...c.badge].filter((x) => x === '★').length} of ${c.badge.length} stars`);
+        } else bd.textContent = c.badge;
       }
       if (c.sub) h('span', 'sub', b, c.sub);
       const tracks = h('div', 'tracks', b);
@@ -361,6 +391,10 @@ function dialog(root: HTMLElement, extra = ''): { box: HTMLElement; body: HTMLEl
 export class SettingsView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
+  /** the help line over Done: what the focused row does (MKW's options say so for the one under the cursor) */
+  private help: HTMLElement | null = null;
+  /** each row's line, and Done's, by id */
+  private readonly helps = new Map<string, string>();
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen overlay settings', parent);
     this.root.setAttribute('role', 'dialog');
@@ -371,8 +405,11 @@ export class SettingsView implements ScreenView {
    *  the row stays under the finger (a phone on its side: at scroll 0, the next tap changed another setting) */
   render(rows: SettingRow[], redraw = false): void {
     const top = redraw ? this.root.querySelector<HTMLElement>('.scroll')?.scrollTop ?? 0 : 0;
+    // and its help line stays as it was: it comes in afresh only when it says something new (focused)
+    const said = redraw ? this.help?.textContent ?? '' : '';
     clear(this.root);
     this.buttons.clear();
+    this.helps.clear();
     const { body, foot } = dialog(this.root, redraw ? 'redraw' : '');
     h('h2', '', body, 'Settings');
     const list = h('div', 'list', body);
@@ -381,20 +418,35 @@ export class SettingsView implements ScreenView {
       h('span', 'label', b, r.label);
       const val = h('span', 'val', b);
       // the arrows step that way under a pointer (UiRoot.pointer); the rest of the row steps up
-      h('span', 'arrow', val, '◀').dataset.dir = '-1';
+      stepArrow(val, -1);
       if (r.fraction !== undefined) {
         const m = h('span', 'meter', val);
         h('i', '', m).style.width = `${Math.round(r.fraction * 100)}%`;
       }
       h('span', '', val, r.value);
-      h('span', 'arrow', val, '▶').dataset.dir = '1';
-      b.setAttribute('aria-label', `${r.label}: ${r.value}. Left and right change it.`);
+      stepArrow(val, 1);
+      // the help line is for the eyes; assistive tech hears it with the row
+      b.setAttribute('aria-label', `${r.label}: ${r.value}. ${r.help} Left and right change it.`);
+      this.helps.set(r.id, r.help);
       this.buttons.set(r.id, b);
     }
+    this.help = h('p', 'help', foot);
+    this.help.setAttribute('aria-hidden', 'true');
+    if (said) h('span', 'still', this.help, said);
     const done = button(foot, 'done');
     h('span', 'label', done, 'Done');
+    this.helps.set('done', DONE_HELP);
     this.buttons.set('done', done);
     body.scrollTop = top;
+  }
+
+  /** The focus moved (keys, a pad, the pointer): the help line says what that row does, the new line
+   *  coming in (ui.css; with reduced motion, at once). */
+  focused(id: string): void {
+    const text = this.helps.get(id) ?? '';
+    if (!this.help || this.help.textContent === text) return;
+    clear(this.help);
+    h('span', '', this.help, text);
   }
 }
 
@@ -431,7 +483,7 @@ export class HowToView implements ScreenView {
       h('b', '', txt, it.name);
       h('span', '', txt, ITEM_LINES[it.id] ?? '');
     }
-    // the Item letters setting's key: the letter each item's slot shows when it is on
+    // the Item labels setting's key: the letter each item's slot shows when it is on
     const letters = h('p', 'letters', box, `${LETTERS_LEAD} `);
     const keyed = items.filter((it) => iconFor(it.id));
     keyed.forEach((it, i) => {
@@ -505,7 +557,9 @@ export class UnlocksView implements ScreenView {
     for (const r of rows) {
       const li = h('li', r.unlocked ? 'unlock on' : 'unlock', list);
       li.setAttribute('aria-label', `${r.name}: ${r.unlocked ? `unlocked. ${r.use}` : `locked. ${r.how}`}`);
-      h('span', 'mark', li, r.unlocked ? '★' : '🔒').setAttribute('aria-hidden', 'true');
+      const mark = h('span', 'mark', li);
+      mark.innerHTML = r.unlocked ? starIcon(true) : lockSvg();
+      mark.setAttribute('aria-hidden', 'true');
       const txt = h('div', 'txt', li);
       h('b', '', txt, r.name);
       h('span', '', txt, r.unlocked ? `Unlocked! ${r.use}` : r.how);
