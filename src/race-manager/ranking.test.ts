@@ -34,6 +34,14 @@ describe('ranking', () => {
     expect(sortOrder(karts, trackers, [])).toEqual([0, 1]);
   });
 
+  it('a photo finish stays as it was on the line: the tie-break is each kart\'s distance on its finish tick, not its live one (25 Sept 2026)', () => {
+    const { karts, trackers } = field(2);
+    // both crossed on tick 5000, kart 1 further past the line; after the flag kart 0 drove on past it
+    karts[0].finishTick = 5000; trackers[0].finalDistance = 3000.4; karts[0].distanceAlong = 3020;
+    karts[1].finishTick = 5000; trackers[1].finalDistance = 3000.9; karts[1].distanceAlong = 3011;
+    expect(sortOrder(karts, trackers, [])).toEqual([1, 0]);
+  });
+
   it('ghosts are left out', () => {
     const { karts, trackers } = field(3);
     karts[1].isGhost = true;

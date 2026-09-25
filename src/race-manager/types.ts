@@ -77,11 +77,13 @@ export interface KartTracker {
   /** force-finished at the grace cut-off */
   dnf: boolean;
   /**
-   * Its race distance (metres) on the cut-off tick, for the projected time: past the flag the kart
-   * controller writes its own lap-less distanceAlong every tick (t × length), so a projection read
-   * later carried it home from a lap or two back ("670:07.36" in the results). 0 until then.
+   * Its race distance (metres) on the tick it crossed the line or was cut off, frozen: past the flag
+   * a kart drives on and its live distanceAlong keeps changing (the kart controller writes a lap-less
+   * one every tick once the race rules stop), so a photo finish's tie-break read later could swap two
+   * karts after the banner showed their places, and a projection read later carried a cut-off kart
+   * home from a lap or two back ("670:07.36" in the results). 0 until then.
    */
-  cutDistance: number;
+  finalDistance: number;
 }
 
 export interface FeatureTimer { respawnRemaining: number }

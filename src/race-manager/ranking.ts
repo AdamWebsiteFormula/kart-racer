@@ -16,7 +16,8 @@ function compare(karts: KartState[], trackers: KartTracker[], i: number, j: numb
     // same tick: a real photo finish or the grace cut-off; a real crossing beats a
     // force-finish, then progress decides, then the grid
     if (trackers[i].dnf !== trackers[j].dnf) return trackers[i].dnf ? 1 : -1;
-    if (a.distanceAlong !== b.distanceAlong) return b.distanceAlong - a.distanceAlong;
+    // on the distance each had on that tick: past the flag the live one moves on (race-manager Lessons 2026-09-25)
+    if (trackers[i].finalDistance !== trackers[j].finalDistance) return trackers[j].finalDistance - trackers[i].finalDistance;
     if (rideS(a) !== rideS(b)) return rideS(b) - rideS(a);
     return trackers[i].gridSlot - trackers[j].gridSlot;
   }

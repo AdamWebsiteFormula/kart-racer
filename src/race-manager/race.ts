@@ -188,6 +188,8 @@ export class RaceManager {
 
       // 4. progress and rank
       for (let i = 0; i < karts.length; i++) karts[i].distanceAlong = distanceAlong(karts[i], trackers[i], track);
+      // a photo finish is decided by how far past the line each kart was on its finish tick, never later
+      for (let k = 0; k < finishedNow.length; k++) trackers[finishedNow[k]].finalDistance = karts[finishedNow[k]].distanceAlong;
       sortOrder(karts, trackers, this.order);
       assignRanks(karts, trackers, this.order, dt, events);
       for (const i of this.order) if (finishedNow.includes(i)) events.push({ type: 'finish', racerId: karts[i].racerId, rank: karts[i].rank, tick, dnf: false });
@@ -210,7 +212,7 @@ export class RaceManager {
           if (s.finishTick !== undefined) continue;
           s.finishTick = tick;
           trackers[i].dnf = true;
-          trackers[i].cutDistance = s.distanceAlong; // the race's own measure, set this tick (4.)
+          trackers[i].finalDistance = s.distanceAlong; // the race's own measure, set this tick (4.)
         }
         sortOrder(karts, trackers, this.order);
         this.order.forEach((i, r) => { karts[i].rank = r + 1; });
@@ -280,7 +282,7 @@ export class RaceManager {
       const dnf = finishTick < 0 || tr.dnf;
       // cut off before the line: its average pace so far carries it home (the results table shows a time, not "DNF")
       let projectedMs = -1;
-      if (dnf && timeMs > 0 && tr.cutDistance > 0) projectedMs = Math.max(floorMs + 100, Math.round(timeMs * Math.max(1, raceLength / tr.cutDistance)));
+      if (dnf && timeMs > 0 && tr.finalDistance > 0) projectedMs = Math.max(floorMs + 100, Math.round(timeMs * Math.max(1, raceLength / tr.finalDistance)));
       floorMs = Math.max(floorMs, dnf ? projectedMs : timeMs);
       return { racerId: s.racerId, rank: s.rank, finishTick, timeMs, lapTimesMs, dnf, projectedMs };
     });

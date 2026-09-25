@@ -3672,7 +3672,12 @@ var e = {
 		personality: "Fast-talking, never stops moving",
 		kart: "Delivery scooter",
 		accent: "#2EC4B6",
-		secondary: "#FF6F61"
+		secondary: "#FF6F61",
+		face: [
+			.469,
+			.215,
+			.125
+		]
 	},
 	{
 		id: "momo",
@@ -3682,7 +3687,12 @@ var e = {
 		personality: "Deadpan, competent",
 		kart: "Stripped-down buggy",
 		accent: "#3B3B3B",
-		secondary: "#FFD23F"
+		secondary: "#FFD23F",
+		face: [
+			.488,
+			.25,
+			.125
+		]
 	},
 	{
 		id: "nova",
@@ -3692,7 +3702,12 @@ var e = {
 		personality: "Dreamy, drawn to the lights",
 		kart: "Thruster pod",
 		accent: "#B39DDB",
-		secondary: "#FFFFFF"
+		secondary: "#FFFFFF",
+		face: [
+			.5,
+			.254,
+			.16
+		]
 	},
 	{
 		id: "juniper",
@@ -3702,7 +3717,12 @@ var e = {
 		personality: "Cheerful rule-follower, secretly fierce",
 		kart: "Wood-panel off-roader",
 		accent: "#B7410E",
-		secondary: "#2D6A4F"
+		secondary: "#2D6A4F",
+		face: [
+			.48,
+			.203,
+			.125
+		]
 	},
 	{
 		id: "otto",
@@ -3712,7 +3732,12 @@ var e = {
 		personality: "Laid-back, waves at everyone",
 		kart: "Water-scooter kart",
 		accent: "#64B5F6",
-		secondary: "#E53935"
+		secondary: "#E53935",
+		face: [
+			.5,
+			.188,
+			.117
+		]
 	},
 	{
 		id: "sprocket",
@@ -3722,7 +3747,12 @@ var e = {
 		personality: "Literal, counts laps aloud",
 		kart: "Tin-toy racer",
 		accent: "#F5E6C8",
-		secondary: "#B08D57"
+		secondary: "#B08D57",
+		face: [
+			.488,
+			.277,
+			.152
+		]
 	},
 	{
 		id: "boulder",
@@ -3732,7 +3762,12 @@ var e = {
 		personality: "Gentle giant, says sorry after ramming",
 		kart: "Stone monster truck",
 		accent: "#708090",
-		secondary: "#6A994E"
+		secondary: "#6A994E",
+		face: [
+			.473,
+			.207,
+			.141
+		]
 	},
 	{
 		id: "gus",
@@ -3742,7 +3777,12 @@ var e = {
 		personality: "Booming laugh, feeds rivals after races",
 		kart: "Food-truck kart",
 		accent: "#E63946",
-		secondary: "#FFFFFF"
+		secondary: "#FFFFFF",
+		face: [
+			.488,
+			.207,
+			.156
+		]
 	}
 ]), s = "4", c = 262144, l = (e = /* @__PURE__ */ new Date()) => e.getUTCHours() * 60 + e.getUTCMinutes();
 function u(e) {
@@ -8423,7 +8463,7 @@ function jo(e, t) {
 		freezeRemaining: 0,
 		respawnCount: 0,
 		dnf: !1,
-		cutDistance: 0
+		finalDistance: 0
 	};
 }
 function Mo(e, t, n, r, i, a, o) {
@@ -8596,7 +8636,7 @@ function Xo(e, t, n, r) {
 	let i = e[n], a = e[r], o = i.finishTick !== void 0, s = a.finishTick !== void 0;
 	if (o && s) {
 		let e = i.finishTick - a.finishTick;
-		return e === 0 ? t[n].dnf === t[r].dnf ? i.distanceAlong === a.distanceAlong ? Yo(i) === Yo(a) ? t[n].gridSlot - t[r].gridSlot : Yo(a) - Yo(i) : a.distanceAlong - i.distanceAlong : t[n].dnf ? 1 : -1 : e;
+		return e === 0 ? t[n].dnf === t[r].dnf ? t[n].finalDistance === t[r].finalDistance ? Yo(i) === Yo(a) ? t[n].gridSlot - t[r].gridSlot : Yo(a) - Yo(i) : t[r].finalDistance - t[n].finalDistance : t[n].dnf ? 1 : -1 : e;
 	}
 	return o === s ? i.distanceAlong === a.distanceAlong ? Yo(i) === Yo(a) ? t[n].gridSlot - t[r].gridSlot : Yo(a) - Yo(i) : a.distanceAlong - i.distanceAlong : o ? -1 : 1;
 }
@@ -8900,6 +8940,7 @@ var ms = class {
 			}
 			Jo(this.fi, t.pickupStates, t.coinStates, i, n, this.consts, o, s);
 			for (let e = 0; e < n.length; e++) n[e].distanceAlong = Io(n[e], r[e], i);
+			for (let e = 0; e < l.length; e++) r[l[e]].finalDistance = n[l[e]].distanceAlong;
 			Zo(n, r, this.order), Qo(n, r, this.order, o, s);
 			for (let e of this.order) l.includes(e) && s.push({
 				type: "finish",
@@ -8919,7 +8960,7 @@ var ms = class {
 			if (d || f) {
 				for (let e of this.order) {
 					let t = n[e];
-					t.finishTick === void 0 && (t.finishTick = a, r[e].dnf = !0, r[e].cutDistance = t.distanceAlong);
+					t.finishTick === void 0 && (t.finishTick = a, r[e].dnf = !0, r[e].finalDistance = t.distanceAlong);
 				}
 				Zo(n, r, this.order), this.order.forEach((e, t) => {
 					n[e].rank = t + 1;
@@ -8972,7 +9013,7 @@ var ms = class {
 	results() {
 		let e = this.state, t = e.lapsTotal * this.track.length, n = 0, r = this.order.map((r) => {
 			let i = e.karts[r], a = e.trackers[r], o = i.finishTick ?? -1, s = a.lapTicks.map((t, n) => hs(t - (n === 0 ? e.goTick : a.lapTicks[n - 1]))), c = o < 0 ? -1 : hs(o - e.goTick), l = o < 0 || a.dnf, u = -1;
-			return l && c > 0 && a.cutDistance > 0 && (u = Math.max(n + 100, Math.round(c * Math.max(1, t / a.cutDistance)))), n = Math.max(n, l ? u : c), {
+			return l && c > 0 && a.finalDistance > 0 && (u = Math.max(n + 100, Math.round(c * Math.max(1, t / a.finalDistance)))), n = Math.max(n, l ? u : c), {
 				racerId: i.racerId,
 				rank: i.rank,
 				finishTick: o,
