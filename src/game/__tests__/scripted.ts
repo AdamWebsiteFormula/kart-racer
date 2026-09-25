@@ -90,12 +90,20 @@ export interface ScriptedRun {
   /** per bend, the tier of each drift let go on it */
   tiers: number[][];
   bends: Bend[];
+  /** wall hits and claw rescues over the race (a clean run has neither) */
+  walls: number;
+  rescues: number;
 }
 
-/** A 150cc Time Trial by `racerId` (3 laps), the scripted driver at the wheel; `drift` false never drifts. */
-export function runScripted(source: TrackDefinition, racerId: string, drift: boolean): ScriptedRun {
+/**
+ * A 150cc Time Trial by `racerId` (3 laps), the scripted driver at the wheel; `drift` false never drifts.
+ * `kartId`: the kart it drives (design §5; absent: the racer's own), and the driver adapts to that kart's
+ * constants. `line`: the track's idealLine, when a caller runs many karts on one track and computes it once.
+ */
+export function runScripted(source: TrackDefinition, racerId: string, drift: boolean, opts: { kartId?: string; line?: Line } = {}): ScriptedRun {
   const def = { ...source, coins: [], pickups: [], boostPads: [] } as TrackDefinition;
-  const config = soloConfig('timeTrial', def.id, racerId, 0);
+  const solo = soloConfig('timeTrial', def.id, racerId, 0);
+  const config = opts.kartId === undefined ? solo : { ...solo, racers: solo.racers.map((r) => ({ ...r, kartId: opts.kartId })) };
   const track = buildTrack(def);
   for (const id of track.hazards.ids) track.hazards.setEnabled(id, false);
   const manager = new RaceManager(track, config);
@@ -106,7 +114,7 @@ export function runScripted(source: TrackDefinition, racerId: string, drift: boo
   const parts: SimParts = { manager, items, ai, inputs, playerIndex: pi, playerSlot: { ...NEUTRAL_INPUT } };
   const c: KartConstants = manager.consts[pi];
   const V = c.topSpeed;
-  const line = idealLine(track);
+  const line = opts.line ?? idealLine(track);
   const bends = lineBends(line);
   const bendTimes: number[][] = bends.map(() => []);
   const tiers: number[][] = bends.map(() => []);
@@ -115,7 +123,7 @@ export function runScripted(source: TrackDefinition, racerId: string, drift: boo
   const ahead = (from: number, to: number) => (((to - from) % line.n) + line.n) % line.n;
   const gripYaw = (v: number) => c.steerRate * (1 - c.steerFalloff * Math.min(1, v / V));
   const driftYaw = (v: number) => c.steerRate * c.driftSteerMax * driftSpeedScale(v, V, c);
-  let lastIdx = -1, driftBend = -1, doneBend = -1;
+  let lastIdx = -1, driftBend = -1, doneBend = -1, walls = 0, rescues = 0;
   for (let tick = 0; tick < 400 * SIM_HZ && manager.state.phase !== 'finished'; tick++) {
     const s = manager.state.karts[pi];
     const inp: InputState = { ...NEUTRAL_INPUT };
@@ -185,7 +193,11 @@ export function runScripted(source: TrackDefinition, racerId: string, drift: boo
         inp.steer = clamp((v * kFF + 4 * ePsi + 0.3 * eLat) / gripYaw(v), -1, 1);
       }
     }
-    simTick(parts, inp);
+    const ev = simTick(parts, inp).race;
+    for (const e of ev) {
+      if (e.type === 'kart' && e.event.type === 'wall' && e.racerId === config.racers[pi].racerId) walls++;
+      if (e.type === 'rescue' && e.phase === 'start') rescues++;
+    }
   }
-  return { time: manager.results().ranks[0].timeMs / 1000, bendTimes, tiers, bends };
+  return { time: manager.results().ranks[0].timeMs / 1000, bendTimes, tiers, bends, walls, rescues };
 }
