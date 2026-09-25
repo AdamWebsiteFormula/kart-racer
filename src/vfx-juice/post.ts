@@ -2,7 +2,7 @@
 // glints are brighter than 1.0; the toon world is not), the boost lens (edge streaks and a colour
 // fringe, on boost only), a soft vignette, and ACES tone mapping. `quality: low` turns the whole chain off.
 import {
-  BloomEffect, BrightnessContrastEffect, Effect, EffectAttribute, HueSaturationEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
+  BlendFunction, BloomEffect, BrightnessContrastEffect, Effect, EffectAttribute, HueSaturationEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
 } from 'postprocessing';
 import { ACESFilmicToneMapping, HalfFloatType, NoToneMapping, Uniform, type Camera, type Scene, type WebGLRenderer } from 'three';
 import { DAY_GRADE } from '../art-pipeline/index.ts';
@@ -47,6 +47,18 @@ class BoostLensEffect extends Effect {
   set level(v: number) { this.uniforms.get('level')!.value = v; }
 }
 
+/**
+ * The chain's last step: no colour channel below 0. The grade's lift (HueSaturationEffect clamps only
+ * the top) pushes a strong colour's weakest channel negative, and the sRGB encode after the chain takes
+ * pow() of it: NaN. Chrome wrote that channel as 0; Firefox drew the whole pixel black (the grass's dark
+ * greens, Pip's teal kart, every balloon; cross-browser sweep, 24 Sept 2026). Floored here, every
+ * browser draws what Chrome did.
+ */
+export const FLOOR_FRAG = 'void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) { outputColor = vec4(max(inputColor.rgb, 0.0), inputColor.a); }';
+class FloorEffect extends Effect {
+  constructor() { super('FloorEffect', FLOOR_FRAG, { blendFunction: BlendFunction.SRC }); }
+}
+
 /** The colour lift eased toward `to` over `dt` seconds, at the rate the scene's lights ease (main.ts applyLight). */
 export const easeGrade = (from: number, to: number, dt: number): number => from + (to - from) * (1 - Math.exp(-dt * 1.6));
 
@@ -83,7 +95,7 @@ export class Post {
     // (less under a sunset or a night: warm light on warm ground is saturated enough already)
     this.grade = new HueSaturationEffect({ saturation: DAY_GRADE });
     const punch = new BrightnessContrastEffect({ contrast: 0.07 });
-    this.composer.addPass(new EffectPass(camera, bloom, this.lens, vignette, tone, this.grade, punch));
+    this.composer.addPass(new EffectPass(camera, bloom, this.lens, vignette, tone, this.grade, punch, new FloorEffect()));
     this.setEnabled(true);
   }
 

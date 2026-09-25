@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { DAY_GRADE, lightOf } from '../art-pipeline/index.ts';
-import { easeGrade, msaaSamples } from './post.ts';
+import { easeGrade, FLOOR_FRAG, msaaSamples } from './post.ts';
+
+describe('no negative colour reaches the sRGB encode (Firefox drew those pixels black, 2026-09-24)', () => {
+  it('the day lift pushes a strong green below 0, and the chain ends by flooring every channel at 0', () => {
+    // pmndrs HueSaturationEffect's lift at saturation s, clamped only at the top
+    const lift = (c: number[], s: number) => { const avg = (c[0] + c[1] + c[2]) / 3, k = 1 - 1 / (1.001 - s); return c.map((x) => Math.min(1, x + (avg - x) * k)); };
+    expect(Math.min(...lift([0.05, 0.6, 0.02], DAY_GRADE))).toBeLessThan(0);
+    expect(FLOOR_FRAG).toMatch(/outputColor = vec4\(max\(inputColor\.rgb, 0\.0\), inputColor\.a\)/);
+  });
+});
 
 describe('colour lift per sky (detail review 2026-09-24: the canyon dusk clipped red)', () => {
   it('eases from the day lift to the dusk one over a couple of seconds, like the lights', () => {
