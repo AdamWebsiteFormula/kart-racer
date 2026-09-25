@@ -3,11 +3,13 @@
 // the ground under it and eases a wall's impact turn (all on `root`, which the chase camera
 // follows), and puts the kart's secondary animation (anim.ts: roll, pitch, squash and stretch,
 // the drift's yaw, the hit's spin) on `chassis` and on the model's morph targets (the driver's
-// lean, look and nod, the front wheels' steer, the body on its springs; art-pipeline rig.ts).
-// None of this touches the sim.
+// lean, look and nod, the front wheels' steer, the body on its springs; art-pipeline rig.ts), or,
+// for a racer built from parts, on its bones (art-pipeline rigged.ts, with the driver's own
+// animation: driverAnim.ts). None of this touches the sim.
 import { Group, MathUtils, type Mesh, type Object3D } from 'three';
 import { KartAnim, newPose } from './anim.ts';
 import type { KartConstants } from './constants.ts';
+import { DriverAnim, newDriverPose, type DriverContext, type KartRig } from './driverAnim.ts';
 import { NEUTRAL_INPUT, type InputState, type KartState } from './types.ts';
 
 interface Pose { x: number; y: number; z: number; heading: number; angle: number }
@@ -54,6 +56,14 @@ export class KartView {
   private tiltRoll = 0;
   private rigs: Rig[];
   private readonly posed = newPose();
+  /** a racer built from parts: its bones (art-pipeline rigged.ts), and its driver's own animation */
+  private rig: KartRig | null;
+  readonly driver: DriverAnim;
+  private readonly driverPosed = newDriverPose();
+  /** what the driver can see, set by the race (or the podium, the showroom) before each tick */
+  readonly look: DriverContext = { eye: null, faceEye: false, karts: null, self: -1 };
+  /** the driver was stepped by frames while the sim waited (idle): drawn at its last step */
+  private idled = false;
 
   /** `seed`: the kart's index, so the field's idle shivers are out of step */
   constructor(c: KartConstants, mesh: Object3D, s: KartState, seed = 0) {
@@ -61,8 +71,19 @@ export class KartView {
     this.root.add(mesh);
     this.prev = this.curr = KartView.pose(s);
     this.anim = new KartAnim(c, seed);
+    this.driver = new DriverAnim(seed);
     this.rigs = findRigs(mesh);
+    this.rig = KartView.rigOf(mesh);
+    if (this.rig) this.driver.radius = this.rig.wheelRadius;
   }
+
+  private static rigOf(mesh: Object3D): KartRig | null {
+    const r = mesh.userData.rig as KartRig | undefined;
+    return r && typeof r.apply === 'function' ? r : null;
+  }
+
+  /** The chassis is rigged (a racer built from parts): its wheels roll and its driver moves. */
+  get rigged(): boolean { return this.rig !== null; }
 
   /**
    * Another model for the same kart (its racer's model file came in while the race loaded: game
@@ -78,6 +99,8 @@ export class KartView {
     this.root.add(mesh);
     this.chassis = mesh;
     this.rigs = findRigs(mesh);
+    this.rig = KartView.rigOf(mesh);
+    if (this.rig) this.driver.radius = this.rig.wheelRadius;
     return old;
   }
 
@@ -103,6 +126,17 @@ export class KartView {
       this.snapYaw -= excess;
     }
     this.anim.tick(s, input, dt);
+    if (this.rig) { this.driver.tick(s, input, dt, this.anim, this.look); this.idled = false; }
+  }
+
+  /**
+   * The driver alone, stepped by a frame's time while the sim waits (the course intro: the field sits on
+   * the grid, looking about). The kart itself does not move.
+   */
+  idle(s: KartState, dt: number): void {
+    if (!this.rig) return;
+    this.driver.tick(s, NEUTRAL_INPUT, dt, this.anim, this.look);
+    this.idled = true;
   }
 
   /**
@@ -152,5 +186,7 @@ export class KartView {
       if (r.steer >= 0) inf[r.steer] = a.steer * r.perRad;
       if (r.heave >= 0) inf[r.heave] = a.heave * r.perRad;
     }
+    // a racer built from parts: the same springs and the driver's own animation on its bones
+    if (this.rig) this.rig.apply(a, this.driver.pose(this.idled ? 1 : alpha, reduced, this.driverPosed));
   }
 }

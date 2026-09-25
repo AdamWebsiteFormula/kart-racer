@@ -371,6 +371,10 @@ export class KartAnim {
 
   /** The reaction playing, if any. */
   get reacting(): Reaction | null { return this.reaction; }
+  /** Seconds into the reaction playing (the rigged driver's arms follow it: driverAnim.ts). */
+  get reactionTime(): number { return this.clock - this.reactAt; }
+  /** Seconds the reaction playing's main move lasts (0 with none). */
+  get reactionMain(): number { return this.reaction ? REACTION_SECONDS[this.reaction] : 0; }
 
   /** One sim tick: `s` is the kart after the step, `input` what it drove on. Reads both, writes neither. */
   tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number): void {

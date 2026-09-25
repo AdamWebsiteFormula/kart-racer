@@ -13,7 +13,7 @@ const SOURCES: Record<string, string> = Object.fromEntries(
 const SIM_DIRS = ['src/kart-controller', 'src/race-manager', 'src/items', 'src/ai-driver', 'src/track-builder', 'src/sim-math'];
 const SIM_FILES = ['src/game/simtick.ts'];
 /** Render side only: Three.js views and meshes, and the Final Lap Shift's show. Never imported by the sim or the server. */
-const RENDER_ONLY = ['src/kart-controller/view.ts', 'src/kart-controller/anim.ts', 'src/track-builder/mesh/', 'src/track-builder/shiftShow.ts'];
+const RENDER_ONLY = ['src/kart-controller/view.ts', 'src/kart-controller/anim.ts', 'src/kart-controller/driverAnim.ts', 'src/track-builder/mesh/', 'src/track-builder/shiftShow.ts'];
 const BANNED = /\bMath\.(sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|asinh|acosh|atanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot|fround|random)\b/g;
 
 const isTest = (p: string) => /\.test\.ts$/.test(p) || p.includes('/__tests__/');
