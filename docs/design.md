@@ -130,6 +130,8 @@ Pickups: floating **balloons** on strings that pop on touch. (Two slots: Adam, 2
 ## 9. Modes (build order)
 Quick Race → Grand Prix (2 cups, 50/100/150cc, stars) → **Knockout** (8 racers, 3 linked tracks, cut lines 6/4/2, item pool shrinks) → Time Trial (ghost + medals) → Daily Challenge (seeded) → stretch: Mirror, split-screen.
 
+Finish celebration and podium ceremony (Adam, 24 Sept 2026: as in Mario Kart World). Over the line the camera swings round to the front of the player's kart in slow motion and circles it while the racer reacts to the place: 1st a leap with a whole turn in the air and fist pumps, 2nd a hop with a twist and a big wave, 3rd two happy hops and a nodded yes, a safe Knockout place a phew and a look back at the ones behind, the middle of the field a friendly shrug, the back a sag and a head shake that ends chin up (G-rated, never mocking); confetti only for the joyful ones. After about 4 s the results slide in; Enter, pad A or a tap on the finish banner skips straight to them. After a Grand Prix's final standings and after a Knockout final comes the podium ceremony, on the grid behind the last track's start line under its own sky: the top three on stepped blocks in the biome's grandstand colors (neon at night), each in their own kart, paint and body and reacting, our own gold cup with a red balloon on its lid popping up behind the winner, confetti, fireworks over the stands and the townsfolk cheering, the camera craning down and sweeping slowly, the finish fanfare then the results song; the headline, the places and the player's stars over it, then Continue. Everyone sees it: a player off the podium sees their own place under it. Reduced motion: no slow-mo or swoops, one cut to the front shot; still shots cut in turn on the podium. Pictures only: the sim, input logs and leaderboard replays are unchanged (game/celebrate.ts, game/podium.ts).
+
 ## 10. Unlocks (deterministic, visible)
 Skins: gold on every Sunrise track → Pip alt; win a Knockout → Boulder alt; 10 ultra turbos → Sprocket alt. Bodies: Classic (finish a GP), Buggy (finish a Knockout). Mirror: gold on every track.
 
@@ -138,6 +140,8 @@ Music: 6 files (title, 5 race themes reused across 6 tracks with one shared for 
 
 ## 12. UI
 Fonts Lilita One + Fredoka. HUD: balloon slot top-left, big position bottom-left, minimap + lap bottom-right, timer top-centre. Title: attract-mode camera rail around Harbour Loop with Pip drifting by. Roster screen: 8 cards, turntable, animated stat bars.
+
+Finish celebration (24 Sept 2026): the race HUD steps aside (FINISH! rises and shrinks under the timer; the item slots, map, speed and hints go; the place and time stay). Podium ceremony: no dim and no panel over it, the headline with the series and the player's stars at the top, the places as they stand (2nd, 1st, 3rd) and Continue along the bottom.
 
 ## 13. Definition of done (repeated from CLAUDE.md)
 Live URL, 60 fps, a full Knockout playable end to end, leaderboard accepts a score, red-team clean.

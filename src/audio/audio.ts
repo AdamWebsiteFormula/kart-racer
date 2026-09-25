@@ -267,6 +267,17 @@ export class GameAudio {
     if (this.bus.running) this.stingEnds = Math.max(this.stingEnds, this.bus.time + STING_SECONDS[id]);
   }
 
+  /**
+   * The podium ceremony begins (main.ts, game/podium.ts): the results song fades for the fanfare,
+   * the victory sting when the player stands on the podium and the friendly one when not, then the
+   * results song comes back after its last chord. No new recordings: the finish stings.
+   */
+  ceremony(onPodium: boolean): void {
+    this.sfx(onPodium ? 'finish' : 'finishLow');
+    this.finish(onPodium);
+    this.play('results');
+  }
+
   private lastTick = 0;
   /** the course (its surfaces), and when the player's current boost began (the engine's rev) */
   private trackId = '';

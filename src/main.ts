@@ -24,7 +24,8 @@ import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
 import { ITEMS_CONFIG } from './items/data.ts';
 import { makeConstants } from './kart-controller/constants.ts';
-import { applyResults, createGrandPrix, createKnockout, isDone, nextRace } from './race-manager/series.ts';
+import { applyResults, createGrandPrix, createKnockout, isDone, nextRace, podiumOf } from './race-manager/series.ts';
+import { ticksToMs } from './race-manager/race.ts';
 import { decodeGhost } from './race-manager/ghost.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
@@ -34,6 +35,11 @@ import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
 import { Showroom } from './game/showroom.ts';
+import { CELEBRATE, FinishCam, joyful, reactionFor } from './game/celebrate.ts';
+import { Podium } from './game/podium.ts';
+import type { Crowd } from './art-pipeline/crowd.ts';
+import type { Reaction } from './kart-controller/anim.ts';
+import { medalFor } from './ui-hud/screens/menus.ts';
 import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
 
@@ -175,6 +181,11 @@ let series: SeriesState | null = null;
 let overSent = false;
 /** the player pressed on over the line: the results come as soon as the field is cut off */
 let skipResults = false;
+/** the player's finish celebration (game/celebrate.ts): from their line through the results screens */
+const finishCam = new FinishCam();
+let celebrating = false;
+/** the podium ceremony (game/podium.ts): built at a series' last results, shown after the standings or the cut */
+let podium: Podium | null = null;
 /** the player's paint and body, and Mirror mode, for this race and the rest of its series (design §10) */
 let look: KartLook = {};
 let mirror = false;
@@ -210,6 +221,10 @@ function load(config: RaceConfig, isAttract: boolean): void {
   attract = isAttract;
   overSent = false;
   skipResults = false;
+  celebrating = false;
+  ui.celebrate(false);
+  podium?.dispose();
+  podium = null;
   // Time Trial: race the saved best as a ghost (a picture only; it never touches the race)
   if (config.mode === 'timeTrial' && !isAttract) {
     const best = ui.save.timeTrial[def.id];
@@ -310,6 +325,8 @@ const host: UiHost = {
   },
   uiSound(kind) { audio.ui(kind); },
   screenChanged(app) {
+    // the series' podium ceremony (game/podium.ts), after its standings or its cut
+    if (app.screen === 'podium' && podium && !podium.showing) startPodium();
     // leaving the race screens for the menus brings the attract race back
     if (!attract && (app.screen === 'modeSelect' || app.screen === 'title')) startAttract();
   },
@@ -372,6 +389,7 @@ function raceOver(): void {
   let gp: { before: GrandPrixState | null; after: GrandPrixState } | undefined;
   let ko;
   let seriesHasNext = false;
+  let top: string[] = [];
   if (series) {
     const before = series.kind === 'grandPrix' ? structuredClone(series) : null;
     applyResults(series, results); // mutates
@@ -380,6 +398,8 @@ function raceOver(): void {
     const playerOut = series.kind === 'knockout' && player !== undefined && series.eliminated.includes(player.racerId);
     if (series.kind === 'knockout') audio.knockout(playerOut);
     seriesHasNext = !isDone(series) && !playerOut;
+    top = podiumOf(series);
+    if (top.length) buildPodium(top);
   }
   audio.play('results');
   // Time Trial and Daily runs can go on the leaderboard: the whole input log, from tick 0
@@ -399,7 +419,76 @@ function raceOver(): void {
     medalTimesMs: mode === 'timeTrial' ? session.def.medalTimesMs : undefined,
     ghost: mode === 'timeTrial' && mine && !mine.dnf ? session.ghostPath() : undefined,
     look,
+    ...(top.length ? { podium: top } : {}),
   });
+}
+
+// ---- the finish celebration and the podium ceremony ----
+const NO_KARTS: readonly never[] = [];
+
+/** The player's reaction for a finish in `rank` (game/celebrate.ts): by the race's field, its Knockout cut, a Time Trial medal. */
+function reactionAt(rank: number): Reaction {
+  const s = session!, cfg = s.config, pi = s.playerIndex;
+  const ko = cfg.mode === 'knockout' && cfg.knockout
+    ? { cutLine: cfg.knockout.cutLine, final: series?.kind === 'knockout' ? cfg.knockout.segment >= series.trackIds.length - 1 : false }
+    : undefined;
+  const me = s.state.karts[pi];
+  const medal = cfg.mode === 'timeTrial' && me?.finishTick !== undefined ? medalFor(ticksToMs(me.finishTick - s.state.goTick), s.def.medalTimesMs) : undefined;
+  const field = s.state.karts.filter((k) => !k.isGhost).length;
+  return reactionFor({ rank, field, dnf: s.state.trackers[pi]?.dnf, knockout: ko, medal });
+}
+/** Whether the player's finish in `rank` throws the confetti (a win, a podium place, a safe Knockout place). */
+const confettiFor = (rank: number): boolean => !!session?.player && joyful(reactionAt(rank));
+
+/** The player crossed the line: the camera swings round to their kart's front, and they react to their place. */
+function startCelebration(s: RaceSession): void {
+  celebrating = true;
+  const i = s.playerIndex, k = s.state.karts[i], root = s.views[i].root;
+  finishCam.start(s.track, k, root.position, root.rotation.y, camPos, camLook, camera.fov);
+  s.views[i].anim.react(reactionAt(k.rank));
+  ui.celebrate(true); // the HUD steps aside: FINISH! up and small, the slots, map and hints away
+}
+
+/** The finish camera (game/celebrate.ts) over the chase camera's pose; `dt` 0 while paused (its clock stops too). */
+function celebrationCamera(dt: number, reduced: boolean): void {
+  const s = session!, i = s.playerIndex;
+  if (i < 0) return;
+  const root = s.views[i].root;
+  finishCam.update(s.track, s.state.karts[i], root.position, root.rotation.y, reduced, dt);
+  for (let k = 0; k < 3; k++) { camPos[k] = finishCam.pos[k]; camLook[k] = finishCam.look[k]; }
+  camera.fov = finishCam.fov;
+}
+
+/** Build the podium for the top three (1st to 3rd) on this race's track, hidden, its shaders compiling now (performance/warmup.ts). */
+function buildPodium(top: readonly string[]): void {
+  const s = session;
+  if (!s) return;
+  podium?.dispose();
+  const racers = top.map((id) => ({ racerId: id, archetype: CAST.find((c) => c.id === id)?.archetype ?? 'medium' as const, look: id === s.player?.racerId ? look : {} }));
+  const crowd = (s.trackScene.group.getObjectByName('crowd')?.userData.crowd as Crowd | undefined) ?? null;
+  podium = new Podium(s.track, racers, s.def.biome, crowd);
+  scene.add(podium.group);
+  void warmup.precompile(podium.group, camera, scene, post?.enabled ?? false);
+}
+
+/** The ceremony begins: the race's karts, items and claw leave the stage to the podium's three, and the fanfare plays. */
+function startPodium(): void {
+  const s = session, p = podium;
+  if (!s || !p) return;
+  // (each kart's chassis, not its root: the items view shows every root each frame, a Strike Ball's rider aside)
+  for (const v of s.views) v.chassis.visible = false;
+  s.itemsView.root.visible = false;
+  s.rescueView.root.visible = false;
+  p.start();
+  audio.ceremony(p.racers.some((r) => r.racerId === s.player?.racerId));
+}
+
+/** The podium ceremony's frame: its racers, cup, confetti, fireworks, crowd and camera (game/podium.ts); `dt` 0 while paused. */
+function podiumCamera(dt: number, reduced: boolean): void {
+  const p = podium!;
+  p.update(dt, reduced, vfx, WATER_CLOCK.value);
+  for (let k = 0; k < 3; k++) { camPos[k] = p.pos[k]; camLook[k] = p.look[k]; }
+  camera.fov = p.fov;
 }
 
 // ---- cameras ----
@@ -474,7 +563,7 @@ function step(now: number): void {
       let live: InputState | null = null;
       if (racing) live = input.sample(SIM_DT); else input.sample(SIM_DT);
       const ev = s.tick(racing && !autopilot ? live : null);
-      vfx.onTick(directFx(ev.race, ev.items, attract ? null : s.player?.racerId ?? null, fxBuf), kartOf, nowS, reduced);
+      vfx.onTick(directFx(ev.race, ev.items, attract || podium?.showing ? null : s.player?.racerId ?? null, fxBuf, confettiFor), kartOf, nowS, reduced);
       if (!attract && s.player) {
         ui.feed(ev.race, ev.items, s.player.racerId);
         // the race's sounds only while its screen is up: the results, GP table and Knockout cut
@@ -484,8 +573,12 @@ function step(now: number): void {
     }
   }
 
+  // over the line: the finish celebration (game/celebrate.ts); at its end the results come, the rest of
+  // the field cut off as a press on the finish banner does (a press still skips straight to them)
+  if (!attract && !celebrating && s.player?.finishTick !== undefined) startCelebration(s);
+  if (celebrating && !skipResults && ui.app.screen === 'racing' && finishCam.time >= CELEBRATE.seconds) { s.manager.endRace(); skipResults = true; }
   if (attract && s.finishedFor > 4) startAttract();
-  else if (!attract && ui.app.screen === 'racing' && (s.finishedFor > RESULTS_AFTER || (skipResults && s.state.phase === 'finished'))) raceOver();
+  else if (!attract && ui.app.screen === 'racing' && ((!celebrating && s.finishedFor > RESULTS_AFTER) || (skipResults && s.state.phase === 'finished'))) raceOver();
 
   const cur = session!;
   if (warmup.active) return; // the attract loop just started its next race: compiling
@@ -495,9 +588,13 @@ function step(now: number): void {
   if (post) { post.gradeTo = cur.skyLight.grade ?? DAY_GRADE; if (lightSnap) post.snapGrade(); }
   lightSnap = false;
   if (attract) tvCamera(frameDt); else chaseCamera(frameDt, nowS, reduced);
+  const ceremony = !attract && (podium?.showing ?? false);
+  const liveDt = ui.paused || document.hidden ? 0 : frameDt;
+  if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced);
   const pl = cur.player;
-  vfx.frame(frameDt, simDt, nowS, cur.state.karts, attract ? undefined : pl, camPos, reduced);
-  if (!attract) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));
+  // (no speed lines, lens or FOV kicks over the celebration; the podium's hidden field makes no sparks or dust)
+  vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced);
+  if (!attract && !celebrating && !ceremony) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));
   camera.updateProjectionMatrix();
   const sh = vfx.shake;
   camera.position.set(camPos[0] + sh.x, camPos[1] + sh.y, camPos[2] + sh.z);
@@ -524,7 +621,7 @@ function step(now: number): void {
       map: cur.track.minimap, itemDefs, trailing: cur.items.isTrailing(pi),
     }, now);
   }
-  post!.render(frameDt, attract ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
+  post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
   if (ui.app.screen === 'rosterSelect') drawTurntable(nowS, reduced);
   // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again
   if (warmed) { last = performance.now(); governor.reset(last / 1000); }
@@ -598,6 +695,10 @@ if (import.meta.env.DEV) {
     }, camera, scene, acc,
     /** dev: grant all six design §10 unlocks (three paints, two bodies, Mirror) to try them; saved like any earned unlock */
     unlockAll: () => ui.grantAllUnlocks(),
+    /** dev: the podium ceremony on this race's track with these three (1st to 3rd), for checking it (no overlay) */
+    ceremony: (ids: string[] = ['pip', 'momo', 'nova']) => { buildPodium(ids); startPodium(); },
+    /** dev: the podium, when there is one */
+    get podium() { return podium; },
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
   };
 }

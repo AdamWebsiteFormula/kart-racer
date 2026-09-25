@@ -4,7 +4,7 @@ import type { RaceMode } from '../race-manager/types.ts';
 
 export type Screen =
   | 'boot' | 'title' | 'modeSelect' | 'rosterSelect' | 'cupSelect' | 'trackSelect'
-  | 'racing' | 'results' | 'gpTable' | 'knockoutCut';
+  | 'racing' | 'results' | 'gpTable' | 'knockoutCut' | 'podium';
 
 export type Overlay = 'pause' | 'settings' | 'credits' | 'howTo' | 'unlocks';
 
@@ -23,6 +23,8 @@ export interface AppState {
   trackId: string | null;
   /** a series (Grand Prix or Knockout) has another race after this results screen */
   seriesHasNext: boolean;
+  /** the series is over and its podium ceremony follows the standings or the cut (design §9) */
+  podiumNext?: boolean;
   /** Mirror mode on (design §10): Quick Race and Grand Prix run the track reflected left to right */
   mirrored: boolean;
 }
@@ -36,7 +38,7 @@ export type AppAction =
   | { type: 'toggleMirror' }
   | { type: 'pickCup'; cupId: string }
   | { type: 'pickTrack'; trackId: string }
-  | { type: 'raceFinished'; seriesHasNext: boolean }
+  | { type: 'raceFinished'; seriesHasNext: boolean; podium?: boolean }
   | { type: 'continue' }
   | { type: 'back' }
   | { type: 'pause' }

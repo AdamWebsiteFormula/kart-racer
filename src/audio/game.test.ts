@@ -178,6 +178,31 @@ describe('the Knockout cut', () => {
   });
 });
 
+describe('the podium ceremony', () => {
+  it('the results song stops for the fanfare (the win sting on the podium, the friendly one off it) and comes back after its last chord', async () => {
+    for (const onPodium of [true, false]) {
+      const { audio, ctx, songs } = game(true);
+      ctx.currentTime = 10;
+      audio.play('results');
+      await flush();
+      const results = songs().at(-1)!;
+      ctx.currentTime = 40; // the standings, then Continue: the ceremony
+      const before = ctx.sources.length;
+      audio.ceremony(onPodium);
+      expect(ctx.sources.length, 'the sting plays').toBeGreaterThan(before);
+      expect(results.stoppedAt, 'the results song fades for it').toBeLessThanOrEqual(40 + AUDIO.finishFade + 0.05);
+      await flush();
+      expect(songs().at(-1)).not.toBe(results);
+      expect(songs().at(-1)!.startedAt).toBeCloseTo(40 + STING_SECONDS[onPodium ? 'finish' : 'finishLow'], 6);
+    }
+  });
+
+  it('muted (?mute) it makes no sound at all', () => {
+    const audio = new GameAudio(AudioBus.silent(), bank(true));
+    expect(() => audio.ceremony(true)).not.toThrow();
+  });
+});
+
 describe('the sounds on the bus', () => {
   const oscs = (ctx: FakeCtx, from: number) => ctx.sources.slice(from).filter((x) => x.kind === 'osc');
 

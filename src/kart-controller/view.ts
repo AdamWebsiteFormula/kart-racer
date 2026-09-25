@@ -123,7 +123,7 @@ export class KartView {
     // low wheel stays on the road as it leans
     const a = this.anim.pose(alpha, reduced, this.posed);
     this.chassis.rotation.set(a.pitch, a.yaw + a.spin + a.wobble, a.roll, 'YXZ');
-    this.chassis.position.set(0, a.lift, 0);
+    this.chassis.position.set(0, a.lift + a.hop, 0);
     const sy = 1 + a.squash, sxz = 1 / Math.sqrt(sy);
     this.chassis.scale.set(sxz, sy, sxz);
     for (let i = 0; i < this.rigs.length; i++) {

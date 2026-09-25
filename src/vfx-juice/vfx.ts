@@ -10,6 +10,7 @@ import { Skids, SpeedLines } from './trails.ts';
 
 const CORAL: [number, number, number] = [1, 0.44, 0.38];
 const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
+const WHITE_HOT: readonly number[] = [2.4, 2.3, 2.1];
 const DUST: readonly number[] = [0.86, 0.77, 0.6], SCUFF: readonly number[] = [0.7, 0.66, 0.6];
 /** Linear RGB with one channel near zero, so each colour survives the tone mapping as a clear hue (no white, no pastels). */
 export const CONFETTI: readonly (readonly [number, number, number])[] = [
@@ -32,6 +33,14 @@ export const POP = Object.freeze({
 export const CONFETTI_BURST = Object.freeze({ count: 180, ahead: 4, lead: 0.4, spread: 4, depth: 3, rise: 4.5, riseSpread: 3, size: 0.22 });
 /** The STRIKE burst: thrown up and out to the sides and forward from `ahead` metres in front, never back at the lens. */
 export const STRIKE_BURST = Object.freeze({ count: 140, ahead: 1.5, side: 9, forward: [1, 8] as const, up: [5, 13] as const, size: 0.24 });
+/**
+ * The podium ceremony's fireworks (game/podium.ts): a round burst of sparks in one confetti hue made
+ * bright past 1 (they bloom), falling and fading, with a white heart; soft and slow, never a strobe.
+ * Reduced motion: `reducedCount` sparks.
+ */
+export const FIREWORK = Object.freeze({ count: 72, reducedCount: 30, speed: 8.5, size: 0.42, life: 1.3, gravity: 2.6, drag: 1.3, heat: 2.2 });
+/** Confetti drifting down over the podium: from `up` metres over it (plus up to `spread`), slower than the finish shower. */
+export const CONFETTI_RAIN = Object.freeze({ up: 7, spread: 2.5, size: 0.24, life: 3.6, gravity: 2.2, drag: 1.4 });
 
 /** Visual-only randomness (never touches the sim). */
 let seed = 0x1234567;
@@ -52,6 +61,8 @@ export class Vfx {
   /** each kart's drift sparks, wheel glows, boost embers, dust and tyre marks (kartfx.ts) */
   readonly kartFx = new KartFx(this.glow, this.soft, this.skids);
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
+  /** a firework's colour, reused */
+  private readonly hot: number[] = [1, 1, 1];
   readonly shake = { x: 0, y: 0, z: 0, roll: 0 };
 
   constructor(scene: Scene, camera: Camera) {
@@ -168,6 +179,29 @@ export class Vfx {
           for (let i = 0; i < 30; i++) this.spawn(this.soft, x + sym() * 0.4, y + 0.8, z + sym() * 0.4, sym() * 2.5, 1.5 + rnd() * 3, sym() * 2.5, i % 4 ? WHITE : TEAL, 0.28, 0.7, 6, 1.2);
           break;
       }
+    }
+  }
+
+  /** One firework burst at (x, y, z) in confetti hue `hue` (any integer). */
+  firework(x: number, y: number, z: number, hue: number, reduced = false): void {
+    const F = FIREWORK, c = CONFETTI[((hue % CONFETTI.length) + CONFETTI.length) % CONFETTI.length], o = this.hot;
+    o[0] = c[0] * F.heat + 0.3; o[1] = c[1] * F.heat + 0.3; o[2] = c[2] * F.heat + 0.3;
+    const n = reduced ? F.reducedCount : F.count;
+    for (let i = 0; i < n; i++) {
+      // directions spread evenly round a sphere
+      const u = sym(), a = rnd() * Math.PI * 2, r = Math.sqrt(1 - u * u), sp = F.speed * (0.8 + rnd() * 0.4);
+      this.spawn(this.glow, x, y, z, Math.cos(a) * r * sp, u * sp, Math.sin(a) * r * sp, o, F.size, F.life + rnd() * 0.4, F.gravity, F.drag);
+    }
+    for (let i = 0; i < 5; i++) this.spawn(this.glow, x, y, z, sym(), sym(), sym(), WHITE_HOT, F.size * 2.2, 0.3, 0, 2);
+  }
+
+  /** `n` pieces of confetti drifting down over (x, y, z), within `radius` metres of it. */
+  confettiRain(x: number, y: number, z: number, radius: number, n: number): void {
+    const R = CONFETTI_RAIN;
+    for (let i = 0; i < n; i++) {
+      const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * radius;
+      this.spawn(this.confetti, x + Math.cos(a) * r, y + R.up + rnd() * R.spread, z + Math.sin(a) * r, sym() * 1.2, -rnd() * 0.6, sym() * 1.2,
+        CONFETTI[Math.floor(rnd() * CONFETTI.length) % CONFETTI.length], R.size, R.life + rnd(), R.gravity, R.drag);
     }
   }
 

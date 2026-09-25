@@ -23,6 +23,8 @@ import {
 import { parseCredits } from './screens/credits.ts';
 import { adjustSetting, cupMenu, medalFor, modeMenu, pauseMenu, rosterMenu, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
 import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
+import { podiumModel } from './screens/podium.ts';
+import { PodiumView } from './render/podium.ts';
 import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
 import { cleanName, type BoardMode, type Submission } from '../backend-leaderboard/rules.ts';
 import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Settings } from './store.ts';
@@ -75,6 +77,8 @@ export interface RaceOver {
   ghost?: string;
   /** the look the player raced in: kept with a new best's ghost, which is drawn in it */
   look?: KartLookIds;
+  /** the series is over: its top three (1st to 3rd), for the podium ceremony after the standings or the cut (the host shows it) */
+  podium?: readonly string[];
 }
 
 export interface RaceFrame {
@@ -104,7 +108,7 @@ export class UiRoot {
   private readonly host: UiHost;
   private readonly backend: Backend | null;
   private readonly views: {
-    boot: BootView; title: TitleView; modes: ListView; roster: RosterView; cups: CupView; tracks: TrackView; hud: HudView; results: ResultsView;
+    boot: BootView; title: TitleView; modes: ListView; roster: RosterView; cups: CupView; tracks: TrackView; hud: HudView; results: ResultsView; podium: PodiumView;
     pause: OverlayMenuView; settings: SettingsView; credits: CreditsView; howTo: HowToView; unlocks: UnlocksView;
   };
   private readonly models = new Map<string, FocusModel>();
@@ -190,7 +194,7 @@ export class UiRoot {
     const r = this.root;
     this.views = {
       boot: new BootView(r), title: new TitleView(r), modes: new ListView(r, 'mode-screen', 'Pick a mode'),
-      roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r),
+      roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r), podium: new PodiumView(r),
       pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r), howTo: new HowToView(r), unlocks: new UnlocksView(r),
     };
     for (const v of Object.values(this.views)) v.root.addEventListener('click', (e) => this.pointer(e, true));
@@ -317,7 +321,7 @@ export class UiRoot {
       this.boardPost = { state: 'idle' };
       this.refreshBoard();
     }
-    this.dispatch({ type: 'raceFinished', seriesHasNext: over.seriesHasNext });
+    this.dispatch({ type: 'raceFinished', seriesHasNext: over.seriesHasNext, podium: !!over.podium?.length });
   }
 
   // ---------------------------------------------------------------- leaderboard
@@ -389,6 +393,9 @@ export class UiRoot {
     clearTimeout(this.toastTimer);
     this.toastTimer = setTimeout(() => this.toast.classList.remove('on'), 5000);
   }
+
+  /** The player's finish celebration (main.ts, game/celebrate.ts): the race HUD steps aside for it (podium.css): the banner up and small, the item slots, map, speed and hints away. */
+  celebrate(on: boolean): void { this.views.hud.root.classList.toggle('celebrate', on); }
 
   /** Once per rendered frame while racing (paused or not). */
   race(f: RaceFrame, nowMs: number): void {
@@ -583,7 +590,7 @@ export class UiRoot {
 
   private back(): void {
     const s = this.app;
-    if (s.screen === 'results' || s.screen === 'gpTable' || s.screen === 'knockoutCut') return; // results need a confirm
+    if (s.screen === 'results' || s.screen === 'gpTable' || s.screen === 'knockoutCut' || s.screen === 'podium') return; // results need a confirm
     if (topOverlay(s) === 'pause') { this.dispatch({ type: 'resume' }); return; }
     this.dispatch({ type: 'back' });
   }
@@ -593,7 +600,7 @@ export class UiRoot {
     const top = topOverlay(s);
     const btn = this.active?.view.buttons.get(id);
     if (btn?.getAttribute('aria-disabled') === 'true') return;
-    const endScreen = s.screen === 'results' || s.screen === 'gpTable' || s.screen === 'knockoutCut';
+    const endScreen = s.screen === 'results' || s.screen === 'gpTable' || s.screen === 'knockoutCut' || s.screen === 'podium';
     if (endScreen && !top && this.clock() < this.endGuardUntil) return;
     if (top === 'settings') {
       if (id === 'done') this.dispatch({ type: 'back' }); else this.changeSetting(id as SettingId, 1);
@@ -622,7 +629,7 @@ export class UiRoot {
       }
       case 'cupSelect': this.dispatch({ type: 'pickCup', cupId: id }); break;
       case 'trackSelect': this.dispatch({ type: 'pickTrack', trackId: id }); break;
-      case 'results': case 'gpTable': case 'knockoutCut':
+      case 'results': case 'gpTable': case 'knockoutCut': case 'podium':
         if (id === 'post') { void this.postRun(); break; }
         if (id === 'retry') { this.refreshBoard(); break; }
         // a pad's A in the name box moves on to Post (Enter typed inside the box posts)
@@ -723,7 +730,7 @@ export class UiRoot {
     const top = topOverlay(s);
     const base: Record<string, ScreenView> = {
       boot: v.boot, title: v.title, modeSelect: v.modes, rosterSelect: v.roster, cupSelect: v.cups, trackSelect: v.tracks,
-      racing: v.hud, results: v.results, gpTable: v.results, knockoutCut: v.results,
+      racing: v.hud, results: v.results, gpTable: v.results, knockoutCut: v.results, podium: v.podium,
     };
     const baseView = base[s.screen];
     const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : top === 'howTo' ? v.howTo : top === 'unlocks' ? v.unlocks : null;
@@ -736,7 +743,7 @@ export class UiRoot {
     const entering = this.active?.key !== key;
     if (entering) this.enteredAt = this.clock();
     this.active = { key, view };
-    if (entering && (key === 'results' || key === 'gpTable' || key === 'knockoutCut')) this.endGuardUntil = this.clock() + UI.endScreenGuardMs;
+    if (entering && (key === 'results' || key === 'gpTable' || key === 'knockoutCut' || key === 'podium')) this.endGuardUntil = this.clock() + UI.endScreenGuardMs;
     this.renderScreen(key, entering);
     const model = this.models.get(key);
     if (!model) return;
@@ -777,6 +784,13 @@ export class UiRoot {
       case 'unlocks': { v.unlocks.render(unlockRows(this.save)); this.models.set(key, { rows: [['back']] }); break; }
       case 'howTo': { v.howTo.render(ITEM_DEFINITIONS); this.models.set(key, { rows: [['back']] }); break; }
       case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key); break;
+      case 'podium': {
+        // the ceremony's overlay (the host draws the podium itself): the headline, the places, Continue
+        const o = this.lastOver;
+        if (o?.podium) this.views.podium.render(podiumModel(o.podium, o.playerId, { gp: o.gp?.after, ko: o.ko?.after }));
+        this.models.set(key, { rows: [['continue']] });
+        break;
+      }
       default: break;
     }
   }
@@ -803,7 +817,7 @@ export class UiRoot {
     if (!o) return;
     const s = this.app;
     const series = s.mode === 'grandPrix' || s.mode === 'knockout';
-    const nextLabel = key === 'results' ? (series ? 'Standings' : 'Back to menu') : s.seriesHasNext ? 'Next race' : 'Back to menu';
+    const nextLabel = key === 'results' ? (series ? 'Standings' : 'Back to menu') : s.seriesHasNext ? 'Next race' : s.podiumNext ? 'Continue' : 'Back to menu';
     if (key === 'results') {
       const vm = resultsModel(o.results, o.playerId, o.trackName);
       if (this.ttNote) vm.headline = this.ttNote;

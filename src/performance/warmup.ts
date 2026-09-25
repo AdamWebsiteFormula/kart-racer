@@ -11,7 +11,7 @@
 // (as the next race rebuilds the track), which compiled the same shaders all over again. A custom
 // shader (ShaderMaterial) is also known to three by its source's id, dropped with its last
 // material, so each one keeps a stand-in copy of its material alive as well.
-import { BufferGeometry, InstancedMesh, Mesh, Scene, WebGLRenderTarget, type Camera, type Light, type Material, type Object3D, type ShaderMaterial, type ToneMapping, type WebGLRenderer } from 'three';
+import { BufferGeometry, InstancedMesh, Mesh, Scene, WebGLRenderTarget, type Camera, type Light, type Material, type Object3D, type ShaderMaterial, type Texture, type ToneMapping, type WebGLRenderer } from 'three';
 
 /**
  * Put every object under `root` on show for one draw: hidden objects visible (lights excepted: a
@@ -163,6 +163,26 @@ export class Warmup {
     }
     this.keep();
     return out;
+  }
+
+  /**
+   * A set piece built ahead of when it shows (the podium ceremony, built at a series' last results:
+   * game/podium.ts): its textures uploaded and its shaders compiled now, as `scene` will draw it
+   * (into the post chain's buffer when `intoTarget`), in the background where the browser compiles
+   * in parallel, and kept; the frame that first shows it stalls on none of it. Resolves when they are
+   * ready. Adding `root` to the scene is the caller's.
+   */
+  precompile(root: Object3D, camera: Camera, scene: Scene, intoTarget: boolean): Promise<void> {
+    const r = this.renderer;
+    for (const m of materialsOf(root)) {
+      for (const v of Object.values(m)) if ((v as Texture | null)?.isTexture) r.initTexture(v as Texture);
+    }
+    const was = r.getRenderTarget();
+    r.setRenderTarget(intoTarget ? this.target : null);
+    let done: Promise<unknown>;
+    try { done = r.compileAsync(root, camera, scene); } finally { r.setRenderTarget(was); }
+    this.keep();
+    return done.then(() => { this.keep(); });
   }
 
   /** The one draw of everything (`draw` renders a frame as the game does), then back to normal. */

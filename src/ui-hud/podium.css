@@ -1,0 +1,124 @@
+/* The podium ceremony's overlay (render/podium.ts). No dim and no panel: the 3D ceremony shows through.
+   House style: the headline like the race banners (Lilita One in sun, an ink stroke and drop), the places
+   as the results rows' little cards, Continue the house button. Tokens from ui.css. Reduced motion: ui.css
+   drops every animation to 1 ms, so it simply appears. */
+
+#ui .podium { pointer-events: none; }
+
+.podium .podium-top {
+  position: absolute;
+  top: calc(20px + var(--safe-t));
+  left: 50%;
+  width: min(92vw, 980px);
+  transform: translateX(-50%);
+  text-align: center;
+  animation: podium-drop var(--t-slow) var(--pop) 300ms backwards;
+}
+.podium-head {
+  margin: 0;
+  font: 400 clamp(46px, 6.6vw, 92px)/1 var(--display);
+  color: var(--sun);
+  -webkit-text-stroke: 6px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 7px 0 var(--ink);
+}
+.podium-meta { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
+.podium-sub {
+  display: inline-block;
+  padding: 7px 18px;
+  border-radius: 999px;
+  background: rgb(27 27 47 / 0.62);
+  color: var(--paper);
+  font: 600 18px/1.2 var(--body);
+}
+.podium .podium-stars { margin: 0; gap: 4px; }
+.podium .podium-stars .star { width: 38px; height: 38px; filter: drop-shadow(0 3px 0 var(--ink)); }
+
+.podium .podium-bar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(22px + var(--safe-b));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px - var(--safe-l) - var(--safe-r));
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  pointer-events: auto;
+  animation: pop-in var(--t-slow) var(--pop) 1000ms backwards;
+}
+.podium-places { display: flex; align-items: flex-end; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.podium-place {
+  display: grid;
+  grid-template-columns: auto 16px auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 15px;
+  border: 3px solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 19px/1 var(--body);
+  box-shadow: 0 5px 0 var(--ink);
+  white-space: nowrap;
+}
+/* the winner's card stands a step higher, as on the podium */
+.podium-place.p1 { margin-bottom: 12px; }
+.podium-place .rk { font: 400 26px/1 var(--display); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+.podium-place.p1 .rk { color: var(--gold); }
+.podium-place.p2 .rk { color: var(--silver); }
+.podium-place.p3 .rk { color: var(--bronze); }
+.podium-place .sw { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink); background: var(--accent); }
+.podium-place.me { background: var(--sun); }
+.podium-mine {
+  align-self: center;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 600 19px/1 var(--body);
+  white-space: nowrap;
+}
+.podium .podium-bar .btn { align-self: center; padding: 10px 26px; }
+
+@keyframes podium-drop { from { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(0.9); } to { opacity: 1; transform: translateX(-50%); } }
+
+/* a phone on its side: smaller, tighter, nothing off the screen */
+@media (max-height: 500px) {
+  .podium .podium-top { top: calc(10px + var(--safe-t)); }
+  .podium-head { font-size: clamp(32px, 7vh, 48px); -webkit-text-stroke-width: 4px; text-shadow: 0 4px 0 var(--ink); }
+  .podium-meta { margin-top: 6px; gap: 8px; }
+  .podium-sub { padding: 4px 12px; font-size: 14px; }
+  .podium .podium-stars .star { width: 26px; height: 26px; }
+  .podium .podium-bar { bottom: calc(10px + var(--safe-b)); gap: 8px 10px; }
+  .podium-places { gap: 6px; }
+  .podium-place { padding: 6px 10px; font-size: 15px; gap: 6px; box-shadow: 0 3px 0 var(--ink); }
+  .podium-place.p1 { margin-bottom: 6px; }
+  .podium-place .rk { font-size: 19px; }
+  .podium-mine { padding: 7px 12px; font-size: 15px; }
+  .podium .podium-bar .btn { padding: 6px 18px; }
+  .podium .podium-bar .btn .label { font-size: 20px; }
+}
+/* a narrow screen: the places over Continue */
+@media (max-width: 700px) {
+  .podium .podium-bar { flex-direction: column; align-items: center; }
+}
+
+/* the finish celebration (game/celebrate.ts, UiRoot.celebrate): the race HUD steps aside for the racer's
+   reaction. FINISH! rises out of the way and shrinks under the timer; the item slots, the map, the speed and
+   the hints go; the place and the time stay (a press or a tap still goes straight to the results) */
+#ui .hud.celebrate .banner { top: 12%; transform: scale(0.56); transform-origin: 50% 0; transition: top 700ms var(--out), transform 700ms var(--out); }
+#ui .hud.celebrate :is(.tl, .br, .speedo, .keys-hint) { opacity: 0; transition: opacity 500ms ease; }
+#ui:has(.hud.celebrate) .touch { display: none; }
+@media (max-height: 500px) {
+  #ui .hud.celebrate .banner { top: 16%; transform: scale(0.5); }
+}
+
+/* an unlock earned by the series (design §10) is still showing as the ceremony starts: it sits over the
+   bottom strip, not on the headline */
+#ui:has(.podium.on) .toast { top: auto; bottom: calc(92px + var(--safe-b)); }
+@media (max-height: 500px) {
+  #ui:has(.podium.on) .toast { bottom: calc(64px + var(--safe-b)); padding: 8px 16px; font-size: 17px; }
+}

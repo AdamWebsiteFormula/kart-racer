@@ -192,14 +192,122 @@ export interface AnimPose {
   nod: number;
   /** front wheels: + points them toward +X */
   steer: number;
+  /** m the whole kart jumps off the road (a finish reaction's leap; 0 while racing) */
+  hop: number;
 }
 
 export function newPose(): AnimPose {
-  return { roll: 0, pitch: 0, yaw: 0, spin: 0, wobble: 0, squash: 0, heave: 0, lift: 0, lean: 0, look: 0, nod: 0, steer: 0 };
+  return { roll: 0, pitch: 0, yaw: 0, spin: 0, wobble: 0, squash: 0, heave: 0, lift: 0, lean: 0, look: 0, nod: 0, steer: 0, hop: 0 };
 }
 
 const clamp = (x: number, lo: number, hi: number) => (x < lo ? lo : x > hi ? hi : x);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+// ---------------------------------------------------------------- finish reactions
+/**
+ * What a racer does over the line and on the podium (game/celebrate.ts picks it from the placing;
+ * Adam, 24 Sept 2026): procedural, on the same chassis and morph targets as the driving, no model
+ * files. Joyful for the podium places and a Knockout's safe ones (champion: a crouch, a leap with a
+ * full turn in the air, fist pumps and hops; cheer: a hop with a twist, then a big wave; bounce: two
+ * happy hops, a nodded yes and a wiggle; relief: a phew, a perk-up, one fist pump and a look back at
+ * the ones behind), friendly for the rest (shrug: shoulders up, a head tilt and a nod; deflated: a
+ * sag with the head down, a slow head shake, then chin up and a nod: next time). G-rated, never
+ * mocking. Render only: the sim never sees it.
+ */
+export type Reaction = 'champion' | 'cheer' | 'bounce' | 'relief' | 'shrug' | 'deflated';
+export const REACTIONS: readonly Reaction[] = Object.freeze(['champion', 'cheer', 'bounce', 'relief', 'shrug', 'deflated']);
+/** Seconds each reaction's main move lasts; after it a gentle idle in the same mood carries on. */
+export const REACTION_SECONDS: Readonly<Record<Reaction, number>> = Object.freeze({ champion: 3.2, cheer: 3, bounce: 2.6, relief: 2.9, shrug: 2.2, deflated: 3.2 });
+
+const TAU = Math.PI * 2;
+const sstep = (a: number, b: number, x: number): number => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
+/** a smooth hump: 0 outside [a, b], half a sine inside */
+const hump = (x: number, a: number, b: number): number => (x <= a || x >= b ? 0 : Math.sin((Math.PI * (x - a)) / (b - a)));
+/** up over [a, b], held, down over [c, d] */
+const hold = (x: number, a: number, b: number, c: number, d: number): number => sstep(a, b, x) * (1 - sstep(c, d, x));
+/** a sine of `hz` from `a` to `b`, faded in and out */
+const wave = (x: number, a: number, b: number, hz: number, phase = 0): number =>
+  (x <= a || x >= b ? 0 : Math.sin(TAU * hz * (x - a) + phase) * hold(x, a, a + 0.2, b - 0.3, b));
+
+/**
+ * A reaction's offsets `t` seconds in (angles in rad, +X the kart's right, as AnimPose; `hop` and
+ * `squash` as AnimPose), written into `out` (only the fields a reaction moves). Pure.
+ */
+export function reactionPose(kind: Reaction, t: number, out: AnimPose): AnimPose {
+  out.roll = 0; out.pitch = 0; out.yaw = 0; out.spin = 0; out.squash = 0; out.lean = 0; out.look = 0; out.nod = 0; out.hop = 0;
+  const tail = sstep(REACTION_SECONDS[kind] - 0.3, REACTION_SECONDS[kind] + 0.3, t);
+  switch (kind) {
+    case 'champion': {
+      // crouch, leap with one whole turn in the air, land, then fist pumps and two little hops
+      const crouch = hold(t, 0, 0.2, 0.26, 0.36), u = (t - 0.36) / 0.6;
+      out.squash = -0.13 * crouch + 0.1 * hump(t, 0.3, 0.55) - 0.15 * hump(t, 0.98, 1.24) - 0.07 * (hump(t, 2.2, 2.35) + hump(t, 2.9, 3.05));
+      out.hop = 0.95 * hump(t, 0.32, 1.0) + 0.24 * (hump(t, 1.9, 2.25) + hump(t, 2.6, 2.95));
+      out.spin = u > 0 && u < 1 ? TAU * u * u * u * (u * (u * 6 - 15) + 10) : 0;
+      out.pitch = -0.07 * hump(t, 0.3, 0.7) + 0.05 * hump(t, 0.98, 1.2);
+      out.nod = 0.2 * crouch - 0.3 * hold(t, 0.4, 0.55, 0.85, 1.0) + 0.1 * wave(t, 1.25, 3.2, 2.2);
+      out.lean = 0.33 * wave(t, 1.25, 3.2, 2.2);
+      out.roll = 0.05 * wave(t, 1.25, 3.2, 2.2);
+      out.look = 0.25 * wave(t, 1.3, 3.2, 0.7);
+      break;
+    }
+    case 'cheer': {
+      // a hop with a twist in the air (no full turn), then a big side-to-side wave
+      const crouch = hold(t, 0, 0.18, 0.22, 0.32);
+      out.squash = -0.09 * crouch + 0.08 * hump(t, 0.28, 0.48) - 0.12 * hump(t, 0.78, 0.98);
+      out.hop = 0.5 * hump(t, 0.28, 0.82);
+      out.yaw = t > 0.3 && t < 0.82 ? 0.38 * Math.sin((TAU * (t - 0.3)) / 0.52) : 0;
+      out.nod = 0.15 * crouch - 0.12 * hold(t, 0.9, 1.1, 2.8, 3.0);
+      out.lean = 0.3 * wave(t, 1.0, 3.0, 1.5);
+      out.look = -0.18 * wave(t, 1.0, 3.0, 1.5);
+      out.roll = 0.05 * wave(t, 1.0, 3.0, 1.5);
+      break;
+    }
+    case 'bounce': {
+      // two quick happy hops, a nodded yes-yes, a wiggle
+      out.hop = 0.32 * (hump(t, 0.12, 0.46) + hump(t, 0.6, 0.94));
+      out.squash = 0.06 * (hump(t, 0.06, 0.18) + hump(t, 0.54, 0.66)) - 0.1 * (hump(t, 0.44, 0.6) + hump(t, 0.92, 1.1));
+      out.nod = 0.22 * wave(t, 1.1, 2.3, 3);
+      out.roll = 0.07 * wave(t, 1.2, 2.6, 2.5);
+      out.lean = 0.12 * wave(t, 1.2, 2.6, 2.5, Math.PI / 2);
+      break;
+    }
+    case 'relief': {
+      // phew (a sag, head down), perk up, one fist pump with a little hop, a look back at the ones behind
+      const sag = hold(t, 0, 0.3, 0.55, 0.8);
+      out.squash = -0.08 * sag + 0.06 * hump(t, 0.7, 1.1) - 0.06 * hump(t, 1.45, 1.62);
+      out.nod = 0.28 * sag - 0.2 * hump(t, 0.75, 1.25);
+      out.hop = 0.22 * hump(t, 1.15, 1.5);
+      out.lean = 0.35 * hump(t, 1.2, 1.75);
+      out.look = 0.5 * hold(t, 1.85, 2.1, 2.55, 2.85);
+      break;
+    }
+    case 'shrug': {
+      // shoulders up (the body lifts), a head tilt, down again, then a friendly nod
+      const up = hold(t, 0.05, 0.25, 0.65, 0.85);
+      out.squash = 0.07 * up - 0.03 * hump(t, 0.8, 1.0);
+      out.lean = 0.14 * up;
+      out.look = 0.12 * up;
+      out.roll = 0.03 * up;
+      out.nod = -0.08 * up + 0.14 * wave(t, 1.1, 2.2, 2);
+      out.lean += 0.04 * Math.sin(TAU * 0.6 * t) * tail;
+      return out;
+    }
+    case 'deflated': {
+      // a sag with the head down, a slow head shake, then chin up and a nod: next time
+      const sag = sstep(0, 0.8, t) * (1 - sstep(2.0, 2.6, t));
+      out.squash = -0.1 * sag + 0.04 * hump(t, 2.2, 2.6);
+      out.nod = 0.32 * sag - 0.08 * hold(t, 2.3, 2.5, 2.8, 3.1) + 0.12 * hump(t, 2.75, 3.1);
+      out.pitch = 0.03 * sag;
+      out.lean = -0.06 * sag;
+      out.look = 0.28 * wave(t, 0.9, 2.0, 1.1);
+      return out;
+    }
+  }
+  // the joyful ones carry on bobbing and swaying
+  out.squash += 0.022 * Math.sin(TAU * 1.7 * t) * tail;
+  out.lean += 0.08 * Math.sin(TAU * 0.85 * t) * tail;
+  return out;
+}
 
 /** What the animation needs from the kart's constants (both render-only reads). */
 export interface AnimKartConsts { hitSpinSeconds: number; driftVisualSlip: number }
@@ -242,12 +350,27 @@ export class KartAnim {
   private spinDir = 1;
   private lastTrick = false;
   private trickDir = 1;
+  /** the finish reaction playing (null: none) and the clock it started at; its offsets on the last two ticks */
+  private reaction: Reaction | null = null;
+  private reactAt = 0;
+  private readonly rPrev = newPose();
+  private readonly rCurr = newPose();
 
   constructor(c: AnimKartConsts, seed = 0, tuning: KartAnimTuning = KART_ANIM) {
     this.c = c;
     this.t = tuning;
     this.phase = seed * 2.399963; // the golden angle: any number of karts, all out of step
   }
+
+  /** Start a finish reaction from the next tick (null stops it). A new one starts over from its beginning. */
+  react(kind: Reaction | null): void {
+    this.reaction = kind;
+    this.reactAt = this.clock;
+    if (!kind) { const a = this.rPrev, b = this.rCurr; a.roll = a.pitch = a.yaw = a.spin = a.squash = a.lean = a.look = a.nod = a.hop = 0; b.roll = b.pitch = b.yaw = b.spin = b.squash = b.lean = b.look = b.nod = b.hop = 0; }
+  }
+
+  /** The reaction playing, if any. */
+  get reacting(): Reaction | null { return this.reaction; }
 
   /** One sim tick: `s` is the kart after the step, `input` what it drove on. Reads both, writes neither. */
   tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number): void {
@@ -256,6 +379,13 @@ export class KartAnim {
     prev.roll = curr.roll; prev.pitch = curr.pitch; prev.yaw = curr.yaw; prev.spin = curr.spin; prev.wobble = curr.wobble;
     prev.squash = curr.squash; prev.lean = curr.lean; prev.look = curr.look; prev.nod = curr.nod; prev.steer = curr.steer;
     this.clock += dt;
+    // the finish reaction's offsets this tick, on its own layer (a whole turn, done, drops out of both ends: no unwinding)
+    const ra = this.rPrev, rb = this.rCurr;
+    ra.roll = rb.roll; ra.pitch = rb.pitch; ra.yaw = rb.yaw; ra.spin = rb.spin; ra.squash = rb.squash; ra.lean = rb.lean; ra.look = rb.look; ra.nod = rb.nod; ra.hop = rb.hop;
+    if (this.reaction) {
+      reactionPose(this.reaction, this.clock - this.reactAt, rb);
+      if (ra.spin - rb.spin > Math.PI) ra.spin -= TAU; else if (rb.spin - ra.spin > Math.PI) ra.spin += TAU;
+    }
 
     const x = s.position[0], y = s.position[1], z = s.position[2];
     const moved = this.started ? Math.hypot(x - this.lastX, z - this.lastZ) : 0;
@@ -413,22 +543,25 @@ export class KartAnim {
    * The pose between the last two ticks at `alpha` (0..1), into `out`. With `reduced` (reduced
    * motion) everything is scaled down and the hit's turn is a small wobble; the drift's own slip
    * stays, since it says which way the kart is sliding. The squash spring shows as the whole
-   * kart's squash (`squashShare` of it) and the body sinking on its springs (`heave`).
+   * kart's squash (`squashShare` of it) and the body sinking on its springs (`heave`). A finish
+   * reaction (react) is added on top, scaled down the same with reduced motion, its leap low and
+   * its turn in the air left out.
    */
   pose(alpha: number, reduced: boolean, out: AnimPose): AnimPose {
-    const a = this.prev, b = this.curr, t = this.t;
+    const a = this.prev, b = this.curr, t = this.t, ra = this.rPrev, rb = this.rCurr;
     const k = reduced ? t.reducedScale : 1;
-    out.roll = lerp(a.roll, b.roll, alpha) * k;
-    out.pitch = lerp(a.pitch, b.pitch, alpha) * k;
-    out.spin = reduced ? 0 : lerp(a.spin, b.spin, alpha);
+    out.roll = (lerp(a.roll, b.roll, alpha) + lerp(ra.roll, rb.roll, alpha)) * k;
+    out.pitch = (lerp(a.pitch, b.pitch, alpha) + lerp(ra.pitch, rb.pitch, alpha)) * k;
+    out.spin = reduced ? 0 : lerp(a.spin, b.spin, alpha) + lerp(ra.spin, rb.spin, alpha);
     out.wobble = reduced ? lerp(a.wobble, b.wobble, alpha) : 0;
-    out.yaw = lerp(a.yaw, b.yaw, alpha);
-    const squash = lerp(a.squash, b.squash, alpha) * k;
+    out.yaw = lerp(a.yaw, b.yaw, alpha) + lerp(ra.yaw, rb.yaw, alpha) * k;
+    const squash = (lerp(a.squash, b.squash, alpha) + lerp(ra.squash, rb.squash, alpha)) * k;
     out.squash = squash * t.squashShare;
     out.heave = squash * t.heavePerSquash;
-    out.lean = lerp(a.lean, b.lean, alpha) * k;
-    out.look = lerp(a.look, b.look, alpha) * k;
-    out.nod = lerp(a.nod, b.nod, alpha) * k;
+    out.lean = (lerp(a.lean, b.lean, alpha) + lerp(ra.lean, rb.lean, alpha)) * k;
+    out.look = (lerp(a.look, b.look, alpha) + lerp(ra.look, rb.look, alpha)) * k;
+    out.nod = (lerp(a.nod, b.nod, alpha) + lerp(ra.nod, rb.nod, alpha)) * k;
+    out.hop = lerp(ra.hop, rb.hop, alpha) * k;
     out.steer = lerp(a.steer, b.steer, alpha);
     out.lift = t.halfTrack * Math.abs(Math.sin(out.roll)) + t.halfBase * Math.abs(Math.sin(out.pitch));
     return out;

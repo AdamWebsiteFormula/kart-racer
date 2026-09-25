@@ -100,3 +100,13 @@ export function knockoutWinner(series: KnockoutState): string | undefined {
   if (!isDone(series)) return undefined;
   return Object.entries(series.placings).find(([, p]) => p === 1)?.[0];
 }
+
+/**
+ * The podium once the series is done (the ceremony, design §9): the Grand Prix table's top three,
+ * or the Knockout's placings 1 to 3; empty while it runs.
+ */
+export function podiumOf(series: SeriesState): string[] {
+  if (!isDone(series)) return [];
+  if (series.kind === 'grandPrix') return grandPrixTable(series).rows.slice(0, 3).map((r) => r.racerId);
+  return Object.entries(series.placings).filter(([, p]) => p >= 1 && p <= 3).sort((a, b) => a[1] - b[1]).map(([id]) => id);
+}

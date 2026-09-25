@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResults, createGrandPrix, createKnockout, grandPrixTable, isDone, knockoutWinner, nextRace, starThresholdsFor } from './series.ts';
+import { applyResults, createGrandPrix, createKnockout, grandPrixTable, isDone, knockoutWinner, nextRace, podiumOf, starThresholdsFor } from './series.ts';
 import type { RaceResults, RacerConfig } from './types.ts';
 
 const racers: RacerConfig[] = Array.from({ length: 8 }, (_, i) => ({ racerId: `r${i}`, archetype: 'medium', isPlayer: i === 0 }));
@@ -86,5 +86,25 @@ describe('Knockout', () => {
     const ko = createKnockout({ id: 'k1', trackIds: ['a', 'b', 'c'] }, racers, 150, 3);
     applyResults(ko, results(ids));
     expect(knockoutWinner(ko)).toBeUndefined();
+  });
+});
+
+describe('the podium (the ceremony after a series)', () => {
+  it('a Grand Prix: the table\'s top three once the cup is done, none before', () => {
+    const gp = createGrandPrix({ id: 'sunrise', trackIds: ['a', 'b'] }, racers, 150, 1);
+    applyResults(gp, results(['r3', 'r1', 'r0', 'r2', 'r4', 'r5', 'r6', 'r7']));
+    expect(podiumOf(gp)).toEqual([]);
+    applyResults(gp, results(['r1', 'r3', 'r2', 'r0', 'r4', 'r5', 'r6', 'r7']));
+    expect(podiumOf(gp)).toEqual(grandPrixTable(gp).rows.slice(0, 3).map((r) => r.racerId));
+    expect(podiumOf(gp)).toEqual(['r1', 'r3', 'r2']);
+  });
+
+  it('a Knockout: placings 1, 2 and 3 once the final is run', () => {
+    const ko = createKnockout({ id: 'k', trackIds: ['a', 'b', 'c'] }, racers, 150, 1);
+    applyResults(ko, results(ids));
+    applyResults(ko, results(ids.slice(0, 6)));
+    expect(podiumOf(ko)).toEqual([]);
+    applyResults(ko, results(['r2', 'r0', 'r3', 'r1']));
+    expect(podiumOf(ko)).toEqual(['r2', 'r0', 'r3']);
   });
 });

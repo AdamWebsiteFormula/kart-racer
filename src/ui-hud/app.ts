@@ -26,7 +26,7 @@ export function reduce(s: AppState, a: AppAction): AppState {
       case 'openHowTo': return push(s, 'howTo');
       // no restart in a Grand Prix or Knockout: it redid a finished race for its points or its win
       case 'restart': return s.screen === 'racing' && s.mode !== 'grandPrix' && s.mode !== 'knockout' ? { ...s, overlays: [] } : s;
-      case 'quit': return { ...s, overlays: [], screen: 'modeSelect', seriesHasNext: false };
+      case 'quit': return { ...s, overlays: [], screen: 'modeSelect', seriesHasNext: false, podiumNext: false };
       default: return s;
     }
   }
@@ -42,7 +42,7 @@ export function reduce(s: AppState, a: AppAction): AppState {
       return { ...s, racerId: a.racerId, screen: needsCup(s) ? 'cupSelect' : needsTrack(s) ? 'trackSelect' : 'racing' };
     case 'pickCup': return s.screen === 'cupSelect' ? { ...s, cupId: a.cupId, screen: 'racing' } : s;
     case 'pickTrack': return s.screen === 'trackSelect' ? { ...s, trackId: a.trackId, screen: 'racing' } : s;
-    case 'raceFinished': return s.screen === 'racing' ? { ...s, screen: 'results', seriesHasNext: a.seriesHasNext } : s;
+    case 'raceFinished': return s.screen === 'racing' ? { ...s, screen: 'results', seriesHasNext: a.seriesHasNext, podiumNext: a.podium === true && !a.seriesHasNext } : s;
     case 'continue':
       if (s.screen === 'results') {
         if (s.mode === 'grandPrix') return { ...s, screen: 'gpTable' };
@@ -50,8 +50,10 @@ export function reduce(s: AppState, a: AppAction): AppState {
         return { ...s, screen: 'modeSelect' };
       }
       if (s.screen === 'gpTable' || s.screen === 'knockoutCut') {
-        return s.seriesHasNext ? { ...s, screen: 'racing' } : { ...s, screen: 'modeSelect', seriesHasNext: false };
+        // the series is over: its podium ceremony, then the menu (design §9)
+        return s.seriesHasNext ? { ...s, screen: 'racing' } : s.podiumNext ? { ...s, screen: 'podium' } : { ...s, screen: 'modeSelect', seriesHasNext: false };
       }
+      if (s.screen === 'podium') return { ...s, screen: 'modeSelect', seriesHasNext: false, podiumNext: false };
       return s;
     case 'pause': return s.screen === 'racing' ? push(s, 'pause') : s;
     case 'openSettings': return s.screen === 'title' || s.screen === 'modeSelect' ? push(s, 'settings') : s;
