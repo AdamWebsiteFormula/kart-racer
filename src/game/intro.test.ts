@@ -257,7 +257,7 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the course intro', (_i
 });
 
 describe('the grandstand pass', () => {
-  it('trucks down the road in front of the stand, looking along its line, the crowd sliding through the frame', () => {
+  it('trucks along the road in front of the stand, back toward the start, looking along its line, and comes to rest on the crowd', () => {
     const { scene } = introScene(TRACKS.find((d) => d.id === 'harbour-loop')!);
     const plan = planIntro(scene, 'full');
     const m = plan.moves.find((x) => x.name === 'stands')!;
@@ -272,13 +272,11 @@ describe('the grandstand pass', () => {
       const lens = scene.track.sample(st.t + along / mt, st.lat).position;
       expect(Math.abs(Math.hypot(v.pos[0] - lens[0], v.pos[2] - lens[2]) - INTRO.stands.face)).toBeLessThan(1.5);
     }
-    // it goes down the course: the stand's middle passes from ahead of the lens to beside it
+    // it trucks back toward the start line and comes to rest looking at the stand's middle
     const mid = scene.track.sample(st.t, st.lat).position;
-    const ahead = (v: IntroView) => {
-      const f = scene.track.sample(st.t, 0).tangent;
-      return (mid[0] - v.pos[0]) * f[0] + (mid[2] - v.pos[2]) * f[2];
-    };
-    expect(ahead(a)).toBeGreaterThan(10);
-    expect(Math.abs(ahead(b))).toBeLessThan(3);
+    const f = scene.track.sample(st.t, 0).tangent;
+    const ahead = (p: readonly number[]) => (mid[0] - p[0]) * f[0] + (mid[2] - p[2]) * f[2];
+    expect(ahead(b.pos)).toBeGreaterThan(ahead(a.pos) + 10);
+    expect(Math.abs(ahead(b.look))).toBeLessThan(1.5);
   });
 });

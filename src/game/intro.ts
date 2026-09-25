@@ -45,8 +45,8 @@ export interface TrackIntro {
 export interface StandSpot { t: number; lat: number; top: number; len: number }
 
 export const INTRO = Object.freeze({
-  /** seconds per move: the full intro (5.8 s) and the short one (2.5 s) */
-  full: { vista: 1.7, feature: 1.5, stands: 1.1, crane: 1.5 },
+  /** seconds per move: the full intro (5.9 s) and the short one (2.5 s) */
+  full: { vista: 1.7, feature: 1.5, stands: 1.25, crane: 1.45 },
   short: { vista: 1.1, crane: 1.4 },
   /** the title card starts to leave this many seconds into the flight (it is in from the start) */
   cardOut: { full: 4.15, short: 1.45 },
@@ -55,18 +55,19 @@ export const INTRO = Object.freeze({
   /** share of a move spent speeding up and slowing down (sine ramps, so the pace never jumps) */
   ease: { vista: [0.5, 0.5], feature: [0.3, 0.3], stands: [0.35, 0.35], crane: [0.25, 0.55] } as Record<string, readonly [number, number]>,
   /** radians the sweep banks into its curve at its middle (a drone's lean) */
-  bank: 0.055,
+  bank: 0.08,
   /** the crane's start behind the player's kart: metres back, up, and across toward the road's middle */
   crane: { back: 15, up: 9.5, across: 4, lookAhead: 9, lookUp: 0.6 },
   /**
-   * The grandstand pass: a truck along the road, down the course, from `from` to `to` metres past the
-   * stand's middle, `face` metres in front of its middle line and `up` metres over the ground, looking
-   * `lead` metres ahead of itself along the stand's line, `aimUp` over the ground: the crowd slides
-   * through the frame as the lens goes by.
+   * The grandstand pass: a truck along the road from `from` to `to` metres past the stand's middle,
+   * `face` metres in front of its middle line and `up` metres over the ground, looking `lead` metres
+   * along the stand's line from itself, `aimUp` over the ground: the crowd slides into the frame and the
+   * move comes to rest on it. It trucks back toward the start line (a stand is 10 to 35 m past it), so
+   * the start gantry and the grid stand behind the crowd and never across the lens.
    */
-  stands: { from: -15, to: 1, face: 12.5, up: [3.6, 3.2] as const, aimUp: 3, lead: 8 },
+  stands: { from: 22, to: 8, face: 12.5, up: [3.6, 3.2] as const, aimUp: 3, lead: -8 },
   /** a low move passes no balloon closer than this (m, from its middle): it is lifted over them */
-  balloonClear: 2.8,
+  balloonClear: 3.5,
   /** metres between the points a low move is laid through along the road */
   step: 3,
   /** a low move keeps this far inside the road's walls (on top of the chase camera's own margin) */
@@ -84,33 +85,33 @@ export const INTRO = Object.freeze({
  */
 export const TRACK_INTROS: Readonly<Record<string, TrackIntro>> = Object.freeze({
   'harbour-loop': {
-    vista: { from: { t: 0.975, lat: 22, up: 16 }, to: { t: 0.008, lat: -4, up: 30 }, bow: 10, drop: 75, tilt: 40 },
+    vista: { from: { t: 0.975, lat: 20, up: 16 }, to: { t: 0.008, lat: -2, up: 30 }, bow: 16, drop: 75, tilt: 60 },
     // the pier ramp on the harbor side, the crab's stretch ahead
-    feature: { name: 'pier', from: { t: 0.300, lat: -2.5, up: 3.8 }, to: { t: 0.338, lat: -1, up: 4.6 }, aim: { ahead: 28, aimUp: 2 } },
+    feature: { name: 'pier', from: { t: 0.300, lat: -2.5, up: 4.4 }, to: { t: 0.338, lat: -1, up: 5.2 }, aim: { ahead: 28, aimUp: 2 } },
   },
   'meadow-run': {
-    vista: { from: { t: 0.018, lat: 22, up: 16 }, to: { t: 0.048, lat: -4, up: 30 }, bow: 10, drop: 60, tilt: 40 },
+    vista: { from: { t: 0.018, lat: 20, up: 16 }, to: { t: 0.048, lat: -2, up: 30 }, bow: 16, drop: 60, tilt: 60 },
     // the giant goose's charge down its straight: the lens backs away down the road ahead of it as it
     // comes on honking (charging t 0.2745 → 0.2456 over this move, 16 m back to 10 m from the lens)
-    feature: { name: 'goose', from: { t: 0.258, lat: 0, up: 3.4 }, to: { t: 0.236, lat: 0, up: 3.8 }, aim: { ahead: 16, aimUp: 2 } },
+    feature: { name: 'goose', from: { t: 0.258, lat: 2.5, up: 3.4 }, to: { t: 0.236, lat: 2, up: 3.8 }, aim: { ahead: 16, aimUp: 2, aimLat: -1 } },
   },
   'canyon-rush': {
-    vista: { from: { t: 0.975, lat: 22, up: 17 }, to: { t: 0.01, lat: -4, up: 32 }, bow: 10, drop: 55, tilt: 40 },
+    vista: { from: { t: 0.975, lat: 20, up: 17 }, to: { t: 0.01, lat: -2, up: 32 }, bow: 16, drop: 55, tilt: 60 },
     // up the mine shortcut's approach to the timber portal in the cliff (the mine mouth)
     feature: { name: 'mine', from: { t: 0.321, lat: 0, up: 3.4 }, to: { t: 0.347, lat: 0, up: 3 }, branch: 'mine-tunnel', aim: { ahead: 30, aimUp: 2.6 } },
   },
   'frostbite-pass': {
-    vista: { from: { t: 0.985, lat: 22, up: 17 }, to: { t: 0.02, lat: -4, up: 32 }, bow: 10, drop: 170, tilt: 40 },
+    vista: { from: { t: 0.985, lat: 20, up: 17 }, to: { t: 0.02, lat: -2, up: 32 }, bow: 16, drop: 170, tilt: 60 },
     // up the road under the yeti's ledge as it winds up and throws: the snowball lands ahead and rolls at the lens
     feature: { name: 'yeti', from: { t: 0.584, lat: 2, up: 3.4 }, to: { t: 0.604, lat: 1, up: 3.8 }, aim: { ahead: 30, aimUp: 3.5, aimLat: -7 } },
   },
   'boardwalk-nights': {
-    vista: { from: { t: 0.075, lat: 22, up: 16 }, to: { t: 0.11, lat: -4, up: 28 }, bow: 8, drop: 55, tilt: 40 },
+    vista: { from: { t: 0.075, lat: 20, up: 16 }, to: { t: 0.11, lat: -2, up: 28 }, bow: 13, drop: 55, tilt: 60 },
     // the neon loop-the-loop, side on as the karts see it
     feature: { name: 'loop', from: { t: 0.43, lat: -16, up: 7 }, to: { t: 0.452, lat: -17, up: 9 }, aim: 'loop', eyes: 'free' },
   },
   'skyline-circuit': {
-    vista: { from: { t: 0.978, lat: 22, up: 14 }, to: { t: 0.012, lat: -4, up: 26 }, bow: 10, drop: 100, tilt: 40 },
+    vista: { from: { t: 0.978, lat: 20, up: 14 }, to: { t: 0.012, lat: -2, up: 26 }, bow: 16, drop: 100, tilt: 60 },
     // along the rail between the islands
     feature: { name: 'rail', from: { t: 0.49, lat: 0, up: 3.2 }, to: { t: 0.53, lat: 0, up: 3.6 }, branch: 'sky-rail', aim: { ahead: 26, aimUp: 1 } },
   },
@@ -319,7 +320,7 @@ function vistaMove(sc: IntroScene, v: TrackIntro['vista'], start: number, secs: 
   // bow to the right of the line a → b (right = up × forward); Mirror mode bows the other way
   const dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz) || 1, side = track.def.mirrored ? -1 : 1;
   const mid = lerp3(a, b, 0.5);
-  mid[0] += (dz / l) * v.bow * side; mid[2] += (-dx / l) * v.bow * side;
+  mid[0] += (dz / l) * v.bow * share * side; mid[2] += (-dx / l) * v.bow * share * side;
   const far = sc.farLandmark;
   // no landmark: look on up the start straight
   const end: Vec3 = far ? [far[0], far[1] - v.drop, far[2]] : spotAt(track, { t: v.to.t + 150 / track.length, lat: 0, up: 10 });

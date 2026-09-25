@@ -208,7 +208,7 @@ describe.each(TRACKS.flatMap((d) => [[d.id, d], [`${d.id} mirrored`, mirrored(d)
           if (top?.face && top.face.normal.y > 0.2) bad = `${where}: under a surface`;
         }
         if (!bad && p.y < sea + CAM.seaClear - 1e-6) bad = `${where}: ${(p.y - sea).toFixed(2)} m over the sea`;
-        if (!bad) for (const b of balloons) if (b.distanceTo(p) < 2.2) { bad = `${where}: ${b.distanceTo(p).toFixed(2)} m from a balloon`; break; }
+        if (!bad) for (const b of balloons) if (b.distanceTo(p) < 3) { bad = `${where}: ${b.distanceTo(p).toFixed(2)} m from a balloon`; break; }
         // the creatures and the hazards where the scene draws them now
         if (!bad && movers.length) {
           session.frame(0, DT, false, intro.sceneTime(session.state.time));
