@@ -2,26 +2,23 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
-## State at 25 Sept 2026, 16:00 EDT (read this first)
+## State at 25 Sept 2026, 19:15 EDT (read this first)
 
-**Model limit:** the account hit its weekly Opus limit at ~15:40 EDT (resets 30 Sept, 20:00 EDT). Opus subagents fail with HTTP 429; use `model: "sonnet"` or `"haiku"` for helpers.
+**Model limit:** the account hit its weekly Opus limit at ~15:40 EDT (resets 30 Sept, 20:00 EDT). Opus subagents fail with HTTP 429; helpers run on `model: "sonnet"` (worked all evening) or `"haiku"`.
 
-**Live on main (all verify-green, pushed):**
-- All eight racers are rigged racers from parts (public/models/racers/<id>/{driver,body,wheel}.glb, manifest.json): IK seats, spinning and steering wheels, head turns, arm gestures, flames from measured pipe mouths.
-- The stylized-PBR look is the default (look.ts DEFAULT_LOOK 'pbr'; `?look=toon` for the old one); karts take the world's sun and sky light and receive shadows.
-- New boost flames and drift sparks (vfx-juice jet.ts, flames.ts).
-- Racer + kart combos: the sim (kart-controller/karts.ts, K1), the fairness gate (K3, Hard AI, option A) and the Racer and Kart screens (K4, K5) are on main behind `UI.kartPick` (off). Plan: docs/plans/kart-combos.md.
-- Creatures parked (docs), no mph readout, controls strip only in the first countdown.
-
-**CI lesson (25 Sept):** a push is live only when the Deploy to GitHub Pages run is green. From 13:46 to 18:35 EDT every run failed on allocation.test.ts (CI kept 68 B a frame, limit 64) and the live game stayed at c41783c while submit-score v19 (v6) was already live, so live scores were refused. Fixed by 569438c (limit 96 for now; a helper is fixing the real retention). Check `gh run list` after every push.
+**Live and checked on the website (Deploy runs green, live bundle inspected):**
+- All eight racers are rigged racers from parts, in low-back karts so every driver shows from the chase camera.
+- Any racer in any kart is ON (K1-K7): Racer → Kart screen with the 3D racer-in-kart hero and live stat bars; `?nokarts` turns it off. Leaderboard stores the kart (migration kart_id, submit-score v19, CLIENT_VERSION 6).
+- The stylized-PBR look is the default (`?look=toon` for the old); karts take the world's light and receive shadows.
+- Baked soft shading at load (track-builder/mesh/bake.ts: AO + the fixed sun's shadow into vertex colors; decor receives shadows), MKW-style height haze in each sky's horizon color, ground relief to 320 m, furrowed Meadow fields, hummocked Skyline islands.
+- New boost flames and drift sparks; rivals stay solid near the camera like MKW (CAM.kartFade 1.3 m).
+- allocation.test.ts FRAME_GROWTH_BYTES is 96 (no leak: heap flat over 80,000 frames; CI reads ~1.15x the Mac's 59-62 B).
 
 **Waiting:**
-1. **Low-back kart bodies: DONE and live 25 Sept ~17:00 EDT** (seven new bodies; every driver shows from the chase camera; Otto kept his). Rivals also stay solid near the camera now, as in MKW (CAM.kartFade 1.3 m).
-2. **Kart column + v6 score checker (K2): DONE and live 25 Sept ~17:40 EDT.** Migration kart_id applied (Adam's OK in chat), game CLIENT_VERSION 6 pushed, submit-score v19 (core-205cb26e8245084a pinned at 7236c92); smoke test: v5 → 400 reload, no kart → 400 unknown kart, kart + bad log → 422.
-3. **K6:** main.ts ignores `RacePlan.kartId`; draw the chosen racer in the chosen kart (buildRiggedTemplate with the racer's driver and the kart owner's body and wheel), the turntable on the Kart screen, `RaceOver.kartId`, "Pip in the Snack Truck" on board rows. Then K7: `UI.kartPick` on.
-4. **Sound judge pass after 20:00 EDT** (Adam: "you pick the sounds, highest quality"): the audition pack's NOTES.md §6 (/Users/Adam/Desktop/rascal-rally-audio-audition-2026-09-25/), Gemini Pro; winners into the game; mini-turbo tier 1 and 2 need new takes. A session cron was set for 20:07; a new session must run it by hand.
-5. **World shading (Adam: "shading and shadows need to be for more things than just the karts"):** decor instancers receive shadows; ambient occlusion (pmndrs postprocessing) under karts and where things meet the ground; softer shadow edges; check the cost (fps.mjs).
-6. PBR polish list (from the look builder): faceted low-poly props, the lawn past ~40 m, far curb stripes, pale horizons, Boardwalk planks and snow roads.
+1. **Sound judge pass after 20:00 EDT** (Adam: "you pick the sounds, highest quality"): the audition pack's NOTES.md §6 (/Users/Adam/Desktop/rascal-rally-audio-audition-2026-09-25/; run from ~/.cache/rascal-ear/audition-2026-09-25/), Gemini Pro (6 requests), then winners into public/audio + scripts/elevenlabs/catalog.ts (NOTES §7); Lyria songs need a CREDITS row; mini-turbo tier 1 and 2, GO and item-get need new takes.
+2. **Wheel suspension** (Adam: "Will the wheels have shocks?"): today the body heaves, rolls and pitches on springs and each wheel bobs with it; missing: each wheel following the road under it, and visible shocks squeezing.
+3. **Polish:** the Kart screen's 3D hero is small (MKW shows the kart big); a kart icon on board rows; alt paints on combos; the PBR list (faceted low-poly props, far curb stripes, Boardwalk planks and snow roads); Meadow's new fields not yet eyeballed in place.
+4. **Trailer re-cut** with the new racers, look and sounds (scripts/trailer/).
 
 **Credits:** Higgsfield ≈ 13 left. Gemini Pro resets 00:00 UTC.
 
