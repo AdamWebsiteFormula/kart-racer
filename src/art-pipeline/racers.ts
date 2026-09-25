@@ -17,9 +17,11 @@ const UP = unit([0, 1, -0.3]);
 /**
  * Exhaust (design §5: the exhaust burns in the racer's colour). Where each pipe's mouth sits, the
  * way it points (back and a little up; Boulder's truck stacks point up), and the flame colour:
- * the racer's accent, or their second colour where the accent is too dark to burn.
+ * the racer's accent, or their second colour where the accent is too dark to burn. `splay`: how
+ * far a side pipe turns out (SPLAY when absent; 0 for pipes measured on a racer's body, which point
+ * where they point: models/racers/manifest.json body.exhaust).
  */
-export interface Exhaust { ports: readonly V3[]; dir: V3; flame: string; size?: number }
+export interface Exhaust { ports: readonly V3[]; dir: V3; flame: string; size?: number; splay?: number }
 
 /** How far a side pipe turns outward, so a pair of flames makes a V the chase camera can see. */
 const SPLAY = 0.35;
@@ -27,7 +29,7 @@ const SPLAY = 0.35;
 /** The way one pipe points: the exhaust's direction, turned outward for a pipe off the centre line. */
 export function portDir(e: Exhaust, p: V3): V3 {
   const side = p[0] > 0.01 ? 1 : p[0] < -0.01 ? -1 : 0;
-  return unit([e.dir[0] + side * SPLAY, e.dir[1], e.dir[2]]);
+  return unit([e.dir[0] + side * (e.splay ?? SPLAY), e.dir[1], e.dir[2]]);
 }
 
 const Y_AXIS = new Vector3(0, 1, 0);

@@ -15,6 +15,17 @@ export const isBodyId = (id: unknown): id is BodyId => BODY_IDS.includes(id as B
 /** Where a driver sits: their cut (the hips) lands at `y`, centred at `z`, down inside the cockpit rim. */
 export const SEAT = Object.freeze({ y: 0.6, z: -0.14 });
 
+/**
+ * Where each shared body holds a rigged driver (rigged.ts seatDriver, the same frame as the racers'
+ * manifest: +X the driver's left): the hip point, the hands on its steering wheel at ten and two (the
+ * wheel is built below at SEAT.z + 0.36, 0.12 m round, its face turned 0.9 rad up toward the driver) and
+ * the feet down in its nose. Tuned on renders of a rigged driver in each (25 Sept 2026).
+ */
+export const SEATS: Readonly<Record<Exclude<BodyId, 'standard'>, { seat: [number, number, number]; grips: [[number, number, number], [number, number, number]]; feet: [[number, number, number], [number, number, number]] }>> = Object.freeze({
+  classic: { seat: [0, 0.5, SEAT.z - 0.04], grips: [[0.104, 0.877, SEAT.z + 0.397], [-0.104, 0.877, SEAT.z + 0.397]], feet: [[0.13, 0.32, 0.46], [-0.13, 0.32, 0.46]] },
+  buggy: { seat: [0, 0.56, SEAT.z - 0.04], grips: [[0.104, 0.927, SEAT.z + 0.397], [-0.104, 0.927, SEAT.z + 0.397]], feet: [[0.13, 0.44, 0.44], [-0.13, 0.44, 0.44]] },
+});
+
 /** Each racer's two colours (design §4), which the shared bodies wear. */
 export const KART_COLOURS: Readonly<Record<string, { primary: string; secondary: string }>> = Object.freeze({
   pip: { primary: '#2ec4b6', secondary: '#ff6f61' },

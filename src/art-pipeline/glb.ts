@@ -1,14 +1,17 @@
 // Racer models from files (made with AI image-to-3D, listed in public/models/manifest.json).
 // Loaded once at boot; a racer without a model, or before its model arrives, keeps its
 // code-built kart (racers.ts). Every model is fitted to the kart footprint: facing +Z,
-// centred on the kart, wheels on y = 0, one uniform scale.
+// centred on the kart, wheels on y = 0, one uniform scale. A racer listed in
+// public/models/racers/manifest.json is built from its parts instead (rigged.ts: a skinned driver,
+// its kart body and four wheels, one skinned mesh); its fused file stays the fallback.
 import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, Source, type Material, type MeshStandardMaterial, type Object3D, type Texture } from 'three';
-import { SEAT } from './bodies.ts';
+import { SEAT, SEATS, type BodyId } from './bodies.ts';
 import { paintFor, repaintPixels, type PaintRule } from './paints.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
 import type { V3 } from './model.ts';
 import { MODEL_WHEELS, rigKart } from './rig.ts';
+import { buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
 import { atOnce, type Schedule } from '../performance/loadQueue.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 
@@ -36,10 +39,14 @@ export function fitToKart(min: V3, max: V3, fit = KART_FIT): { scale: number; of
 /** The racer models: load them once, then hand out clones that share geometry and materials. */
 export class RacerModels {
   private readonly templates = new Map<string, Group>();
+  /** racers built from parts (rigged.ts), by id */
+  private readonly rigs = new Map<string, RiggedTemplate>();
   private loading: Promise<void> | null = null;
   private list: Promise<ModelManifest | null> | null = null;
   /** the manifest once in (null: not yet, or none) */
   private manifest: ModelManifest | null = null;
+  /** the parts manifest's usable entries once in (empty: none) */
+  private parts: PartsManifest = {};
   private listFailed = false;
   /** racers not started yet, the most wanted first (want() puts a race's own racers at the front) */
   private todo: string[] | null = null;
@@ -56,19 +63,30 @@ export class RacerModels {
     this.get_ = f;
   }
 
-  /** The manifest, fetched once (not through the line: it is a few hundred bytes). */
+  /**
+   * The manifests, fetched once (not through the line: a few hundred bytes each): the fused model files
+   * and the racers built from parts. The list is every racer in either (a racer only in the parts one
+   * has no fused fallback). Resolves to the fused manifest, or an empty one when only parts are listed.
+   */
   private files(): Promise<ModelManifest | null> {
-    this.list ??= this.get_(`${this.base}models/manifest.json`)
-      .then((r) => (r.ok ? r.json() as Promise<ModelManifest> : null))
-      .catch(() => null)
-      .then((m) => {
-        this.manifest = m && typeof m === 'object' ? m : null;
-        this.listFailed = this.manifest === null;
-        this.todo ??= this.manifest ? Object.keys(this.manifest).filter((id) => !this.started.has(id)) : [];
-        return this.manifest;
-      });
+    const json = (url: string) => this.get_(`${this.base}${url}`).then((r) => (r.ok ? r.json() as Promise<unknown> : null)).catch(() => null);
+    this.list ??= Promise.all([json('models/manifest.json'), json('models/racers/manifest.json')]).then(([m, p]) => {
+      this.manifest = m && typeof m === 'object' ? m as ModelManifest : null;
+      this.parts = {};
+      if (p && typeof p === 'object') for (const [id, spec] of Object.entries(p)) if (isPartsSpec(spec)) this.parts[id] = spec;
+      if (!this.manifest && Object.keys(this.parts).length) this.manifest = {};
+      this.listFailed = this.manifest === null;
+      this.todo ??= this.listed().filter((id) => !this.started.has(id));
+      return this.manifest;
+    });
     return this.list;
   }
+
+  /** Every racer with a file of either kind, fused ones first as listed. */
+  private listed(): string[] {
+    return [...new Set([...Object.keys(this.manifest ?? {}), ...Object.keys(this.parts)])];
+  }
+  private isListed(id: string): boolean { return Object.hasOwn(this.manifest ?? {}, id) || Object.hasOwn(this.parts, id); }
 
   /**
    * Fetch the manifest and every model, each file through `schedule` (performance/loadQueue.ts: a
@@ -79,7 +97,7 @@ export class RacerModels {
     this.loading ??= (async () => {
       const manifest = await this.files();
       if (!manifest) return;
-      await Promise.all(Object.keys(manifest).map(() => schedule(() => this.next())));
+      await Promise.all(this.listed().map(() => schedule(() => this.next())));
     })();
     return this.loading;
   }
@@ -93,7 +111,7 @@ export class RacerModels {
     return (async () => {
       const manifest = await this.files();
       if (!manifest) return;
-      const listed = ids.filter((id) => Object.hasOwn(manifest, id));
+      const listed = ids.filter((id) => this.isListed(id));
       const fresh = listed.filter((id) => !this.started.has(id));
       this.todo = [...fresh, ...(this.todo ?? []).filter((id) => !fresh.includes(id))];
       // each turn takes the front of the line: the wanted racers, whichever turn comes first
@@ -102,13 +120,22 @@ export class RacerModels {
     })();
   }
 
-  /** Load the most wanted racer not started yet (nothing when every one has started). */
+  /**
+   * Load the most wanted racer not started yet (nothing when every one has started): its parts when
+   * the parts manifest lists it (their three files in the one turn), else, or when a part fails, its
+   * fused model file.
+   */
   private next(): Promise<void> {
     const id = this.todo?.shift();
-    const spec = id !== undefined ? this.manifest?.[id] : undefined;
-    if (id === undefined || !spec) return Promise.resolve();
+    if (id === undefined) return Promise.resolve();
+    const spec = this.manifest?.[id], parts = this.parts[id];
+    if (!spec && !parts) return Promise.resolve();
     const p = (async () => {
+      if (parts) {
+        try { this.rigs.set(id, await this.loadParts(id, parts)); return; } catch { /* a broken part: the fused file, if there is one */ }
+      }
       try {
+        if (!spec) throw new Error('no fused file');
         const gltf = await (this.loader ??= new GLTFLoader()).loadAsync(`${this.base}${spec.url}`);
         this.templates.set(id, rigRacer(this.fitted(gltf.scene, spec.yaw ?? 0), id));
       } catch { this.failed.add(id); /* a broken file leaves that racer on its code-built kart */ }
@@ -117,10 +144,38 @@ export class RacerModels {
     return p;
   }
 
+  /** A racer's three parts, fitted and merged into one rigged template (rigged.ts), the atlas drawn on a canvas. */
+  private async loadParts(id: string, spec: PartsSpec): Promise<RiggedTemplate> {
+    const loader = (this.loader ??= new GLTFLoader());
+    const [driver, body, wheel] = await Promise.all([spec.driver.url, spec.body.url, spec.wheel.url].map((u) => loader.loadAsync(`${this.base}${u}`)));
+    const image = (o: Object3D) => {
+      let img: CanvasImageSource | null = null;
+      o.traverse((x) => { const m = (x as Mesh).material as MeshStandardMaterial | undefined; if (!img && (x as Mesh).isMesh && m?.map?.image) img = m.map.image as CanvasImageSource; });
+      return img;
+    };
+    const atlas = drawAtlas({ driver: image(driver.scene), body: image(body.scene), wheel: image(wheel.scene) }, (spec.driver.attachments ?? []).map((a) => a.color));
+    const t = buildRiggedTemplate(id, spec, { driver: driver.scene, body: body.scene, wheel: wheel.scene }, atlas?.texture ?? null, atlas?.dark ?? null);
+    // the files' own materials and textures are not drawn (the atlas holds their pictures): free them
+    for (const s of [driver.scene, body.scene, wheel.scene]) s.traverse((x) => {
+      const m = (x as Mesh).material as MeshStandardMaterial | undefined;
+      if (!m) return;
+      m.map?.dispose(); m.emissiveMap?.dispose(); m.dispose();
+      const img = m.map?.image as { close?: () => void } | undefined;
+      img?.close?.();
+    });
+    return t;
+  }
+
   /** Nothing more will come for this racer: its model is in, its file failed, or it has none (once the list is in or failed). */
   settled(racerId: string): boolean {
-    return this.templates.has(racerId) || this.failed.has(racerId) || this.listFailed || (this.manifest !== null && !Object.hasOwn(this.manifest, racerId));
+    return this.templates.has(racerId) || this.rigs.has(racerId) || this.failed.has(racerId) || this.listFailed || (this.manifest !== null && !this.isListed(racerId));
   }
+
+  /** The racer's rigged template, when it is built from parts and in. */
+  rigged(racerId: string): RiggedTemplate | undefined { return this.rigs.get(racerId); }
+
+  /** A rigged racer's pipe mouths (the manifest's, in the kart's frame; undefined: the old EXHAUST table stands). */
+  exhaust(racerId: string): { ports: V3[]; dir: V3 } | undefined { return this.rigs.get(racerId)?.spec.body.exhaust; }
 
   private fitted(scene: Object3D, yaw: number): Group {
     scene.rotation.y = yaw;
@@ -143,13 +198,16 @@ export class RacerModels {
     return holder;
   }
 
-  has(racerId: string): boolean { return this.templates.has(racerId); }
+  has(racerId: string): boolean { return this.templates.has(racerId) || this.rigs.has(racerId); }
 
   /**
    * A fresh copy of a racer's model (geometry and materials shared), or null when there is none. With
    * an alt paint (paints.ts), it wears that paint's material: the colour texture repainted once, shared.
+   * A racer built from parts comes rigged (rigged.ts makeRigged: its RiggedKart on userData.rig).
    */
   make(racerId: string, paintId?: string): Group | null {
+    const r = this.rigs.get(racerId);
+    if (r) return makeRigged(r, this.paintMaterial(racerId, paintId) ?? undefined);
     const t = this.templates.get(racerId);
     if (!t) return null;
     const g = t.clone(true);
@@ -184,6 +242,17 @@ export class RacerModels {
     return m;
   }
 
+  /**
+   * A rigged racer's driver alone, seated by IK in a shared body (bodies.ts SEATS: its seat, grips and
+   * foot rests; its steering wheel is part of the body, so it does not turn); null for a racer not built
+   * from parts. Its RiggedKart is on userData.rig.
+   */
+  seatedDriver(racerId: string, body: Exclude<BodyId, 'standard'>, paintId?: string): Group | null {
+    const r = this.rigs.get(racerId), s = SEATS[body];
+    if (!r || !s) return null;
+    return makeRiggedDriver(r, s, undefined, this.paintMaterial(racerId, paintId) ?? undefined);
+  }
+
   private readonly drivers = new Map<string, BufferGeometry>();
   private readonly driverMaterial = new Map<string, Material>();
   private readonly paints = new Map<string, Material | null>();
@@ -193,12 +262,13 @@ export class RacerModels {
   /** The racer's material in an alt paint (made once, shared by every kart and race), or null for their own colours. */
   paintMaterial(racerId: string, paintId: string | undefined): Material | null {
     const paint = paintFor(racerId, paintId);
-    const t = this.templates.get(racerId);
-    if (!paint || !t) return null;
+    const t = this.templates.get(racerId), r = this.rigs.get(racerId);
+    if (!paint || (!t && !r)) return null;
     const key = `${racerId}|${paint.id}`;
     if (this.paints.has(key)) return this.paints.get(key)!;
-    let base: Material | undefined;
-    t.traverse((o) => { if (!base && (o as Mesh).isMesh) base = (o as Mesh).material as Material; });
+    // a racer from parts repaints its one atlas (driver and kart together, as the fused files were)
+    let base: Material | undefined = r?.material;
+    t?.traverse((o) => { if (!base && (o as Mesh).isMesh) base = (o as Mesh).material as Material; });
     const std = base as MeshStandardMaterial | undefined;
     const map = std?.map ? this.repaintTexture(std.map, paint.rules) : null;
     let out: Material | null = null;

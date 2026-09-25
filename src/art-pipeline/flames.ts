@@ -37,7 +37,7 @@ const cache = new Map<string, BufferGeometry>();
  * `aPipe` which pipe (so each can flicker on its own). Cached per layout; never disposed.
  */
 export function flameGeometry(e: Exhaust): BufferGeometry {
-  const key = JSON.stringify([e.ports, e.dir]);
+  const key = JSON.stringify([e.ports, e.dir, e.splay ?? null]);
   const hit = cache.get(key);
   if (hit) return hit;
   const rings = JET_PROFILE.length, perJet = rings * (SIDES + 1);

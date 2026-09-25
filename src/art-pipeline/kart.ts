@@ -69,28 +69,37 @@ export function racerGeometry(id: string, look: KartLook = {}, withDriver = true
   return g;
 }
 
-/** The pipes a kart burns from in a look: a shared body's, else the racer's own; the flame in the racer's colour, or their alt paint's. */
+/**
+ * The pipes a kart burns from in a look: a shared body's, else the racer's own (a racer built from
+ * parts: the pipe mouths measured on its body, pointing where its pipes point, no splay); the flame in
+ * the racer's colour, or their alt paint's.
+ */
 export function exhaustFor(racerId: string, look: KartLook = {}): Exhaust | undefined {
   const own = EXHAUST[racerId];
   if (!own) return own;
   const paint = paintFor(racerId, look.paint);
   const flame = paint ? repaintHex(own.flame, paint.rules) : own.flame;
-  if (!look.body || look.body === 'standard') return paint ? { ...own, flame } : own;
-  return { ...BODY_EXHAUST[look.body], flame };
+  if (look.body && look.body !== 'standard') return { ...BODY_EXHAUST[look.body], flame };
+  const measured = RACER_MODELS.exhaust(racerId);
+  if (measured) return { ports: measured.ports, dir: measured.dir, flame, splay: 0, ...(own.size ? { size: own.size } : {}) };
+  return paint ? { ...own, flame } : own;
 }
 
 /**
  * A kart for `racerId`, origin on the ground, facing +Z: its model file when loaded, else the
  * code-built one. With a shared body, the body is code-built and the driver is cut from the model
- * file (or code-built without one): two draw calls where the model file alone is one.
- * `userData.exhaust` carries the pipes the flames burn from.
+ * file (or code-built without one): two draw calls where the model file alone is one. A racer built
+ * from parts (rigged.ts) comes rigged, one skinned mesh; in a shared body its rigged driver sits by IK
+ * on the body's seat (bodies.ts SEATS). `userData.exhaust` carries the pipes the flames burn from,
+ * `userData.rig` the rig KartView animates (rigged racers).
  */
 export function buildRacerMesh(racerId: string, look: KartLook = {}): Group | null {
-  const shared = look.body && look.body !== 'standard';
+  const shared = look.body && look.body !== 'standard' ? look.body : undefined;
   let root: Group | null = null;
   if (!shared) root = RACER_MODELS.make(racerId, look.paint);
   else {
-    const driver = RACER_MODELS.driver(racerId, look.paint);
+    const rigged = RACER_MODELS.seatedDriver(racerId, shared, look.paint);
+    const driver = rigged ?? RACER_MODELS.driver(racerId, look.paint);
     const g = racerGeometry(racerId, look, !driver);
     if (g) {
       root = new Group();
@@ -98,6 +107,7 @@ export function buildRacerMesh(racerId: string, look: KartLook = {}): Group | nu
       body.castShadow = true;
       root.add(body);
       if (driver) root.add(driver);
+      if (rigged) root.userData.rig = rigged.userData.rig;
     }
   }
   if (!root) {
