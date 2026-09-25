@@ -1,5 +1,6 @@
 // The game's build (vite build; `npm run dev` too). Tests read vitest.config.ts, the leaderboard
 // function vite.function.config.ts. Load-speed sweep, 24 Sept 2026 (docs/sops/performance.md).
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
 /**
@@ -26,12 +27,18 @@ function preloadTitleFonts(): Plugin {
   };
 }
 
+/** this checkout's root (a worktree's own, when run from one) */
+const ROOT = fileURLToPath(new URL('.', import.meta.url)).replace(/\/$/, '');
+
 export default defineConfig({
   plugins: [preloadTitleFonts()],
   // the dev server's dependency scan starts from our page only: it also crawled the reference repos in
   // refs/ (study copies, not ours), failed on their imports and skipped pre-bundling three.js altogether
   optimizeDeps: { entries: ['index.html'] },
-  server: { watch: { ignored: ['**/refs/**', '**/.claude/worktrees/**'] } },
+  // the watcher skips the study repos and the builders' worktrees under this checkout, by path from its
+  // own root: a pattern like '**/.claude/worktrees/**' also matched every file of a server run from
+  // inside a worktree, which then never saw an edit (25 Sept 2026)
+  server: { watch: { ignored: [`${ROOT}/refs/**`, `${ROOT}/.claude/worktrees/**`] } },
   build: {
     // font files stay files: inlined, the rarely used latin-ext faces put 29 KB of base64 into the
     // stylesheet that blocks the first paint (a browser only fetches a face when the page uses it)
