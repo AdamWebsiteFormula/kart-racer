@@ -438,8 +438,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { color: var(--sun); }
 /* the count and GO! sit lower and bigger than the other banners: at 24% the numeral sat on the start
    gantry's own lights, half its size (sweep, 24 Sept 2026) */
-.banner[data-kind='countdown'], .banner[data-kind='go'] { top: 31%; }
-.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, 15vw, 220px); }
+.banner[data-kind='countdown'], .banner[data-kind='go'] { top: 30%; }
+.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, 13vw, 200px); }
 .banner[data-kind='go'] .big { color: var(--grass); }
 .banner[data-kind='wrongWay'] .big { color: var(--danger); font-size: clamp(48px, 7vw, 96px); animation: pulse 0.6s ease-in-out infinite; }
 .banner[data-kind='finalLap'] .big { color: var(--coral); }

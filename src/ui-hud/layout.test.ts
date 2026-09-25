@@ -158,6 +158,6 @@ describe('sweep of every screen (24 Sept 2026)', () => {
   it('a solo run shows no place numeral, in the race or in its results; the count and GO! sit below the start lights', () => {
     expect(value('.hud.solo .place', 'display')).toBe('none');
     expect(value('.rows .row:only-child .rk', 'display')).toBe('none');
-    expect(value(".banner[data-kind='countdown']", 'top')).toBe('31%');
+    expect(value(".banner[data-kind='countdown']", 'top')).toBe('30%');
   });
 });
