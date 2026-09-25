@@ -2,8 +2,9 @@
 // (game/intro.ts): on ink while the race's shaders compile ('hold'), over the flight ('show'), on its
 // way out ('out') a beat before the countdown, then gone ('off'). The HUD waits under it (ui.ts).
 import '../intro.css';
+import { cupSvg } from '../icons.ts';
 import type { IntroCardVM } from '../screens/intro.ts';
-import { Attr, h, TextField } from './dom.ts';
+import { Attr, h, Markup, TextField } from './dom.ts';
 
 export type IntroPhase = 'off' | 'hold' | 'show' | 'out';
 
@@ -12,6 +13,9 @@ export class IntroCardView {
   private readonly plate: HTMLElement;
   private readonly driver: HTMLElement;
   private readonly face: HTMLElement;
+  private readonly chip: HTMLElement;
+  /** the cup's emblem on its chip (icons.ts cupSvg) */
+  private readonly emblem: Markup;
   private readonly cup: TextField;
   private readonly name: TextField;
   private readonly sub: TextField;
@@ -29,7 +33,11 @@ export class IntroCardView {
     this.phaseAttr.set('off');
     h('div', 'curtain', this.root);
     this.plate = h('div', 'plate', this.root);
-    this.cup = new TextField(h('span', 'cup', this.plate));
+    this.chip = h('span', 'cup-chip', this.plate);
+    const emblem = h('span', 'emblem', this.chip);
+    emblem.setAttribute('aria-hidden', 'true');
+    this.emblem = new Markup(emblem);
+    this.cup = new TextField(h('span', 'cup-name', this.chip));
     this.name = new TextField(h('span', 'name display', this.plate));
     this.sub = new TextField(h('span', 'sub', this.plate));
     this.driver = h('div', 'driver', this.root);
@@ -47,6 +55,8 @@ export class IntroCardView {
   /** A new race's card, from the top (in on ink: 'hold'). */
   show(vm: IntroCardVM): void {
     this.cup.set(vm.cup);
+    this.emblem.set(cupSvg(vm.cupId));
+    this.chip.classList.toggle('with-emblem', vm.cupId !== '');
     this.name.set(vm.name);
     this.sub.set(vm.sub);
     this.skipKeys.set(vm.skip.keys);

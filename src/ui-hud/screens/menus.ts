@@ -202,7 +202,7 @@ export function pauseMenu(twoByTwo = false, canRestart = true): MenuVM {
 }
 
 // ---- settings ----
-export type SettingId = 'masterVolume' | 'musicVolume' | 'sfxVolume' | 'quality' | 'resolutionScale' | 'reducedMotion' | 'iconLabels';
+export type SettingId = 'autoAccelerate' | 'steeringAssist' | 'masterVolume' | 'musicVolume' | 'sfxVolume' | 'quality' | 'resolutionScale' | 'fullscreen' | 'reducedMotion' | 'iconLabels';
 /** `help`: one short line on what the row does (the panel shows the focused row's, as MKW's options do) */
 export interface SettingRow { id: SettingId; label: string; value: string; fraction?: number; help: string }
 
@@ -213,8 +213,12 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
  * Graphics and Reduce motion say what the value on show does (main.ts applyRender: Auto has the
  * performance governor trade resolution, then shadows and effects, for a smooth frame rate; Low turns
  * the shadows and the post effects off). Item labels is the colorblind-safe letter on the held item (icons.ts glyph).
+ * The two driving aids come first, for a new player (MKW's options lead with theirs): game/assist.ts.
  */
 export const SETTING_HELP = Object.freeze({
+  autoAccelerate: 'The gas stays down for you from GO. Brake still works.',
+  steeringAssist: "Nudges you back from the road's edge. You still steer.",
+  fullscreen: 'Fills the whole screen. Press F anytime to switch.',
   masterVolume: 'Every sound in the game: music and effects together.',
   musicVolume: 'The songs in the menus and on every track.',
   sfxVolume: 'Engines, drifts, items, horns and menu clicks.',
@@ -226,14 +230,24 @@ export const SETTING_HELP = Object.freeze({
 /** Done's line: nothing waits to be saved */
 export const DONE_HELP = 'Changes save as you make them.';
 
-export function settingsMenu(s: Settings): { title: string; rows: SettingRow[]; focus: FocusModel } {
+const onOff = (on: boolean) => (on ? 'On' : 'Off');
+
+/**
+ * `fullscreen`: whether the page is fullscreen now (fullscreen.ts fullscreenState: the browser holds it,
+ * never the save), or null where the browser has none (iPhone Safari), and then there is no row for it.
+ */
+export function settingsMenu(s: Settings, fullscreen: boolean | null = null): { title: string; rows: SettingRow[]; focus: FocusModel } {
   const H = SETTING_HELP;
   const rows: SettingRow[] = [
+    { id: 'autoAccelerate', label: 'Auto-accelerate', value: onOff(s.autoAccelerate), help: H.autoAccelerate },
+    // (our own words, as racing games say it: the MKW option goes by Nintendo's name)
+    { id: 'steeringAssist', label: 'Steering assist', value: onOff(s.steeringAssist), help: H.steeringAssist },
     { id: 'masterVolume', label: 'Master volume', value: pct(s.masterVolume), fraction: s.masterVolume, help: H.masterVolume },
     { id: 'musicVolume', label: 'Music', value: pct(s.musicVolume), fraction: s.musicVolume, help: H.musicVolume },
     { id: 'sfxVolume', label: 'Sound effects', value: pct(s.sfxVolume), fraction: s.sfxVolume, help: H.sfxVolume },
     { id: 'quality', label: 'Graphics', value: s.quality === 'auto' ? 'Auto' : s.quality === 'high' ? 'High' : 'Low', help: H.quality[s.quality] },
     { id: 'resolutionScale', label: 'Resolution', value: pct(s.resolutionScale), fraction: (s.resolutionScale - 0.5) / 0.5, help: H.resolutionScale },
+    ...(fullscreen === null ? [] : [{ id: 'fullscreen' as const, label: 'Fullscreen', value: onOff(fullscreen), help: H.fullscreen }]),
     { id: 'reducedMotion', label: 'Reduce motion', value: s.reducedMotion === 'auto' ? 'Follow system' : s.reducedMotion === 'on' ? 'On' : 'Off', help: H.reducedMotion[s.reducedMotion] },
     // "Item letters" said what it drew, not what it is for (sweep 25 Sept 2026)
     { id: 'iconLabels', label: 'Item labels', value: s.iconLabels ? 'On' : 'Off', help: H.iconLabels },
@@ -244,9 +258,12 @@ export function settingsMenu(s: Settings): { title: string; rows: SettingRow[]; 
 const cycle = <T,>(opts: readonly T[], v: T, dir: number): T => opts[(opts.indexOf(v) + dir + opts.length) % opts.length];
 const step = (v: number, dir: number, lo: number, hi: number) => Math.round(Math.min(hi, Math.max(lo, v + dir * 0.1)) * 10) / 10;
 
-/** Left/right (dir −1/+1) or confirm (dir +1) on a settings row. Pure; returns a new object. */
+/** Left/right (dir −1/+1) or confirm (dir +1) on a settings row. Pure; returns a new object. Fullscreen is the browser's, not the save's: unchanged here (UiRoot asks the browser). */
 export function adjustSetting(s: Settings, id: SettingId, dir: -1 | 1): Settings {
   switch (id) {
+    case 'autoAccelerate': return { ...s, autoAccelerate: !s.autoAccelerate };
+    case 'steeringAssist': return { ...s, steeringAssist: !s.steeringAssist };
+    case 'fullscreen': return s;
     case 'masterVolume': case 'musicVolume': case 'sfxVolume': return { ...s, [id]: step(s[id], dir, 0, 1) };
     case 'resolutionScale': return { ...s, resolutionScale: step(s.resolutionScale, dir, 0.5, 1) };
     case 'quality': return { ...s, quality: cycle(['auto', 'high', 'low'] as const, s.quality, dir) };

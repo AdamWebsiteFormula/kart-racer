@@ -5,7 +5,7 @@ import { GO_TICK, STEP_TICKS } from '../race-manager/countdown.ts';
 import { RACE } from '../race-manager/constants.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { feedHud, hudModel, lapSplits, newHudMemory, positionTier } from './hudModel.ts';
+import { CONTROLS_STRIP, feedHud, hudModel, lapSplits, newHudMemory, positionTier } from './hudModel.ts';
 
 const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
 
@@ -226,5 +226,21 @@ describe('solo runs (sweep 24 Sept 2026)', () => {
   it('one lap has no fastest yet; none has no splits', () => {
     expect(lapSplits([360 + 4800], 360)).toEqual([{ lap: 1, time: '0:40.00', best: false }]);
     expect(lapSplits([], 360)).toEqual([]);
+  });
+});
+
+describe('the driving assists in the HUD (game/assist.ts)', () => {
+  it('Steering assist shows its badge, lit while it turns the wheel; Auto-accelerate changes the strip\'s words for the gas', () => {
+    const vm = (assist?: { autoAccelerate: boolean; steering: boolean; working: boolean }) => hudModel(race(), kart(), 4, 10, newHudMemory(), 0, defs, 0, false, undefined, assist);
+    expect([vm().steeringAssist, vm().autoGas]).toEqual(['off', false]);
+    expect(vm({ autoAccelerate: false, steering: true, working: false }).steeringAssist).toBe('on');
+    expect(vm({ autoAccelerate: false, steering: true, working: true }).steeringAssist).toBe('working');
+    // off means off, whatever the assist last did
+    expect(vm({ autoAccelerate: true, steering: false, working: true })).toMatchObject({ steeringAssist: 'off', autoGas: true });
+    expect(CONTROLS_STRIP.autoKeys).toMatch(/^Gas: automatic from GO · /);
+    expect(CONTROLS_STRIP.autoPad).toMatch(/^Gas: automatic from GO · /);
+    // the rest of the strip is the same
+    expect(CONTROLS_STRIP.autoKeys.split(' · ').slice(1)).toEqual(CONTROLS_STRIP.keys.split(' · ').slice(1));
+    expect(CONTROLS_STRIP.autoPad.split(' · ').slice(1)).toEqual(CONTROLS_STRIP.pad.split(' · ').slice(1));
   });
 });

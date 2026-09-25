@@ -181,7 +181,7 @@ describe('input while the screen changes: dropped, never queued', () => {
     t.now += 1000;
     key('Enter'); // Harbor Loop
     expect(ui.app.screen).toBe('racing');
-    ui.introCard({ cup: 'Sunrise Cup', name: 'Harbor Loop', sub: 'Quick Race · 100cc', racer: null, skip: { keys: 'k', pad: 'p' }, bg: '#000000', accent: '#ffffff' });
+    ui.introCard({ cup: 'Sunrise Cup', cupId: 'sunrise', name: 'Harbor Loop', sub: 'Quick Race · 100cc', racer: null, skip: { keys: 'k', pad: 'p' }, bg: '#000000', accent: '#ffffff' });
     t.now += 60;
     key('Enter');
     dispatchEvent(new Event('pointerdown'));

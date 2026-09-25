@@ -10,11 +10,12 @@ import { initialApp, isPaused, needsCup, needsTrack, reduce, topOverlay } from '
 import { accentOf, CAST, nameOf } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
-import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
+import { feedHud, hudModel, newHudMemory, type HudAssist, type HudMemory } from './hudModel.ts';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { UI } from './constants.ts';
 import { modeSvg } from './icons.ts';
-import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
+import { fullscreenState, toggleFullscreen } from './fullscreen.ts';
+import { isFullscreenKey, isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
 import { IntroCardView } from './render/intro.ts';
@@ -95,6 +96,8 @@ export interface RaceFrame {
   itemDefs: readonly { id: string; name: string }[];
   /** the player holds a trailable item behind the kart */
   trailing?: boolean;
+  /** the driving assists on (Settings; game/assist.ts): the strip's words for the gas, Steering assist's badge */
+  assist?: HudAssist;
 }
 
 export { medalFor, type Medal } from './screens/menus.ts';
@@ -172,6 +175,8 @@ export class UiRoot {
   private readonly onDown = (e: PointerEvent) => this.tapInRace(e);
   /** the window lost the focus mid-race (alt-tab, a click on the address bar or another window) */
   private readonly onBlur = () => { if (this.app.screen === 'racing' && !this.app.overlays.length) this.dispatch({ type: 'pause' }); };
+  /** into or out of fullscreen (F, the Settings row, Esc, the browser): Settings' row says which */
+  private readonly onFullscreen = () => { if (this.active?.key === 'settings') this.show(true); };
   /** a phone or tablet held upright: the rotate prompt covers the screen (CSS, same query) */
   private readonly upright: MediaQueryList | undefined;
   private readonly onUpright = () => this.holdIfUpright();
@@ -228,6 +233,8 @@ export class UiRoot {
     // alt-tab mid-race leaves the window on screen (no visibilitychange): the race waits under the pause,
     // as for a hidden tab, instead of the pack driving off from a kart whose keys the blur let go
     addEventListener('blur', this.onBlur);
+    // Settings' Fullscreen row shows the browser's state: Esc (or the browser) leaving it redraws the row
+    document.addEventListener('fullscreenchange', this.onFullscreen);
     this.applyTheme();
     this.usedInput('keys');
     this.show();
@@ -240,6 +247,7 @@ export class UiRoot {
     removeEventListener('pointermove', this.onMove);
     removeEventListener('pointerdown', this.onDown);
     removeEventListener('blur', this.onBlur);
+    document.removeEventListener('fullscreenchange', this.onFullscreen);
     clearTimeout(this.toastTimer);
     this.upright?.removeEventListener?.('change', this.onUpright);
     this.short?.removeEventListener?.('change', this.onShort);
@@ -425,7 +433,7 @@ export class UiRoot {
     this.playerDone = f.player.finishTick !== undefined;
     // a Time Trial's finish shows the medal its time won
     const medals = f.state.mode === 'timeTrial' ? this.host.medalTimes.get(f.state.trackId) : undefined;
-    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing, medals);
+    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing, medals, f.assist);
     this.views.hud.render(vm);
     minimapDots(f.state.karts, f.map, accentOf, this.dots);
     this.views.hud.minimap.render(f.map, this.dots, nowMs);
@@ -510,6 +518,13 @@ export class UiRoot {
       // type into the name box or move the focus on the dialog that opened; a new press counts
       if (e.repeat) { e.preventDefault(); return; }
       this.keySpent.delete(code);
+    }
+    // F: fullscreen on any screen, asked from this press (the browser wants the gesture); not while typing a
+    // name, and never a skip of the course intro
+    if (isFullscreenKey(e) && !e.repeat && (e.target as HTMLElement | null)?.tagName !== 'INPUT') {
+      e.preventDefault();
+      toggleFullscreen();
+      return;
     }
     // a key while the screen changes is dropped, not kept for later (UI.wipeMs); letters still type in the name box
     if (this.inWipe(e)) {
@@ -748,6 +763,8 @@ export class UiRoot {
   }
 
   private changeSetting(id: SettingId, dir: -1 | 1): void {
+    // Fullscreen is the browser's (never saved): asked for from this press; the row follows fullscreenchange
+    if (id === 'fullscreen') { toggleFullscreen(); this.show(true); return; }
     this.save.settings = adjustSetting(this.save.settings, id, dir);
     writeSave(this.backend, this.save);
     this.applyTheme();
@@ -904,10 +921,10 @@ export class UiRoot {
       }
       case 'trackSelect': { const vm = trackMenu(s.mode ?? 'quick', built, this.save, this.host.medalTimes); v.tracks.render(vm); this.models.set(key, vm.focus); break; }
       case 'pause': { const vm = pauseMenu(short, this.canRestart); v.pause.render(vm); this.models.set(key, vm.focus); break; }
-      case 'settings': { const vm = settingsMenu(this.save.settings); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
+      case 'settings': { const vm = settingsMenu(this.save.settings, fullscreenState()); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
       case 'unlocks': { v.unlocks.render(unlockRows(this.save)); this.models.set(key, { rows: [['back']] }); break; }
-      case 'howTo': { v.howTo.render(ITEM_DEFINITIONS); this.models.set(key, { rows: [['back']] }); break; }
+      case 'howTo': { v.howTo.render(ITEM_DEFINITIONS, this.save.settings.autoAccelerate); this.models.set(key, { rows: [['back']] }); break; }
       case 'results': case 'gpTable': case 'knockoutCut': this.renderEnd(key); break;
       case 'podium': {
         // the ceremony's overlay (the host draws the podium itself): the headline, the places, Continue

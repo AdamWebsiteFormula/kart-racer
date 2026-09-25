@@ -32,6 +32,7 @@ import type { TrackDefinition } from './track-builder/types.ts';
 import { mirrored } from './track-builder/mirror.ts';
 import { ChaseCam, fovFor, kickedFov, restPose, smoothTo } from './game/camera.ts';
 import { CourseIntro, findStand, planIntro, type IntroKind } from './game/intro.ts';
+import { DriveAssist } from './game/assist.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
@@ -202,6 +203,10 @@ let look: KartLook = {};
 let mirror = false;
 let coinCap = 10;
 let topSpeed = 25;
+/** the driving assists (Settings: Auto-accelerate, Steering assist; game/assist.ts) for the player's kart in this race */
+let assist: DriveAssist | null = null;
+/** what the HUD is told of them each frame (one object, reused) */
+const hudAssist = { autoAccelerate: false, steering: false, working: false };
 // ?mute: the game makes no sound at all, however it is played (automated checks in a browser
 // always load it so; docs/sops/audio.md)
 const MUTED = new URLSearchParams(location.search).has('mute');
@@ -286,6 +291,7 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   const kc = makeConstants(session.config.racers[Math.max(0, pi)].archetype, session.config.speedClass);
   coinCap = kc.coinCap;
   topSpeed = kc.topSpeed;
+  assist = pi >= 0 && !isAttract ? new DriveAssist(session.track, kc) : null;
   indexOf.clear();
   session.state.karts.forEach((k, i) => indexOf.set(k.racerId, i));
   listener.playerId = session.player?.racerId ?? null;
@@ -802,6 +808,9 @@ function step(now: number): void {
     for (let i = 0; i < steps; i++) {
       let live: InputState | null = null;
       if (racing) live = input.sample(SIM_DT); else input.sample(SIM_DT);
+      // the driving assists (game/assist.ts) go on the sampled input, from the state this tick starts from,
+      // before the tick quantizes and logs it: the log holds them, so a replay needs no assist
+      if (live && assist && s.player && settings) live = assist.apply(live, s.player, s.state.phase, settings, SIM_DT);
       const ev = s.tick(racing && !autopilot ? live : null);
       vfx.onTick(directFx(ev.race, ev.items, attract || podium?.showing ? null : s.player?.racerId ?? null, fxBuf, confettiFor), kartOf, nowS, reduced);
       if (!attract && s.player) {
@@ -857,10 +866,15 @@ function step(now: number): void {
   audio.engines(p, pi >= 0 ? cur.inputs[pi].throttle : 0, topSpeed, cur.state.karts, listener, racing && !ui.paused);
   if (racing && !ui.paused) audio.input(p, pi >= 0 ? cur.inputs[pi] : undefined);
   if (p && !attract) {
+    // the assists on, for the controls strip's words and Steering assist's badge (lit while it works)
+    hudAssist.autoAccelerate = settings?.autoAccelerate ?? false;
+    hudAssist.steering = settings?.steeringAssist ?? false;
+    hudAssist.working = assist?.lit ?? false;
     ui.race({
       state: cur.state, player: p, shownRank: cur.state.trackers[pi].shownRank,
       coinCap,
       map: cur.track.minimap, itemDefs, trailing: cur.items.isTrailing(pi),
+      assist: hudAssist,
     }, now);
   }
   // the governor's Low tier draws only the scenery copies in view (track-builder scene.ts cull): weak and software GPUs

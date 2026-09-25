@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
-import { ITEM_ICONS, OKABE_ITO, arrowSvg, iconSvg, itemArt, lockSvg, medalSvg, modeSvg, starIcon } from './icons.ts';
+import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
+import { ITEM_ICONS, OKABE_ITO, arrowSvg, cupSvg, iconSvg, itemArt, lockSvg, medalSvg, modeSvg, starIcon, wheelSvg } from './icons.ts';
 
 describe('item icons', () => {
   it('every item has painted art, an Okabe-Ito fallback shape and its own colourblind glyph', async () => {
@@ -77,5 +78,28 @@ describe('menu icons (sweep 25 Sept 2026: the OS emoji differed on every system,
     // the arrows take the text's color, and point each way
     expect(arrowSvg(-1)).toContain('fill="currentColor"');
     expect(arrowSvg(-1)).not.toBe(arrowSvg(1));
+  });
+});
+
+describe('cup emblems and the Steering assist badge (25 Sept 2026)', () => {
+  const EMOJI = /\p{Extended_Pictographic}/u;
+  it('every cup and Knockout set has its own emblem in the house outline, hidden from assistive tech (its name is beside it), with no ids', () => {
+    const ids = [...CUPS, ...KNOCKOUT_SETS].map((c) => c.id);
+    expect(ids).toEqual(['sunrise', 'summit', 'coastline', 'peaks']);
+    const svgs = ids.map((id) => cupSvg(id));
+    ids.forEach((id, i) => {
+      expect(svgs[i]).toMatch(new RegExp(`^<svg class="cup-svg" data-cup="${id}" viewBox="0 0 48 48" [^>]*aria-hidden="true" focusable="false">`));
+      expect(svgs[i]).not.toMatch(/\sid=|<text/);
+      expect(svgs[i]).toContain('#1b1b2f'); // the ink outline
+      expect(EMOJI.test(svgs[i]), id).toBe(false);
+    });
+    expect(new Set(svgs.map((s) => s.replace(/data-cup="\w+"/, ''))).size).toBe(ids.length);
+    expect(cupSvg('nope')).toBe('');
+  });
+
+  it('the Steering assist badge is a wheel in the house outline, hidden from assistive tech (its holder is named), with no ids', () => {
+    expect(wheelSvg()).toMatch(/^<svg class="wheel-svg" viewBox="0 0 24 24" [^>]*aria-hidden="true" focusable="false">/);
+    expect(wheelSvg()).not.toMatch(/\sid=/);
+    expect(wheelSvg()).toContain('#1b1b2f');
   });
 });

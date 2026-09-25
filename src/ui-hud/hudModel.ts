@@ -15,6 +15,20 @@ import { medalFor, type MedalTimes, type MedalWon } from './screens/menus.ts';
  *  three and the stylesheet shows one (`data-input` keys or pad, `data-touch` on), as the other prompts do. */
 export const SKIP_PROMPTS = Object.freeze({ keys: 'Press Enter for results', pad: 'Press A for results', touch: 'Tap for results' });
 
+/**
+ * The race's controls strip, in the words of the last input used (the stylesheet shows one), and with
+ * Auto-accelerate on: the gas is the kart's own from GO (before it, the gas key still earns the start boost).
+ */
+export const CONTROLS_STRIP = Object.freeze({
+  keys: 'W / ↑ gas · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause',
+  pad: 'RT gas · Left stick steer · A drift · X use item · LT brake · Start pause',
+  autoKeys: 'Gas: automatic from GO · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause',
+  autoPad: 'Gas: automatic from GO · Left stick steer · A drift · X use item · LT brake · Start pause',
+});
+
+/** The driving assists on in this race (Settings; game/assist.ts): Auto-accelerate, and Steering assist and whether it turned the wheel on the last tick. */
+export interface HudAssist { autoAccelerate: boolean; steering: boolean; working: boolean }
+
 export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'shift' | 'finish' | 'strike';
 const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, strike: 2, wrongWay: 2, finalLap: 3, shift: 3, finish: 4 };
 
@@ -113,6 +127,10 @@ export interface HudVM {
   splits: readonly LapSplit[];
   /** a Time Trial over the line: the medal its time won (its badge under FINISH!), or null */
   medal: MedalWon | null;
+  /** Steering assist: its badge by the speed readout (MKW puts an antenna on the kart), lit while it turns the wheel */
+  steeringAssist: 'off' | 'on' | 'working';
+  /** Auto-accelerate: the controls strip says the gas is automatic */
+  autoGas: boolean;
 }
 
 export interface LapSplit { lap: number; time: string; best: boolean }
@@ -154,11 +172,11 @@ export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number, tra
 /**
  * The whole HUD for one frame. `shownRank` is race-manager's debounced rank (trackers[i].shownRank),
  * so the numeral never flickers; it changes on the same frame positionChange fires. `medalTimes`: a
- * Time Trial's track's, for the medal its finish wins.
+ * Time Trial's track's, for the medal its finish wins. `assist`: the driving assists on (none if absent).
  */
 export function hudModel(
   state: RaceState, player: KartState, shownRank: number, coinCap: number, m: HudMemory, clock: number,
-  defs: readonly Def[], nowMs: number, trailing = false, medalTimes?: MedalTimes,
+  defs: readonly Def[], nowMs: number, trailing = false, medalTimes?: MedalTimes, assist?: HudAssist,
 ): HudVM {
   const rank = shownRank > 0 ? shownRank : player.rank;
   const lap = Math.min(Math.max(player.lap, 1), state.lapsTotal);
@@ -207,5 +225,7 @@ export function hudModel(
     solo,
     splits: solo ? lapSplits(state.trackers?.[state.karts.indexOf(player)]?.lapTicks ?? [], state.goTick) : NO_SPLITS,
     medal: won === 'none' ? null : won,
+    steeringAssist: !assist?.steering ? 'off' : assist.working ? 'working' : 'on',
+    autoGas: assist?.autoAccelerate ?? false,
   };
 }

@@ -1,9 +1,9 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TITLE, UI } from '../constants.ts';
-import { arrowSvg, iconFor, iconMarkup, lockSvg, medalSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
+import { arrowSvg, cupSvg, iconFor, iconMarkup, lockSvg, medalSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
-import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
+import { AUTO_GAS_NOTE, CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
 import { DONE_HELP, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
 import type { UnlockRow } from '../unlocks.ts';
@@ -291,6 +291,9 @@ export class CupView implements ScreenView {
       const b = button(grid, c.id, 'btn cup enter');
       delay(b, i * 90);
       const row = h('div', 'cup-head', b);
+      // its own emblem beside its name (icons.ts cupSvg; its name says it in words)
+      const emblem = cupSvg(c.id);
+      if (emblem) h('span', 'emblem', row).innerHTML = emblem;
       h('span', 'label', row, c.label);
       if (c.badge) {
         const bd = h('span', 'badge', row);
@@ -460,7 +463,8 @@ export class HowToView implements ScreenView {
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-label', 'How to Play');
   }
-  render(items: readonly { id: string; name: string }[]): void {
+  /** `autoGas`: Auto-accelerate is on (Settings), and the Gas row says so */
+  render(items: readonly { id: string; name: string }[], autoGas = false): void {
     clear(this.root);
     this.buttons.clear();
     const { body: box, foot } = dialog(this.root);
@@ -471,7 +475,8 @@ export class HowToView implements ScreenView {
     h('th', '', head, 'Action'); h('th', '', head, 'Keyboard'); h('th', '', head, 'Gamepad'); h('th', '', head, 'Touch');
     for (const c of CONTROLS) {
       const tr = h('tr', '', t);
-      h('td', '', tr, c.action); h('td', 'k', tr, c.keys); h('td', 'k', tr, c.pad); h('td', 'k', tr, c.touch);
+      const note = autoGas && c.gas ? ` ${AUTO_GAS_NOTE}` : '';
+      h('td', '', tr, c.action); h('td', 'k', tr, c.keys + note); h('td', 'k', tr, c.pad + note); h('td', 'k', tr, c.touch);
     }
     h('h3', '', box, 'Items');
     const grid = h('div', 'items', box);

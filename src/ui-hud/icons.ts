@@ -167,12 +167,87 @@ export function modeSvg(mode: string, dailySeed: number): string {
   return body ? `<svg class="mode-svg" data-mode="${mode}" viewBox="0 0 48 48" width="48" height="48" aria-hidden="true" focusable="false">${body}</svg>` : '';
 }
 
+// ---- cup emblems (25 Sept 2026): each Grand Prix cup and Knockout set wears its own, as MKW's cups do ----
+const SKY = '#56b4e9';
+/** a paler sky: a peak further off */
+const SKY_FAR = '#a6dcf6';
+
+/** A ray, a crest or an edge drawn twice: a fat ink stroke, then the color on it (one outline round the whole line). */
+const inked = (d: string, color: string, w: number, ink = w + 2.8) => `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${ink}" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+/** Sunrise Cup (it teaches the game): a sun coming up over a teal sea, its rays fanned over the horizon. */
+const SUNRISE = (() => {
+  let rays = '';
+  for (let i = -3; i <= 3; i++) {
+    const a = (i * 26 * Math.PI) / 180, s = Math.sin(a), c = Math.cos(a);
+    rays += `M${n1(24 + 15.5 * s)} ${n1(29 - 15.5 * c)}L${n1(24 + 21 * s)} ${n1(29 - 21 * c)}`;
+  }
+  return inked(rays, SUN, 3.4)
+    + `<path d="M10.5 29a13.5 13.5 0 0 1 27 0Z" fill="${SUN}" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>`
+    + `<rect x="3.5" y="29" width="41" height="12.5" rx="6" fill="${TEAL}" stroke="${INK}" stroke-width="2.6"/>`
+    + `<path d="M17 33.6h14M20.5 37.4h7" stroke="${SUN}" stroke-width="2.2" stroke-linecap="round"/>`
+    + `<path d="M8.5 35.6q2.2-1.7 4.4 0M35.1 35.6q2.2-1.7 4.4 0" fill="none" stroke="${PAPER}" stroke-width="1.8" stroke-linecap="round"/>`
+    + '<path d="M15.6 24.6a9.4 9.4 0 0 1 5-5.3" fill="none" stroke="#fff" stroke-opacity="0.85" stroke-width="2" stroke-linecap="round"/>';
+})();
+
+/** Summit Cup (it tests the game): a snowy peak with a coral flag on its top, a paler one behind. */
+const SUMMIT = `<g stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">`
+  + `<path d="M22 42.5 35 20l11.5 22.5Z" fill="${SKY_FAR}" stroke-width="2.6"/>`
+  + `<path d="M35 20l2.6 5-1.6 1.6-1.4-1.8-1.4 1.6-1.1-1.4Z" fill="${PAPER}" stroke-width="1.8"/>`
+  + `<path d="M3 42.5 20 11l17 31.5Z" fill="${SKY}" stroke-width="2.8"/>`
+  + `<path d="M20 11l5.2 9.6-2.8 2.8-2.5-2.6-2.6 2.4-2.5-2.6Z" fill="${PAPER}" stroke-width="2.2"/>`
+  + `<path d="M20 11V2.6" stroke-width="2.2"/><path d="M20.6 3l8.4 2.8-8.4 2.8Z" fill="${CORAL}" stroke-width="1.8"/>`
+  + '</g>'
+  + '<path d="M13.4 28.6 17.4 21.8" stroke="#fff" stroke-opacity="0.7" stroke-width="1.8" stroke-linecap="round"/>';
+
+/** Coastline Knockout (by the sea): a curling wave, its crest foaming over. */
+const COASTLINE = `<g stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">`
+  + `<path d="M3.5 42.5C4 27 13 10 28.5 8.5c9-.9 15.6 5 15.2 12.4-.4 6.6-8.2 8.9-11.6 4.6-2.2-2.8.2-6.8 3.9-5.6-4.8 3.3-6.5 11.7-3.9 22.6Z" fill="${TEAL}" stroke-width="2.8"/>`
+  + `<path d="M13.6 19.4C17.5 12.5 23 9.3 28.5 8.5c9-.9 15.6 5 15.2 12.4-.3 5-4.8 7.6-8.6 6.4 2.9-1.4 4.2-4.5 3-7.8-2.4-5.7-9.7-6.8-14.5-4.1l-1.9-2.6-2.8 3.5-2.2-1.7Z" fill="${PAPER}" stroke-width="2.2"/>`
+  + '</g>'
+  + `<path d="M8.5 37.5c2.8-8.6 7-15.2 12.6-19" fill="none" stroke="${SKY}" stroke-width="2.6" stroke-linecap="round"/>`
+  + `<circle cx="9" cy="12" r="2.2" fill="${PAPER}" stroke="${INK}" stroke-width="1.6"/><circle cx="5.4" cy="18.4" r="1.5" fill="${PAPER}" stroke="${INK}" stroke-width="1.4"/>`;
+
+/** Peaks Knockout (up in the high country): twin peaks side by side under a twinkle, one teal, one sky. */
+const TWIN_PEAKS = `<g stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">`
+  + `<path d="M2.5 42.5 16 14l13.5 28.5Z" fill="${TEAL}" stroke-width="2.8"/>`
+  + `<path d="M16 14l4.4 9.3-2.6 2.2-1.9-2.3-2 2.2-2.3-2.1Z" fill="${PAPER}" stroke-width="2"/>`
+  + `<path d="M18.5 42.5 32 14l13.5 28.5Z" fill="${SKY}" stroke-width="2.8"/>`
+  + `<path d="M32 14l4.4 9.3-2.6 2.2-1.9-2.3-2 2.2-2.3-2.1Z" fill="${PAPER}" stroke-width="2"/>`
+  + `<path d="M24 1.8l1.6 4.6 4.6 1.6-4.6 1.6-1.6 4.6-1.6-4.6-4.6-1.6 4.6-1.6Z" fill="${SUN}" stroke-width="1.6"/>`
+  + '</g>';
+
+const CUP_EMBLEMS: Readonly<Record<string, string>> = Object.freeze({ sunrise: SUNRISE, summit: SUMMIT, coastline: COASTLINE, peaks: TWIN_PEAKS });
+
+/**
+ * A Grand Prix cup's or a Knockout set's emblem (data/catalog.ts ids), or '' for none: on its card beside
+ * its name, and on the course intro's cup chip. Sized by its box (ui.css .emblem).
+ */
+export function cupSvg(id: string): string {
+  const body = CUP_EMBLEMS[id];
+  return body ? `<svg class="cup-svg" data-cup="${id}" viewBox="0 0 48 48" width="48" height="48" aria-hidden="true" focusable="false">${body}</svg>` : '';
+}
+
 /** A padlock (a locked paint, body or unlock): a gold body with a keyhole under an ink shackle. */
 export function lockSvg(): string {
   return '<svg class="lock-svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">'
     + `<path d="M7.6 11.6V8.4a4.4 4.4 0 0 1 8.8 0v3.2" fill="none" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`
     + `<rect x="4.2" y="10.4" width="15.6" height="11.8" rx="3" fill="${SUN}" stroke="${INK}" stroke-width="2.4"/>`
     + `<path d="M12 13.2a1.9 1.9 0 0 0-1 3.5l-.4 2.6h2.8l-.4-2.6a1.9 1.9 0 0 0-1-3.5Z" fill="${INK}"/>`
+    + '</svg>';
+}
+
+/**
+ * Steering assist's badge, by the race's speed readout (MKW puts a little antenna on the kart): our own
+ * steering wheel, a teal rim on three spokes round a sun hub, under the ink outline. Sized by its box.
+ */
+export function wheelSvg(): string {
+  const spokes = 'M3.6 12h5M15.4 12h5M12 15.4v5';
+  return '<svg class="wheel-svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">'
+    + `<g fill="none" stroke-linecap="round"><circle cx="12" cy="12" r="8.6" stroke="${INK}" stroke-width="5.2"/><path d="${spokes}" stroke="${INK}" stroke-width="5"/>`
+    + `<circle cx="12" cy="12" r="8.6" stroke="${TEAL}" stroke-width="2.4"/><path d="${spokes}" stroke="${TEAL}" stroke-width="2.2"/></g>`
+    + `<circle cx="12" cy="12" r="3.4" fill="${SUN}" stroke="${INK}" stroke-width="1.8"/>`
+    + '<path d="M6.4 7.6a7 7 0 0 1 4-2.6" fill="none" stroke="#fff" stroke-opacity="0.85" stroke-width="1.4" stroke-linecap="round"/>'
     + '</svg>';
 }
 

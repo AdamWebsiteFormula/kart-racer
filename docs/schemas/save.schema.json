@@ -67,6 +67,8 @@
     "settings": {
       "type": "object",
       "properties": {
+        "autoAccelerate": { "type": "boolean", "default": false, "description": "Auto-accelerate: the gas down by itself from GO (src/game/assist.ts). Never in the countdown, so the start boost stays the player's own press on the 2; the brake still brakes and reverses. Changes the player's input before it is logged, so a run replays the same." },
+        "steeringAssist": { "type": "boolean", "default": false, "description": "Steering assist: nudges the kart back from the road's edge and away from open drops (src/game/assist.ts); strong input toward an edge wins, except before a drop. Changes the player's input before it is logged, so a run replays the same." },
         "quality": { "type": "string", "enum": ["low", "high", "auto"], "default": "auto" },
         "musicVolume": { "type": "number", "minimum": 0, "maximum": 1 },
         "sfxVolume": { "type": "number", "minimum": 0, "maximum": 1 },

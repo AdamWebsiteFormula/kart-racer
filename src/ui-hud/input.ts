@@ -31,6 +31,15 @@ export function isPauseKey(code: string, key = ''): boolean {
   return code === 'Escape' || code === 'KeyP' || (!code && (key === 'Escape' || key === 'p' || key === 'P'));
 }
 
+/**
+ * Is this F, the fullscreen key on any screen (fullscreen.ts)? By code, or by key when the code is empty;
+ * never with Ctrl, Cmd or Alt (the browser's find is Ctrl+F or Cmd+F). F drives nothing (kart-controller DEFAULT_KEYS).
+ */
+export function isFullscreenKey(e: { code: string; key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  return e.code === 'KeyF' || (!e.code && (e.key === 'f' || e.key === 'F'));
+}
+
 /** Standard mapping: 0 = A (confirm), 1 = B (back), 9 = Start (back = pause in a race), 12–15 = d-pad. */
 export function navFromPad(buttons: readonly boolean[], axes: readonly number[]): NavAction | null {
   if (buttons[12] || (axes[1] ?? 0) < -UI.stickDeadZone) return 'up';
