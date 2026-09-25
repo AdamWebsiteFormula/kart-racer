@@ -1018,6 +1018,8 @@ if (import.meta.env.DEV) {
     /** dev: the course intro under way (its plan and clock), or null */
     get intro() { return intro; },
     camera, scene, acc,
+    /** dev: the PBR look's sky map (?look=pbr; null in the toon look), and a capture of the race's sky into it now */
+    skyEnv, paintSkyEnv: () => { if (session) paintSkyEnv(session); },
     /** dev: grant all six design §10 unlocks (three paints, two bodies, Mirror) to try them; saved like any earned unlock */
     unlockAll: () => ui.grantAllUnlocks(),
     /** dev: the podium ceremony on this race's track with these three (1st to 3rd), for checking it (no overlay) */
