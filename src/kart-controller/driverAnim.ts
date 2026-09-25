@@ -64,7 +64,7 @@ export const DRIVER_ANIM = Object.freeze({
   headTilt: 0.35,
 
   // --- arms: 1 hands on the wheel (IK), 0 a gesture; the blend eases at this rate (1/s)
-  armRate: 9,
+  armRate: 12,
   /** a hit: both arms up, flailing at this rate (Hz) and this much; the head wobbles */
   flailHz: 4.5,
   flail: 0.45,
@@ -76,7 +76,7 @@ export const DRIVER_ANIM = Object.freeze({
   trickTwist: 0.55,
   trickSeconds: 0.7,
   /** an item used: a throw forward, a toss back or a raise, this long */
-  throwSeconds: 0.62,
+  throwSeconds: 0.72,
   /** shoulders up this much (rad) at a full shrug */
   shrug: 0.32,
 
@@ -224,9 +224,10 @@ export function gestureFor(role: string | undefined, lookBack: boolean): ItemGes
  */
 export function itemArm(kind: ItemGesture, t: number, out: ArmPose, T = DRIVER_ANIM.throwSeconds): number {
   const u = clamp(t / T, 0, 1);
-  const off = sstep(0, 0.12, u) * (1 - sstep(0.78, 1, u));
+  const off = sstep(0, 0.1, u) * (1 - sstep(0.8, 1, u));
   if (kind === 'throw') {
-    const k = sstep(0.28, 0.55, u);
+    // wind up behind the head (held a beat so it reads), then let fly
+    const k = sstep(0.34, 0.58, u);
     mix(out.upper, AIM.windup, AIM.release, k); mix(out.fore, AIM.windupFore, AIM.releaseFore, k);
   } else if (kind === 'toss') {
     const k = sstep(0.25, 0.6, u);
