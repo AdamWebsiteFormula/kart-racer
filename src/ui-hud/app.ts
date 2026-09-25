@@ -9,6 +9,8 @@ export function initialApp(): AppState {
 export const needsCup = (s: AppState) => s.mode === 'grandPrix' || s.mode === 'knockout';
 /** Quick Race and Time Trial race one track the player picks (Daily picks its own). */
 export const needsTrack = (s: AppState) => s.mode === 'quick' || s.mode === 'timeTrial';
+/** A race that is no series (Quick Race, Time Trial, Daily): its results offer it again (Mario Kart World's end-of-race menu). */
+export const oneOff = (s: AppState) => s.mode !== null && !needsCup(s);
 export const topOverlay = (s: AppState): Overlay | undefined => s.overlays[s.overlays.length - 1];
 export const isPaused = (s: AppState) => s.screen === 'racing' && s.overlays.length > 0;
 
@@ -55,6 +57,12 @@ export function reduce(s: AppState, a: AppAction): AppState {
       }
       if (s.screen === 'podium') return { ...s, screen: 'modeSelect', seriesHasNext: false, podiumNext: false };
       return s;
+    // one more go from the results, the racer, class, look and Mirror kept (a series has its own flow: no
+    // redoing a finished race for its points or its win, as the pause has no Restart there)
+    case 'raceAgain': return s.screen === 'results' && oneOff(s) ? { ...s, screen: 'racing' } : s;
+    case 'nextTrack': return s.screen === 'results' && s.mode === 'quick' ? { ...s, trackId: a.trackId, screen: 'racing' } : s;
+    case 'changeTrack': return s.screen === 'results' && needsTrack(s) ? { ...s, screen: 'trackSelect' } : s;
+    case 'changeRacer': return s.screen === 'results' && needsTrack(s) ? { ...s, screen: 'rosterSelect' } : s;
     case 'pause': return s.screen === 'racing' ? push(s, 'pause') : s;
     case 'openSettings': return s.screen === 'title' || s.screen === 'modeSelect' ? push(s, 'settings') : s;
     case 'openCredits': return s.screen === 'title' ? push(s, 'credits') : s;

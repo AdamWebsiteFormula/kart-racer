@@ -22,8 +22,9 @@ export interface Save {
   version: number;
   playerName: string;
   stats: { ultraTurbos: number; racesFinished: number; itemsHit: number };
-  /** `ghost`: the best run's path (race-manager/ghost.ts), kept only with the best time it drove; `paint`, `body`: the look it was set in (the ghost is drawn so) */
-  timeTrial: Record<string, { bestMs: number; medal: 'none' | 'bronze' | 'silver' | 'gold'; racerId?: string; ghost?: string; paint?: string; body?: string }>;
+  /** `ghost`: the best run's path (race-manager/ghost.ts), kept only with the best time it drove; `paint`, `body`: the look it was set in (the ghost is drawn so);
+   *  `splitsMs`: the best run's time at each lap line from the start, the last its finish (a run races it lap by lap; a best from before it has none) */
+  timeTrial: Record<string, { bestMs: number; medal: 'none' | 'bronze' | 'silver' | 'gold'; racerId?: string; ghost?: string; paint?: string; body?: string; splitsMs?: number[] }>;
   grandPrix: Record<string, Record<string, { finished: boolean; stars: number; bestPoints?: number }>>;
   knockout: Record<string, { finished: boolean; won: boolean; bestPlacing?: number }>;
   unlocked: { skins: string[]; bodies: string[]; mirror: boolean };
@@ -68,6 +69,19 @@ const MEDALS = ['none', 'bronze', 'silver', 'gold'] as const;
 const isRacer = (id: string) => CAST.some((c) => c.id === id);
 /** save.schema.json timeTrial.ghost maxLength */
 const GHOST_MAX_CHARS = 200_000;
+/** save.schema.json timeTrial.splitsMs maxItems */
+const SPLITS_MAX = 20;
+
+/** A best's lap lines, when they are lap lines of that best: rising whole ms from the start, the last its time; else none (an old or hand-edited save still loads). */
+function splits(v: unknown, bestMs: number): number[] | undefined {
+  if (!Array.isArray(v) || v.length < 1 || v.length > SPLITS_MAX) return undefined;
+  let prev = 0;
+  for (const x of v) {
+    if (!Number.isInteger(x) || x <= prev) return undefined;
+    prev = x;
+  }
+  return prev === bestMs ? [...v] as number[] : undefined;
+}
 
 /**
  * The records, entry by entry: a hand-edited or foreign save (every Pages site on the account shares
@@ -83,7 +97,11 @@ function sanitiseRecords(r: Record<string, unknown>): Pick<Save, 'timeTrial' | '
       // the look the ghost is drawn in: a paint only for the racer it belongs to, a body only a known one
       const paint = ghost && typeof x.paint === 'string' && skinCard(x.paint)?.racerId === racerId ? x.paint : undefined;
       const body = ghost && typeof x.body === 'string' && x.body !== DEFAULT_BODY && isBody(x.body) ? x.body : undefined;
-      return { bestMs: x.bestMs, medal: oneOf(x.medal, MEDALS, 'none'), ...(racerId ? { racerId } : {}), ...(ghost ? { ghost } : {}), ...(paint ? { paint } : {}), ...(body ? { body } : {}) };
+      const splitsMs = splits(x.splitsMs, x.bestMs);
+      return {
+        bestMs: x.bestMs, medal: oneOf(x.medal, MEDALS, 'none'), ...(racerId ? { racerId } : {}), ...(ghost ? { ghost } : {}), ...(paint ? { paint } : {}), ...(body ? { body } : {}),
+        ...(splitsMs ? { splitsMs } : {}),
+      };
     }),
     grandPrix: entries(r.grandPrix, (cup) => entries(cup, (x) => {
       const stars = int(x.stars, 0, 3);

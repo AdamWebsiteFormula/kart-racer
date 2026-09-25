@@ -40,6 +40,13 @@ export type AppAction =
   | { type: 'pickTrack'; trackId: string }
   | { type: 'raceFinished'; seriesHasNext: boolean; podium?: boolean }
   | { type: 'continue' }
+  /** the results of a one-off race (Quick Race, Time Trial, Daily): the same race again (a Time Trial's Retry; the Daily as today's) */
+  | { type: 'raceAgain' }
+  /** a Quick Race's results: on to `trackId` (the next built track in catalog order), everything else as it was */
+  | { type: 'nextTrack'; trackId: string }
+  /** a Quick Race's or a Time Trial's results: back to the track screen, or to the racer screen, to pick again */
+  | { type: 'changeTrack' }
+  | { type: 'changeRacer' }
   | { type: 'back' }
   | { type: 'pause' }
   | { type: 'resume' }

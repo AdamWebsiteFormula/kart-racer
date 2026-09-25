@@ -472,18 +472,38 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 
 .hud .tc { position: absolute; top: calc(18px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .timer { font: 400 30px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; background: rgba(27, 27, 47, 0.35); padding: 8px 18px; border-radius: 999px; }
-.ko-strip { font: 700 15px/1 var(--body); letter-spacing: 0.08em; padding: 7px 14px; border-radius: 999px; background: var(--paper); color: var(--ink); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
-.ko-strip.danger { background: var(--danger); color: var(--paper); animation: pulse 0.8s ease-in-out infinite; }
 /* a solo run (Time Trial, Daily): no place to show ("1st" of one); each finished lap's time sits under
    the timer, the fastest in green (sweep, 24 Sept 2026) */
 .hud.solo .place { display: none; }
 .splits { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.split { display: flex; gap: 10px; align-items: baseline; padding: 5px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.45); font: 400 22px/1 var(--display); color: var(--paper); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-med) var(--pop) backwards; }
+.split { display: flex; gap: 10px; align-items: baseline; padding: 5px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.45); font: 400 22px/1 var(--display); color: var(--paper); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-med) var(--pop) backwards; transition: transform var(--t-med) var(--out), background var(--t-med); }
 .split .n { font-size: 15px; letter-spacing: 0.06em; }
 .split.best .t { color: var(--grass); }
+/* the lap line (Mario Kart World's Time Trial, 25 Sept 2026): the lap just run pops by the timer, bigger and
+   ringed in sun, with the run against your best at that line on a chip, green ahead and red behind, for
+   UI.lapPopSeconds of race time; then it settles back into the list. Grown from its top, it covers nothing:
+   it is the newest, the last in the list. With no best yet, the lap time alone */
+.split.pop { transform: scale(1.32); transform-origin: 50% 0; background: rgb(27 27 47 / 0.78); box-shadow: 0 0 0 3px var(--sun); }
+.hud.solo.celebrate .split.pop { transform-origin: 0 0; }
+.split .d { align-self: center; padding: 3px 9px 4px; border: 2px solid var(--ink); border-radius: 999px; font-size: 20px; -webkit-text-stroke: 3px var(--ink); font-variant-numeric: tabular-nums; }
+.split .d:empty { display: none; }
+.split .d[data-kind='ahead'] { background: var(--grass); }
+.split .d[data-kind='behind'] { background: var(--danger); }
+/* a phone on its side: FINAL LAP comes with the lap 2 pop, and the list reached under it. While a lap pops it
+   shows alone, at its own size, clear of the banner; the list comes back after */
+@media (max-height: 500px) {
+  .splits:has(.pop) .split:not(.pop) { display: none; }
+  .split.pop { transform: none; }
+}
 
-/* the place, and the coin pill beside it on the numeral's baseline */
-.hud .bl { position: absolute; bottom: calc(14px + var(--safe-b)); left: calc(24px + var(--safe-l)); display: flex; align-items: flex-end; gap: 14px; }
+/* the place, the coin pill beside it on the numeral's baseline, and a Knockout's goal right under the numeral */
+.hud .bl { position: absolute; bottom: calc(14px + var(--safe-b)); left: calc(24px + var(--safe-l)); display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.hud .bl .pc { display: flex; align-items: flex-end; gap: 14px; }
+/* A Knockout race's goal where the eye goes for the place (Mario Kart World's "be 8th or better", in our
+   words: "6th or better goes through", the final's "Only 1st wins"); red and pulsing outside it. It sat
+   under the timer, a glance away from the place it is about (25 Sept 2026) */
+.ko-strip { padding: 6px 16px 8px; border: 3px solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--ink); color: var(--ink); font: 400 22px/1 var(--display); letter-spacing: 0.02em; white-space: nowrap; transform-origin: 0 50%; }
+.ko-strip.danger { background: var(--danger); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; animation: pulse 0.8s ease-in-out infinite; }
 /* The place numeral, colored by place (MKW's idea, our own colors; 25 Sept 2026): 1st gold, 2nd icy
    silver, 3rd copper-rose bronze, each struck like metal (a bright top, a hard horizon, a deep foot), and
    4th to 8th in the HUD's painted yellow-orange. hudModel's positionTier sets data-tier with the numeral,
@@ -600,7 +620,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
    coins sit beside the place, and the thumb buttons at 82 % (Look and Brake still 48 px) */
 @media (pointer: coarse) and (max-height: 420px) {
   :root .hud .tl { transform: scale(0.72); transform-origin: top left; }
-  :root .hud .bl { bottom: calc(126px + var(--safe-b)); flex-direction: row; align-items: flex-end; gap: 10px; transform: scale(0.75); transform-origin: bottom left; }
+  :root .hud .bl { bottom: calc(126px + var(--safe-b)); gap: 10px; transform: scale(0.75); transform-origin: bottom left; }
+  :root .hud .bl .pc { flex-direction: row; align-items: flex-end; gap: 10px; }
   :root .hud .bl .coins { margin: 0 0 6px; }
   :root .hud .br { transform: scale(0.8); transform-origin: top right; }
   :root .touch .buttons { transform: scale(0.82); transform-origin: bottom right; }
@@ -739,8 +760,51 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .stars .star path { fill: #e9e2d0; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
 .stars .star.on path { fill: var(--gold); }
 .stars .star.on { animation: pop-in 500ms var(--pop) backwards; animation-delay: var(--delay, 0ms); }
-.results .actions { display: flex; justify-content: center; padding: 14px 28px 22px; }
+/* the buttons under the table (screens/results.ts endMenu), as Mario Kart World ends a race: the main row first
+   and full size (a Quick Race's Next track, with the track it goes to under it, and Race again; a Time Trial's
+   Retry; the Daily's Race again and Menu), the ways back to the menus under it, smaller (Change track, Change
+   racer, Menu). UiRoot's focus grid is these rows; a phone on its side sets them in one line, and so does the grid */
+.results .actions { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 14px 28px 22px; }
+.results .act-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 14px; }
+.results .act-row:not(.main) .btn { padding: 10px 22px; box-shadow: 0 5px 0 var(--ink); }
+.results .act-row:not(.main) .btn .label { font-size: 22px; }
+.results .act-row:not(.main) .btn.focused { box-shadow: 0 8px 0 var(--ink), 0 0 0 5px var(--paper), 0 0 0 9px var(--ink); }
+.results .actions .btn.has-sub { flex-direction: column; align-items: center; gap: 3px; padding-top: 9px; padding-bottom: 10px; }
+.results .actions .btn .sub { font: 600 14px/1 var(--body); opacity: 0.7; white-space: nowrap; }
+/* a Time Trial against the best it raced: "−1.37" on green by "New best!", "+0.85" on red on a slower run */
+.res-words { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; }
+.res-words .sub { flex-basis: 100%; }
+.res-delta { padding: 3px 13px 6px; border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 4px 0 var(--ink); color: var(--paper); font: 400 34px/1 var(--display); font-variant-numeric: tabular-nums; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-slow) var(--pop) calc(300ms + var(--delay, 0ms)) backwards; }
+.res-delta.ahead { background: var(--grass); }
+.res-delta.behind { background: var(--danger); }
 .gained { color: #0a8f5a; font-weight: 700; }
+
+/* ---------- the Knockout cut (ResultsView.renderCut) ----------
+   A dashed coral line labeled CUT across the list, under the last racer who goes through and over the first
+   who is out, so the cut reads at a glance (25 Sept 2026). Drawn by the last one through (.cut-above: ::after the
+   line, ::before its label), so it rides that row's slide in and takes no cell of the phone's two columns; that
+   row keeps a band clear under it, and the line draws in from the left once every row is in (--cut-at) */
+.rows.cut .row.cut-above { position: relative; margin-bottom: 16px; }
+.rows.cut .row.cut-above::after {
+  content: '';
+  position: absolute; left: -8px; right: -8px; top: calc(100% + 3px + 11px);
+  border-top: 4px dashed var(--coral);
+  transform: translateY(-50%);
+  transform-origin: 0 50%;
+  animation: cut-draw 460ms var(--out) var(--cut-at, 0ms) backwards;
+}
+.rows.cut .row.cut-above::before {
+  /* (the alt text '' leaves it to the rows' THROUGH and OUT for screen readers) */
+  content: 'CUT';
+  content: 'CUT' / '';
+  position: absolute; z-index: 1; left: -16px; top: calc(100% + 3px + 11px);
+  padding: 3px 11px 4px; border: 2px solid var(--ink); border-radius: 999px; background: var(--coral);
+  color: var(--paper); font: 400 17px/1 var(--display); letter-spacing: 0.1em; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill;
+  transform: translateY(-50%);
+  animation: cut-tag 360ms var(--pop) calc(var(--cut-at, 0ms) + 200ms) backwards;
+}
+@keyframes cut-draw { from { transform: translateY(-50%) scaleX(0); } }
+@keyframes cut-tag { from { opacity: 0; transform: translateY(-50%) scale(0.4); } }
 
 /* ---------- Grand Prix standings (ResultsView.renderGp), as Mario Kart World plays them ----------
    The rows come in as they stood before the race, each total with the points just won beside it; the totals
@@ -890,6 +954,28 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 @media (max-height: 800px) {
   .row { --face: 30px; padding: 4px 12px; }
 }
+/* a laptop window (1280x720, 1536x730): the end buttons tighter and Next track's track beside its label, so all
+   eight rows stay in sight over the two rows of buttons */
+@media (max-height: 800px) {
+  .results .actions { gap: 10px; }
+  .results .actions .btn { padding: 10px 26px; }
+  .results .actions .btn .label { font-size: 24px; }
+  .results .actions .btn.has-sub { flex-direction: row; align-items: baseline; gap: 10px; padding-top: 10px; padding-bottom: 10px; }
+  .results .act-row:not(.main) .btn { padding: 7px 18px; }
+  .results .act-row:not(.main) .btn .label { font-size: 19px; }
+}
+/* a short window (1366x657, a phone on its side: UI.endOneLineQuery): the end buttons in one line, one size, so
+   all eight places stay in sight over them (in two rows they hid the 7th and 8th at 1366x657); UiRoot's focus
+   grid is one row there too. Next track's track name waits for a taller window */
+@media (max-height: 700px) {
+  /* (a little wider than the 760 px panel, which wrapped Menu onto a line of its own) */
+  .results .box { width: min(860px, 94vw); }
+  .results .actions { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .results .act-row { display: contents; }
+  .results .actions .btn, .results .act-row:not(.main) .btn { padding: 7px 16px; box-shadow: 0 5px 0 var(--ink); }
+  .results .actions .btn .label, .results .act-row:not(.main) .btn .label { font-size: 19px; }
+  .results .actions .btn .sub { display: none; }
+}
 /* a narrow window (390 px): the panel takes the width, the place, face and time keep their room, the gap to
    the winner goes (the times say it) and a long name gives way; the standings keep the points just won.
    At 390x844 every name was cut to one letter */
@@ -906,6 +992,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .standings .pts { min-width: 0; }
   /* the prompt over the finish sits above the big place in the corner, under the kart */
   .finish-go { bottom: calc(128px + var(--safe-b)); padding: 9px 18px; font-size: 17px; }
+  /* the end buttons as they sit on a wide screen, two rows, smaller: the main row, then the three ways back
+     on one line (a stack of five took half the window from the table) */
+  .results .actions { gap: 8px; padding: 10px 10px 14px; }
+  .results .act-row { gap: 8px 6px; }
+  .results .actions .btn { padding: 8px 16px; }
+  .results .actions .btn .label { font-size: 20px; }
+  .results .act-row:not(.main) .btn { padding: 6px 10px; border-width: 3px; box-shadow: 0 4px 0 var(--ink); }
+  .results .act-row:not(.main) .btn .label { font-size: 15px; }
 }
 /* a laptop window (1280x720, 1536x730, 1366x657): the title and the racer screen fit without a scroll.
    The title's name is sized by the height too and its buttons tighten; the racer cards drop the species
@@ -1002,6 +1096,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .res-words { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 12px; }
   .results h2 { font-size: 30px; }
   .results .sub { margin: 0; }
+  .res-words .sub { flex-basis: auto; }
+  .res-delta { padding: 2px 9px 4px; font-size: 22px; -webkit-text-stroke-width: 2px; box-shadow: 0 3px 0 var(--ink); }
   .results .res-medal { width: 42px; margin: -4px 0 -2px; }
   .rows.many { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--half, 4), auto); grid-auto-flow: column; gap: 5px 10px; }
   .row { --face: 26px; grid-template-columns: 34px var(--face) minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 10px; font-size: 15px; }
@@ -1021,9 +1117,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .laps { margin-top: 6px; }
   .laps span { padding: 5px 9px; }
   .medal-ladder { margin-top: 6px; gap: 6px; }
-  .results .actions { padding: 8px 18px 12px; }
-  .results .actions .btn { padding: 8px 24px; }
-  .results .actions .btn .label { font-size: 21px; }
+  /* the end buttons in their one line (UI.endOneLineQuery), smaller still */
+  .results .actions { gap: 6px 8px; padding: 8px 14px 12px; }
+  .results .actions .btn, .results .act-row:not(.main) .btn { padding: 6px 14px; border-width: 3px; box-shadow: 0 4px 0 var(--ink); }
+  .results .actions .btn .label, .results .act-row:not(.main) .btn .label { font-size: 18px; }
+  /* the cut line in the gap of the two columns (no band there: it would open a gap in the other column too) */
+  .rows.many.cut .row.cut-above { margin-bottom: 0; }
+  .rows.many.cut .row.cut-above::after { top: calc(100% + 3px + 2px); border-top-width: 3px; }
+  .rows.many.cut .row.cut-above::before { top: calc(100% + 3px + 2px); left: -10px; padding: 1px 6px 2px; font-size: 11px; }
 }
 /* a phone on its side: the pause fits without a scroll (its Credits and Quit sat below the panel),
    the six buttons two by two; UiRoot's focus grid matches (UI.shortScreenQuery). The other dialogs get the tighter panel too */

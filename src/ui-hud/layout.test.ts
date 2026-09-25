@@ -329,3 +329,27 @@ describe('the finish celebration keeps clear of the kart (podium.css, 25 Sept 20
     expect(pvalue('#ui .hud.celebrate .banner .medal-won.on', 'display', PHONE)).toBe('inline-flex');
   });
 });
+
+describe('the end buttons, the lap pop and the Knockout goal (25 Sept 2026)', () => {
+  it('in a short window (UI.endOneLineQuery: 1366x657, a phone on its side) the end buttons sit in one line, as their focus grid does', () => {
+    const q = UI.endOneLineQuery;
+    expect(value('.results .actions', 'flex-direction', q)).toBe('row');
+    expect(value('.results .act-row', 'display', q)).toBe('contents');
+    // elsewhere row by row, the main row first
+    expect(value('.results .actions', 'flex-direction')).toBe('column');
+    expect(value('.results .act-row', 'display')).toBe('flex');
+  });
+
+  it('on a phone on its side a lap pops alone and at its own size, clear of FINAL LAP; the Knockout goal sits under the place', () => {
+    expect(value('.splits:has(.pop) .split:not(.pop)', 'display', PHONE)).toBe('none');
+    expect(value('.split.pop', 'transform', PHONE)).toBe('none');
+    expect(value('.split.pop', 'transform')).toMatch(/^scale\(1\.\d+\)$/);
+    expect(value('.hud .bl', 'flex-direction')).toBe('column');
+    expect(value('.ko-strip.danger', 'animation')).toContain('pulse');
+  });
+
+  it('the Knockout cut: a dashed coral line labeled CUT under the last one through', () => {
+    expect(value('.rows.cut .row.cut-above::after', 'border-top')).toBe('4px dashed var(--coral)');
+    expect(css).toMatch(/\.rows\.cut \.row\.cut-above::before \{[^}]*content: 'CUT';/);
+  });
+});

@@ -7,7 +7,7 @@ import { STEP_TICKS } from '../race-manager/countdown.ts';
 import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { formatMs, formatTime, mph, ordinal, ordinalParts, twoDigits } from './format.ts';
+import { bestDelta, formatMs, formatTime, mph, ordinal, ordinalParts, twoDigits, type BestDelta } from './format.ts';
 import { medalFor, type MedalTimes, type MedalWon } from './screens/menus.ts';
 
 /** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
@@ -102,6 +102,7 @@ export interface HudVM {
   /** `skip`: show the prompt to go on to the results (SKIP_PROMPTS) */
   banner: { text: string; sub: string; kind: BannerKind; skip: boolean } | null;
   flash: boolean;
+  /** a Knockout race's goal, by the place numeral ("6th or better goes through"; the final's "Only 1st wins"); `danger`: outside it */
   knockout: { text: string; danger: boolean } | null;
   /** show the controls strip */
   keysHint: boolean;
@@ -111,12 +112,30 @@ export interface HudVM {
   solo: boolean;
   /** a solo run: each lap finished so far and its time, the fastest marked once there are two */
   splits: readonly LapSplit[];
+  /** a solo run just over a lap line: that lap pops in the splits with the run against the best at that line */
+  lapPop: LapPop | null;
   /** a Time Trial over the line: the medal its time won (its badge under FINISH!), or null */
   medal: MedalWon | null;
 }
 
 export interface LapSplit { lap: number; time: string; best: boolean }
+/** The lap just run (its split, `lap` 1-based), fresh for UI.lapPopSeconds of race time; `delta`: the run's time at that line
+ *  against the best run's there (a Time Trial with a best that kept its lines), else null: the lap time alone */
+export interface LapPop { lap: number; delta: BestDelta | null }
 const NO_SPLITS: readonly LapSplit[] = Object.freeze([]);
+
+/**
+ * Mario Kart World's Time Trial, at each lap line: the lap just run pops by the timer, and says how the run
+ * stands against your best at the same line (the running total, not the lap alone): "−0.42" ahead, "+0.31"
+ * behind. Race time, from the tick of the crossing: a pause holds it. `bestSplitsMs`: the best run's time at
+ * each line (the save's `splitsMs`).
+ */
+export function lapPop(lapTicks: readonly number[], goTick: number, tick: number, bestSplitsMs?: readonly number[]): LapPop | null {
+  const n = lapTicks.length;
+  if (!n || !(ticksToMs(tick - lapTicks[n - 1]) < UI.lapPopSeconds * 1000)) return null;
+  const best = bestSplitsMs?.[n - 1];
+  return { lap: n, delta: best !== undefined && best > 0 ? bestDelta(ticksToMs(lapTicks[n - 1] - goTick), best) : null };
+}
 
 /** The player's finished laps as splits (`lapTicks`: the tick of each line crossing after the start). */
 export function lapSplits(lapTicks: readonly number[], goTick: number): readonly LapSplit[] {
@@ -154,11 +173,11 @@ export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number, tra
 /**
  * The whole HUD for one frame. `shownRank` is race-manager's debounced rank (trackers[i].shownRank),
  * so the numeral never flickers; it changes on the same frame positionChange fires. `medalTimes`: a
- * Time Trial's track's, for the medal its finish wins.
+ * Time Trial's track's, for the medal its finish wins; `bestSplitsMs`: its best run's time at each lap line.
  */
 export function hudModel(
   state: RaceState, player: KartState, shownRank: number, coinCap: number, m: HudMemory, clock: number,
-  defs: readonly Def[], nowMs: number, trailing = false, medalTimes?: MedalTimes,
+  defs: readonly Def[], nowMs: number, trailing = false, medalTimes?: MedalTimes, bestSplitsMs?: readonly number[],
 ): HudVM {
   const rank = shownRank > 0 ? shownRank : player.rank;
   const lap = Math.min(Math.max(player.lap, 1), state.lapsTotal);
@@ -175,7 +194,7 @@ export function hudModel(
     // the final has no next round: only 1st wins the Knockout, so 2nd is in danger too
     const final = state.knockout.segment >= KNOCKOUT_CUT_LINES.length - 1;
     const cut = KNOCKOUT_CUT_LINES[state.knockout.segment] ?? KNOCKOUT_CUT_LINES[KNOCKOUT_CUT_LINES.length - 1];
-    knockout = final ? { text: 'WIN THE FINAL', danger: rank > 1 } : { text: `TOP ${cut} GO THROUGH`, danger: rank > cut };
+    knockout = final ? { text: 'Only 1st wins', danger: rank > 1 } : { text: `${ordinal(cut)} or better goes through`, danger: rank > cut };
   }
   const slots = itemSlots(player, defs, nowMs, trailing);
   // a solo run: one racer (a Time Trial's ghost is no racer)
@@ -184,6 +203,7 @@ export function hudModel(
   const solo = racers === 1;
   const won = state.mode === 'timeTrial' && medalTimes && player.finishTick !== undefined && banner?.kind === 'finish' && banner.skip
     ? medalFor(ticksToMs(player.finishTick - state.goTick), medalTimes) : 'none';
+  const lapTicks = solo ? state.trackers?.[state.karts.indexOf(player)]?.lapTicks ?? [] : [];
   return {
     // stops on the player's own time (the one the results show), not the race clock
     timer: player.finishTick !== undefined ? formatMs(ticksToMs(player.finishTick - state.goTick)) : formatTime(state.time),
@@ -205,7 +225,8 @@ export function hudModel(
     keysHint: counting || m.hintUntil > clock,
     items: state.mode !== 'timeTrial',
     solo,
-    splits: solo ? lapSplits(state.trackers?.[state.karts.indexOf(player)]?.lapTicks ?? [], state.goTick) : NO_SPLITS,
+    splits: solo ? lapSplits(lapTicks, state.goTick) : NO_SPLITS,
+    lapPop: solo ? lapPop(lapTicks, state.goTick, state.tick, bestSplitsMs) : null,
     medal: won === 'none' ? null : won,
   };
 }

@@ -34,6 +34,16 @@ export function attractTrack(built: ReadonlySet<string>): string | undefined {
 }
 
 /**
+ * A Quick Race's Next track: the built track after `id` in this order (the track screen's), round from the
+ * last to the first; the first built one for an id that is none of them. One track built: that one again.
+ */
+export function nextTrack(id: string | null, built: ReadonlySet<string>): string | undefined {
+  const list = TRACKS.filter((t) => built.has(t.id));
+  if (!list.length) return undefined;
+  return list[(list.findIndex((t) => t.id === id) + 1) % list.length].id;
+}
+
+/**
  * The tracks a cup really plays. Unbuilt tracks are skipped and the built ones repeat in order
  * to keep the cup's length, so a Knockout is always three segments (Decisions 2026-09-23).
  * Empty when none of its tracks exist yet.

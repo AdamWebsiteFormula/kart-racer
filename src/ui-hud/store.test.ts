@@ -118,4 +118,21 @@ describe('save store: audit fixes (24 Sept 2026)', () => {
     expect(t.b.ghost).toBeUndefined();
     expect(t.c.ghost).toBeUndefined();
   });
+
+  it('a best\'s lap lines (25 Sept 2026) survive a save and a load; a best saved before them still loads, and lines that are not that best\'s drop', () => {
+    const b = fake();
+    const s = defaultSave();
+    s.timeTrial['harbour-loop'] = { bestMs: 110408, medal: 'gold', racerId: 'pip', splitsMs: [38025, 73475, 110408] };
+    writeSave(b, s);
+    expect(loadSave(fake(b.data)).timeTrial['harbour-loop']).toEqual(s.timeTrial['harbour-loop']);
+    // an old save: no lines, the rest as it was
+    const old = { timeTrial: { 'meadow-run': { bestMs: 99000, medal: 'silver', racerId: 'nova', ghost: 'AQQA' } } };
+    expect(loadSave(fake({ [SAVE_KEY]: JSON.stringify(old) })).timeTrial['meadow-run']).toEqual(old.timeTrial['meadow-run']);
+    // not rising, not ending on the best, not whole ms, too many, not an array: dropped, the best kept
+    const bad = {
+      a: [38025, 30000, 110408], b: [38025, 73475, 110000], c: [38025.5, 73475, 110408], d: Array.from({ length: 21 }, (_, i) => i + 1), e: '38025,73475,110408', f: [],
+    };
+    const t = loadSave(fake({ [SAVE_KEY]: JSON.stringify({ timeTrial: Object.fromEntries(Object.entries(bad).map(([k, v]) => [k, { bestMs: k === 'd' ? 21 : 110408, medal: 'gold', splitsMs: v }])) }) })).timeTrial;
+    for (const k of Object.keys(bad)) expect(t[k], k).toEqual({ bestMs: k === 'd' ? 21 : 110408, medal: 'gold' });
+  });
 });

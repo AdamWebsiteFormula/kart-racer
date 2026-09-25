@@ -86,3 +86,53 @@ describe('app flow', () => {
     expect(reduce(s, { type: 'pause' })).toBe(s);
   });
 });
+
+describe('one more go from the results (25 Sept 2026, Mario Kart World\'s end-of-race menu)', () => {
+  const to = (mode: 'quick' | 'timeTrial' | 'daily', racerId = 'gus'): AppState => walk([
+    { type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode }, { type: 'pickRacer', racerId },
+    ...(mode === 'daily' ? [] : [{ type: 'pickTrack', trackId: 'canyon-rush' } as const]), { type: 'raceFinished', seriesHasNext: false },
+  ]).s;
+
+  it('a Quick Race: Next track, Race again, Change track, Change racer and Menu, the racer, class and Mirror kept', () => {
+    const results = { ...to('quick'), speedClass: 150 as const, mirrored: true };
+    expect(results.screen).toBe('results');
+    const next = reduce(results, { type: 'nextTrack', trackId: 'frostbite-pass' });
+    expect([next.screen, next.trackId, next.racerId, next.speedClass, next.mirrored]).toEqual(['racing', 'frostbite-pass', 'gus', 150, true]);
+    const again = reduce(results, { type: 'raceAgain' });
+    expect([again.screen, again.trackId, again.racerId]).toEqual(['racing', 'canyon-rush', 'gus']);
+    expect(reduce(results, { type: 'changeTrack' }).screen).toBe('trackSelect');
+    expect(reduce(results, { type: 'changeRacer' }).screen).toBe('rosterSelect');
+    expect(reduce(results, { type: 'continue' }).screen).toBe('modeSelect');
+    // the track screen goes on as ever: a pick races it, back goes to the racer screen
+    const picked = walk([{ type: 'changeTrack' }, { type: 'pickTrack', trackId: 'meadow-run' }], results);
+    expect(picked.trail).toEqual(['trackSelect', 'racing']);
+    expect(picked.s.trackId).toBe('meadow-run');
+    expect(walk([{ type: 'changeRacer' }, { type: 'pickRacer', racerId: 'momo' }, { type: 'pickTrack', trackId: 'canyon-rush' }], results).trail).toEqual(['rosterSelect', 'trackSelect', 'racing']);
+  });
+
+  it('a Time Trial: Retry (the same race again), Change track and Change racer; the Daily: today\'s again', () => {
+    const tt = to('timeTrial');
+    expect(reduce(tt, { type: 'raceAgain' })).toMatchObject({ screen: 'racing', mode: 'timeTrial', trackId: 'canyon-rush' });
+    expect(reduce(tt, { type: 'changeTrack' }).screen).toBe('trackSelect');
+    expect(reduce(tt, { type: 'changeRacer' }).screen).toBe('rosterSelect');
+    expect(reduce(tt, { type: 'nextTrack', trackId: 'meadow-run' })).toBe(tt); // a Quick Race's
+    const daily = to('daily');
+    expect(reduce(daily, { type: 'raceAgain' })).toMatchObject({ screen: 'racing', mode: 'daily' });
+    for (const a of [{ type: 'changeTrack' }, { type: 'changeRacer' }, { type: 'nextTrack', trackId: 'x' }] as const) expect(reduce(daily, a)).toBe(daily);
+  });
+
+  it('a Grand Prix or Knockout keeps its own flow: no race again, next track or change from its results (it redid a finished race)', () => {
+    for (const mode of ['grandPrix', 'knockout'] as const) {
+      const r = walk([{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickCup', cupId: 'sunrise' }, { type: 'raceFinished', seriesHasNext: true }]).s;
+      for (const a of [{ type: 'raceAgain' }, { type: 'nextTrack', trackId: 'x' }, { type: 'changeTrack' }, { type: 'changeRacer' }] as const) expect(reduce(r, a), `${mode} ${a.type}`).toBe(r);
+    }
+  });
+
+  it('only from the results: mid-race, paused or on the menus they change nothing', () => {
+    const racing = walk([{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'meadow-run' }]).s;
+    const paused = reduce(racing, { type: 'pause' });
+    for (const s of [racing, paused, initialApp()]) {
+      for (const a of [{ type: 'raceAgain' }, { type: 'nextTrack', trackId: 'x' }, { type: 'changeTrack' }, { type: 'changeRacer' }] as const) expect(reduce(s, a)).toBe(s);
+    }
+  });
+});

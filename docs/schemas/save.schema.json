@@ -17,7 +17,7 @@
       }
     },
     "timeTrial": {
-      "description": "Keyed by trackId. Best time at 150cc, its medal, and the best run's ghost path.",
+      "description": "Keyed by trackId. Best time at 150cc, its medal, the best run's ghost path and its time at each lap line.",
       "type": "object",
       "additionalProperties": {
         "type": "object", "required": ["bestMs", "medal"],
@@ -28,7 +28,8 @@
           "ghost": { "type": "string", "maxLength": 200000, "description": "The best run as a path, not inputs (an input replay drifts: race-manager Decisions 2026-09-21): position, heading and loop angle every 4 sim ticks, varint deltas, base64 (src/race-manager/ghost.ts). Replaced only with a new best." },
           "submittedToLeaderboard": { "type": "boolean" },
           "paint": { "type": "string", "enum": ["pip-alt", "boulder-alt", "sprocket-alt"], "description": "The alt paint the best run was set in (absent: the racer's own colours); the ghost is drawn in it. Kept only with a ghost, and only a paint of that racer." },
-          "body": { "type": "string", "enum": ["classic", "buggy"], "description": "The shared body the best run was set in (absent: the signature kart); the ghost is drawn on it. Kept only with a ghost." }
+          "body": { "type": "string", "enum": ["classic", "buggy"], "description": "The shared body the best run was set in (absent: the signature kart); the ghost is drawn on it. Kept only with a ghost." },
+          "splitsMs": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 1, "maxItems": 20, "description": "The best run's time at each lap line from the start (cumulative ms, rising; the last is bestMs). A run shows its time at each line against these (ui-hud: the lap pop by the timer). Replaced only with a new best; absent for a best set before 25 Sept 2026." }
         }
       }
     },

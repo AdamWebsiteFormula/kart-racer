@@ -18,6 +18,7 @@ import type { RaceState } from '../race-manager/types.ts';
 import { HowToView } from './render/screens.ts';
 import { TouchControls } from './render/touch.ts';
 import { CREDITS_MADE, parseCredits } from './screens/credits.ts';
+import { END_LABELS } from './screens/results.ts';
 import { DONE_HELP, MODES, SETTING_HELP, settingsMenu, SPEED_CLASSES } from './screens/menus.ts';
 import { defaultSettings } from './store.ts';
 import { UNLOCKS } from './unlocks.ts';
@@ -37,6 +38,9 @@ function hueName([r, g, b]: readonly number[]): string {
 }
 
 const item = (id: string) => ITEM_DEFINITIONS.find((d) => d.id === id)!;
+/** a Knockout race's goal by the place, in each round (our words, not Mario Kart World's "be 8th or better") */
+const KO_GOALS = [0, 1, 2].map((segment) => hudModel({ mode: 'knockout', lapsTotal: 2, time: 1, phase: 'racing', knockout: { setId: 'k', segment, cutLineAt: 2, eliminated: [] } } as unknown as RaceState,
+  createKartState({ racerId: 'p', isPlayer: true }), 1, 10, newHudMemory(), 0, [], 0).knockout?.text ?? '');
 const tip = (re: RegExp) => TIPS.find((t) => re.test(t)) ?? '';
 
 describe('How to Play says what the game does', () => {
@@ -146,6 +150,7 @@ describe('every word a player reads', () => {
     expect(page.every(Boolean)).toBe(true);
     const credits = parseCredits(fs.readFileSync(`${ROOT}CREDITS.md`, 'utf8')).flatMap((s) => [s.title, ...s.rows.flatMap((r) => [r.work, r.author, r.licence])]);
     const words = [
+      ...Object.values(END_LABELS), ...KO_GOALS,
       ...page, ...credits, CREDITS_MADE, ...Object.values(SKIP_PROMPTS), LETTERS_LEAD,
       ...CONTROLS.flatMap((c) => [c.action, c.keys, c.pad, c.touch]), ...Object.values(ITEM_LINES), ...TIPS,
       ...CREATURES.flatMap((c) => [c.name, c.track, c.line]), ...ITEM_DEFINITIONS.map((d) => d.name),

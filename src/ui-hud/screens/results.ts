@@ -1,17 +1,21 @@
-// View models for the end-of-race screens: the finish table, the Grand Prix table, the Knockout cut.
+// View models for the end-of-race screens: the finish table, the Grand Prix table, the Knockout cut,
+// and the buttons under them.
 import { grandPrixTable, starThresholdsFor } from '../../race-manager/series.ts';
-import type { GrandPrixState, KnockoutState, RaceResults } from '../../race-manager/types.ts';
+import type { GrandPrixState, KnockoutState, RaceMode, RaceResults } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
 import { accentOf, nameOf } from '../data/cast.ts';
-import { formatGap, formatMs, ordinal } from '../format.ts';
+import { move } from '../focus.ts';
+import { bestDelta, formatGap, formatMs, ordinal, type BestDelta } from '../format.ts';
+import type { FocusModel, NavAction } from '../types.ts';
 import { medalLadder, type MedalLadderVM, type MedalTimes } from './menus.ts';
 
 export interface ResultRow { rank: string; racerId: string; name: string; accent: string; time: string; gap: string; dnf: boolean; player: boolean; delayMs: number }
-/** `medal`: a Time Trial the player finished, against the track's medal times (the badge by the headline and the ladder under the laps) */
-export interface ResultsVM { headline: string; sub: string; rows: ResultRow[]; playerLaps: { lap: number; time: string; best: boolean }[]; medal?: MedalLadderVM }
+/** `medal`: a Time Trial the player finished, against the track's medal times (the badge by the headline and the ladder under the laps);
+ *  `delta`: a Time Trial run against the best it raced ("−1.37" by "New best!"), beside the headline */
+export interface ResultsVM { headline: string; sub: string; rows: ResultRow[]; playerLaps: { lap: number; time: string; best: boolean }[]; medal?: MedalLadderVM; delta?: BestDelta }
 
-/** `medalTimes`: a Time Trial's track's medal times */
-export function resultsModel(res: RaceResults, playerId: string | null, trackName: string, staggerMs = UI.staggerResultsMs, medalTimes?: MedalTimes): ResultsVM {
+/** `medalTimes`: a Time Trial's track's medal times; `bestBeforeMs`: its best time before this run (none for a first run) */
+export function resultsModel(res: RaceResults, playerId: string | null, trackName: string, staggerMs = UI.staggerResultsMs, medalTimes?: MedalTimes, bestBeforeMs?: number): ResultsVM {
   const winner = res.ranks.find((r) => !r.dnf)?.timeMs ?? -1;
   const rows = res.ranks.map((r, i) => ({
     rank: ordinal(r.rank), racerId: r.racerId, name: nameOf(r.racerId), accent: accentOf(r.racerId),
@@ -26,11 +30,68 @@ export function resultsModel(res: RaceResults, playerId: string | null, trackNam
     : me.rank === 1 ? 'You win!' : `You finished ${ordinal(me.rank)}`;
   const laps = me?.lapTimesMs ?? [];
   const best = laps.length ? Math.min(...laps) : -1;
+  // a Time Trial with a best to beat: the run against it by the headline, and the best it raced under it
+  const delta = medalTimes && me && !me.dnf && bestBeforeMs && bestBeforeMs > 0 ? bestDelta(me.timeMs, bestBeforeMs) : undefined;
   return {
-    headline, sub: trackName, rows,
+    headline, sub: delta ? `${trackName} · ${delta.ahead ? 'Old best' : 'Your best'} ${formatMs(bestBeforeMs ?? 0)}` : trackName, rows,
     playerLaps: laps.map((ms, i) => ({ lap: i + 1, time: formatMs(ms), best: ms === best })),
     ...(medalTimes && me && !me.dnf ? { medal: medalLadder(me.timeMs, medalTimes) } : {}),
+    ...(delta ? { delta } : {}),
   };
+}
+
+/** The best run's time at each lap line, from the start (the last is its finish), kept with a new best so the next run can race it lap by lap. */
+export function cumulativeSplits(lapTimesMs: readonly number[], timeMs: number): number[] {
+  let t = 0;
+  const out = lapTimesMs.map((ms) => (t += ms));
+  // each lap is rounded to the ms on its own: the last line is the run's own time
+  if (out.length) out[out.length - 1] = timeMs;
+  return out;
+}
+
+// ---------------------------------------------------------------- the buttons under the table
+/** An end screen's button: `sub` a line under the label (the track Next track goes to) */
+export interface EndButton { id: string; label: string; sub?: string }
+/** The buttons as they sit: the first row the main ones, the first of them the default (Mario Kart World's end-of-race menu), the rest under them */
+export interface EndMenuVM { rows: EndButton[][] }
+
+/** Every word the end buttons say (text.test.ts) */
+export const END_LABELS = Object.freeze({
+  next: 'Next track', again: 'Race again', retry: 'Retry', track: 'Change track', racer: 'Change racer', menu: 'Menu',
+  standings: 'Standings', nextRace: 'Next race', continue: 'Continue', backToMenu: 'Back to menu',
+});
+
+/**
+ * The buttons under a results table. A one-off race is one more go away: a Quick Race offers the next track
+ * (named under it), the same one again, the track or racer screen, or the menu; a Time Trial its Retry first;
+ * the Daily today's run again. A Grand Prix or Knockout goes on through its standings, its cut and the next
+ * race as before (`continue`). `nextTrackName`: where a Quick Race's Next track goes.
+ */
+export function endMenu(screen: 'results' | 'gpTable' | 'knockoutCut', mode: RaceMode | null, flow: { seriesHasNext: boolean; podiumNext?: boolean }, nextTrackName = ''): EndMenuVM {
+  const L = END_LABELS;
+  const change: EndButton[] = [{ id: 'track', label: L.track }, { id: 'racer', label: L.racer }, { id: 'menu', label: L.menu }];
+  if (screen === 'results' && mode === 'quick') return { rows: [[{ id: 'next', label: L.next, ...(nextTrackName ? { sub: nextTrackName } : {}) }, { id: 'again', label: L.again }], change] };
+  if (screen === 'results' && mode === 'timeTrial') return { rows: [[{ id: 'again', label: L.retry }], change] };
+  if (screen === 'results' && mode === 'daily') return { rows: [[{ id: 'again', label: L.again }, { id: 'menu', label: L.menu }]] };
+  const series = mode === 'grandPrix' || mode === 'knockout';
+  const label = screen === 'results' ? (series ? L.standings : L.backToMenu) : flow.seriesHasNext ? L.nextRace : flow.podiumNext ? L.continue : L.backToMenu;
+  return { rows: [[{ id: 'continue', label }]] };
+}
+
+/** The end buttons' focus rows as they sit: one row in a short window (a laptop, a phone on its side: UI.endOneLineQuery, ui.css sets them in one line), else row by row. */
+export function endFocus(vm: EndMenuVM, oneRow: boolean): string[][] {
+  const rows = vm.rows.map((r) => r.map((b) => b.id));
+  return oneRow ? [rows.flat()] : rows;
+}
+
+/**
+ * Down from the leaderboard's name box or Post lands on the main button (Retry, Race again), wherever the
+ * buttons sit under them (in one line, Post's column is Change track's); Try again, when it is there, first.
+ * null: the grid's own move.
+ */
+export function boardDown(model: FocusModel, cur: string, dir: NavAction, main: string | undefined): string | null {
+  if (dir !== 'down' || (cur !== 'name' && cur !== 'post') || !main) return null;
+  return move(model, cur, 'down') === 'retry' ? null : main;
 }
 
 /** `was`: the total before this race; `moved`: places gained (+) or lost (−) in the standings with it, null after the first race (no standings before it) */
@@ -67,7 +128,8 @@ export function gpModel(before: GrandPrixState | null, after: GrandPrixState, pl
 }
 
 export interface CutRow { racerId: string; name: string; accent: string; rank: string; out: boolean; winner: boolean; player: boolean; delayMs: number }
-export interface CutVM { headline: string; sub: string; rows: CutRow[]; remaining: number; playerOut: boolean; done: boolean; winner: string | null }
+/** `cutAt`: how many rows sit above the cut line (the last who goes through, then the first who is out); 0 draws none */
+export interface CutVM { headline: string; sub: string; rows: CutRow[]; remaining: number; playerOut: boolean; done: boolean; winner: string | null; cutAt: number }
 
 /**
  * After a Knockout segment: the racers who ran it, in finish order, the cut ones struck through.
@@ -85,7 +147,9 @@ export function knockoutCutModel(res: RaceResults, after: KnockoutState, playerI
   }));
   const playerOut = playerId !== null && out.has(playerId);
   const headline = done ? (winnerId === playerId ? 'Knockout champion!' : `${winnerId ? nameOf(winnerId) : '—'} wins`) : playerOut ? 'Knocked out!' : 'Safe!';
-  return { headline, sub: done ? 'Final' : `${remaining} racers left`, rows, remaining, playerOut, done, winner: winnerId ? nameOf(winnerId) : null };
+  // the cut line: under the last who goes on, over the first who is out (the out are the bottom of the table)
+  const firstOut = rows.findIndex((r) => r.out);
+  return { headline, sub: done ? 'Final' : `${remaining} racers left`, rows, remaining, playerOut, done, winner: winnerId ? nameOf(winnerId) : null, cutAt: Math.max(0, firstOut) };
 }
 
 // ---------------------------------------------------------------- leaderboard panel

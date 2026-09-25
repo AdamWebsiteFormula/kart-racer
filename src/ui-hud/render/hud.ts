@@ -252,6 +252,8 @@ export class HudView {
   private solo: Flag;
   private splits: HTMLElement;
   private splitsKey = '';
+  /** the lap popped in the splits as last drawn (lap|delta; '' none) */
+  private popKey = '';
 
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen hud', parent);
@@ -263,25 +265,28 @@ export class HudView {
 
     const tc = h('div', 'tc', this.root);
     this.timer = new TextField(h('div', 'timer', tc));
-    this.ko = h('div', 'ko-strip', tc);
-    this.koText = new TextField(this.ko);
-    this.koDanger = new Flag(this.ko, 'danger');
-    this.koShown = new Flag(this.ko, 'sr-only');
     this.splits = h('div', 'splits', tc);
     this.solo = new Flag(this.root, 'solo');
 
+    // the place, the coin pill on its baseline, and a Knockout's goal right under the numeral, where the eye
+    // goes for the place (Mario Kart World); it sat under the timer, a glance away from the place it is about
     const bl = h('div', 'bl', this.root);
-    this.place = h('div', 'place', bl);
+    const pc = h('div', 'pc', bl);
+    this.place = h('div', 'place', pc);
     this.place.setAttribute('aria-label', 'Position');
     const n = h('span', 'n', this.place);
     this.placeN = new TextField(n);
     this.placeLayers = new Attr(n, 'data-n');
     this.placeSuf = new TextField(h('span', 'suf', this.place));
     this.placeTier = new Attr(this.place, 'data-tier');
-    const coins = h('div', 'coins', bl);
+    const coins = h('div', 'coins', pc);
     h('span', 'coin', coins);
     this.coins = new TextField(h('span', '', coins));
     this.coinsFull = new Flag(coins, 'full');
+    this.ko = h('div', 'ko-strip', bl);
+    this.koText = new TextField(this.ko);
+    this.koDanger = new Flag(this.ko, 'danger');
+    this.koShown = new Flag(this.ko, 'sr-only');
 
     const br = h('div', 'br', this.root);
     this.minimap = new MinimapView(br);
@@ -348,14 +353,28 @@ export class HudView {
     // the splits change once a lap: drawn again only then
     let laps = '';
     for (const s of vm.splits) laps += `${s.time}${s.best ? '*' : ''}|`;
-    if (laps !== this.splitsKey) {
+    const drawn = laps !== this.splitsKey;
+    if (drawn) {
       this.splitsKey = laps;
       clear(this.splits);
       for (const s of vm.splits) {
         const row = h('div', s.best ? 'split best' : 'split', this.splits);
         h('span', 'n', row, `Lap ${s.lap}`);
         h('span', 't', row, s.time);
+        h('span', 'd', row);
       }
+    }
+    // the lap just run pops with the run against the best at its line (a class and a chip: the rows stay)
+    const pop = vm.lapPop;
+    const pk = pop ? `${pop.lap}|${pop.delta?.text ?? ''}` : '';
+    if (drawn || pk !== this.popKey) {
+      this.popKey = pk;
+      [...this.splits.children].forEach((row, i) => {
+        const on = pop !== null && i === pop.lap - 1, d = row.lastElementChild as HTMLElement;
+        row.classList.toggle('pop', on);
+        d.textContent = on ? pop.delta?.text ?? '' : '';
+        d.dataset.kind = on && pop.delta ? (pop.delta.ahead ? 'ahead' : 'behind') : '';
+      });
     }
     if (vm.flourish && !this.lastFlourish) replay(this.place, 'flourish');
     this.lastFlourish = vm.flourish;

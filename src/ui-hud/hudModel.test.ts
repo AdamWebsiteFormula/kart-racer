@@ -5,7 +5,7 @@ import { GO_TICK, STEP_TICKS } from '../race-manager/countdown.ts';
 import { RACE } from '../race-manager/constants.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { feedHud, hudModel, lapSplits, newHudMemory, positionTier } from './hudModel.ts';
+import { feedHud, hudModel, lapPop, lapSplits, newHudMemory, positionTier } from './hudModel.ts';
 
 const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
 
@@ -125,17 +125,19 @@ describe('hud model', () => {
     expect([c.held.state, c.next.state]).toEqual(['empty', 'empty']);
   });
 
-  it('knockout strip names the cut line and flags danger below it', () => {
-    const st = race({ mode: 'knockout', knockout: { setId: 'k', segment: 0, cutLineAt: 2, eliminated: [] } });
-    expect(hudModel(st, kart(), 4, 10, newHudMemory(), 0, defs, 0).knockout).toEqual({ text: 'TOP 6 GO THROUGH', danger: false });
-    expect(hudModel(st, kart(), 7, 10, newHudMemory(), 0, defs, 0).knockout?.danger).toBe(true);
+  it('knockout: the goal by the place names the cut line in places, and flags danger below it (25 Sept 2026: by the numeral, our words)', () => {
+    const at = (segment: number, rank: number) => hudModel(race({ mode: 'knockout', knockout: { setId: 'k', segment, cutLineAt: 2, eliminated: [] } }), kart(), rank, 10, newHudMemory(), 0, defs, 0).knockout;
+    expect(at(0, 6)).toEqual({ text: '6th or better goes through', danger: false });
+    expect(at(0, 7)).toEqual({ text: '6th or better goes through', danger: true });
+    expect(at(1, 4)).toEqual({ text: '4th or better goes through', danger: false });
+    expect(at(1, 5)?.danger).toBe(true);
     expect(hudModel(race(), kart(), 7, 10, newHudMemory(), 0, defs, 0).knockout).toBeNull();
   });
 
-  it('in the Knockout final the strip says only 1st wins, and 2nd is in danger (bug hunt 2)', () => {
+  it('in the Knockout final the goal says only 1st wins, and 2nd is in danger (bug hunt 2)', () => {
     const st = race({ mode: 'knockout', knockout: { setId: 'k', segment: 2, cutLineAt: 2, eliminated: [] } });
-    expect(hudModel(st, kart(), 1, 10, newHudMemory(), 0, defs, 0).knockout).toEqual({ text: 'WIN THE FINAL', danger: false });
-    expect(hudModel(st, kart(), 2, 10, newHudMemory(), 0, defs, 0).knockout).toEqual({ text: 'WIN THE FINAL', danger: true });
+    expect(hudModel(st, kart(), 1, 10, newHudMemory(), 0, defs, 0).knockout).toEqual({ text: 'Only 1st wins', danger: false });
+    expect(hudModel(st, kart(), 2, 10, newHudMemory(), 0, defs, 0).knockout).toEqual({ text: 'Only 1st wins', danger: true });
   });
 });
 
@@ -226,5 +228,26 @@ describe('solo runs (sweep 24 Sept 2026)', () => {
   it('one lap has no fastest yet; none has no splits', () => {
     expect(lapSplits([360 + 4800], 360)).toEqual([{ lap: 1, time: '0:40.00', best: false }]);
     expect(lapSplits([], 360)).toEqual([]);
+  });
+
+  it('at a lap line the lap just run pops with the run against the best there (the running total), for UI.lapPopSeconds of race time (25 Sept 2026)', () => {
+    const hold = UI.lapPopSeconds * 120; // ticks (SIM_HZ 120)
+    const k = kart();
+    // lap 1 crossed at 40.00 s, lap 2 at 79.00 s; the best was at 40.42 s and 78.69 s
+    const best = [40420, 78690, 118000];
+    const at = (tick: number, splits?: number[]) => hudModel(race({ karts: [k], trackers: [tr], goTick: 360, tick, mode: 'timeTrial' } as never), k, 1, 10, newHudMemory(), 0, defs, 0, false, undefined, splits).lapPop;
+    const line2 = tr.lapTicks[1];
+    expect(at(line2, best)).toEqual({ lap: 2, delta: { text: '+0.31', ahead: false, words: '0.31 seconds behind your best' } });
+    expect(at(line2 + hold - 1, best)?.lap).toBe(2);
+    expect(at(line2 + hold, best)).toBeNull(); // gone after its hold
+    // lap 1, just over its line: ahead
+    expect(lapPop([tr.lapTicks[0]], 360, tr.lapTicks[0] + 10, best)?.delta).toMatchObject({ text: '−0.42', ahead: true });
+    // no best yet (a first run, the Daily, a best from before the lines were kept): the lap time alone
+    expect(at(line2)).toEqual({ lap: 2, delta: null });
+    expect(at(line2, [40420])).toEqual({ lap: 2, delta: null });
+    // before the first line, and in a field of racers: none
+    expect(lapPop([], 360, 900, best)).toBeNull();
+    const field = hudModel(race({ karts: [k, kart()], trackers: [tr, tr], goTick: 360, tick: line2 } as never), k, 1, 10, newHudMemory(), 0, defs, 0, false, undefined, best);
+    expect(field.lapPop).toBeNull();
   });
 });

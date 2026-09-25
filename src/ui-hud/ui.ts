@@ -8,7 +8,7 @@ import type { GrandPrixState, KnockoutState, RaceEvent, RaceMode, RaceResults, R
 import type { Minimap } from '../track-builder/minimap.ts';
 import { initialApp, isPaused, needsCup, needsTrack, reduce, topOverlay } from './app.ts';
 import { accentOf, CAST, nameOf } from './data/cast.ts';
-import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
+import { CUPS, KNOCKOUT_SETS, nextTrack, trackCard } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
 import { feedHud, hudModel, newHudMemory, type HudMemory } from './hudModel.ts';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
@@ -25,7 +25,7 @@ import {
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
 import { adjustSetting, cupMenu, medalFor, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
-import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, type BoardLoad, type BoardPost } from './screens/results.ts';
+import { boardDown, boardModel, cumulativeSplits, endFocus, endMenu, gpModel, knockoutCutModel, nextDailyAt, resultsModel, type BoardLoad, type BoardPost, type EndMenuVM } from './screens/results.ts';
 import { podiumModel } from './screens/podium.ts';
 import { PodiumView } from './render/podium.ts';
 import type { LeaderboardClient } from '../backend-leaderboard/client.ts';
@@ -35,8 +35,12 @@ import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
 import { grantAll, grantUnlocks, unlockRows } from './unlocks.ts';
 import { garageModel, lookFor, mirrorAllowed, setChoice, stepChoice, type ChoiceId } from './garage.ts';
 
-/** `mirrored`: Mirror mode (Quick Race and Grand Prix only); `look`: the player's paint and body (cosmetic only) */
-export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[]; mirrored?: boolean; look?: KartLookIds }
+/**
+ * `mirrored`: Mirror mode (Quick Race and Grand Prix only); `look`: the player's paint and body (cosmetic only);
+ * `intro`: from the results, the course intro to fly: 'short' for a Quick Race's Next track, 'none' for a race
+ * again or a Time Trial's Retry (as the pause's Restart); absent, the mode's own (design §9)
+ */
+export interface RacePlan { mode: RaceMode; racerId: string; speedClass: SpeedClass; cupId: string | null; tracks: string[]; mirrored?: boolean; look?: KartLookIds; intro?: 'short' | 'none' }
 /** A kart's look by id: an alt paint (data/cosmetics.ts SKINS) and a body (BODIES); absent = the racer's own. */
 export interface KartLookIds { paint?: string; body?: string }
 
@@ -123,6 +127,11 @@ export class UiRoot {
   private dots: MinimapDot[] = [];
   private lastOver: RaceOver | null = null;
   private ttNote = '';
+  /** a Time Trial's best before the run just finished (0: none), for the results' "−1.37"; `ttSlower`: the run did not beat it */
+  private ttBefore = 0;
+  private ttSlower = false;
+  /** the end screen's buttons as they sit (screens/results.ts endMenu); the focus grid follows them */
+  private end: EndMenuVM = { rows: [] };
   private boardLoad: BoardLoad = 'loading';
   private boardPost: BoardPost = { state: 'idle' };
   /** the player crossed the line in the race on screen: a fresh confirm skips to the results */
@@ -180,6 +189,8 @@ export class UiRoot {
   /** a phone on its side (the stylesheet's short-screen block): the title and pause buttons sit two by two */
   private readonly short: MediaQueryList | undefined;
   private readonly onShort = () => this.setGrids();
+  /** a short window (a laptop, a phone on its side): the end buttons sit in one line (UI.endOneLineQuery) */
+  private readonly oneLine: MediaQueryList | undefined;
 
   /** on-screen thumbs for phones and tablets (shown only there, only while racing) */
   readonly touch: TouchControls;
@@ -209,6 +220,8 @@ export class UiRoot {
     this.upright?.addEventListener?.('change', this.onUpright);
     this.short = globalThis.matchMedia?.(UI.shortScreenQuery);
     this.short?.addEventListener?.('change', this.onShort);
+    this.oneLine = globalThis.matchMedia?.(UI.endOneLineQuery);
+    this.oneLine?.addEventListener?.('change', this.onShort);
     // the item roulette flicks through every painted item: main.ts fetches them all into the cache,
     // in turn with the other background files, once the title is up (performance/loadQueue.ts)
     const r = this.root;
@@ -245,6 +258,7 @@ export class UiRoot {
     clearTimeout(this.toastTimer);
     this.upright?.removeEventListener?.('change', this.onUpright);
     this.short?.removeEventListener?.('change', this.onShort);
+    this.oneLine?.removeEventListener?.('change', this.onShort);
     this.root.remove();
   }
 
@@ -276,7 +290,8 @@ export class UiRoot {
       this.playerDone = false;
       this.statsOff = false;
       if (prev.screen === 'gpTable' || prev.screen === 'knockoutCut') this.host.nextRace();
-      else this.host.startRace(this.plan(next));
+      // one more go from the results: no course intro for the same race again, a short one for the next track
+      else this.host.startRace({ ...this.plan(next), ...(a.type === 'raceAgain' ? { intro: 'none' as const } : a.type === 'nextTrack' ? { intro: 'short' as const } : {}) });
     }
     if (a.type === 'restart' && prev.screen === 'racing') { this.hudMem = newHudMemory(); this.playerDone = false; this.statsOff = false; this.host.restartRace(); }
     if (a.type === 'quit' && prev.screen === 'racing') writeSave(this.backend, this.save); // the race's counters (ultra turbos, hits)
@@ -330,12 +345,17 @@ export class UiRoot {
     if (over.medalTimesMs && me && !me.dnf) {
       const tt = this.save.timeTrial[over.results.trackId];
       const medal = medalFor(me.timeMs, over.medalTimesMs);
-      this.ttNote = !tt || me.timeMs < tt.bestMs ? `New best! ${medalName(medal)}` : medalName(medal);
-      // the ghost goes with the best it drove, never with a slower run
+      this.ttSlower = !!tt && me.timeMs >= tt.bestMs;
+      this.ttNote = this.ttSlower ? medalName(medal) : `New best! ${medalName(medal)}`;
+      this.ttBefore = tt?.bestMs ?? 0; // the results say how the run did against it
+      // the ghost goes with the best it drove, never with a slower run; so do its lap lines, which the next run races
       const look = over.ghost ? { ...(over.look?.paint ? { paint: over.look.paint } : {}), ...(over.look?.body ? { body: over.look.body } : {}) } : {};
-      if (!tt || me.timeMs < tt.bestMs) this.save.timeTrial[over.results.trackId] = { bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined, ...(over.ghost ? { ghost: over.ghost } : {}), ...look };
-      else tt.medal = medalFor(tt.bestMs, over.medalTimesMs); // the kept best, graded against today's times
-    } else this.ttNote = '';
+      if (!tt || me.timeMs < tt.bestMs) {
+        this.save.timeTrial[over.results.trackId] = {
+          bestMs: me.timeMs, medal, racerId: over.playerId ?? undefined, splitsMs: cumulativeSplits(me.lapTimesMs, me.timeMs), ...(over.ghost ? { ghost: over.ghost } : {}), ...look,
+        };
+      } else tt.medal = medalFor(tt.bestMs, over.medalTimesMs); // the kept best, graded against today's times
+    } else { this.ttNote = ''; this.ttBefore = 0; this.ttSlower = false; }
     // design §10: anything this race earned is granted now, and shown once
     const fresh = grantUnlocks(this.save, this.host.medalTimes);
     if (fresh.length) this.showToast(`Unlocked: ${fresh.map((u) => u.name).join(', ')}!`);
@@ -366,8 +386,8 @@ export class UiRoot {
     if (!o?.board || this.app.screen !== 'results' || this.app.overlays.length) return;
     const vm = boardModel(o.board.mode, o.trackName, o.board.dailySeed, this.boardLoad, this.boardPost, o.board.mode === 'daily' ? nextDailyAt() : '');
     this.views.results.updateBoard(vm);
-    // Try again sits between the name box and Continue while the board cannot be read
-    this.models.set('results', { rows: vm.retry ? [['name', 'post'], ['retry'], ['continue']] : [['name', 'post'], ['continue']] });
+    // Try again sits between the name box and the buttons while the board cannot be read
+    this.models.set('results', this.resultsGrid());
     if (this.focusBy.get('results') === 'retry') this.setFocus(vm.retry ? 'retry' : 'post', false); // the button was drawn again
     // the rows arriving push the name box down: keep whatever has the focus in sight
     const id = this.focusBy.get(this.app.screen);
@@ -396,6 +416,13 @@ export class UiRoot {
       if (this.boardLoad === 'offline') this.refreshBoard(); // the network may be back for the times too
     }
     this.paintBoard();
+    // posted: the focus moves on to the main button (Retry, Race again), so the next press is one more go; a
+    // press as it moves is the post's own second press, held back like a double press on a new screen
+    const at = this.focusBy.get('results');
+    if (r.ok && this.app.screen === 'results' && !this.app.overlays.length && (at === 'post' || at === 'name')) {
+      const main = this.end.rows[0]?.[0]?.id;
+      if (main) { this.setFocus(main); this.enteredAt = this.clock(); }
+    }
   }
 
   // ---------------------------------------------------------------- race
@@ -425,9 +452,12 @@ export class UiRoot {
   race(f: RaceFrame, nowMs: number): void {
     if (this.app.screen !== 'racing') return;
     this.playerDone = f.player.finishTick !== undefined;
-    // a Time Trial's finish shows the medal its time won
-    const medals = f.state.mode === 'timeTrial' ? this.host.medalTimes.get(f.state.trackId) : undefined;
-    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing, medals);
+    // a Time Trial's finish shows the medal its time won, and each lap line how the run stands against the best
+    // (the save changes only with the results, after the finish: this race's lines are always against the best it raced)
+    const tt = f.state.mode === 'timeTrial';
+    const medals = tt ? this.host.medalTimes.get(f.state.trackId) : undefined;
+    const best = tt ? this.save.timeTrial[f.state.trackId]?.splitsMs : undefined;
+    const vm = hudModel(f.state, f.player, f.shownRank, f.coinCap, this.hudMem, nowMs / 1000, f.itemDefs, nowMs, f.trailing, medals, best);
     this.views.hud.render(vm);
     minimapDots(f.state.karts, f.map, accentOf, this.dots);
     this.views.hud.minimap.render(f.map, this.dots, nowMs);
@@ -626,6 +656,11 @@ export class UiRoot {
       const jump = rosterMove(model, cur, a, this.dressing || this.app.racerId);
       if (jump) { if (jump !== cur) { this.host.uiSound?.('move'); this.setFocus(jump); } return; }
     }
+    // down from the leaderboard's name box or Post: the main button (Retry, Race again), wherever it sits
+    if (key === 'results' && model && cur) {
+      const main = boardDown(model, cur, a, this.end.rows[0]?.[0]?.id);
+      if (main) { this.host.uiSound?.('move'); this.setFocus(main); return; }
+    }
     if (model && cur) {
       const next = move(model, cur, a);
       // past the top or bottom stop, a panel taller than the screen (How to Play, Credits, a long
@@ -690,13 +725,18 @@ export class UiRoot {
       }
       case 'cupSelect': this.dispatch({ type: 'pickCup', cupId: id }); break;
       case 'trackSelect': this.dispatch({ type: 'pickTrack', trackId: id }); break;
-      case 'results': case 'gpTable': case 'knockoutCut': case 'podium':
+      case 'results': case 'gpTable': case 'knockoutCut': case 'podium': {
         if (id === 'post') { void this.postRun(); break; }
         if (id === 'retry') { this.refreshBoard(); break; }
         // a pad's A in the name box moves on to Post (Enter typed inside the box posts)
         if (id === 'name') { this.setFocus('post'); break; }
-        this.dispatch({ type: 'continue' });
+        // one more go (screens/results.ts endMenu): the reducer refuses each where it does not fit
+        const track = id === 'next' ? nextTrack(s.trackId, this.host.builtTracks) : undefined;
+        const go: AppAction = id === 'again' ? { type: 'raceAgain' } : track ? { type: 'nextTrack', trackId: track }
+          : id === 'track' ? { type: 'changeTrack' } : id === 'racer' ? { type: 'changeRacer' } : { type: 'continue' };
+        this.dispatch(go);
         break;
+      }
       default: break;
     }
   }
@@ -933,6 +973,8 @@ export class UiRoot {
     if (this.models.has('title')) this.models.set('title', titleMenu(short).focus);
     if (this.models.has('pause')) this.models.set('pause', pauseMenu(short, this.canRestart).focus);
     if (this.models.has('rosterSelect')) this.models.set('rosterSelect', rosterMenu(this.app.speedClass, this.app.mode, this.rosterExtras(), short).focus);
+    // the end buttons: one row in a short window, row by row elsewhere
+    for (const k of ['results', 'gpTable', 'knockoutCut'] as const) if (this.models.has(k) && this.app.screen === k) this.models.set(k, this.resultsGrid());
   }
 
   /** A Grand Prix or Knockout race cannot be run again from the pause (it farmed stars and wins; Mario Kart hides it too) */
@@ -949,35 +991,54 @@ export class UiRoot {
   }
 
   /** `entering`: the screen is coming in (not drawn again): the results wait for the race's FINISH! to leave, the standings play out */
-  private renderEnd(key: string, entering = true): void {
+  private renderEnd(key: 'results' | 'gpTable' | 'knockoutCut', entering = true): void {
     const o = this.lastOver;
     if (!o) return;
     const s = this.app;
     const lag = entering ? this.arriveLag : 0;
-    const series = s.mode === 'grandPrix' || s.mode === 'knockout';
-    const nextLabel = key === 'results' ? (series ? 'Standings' : 'Back to menu') : s.seriesHasNext ? 'Next race' : s.podiumNext ? 'Continue' : 'Back to menu';
+    // the buttons: a one-off race is one more go away (the next track named on its button), a series goes on
+    const next = s.mode === 'quick' ? trackCard(nextTrack(s.trackId, this.host.builtTracks) ?? '')?.name : '';
+    const end = endMenu(key, s.mode, s, next);
+    this.end = end;
+    const nextLabel = end.rows[0][0].label;
     if (key === 'results') {
-      // a Time Trial: the medal its time won, and the ladder of medal times
-      const vm = resultsModel(o.results, o.playerId, o.trackName, UI.staggerResultsMs, o.medalTimesMs);
+      // a Time Trial: the medal its time won, the ladder of medal times, and the run against the best it raced
+      const vm = resultsModel(o.results, o.playerId, o.trackName, UI.staggerResultsMs, o.medalTimesMs, this.ttBefore);
       if (this.ttNote) vm.headline = this.ttNote;
       const withBoard = !!o.board && !!this.host.leaderboard;
       // a first-timer gets a friendly name to post under (a pad has no keys to type one), selected so typing replaces it
       const known = !!this.save.playerName && this.save.playerName !== 'Player';
       const name = known ? this.save.playerName : o.playerId ? `${nameOf(o.playerId)} ${this.nameNumber}`.slice(0, 16) : '';
-      this.views.results.renderResults(vm, nextLabel, withBoard ? { name, suggested: !known } : undefined, lag);
+      this.views.results.renderResults(vm, end, withBoard ? { name, suggested: !known } : undefined, lag);
       if (withBoard) {
-        this.models.set(key, { rows: [['name', 'post'], ['continue']] });
-        // a known name goes straight to Post; a first-timer starts in the name box
-        this.focusBy.set(key, known ? 'post' : 'name');
+        this.models.set(key, this.resultsGrid());
+        // a run worth posting (a Time Trial's new best, a Daily) starts on the board, as it can be posted only now:
+        // a known name on Post, a first-timer in the name box (Retry is one press down, and the focus moves on to it
+        // once the run is posted); a Time Trial run slower than the best starts on Retry, one press from one more go
+        this.focusBy.set(key, this.ttSlower ? end.rows[0][0].id : known ? 'post' : 'name');
         this.paintBoard();
         return;
       }
+      // no board: the main button (Next track, Retry, Race again) has the focus
+      this.focusBy.set(key, end.rows[0][0].id);
     }
     // the standings play out (the old order, the count, the flips); reduced motion shows how they end
     else if (key === 'gpTable' && o.gp) this.views.results.renderGp(gpModel(o.gp.before, o.gp.after, o.playerId), nextLabel, entering && !this.reducedMotion);
     else if (key === 'knockoutCut' && o.ko) this.views.results.renderCut(knockoutCutModel(o.results, o.ko.after, o.playerId), nextLabel);
     // the player's own row in sight (a phone on its side, the player low in the standings)
     this.views.results.revealPlayer();
-    this.models.set(key, { rows: [['continue']] });
+    this.models.set(key, this.resultsGrid());
+  }
+
+  /**
+   * An end screen's focus grid as its controls sit: the leaderboard's name box and Post (and Try again while the
+   * board cannot be read) over the buttons, which are one row in a short window (a laptop, a phone on its side:
+   * UI.endOneLineQuery) and row by row elsewhere, as the stylesheet sets them.
+   */
+  private resultsGrid(): FocusModel {
+    const o = this.lastOver;
+    const board = this.app.screen === 'results' && !!o?.board && !!this.host.leaderboard;
+    const buttons = endFocus(this.end, this.oneLine?.matches ?? false);
+    return { rows: board ? [['name', 'post'], ...(this.boardLoad === 'offline' ? [['retry']] : []), ...buttons] : buttons };
   }
 }

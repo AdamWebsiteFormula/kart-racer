@@ -96,10 +96,25 @@ describe('Knockout cut screen', () => {
     const v = new ResultsView(document.body);
     const row = (racerId: string, name: string, out: boolean, winner: boolean) => ({ racerId, name, accent: '#fff', rank: '1st', out, winner, player: false, delayMs: 0 });
     v.renderCut({
-      headline: 'Big Gus wins', sub: 'Final', remaining: 2, playerOut: false, done: true, winner: 'Big Gus',
+      headline: 'Big Gus wins', sub: 'Final', remaining: 2, playerOut: false, done: true, winner: 'Big Gus', cutAt: 1,
       rows: [row('gus', 'Big Gus', false, true), row('boulder', 'Boulder', true, false)],
     }, 'Back to menu');
     expect([...v.root.querySelectorAll('.row .tm')].map((e) => e.textContent)).toEqual(['WINNER', 'OUT']);
+  });
+
+  it('a CUT line runs under the last racer through and over the first out, drawn once the rows are in (25 Sept 2026)', () => {
+    document.body.innerHTML = '';
+    const v = new ResultsView(document.body);
+    const row = (racerId: string, out: boolean, i: number) => ({ racerId, name: racerId, accent: '#fff', rank: `${i + 1}`, out, winner: false, player: false, delayMs: i * UI.staggerResultsMs });
+    const ids = ['momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'pip', 'gus'];
+    v.renderCut({ headline: 'Safe!', sub: '6 racers left', remaining: 6, playerOut: false, done: false, winner: null, cutAt: 6, rows: ids.map((id, i) => row(id, i >= 6, i)) }, 'Next race');
+    const rows = [...v.root.querySelectorAll<HTMLElement>('.rows.cut .row')];
+    expect(rows.map((r) => r.classList.contains('cut-above'))).toEqual([false, false, false, false, false, true, false, false]);
+    // it draws in after the last row has started in
+    expect(rows[5].style.getPropertyValue('--cut-at')).toBe(`${7 * UI.staggerResultsMs + UI.cutLineLagMs}ms`);
+    // nobody out (or nobody through): no line
+    v.renderCut({ headline: 'Safe!', sub: '', remaining: 8, playerOut: false, done: false, winner: null, cutAt: 0, rows: ids.map((id, i) => row(id, false, i)) }, 'Next race');
+    expect(v.root.querySelectorAll('.cut-above').length).toBe(0);
   });
 });
 
@@ -597,11 +612,11 @@ describe('leaderboard panel', () => {
   it('a cursor resting where the results open takes no focus from the name box; a moving one does (seam review)', async () => {
     const { ui } = setup([]);
     await flush();
-    const next = document.querySelector('#ui .results.on [data-id="continue"]')!;
-    next.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: 683, clientY: 495 })); // the browser's, for the hover state
+    const retry = document.querySelector('#ui .results.on [data-id="again"]')!;
+    retry.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, clientX: 683, clientY: 495 })); // the browser's, for the hover state
     expect((document.activeElement as HTMLElement).dataset.id).toBe('name');
-    next.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 684, clientY: 495 }));
-    expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
+    retry.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 684, clientY: 495 }));
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('again');
     ui.dispose();
   });
 
@@ -870,7 +885,7 @@ describe('gamepad', () => {
   });
 
   it('A held (a drift) as the results slide in does not skip them; a new press does', () => {
-    const { ui } = setup();
+    const { ui, h } = setup();
     ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     set(A, true); pad.axes[0] = -1; frame(ui); frame(ui); // drifting left over the line
     ui.raceOver({ results: oneRow, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false });
@@ -881,8 +896,10 @@ describe('gamepad', () => {
     set(A, false); frame(ui);
     expect(ui.app.screen).toBe('results');
     t += UI.endScreenGuardMs; // past the end screen's guard
-    press(ui, A);
-    expect(ui.app.screen).toBe('modeSelect');
+    const starts = h.calls.filter((c) => c.startsWith('start')).length;
+    press(ui, A); // on Next track, the main button: the next race
+    expect(ui.app.screen).toBe('racing');
+    expect(h.calls.filter((c) => c.startsWith('start')).length).toBe(starts + 1);
     ui.dispose();
   });
 
@@ -951,9 +968,11 @@ describe('tall panels (a laptop or a phone on its side)', () => {
     for (const sel of ['h2', '.rows', '.board-row', '.name-input', '[data-id="post"]']) expect(scroll.querySelector(sel), sel).not.toBeNull();
     // the name box comes before the times, so it shows on a short screen without scrolling
     expect(scroll.querySelector('.board-form')!.compareDocumentPosition(scroll.querySelector('.board-list')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const next = box.querySelector(':scope > .actions [data-id="continue"]');
-    expect(next).not.toBeNull();
-    expect(scroll.contains(next)).toBe(false);
+    for (const id of ['again', 'track', 'racer', 'menu']) {
+      const b = box.querySelector(`:scope > .actions [data-id="${id}"]`);
+      expect(b, id).not.toBeNull();
+      expect(scroll.contains(b)).toBe(false);
+    }
     ui.dispose();
   });
 
@@ -963,12 +982,14 @@ describe('tall panels (a laptop or a phone on its side)', () => {
     const by = sized(scroll, 790, 500);
     reveal.mockClear();
     const input = document.querySelector('#ui .name-input')!;
-    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })); // name → Back to menu
-    expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })); // name → Retry
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('again');
+    key('ArrowDown'); // the ways back to the menus, under it
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('track');
     key('ArrowDown'); key('ArrowDown'); // more board below: it scrolls, the focus stays
     expect(by).toHaveBeenCalledTimes(2);
     expect(by.mock.calls[0][0].top).toBe(UI.panelScrollPx);
-    expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('track');
     key('ArrowDown'); key('ArrowDown'); // at the bottom: now it wraps round to the name box, scrolled into sight
     expect(scroll.scrollTop).toBe(290);
     expect((document.activeElement as HTMLElement).dataset.id).toBe('name');

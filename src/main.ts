@@ -394,8 +394,10 @@ const host: UiHost = {
     const seed = Date.now() % 1_000_000;
     if (p.mode === 'grandPrix' && p.cupId) series = createGrandPrix({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
     if (p.mode === 'knockout' && p.cupId) series = createKnockout({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
-    // the course intro before the countdown: a short one in Time Trial and the Daily (game/intro.ts)
-    load(series ? withMirror(nextRace(series)!) : configFor(p), false, p.mode === 'timeTrial' || p.mode === 'daily' ? 'short' : 'full');
+    // the course intro before the countdown: a short one in Time Trial and the Daily (game/intro.ts); from the
+    // results, a short one on to the next track and none for the same race again (as the pause's Restart)
+    const intro = p.intro === 'none' ? null : p.intro ?? (p.mode === 'timeTrial' || p.mode === 'daily' ? 'short' : 'full');
+    load(series ? withMirror(nextRace(series)!) : configFor(p), false, intro);
   },
   nextRace() {
     const next = series ? nextRace(series) : undefined;
@@ -429,8 +431,8 @@ const host: UiHost = {
   screenChanged(app) {
     // the series' podium ceremony (game/podium.ts), after its standings or its cut
     if (app.screen === 'podium' && podium && !podium.showing) startPodium();
-    // leaving the race screens for the menus brings the attract race back
-    if (!attract && (app.screen === 'modeSelect' || app.screen === 'title')) startAttract();
+    // leaving the race screens for the menus brings the attract race back (the results' Change track and Change racer too)
+    if (!attract && (app.screen === 'modeSelect' || app.screen === 'title' || app.screen === 'rosterSelect' || app.screen === 'trackSelect')) startAttract();
   },
 };
 

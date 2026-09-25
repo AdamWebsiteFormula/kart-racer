@@ -41,6 +41,15 @@ export function formatGap(seconds: number): string {
   return `${sign}${Math.abs(seconds).toFixed(2)}`;
 }
 
+/** A Time Trial time against the best it raced: "−1.37" ahead, "+0.85" behind; `words` for assistive tech */
+export interface BestDelta { text: string; ahead: boolean; words: string }
+
+/** `ms` against `bestMs`, as a Time Trial shows it at a lap line and on its results: seconds to the hundredth, signed. */
+export function bestDelta(ms: number, bestMs: number): BestDelta {
+  const d = ms - bestMs, s = Math.abs(d / 1000).toFixed(2);
+  return { text: formatGap(d / 1000), ahead: d < 0, words: `${s} seconds ${d < 0 ? 'ahead of' : 'behind'} your best` };
+}
+
 /** Speed in miles per hour: the game is written for US players (Adam, 24 Sept 2026). */
 export function mph(metresPerSecond: number): number {
   return Math.round(Math.abs(metresPerSecond) * 2.2369363);

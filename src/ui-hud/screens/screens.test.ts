@@ -3,13 +3,13 @@ import { applyResults, createGrandPrix, createKnockout } from '../../race-manage
 import type { GrandPrixState, KnockoutState, RaceResults, RacerConfig } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
 import { CAST } from '../data/cast.ts';
-import { attractTrack, playableTracks } from '../data/catalog.ts';
+import { attractTrack, nextTrack, playableTracks, TRACKS } from '../data/catalog.ts';
 import { FACE_ZOOM, faceCrop } from '../data/faces.ts';
 import { firstFocus, move, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { CREDITS_MADE, parseCredits } from './credits.ts';
 import { cupMenu, medalFor, medalLadder, MODES, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, statBar, titleMenu, trackMenu } from './menus.ts';
-import { boardModel, gpModel, knockoutCutModel, nextDailyAt, resultsModel, seedDate } from './results.ts';
+import { boardDown, boardModel, cumulativeSplits, END_LABELS, endFocus, endMenu, gpModel, knockoutCutModel, nextDailyAt, resultsModel, seedDate } from './results.ts';
 
 const racers: RacerConfig[] = CAST.map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 }));
 
@@ -147,6 +147,24 @@ describe('results screens', () => {
     expect(vm.headline).toBe(`${vm.winner} wins`);
     expect(vm.rows.map((x) => [x.out, x.winner])).toEqual([[false, true], [true, false], [true, false], [true, false]]);
     expect(vm.rows[1]).toMatchObject({ player: true, out: true });
+    // the cut line under the winner, over the rest
+    expect(vm.cutAt).toBe(1);
+  });
+
+  it('the cut line sits under the last racer through and over the first out: 6 of 8, then 4 of 6 (25 Sept 2026)', () => {
+    const ko: KnockoutState = createKnockout({ id: 'coastline', trackIds: ['a', 'b', 'c'] }, racers, 150, 1);
+    let field = CAST.map((c) => c.id);
+    const cuts: number[] = [];
+    for (let seg = 0; seg < 2; seg++) {
+      const r = results(field);
+      applyResults(ko, r);
+      const vm = knockoutCutModel(r, ko, 'pip');
+      cuts.push(vm.cutAt);
+      // every row above the line goes through, every row under it is out
+      expect(vm.rows.map((x) => x.out)).toEqual(vm.rows.map((_, i) => i >= vm.cutAt));
+      field = field.filter((id) => !ko.eliminated.includes(id));
+    }
+    expect(cuts).toEqual([6, 4]);
   });
 
   it('credits come from the CREDITS.md tables', () => {
@@ -313,6 +331,29 @@ describe('Time Trial medals (sweep 24 Sept 2026)', () => {
     expect(resultsModel(run(117500), 'pip', 'Harbor Loop').medal).toBeUndefined();
   });
 
+  it('the results say how the run did against the best it raced: "−1.37" ahead with the old best under it, "+0.85" behind (25 Sept 2026)', () => {
+    const run = (timeMs: number, dnf = false): RaceResults => ({
+      mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
+      ranks: [{ racerId: 'pip', rank: 1, finishTick: 14000, timeMs, lapTimesMs: [timeMs], dnf, projectedMs: -1 }],
+    });
+    const ahead = resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 118870);
+    expect(ahead.delta).toEqual({ text: '−1.37', ahead: true, words: '1.37 seconds ahead of your best' });
+    expect(ahead.sub).toBe('Harbor Loop · Old best 1:58.87');
+    const behind = resultsModel(run(119720), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 118870);
+    expect(behind.delta).toEqual({ text: '+0.85', ahead: false, words: '0.85 seconds behind your best' });
+    expect(behind.sub).toBe('Harbor Loop · Your best 1:58.87');
+    // a first run has no best to beat; a DNF says nothing of one; neither does a race with no medal times (not a Time Trial)
+    const first = resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 0);
+    expect([first.sub, first.delta]).toEqual(['Harbor Loop', undefined]);
+    expect(resultsModel(run(-1, true), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 118870).delta).toBeUndefined();
+    expect(resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, undefined, 118870).delta).toBeUndefined();
+  });
+
+  it('a new best keeps its time at each lap line from the start, the last its own time (laps are rounded one by one)', () => {
+    expect(cumulativeSplits([38033, 35450, 36926], 110410)).toEqual([38033, 73483, 110410]);
+    expect(cumulativeSplits([], 5000)).toEqual([]);
+  });
+
   it('a Time Trial card carries its best run\'s medal for the corner badge, and still names it in words; other modes carry none', () => {
     const save = defaultSave();
     save.timeTrial['harbour-loop'] = { bestMs: 117500, medal: 'gold' };
@@ -326,6 +367,61 @@ describe('Time Trial medals (sweep 24 Sept 2026)', () => {
       ['canyon-rush', null, null],
     ]);
     expect(trackMenu('quick', built, save, medals).tracks.every((t) => t.medal === undefined)).toBe(true);
+  });
+});
+
+describe('the end buttons (25 Sept 2026: Mario Kart World\'s end-of-race menu)', () => {
+  const ids = (vm: { rows: { id: string }[][] }) => vm.rows.map((r) => r.map((b) => b.id));
+  const flow = { seriesHasNext: false };
+
+  it('a Quick Race: Next track (the track it goes to under it) and Race again, then Change track, Change racer and Menu', () => {
+    const vm = endMenu('results', 'quick', flow, 'Meadow Run');
+    expect(ids(vm)).toEqual([['next', 'again'], ['track', 'racer', 'menu']]);
+    expect(vm.rows[0][0]).toEqual({ id: 'next', label: 'Next track', sub: 'Meadow Run' });
+    expect(vm.rows.flat().map((b) => b.label)).toEqual(['Next track', 'Race again', 'Change track', 'Change racer', 'Menu']);
+  });
+
+  it('a Time Trial: Retry first; the Daily: Race again and Menu; a series goes on as before', () => {
+    expect(endMenu('results', 'timeTrial', flow).rows.map((r) => r.map((b) => b.label))).toEqual([['Retry'], ['Change track', 'Change racer', 'Menu']]);
+    expect(endMenu('results', 'daily', flow).rows.map((r) => r.map((b) => b.label))).toEqual([['Race again', 'Menu']]);
+    expect(endMenu('results', 'grandPrix', flow).rows).toEqual([[{ id: 'continue', label: 'Standings' }]]);
+    expect(endMenu('results', 'knockout', flow).rows).toEqual([[{ id: 'continue', label: 'Standings' }]]);
+    expect(endMenu('gpTable', 'grandPrix', { seriesHasNext: true }).rows[0][0].label).toBe('Next race');
+    expect(endMenu('knockoutCut', 'knockout', { seriesHasNext: false, podiumNext: true }).rows[0][0].label).toBe('Continue');
+    expect(endMenu('gpTable', 'grandPrix', flow).rows[0][0].label).toBe('Back to menu');
+    // every label is one of the words the text sweep checks
+    for (const vm of [endMenu('results', 'quick', flow), endMenu('results', 'timeTrial', flow), endMenu('results', 'daily', flow)]) {
+      for (const b of vm.rows.flat()) expect(Object.values(END_LABELS)).toContain(b.label);
+    }
+  });
+
+  it('the focus rows are the rows as they sit; one row in a short window, where they sit in one line; every button reachable by arrows', () => {
+    const vm = endMenu('results', 'quick', flow);
+    expect(endFocus(vm, false)).toEqual([['next', 'again'], ['track', 'racer', 'menu']]);
+    expect(endFocus(vm, true)).toEqual([['next', 'again', 'track', 'racer', 'menu']]);
+    for (const oneRow of [false, true]) {
+      const m = { rows: [['name', 'post'], ...endFocus(endMenu('results', 'timeTrial', flow), oneRow)] };
+      expect([...reachable(m, 'name')].sort()).toEqual(['again', 'menu', 'name', 'post', 'racer', 'track']);
+      // down from the name box and Post: the main button, Retry, wherever it sits (in one line Post's column is Change track's)
+      for (const from of ['name', 'post']) expect(boardDown(m, from, 'down', 'again') ?? move(m, from, 'down'), `${oneRow} ${from}`).toBe('again');
+      // any other move is the grid's own
+      expect(boardDown(m, 'post', 'up', 'again')).toBeNull();
+      expect(boardDown(m, 'track', 'down', 'again')).toBeNull();
+    }
+    // with Try again between (the board could not be read), down goes there first
+    expect(boardDown({ rows: [['name', 'post'], ['retry'], ['again', 'track', 'racer', 'menu']] }, 'post', 'down', 'again')).toBeNull();
+  });
+
+  it('Next track is the next built track in the track screen\'s order, round from the last to the first', () => {
+    const all = new Set(TRACKS.map((t) => t.id));
+    expect(nextTrack('harbour-loop', all)).toBe('meadow-run');
+    expect(nextTrack('canyon-rush', all)).toBe('frostbite-pass');
+    expect(nextTrack('skyline-circuit', all)).toBe('harbour-loop');
+    // unbuilt tracks are skipped; one built track is raced again; an unknown id starts at the first
+    expect(nextTrack('harbour-loop', new Set(['harbour-loop', 'canyon-rush']))).toBe('canyon-rush');
+    expect(nextTrack('harbour-loop', new Set(['harbour-loop']))).toBe('harbour-loop');
+    expect(nextTrack(null, new Set(['meadow-run', 'canyon-rush']))).toBe('meadow-run');
+    expect(nextTrack('x', new Set())).toBeUndefined();
   });
 });
 

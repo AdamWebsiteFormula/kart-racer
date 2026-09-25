@@ -5,7 +5,7 @@ import { arrowSvg, iconFor, iconMarkup, lockSvg, medalSvg, SHAPE_PATHS, starIcon
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
 import { DONE_HELP, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
-import type { BoardVM, CutVM, GpRow, GpVM, ResultsVM } from '../screens/results.ts';
+import type { BoardVM, CutVM, EndMenuVM, GpRow, GpVM, ResultsVM } from '../screens/results.ts';
 import { faceCrop } from '../data/faces.ts';
 import type { UnlockRow } from '../unlocks.ts';
 import type { GarageVM } from '../garage.ts';
@@ -688,12 +688,23 @@ export class ResultsView implements ScreenView {
     if (to !== null) sc.scrollTop = to;
   }
 
-  /** The button row, under the scrolling part: always in sight. */
-  private actions(box: HTMLElement, label: string): void {
+  /**
+   * The buttons, under the scrolling part: always in sight. Row by row as the end menu sets them (the first
+   * row the main ones, bigger; ui.css sets them in one line in a short window, UI.endOneLineQuery, and
+   * UiRoot's focus grid follows); a plain label is the one Continue.
+   */
+  private actions(box: HTMLElement, end: string | EndMenuVM): void {
+    const vm: EndMenuVM = typeof end === 'string' ? { rows: [[{ id: 'continue', label: end }]] } : end;
     const a = h('div', 'actions', box);
-    const b = button(a, 'continue');
-    h('span', 'label', b, label);
-    this.buttons.set('continue', b);
+    vm.rows.forEach((row, i) => {
+      const r = h('div', i === 0 ? 'act-row main' : 'act-row', a);
+      for (const e of row) {
+        const b = button(r, e.id, e.sub ? 'btn has-sub' : 'btn');
+        h('span', 'label', b, e.label);
+        if (e.sub) h('span', 'sub', b, e.sub);
+        this.buttons.set(e.id, b);
+      }
+    });
   }
 
   private board: { list: HTMLElement; sub: HTMLElement; note: HTMLElement; btn: HTMLElement; status: HTMLElement; input: HTMLInputElement } | null = null;
@@ -766,8 +777,8 @@ export class ResultsView implements ScreenView {
     this.board = { list, sub, note, btn, status, input };
   }
 
-  /** `lagMs`: coming in over the race's finish, the wait for FINISH! to leave (UI.finishLagMs) */
-  renderResults(vm: ResultsVM, next: string, board?: { name: string; suggested?: boolean }, lagMs = 0): void {
+  /** `end`: the buttons (a plain label: the one Continue); `lagMs`: coming in over the race's finish, the wait for FINISH! to leave (UI.finishLagMs) */
+  renderResults(vm: ResultsVM, end: string | EndMenuVM, board?: { name: string; suggested?: boolean }, lagMs = 0): void {
     this.board = null;
     const { box, head, body, rows } = this.frame(vm.headline, vm.sub, 'Results', vm.rows.length, lagMs);
     // a Time Trial's medal: its badge by the headline (which names it)
@@ -775,6 +786,13 @@ export class ResultsView implements ScreenView {
       const m = h('div', 'res-medal');
       m.innerHTML = medalSvg(vm.medal.won, 76);
       head.prepend(m);
+    }
+    // a Time Trial against the best it raced: "−1.37" in green by "New best!", "+0.85" in red on a slower run
+    if (vm.delta) {
+      const d = h('span', `res-delta ${vm.delta.ahead ? 'ahead' : 'behind'}`, null, vm.delta.text);
+      d.setAttribute('aria-label', vm.delta.words);
+      delay(d, lagMs);
+      head.querySelector('h2')?.after(d);
     }
     vm.rows.forEach((r, i) => {
       const e = h('div', `row${r.player ? ' me' : ''}${r.dnf ? ' dnf' : ''} r${i + 1}`, rows);
@@ -793,7 +811,7 @@ export class ResultsView implements ScreenView {
     }
     if (vm.medal) medalLadder(body, vm.medal);
     if (board) this.buildBoard(body, board.name, board.suggested);
-    this.actions(box, next);
+    this.actions(box, end);
   }
 
   /**
@@ -844,12 +862,22 @@ export class ResultsView implements ScreenView {
     this.actions(box, next);
   }
 
+  /**
+   * The Knockout cut. A dashed coral line labeled CUT runs across the list under the last racer who goes
+   * through (`vm.cutAt`), over the first who is out, so the cut reads at a glance; it draws in once the rows
+   * are in (ui.css `.cut-above`, on the row: in two columns on a phone on its side, a separate element
+   * would take a cell). The THROUGH and OUT on every row say it in words.
+   */
   renderCut(vm: CutVM, next: string): void {
     this.board = null;
     const { box, rows } = this.frame(vm.headline, vm.sub, 'Knockout results', vm.rows.length);
+    rows.classList.add('cut');
+    const drawAt = (vm.rows[vm.rows.length - 1]?.delayMs ?? 0) + UI.cutLineLagMs;
     vm.rows.forEach((r, i) => {
-      const e = h('div', `row${r.player ? ' me' : ''}${r.out ? ' out' : ''} r${i + 1}`, rows);
+      const above = i === vm.cutAt - 1;
+      const e = h('div', `row${r.player ? ' me' : ''}${r.out ? ' out' : ''}${above ? ' cut-above' : ''} r${i + 1}`, rows);
       delay(e, r.delayMs);
+      if (above) e.style.setProperty('--cut-at', `${drawAt}ms`);
       e.style.setProperty('--accent', r.accent);
       h('span', 'rk', e, r.rank);
       face(e, r.racerId);

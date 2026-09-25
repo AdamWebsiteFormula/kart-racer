@@ -46,6 +46,11 @@ export const UI = Object.freeze({
   standingsFlipGapMs: 250,
   flipMs: 440,
   flipStaggerMs: 70,
+  /** a solo run's lap line (Mario Kart World's Time Trial): the lap just run pops by the timer with its time, and
+   *  against the best run at that line (the running total), for this long of race time (a pause holds it) */
+  lapPopSeconds: 2.5,
+  /** the Knockout cut screen's line (CUT, dashed, across the list) draws in this long after the last row starts coming in */
+  cutLineLagMs: 360,
   /** finish → results: FINISH! and its lines leave first (UI.wipeOutMs); the results come in this much later
    *  than a screen coming usually does, once they have gone (ui.css: the results stage's `--lag`) */
   finishLagMs: 100,
@@ -58,6 +63,8 @@ export const UI = Object.freeze({
   panelScrollPx: 120,
   /** the stylesheet's short-screen block (a phone on its side): the title and pause buttons sit two by two there, and so do their focus grids */
   shortScreenQuery: '(max-height: 500px)',
+  /** a window this short (a laptop's 1366x657, a phone on its side) sets the end buttons in one line (ui.css), and their focus grid is one row: two rows of them hid the 7th and 8th places */
+  endOneLineQuery: '(max-height: 700px)',
   /** a new end screen (results, standings, the cut) ignores confirms this long: a double click on Continue skipped the Grand Prix standings (audit 24 Sept 2026) */
   endScreenGuardMs: 300,
   /** a confirm (a real key or click, or a pad's A) this soon after any screen or dialog opened is ignored: Enter pressed twice on the title picked Quick Race unseen (sweep, 24 Sept 2026) */
