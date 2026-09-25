@@ -6,7 +6,7 @@
 //   node scripts/ear/judge.mjs batch <id=path> ...              these recordings judged as these sounds, in one request
 //   node scripts/ear/judge.mjs file <path> --as=<id>            one recording judged as sound <id> (a new take)
 //   node scripts/ear/judge.mjs compare <id> <path,path,...>     takes side by side: which fits the brief best
-//   node scripts/ear/judge.mjs song <path> --as=<song> --part=start|middle|seam
+//   node scripts/ear/judge.mjs song <path> --as=<song> --part=start|middle|seam|edit   (edit: a blind check of an edited stretch)
 //   node scripts/ear/judge.mjs songset <song> <start.wav,middle.wav,seam.wav>   a song's three excerpts, one request
 //   node scripts/ear/judge.mjs voices <excerpt.wav> [--from=<s>]  is any human voice in this music excerpt, and when
 //          (a plain question with no brief, so nothing leads the ear; --from = the excerpt's start in the song,
@@ -247,7 +247,10 @@ async function judgeSong(path, id, part) {
   const s = SONGS.find((x) => x.id === id);
   const what = part === 'seam'
     ? 'This excerpt is the loop seam exactly as the game plays it: the last 5 seconds before the loop end run straight into the first 5 seconds after the loop start, at the 5 second mark. Listen closely there for any click, gap, jump, change of level, stumble or break in the rhythm.'
-    : `This excerpt is from the ${part} of the song's loop.`;
+    : part === 'edit'
+      // blind: an edited stretch (a bar splice, a removed sound) without saying where the edit is
+      ? 'This excerpt may contain an edit somewhere. Listen closely all the way through for any click, pop, gap, sudden change of level, stumble or break in the rhythm, or musical jump (a wrong chord, a melody that cuts off or restarts mid-phrase, a missing or doubled beat), and list each in seamProblems with its time. Note any audible compression artifacts (swirly, watery or dull highs) in problems.'
+      : `This excerpt is from the ${part} of the song's loop.`;
   const text = `Song: "${id}".\nBrief: ${s?.prompt ?? ''}\nWhere it plays: ${SONG_MOMENT[id] ?? ''}\n${what}\n` +
     'Judge the mood fit to its track or screen, the energy and polish against a Mario Kart World race theme (for the title and results, against their MKW counterparts), ' +
     "whether there is any singing, voice or words (there must be none), and any problems. verdict 'remake' only if it clearly fails its place.";
