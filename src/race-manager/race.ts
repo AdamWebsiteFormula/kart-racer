@@ -65,13 +65,16 @@ export class RaceManager {
       const slot = r.isPlayer ? playerSlot : r.isGhost && hasPlayer ? playerSlot : (free.shift() as number);
       const g = grid[slot];
       const s = createKartState({ racerId: r.racerId, isPlayer: r.isPlayer, isGhost: r.isGhost, position: [...g.position], heading: g.heading, t: g.t });
+      // the racer's class with the chosen kart's stats in place of their own kart's (design §5)
+      const c = makeConstants(r.archetype, config.speedClass, r.racerId, r.kartId);
       s.lap = 1;
+      s.kartId = c.kartId;
       s.bodyId = r.bodyId;
       s.skinId = r.skinId;
       if (r.isPlayer) playerIndex = i;
       karts.push(s);
       trackers.push(createTracker(slot, g.t));
-      consts.push(makeConstants(r.archetype, config.speedClass));
+      consts.push(c);
     });
     this.playerIndex = playerIndex;
     this.consts = consts;

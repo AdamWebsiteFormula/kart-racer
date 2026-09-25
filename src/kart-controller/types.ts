@@ -29,6 +29,8 @@ export interface KartState {
   racerId: string;
   isPlayer: boolean;
   isGhost: boolean;
+  /** the kart it drives (karts.ts; set by the race manager from its constants). Looks only: the handling is in KartConstants */
+  kartId?: string;
   bodyId?: string;
   skinId?: string;
   position: Vec3; // world metres, Y up

@@ -1,8 +1,11 @@
-// Reads the `default` values out of docs/schemas/kart.schema.json, applies the
-// archetype multipliers and the cc scale, and hands back one frozen object.
+// Reads the `default` values out of docs/schemas/kart.schema.json, applies the racer's class, the
+// chosen kart (karts.ts) and the cc scale, and hands back one frozen object.
 // No magic numbers anywhere else in the controller.
 import schema from '../../docs/schemas/kart.schema.json';
+import { ARCHETYPES, comboStats, kartFor, type ArchetypeStats } from './karts.ts';
 import type { Archetype, SpeedClass, Surface } from './types.ts';
+
+export { ARCHETYPES, type ArchetypeStats };
 
 export interface KartBase {
   topSpeed: number; accel: number; brake: number; steerRate: number;
@@ -35,22 +38,13 @@ export interface KartBase {
   speedClasses: Record<'50' | '100' | '150', number>;
 }
 
-export interface ArchetypeStats {
-  speed: number; accel: number; handling: number; weight: number;
-  hook: 'none' | 'hardBump';
-}
-
-/** design.md §4. Multipliers on the shared base. */
-export const ARCHETYPES: Readonly<Record<Archetype, ArchetypeStats>> = Object.freeze({
-  light: { speed: -0.01, accel: 0.12, handling: 0.12, weight: -0.15, hook: 'none' },
-  medium: { speed: 0, accel: 0, handling: 0, weight: 0, hook: 'none' },
-  heavy: { speed: 0.01, accel: -0.12, handling: -0.10, weight: 0.18, hook: 'hardBump' },
-});
-
 export interface KartConstants extends KartBase {
   archetype: Archetype;
   cc: SpeedClass;
-  stats: ArchetypeStats;
+  /** the combined line: the class with the kart's stats in place of the racer's own kart's (karts.ts comboStats) */
+  stats: Readonly<ArchetypeStats>;
+  /** the kart driven (kart.schema.json karts id): the one asked for, or the racer's own; '' for an unknown racer (karts.ts kartFor) */
+  kartId: string;
   /** base.topSpeed before cc and archetype; tests and the boost cap use it. */
   baseTopSpeed: number;
   /** 1 + weight; collision mass before dash and shield bonuses. */
@@ -71,12 +65,17 @@ export const BASE: Readonly<KartBase> = Object.freeze(
   walkDefaults(schema.properties.base.properties) as unknown as KartBase,
 );
 
-export function makeConstants(archetype: Archetype, cc: SpeedClass): Readonly<KartConstants> {
-  const stats = ARCHETYPES[archetype];
+/**
+ * The constants of `racerId` (class `archetype`) in `kartId` at `cc` (design §5). Without a kart, or
+ * with an unknown one, the racer drives their own kart: exactly the class, as before karts existed.
+ * An unknown racer (or none) takes the class alone.
+ */
+export function makeConstants(archetype: Archetype, cc: SpeedClass, racerId = '', kartId?: string): Readonly<KartConstants> {
+  const stats = comboStats(racerId, kartId, archetype);
   const ccScale = BASE.speedClasses[String(cc) as '50' | '100' | '150'];
   return Object.freeze({
     ...structuredClone(BASE as KartBase),
-    archetype, cc, stats,
+    archetype, cc, stats, kartId: kartFor(racerId, kartId),
     baseTopSpeed: BASE.topSpeed,
     topSpeed: BASE.topSpeed * ccScale * (1 + stats.speed),
     accel: BASE.accel * (1 + stats.accel),
