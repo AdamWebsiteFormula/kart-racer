@@ -163,5 +163,11 @@ Racer screen (24 Sept 2026): down from any card goes straight to Paint, Body and
 
 Finish celebration (24 Sept 2026): the race HUD steps aside (FINISH! rises and shrinks under the timer; the item slots, map, speed and hints go; the place and time stay). Podium ceremony: no dim and no panel over it, the headline with the series and the player's stars at the top, the places as they stand (2nd, 1st, 3rd) and Continue along the bottom.
 
+Driving aids (25 Sept 2026: as Mario Kart World's options make it drivable by a five-year-old). Settings leads with two, both Off by default: **Auto-accelerate** holds the gas from GO (never in the countdown, so the start boost is still earned with a press on the 2; the brake still brakes and reverses) and **Steering assist** nudges the kart back from the road's edge and away from drops (strong input toward an edge wins, except before a drop, where it also lifts the gas). They change the player's input before it is logged, so a run with them replays on the leaderboard as it was raced. The race strip says "Gas: automatic from GO"; a small wheel by the speed readout shows Steering assist is on and lights up while it steers. (src/game/assist.ts)
+
+Fullscreen (25 Sept 2026): a Settings row and the F key on any screen; the browser holds it (not saved); no row where the browser has none.
+
+Cup emblems (25 Sept 2026): each cup and Knockout set has its own emblem in the house style, on its card and on the course intro's cup chip: Sunrise Cup a rising sun, Summit Cup a snowy peak with a flag, Coastline Knockout a curling wave, Peaks Knockout twin peaks.
+
 ## 13. Definition of done (repeated from CLAUDE.md)
 Live URL, 60 fps, a full Knockout playable end to end, leaderboard accepts a score, red-team clean.

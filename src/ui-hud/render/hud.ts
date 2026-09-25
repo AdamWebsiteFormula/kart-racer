@@ -2,8 +2,8 @@
 import type { Minimap } from '../../track-builder/minimap.ts';
 import { UI } from '../constants.ts';
 import { castCard } from '../data/cast.ts';
-import { SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
-import { iconFor, iconMarkup, medalSvg } from '../icons.ts';
+import { CONTROLS_STRIP, SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
+import { iconFor, iconMarkup, medalSvg, wheelSvg } from '../icons.ts';
 import { medalLabel } from '../screens/menus.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
 import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
@@ -246,6 +246,11 @@ export class HudView {
   private lastBanner = '';
   private flash: Flag;
   private keysHint: Flag;
+  /** the strip's two lines (keys, a pad's buttons): the gas's words follow Auto-accelerate */
+  private stripKeys: TextField;
+  private stripPad: TextField;
+  /** Steering assist's badge by the speed readout: off, on, or lit while it turns the wheel */
+  private assist: Attr;
   private lastFlourish = false;
   private readonly slots: HTMLElement;
   /** a solo run: no place numeral, the lap splits under the timer */
@@ -298,6 +303,11 @@ export class HudView {
     this.mirror = new Flag(h('div', 'mirror-badge', br, 'MIRROR'), 'on');
 
     const sp = h('div', 'speedo', this.root);
+    const wheel = h('span', 'assist', sp);
+    wheel.innerHTML = wheelSvg();
+    wheel.setAttribute('role', 'img');
+    wheel.setAttribute('aria-label', 'Steering assist on');
+    this.assist = new Attr(wheel, 'data-state');
     this.speed = new TextField(h('span', '', sp));
     h('small', '', sp, ' mph');
 
@@ -329,8 +339,8 @@ export class HudView {
     this.flash = new Flag(h('div', 'flash', this.root), 'on');
     // the keys, or a gamepad's buttons once one is pressed (How to Play's Gamepad column)
     const keys = h('div', 'keys-hint', this.root);
-    h('span', 'only-keys', keys, 'W / ↑ gas · A D / ← → steer · Shift / Space drift · E use item · S / ↓ brake · Esc pause');
-    h('span', 'only-pad', keys, 'RT gas · Left stick steer · A drift · X use item · LT brake · Start pause');
+    this.stripKeys = new TextField(h('span', 'only-keys', keys, CONTROLS_STRIP.keys));
+    this.stripPad = new TextField(h('span', 'only-pad', keys, CONTROLS_STRIP.pad));
     this.keysHint = new Flag(keys, 'on');
   }
 
@@ -402,5 +412,8 @@ export class HudView {
     this.medalOn.set(vm.medal !== null);
     this.flash.set(vm.flash);
     this.keysHint.set(vm.keysHint);
+    this.stripKeys.set(vm.autoGas ? CONTROLS_STRIP.autoKeys : CONTROLS_STRIP.keys);
+    this.stripPad.set(vm.autoGas ? CONTROLS_STRIP.autoPad : CONTROLS_STRIP.pad);
+    this.assist.set(vm.steeringAssist);
   }
 }

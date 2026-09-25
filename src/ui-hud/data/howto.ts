@@ -2,10 +2,10 @@
 // creatures (design §6) and the tricks worth knowing. US English, short and plain. text.test.ts
 // checks the numbers and colors here against the game's own (items, kart schema, touch buttons).
 
-/** `touch`: the phone and tablet controls, named as the on-screen buttons read (render/touch.ts) */
-export const CONTROLS: readonly { action: string; keys: string; pad: string; touch: string }[] = Object.freeze([
+/** `touch`: the phone and tablet controls, named as the on-screen buttons read (render/touch.ts); `gas`: the row Auto-accelerate changes */
+export const CONTROLS: readonly { action: string; keys: string; pad: string; touch: string; gas?: true }[] = Object.freeze([
   { action: 'Steer', keys: 'A / D or ← / →', pad: 'Left stick or D-pad', touch: 'Left pad' },
-  { action: 'Gas', keys: 'W or ↑', pad: 'RT', touch: 'On by itself' },
+  { action: 'Gas', keys: 'W or ↑', pad: 'RT', touch: 'On by itself', gas: true },
   { action: 'Brake / reverse', keys: 'S or ↓', pad: 'LT', touch: 'BRAKE' },
   { action: 'Hop and drift', keys: 'Shift or Space', pad: 'A', touch: 'DRIFT' },
   { action: 'Use item (hold to keep it behind you)', keys: 'E or X', pad: 'X', touch: 'ITEM' },
@@ -13,7 +13,12 @@ export const CONTROLS: readonly { action: string; keys: string; pad: string; tou
   { action: 'Horn', keys: 'H', pad: 'Y', touch: '—' },
   // (words, not ⏸: that one is an emoji on some phones)
   { action: 'Pause', keys: 'Esc or P', pad: 'Start', touch: 'Pause button, top right' },
+  // a browser takes fullscreen only from a key or a tap (fullscreen.ts): no pad button
+  { action: 'Fullscreen', keys: 'F', pad: '—', touch: 'In Settings' },
 ]);
+
+/** With Auto-accelerate on (Settings), after the Gas row's keys and pad button: the gas key still earns the start boost in the countdown. */
+export const AUTO_GAS_NOTE = '(automatic from GO)';
 
 /** One line per item, in the order the game lists them (items/data.ts). */
 export const ITEM_LINES: Readonly<Record<string, string>> = Object.freeze({
@@ -45,6 +50,8 @@ export const CREATURES: readonly { name: string; track: string; line: string }[]
 ]);
 
 export const TIPS: readonly string[] = Object.freeze([
+  // the driving aids first (Settings, game/assist.ts): a new player's way in
+  'New to racing? In Settings, Steering assist keeps you on the road near the edges, and Auto-accelerate holds the gas for you from GO.',
   'Hold drift through a turn: the sparks go blue, orange, then purple. Let go for a boost.',
   'Press the gas the moment the 2 appears for a start boost. On a phone, put a thumb on the screen then.',
   'Pop a balloon for an item. You can hold two. A gold pair of balloons gives you two at once.',

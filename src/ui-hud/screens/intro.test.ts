@@ -43,6 +43,14 @@ describe('the course intro title card', () => {
     const vm = introCard({ trackId: 'new-track', trackName: 'New Track', mode: 'quick', speedClass: 50, racerId: null });
     expect(vm.name).toBe('New Track');
     expect(vm.cup).toBe('');
+    expect(vm.cupId).toBe('');
     expect(vm.racer).toBeNull();
+  });
+
+  it('the chip carries the id of the cup or set it names, for its emblem', () => {
+    expect(introCard({ trackId: 'harbour-loop', mode: 'quick', speedClass: 150, racerId: 'pip' }).cupId).toBe('sunrise');
+    expect(introCard({ trackId: 'skyline-circuit', mode: 'timeTrial', speedClass: 150, racerId: 'nova' }).cupId).toBe('summit');
+    expect(introCard({ trackId: 'harbour-loop', mode: 'knockout', speedClass: 150, racerId: 'pip', seriesId: 'coastline', race: { index: 0, count: 3 } }).cupId).toBe('coastline');
+    expect(introCard({ trackId: 'frostbite-pass', mode: 'knockout', speedClass: 150, racerId: 'pip', seriesId: 'peaks', race: { index: 0, count: 3 } }).cupId).toBe('peaks');
   });
 });

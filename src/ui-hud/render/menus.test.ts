@@ -45,6 +45,17 @@ describe('menu icons are our own', () => {
     ui.dispose();
   });
 
+  it('each Grand Prix cup and Knockout set wears its own emblem beside its name, hidden from assistive tech', () => {
+    for (const [mode, ids] of [['grandPrix', ['sunrise', 'summit']], ['knockout', ['coastline', 'peaks']]] as const) {
+      const ui = new UiRoot(document.body, host(), null);
+      for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
+      const cards = [...document.querySelectorAll<HTMLElement>('#ui .cup-screen.on .cup')];
+      expect(cards.map((c) => c.querySelector('.cup-head > .emblem:first-child > svg.cup-svg')?.getAttribute('data-cup'))).toEqual(ids);
+      for (const c of cards) expect(c.querySelector('.cup-svg')!.getAttribute('aria-hidden'), c.dataset.id).toBe('true');
+      ui.dispose();
+    }
+  });
+
   it('no emoji on any screen: title, modes, racer and garage, cups and their stars, Settings, How to Play, Unlocks, Credits, the pause and the touch pad', () => {
     const ui = new UiRoot(document.body, host(), null);
     ui.save.unlocked = { skins: ['pip-alt'], bodies: [], mirror: false };
@@ -90,9 +101,16 @@ describe('Settings says what the focused row does', () => {
     const ui = new UiRoot(document.body, host(), null);
     ui.dispatch({ type: 'boot' });
     ui.dispatch({ type: 'openSettings' });
-    expect(help().textContent).toBe(SETTING_HELP.masterVolume);
+    // the driving aids lead (game/assist.ts), then the sound
+    expect(help().textContent).toBe(SETTING_HELP.autoAccelerate);
     // for the eyes; assistive tech hears it with the row
     expect(help().getAttribute('aria-hidden')).toBe('true');
+    expect(q('[data-id="autoAccelerate"]')!.getAttribute('aria-label')).toBe(`Auto-accelerate: Off. ${SETTING_HELP.autoAccelerate} Left and right change it.`);
+    key('ArrowDown');
+    expect(help().textContent).toBe(SETTING_HELP.steeringAssist);
+    expect(q('[data-id="steeringAssist"] .label')!.textContent).toBe('Steering assist');
+    key('ArrowDown');
+    expect(help().textContent).toBe(SETTING_HELP.masterVolume);
     expect(q('[data-id="masterVolume"]')!.getAttribute('aria-label')).toBe(`Master volume: 80%. ${SETTING_HELP.masterVolume} Left and right change it.`);
     key('ArrowDown');
     expect(help().textContent).toBe(SETTING_HELP.musicVolume);
@@ -134,8 +152,9 @@ describe('Settings says what the focused row does', () => {
     const ui = new UiRoot(document.body, host(), null);
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }, { type: 'pause' }, { type: 'openSettings' }] as const) ui.dispatch(a);
     expect(ui.app.overlays).toEqual(['pause', 'settings']);
-    expect(help().textContent).toBe(SETTING_HELP.masterVolume);
-    for (let i = 0; i < 5; i++) key('ArrowDown');
+    expect(help().textContent).toBe(SETTING_HELP.autoAccelerate);
+    // (no Fullscreen row in jsdom: it has no fullscreen, as an iPhone has none)
+    for (let i = 0; i < 7; i++) key('ArrowDown');
     expect(help().textContent).toBe(SETTING_HELP.reducedMotion.auto);
     key('ArrowRight');
     expect(help().textContent).toBe(SETTING_HELP.reducedMotion.on);
@@ -144,7 +163,7 @@ describe('Settings says what the focused row does', () => {
 
   it('every row and Done has a line, short enough to sit on one line of the panel', () => {
     const lines = [...Object.values(SETTING_HELP).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))), DONE_HELP];
-    expect(lines.length).toBe(12);
+    expect(lines.length).toBe(15);
     // measured in Chrome at 15px Fredoka: the longest (55 characters) is 412 px of the panel's 444
     for (const l of lines) expect(l.length, l).toBeLessThanOrEqual(56);
     expect(new Set(lines).size).toBe(lines.length);

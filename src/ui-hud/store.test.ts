@@ -16,7 +16,7 @@ describe('save store', () => {
   it('SOP test 12: every setting survives a save and a fresh load', () => {
     const b = fake();
     const s = defaultSave();
-    const ids: SettingId[] = ['masterVolume', 'musicVolume', 'sfxVolume', 'quality', 'resolutionScale', 'reducedMotion', 'iconLabels'];
+    const ids: SettingId[] = ['autoAccelerate', 'steeringAssist', 'masterVolume', 'musicVolume', 'sfxVolume', 'quality', 'resolutionScale', 'reducedMotion', 'iconLabels'];
     for (const id of ids) s.settings = adjustSetting(s.settings, id, -1);
     s.settings.selectedRacerId = 'gus';
     s.stats.racesFinished = 7;
@@ -88,6 +88,35 @@ describe('save store', () => {
     const vm = settingsMenu(s);
     expect(vm.rows.find((r) => r.id === 'musicVolume')!.value).toBe('100%');
     expect(vm.focus.rows.at(-1)).toEqual(['done']);
+  });
+
+  it('the driving aids start off, lead the Settings list, toggle, survive a reload, and a bad value falls back to off', () => {
+    const d = defaultSave().settings;
+    expect([d.autoAccelerate, d.steeringAssist]).toEqual([false, false]);
+    const vm = settingsMenu(d);
+    expect(vm.rows.slice(0, 2).map((r) => [r.id, r.label, r.value])).toEqual([['autoAccelerate', 'Auto-accelerate', 'Off'], ['steeringAssist', 'Steering assist', 'Off']]);
+    expect(vm.focus.rows[0]).toEqual(['autoAccelerate']);
+    const on = adjustSetting(adjustSetting(d, 'autoAccelerate', -1), 'steeringAssist', 1);
+    expect([on.autoAccelerate, on.steeringAssist]).toEqual([true, true]);
+    expect(settingsMenu(on).rows.slice(0, 2).map((r) => r.value)).toEqual(['On', 'On']);
+    expect(adjustSetting(on, 'autoAccelerate', 1).autoAccelerate).toBe(false);
+    const b = fake();
+    writeSave(b, { ...defaultSave(), settings: on });
+    expect(loadSave(fake(b.data)).settings).toMatchObject({ autoAccelerate: true, steeringAssist: true });
+    const odd = loadSave(fake({ [SAVE_KEY]: JSON.stringify({ settings: { autoAccelerate: 'yes', steeringAssist: 1 } }) }));
+    expect([odd.settings.autoAccelerate, odd.settings.steeringAssist]).toEqual([false, false]);
+  });
+
+  it('Fullscreen is the browser\'s, never the save\'s: a row only where the browser has it, showing its state; adjusting it changes no setting', () => {
+    const s = defaultSave().settings;
+    expect(settingsMenu(s).rows.some((r) => r.id === 'fullscreen')).toBe(false);
+    const rows = settingsMenu(s, true).rows;
+    // after Resolution, with the other screen settings
+    expect(rows.map((r) => r.id).indexOf('fullscreen')).toBe(rows.map((r) => r.id).indexOf('resolutionScale') + 1);
+    expect(rows.find((r) => r.id === 'fullscreen')).toMatchObject({ label: 'Fullscreen', value: 'On' });
+    expect(settingsMenu(s, false).rows.find((r) => r.id === 'fullscreen')!.value).toBe('Off');
+    expect(adjustSetting(s, 'fullscreen', 1)).toBe(s);
+    expect(Object.keys(defaultSave().settings)).not.toContain('fullscreen');
   });
 
   it('SOP test 13: reduced motion follows the OS on auto and the toggle otherwise', () => {

@@ -4,6 +4,10 @@ import { CAST } from './data/cast.ts';
 import { DEFAULT_BODY, isBody, skinCard } from './data/cosmetics.ts';
 
 export interface Settings {
+  /** the gas down by itself from GO (game/assist.ts): the countdown, and so the start boost, and the brake stay the player's */
+  autoAccelerate: boolean;
+  /** Steering assist (game/assist.ts): nudges the kart back from the road's edge and away from a drop; strong input wins */
+  steeringAssist: boolean;
   quality: 'low' | 'high' | 'auto';
   masterVolume: number;
   musicVolume: number;
@@ -37,7 +41,7 @@ export const SAVE_KEY = 'kart-racer.save.v1';
 export const SAVE_VERSION = 1;
 
 export function defaultSettings(): Settings {
-  return { quality: 'auto', masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.8, reducedMotion: 'auto', iconLabels: false, resolutionScale: 1, selectedRacerId: 'pip', selectedBodyId: DEFAULT_BODY, skinByRacer: {} };
+  return { autoAccelerate: false, steeringAssist: false, quality: 'auto', masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.8, reducedMotion: 'auto', iconLabels: false, resolutionScale: 1, selectedRacerId: 'pip', selectedBodyId: DEFAULT_BODY, skinByRacer: {} };
 }
 
 export function defaultSave(): Save {
@@ -136,6 +140,8 @@ function sanitiseSkins(raw: unknown, unlocked: Save['unlocked']): Record<string,
 function sanitiseSettings(raw: unknown, unlocked: Save['unlocked'] = { skins: [], bodies: [], mirror: false }): Settings {
   const r = obj(raw), d = defaultSettings();
   return {
+    autoAccelerate: typeof r.autoAccelerate === 'boolean' ? r.autoAccelerate : d.autoAccelerate,
+    steeringAssist: typeof r.steeringAssist === 'boolean' ? r.steeringAssist : d.steeringAssist,
     quality: oneOf(r.quality, ['low', 'high', 'auto'] as const, d.quality),
     masterVolume: num(r.masterVolume, 0, 1, d.masterVolume),
     musicVolume: num(r.musicVolume, 0, 1, d.musicVolume),

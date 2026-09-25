@@ -11,8 +11,8 @@ import { TIER_RGB } from '../vfx-juice/flames.ts';
 import { CAST } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS, TRACKS } from './data/catalog.ts';
 import { BODIES, SKINS } from './data/cosmetics.ts';
-import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from './data/howto.ts';
-import { feedHud, hudModel, itemSlots, newHudMemory, SKIP_PROMPTS } from './hudModel.ts';
+import { AUTO_GAS_NOTE, CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from './data/howto.ts';
+import { CONTROLS_STRIP, feedHud, hudModel, itemSlots, newHudMemory, SKIP_PROMPTS } from './hudModel.ts';
 import { ITEM_ICONS } from './icons.ts';
 import type { RaceState } from '../race-manager/types.ts';
 import { HowToView } from './render/screens.ts';
@@ -84,6 +84,24 @@ describe('How to Play says what the game does', () => {
     t.root.remove();
   });
 
+  it('the driving aids: a tip names them as Settings does; with Auto-accelerate on, the Gas row says the gas is automatic from GO', () => {
+    const rows = settingsMenu(defaultSettings()).rows;
+    const label = (id: string) => rows.find((r) => r.id === id)!.label;
+    expect(tip(/Settings/)).toContain(label('steeringAssist'));
+    expect(tip(/Settings/)).toContain(label('autoAccelerate'));
+    const gasRow = (autoGas: boolean) => {
+      const v = new HowToView(document.body);
+      v.render(ITEM_DEFINITIONS, autoGas);
+      const cells = [...v.root.querySelectorAll('table.controls tr')].find((tr) => tr.firstElementChild?.textContent === 'Gas')!.children;
+      v.root.remove();
+      return [...cells].map((c) => c.textContent);
+    };
+    expect(gasRow(false)).toEqual(['Gas', 'W or ↑', 'RT', 'On by itself']);
+    expect(gasRow(true)).toEqual(['Gas', `W or ↑ ${AUTO_GAS_NOTE}`, `RT ${AUTO_GAS_NOTE}`, 'On by itself']);
+    // F: fullscreen on any screen (a pad's press cannot ask for it: fullscreen.ts)
+    expect(CONTROLS.find((c) => c.action === 'Fullscreen')).toMatchObject({ keys: 'F', pad: '—' });
+  });
+
   it('a Pogo Spring shows no ×2 (its second charge is the slam); a Triple Fizz shows ×3', () => {
     const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
     const k = createKartState({ racerId: 'p', isPlayer: true });
@@ -151,7 +169,7 @@ describe('every word a player reads', () => {
     const credits = parseCredits(fs.readFileSync(`${ROOT}CREDITS.md`, 'utf8')).flatMap((s) => [s.title, ...s.rows.flatMap((r) => [r.work, r.author, r.licence])]);
     const words = [
       ...Object.values(END_LABELS), ...KO_GOALS,
-      ...page, ...credits, CREDITS_MADE, ...Object.values(SKIP_PROMPTS), LETTERS_LEAD,
+      ...page, ...credits, CREDITS_MADE, ...Object.values(SKIP_PROMPTS), LETTERS_LEAD, AUTO_GAS_NOTE, ...Object.values(CONTROLS_STRIP),
       ...CONTROLS.flatMap((c) => [c.action, c.keys, c.pad, c.touch]), ...Object.values(ITEM_LINES), ...TIPS,
       ...CREATURES.flatMap((c) => [c.name, c.track, c.line]), ...ITEM_DEFINITIONS.map((d) => d.name),
       ...CAST.flatMap((c) => [c.name, c.species, c.personality, c.kart]), ...TRACKS.flatMap((t) => [t.name, t.biome, t.shift]),

@@ -29,6 +29,8 @@ export interface IntroCardInput {
 export interface IntroCardVM {
   /** the cup (or Knockout set) over the name */
   cup: string;
+  /** its id, for its emblem on the chip (icons.ts cupSvg); '' for none */
+  cupId: string;
   name: string;
   /** which race: "Race 1 of 3 · 150cc", "Round 2 of 3 · Top 4 go through", "Time Trial" */
   sub: string;
@@ -48,7 +50,7 @@ const MODE_NAMES: Readonly<Record<RaceMode, string>> = { quick: 'Quick Race', gr
 export function introCard(i: IntroCardInput): IntroCardVM {
   const card = trackCard(i.trackId);
   const series = i.mode === 'knockout' ? KNOCKOUT_SETS.find((s) => s.id === i.seriesId) : i.mode === 'grandPrix' ? CUPS.find((c) => c.id === i.seriesId) : undefined;
-  const cup = series?.name ?? CUPS.find((c) => c.trackIds.includes(i.trackId))?.name ?? '';
+  const cupCard = series ?? CUPS.find((c) => c.trackIds.includes(i.trackId));
   const parts: string[] = [];
   const r = i.race;
   if (i.mode === 'grandPrix') parts.push(r ? `Race ${r.index + 1} of ${r.count}` : MODE_NAMES.grandPrix, `${i.speedClass}cc`);
@@ -62,7 +64,7 @@ export function introCard(i: IntroCardInput): IntroCardVM {
   if (i.mirrored) parts.push('Mirror');
   const c = i.racerId ? castCard(i.racerId) : undefined;
   return {
-    cup, name: card?.name ?? i.trackName ?? i.trackId, sub: parts.join(' · '),
+    cup: cupCard?.name ?? '', cupId: cupCard?.id ?? '', name: card?.name ?? i.trackName ?? i.trackId, sub: parts.join(' · '),
     racer: c ? { id: c.id, name: c.name, accent: c.accent } : null,
     skip: i.touch ? { keys: INTRO_SKIP.touch, pad: INTRO_SKIP.touch } : { keys: INTRO_SKIP.keys, pad: INTRO_SKIP.pad },
     bg: card?.bg ?? '#1b1b2f', accent: card?.accent ?? '#ffd23f',

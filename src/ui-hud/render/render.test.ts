@@ -6,7 +6,7 @@ import { createKartState } from '../../kart-controller/types.ts';
 import { ITEM_DEFINITIONS } from '../../items/data.ts';
 import type { RaceState } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
-import { feedHud, hudModel, newHudMemory } from '../hudModel.ts';
+import { CONTROLS_STRIP, feedHud, hudModel, newHudMemory } from '../hudModel.ts';
 import { UiRoot, type UiHost } from '../ui.ts';
 import { resultsModel } from '../screens/results.ts';
 import { HudView } from './hud.ts';
@@ -87,6 +87,27 @@ describe('HUD renderer', () => {
     v.render(hudModel(race, kart(), 1, 10, m, 1, defs, 0));
     expect([place.getAttribute('data-tier'), n.getAttribute('data-n'), n.textContent, place.classList.contains('flourish')]).toEqual(['gold', '1', '1', true]);
     expect(v.root.querySelector('.coins')!.textContent).toBe('02');
+  });
+
+  it('the driving assists: Steering assist\'s wheel by the speed (lit while it works), and the strip says the gas is automatic', () => {
+    document.body.innerHTML = '';
+    const v = new HudView(document.body);
+    const vm = (assist?: { autoAccelerate: boolean; steering: boolean; working: boolean }) => hudModel(race, kart(), 4, 10, newHudMemory(), 1, defs, 0, false, undefined, undefined, assist);
+    const badge = v.root.querySelector<HTMLElement>('.speedo .assist')!;
+    const strip = () => [...v.root.querySelectorAll('.keys-hint > span')].map((e) => e.textContent);
+    v.render(vm());
+    expect(badge.getAttribute('data-state')).toBe('off');
+    expect(badge.querySelector('svg.wheel-svg')).not.toBeNull();
+    // an icon, named for assistive tech
+    expect([badge.getAttribute('role'), badge.getAttribute('aria-label')]).toEqual(['img', 'Steering assist on']);
+    expect(strip()).toEqual([CONTROLS_STRIP.keys, CONTROLS_STRIP.pad]);
+    v.render(vm({ autoAccelerate: true, steering: true, working: false }));
+    expect(badge.getAttribute('data-state')).toBe('on');
+    expect(strip()).toEqual([CONTROLS_STRIP.autoKeys, CONTROLS_STRIP.autoPad]);
+    v.render(vm({ autoAccelerate: true, steering: true, working: true }));
+    expect(badge.getAttribute('data-state')).toBe('working');
+    // still two lines, keys and a pad's, as the prompts that follow the input need
+    expect([...v.root.querySelectorAll('.keys-hint > span')].map((e) => e.className)).toEqual(['only-keys', 'only-pad']);
   });
 });
 
@@ -307,11 +328,17 @@ describe('UiRoot', () => {
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' });
     ui.dispatch({ type: 'openSettings' });
+    // the driving aids first: a press turns Auto-accelerate on, saved and told to the host (main.ts reads it every tick)
+    key('ArrowRight');
+    expect(ui.save.settings.autoAccelerate).toBe(true);
+    expect(h.calls).toContain('settings');
+    key('ArrowDown'); key('ArrowLeft');
+    expect(ui.save.settings.steeringAssist).toBe(true);
+    key('ArrowDown');
     const before = ui.save.settings.masterVolume;
     key('ArrowLeft');
     expect(ui.save.settings.masterVolume).toBeCloseTo(before - 0.1);
-    expect(h.calls).toContain('settings');
-    // reduced motion writes the root attribute the stylesheet keys on
+    // reduced motion writes the root attribute the stylesheet keys on (no Fullscreen row in jsdom)
     for (let i = 0; i < 5; i++) key('ArrowDown');
     key('ArrowRight'); // Follow system → On
     expect(document.documentElement.dataset.reducedMotion).toBe('on');
@@ -1027,7 +1054,7 @@ describe('sweep of every screen (24 Sept 2026)', () => {
       expect(body.querySelector('h2'), cls).not.toBeNull();
       expect(foot.querySelector(`[data-id="${id}"]`), cls).not.toBeNull();
       expect(body.querySelector(`[data-id="${id}"]`), cls).toBeNull();
-      expect((document.activeElement as HTMLElement).dataset.id, cls).toBe(open === 'openSettings' ? 'masterVolume' : id);
+      expect((document.activeElement as HTMLElement).dataset.id, cls).toBe(open === 'openSettings' ? 'autoAccelerate' : id);
       key('Escape');
       expect(ui.app.overlays, cls).toEqual([]);
     }

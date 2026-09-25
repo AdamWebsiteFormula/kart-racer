@@ -52,7 +52,7 @@ describe('the course intro title card', () => {
     v.show(card());
     expect(v.root.getAttribute('data-phase')).toBe('hold');
     expect(v.root.querySelector('.name')!.textContent).toBe('Harbor Loop');
-    expect(v.root.querySelector('.cup')!.textContent).toBe('Sunrise Cup');
+    expect(v.root.querySelector('.cup-chip')!.textContent).toBe('Sunrise Cup');
     expect(v.root.querySelector('.sub')!.textContent).toBe('Quick Race · 150cc');
     expect(v.root.querySelector('.who')!.textContent).toBe('Pip');
     // the keys' words or a pad's, whichever was used last (the stylesheet shows one)
@@ -65,6 +65,20 @@ describe('the course intro title card', () => {
     // no racer: no chip
     v.show(introCard({ trackId: 'harbour-loop', mode: 'quick', speedClass: 150, racerId: null }));
     expect((v.root.querySelector('.driver') as HTMLElement).style.display).toBe('none');
+  });
+
+  it('the cup chip wears the cup\'s emblem (none for a track in no cup), and is no `.cup`: the cup cards\' rules made it a padded box', () => {
+    const v = new IntroCardView(document.body);
+    v.show(introCard({ trackId: 'frostbite-pass', mode: 'knockout', speedClass: 150, racerId: 'pip', seriesId: 'peaks', race: { index: 0, count: 3 } }));
+    const chip = v.root.querySelector<HTMLElement>('.cup-chip')!;
+    expect(chip.classList.contains('with-emblem')).toBe(true);
+    expect(chip.querySelector('.emblem svg')!.getAttribute('data-cup')).toBe('peaks');
+    expect(chip.querySelector('.emblem')!.getAttribute('aria-hidden')).toBe('true');
+    expect(chip.textContent).toBe('Peaks Knockout');
+    expect(v.root.querySelector('.cup')).toBeNull();
+    v.show(introCard({ trackId: 'new-track', trackName: 'New Track', mode: 'quick', speedClass: 50, racerId: null }));
+    expect(chip.classList.contains('with-emblem')).toBe(false);
+    expect(chip.querySelector('.emblem svg')).toBeNull();
   });
 
   it('the race HUD waits under it and comes back when it goes', () => {
