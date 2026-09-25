@@ -1,4 +1,4 @@
-# Handoff (24 Sept 2026)
+# Handoff (25 Sept 2026)
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
@@ -11,11 +11,17 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
   - land: verge dressing and Meadow's tree line.
   - sky: lit and shaded horizon rings.
   - text: US spelling and credits.
-  - audio: 90 sounds and 7 songs.
-- Leaderboard: the submit-score Edge Function is v12 (checker core-64b1850294351a8d, pinned at commit 4ee31a4). It refuses a forged time (422, checked 24 Sept). The board is empty: the test scores were deleted.
+  - audio: 102 sounds and 7 songs.
+- Leaderboard: the submit-score Edge Function is v17 (checker core-019f61ef2f9600d9, pinned at commit 7ffbba3; unchanged since, `npm run build:function` still makes that same file). It refuses a forged time (422).
 - 24 Sept: pickup balloons redrawn as glossy party balloons (not striped beach balls). Red-team 2 fixed: one drive is one run (canonical log, 3 names per client per board), a tighter name filter, capped body read, save records checked entry by entry. A full Knockout ran with no errors (muted). All racers checked: rated G.
 - Board hide switch is live: `update public.scores set hidden = true where name = 'X';` takes a row off the board. The rate limit cannot be dodged with fake address headers (tested live).
 - The deadline for the "AI Automations with Jack" contest is 30 Sept 2026.
+
+## Pending (25 Sept 2026)
+- **Sound judge pass, after 20:00 EDT.** Gemini Pro allows 250 requests a day for gemini-3.1-pro and its aliases; the day resets at 00:00 UTC (20:00 EDT). Run the runbook: `scratchpad/ear3/RUNBOOK-after-2000EDT.md` in the 25 Sept session's scratchpad, or its durable copy `~/.cache/rascal-ear/pass-2026-09-25/ear3/RUNBOOK-after-2000EDT.md` (same layout; swap the path prefix if the scratchpad is gone). About 45 requests: splice checks for two song voices, compares for 23 remade sounds (drift, hop, six sounds with human-like voices, boosts, tier-ups and more), the 4 unjudged songs. Install only takes that pass its accept rules; then `npm run verify`, push, live smoke.
+- **Adam decides:** the title song has a "Hey!" shout at 13.5-14.2 s (a voice, not singing). A bar splice removes it but also loses the loop's only drum-and-bass break. Staged, not installed.
+- The `land` sound has no usable take (all six came back too quiet); it needs a new prompt.
+- 25 Sept fixes, all live: the podium's winners no longer vanish (a 0 s frame put NaN in their springs), creatures dissolve near the lens (the goose ran through the camera), held items ride small so they never hide your kart, the storm sky rolls in before its first bolt, the mode screen's second row is centred, the steering pad never throws on a phone.
 
 ## Adam's rules (all agents)
 - **Everything rated G.** Female racers (Nova, Juniper, Momo) stay fully dressed and modest. Check all new art and prompts.
