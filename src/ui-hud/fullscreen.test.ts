@@ -148,7 +148,7 @@ describe('fullscreen in the game', () => {
     const fs = browserFullscreen();
     const h = host();
     const ui = new UiRoot(document.body, h, null);
-    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }] as const) ui.dispatch(a);
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickKart', kartId: 'scooter' }, { type: 'pickTrack', trackId: 'harbour-loop' }] as const) ui.dispatch(a);
     ui.introCard(introCard({ trackId: 'harbour-loop', mode: 'quick', speedClass: 150, racerId: 'pip' }));
     const later = ui.clock() + 1000;
     ui.clock = () => later;

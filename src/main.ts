@@ -24,6 +24,7 @@ import { SIM_DT } from './kart-controller/step.ts';
 import type { InputState, SpeedClass, Vec3 } from './kart-controller/types.ts';
 import { ITEMS_CONFIG } from './items/data.ts';
 import { makeConstants } from './kart-controller/constants.ts';
+import { kartFor } from './kart-controller/karts.ts';
 import { applyResults, createGrandPrix, createKnockout, isDone, nextRace, podiumOf } from './race-manager/series.ts';
 import { ticksToMs } from './race-manager/race.ts';
 import { decodeGhost } from './race-manager/ghost.ts';
@@ -234,8 +235,8 @@ const hudAssist = { autoAccelerate: false, steering: false, working: false };
 // ?mute: the game makes no sound at all, however it is played (automated checks in a browser
 // always load it so; docs/sops/audio.md)
 const MUTED = new URLSearchParams(location.search).has('mute');
-/** dev switch (design §5, K6): `?karts` turns on picking any racer's kart (UI.kartPick, shipped off) for testing, in dev and prod alike. */
-const KARTS_PICK = new URLSearchParams(location.search).has('karts');
+/** any racer in any kart is on in the game (Adam, 25 Sept 2026: K7, design §5); `?nokarts` turns it off (UI.kartPick stays off as the tests' default) */
+const KARTS_PICK = !new URLSearchParams(location.search).has('nokarts');
 const audio = new GameAudio(MUTED ? AudioBus.silent() : undefined);
 /** Background files: a few at a time, in the order the player meets them (performance/loadQueue.ts). */
 const files = new LoadQueue(3);
@@ -1012,7 +1013,7 @@ if (import.meta.env.DEV) {
       // straight to the countdown, as it always was; `intro` flies the course intro first, `mirror` reflects the track
       devNoIntro = true;
       try {
-        for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId }, { type: 'pickTrack', trackId }] as const) ui.dispatch(a);
+        for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId }, { type: 'pickKart', kartId: kartFor(racerId, opts.kartId) }, { type: 'pickTrack', trackId }] as const) ui.dispatch(a);
       } finally { devNoIntro = false; }
       // from any other screen the menu walk does nothing: load the race directly
       const cfg = configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId], kartId: opts.kartId });

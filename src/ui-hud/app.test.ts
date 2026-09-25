@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { initialApp, isPaused, reduce } from './app.ts';
 import type { AppAction, AppState, Screen } from './types.ts';
 
-function walk(actions: AppAction[], s: AppState = initialApp()): { s: AppState; trail: string[] } {
+// the flow with the kart switch off (UI.kartPick): Racer goes straight on; the Kart screen's flow is walked on its own below and in karts.test.ts
+function walk(actions: AppAction[], s: AppState = initialApp(false)): { s: AppState; trail: string[] } {
   const trail: string[] = [];
   for (const a of actions) {
     s = reduce(s, a);
@@ -31,7 +32,9 @@ describe('app flow', () => {
     // credits and unlocks from the title
     add(walk([{ type: 'boot' }, { type: 'openCredits' }, { type: 'back' }]).trail);
     add(walk([{ type: 'boot' }, { type: 'openUnlocks' }, { type: 'back' }]).trail);
-    const all: string[] = ['title', 'modeSelect', 'rosterSelect', 'cupSelect', 'trackSelect', 'racing', 'results', 'gpTable', 'knockoutCut', 'pause', 'settings', 'credits', 'unlocks'];
+    // any racer in any kart (UI.kartPick on, as shipped): Racer → Kart → Track
+    add(walk([{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'gus' }, { type: 'pickKart', kartId: 'scooter' }, { type: 'pickTrack', trackId: 'meadow-run' }], initialApp(true)).trail);
+    const all: string[] = ['title', 'modeSelect', 'rosterSelect', 'kartSelect', 'cupSelect', 'trackSelect', 'racing', 'results', 'gpTable', 'knockoutCut', 'pause', 'settings', 'credits', 'unlocks'];
     for (const x of all) expect(seen, x).toContain(x);
   });
 
