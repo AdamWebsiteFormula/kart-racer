@@ -125,7 +125,6 @@ export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, daily
     : post.state === 'posted' ? (!post.rank ? 'Saved. You are outside the top 50 for now.'
       : best ? `Saved. Your best, ${formatMs(best.timeMs)}, is still ${ordinal(post.rank)} on this board.`
       : `You are ${ordinal(post.rank)} on this board.`)
-    : state === 'offline' ? 'Could not load the times. You can still post, or try again.'
     : 'Pick a name, then post your time. The server replays your run to check it.';
   return {
     title: 'Leaderboard', sub, note, state, rows, button,

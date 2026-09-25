@@ -607,7 +607,9 @@ describe('leaderboard panel', () => {
     const { ui, posts, fetches } = setup(null, undefined, undefined, () => board);
     await flush();
     pastGuard(ui);
-    expect(document.querySelector('#ui .board-empty')?.textContent).toMatch(/offline/);
+    expect(document.querySelector('#ui .board-empty')?.textContent).toBe('Could not load the times.');
+    // said once: the status line keeps its own words, not a second "could not load" (screens sweep, 24 Sept 2026)
+    expect(document.querySelector('#ui .board-status')?.textContent).not.toMatch(/could not load/i);
     expect(document.querySelector('#ui [data-id="post"]')?.getAttribute('aria-disabled')).toBe('false');
     const retry = document.querySelector('#ui [data-id="retry"]') as HTMLElement;
     expect(retry?.textContent).toBe('Try again');

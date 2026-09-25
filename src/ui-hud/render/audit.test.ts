@@ -142,7 +142,11 @@ describe('over the line, a press goes straight to the results', () => {
     walk(ui, 'quick');
     ui.feed([{ type: 'finish', racerId: 'pip', rank: 2, tick: 11900, dnf: false }], [], 'pip');
     raceFrame(ui, true);
-    expect(document.querySelector('#ui .banner .small')?.textContent).toBe('2nd · Enter, A or tap for results');
+    expect(document.querySelector('#ui .banner .small')?.textContent).toBe('2nd');
+    // the prompt in the words of each input; the stylesheet shows the last one used (layout.test.ts)
+    expect(document.querySelector('#ui .banner .skip.on')).not.toBeNull();
+    expect([...document.querySelectorAll('#ui .banner .skip > span')].map((e) => `${e.className}: ${e.textContent}`))
+      .toEqual(['only-keys: Press Enter for results', 'only-pad: Press A for results', 'only-touch: Tap for results']);
     ui.dispose();
   });
 });

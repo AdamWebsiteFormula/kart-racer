@@ -1,9 +1,9 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TITLE, UI } from '../constants.ts';
-import { iconMarkup, SHAPE_PATHS } from '../icons.ts';
+import { iconFor, iconMarkup, SHAPE_PATHS } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
-import { CONTROLS, CREATURES, ITEM_LINES, TIPS } from '../data/howto.ts';
+import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
 import type { CupVM, MenuVM, RosterVM, SettingRow, TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, GpVM, ResultsVM } from '../screens/results.ts';
 import type { UnlockRow } from '../unlocks.ts';
@@ -429,6 +429,13 @@ export class HowToView implements ScreenView {
       h('b', '', txt, it.name);
       h('span', '', txt, ITEM_LINES[it.id] ?? '');
     }
+    // the Item letters setting's key: the letter each item's slot shows when it is on
+    const letters = h('p', 'letters', box, `${LETTERS_LEAD} `);
+    const keyed = items.filter((it) => iconFor(it.id));
+    keyed.forEach((it, i) => {
+      h('b', '', letters, iconFor(it.id)!.glyph);
+      letters.append(` ${it.name}${i < keyed.length - 1 ? ' · ' : ''}`);
+    });
     h('h3', '', box, 'Course creatures');
     const cl = h('ul', 'creatures', box);
     for (const c of CREATURES) {
@@ -557,7 +564,7 @@ export class ResultsView implements ScreenView {
     b.note.hidden = !vm.note;
     clear(b.list);
     this.buttons.delete('retry');
-    if (vm.state !== 'rows') h('div', 'board-empty', b.list, vm.state === 'loading' ? 'Loading the best times…' : vm.state === 'offline' ? 'Leaderboard offline' : 'No times yet. Be the first!');
+    if (vm.state !== 'rows') h('div', 'board-empty', b.list, vm.state === 'loading' ? 'Loading the best times…' : vm.state === 'offline' ? 'Could not load the times.' : 'No times yet. Be the first!');
     if (vm.retry) {
       // the board could not be read: read it again (UiRoot re-reads on 'retry')
       const r = button(b.list, 'retry', 'btn retry-btn');

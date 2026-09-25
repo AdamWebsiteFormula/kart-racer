@@ -58,7 +58,8 @@ describe('hud model', () => {
     ev([{ type: 'finish', racerId: 'p', rank: 2, tick: 9, dnf: false }], 6);
     k.finishTick = 9;
     const fin = hudModel(race(), k, 2, 10, m, 999, defs, 0).banner!;
-    expect([fin.kind, fin.text, fin.sub]).toEqual(['finish', 'FINISH!', '2nd · Enter, A or tap for results']);
+    // the place, and the prompt to go on under it (in the last input's words: the renderer, SKIP_PROMPTS)
+    expect([fin.kind, fin.text, fin.sub, fin.skip]).toEqual(['finish', 'FINISH!', '2nd', true]);
   });
 
   it('FINAL LAP waits for the player\'s own last lap; the leader\'s shows only the shift\'s label', () => {

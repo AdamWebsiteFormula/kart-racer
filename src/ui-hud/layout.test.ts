@@ -155,6 +155,13 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(value(":root[data-input='pad'] .only-pad", 'display')).toBe('revert');
   });
 
+  it('in a race on a touch screen the prompts name a tap (the finish prompt), whatever was pressed before', () => {
+    expect(value('.only-touch', 'display')).toBe('none');
+    expect(value(":root[data-touch='on'] .only-touch", 'display')).toBe('revert');
+    expect(value(":root[data-touch='on'] .only-keys", 'display')).toBe('none');
+    expect(value(":root[data-touch='on'] .only-pad", 'display')).toBe('none');
+  });
+
   it('a solo run shows no place numeral, in the race or in its results; the count and GO! sit below the start lights', () => {
     expect(value('.hud.solo .place', 'display')).toBe('none');
     expect(value('.rows .row:only-child .rk', 'display')).toBe('none');

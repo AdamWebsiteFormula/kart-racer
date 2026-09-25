@@ -135,7 +135,7 @@ const KARTS: Record<string, Kart> = {
     m.cone(0.13, 0.26, '#7ee8fa', [0, 0.62, -1.18], [-Math.PI / 2, 0, 0], 10, false); // glow
     for (const x of [-0.6, 0.6]) m.box([0.36, 0.05, 0.3], '#ffffff', [x * 1.05, 0.66, -0.35], [0, 0, x > 0 ? -0.4 : 0.4]); // fins
   },
-  // Juniper: a wood-panel jeep
+  // Juniper: a wood-panel off-roader
   juniper: (m) => {
     wheels(m, ...WHEELS.juniper);
     m.box([1.1, 0.42, 1.8], '#b7410e', [0, 0.56, 0]);
@@ -147,7 +147,7 @@ const KARTS: Record<string, Kart> = {
     m.cyl(0.26, 0.26, 0.12, TYRE, [0, 0.8, -0.98], [Math.PI / 2, 0, 0], 12); // spare
     pipes(m, EXHAUST.juniper);
   },
-  // Otto: a jet-ski kart with a rear float
+  // Otto: a water-scooter kart with a rear float
   otto: (m) => {
     wheels(m, ...WHEELS.otto);
     m.box([0.8, 0.3, 1.5], '#64b5f6', [0, 0.46, 0.05]);

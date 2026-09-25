@@ -60,7 +60,7 @@ _Synthesised 21 Sept 2026 from turbo-kart-rush `src/ai/AIDriver.ts` (+ `core/mat
 | pip | −0.2 | 0.7 | 0.9 | never stops moving |
 | momo | 0.1 | 0.5 | 0.8 | deadpan, competent |
 | nova | 0.35 | 0.3 | 0.6 | dreamy, drifts wide to the lights |
-| juniper | 0.0 | 0.8 | 0.7 | rule-follower, secretly ruthless |
+| juniper | 0.0 | 0.8 | 0.7 | rule-follower, secretly fierce |
 | otto | −0.4 | 0.2 | 0.5 | laid-back |
 | sprocket | 0.2 | 0.4 | 0.75 | literal, precise |
 | boulder | −0.1 | 0.3 | 0.4 | gentle giant (heavy still wins bumps) |

@@ -1,7 +1,7 @@
 // The race HUD renderer: design §12 layout. Diffed writes only; the minimap redraws at 30 Hz.
 import type { Minimap } from '../../track-builder/minimap.ts';
 import { UI } from '../constants.ts';
-import type { HudVM, ItemSlotVM } from '../hudModel.ts';
+import { SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
 import { iconFor, iconMarkup } from '../icons.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
 import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
@@ -154,6 +154,7 @@ export class HudView {
   private bannerBig: TextField;
   private bannerSmall: TextField;
   private bannerKind: Attr;
+  private bannerSkip: Flag;
   private lastBanner = '';
   private flash: Flag;
   private keysHint: Flag;
@@ -211,6 +212,12 @@ export class HudView {
     this.bannerBig = new TextField(h('span', 'big display', this.banner));
     this.bannerSmall = new TextField(h('span', 'small', this.banner));
     this.bannerKind = new Attr(this.banner, 'data-kind');
+    // over the line: how to go on to the results, in the last input's words (the stylesheet shows one)
+    const skip = h('span', 'skip', this.banner);
+    h('span', 'only-keys', skip, SKIP_PROMPTS.keys);
+    h('span', 'only-pad', skip, SKIP_PROMPTS.pad);
+    h('span', 'only-touch', skip, SKIP_PROMPTS.touch);
+    this.bannerSkip = new Flag(skip, 'on');
 
     this.flash = new Flag(h('div', 'flash', this.root), 'on');
     // the keys, or a gamepad's buttons once one is pressed (How to Play's Gamepad column)
@@ -257,12 +264,13 @@ export class HudView {
     this.mirror.set(vm.mirrored);
     this.speed.set(vm.speed);
     const b = vm.banner;
-    const key = b ? `${b.kind}|${b.text}|${b.sub}` : '';
+    const key = b ? `${b.kind}|${b.text}|${b.sub}|${b.skip}` : '';
     if (key !== this.lastBanner) {
       this.lastBanner = key;
       this.bannerBig.set(b?.text ?? '');
       this.bannerSmall.set(b?.sub ?? '');
       this.bannerKind.set(b?.kind ?? 'none');
+      this.bannerSkip.set(b?.skip ?? false);
       if (b) replay(this.banner, 'show'); else this.banner.classList.remove('show');
     }
     this.flash.set(vm.flash);

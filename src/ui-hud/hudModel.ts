@@ -10,14 +10,16 @@ import { UI } from './constants.ts';
 import { formatMs, formatTime, mph, ordinal, ordinalParts } from './format.ts';
 
 /** shift: the Final Lap Shift's own label, when the leader starts the last lap before the player */
-/** the finish banner's second line: how to go on to the results */
-export const SKIP_HINT = 'Enter, A or tap for results';
+/** Over the line, how to go on to the results, in the words of the last input used: the renderer draws all
+ *  three and the stylesheet shows one (`data-input` keys or pad, `data-touch` on), as the other prompts do. */
+export const SKIP_PROMPTS = Object.freeze({ keys: 'Press Enter for results', pad: 'Press A for results', touch: 'Tap for results' });
 
 export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'shift' | 'finish' | 'strike';
 const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, strike: 2, wrongWay: 2, finalLap: 3, shift: 3, finish: 4 };
 
 export interface HudMemory {
-  banner: { text: string; sub: string; kind: BannerKind; until: number } | null;
+  /** `skip`: the finish banner's prompt to go on to the results shows under it */
+  banner: { text: string; sub: string; kind: BannerKind; until: number; skip: boolean } | null;
   flashUntil: number;
   flourishUntil: number;
   wrongWay: boolean;
@@ -30,10 +32,10 @@ export interface HudMemory {
 
 export const newHudMemory = (): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, hintUntil: -1 });
 
-function show(m: HudMemory, kind: BannerKind, text: string, sub: string, until: number, clock: number): void {
+function show(m: HudMemory, kind: BannerKind, text: string, sub: string, until: number, clock: number, skip = false): void {
   const cur = m.banner && m.banner.until > clock ? m.banner : null;
   if (cur && PRIORITY[cur.kind] > PRIORITY[kind]) return;
-  m.banner = { text, sub, kind, until };
+  m.banner = { text, sub, kind, until, skip };
 }
 
 /** Feed one tick's events. `clock` is seconds on any monotonic clock. */
@@ -57,7 +59,7 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
       case 'positionChange': if (e.racerId === playerId) m.flourishUntil = clock + 0.4; break;
       case 'finish':
         // over the line, a press skips the wait for the field (UiRoot: Enter, pad A or a tap)
-        if (e.racerId === playerId) show(m, 'finish', e.dnf ? 'TIME!' : 'FINISH!', e.dnf ? ordinal(e.rank) : `${ordinal(e.rank)} · ${SKIP_HINT}`, Infinity, clock);
+        if (e.racerId === playerId) show(m, 'finish', e.dnf ? 'TIME!' : 'FINISH!', ordinal(e.rank), Infinity, clock, !e.dnf);
         break;
       case 'kart':
         if (e.racerId === playerId && e.event.type === 'hit') m.flashUntil = clock + UI.flashMs / 1000;
@@ -88,7 +90,8 @@ export interface HudVM {
   speed: string;
   held: ItemSlotVM;
   next: ItemSlotVM;
-  banner: { text: string; sub: string; kind: BannerKind } | null;
+  /** `skip`: show the prompt to go on to the results (SKIP_PROMPTS) */
+  banner: { text: string; sub: string; kind: BannerKind; skip: boolean } | null;
   flash: boolean;
   knockout: { text: string; danger: boolean } | null;
   /** show the controls strip */
@@ -151,9 +154,9 @@ export function hudModel(
   // (or a hidden tab) holds them, where a wall-clock hold ran out under the pause (bug hunt 3)
   const counting = state.phase === 'countdown' && state.tick > 0;
   // steps left as of the last tick stepped (tick − 1): 3 from the first tick, 2 from STEP_TICKS on, …
-  const banner = counting ? { text: `${Math.ceil((state.goTick - (state.tick - 1)) / STEP_TICKS)}`, sub: '', kind: 'countdown' as const }
+  const banner = counting ? { text: `${Math.ceil((state.goTick - (state.tick - 1)) / STEP_TICKS)}`, sub: '', kind: 'countdown' as const, skip: false }
     : m.banner && m.banner.until > clock ? m.banner
-    : m.wrongWay && player.finishTick === undefined ? { text: 'WRONG WAY', sub: '', kind: 'wrongWay' as const, until: Infinity }
+    : m.wrongWay && player.finishTick === undefined ? { text: 'WRONG WAY', sub: '', kind: 'wrongWay' as const, until: Infinity, skip: false }
     : null;
   let knockout: HudVM['knockout'] = null;
   if (state.knockout && state.mode === 'knockout') {
@@ -180,7 +183,8 @@ export function hudModel(
     speed: `${mph(player.speed)}`,
     held: slots.held,
     next: slots.next,
-    banner: banner ? { text: banner.text, sub: banner.sub, kind: banner.kind } : null,
+    // a solo run's finish names no place ("1st" of one), as its HUD and results show none
+    banner: banner ? { text: banner.text, sub: banner.kind === 'finish' && solo ? '' : banner.sub, kind: banner.kind, skip: banner.skip } : null,
     flash: m.flashUntil > clock,
     knockout,
     keysHint: counting || m.hintUntil > clock,

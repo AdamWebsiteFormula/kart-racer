@@ -3,7 +3,7 @@
 Every third-party asset and library shipped in the game, with its license, and the tools that made our own. The in-game credits screen is built from this file.
 
 ## Code
-| Work | Author | Licence |
+| Work | Author | License |
 |---|---|---|
 | Game design, code, tests and the leaderboard server (on Supabase), written with Claude Code (Claude Opus), Sept 2026 | Rascal Rally! team with Anthropic's Claude | Original work |
 | three.js 0.185 | mrdoob and contributors | MIT |
@@ -11,13 +11,13 @@ Every third-party asset and library shipped in the game, with its license, and t
 | three-mesh-bvh 0.9 | Garrett Johnson | MIT |
 
 ## Fonts
-| Work | Author | Licence |
+| Work | Author | License |
 |---|---|---|
 | Lilita One (via @fontsource) | Juan Montoreano | SIL Open Font License 1.1 |
 | Fredoka (via @fontsource) | Milena Brandão, Hafontia | SIL Open Font License 1.1 |
 
 ## Art
-| Work | Author | Licence |
+| Work | Author | License |
 |---|---|---|
 | Racer concept art and portraits (8) and painted skies (12), made for this game with GPT Image 2.5 via Higgsfield, Sept 2026 | Higgsfield (GPT Image 2.5), prompts by the Rascal Rally! team | Higgsfield paid-plan terms |
 | Item art (13) and painted ground textures (4), made for this game with AI images via Higgsfield, Sept 2026 | Higgsfield, prompts by the Rascal Rally! team | Higgsfield paid-plan terms |
@@ -26,8 +26,8 @@ Every third-party asset and library shipped in the game, with its license, and t
 | Tracks, scenery, karts, spectators and effects, modeled in code | Rascal Rally! team | Original work |
 
 ## Audio
-| Work | Author | Licence |
+| Work | Author | License |
 |---|---|---|
-| Music: 7 original songs (title, 5 race themes, results), made for this game with Eleven Music, Sept 2026 | ElevenLabs Eleven Music, prompts by the Rascal Rally! team | ElevenLabs paid-plan commercial licence (Eleven Music terms) |
-| Sound effects: 102 original sounds (race, items, boosts, creatures, horns, yelps, engine loops), made for this game with ElevenLabs Sound Effects, Sept 2026 | ElevenLabs Sound Effects v2, prompts by the Rascal Rally! team | ElevenLabs paid-plan commercial licence (Sound Effects terms) |
+| Music: 7 original songs (title, 5 race themes, results), made for this game with Eleven Music, Sept 2026 | ElevenLabs Eleven Music, prompts by the Rascal Rally! team | ElevenLabs paid-plan commercial license (Eleven Music terms) |
+| Sound effects: 102 original sounds (race, items, boosts, creatures, horns, yelps, engine loops), made for this game with ElevenLabs Sound Effects, Sept 2026 | ElevenLabs Sound Effects v2, prompts by the Rascal Rally! team | ElevenLabs paid-plan commercial license (Sound Effects terms) |
 | Synth fallback: engine, songs and sound patches coded in Web Audio | Rascal Rally! team | Original work |

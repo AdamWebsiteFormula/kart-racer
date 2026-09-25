@@ -31,6 +31,9 @@ export const ITEM_LINES: Readonly<Record<string, string>> = Object.freeze({
   windUpMouse: 'Scurries ahead and bumps up to three racers.',
 });
 
+/** The key to the Item letters setting (Settings), under the items: each item's letter as its slot shows it (icons.ts glyph). */
+export const LETTERS_LEAD = 'Item letters (turn them on in Settings):';
+
 export const CREATURES: readonly { name: string; track: string; line: string }[] = Object.freeze([
   { name: 'Rumblesaur', track: 'Canyon Rush', line: 'Rears up, then stomps. Hop over the shock ring.' },
   { name: 'Yeti', track: 'Frostbite Pass', line: 'Throws snowballs. The shadow shows where one lands.' },

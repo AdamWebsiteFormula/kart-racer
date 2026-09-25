@@ -26,8 +26,8 @@ Coins are everyone's speed bonus: a hit always spins you out and costs coins.
 | 1 | **Pip** | Hummingbird courier, goggles too big | Light | Fast-talking, never stops moving | Delivery scooter with a parcel rack | Teal + coral |
 | 2 | **Momo** | Cat mechanic in overalls | Light | Deadpan, competent, oil smudge on cheek | Stripped-down buggy with exposed engine | Charcoal + yellow |
 | 3 | **Nova** | Moth astronaut, helmet visor down | Light | Dreamy, drawn to the finish-line lights | Pod with a little thruster | Lavender + white |
-| 4 | **Juniper** | Fox park ranger, hat and whistle | Medium | Cheerful rule-follower, secretly ruthless | Wood-panel jeep | Rust + forest green |
-| 5 | **Otto** | Otter lifeguard with a rescue float | Medium | Laid-back, waves at everyone | Jet-ski kart with a rear float | Sky blue + red |
+| 4 | **Juniper** | Fox park ranger, hat and whistle | Medium | Cheerful rule-follower, secretly fierce | Wood-panel off-roader | Rust + forest green |
+| 5 | **Otto** | Otter lifeguard with a rescue float | Medium | Laid-back, waves at everyone | Water-scooter kart with a rear float | Sky blue + red |
 | 6 | **Sprocket** | Wind-up robot toy, key on its back | Medium | Literal, counts laps aloud | Tin-toy racer with a visible wind-up key that spins on boost | Cream + brass |
 | 7 | **Boulder** | Round, friendly rock golem with moss | Heavy | Gentle giant, apologises after ramming | Stone monster-truck | Slate + moss green |
 | 8 | **Big Gus** | Walrus chef, chef's hat, spatula | Heavy | Booming laugh, feeds rivals after races | Food-truck kart, awning flaps on turns | Tomato red + white |

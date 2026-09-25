@@ -11,11 +11,15 @@ import { TIER_RGB } from '../vfx-juice/flames.ts';
 import { CAST } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS, TRACKS } from './data/catalog.ts';
 import { BODIES, SKINS } from './data/cosmetics.ts';
-import { CONTROLS, CREATURES, ITEM_LINES, TIPS } from './data/howto.ts';
-import { itemSlots, SKIP_HINT } from './hudModel.ts';
+import { CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from './data/howto.ts';
+import { feedHud, hudModel, itemSlots, newHudMemory, SKIP_PROMPTS } from './hudModel.ts';
+import { ITEM_ICONS } from './icons.ts';
+import type { RaceState } from '../race-manager/types.ts';
+import { HowToView } from './render/screens.ts';
 import { TouchControls } from './render/touch.ts';
 import { CREDITS_MADE, parseCredits } from './screens/credits.ts';
-import { MODES, SPEED_CLASSES } from './screens/menus.ts';
+import { MODES, settingsMenu, SPEED_CLASSES } from './screens/menus.ts';
+import { defaultSettings } from './store.ts';
 import { UNLOCKS } from './unlocks.ts';
 
 type Fs = { readFileSync(p: string, enc: 'utf8'): string; readdirSync(p: string): string[] };
@@ -85,6 +89,31 @@ describe('How to Play says what the game does', () => {
     expect(s.next.charges).toBe('×3');
   });
 
+  it('keys the Item letters setting: every item with the letter its slot shows', () => {
+    const setting = settingsMenu(defaultSettings()).rows.find((r) => r.id === 'iconLabels')!.label;
+    expect(LETTERS_LEAD.startsWith(setting)).toBe(true);
+    const v = new HowToView(document.body);
+    v.render(ITEM_DEFINITIONS);
+    const key = v.root.querySelector('.letters')!.textContent!;
+    expect(key.startsWith(LETTERS_LEAD)).toBe(true);
+    for (const d of ITEM_DEFINITIONS) expect(key, d.id).toContain(`${ITEM_ICONS[d.id].glyph} ${d.name}`);
+    const glyphs = ITEM_DEFINITIONS.map((d) => ITEM_ICONS[d.id].glyph);
+    expect(new Set(glyphs).size).toBe(glyphs.length);
+    v.root.remove();
+  });
+
+  it('over the line: the place (none in a solo run), and the prompt to go on in each input\'s words', () => {
+    expect(Object.values(SKIP_PROMPTS)).toEqual(['Press Enter for results', 'Press A for results', 'Tap for results']);
+    const me = createKartState({ racerId: 'p', isPlayer: true });
+    me.finishTick = 9;
+    const rival = createKartState({ racerId: 'q', isPlayer: false });
+    const st = (karts: typeof me[]) => ({ mode: 'quick', lapsTotal: 3, time: 60, phase: 'racing', goTick: 0, karts, trackers: [] }) as unknown as RaceState;
+    const m = newHudMemory();
+    feedHud(m, [{ type: 'finish', racerId: 'p', rank: 1, tick: 9, dnf: false }], [], 'p', 0);
+    expect(hudModel(st([me, rival]), me, 1, 10, m, 1, [], 0).banner).toMatchObject({ text: 'FINISH!', sub: '1st', skip: true });
+    expect(hudModel(st([me]), me, 1, 10, m, 1, [], 0).banner).toMatchObject({ text: 'FINISH!', sub: '', skip: true });
+  });
+
   it('each paint unlock is named as the garage names the paint, and says where to use it', () => {
     for (const s of SKINS) {
       const u = UNLOCKS.find((x) => x.id === s.id)!;
@@ -115,10 +144,9 @@ describe('every word a player reads', () => {
     const html = fs.readFileSync(`${ROOT}index.html`, 'utf8');
     const page = [/<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '', /name="description" content="([^"]*)"/.exec(html)?.[1] ?? ''];
     expect(page.every(Boolean)).toBe(true);
-    // the credits' licence column is the licensors' own words, never edited: only Work and Author here
-    const credits = parseCredits(fs.readFileSync(`${ROOT}CREDITS.md`, 'utf8')).flatMap((s) => [s.title, ...s.rows.flatMap((r) => [r.work, r.author])]);
+    const credits = parseCredits(fs.readFileSync(`${ROOT}CREDITS.md`, 'utf8')).flatMap((s) => [s.title, ...s.rows.flatMap((r) => [r.work, r.author, r.licence])]);
     const words = [
-      ...page, ...credits, CREDITS_MADE, SKIP_HINT,
+      ...page, ...credits, CREDITS_MADE, ...Object.values(SKIP_PROMPTS), LETTERS_LEAD,
       ...CONTROLS.flatMap((c) => [c.action, c.keys, c.pad, c.touch]), ...Object.values(ITEM_LINES), ...TIPS,
       ...CREATURES.flatMap((c) => [c.name, c.track, c.line]), ...ITEM_DEFINITIONS.map((d) => d.name),
       ...CAST.flatMap((c) => [c.name, c.species, c.personality, c.kart]), ...TRACKS.flatMap((t) => [t.name, t.biome, t.shift]),
