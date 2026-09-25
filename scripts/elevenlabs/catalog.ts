@@ -187,6 +187,8 @@ const SONG_TAIL = 'Constant driving energy from the first second, no intro, no f
 // design §11: Sunrise Cup = brass/ska, Summit Cup = synth-brass/funk, finale = orchestral pop
 export const SONGS: readonly SongSpec[] = [
   { id: 'title', seconds: 64, bpm: 128, prompt: 'Title-screen theme for a bright cartoon kart racing video game. Sunny, catchy pop-rock: punchy brass lead melody, funky slap bass, bright electric guitar chops, glockenspiel sparkles, handclaps and driving drums. 128 BPM, G major. Upbeat, heroic and fun. Steady energy the whole way and it ends as it began, so it loops. Instrumental, no vocals.' },
+  // edited 25 Sept 2026 (not remade): the Demucs vocal stem taken out at 38.35-39.75 s, a cartoon woo-hoo the
+  // judge heard as a voice on five cuts; re-encoded at 192 kbps CBR, same length, loop and level (docs/sops/audio.md)
   { id: 'race-harbour', seconds: 96, bpm: 150, prompt: `High-energy ska racing music for a sunny seaside cartoon kart race. Offbeat skanking guitar, a tight trumpet and trombone section playing a catchy lead, bouncy walking bass, fast snare fills, steel-drum sparkles. 150 BPM, F major. ${SONG_TAIL}` },
   { id: 'race-meadow', seconds: 96, bpm: 146, prompt: `Joyful brass-and-banjo racing music for a countryside cartoon kart race past windmills and meadows. Rolling banjo, a bright brass section lead, fiddle answers, offbeat ska guitar, bouncing bass, stomping drums. 146 BPM, D major. ${SONG_TAIL}` },
   { id: 'race-frost', seconds: 96, bpm: 140, prompt: `Funky racing music for a snowy mountain cartoon kart race. A synth-brass lead melody, slap funk bass, clavinet and wah guitar, sleigh bells and glockenspiel, tight punchy drums. 140 BPM, E major. Cool, bouncy and fast. ${SONG_TAIL}` },

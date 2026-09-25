@@ -8,6 +8,9 @@
 //   node scripts/ear/judge.mjs compare <id> <path,path,...>     takes side by side: which fits the brief best
 //   node scripts/ear/judge.mjs song <path> --as=<song> --part=start|middle|seam
 //   node scripts/ear/judge.mjs songset <song> <start.wav,middle.wav,seam.wav>   a song's three excerpts, one request
+//   node scripts/ear/judge.mjs voices <excerpt.wav> [--from=<s>]  is any human voice in this music excerpt, and when
+//          (a plain question with no brief, so nothing leads the ear; --from = the excerpt's start in the song,
+//          added to each time). Settle a heard voice with two different cuts that agree on the time.
 //   flags: --model=gemini-pro-latest (falls back to gemini-3.1-pro-preview when busy), --thinking=low|high,
 //          --budget=8 (US dollars: no call starts once the ledger has spent this much), --patience=10 (minutes)
 //
@@ -102,6 +105,27 @@ const SONG_SCHEMA = S('OBJECT', {
   },
   required: ['heard', 'moodFit', 'energyVsMKWRaceTheme', 'vocals', 'vocalsDetail', 'seamProblems', 'problems', 'verdict'],
   propertyOrdering: ['heard', 'moodFit', 'energyVsMKWRaceTheme', 'vocals', 'vocalsDetail', 'seamProblems', 'problems', 'verdict'],
+});
+
+const VOICE_SCHEMA = S('OBJECT', {
+  properties: {
+    heard: S('STRING', { description: 'The instruments and sounds in this excerpt, in one or two sentences.' }),
+    humanVoice: S('STRING', { enum: ['none', 'present'], description: 'Any human voice anywhere in the excerpt: singing, humming, shouting, cheering, a crowd, speech, or a sampled vocal chop.' }),
+    voices: S('ARRAY', { items: S('OBJECT', {
+      properties: {
+        at: S('NUMBER', { description: 'Seconds from the start of this excerpt.' }),
+        until: S('NUMBER', { description: 'Seconds from the start of this excerpt.' }),
+        kind: S('STRING', { enum: ['singing', 'humming', 'shout', 'cheer', 'crowd', 'speech', 'vocal sample', 'other voice'] }),
+        what: S('STRING', { description: 'What it sounds like, and any word you can make out.' }),
+        certainty: S('INTEGER', { description: '0-10: how sure you are that this is a human voice, not an instrument.' }),
+      },
+      required: ['at', 'until', 'kind', 'what', 'certainty'],
+      propertyOrdering: ['at', 'until', 'kind', 'what', 'certainty'],
+    }), description: 'Every human voice you hear, one entry each. Empty when there is none.' }),
+    lookalikes: S('ARRAY', { items: S('STRING'), description: 'Instrument sounds here that could be mistaken for a voice (a trombone slide, a brass stab, a synth), each with its time in seconds.' }),
+  },
+  required: ['heard', 'humanVoice', 'voices', 'lookalikes'],
+  propertyOrdering: ['heard', 'humanVoice', 'voices', 'lookalikes'],
 });
 
 /**
@@ -247,6 +271,35 @@ async function judgeSongSet(id, paths) {
   return paths.map((p, i) => ({ id, part: names[i], file: basename(p), ...(r.find((x) => x.excerpt === i + 1) ?? r[i] ?? {}), model: r.model, usd: r.usd / paths.length }));
 }
 
+/** Seconds in a PCM WAV file (its data chunk over its byte rate). */
+function wavSeconds(path) {
+  const b = readFileSync(path);
+  let o = 12, rate = 0, bytes = 0;
+  while (o + 8 <= b.length) {
+    const id = b.toString('ascii', o, o + 4), size = b.readUInt32LE(o + 4);
+    if (id === 'fmt ') rate = b.readUInt32LE(o + 16);
+    if (id === 'data') bytes = size;
+    o += 8 + size + (size & 1);
+  }
+  return rate ? bytes / rate : 0;
+}
+
+/**
+ * Is there a human voice in this music excerpt? A plain question: no brief, no song name and no hint of
+ * where a voice was heard before, so nothing leads the ear. Times come back from the excerpt's start;
+ * `from` (the excerpt's start in the song) is added to give song times, so two cuts can be matched.
+ */
+async function voices(path, from) {
+  const secs = wavSeconds(path);
+  const text = `This is a ${secs.toFixed(1)} second excerpt of a music track. Listen to all of it closely. ` +
+    'Is there any human voice anywhere in it: singing, humming, shouting, cheering, a crowd, speech, or a sampled vocal chop? ' +
+    'Answer only from what you hear. For each voice, give its time in seconds from the start of this excerpt and how sure you are. ' +
+    'Also list any instrument sounds that could be mistaken for a voice, with their times.';
+  const r = await generate([{ text }, audioPart(path, false)], VOICE_SCHEMA, `voices ${basename(path)}`);
+  const at = (t) => (typeof t === 'number' ? Number((t + from).toFixed(2)) : t);
+  return { file: basename(path), from, seconds: Number(secs.toFixed(2)), ...r, songTimes: (r.voices ?? []).map((v) => [at(v.at), at(v.until)]) };
+}
+
 const out = (r) => console.log(JSON.stringify(r));
 const [mode, ...rest] = words;
 const BATCH = Number(flag('batch', '1'));
@@ -275,8 +328,10 @@ if (mode === 'sfx') {
   for (const r of await judgeSongSet(rest[0], rest[1].split(','))) out(r);
 } else if (mode === 'song') {
   out(await judgeSong(rest[0], flag('as'), flag('part', 'start')));
+} else if (mode === 'voices') {
+  out(await voices(rest[0], Number(flag('from', '0'))));
 } else {
-  console.error('usage: judge.mjs sfx [id ...] | file <path> --as=<id> | compare <id> <paths> | song <path> --as=<song> --part=<start|middle|seam>');
+  console.error('usage: judge.mjs sfx [id ...] | file <path> --as=<id> | compare <id> <paths> | song <path> --as=<song> --part=<start|middle|seam> | voices <excerpt.wav> [--from=<s>]');
   process.exit(1);
 }
 console.error(`gemini ledger: $${spent().toFixed(3)} spent in all (${LEDGER})`);
