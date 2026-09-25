@@ -78,6 +78,9 @@ export class Items {
   step(inputs: readonly InputState[], raceEvents: readonly RaceEvent[], dt: number): ItemEvent[] {
     const events: ItemEvent[] = [];
     if (this.inert) return events;
+    // item boosts leave their kart events here and nothing reads them (landHit clears it before a hit):
+    // start each tick empty so they never pile up through a race
+    this.scratch.length = 0;
     const st = this.host.state, consts = this.host.consts, track = this.track, m = this.state, cfg = this.cfg;
     const karts = st.karts;
 
