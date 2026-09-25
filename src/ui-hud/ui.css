@@ -63,6 +63,14 @@ html, body {
   color: var(--paper);
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  /* phones (cross-browser sweep, 24 Sept 2026): iOS Safari enlarges text after a turn to landscape
+     unless told not to, and before Safari 26 it reads only the prefixed user-select; no grey flash
+     over a tapped button, no long-press callout over the game */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
 
@@ -543,6 +551,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   flex: 1 1 200px; min-width: 0; font: 600 20px/1 var(--body); color: var(--ink); background: #fff;
   border: var(--stroke) solid var(--ink); border-radius: 999px; padding: 12px 18px; box-shadow: 0 4px 0 var(--ink); outline: none;
   user-select: text;
+  -webkit-user-select: text;
 }
 .name-input.focused, .name-input:focus-visible { box-shadow: 0 4px 0 var(--ink), 0 0 0 5px var(--sun); }
 .board-form .btn { padding: 12px 22px; }
