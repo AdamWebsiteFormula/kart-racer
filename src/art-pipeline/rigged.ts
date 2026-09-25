@@ -23,6 +23,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { KART_ANIM, type AnimPose } from '../kart-controller/anim.ts';
 import { DRIVER_ANIM, type ArmPose, type DriverPose, type KartRig } from '../kart-controller/driverAnim.ts';
 import type { V3 } from './model.ts';
+import { isPbr, litWorld } from './look.ts';
 
 // ---------------------------------------------------------------- the manifest
 /** A small code-built part on a driver's bone (a beak, a feather): a tapered cone, root at `offset` from the bone (the kart's frame, the driver standing as fitted), pointing +Z turned by `rotation` (radians, XYZ). */
@@ -570,6 +571,7 @@ function skinnedRoot(kart: Bone, bones: Bone[], boneInverses: Matrix4[], geo: Bu
   const mesh = new SkinnedMesh(geo, material);
   mesh.name = 'rigged';
   mesh.castShadow = true;
+  mesh.receiveShadow = true; // the driver shades the seat, a roll bar the driver, a bridge the whole kart
   root.add(mesh);
   root.updateMatrixWorld(true);
   mesh.bind(new Skeleton(bones, boneInverses), new Matrix4());
@@ -585,10 +587,16 @@ function skinnedOf(root: Object3D): SkinnedMesh[] {
   return out;
 }
 
+/** A rigged kart's share of the painted sky's light in the PBR look (the world's is PBR.env). */
+export const RACER_ENV = 0.5;
+
 /** The racers' look, as the fused model files had it: lit PBR at a high roughness, no metal, no glow (Meshy's driver comes with its color as emission). */
 export function riggedMaterial(map: Texture | null): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ map, roughness: 0.82, metalness: 0, color: new Color(1, 1, 1) });
   m.name = 'rigged-racer';
+  // the PBR look: the world's sun and the painted sky light the karts too (Adam, 25 Sept 2026: no shading
+  // on the karts), in place of the page's even studio room, which lit every side alike
+  if (isPbr()) { m.userData.lookEnv = RACER_ENV; litWorld(m); }
   m.userData.shared = true; // every kart and race shares it: a finished race must not dispose it
   return m;
 }

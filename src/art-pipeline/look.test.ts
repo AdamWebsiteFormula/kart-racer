@@ -1,4 +1,4 @@
-// The look switch (look.ts): ?look=pbr picks the stylized-PBR prototype; the toon look stays the default.
+// The look switch (look.ts): the stylized-PBR look is the default (Adam, 25 Sept 2026); ?look=toon brings the old one back.
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   BoxGeometry, Color, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, MeshToonMaterial, ShaderChunk, ShaderMaterial, Texture,
@@ -28,20 +28,21 @@ function compiled(m: MeshStandardMaterial | MeshToonMaterial): { vs: string; fs:
 afterEach(() => setLook(DEFAULT_LOOK));
 
 describe('the look switch', () => {
-  it('reads ?look= from the address; anything else leaves the default, the toon look', () => {
-    expect(DEFAULT_LOOK).toBe('toon');
+  it('reads ?look= from the address; anything else leaves the default, the PBR look', () => {
+    expect(DEFAULT_LOOK).toBe('pbr');
     expect(lookFromSearch('?look=pbr')).toBe('pbr');
     expect(lookFromSearch('?mute&look=pbr')).toBe('pbr');
     expect(lookFromSearch('?look=toon&mute')).toBe('toon');
     for (const s of [undefined, '', '?mute', '?look=', '?look=PBR', '?look=shiny']) expect(lookFromSearch(s), String(s)).toBeNull();
     // a test page has no ?look: the default
-    expect(look()).toBe('toon');
-    expect(isPbr()).toBe(false);
-    setLook('pbr');
-    expect([look(), isPbr()]).toEqual(['pbr', true]);
+    expect(look()).toBe('pbr');
+    expect(isPbr()).toBe(true);
+    setLook('toon');
+    expect([look(), isPbr()]).toEqual(['toon', false]);
   });
 
   it('the toon look hands the track scene no look hook: nothing changes unless it is asked for', () => {
+    setLook('toon');
     expect(trackAssets('harbour').look).toBeUndefined();
     setLook('pbr');
     expect(trackAssets('harbour').look).toBe(applyLook);

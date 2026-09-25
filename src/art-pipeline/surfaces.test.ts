@@ -69,6 +69,7 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
   afterEach(() => setLook(DEFAULT_LOOK));
 
   it('the toon road compiles none of it: no grain, no racing line, the glint as it was', () => {
+    setLook('toon');
     const { fs } = road(HARBOUR);
     expect(fs).not.toContain('uRoadGrain');
     expect(fs).not.toContain('lkBend');

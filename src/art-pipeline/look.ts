@@ -17,7 +17,7 @@ import {
 export type Look = 'toon' | 'pbr';
 export const LOOKS: readonly Look[] = Object.freeze(['toon', 'pbr']);
 /** The look a page gets when its address names none. */
-export const DEFAULT_LOOK: Look = 'toon';
+export const DEFAULT_LOOK: Look = 'pbr'; // Adam, 25 Sept 2026: "switch the game to the new look" (?look=toon brings the old one back)
 
 /** The look an address asks for (`?look=pbr`, `?look=toon`), or null when it names none (or an unknown one). */
 export function lookFromSearch(search: string | undefined): Look | null {

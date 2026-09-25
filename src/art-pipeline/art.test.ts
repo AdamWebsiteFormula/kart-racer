@@ -229,7 +229,7 @@ describe('painted surfaces', () => {
     for (const f of ['grass', 'sand', 'snow', 'asphalt']) expect(fs.existsSync(new URL(`../../public/textures/${f}.webp`, import.meta.url)), f).toBe(true);
     const { groundMaterial } = await import('./surfaces.ts');
     expect(groundMaterial('harbour', 'water', 2400)?.type).toBe('ShaderMaterial');
-    expect(groundMaterial('meadow', 'plane', 2400)?.type).toBe('MeshToonMaterial');
+    expect(groundMaterial('meadow', 'plane', 2400)?.type).toBe('MeshStandardMaterial'); // the PBR look is the default (25 Sept 2026)
     expect(groundMaterial('skyline', 'none', 2400)).toBeUndefined();
   });
 });
