@@ -10,7 +10,7 @@ A bright cartoon kart racer where eight original racers drift, boost and trade b
 
 ## 3. Tone and art direction
 - Tone: sunny, mischievous, generous. Nobody is a villain; rivals grin when they hit you.
-- Art: saturated toon-diorama. `MeshToonMaterial` with a 3-step gradient, no outlines (Adam, 23 Sept 2026: Mario Kart World draws none), warm key light + cool fill, one accent colour per biome, painted gradient skies. Palettes per biome in §6.
+- Art: saturated diorama in soft stylized PBR (Adam, 25 Sept 2026: "switch to the new look", chosen on side-by-side stills against the old toon look): `MeshStandardMaterial`, rough and non-metallic, with detail normals from the painted textures (asphalt grain, worn paint, tire marks, grass relief), the painted sky as the environment light, red-and-white curbs on tight corners, a soft dirt band where the grass meets the curb; the rigged racers share the same light. No outlines (Adam, 23 Sept 2026: Mario Kart World draws none), warm key light + cool fill, one accent colour per biome, painted gradient skies. Palettes per biome in §6. The old toon look (`MeshToonMaterial`, a 3-step gradient) stays behind `?look=toon`.
 - Silhouette rule: every racer and every item must be identifiable in a 32 px black silhouette.
 - Hard IP rules: no Nintendo names, characters, items, sounds, layouts, typography or item-box look-alikes. Pickups are **balloons**, not boxes. See research plan §3.1.
 

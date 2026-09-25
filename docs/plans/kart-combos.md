@@ -59,7 +59,7 @@ When k is the racer's own kart the bracket is exactly 0 (checked in floating poi
 ## 4. Leaderboard
 - `Submission.kartId` required (main.ts takes it from `manager.consts[pi].kartId`). `checkSubmission` needs a known kart id (Classic and Buggy allowed; twins gain nothing). `verifyRun` / `replay` / `canonicalize` take `kartId` and replay through `soloConfig(..., kartId)`; the same log claimed with another kart replays to a different time → 422.
 - CLIENT_VERSION 5 → 6 (live function v18 is on 5).
-- Migration supabase/migrations/20260926000001_kart_id.sql: `scores.kart_id text null` (1–32 chars); drop and recreate `get_leaderboard` with `kart_id` (keep the `not hidden` filter), re-grant anon and authenticated; unique index unchanged. **Needs Adam's OK before it is applied.**
+- Migration supabase/migrations/20260926000001_kart_id.sql: `scores.kart_id text null` (1–32 chars); drop and recreate `get_leaderboard` with `kart_id` (keep the `not hidden` filter), re-grant anon and authenticated; unique index unchanged. **Adam OK'd this migration on 25 Sept 2026** (apply it at release, K7, together with the v6 client and the new function).
 - Board rows: place, racer face, kart icon (labeled "Pip in the Snack Truck"), name, time. Old scores kept (all raced in what is now each racer's own kart, which handles identically); null kart_id shows as the racer's own kart.
 - The deployed-bundle test gains a changed-kart run (Momo in the Snack Truck on Harbor Loop), so kart tuning without `npm run build:function` fails verify.
 
