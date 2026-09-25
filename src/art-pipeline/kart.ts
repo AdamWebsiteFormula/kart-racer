@@ -4,6 +4,7 @@
 // A kart's look (design §10 unlocks, cosmetic only): an alt paint, and a shared body (Classic,
 // Buggy) with the racer's driver seated in it in place of their signature kart.
 import { Color, Group, Mesh, SRGBColorSpace, type BufferGeometry } from 'three';
+import { isKartId, kartById, ownKartOf } from '../kart-controller/karts.ts';
 import { bodyInto, BODY_EXHAUST, KART_COLOURS, type BodyId } from './bodies.ts';
 import { RACER_MODELS } from './glb.ts';
 import { ModelBuilder } from './model.ts';
@@ -12,8 +13,35 @@ import { codeRig, EXHAUST, racerModel, type Exhaust } from './racers.ts';
 import { BODY_WHEELS, rigKart } from './rig.ts';
 import { vertexToon } from './toon.ts';
 
-/** How a kart looks: an alt paint id (paints.ts) and a body (bodies.ts). Absent = the racer's own. */
-export interface KartLook { paint?: string; body?: BodyId }
+/**
+ * How a kart looks: an alt paint id (paints.ts), a body (bodies.ts), and, with karts picked (design
+ * §5, UI.kartPick), the kart it races in (kart-controller karts.ts KART_IDS). `kartId` absent, unknown,
+ * or the racer's own signature kart: no change, as always. A twin (classic, buggy): the same as
+ * `body`. Another racer's signature kart: that racer's own body and wheels, this racer's own driver
+ * (buildRacerMesh, exhaustFor; art-pipeline rigged.ts buildComboTemplate).
+ */
+export interface KartLook { paint?: string; body?: BodyId; kartId?: string }
+
+/** `look.kartId`, resolved: undefined for the racer's own kart, or one the table does not know. */
+function chosenKart(racerId: string, look: KartLook): string | undefined {
+  const id = look.kartId;
+  return id !== undefined && isKartId(id) && id !== ownKartOf(racerId) ? id : undefined;
+}
+
+/** The shared body (bodies.ts) a look wants: `look.kartId`'s twin, else `look.body`. */
+function twinBodyOf(racerId: string, look: KartLook): Exclude<BodyId, 'standard'> | undefined {
+  const chosen = chosenKart(racerId, look);
+  if (chosen === 'classic' || chosen === 'buggy') return chosen;
+  return look.body && look.body !== 'standard' ? look.body : undefined;
+}
+
+/** The racer whose signature kart this driver should sit in: `look.kartId`, when it is another racer's own and not a twin; else undefined. */
+export function comboOwnerOf(racerId: string, look: KartLook): string | undefined {
+  const chosen = chosenKart(racerId, look);
+  if (!chosen || chosen === 'classic' || chosen === 'buggy') return undefined;
+  const owner = kartById(chosen)?.owner;
+  return owner && owner !== racerId ? owner : undefined;
+}
 
 const cache = new Map<string, { body: BufferGeometry }>();
 
@@ -70,17 +98,20 @@ export function racerGeometry(id: string, look: KartLook = {}, withDriver = true
 }
 
 /**
- * The pipes a kart burns from in a look: a shared body's, else the racer's own (a racer built from
- * parts: the pipe mouths measured on its body, pointing where its pipes point, no splay); the flame in
- * the racer's color, or their alt paint's.
+ * The pipes a kart burns from in a look: a shared body's, else the kart's own (design §5: another
+ * racer's signature kart burns from its own measured pipes; a racer built from parts, otherwise: the
+ * pipe mouths measured on its own body, pointing where its pipes point, no splay); the flame in the
+ * racer's color, or their alt paint's, always the driver's own (never the kart owner's).
  */
 export function exhaustFor(racerId: string, look: KartLook = {}): Exhaust | undefined {
   const own = EXHAUST[racerId];
   if (!own) return own;
   const paint = paintFor(racerId, look.paint);
   const flame = paint ? repaintHex(own.flame, paint.rules) : own.flame;
-  if (look.body && look.body !== 'standard') return { ...BODY_EXHAUST[look.body], flame };
-  const measured = RACER_MODELS.exhaust(racerId);
+  const twin = twinBodyOf(racerId, look);
+  if (twin) return { ...BODY_EXHAUST[twin], flame };
+  const owner = comboOwnerOf(racerId, look);
+  const measured = RACER_MODELS.exhaust(owner ?? racerId);
   if (measured) return { ports: measured.ports, dir: measured.dir, flame, splay: 0, ...(own.size ? { size: own.size } : {}) };
   return paint ? { ...own, flame } : own;
 }
@@ -90,17 +121,29 @@ export function exhaustFor(racerId: string, look: KartLook = {}): Exhaust | unde
  * code-built one. With a shared body, the body is code-built and the driver is cut from the model
  * file (or code-built without one): two draw calls where the model file alone is one. A racer built
  * from parts (rigged.ts) comes rigged, one skinned mesh; in a shared body its rigged driver sits by IK
- * on the body's seat (bodies.ts SEATS). `userData.exhaust` carries the pipes the flames burn from,
- * `userData.rig` the rig KartView animates (rigged racers).
+ * on the body's seat (bodies.ts SEATS). With another racer's signature kart chosen (design §5,
+ * `look.kartId`), both built from parts: the driver seated by IK in the kart owner's own body and
+ * wheels, one skinned mesh (RACER_MODELS.combo); never the kart owner's own driver. `userData.exhaust`
+ * carries the pipes the flames burn from, `userData.rig` the rig KartView animates (rigged racers).
  */
 export function buildRacerMesh(racerId: string, look: KartLook = {}): Group | null {
-  const shared = look.body && look.body !== 'standard' ? look.body : undefined;
+  const owner = comboOwnerOf(racerId, look);
+  if (owner) {
+    const combo = RACER_MODELS.combo(racerId, owner, look.paint);
+    if (combo) {
+      combo.name = `racer-${racerId}`;
+      combo.userData.exhaust = exhaustFor(racerId, look);
+      return combo;
+    }
+    // either racer's model is not in yet: fails soft to this racer's own kart, as any missing model does
+  }
+  const shared = twinBodyOf(racerId, look);
   let root: Group | null = null;
   if (!shared) root = RACER_MODELS.make(racerId, look.paint);
   else {
     const rigged = RACER_MODELS.seatedDriver(racerId, shared, look.paint);
     const driver = rigged ?? RACER_MODELS.driver(racerId, look.paint);
-    const g = racerGeometry(racerId, look, !driver);
+    const g = racerGeometry(racerId, { ...look, body: shared }, !driver);
     if (g) {
       root = new Group();
       const body = new Mesh(g.body, vertexToon());

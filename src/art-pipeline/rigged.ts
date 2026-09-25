@@ -475,6 +475,12 @@ export interface RiggedTemplate {
   rest: ReadonlyMap<string, { p: Vector3; q: Quaternion }>;
   /** triangles in the full mesh */
   triangles: number;
+  /**
+   * The body and wheels alone (no driver), on bones [0, KART_BONES.length): any racer in any kart
+   * (design §5, K6, 25 Sept 2026), buildComboTemplate's kart side. Absent only for a hand-built test
+   * fixture that never goes through buildRiggedTemplate.
+   */
+  kartOnly?: BufferGeometry;
 }
 
 /**
@@ -554,12 +560,14 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
   const material = riggedMaterial(atlas);
   const full = mergeParts([bp, ...wheelParts, dp, ...extras]);
   const alone = mergeParts([dp, ...extras]);
+  // the kart alone (no driver), for buildComboTemplate's kart side: same bones [0, KART_BONES.length)
+  const kartOnly = mergeParts([bp, ...wheelParts]);
   const root = skinnedRoot(kart, bones, boneInverses, full, material, `racer-${racerId}`);
   seatDriver(root, seat, pose, rest);
   // the driver alone: its own copy of the bones (the same names and order), the same bind
   const kart2 = kart.clone(true);
   const driverOnly = skinnedRoot(kart2, bones.map((b) => kart2.getObjectByName(b.name) as Bone), boneInverses, alone, material, `driver-${racerId}`);
-  return { racerId, root, driverOnly, material, spec, pose, seat, rest, triangles: (full.index!.count / 3) | 0 };
+  return { racerId, root, driverOnly, material, spec, pose, seat, rest, triangles: (full.index!.count / 3) | 0, kartOnly };
 }
 
 function depth(o: Object3D): number { let n = 0; for (let p = o.parent; p; p = p.parent) n++; return n; }
@@ -666,6 +674,93 @@ export function makeRiggedDriver(t: RiggedTemplate, seat: SeatSpec, steering: St
   seatDriver(g, seat, t.pose, t.rest);
   g.userData.rig = new RiggedKart(g, t, seat.grips, steering);
   return g;
+}
+
+// ---------------------------------------------------------------- any racer, any kart (K6, design §5)
+/** A finished skinned geometry's attributes, read as a `Part` (never copied): safe wherever a `Part`'s fields are only read, as mergeParts does. */
+function partFromGeometry(g: BufferGeometry): Part {
+  return {
+    pos: g.getAttribute('position').array as Float32Array,
+    nrm: g.getAttribute('normal').array as Float32Array,
+    uv: g.getAttribute('uv').array as Float32Array,
+    index: Uint32Array.from(g.index!.array as ArrayLike<number>),
+    joints: g.getAttribute('skinIndex').array as Uint16Array,
+    weights: g.getAttribute('skinWeight').array as Float32Array,
+  };
+}
+
+/**
+ * The combo's own atlas: a fresh canvas with `driver`'s own driver picture and attachment swatches,
+ * and `kart`'s own body and wheel pictures, each copied straight into its ATLAS rect (never remapped:
+ * every template's parts already share these same fixed rects). Null wherever drawAtlas's would be:
+ * no document (as in tests), no 2D context, or neither template painted one.
+ */
+export function buildComboAtlas(kart: RiggedTemplate, driver: RiggedTemplate): Texture | null {
+  if (typeof document === 'undefined') return null;
+  const kimg = kart.material.map?.image as CanvasImageSource | undefined;
+  const dimg = driver.material.map?.image as CanvasImageSource | undefined;
+  if (!kimg && !dimg) return null;
+  const c = document.createElement('canvas');
+  c.width = ATLAS.w; c.height = ATLAS.h;
+  const g = c.getContext?.('2d');
+  if (!g) return null;
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, c.width, c.height);
+  const copy = (src: CanvasImageSource | undefined, r: Rect) => { if (src) g.drawImage(src, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); };
+  copy(dimg, ATLAS.driver);
+  copy(kimg, ATLAS.body);
+  copy(kimg, ATLAS.wheel);
+  // the swatch row (attachments' colors) is the driver's: the whole row, however many it painted
+  if (dimg) copy(dimg, [ATLAS.swatch[0], ATLAS.swatch[1], ATLAS.w - ATLAS.swatch[0], ATLAS.swatch[3]]);
+  const t = new CanvasTexture(c);
+  t.flipY = false; // glTF's convention: (0, 0) is the image's top left
+  t.colorSpace = SRGBColorSpace;
+  t.wrapS = t.wrapT = ClampToEdgeWrapping;
+  t.minFilter = LinearMipmapLinearFilter;
+  t.anisotropy = 4;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * Any racer in any kart (design §5, K6, 25 Sept 2026): `driver`'s racer seated by IK on `kart`'s own
+ * seat, grips, feet and steering, in `kart`'s own body and wheels (kart.kartOnly) — merged into ONE
+ * skinned mesh, one draw call, as a fused model or an own-kart rigged one is. Never shows the kart
+ * owner's driver: `kart`'s driver bones and geometry are dropped, not just hidden.
+ *
+ * The fresh bones are `kart`'s own eleven (KART_BONES: kart, body, steer, four hubs and wheels) then
+ * `driver`'s own driver bones, in the order its driver-only template already has them. No bone index
+ * ever needs remapping: KART_BONES.length is the same split in every template alike, so `kart`'s own
+ * kart-only geometry already points at [0, KART_BONES.length) and `driver`'s own driver-only geometry
+ * already points at [KART_BONES.length, ...). `kart`'s and `driver`'s own bones and geometry are left
+ * untouched (both stay clonable for their own racer's own kart, or another combo).
+ */
+export function buildComboTemplate(kart: RiggedTemplate, driver: RiggedTemplate): RiggedTemplate {
+  if (!kart.kartOnly) throw new Error(`buildComboTemplate: ${kart.racerId}'s template has no kart-only geometry`);
+  const n = KART_BONES.length;
+  const kartMesh = kart.root.getObjectByName('rigged') as SkinnedMesh;
+  const driverMesh = driver.driverOnly.getObjectByName('rigged') as SkinnedMesh;
+  // the kart's own eleven bones, fresh from its bind pose (buildRiggedTemplate never moves them after)
+  const kartClone = cloneSkinned(kart.root) as Group;
+  kartClone.getObjectByName('rigged')?.removeFromParent(); // the owner's own full mesh: not wanted here
+  kartClone.getObjectByName('Hips')?.removeFromParent(); // ...nor the owner's own driver bones
+  // the chosen driver's own bones: `body` sits at the kart's local origin, unrotated, in every
+  // template alike, so grafting Hips there needs no correction before seatDriver resets it below
+  const driverClone = cloneSkinned(driver.driverOnly) as Group;
+  const hips = driverClone.getObjectByName('Hips'), body = kartClone.getObjectByName('body');
+  if (!hips || !body) throw new Error('buildComboTemplate: a driver or a kart template is missing its bones');
+  body.add(hips);
+  const driverNames = driverMesh.skeleton.bones.slice(n).map((b) => b.name);
+  const bones = [...KART_BONES.map((nm) => kartClone.getObjectByName(nm) as Bone), ...driverNames.map((nm) => kartClone.getObjectByName(nm) as Bone)];
+  const boneInverses = [...kartMesh.skeleton.boneInverses.slice(0, n), ...driverMesh.skeleton.boneInverses.slice(n)];
+  const full = mergeParts([partFromGeometry(kart.kartOnly), partFromGeometry(driverMesh.geometry)]);
+  const material = riggedMaterial(buildComboAtlas(kart, driver));
+  const root = skinnedRoot(kartClone.getObjectByName('kart') as Bone, bones, boneInverses, full, material, `racer-${driver.racerId}`);
+  seatDriver(root, kart.seat, driver.pose, driver.rest);
+  return {
+    racerId: driver.racerId, root, driverOnly: driver.driverOnly, material,
+    spec: kart.spec, pose: driver.pose, seat: kart.seat, rest: driver.rest, triangles: (full.index!.count / 3) | 0,
+  };
 }
 
 /** Free the bone textures of the skinned meshes under `root` (rigged karts leaving for good; their geometry and material are the template's). */

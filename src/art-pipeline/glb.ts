@@ -11,7 +11,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
 import type { V3 } from './model.ts';
 import { MODEL_WHEELS, rigKart } from './rig.ts';
-import { buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
+import { buildComboTemplate, buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
 import { atOnce, type Schedule } from '../performance/loadQueue.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 
@@ -41,6 +41,8 @@ export class RacerModels {
   private readonly templates = new Map<string, Group>();
   /** racers built from parts (rigged.ts), by id */
   private readonly rigs = new Map<string, RiggedTemplate>();
+  /** a combo template (any racer in any kart, design §5, K6), by `${driverId}|${kartOwnerId}`, built once and reused: a race start stays fast */
+  private readonly combos = new Map<string, RiggedTemplate>();
   private loading: Promise<void> | null = null;
   private list: Promise<ModelManifest | null> | null = null;
   /** the manifest once in (null: not yet, or none) */
@@ -217,6 +219,23 @@ export class RacerModels {
     const alt = this.paintMaterial(racerId, paintId);
     if (alt) g.traverse((o) => { if ((o as Mesh).isMesh) (o as Mesh).material = alt; });
     return g;
+  }
+
+  /**
+   * Any racer in any kart (design §5, K6): `driverId`'s racer seated in `kartOwnerId`'s own kart, one
+   * skinned mesh (rigged.ts buildComboTemplate), built once per pair and reused (a race start stays
+   * fast). Null when either racer is not built from parts yet (its model waits: the caller falls back
+   * to the racer's own kart, as it does while any model is still loading).
+   */
+  combo(driverId: string, kartOwnerId: string, paintId?: string): Group | null {
+    if (driverId === kartOwnerId) return this.make(driverId, paintId);
+    const kart = this.rigs.get(kartOwnerId), driver = this.rigs.get(driverId);
+    if (!kart || !driver) return null;
+    const key = `${driverId}|${kartOwnerId}`;
+    let t = this.combos.get(key);
+    if (!t) { t = buildComboTemplate(kart, driver); this.combos.set(key, t); }
+    // an alt paint is a driver-level cosmetic: with no combo-painted material yet, the base combo stands
+    return makeRigged(t, this.paintMaterial(driverId, paintId) ?? undefined);
   }
 
   /**

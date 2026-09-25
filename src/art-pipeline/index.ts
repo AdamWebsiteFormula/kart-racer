@@ -10,12 +10,12 @@ import { withCrowd } from './crowd.ts';
 import { applyLook, isPbr } from './look.ts';
 import { grassMaterial, tuftGeometry } from './grass.ts';
 
-export { bodyColours, buildRacerMesh, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
+export { bodyColours, buildRacerMesh, comboOwnerOf, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
 export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } from './bodies.ts';
 export { PAINTS, paintFor, repaintHex, repaintPixels, repaintRgb, type Paint, type PaintRule } from './paints.ts';
 export { clipDriver, DRIVER_CUTS, fitToBox, fitToKart, KART_FIT, PROP_MODELS, PropModels, RACER_MODELS, RacerModels, trackProps, type DriverCut, type ModelManifest } from './glb.ts';
 export { EXHAUST, portDir, RACER_IDS, racerModel, type Exhaust } from './racers.ts';
-export { freeSkeletons, RACER_POSES, RiggedKart, SEATED, type PartsManifest, type PartsSpec, type RiggedTemplate, type SeatSpec } from './rigged.ts';
+export { buildComboTemplate, freeSkeletons, RACER_POSES, RiggedKart, SEATED, type PartsManifest, type PartsSpec, type RiggedTemplate, type SeatSpec } from './rigged.ts';
 export { flameColour } from './flames.ts';
 export { ModelBuilder } from './model.ts';
 export { DECOR_NAMES, decorGeometry } from './decor.ts';
