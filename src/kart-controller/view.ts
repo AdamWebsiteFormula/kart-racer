@@ -1,21 +1,18 @@
 // Render side. The only file in kart-controller that imports Three.js.
-// Holds the previous and current sim pose, lerps by the accumulator fraction,
-// and adds cosmetic lean, a tilt to the ground under it, and eases a wall's impact turn.
+// Holds the previous and current sim pose, lerps by the accumulator fraction, tilts the body to
+// the ground under it and eases a wall's impact turn (all on `root`, which the chase camera
+// follows), and puts the kart's secondary animation (anim.ts: roll, pitch, squash and stretch,
+// the drift's yaw, the hit's spin) on `chassis` and on the model's morph targets (the driver's
+// lean, look and nod, the front wheels' steer, the body on its springs; art-pipeline rig.ts).
 // None of this touches the sim.
-import { Group, MathUtils, Object3D } from 'three';
+import { Group, MathUtils, type Mesh, type Object3D } from 'three';
+import { KartAnim, newPose } from './anim.ts';
 import type { KartConstants } from './constants.ts';
-import type { KartState } from './types.ts';
+import { NEUTRAL_INPUT, type InputState, type KartState } from './types.ts';
 
 interface Pose { x: number; y: number; z: number; heading: number; angle: number }
 
 const LEAN = Object.freeze({
-  yawLag: 8, // 1/s, chassis yaw chases the logical heading
-  rollPerSteerSpeed: 0.012, // rad per (steer × m/s)
-  rollLag: 8, // 1/s, the roll eases in and out instead of snapping with the key
-  pitchPerAccel: 0.02, // rad per m/s²
-  pitchLag: 6,
-  accelClamp: 12, // m/s²; a bump or a wall changes speed in one tick and must not read as a nose-dive
-  pitchMax: 0.12, // rad
   snapYawPerTick: 0.04, // rad; a heading change bigger than this in one tick (a wall's impact turn) is eased on screen
   snapLag: 14, // 1/s, how fast that eased part catches up
   teleport: 3, // m in one tick: a set-down, never eased
@@ -24,36 +21,54 @@ const LEAN = Object.freeze({
   tiltMax: 0.6, // rad; no road leans further
 });
 
+/** A rigged mesh under the chassis, where its morph targets sit (-1: it has none), and influence per radian (or metre). */
+interface Rig { influences: number[]; lean: number; look: number; nod: number; steer: number; heave: number; perRad: number }
+
+/** Every mesh under `root` that carries the rig's morph targets (art-pipeline rig.ts); none for the placeholder kart. */
+function findRigs(root: Object3D): Rig[] {
+  const out: Rig[] = [];
+  root.traverse((o) => {
+    const m = o as Mesh;
+    const dict = m.morphTargetDictionary, inf = m.morphTargetInfluences;
+    if (!m.isMesh || !dict || !inf) return;
+    const at = (name: string) => dict[name] ?? -1;
+    // the rig says how many radians one unit of influence turns (art-pipeline rig.ts RIG_UNIT)
+    const unit = (m.geometry.userData.rigUnit as number | undefined) ?? 1;
+    const r = { influences: inf, lean: at('lean'), look: at('look'), nod: at('nod'), steer: at('steer'), heave: at('heave'), perRad: 1 / unit };
+    if (r.lean >= 0 || r.look >= 0 || r.nod >= 0 || r.steer >= 0 || r.heave >= 0) out.push(r);
+  });
+  return out;
+}
+
 export class KartView {
   readonly root = new Group(); // sim pose: position + heading
-  readonly chassis: Object3D; // cosmetic lean under root
+  readonly chassis: Object3D; // the kart's animation under root
+  /** the kart's secondary animation (springs), stepped per sim tick */
+  readonly anim: KartAnim;
   private prev: Pose;
   private curr: Pose;
-  private chassisYaw = 0;
-  private roll = 0;
-  private pitch = 0;
-  private lastSpeed = 0;
-  private lastAccel = 0;
   /** screen-only heading lag left over from a snap (a wall's impact turn), easing to 0 */
   private snapYaw = 0;
   private tiltPitch = 0;
   private tiltRoll = 0;
-  private c: KartConstants;
+  private readonly rigs: Rig[];
+  private readonly posed = newPose();
 
-  constructor(c: KartConstants, mesh: Object3D, s: KartState) {
-    this.c = c;
+  /** `seed`: the kart's index, so the field's idle shivers are out of step */
+  constructor(c: KartConstants, mesh: Object3D, s: KartState, seed = 0) {
     this.chassis = mesh;
     this.root.add(mesh);
     this.prev = this.curr = KartView.pose(s);
-    this.lastSpeed = s.speed;
+    this.anim = new KartAnim(c, seed);
+    this.rigs = findRigs(mesh);
   }
 
   private static pose(s: KartState): Pose {
     return { x: s.position[0], y: s.position[1], z: s.position[2], heading: s.heading, angle: s.status.loopAngle };
   }
 
-  /** Call once per sim tick, after stepKart. */
-  onTick(s: KartState, dt: number): void {
+  /** Call once per sim tick, after stepKart, with the input the kart drove on this tick. */
+  onTick(s: KartState, dt: number, input: Readonly<InputState> = NEUTRAL_INPUT): void {
     this.prev = this.curr;
     this.curr = KartView.pose(s);
     // a big one-tick turn (a wall's impact) plays out over a few frames: the interpolation spans
@@ -69,12 +84,15 @@ export class KartView {
       this.prev = { ...this.prev, heading: this.prev.heading + excess };
       this.snapYaw -= excess;
     }
-    this.lastAccel = MathUtils.clamp((s.speed - this.lastSpeed) / dt, -LEAN.accelClamp, LEAN.accelClamp);
-    this.lastSpeed = s.speed;
+    this.anim.tick(s, input, dt);
   }
 
-  /** Call once per frame with the accumulator fraction 0..1 and the current sim state. */
-  onFrame(alpha: number, s: KartState, steer: number, frameDt: number): void {
+  /**
+   * Call once per frame with the accumulator fraction 0..1 and the current sim state. `reduced`
+   * (reduced motion) scales the animation down. `steer` is unused (the animation reads the input
+   * per tick); kept for callers.
+   */
+  onFrame(alpha: number, s: KartState, _steer: number, frameDt: number, reduced = false): void {
     const p = this.prev, q = this.curr;
     let dh = q.heading - p.heading;
     while (dh > Math.PI) dh -= 2 * Math.PI;
@@ -100,16 +118,21 @@ export class KartView {
     this.tiltRoll += ((s.grounded || onRing ? wantRoll : 0) - this.tiltRoll) * kt;
     this.root.rotation.set(-angle + this.tiltPitch, heading, this.tiltRoll, 'YXZ');
 
-    // cosmetic lean
-    // the sim's +yaw is screen-left, so a drift toward direction d yaws the body by +d, not −d
-    // (the tail swings out, the nose points into the bend; 2026-09-21 it pointed out of it)
-    const slip = s.drift.active ? s.drift.direction * this.c.driftVisualSlip : 0;
-    const k = 1 - Math.exp(-LEAN.yawLag * frameDt);
-    this.chassisYaw += (slip - this.chassisYaw) * k;
-    const kr = 1 - Math.exp(-LEAN.rollLag * frameDt);
-    this.roll += (-steer * s.speed * LEAN.rollPerSteerSpeed - this.roll) * kr;
-    const kp = 1 - Math.exp(-LEAN.pitchLag * frameDt);
-    this.pitch += (MathUtils.clamp(-this.lastAccel * LEAN.pitchPerAccel, -LEAN.pitchMax, LEAN.pitchMax) - this.pitch) * kp;
-    this.chassis.rotation.set(this.pitch, this.chassisYaw, this.roll);
+    // the animation (anim.ts): yaw first (the drift's slip, the hit's spin), then pitch and roll
+    // about the kart's own axes, squash and stretch about the wheels' contact, riding up so the
+    // low wheel stays on the road as it leans
+    const a = this.anim.pose(alpha, reduced, this.posed);
+    this.chassis.rotation.set(a.pitch, a.yaw + a.spin + a.wobble, a.roll, 'YXZ');
+    this.chassis.position.set(0, a.lift, 0);
+    const sy = 1 + a.squash, sxz = 1 / Math.sqrt(sy);
+    this.chassis.scale.set(sxz, sy, sxz);
+    for (let i = 0; i < this.rigs.length; i++) {
+      const r = this.rigs[i], inf = r.influences;
+      if (r.lean >= 0) inf[r.lean] = a.lean * r.perRad;
+      if (r.look >= 0) inf[r.look] = a.look * r.perRad;
+      if (r.nod >= 0) inf[r.nod] = a.nod * r.perRad;
+      if (r.steer >= 0) inf[r.steer] = a.steer * r.perRad;
+      if (r.heave >= 0) inf[r.heave] = a.heave * r.perRad;
+    }
   }
 }

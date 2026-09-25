@@ -8,7 +8,8 @@ import { bodyInto, BODY_EXHAUST, KART_COLOURS, type BodyId } from './bodies.ts';
 import { RACER_MODELS } from './glb.ts';
 import { ModelBuilder } from './model.ts';
 import { paintFor, repaintHex, repaintRgb, type Paint } from './paints.ts';
-import { EXHAUST, racerModel, type Exhaust } from './racers.ts';
+import { codeRig, EXHAUST, racerModel, type Exhaust } from './racers.ts';
+import { BODY_WHEELS, rigKart } from './rig.ts';
 import { vertexToon } from './toon.ts';
 
 /** How a kart looks: an alt paint id (paints.ts) and a body (bodies.ts). Absent = the racer's own. */
@@ -59,6 +60,11 @@ export function racerGeometry(id: string, look: KartLook = {}, withDriver = true
   }
   if (!m) return null;
   const g = { body: m.build() };
+  // the moving parts (rig.ts; KartView moves them): the wheels and the body on them, and a
+  // code-built driver (merged last) about its hips
+  const code = codeRig(id, !!body);
+  const driver = withDriver && code && m.driverPart >= 0 ? { y: code.hips.y, x: 2, z: [-2, 2] as const, at: code.hips.at } : null;
+  rigKart(g.body, null, { driver, driverFrom: driver ? m.vertexStart(m.driverPart) : 0, wheels: body ? BODY_WHEELS[body] : code?.wheels });
   cache.set(key, g);
   return g;
 }

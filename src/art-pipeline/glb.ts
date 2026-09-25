@@ -8,6 +8,7 @@ import { paintFor, repaintPixels, type PaintRule } from './paints.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
 import type { V3 } from './model.ts';
+import { MODEL_WHEELS, rigKart } from './rig.ts';
 
 /** The footprint a model is fitted into (metres): nose to tail, side to side, ground to top. */
 export const KART_FIT = Object.freeze({ length: 2.1, width: 1.7, height: 2.2 });
@@ -52,7 +53,7 @@ export class RacerModels {
       await Promise.all(Object.entries(manifest).map(async ([racerId, spec]) => {
         try {
           const gltf = await loader.loadAsync(`${this.base}${spec.url}`);
-          this.templates.set(racerId, this.fitted(gltf.scene, spec.yaw ?? 0));
+          this.templates.set(racerId, rigRacer(this.fitted(gltf.scene, spec.yaw ?? 0), racerId));
         } catch { /* a broken file leaves that racer on its code-built kart */ }
       }));
     })();
@@ -110,6 +111,8 @@ export class RacerModels {
       t.traverse((o) => { if (!src && (o as Mesh).isMesh) src = o as Mesh; });
       if (!src) return null;
       geo = clipDriver(bakedGeometry(src), cut);
+      // it leans, looks and nods about its hips, seated at SEAT, and rides the body's springs (rig.ts)
+      rigKart(geo, null, { driver: { y: SEAT.y, x: 2, z: [-2, 2], at: SEAT.z }, onSprings: true });
       this.drivers.set(racerId, geo);
       this.driverMaterial.set(racerId, src.material as Material);
     }
@@ -147,6 +150,22 @@ export class RacerModels {
     this.paints.set(key, out);
     return out;
   }
+}
+
+/**
+ * A fitted model's moving parts as morph targets (rig.ts): its driver (DRIVER_CUTS) leans, looks
+ * and nods, its front wheels (MODEL_WHEELS) steer and its body rides on them. Every clone shares
+ * the targets and has its own influences, which KartView sets. Returns `holder`.
+ */
+export function rigRacer(holder: Group, racerId: string): Group {
+  holder.updateMatrixWorld(true);
+  holder.traverse((o) => {
+    const m = o as Mesh;
+    if (!m.isMesh || m.geometry.morphAttributes.position) return;
+    rigKart(m.geometry, m.matrixWorld, { driver: DRIVER_CUTS[racerId], wheels: MODEL_WHEELS[racerId] });
+    m.updateMorphTargets();
+  });
+  return holder;
 }
 
 /** Repaint a texture's pixels through a canvas (once); null where there is no 2D canvas (tests, very old browsers). */

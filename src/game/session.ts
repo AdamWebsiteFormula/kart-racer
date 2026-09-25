@@ -103,7 +103,7 @@ export class RaceSession {
     this.views = this.manager.state.karts.map((s, i) => {
       const r = ROSTER.find((x) => x.id === config.racers[i].racerId) ?? ROSTER[i % ROSTER.length];
       const mesh = buildRacerMesh(config.racers[i].racerId, config.racers[i].isPlayer ? look : {}) ?? buildKartMesh(r.accent, r.secondary);
-      const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s);
+      const v = new KartView(makeConstants(config.racers[i].archetype, config.speedClass), mesh, s, i);
       this.flames.push(new ExhaustFlames(mesh, config.racers[i].racerId));
       // a rival against the lens turns to a ghost, flames and all; yours never does
       if (i === this.playerIndex) ownKartMaterials(mesh); else this.fader.add(mesh);
@@ -148,7 +148,8 @@ export class RaceSession {
       splitShadowDepth(this.group); // the shift's rebuilt instancers
       if (e.event.sky) this.changeSky(e.event.sky);
     }
-    for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT);
+    // the views read the tick's karts and inputs (the kart animation, kart-controller anim.ts); they never write them
+    for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT, this.inputs[k]);
     this.recorder?.record(st.tick, st.karts[this.playerIndex]);
     if (st.phase === 'finished') this.finishedFor += SIM_DT;
     return ev;
@@ -164,7 +165,7 @@ export class RaceSession {
       recolourBackdrop(this.farRing, lerpRgb(ch.ring[0], ch.ring[1], k), lerpRgb(ch.tint[0], ch.tint[1], k));
       if (k >= 1) this.skyChange = null;
     }
-    for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt);
+    for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt, reduced);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k], st.time, reduced);
     const live = this.live;

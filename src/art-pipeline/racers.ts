@@ -62,6 +62,25 @@ function pipes(m: ModelBuilder, e: Exhaust, colour: string = CHROME, len = 0.32)
 type Kart = (m: ModelBuilder) => void;
 type Driver = (m: ModelBuilder) => void;
 
+/** Each code-built kart's wheels: radius, half track, half wheelbase, tyre width, hub colour (wheels()). */
+const WHEELS: Readonly<Record<string, readonly [r: number, x: number, z: number, w: number, hub?: string]>> = Object.freeze({
+  pip: [0.25, 0.5, 0.62, 0.22],
+  momo: [0.3, 0.64, 0.6, 0.26],
+  nova: [0.24, 0.56, 0.52, 0.2, '#ffffff'],
+  juniper: [0.3, 0.64, 0.62, 0.26],
+  otto: [0.24, 0.58, 0.56, 0.2],
+  sprocket: [0.26, 0.56, 0.62, 0.2, '#b08d57'],
+  boulder: [0.42, 0.7, 0.62, 0.34, '#708090'],
+  gus: [0.32, 0.66, 0.66, 0.26],
+});
+
+/** Where each code-built driver's hips are (y) and their middle along z, before any SEATED move. */
+const HIPS: Readonly<Record<string, { y: number; at: number }>> = Object.freeze({
+  boulder: { y: 1.0, at: -0.2 },
+  gus: { y: 0.95, at: 0.05 },
+});
+const STANDARD_HIPS = Object.freeze({ y: 0.62, at: -0.2 });
+
 /** Four wheels; `r` radius, `x` half track, `z` half wheelbase. */
 function wheels(m: ModelBuilder, r = 0.27, x = 0.6, z = 0.58, w = 0.22, hub = HUB): void {
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
@@ -87,7 +106,7 @@ function eyes(m: ModelBuilder, h: V3, r = 0.075, spread = 0.12, up = 0.04, fwd =
 const KARTS: Record<string, Kart> = {
   // Pip: delivery scooter with a parcel rack
   pip: (m) => {
-    wheels(m, 0.25, 0.5, 0.62);
+    wheels(m, ...WHEELS.pip);
     m.box([0.7, 0.32, 1.7], '#2ec4b6', [0, 0.42, 0]);
     m.box([0.62, 0.55, 0.18], '#2ec4b6', [0, 0.78, 0.62], [-0.35, 0, 0]);   // leg shield
     m.cyl(0.03, 0.03, 0.5, INK, [0, 1.0, 0.72], [0, 0, Math.PI / 2], 6);   // bars
@@ -98,7 +117,7 @@ const KARTS: Record<string, Kart> = {
   },
   // Momo: stripped buggy with an exposed engine
   momo: (m) => {
-    wheels(m, 0.3, 0.64, 0.6, 0.26);
+    wheels(m, ...WHEELS.momo);
     m.box([0.9, 0.16, 1.6], '#3b3b3b', [0, 0.36, 0]);
     for (const x of [-0.42, 0.42]) m.cyl(0.035, 0.035, 1.2, '#ffd23f', [x, 0.7, 0.05], [Math.PI / 2 - 0.35, 0, 0], 6); // roll cage
     m.cyl(0.035, 0.035, 0.84, '#ffd23f', [0, 1.02, -0.3], [0, 0, Math.PI / 2], 6);
@@ -109,7 +128,7 @@ const KARTS: Record<string, Kart> = {
   },
   // Nova: a rounded pod with a little thruster
   nova: (m) => {
-    wheels(m, 0.24, 0.56, 0.52, 0.2, '#ffffff');
+    wheels(m, ...WHEELS.nova);
     m.ball([0.62, 0.36, 0.95], '#b39ddb', [0, 0.6, 0]);
     m.ball([0.64, 0.12, 0.97], '#ffffff', [0, 0.5, 0], undefined, 16, false); // belt stripe
     m.cone(0.2, 0.36, '#ffffff', [0, 0.62, -1.02], [-Math.PI / 2, 0, 0]);  // thruster
@@ -118,7 +137,7 @@ const KARTS: Record<string, Kart> = {
   },
   // Juniper: a wood-panel jeep
   juniper: (m) => {
-    wheels(m, 0.3, 0.64, 0.62, 0.26);
+    wheels(m, ...WHEELS.juniper);
     m.box([1.1, 0.42, 1.8], '#b7410e', [0, 0.56, 0]);
     for (const x of [-0.56, 0.56]) m.box([0.02, 0.24, 1.3], '#a0703c', [x, 0.56, -0.05], undefined, false); // wood panels
     m.box([1.12, 0.3, 0.45], '#2d6a4f', [0, 0.62, 0.72]);                  // hood
@@ -130,7 +149,7 @@ const KARTS: Record<string, Kart> = {
   },
   // Otto: a jet-ski kart with a rear float
   otto: (m) => {
-    wheels(m, 0.24, 0.58, 0.56, 0.2);
+    wheels(m, ...WHEELS.otto);
     m.box([0.8, 0.3, 1.5], '#64b5f6', [0, 0.46, 0.05]);
     m.cone(0.42, 0.45, '#64b5f6', [0, 0.46, 0.9], [Math.PI / 2, Math.PI / 4, 0], 4); // bow
     m.box([0.84, 0.06, 1.3], '#ffffff', [0, 0.63, 0.05], undefined, false);
@@ -140,7 +159,7 @@ const KARTS: Record<string, Kart> = {
   },
   // Sprocket: a tin-toy racer with a wind-up key
   sprocket: (m) => {
-    wheels(m, 0.26, 0.56, 0.62, 0.2, '#b08d57');
+    wheels(m, ...WHEELS.sprocket);
     m.ball([0.5, 0.34, 1.05], '#f5e6c8', [0, 0.56, 0]);
     m.ball([0.52, 0.08, 1.07], '#b08d57', [0, 0.56, 0], undefined, 16, false);
     for (const z of [0.4, 0.1, -0.2]) m.cyl(0.03, 0.03, 0.04, '#b08d57', [0.46, 0.66, z], [0, 0, Math.PI / 2], 6, false); // rivets
@@ -152,7 +171,7 @@ const KARTS: Record<string, Kart> = {
   },
   // Boulder: a stone monster truck
   boulder: (m) => {
-    wheels(m, 0.42, 0.7, 0.62, 0.34, '#708090');
+    wheels(m, ...WHEELS.boulder);
     m.box([1.1, 0.4, 1.7], '#708090', [0, 0.92, 0]);
     m.rock(0.34, '#8a96a3', [0.3, 1.14, 0.55], [0.3, 0.5, 0.1], [1.2, 0.6, 1]);
     m.rock(0.3, '#5f6b77', [-0.32, 1.12, -0.6], [0.8, 0.1, 0.4], [1.1, 0.7, 1]);
@@ -162,7 +181,7 @@ const KARTS: Record<string, Kart> = {
   },
   // Big Gus: a food-truck kart with a striped awning
   gus: (m) => {
-    wheels(m, 0.32, 0.66, 0.66, 0.26);
+    wheels(m, ...WHEELS.gus);
     m.box([1.15, 0.7, 1.85], '#e63946', [0, 0.78, 0]);
     m.box([0.02, 0.32, 0.9], SKIN_WHITE, [0.58, 0.9, -0.1], undefined, false); // serving hatch
     for (let i = 0; i < 6; i++) m.box([0.22, 0.04, 0.5], i % 2 ? '#ffffff' : '#e63946', [0.66, 1.2 - 0.01 * i, -0.52 + i * 0.2 - 0.02], [0, 0, -0.35]); // awning
@@ -281,7 +300,22 @@ export function racerModel(id: string, opts: RacerModelOptions = {}): ModelBuild
     opts.body(m);
     m.shift = SEATED[id] ?? [0, 0, 0];
   } else k(m);
+  m.driverPart = m.partCount;
   d(m);
   m.shift = [0, 0, 0];
   return m;
+}
+
+type WheelPair = { x: number; z: number; r: number; w: number };
+/**
+ * What the rig (rig.ts) needs of a code-built racer: the signature kart's wheels (the +X ones:
+ * tyre middle, axle z, radius, half width) and the driver's hips and middle, where `racerModel`
+ * seats them (moved by SEATED in a shared body, whose wheels are the body's own).
+ */
+export function codeRig(id: string, inBody: boolean): { wheels: { front: WheelPair; rear: WheelPair } | null; hips: { y: number; at: number } } | null {
+  const w = WHEELS[id];
+  if (!w) return null;
+  const h = HIPS[id] ?? STANDARD_HIPS, s = inBody ? SEATED[id] ?? [0, 0, 0] : [0, 0, 0];
+  const pair = (z: number): WheelPair => ({ x: w[1], z, r: w[0], w: w[3] / 2 });
+  return { wheels: inBody ? null : { front: pair(w[2]), rear: pair(-w[2]) }, hips: { y: h.y + s[1], at: h.at + s[2] } };
 }

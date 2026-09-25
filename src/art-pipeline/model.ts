@@ -75,6 +75,8 @@ export class ModelBuilder {
   shift: V3 = [0, 0, 0];
   /** repaints every part's colour as it is added (an alt paint on a code-built kart) */
   recolor: ((c: Color) => Color) | null = null;
+  /** the first part of a seated driver (racers.ts racerModel), -1 when there is none */
+  driverPart = -1;
   constructor(ink = 0.045) { this.ink = ink; }
 
   private push(geo: BufferGeometry, colour: Paint, pos: V3, rot: V3 = [0, 0, 0], scale: V3 = [1, 1, 1], outline = true): this {
@@ -141,4 +143,11 @@ export class ModelBuilder {
   }
 
   get partCount(): number { return this.parts.length; }
+
+  /** Where part `n`'s first vertex lands in build()'s merged geometry (parts merge in the order they were added). */
+  vertexStart(n: number): number {
+    let v = 0;
+    for (let i = 0; i < n && i < this.parts.length; i++) v += this.parts[i].geo.getAttribute('position').count;
+    return v;
+  }
 }
