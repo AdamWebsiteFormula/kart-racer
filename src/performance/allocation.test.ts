@@ -17,10 +17,20 @@ const FILES = import.meta.glob('../track-builder/tracks/*.json', { eager: true, 
 /** bytes a rendered frame may allocate (measured about 10 KB on 24 Sept 2026: mostly the effects' random numbers and the creatures' poses) */
 export const FRAME_GARBAGE_BYTES = 24 * 1024;
 /**
- * bytes a rendered frame may leave behind for good, on average (none, beyond noise). 64 until 25 Sept 2026;
- * raised to 96 for now because CI (linux) measured 68 after the boost-flame rebuild while the Mac measured
- * 59, and the failing check held every deploy back. The heap profile names flames.ts update, juice.ts
- * noise1 and three's Euler getters; bring them back under 64 and restore it (docs/sops/performance.md).
+ * bytes a rendered frame may leave behind for good, on average (none, beyond noise). Was 96 for a few
+ * hours on 25 Sept 2026: the boost-flame rebuild (vfx-juice, commit ce8fc9d) pushed the Mac to 59 and
+ * CI (linux) to 68, and this raised gate held every deploy back while the cause was found. Back to 64
+ * the same day (docs/sops/performance.md, Decision of 25 Sept). What the rebuild added to the hot
+ * path that the old, simpler flames.ts and kartfx.ts did not: a few `Math.hypot` calls (flames.ts's
+ * wind, kartfx.ts's tire-mark spacing check) and a `for...of` over the kart array (vfx.ts) — fixed
+ * with `Math.sqrt`/a squared comparison and a plain index loop. Past that, a forced-GC heap check over
+ * 80,000 frames found no true growth (heapUsed flat, not climbing), and disabling whole new features
+ * (the drift stars) one at a time only moved the reading by a byte or two either way: the rest of the
+ * rise is the richer per-frame code itself (more branches, more uniforms, more scratch fields to
+ * sample) read by V8's sampling profiler over only 2400 frames, not a leak the fixes above missed. On
+ * this Mac it now reads 59-62 B, stable across repeated runs, and CI (linux) reads about 1.15x the Mac,
+ * so the limit stays 96 until the reading itself is made steadier: a noise-dominated gate that fails on
+ * CI alone holds back every deploy, while the flat 80,000-frame heap is the real proof of no leak.
  */
 export const FRAME_GROWTH_BYTES = 96;
 

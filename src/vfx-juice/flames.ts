@@ -343,7 +343,7 @@ export class ExhaustFlames {
     u.uLen.value.set(d.len * (1 + fl * w0) * c0, d.len * (1 + fl * w1) * c1);
     u.uWid.value.set(d.wid * (1 + fl * 0.4 * w0), d.wid * (1 + fl * 0.4 * w1));
     // the air past the kart, in the chassis's own frame (it turns under the heading in a drift or a spin)
-    const vx = k.lateralVelocity ?? 0, vz = k.speed ?? 0, sp = Math.hypot(vx, vz), wind = u.uWind.value;
+    const vx = k.lateralVelocity ?? 0, vz = k.speed ?? 0, sp = Math.sqrt(vx * vx + vz * vz), wind = u.uWind.value;
     if (sp > 0.5) {
       const yaw = this.chassis.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
       wind.set(-(vx * c - vz * s) / sp, FLAME.windDrop, -(vx * s + vz * c) / sp).normalize();
