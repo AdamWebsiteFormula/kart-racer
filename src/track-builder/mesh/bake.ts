@@ -34,20 +34,20 @@ export const BAKE = Object.freeze({
   maxCellXZ: 4.5,
   /** vertical bucket size: coarse enough for cheap reuse, fine enough to keep "under the bridge" apart from "on the bridge" */
   cellY: 1.0,
-  aoRays: 5,
+  aoRays: 6,
   aoRadius: 9,
   aoBias: 0.05,
-  aoStrength: 0.85,
+  aoStrength: 0.9,
   /** never fully black: MKW's own baked AO stays soft */
-  aoMin: 0.42,
+  aoMin: 0.35,
   sunRays: 3,
   /** radians of jitter around the fixed sun direction: a soft penumbra instead of one hard-edged ray */
   sunSoftness: 0.05,
   /** metres; long enough for the loop, a gantry or a landmark to shadow the road under it */
   sunMaxDistance: 220,
   sunBias: 0.05,
-  sunStrength: 0.62,
-  sunMin: 0.55,
+  sunStrength: 0.7,
+  sunMin: 0.48,
   /** decor smaller than this footprint radius (tufts, pebbles, flowers) is not a baked occluder */
   minOccluderRadius: 0.5,
   decorProxySides: 6,
