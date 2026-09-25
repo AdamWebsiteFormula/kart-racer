@@ -4,4 +4,5 @@ export { browserBackend, type Settings } from './store.ts';
 export { GAME_TITLE, UI } from './constants.ts';
 export { TRACKS, trackCard, attractTrack, CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
 export { CAST, castCard, accentOf, nameOf } from './data/cast.ts';
+export { introCard, type IntroCardInput, type IntroCardVM } from './screens/intro.ts';
 export * from './types.ts';

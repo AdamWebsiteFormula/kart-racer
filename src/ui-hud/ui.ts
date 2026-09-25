@@ -16,7 +16,9 @@ import { UI } from './constants.ts';
 import { isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
+import { IntroCardView } from './render/intro.ts';
 import { TouchControls } from './render/touch.ts';
+import type { IntroCardVM } from './screens/intro.ts';
 import {
   BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, UnlocksView, type ScreenView,
 } from './render/screens.ts';
@@ -60,6 +62,8 @@ export interface UiHost {
   readonly leaderboard?: LeaderboardClient;
   /** the player has finished and pressed on (Enter, pad A or a tap): end the grace and show the results now */
   skipToResults?(): void;
+  /** a key, a pad button or a tap during the course intro: on to the countdown now */
+  skipIntro?(): void;
 }
 
 export interface RaceOver {
@@ -96,6 +100,8 @@ export { medalFor, type Medal } from './screens/menus.ts';
 const medalName = (m: Medal) => (m === 'none' ? 'No medal this time' : `${m[0].toUpperCase()}${m.slice(1)} medal!`);
 
 const NO_BUTTONS: readonly boolean[] = [];
+/** keys that are no press of their own (held for a shortcut): they never skip the course intro */
+const NOT_A_PRESS: ReadonlySet<string> = new Set(['Meta', 'Control', 'Alt', 'AltGraph', 'OS', 'CapsLock', 'Fn']);
 const CAST_IDS: ReadonlySet<string> = new Set(CAST.map((c) => c.id));
 const NO_AXES: readonly number[] = [];
 
@@ -136,6 +142,10 @@ export class UiRoot {
   private dressing = '';
   /** the unlock reveal (design §10), over whatever screen is up */
   private readonly toast: HTMLElement;
+  /** the course intro's title card, in the race HUD (game/intro.ts flies the camera) */
+  private readonly introView: IntroCardView;
+  /** every gamepad button last poll, for a fresh press (the course intro's skip) */
+  private padWas: readonly boolean[] = [];
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
   /** the UI's clock (ms); tests replace it */
   clock: () => number = () => performance.now();
@@ -197,6 +207,7 @@ export class UiRoot {
       roster: new RosterView(r), cups: new CupView(r), tracks: new TrackView(r), hud: new HudView(r), results: new ResultsView(r), podium: new PodiumView(r),
       pause: new OverlayMenuView(r, 'pause'), settings: new SettingsView(r), credits: new CreditsView(r), howTo: new HowToView(r), unlocks: new UnlocksView(r),
     };
+    this.introView = new IntroCardView(this.views.hud.root);
     for (const v of Object.values(this.views)) v.root.addEventListener('click', (e) => this.pointer(e, true));
     // hover takes the focus only from a pointer that moves: a dialog opening under a resting cursor
     // gets a pointerover and no pointermove, and the pause opened on Quit under it (seam review)
@@ -407,17 +418,39 @@ export class UiRoot {
     this.views.hud.minimap.render(f.map, this.dots, nowMs);
   }
 
+  /**
+   * The course intro's title card (game/intro.ts flies the camera meanwhile): a race's card goes up on
+   * ink ('hold', while its shaders compile); null takes it down and brings the race HUD back.
+   */
+  introCard(vm: IntroCardVM | null): void {
+    if (vm) this.introView.show(vm); else this.introView.set('off');
+    this.views.hud.root.classList.toggle('intro-on', vm !== null);
+  }
+
+  /** The flight has started (the ink lifts: 'show') or the card is on its way out ('out'). */
+  introPhase(p: 'show' | 'out'): void {
+    if (this.introView.phase !== 'off') this.introView.set(p);
+  }
+
+  /** A course intro's card is up: any key, pad button or tap skips on to the countdown. */
+  get introOn(): boolean { return this.introView.phase !== 'off'; }
+
   /** Polls the gamepad. Call every frame. */
   poll(nowMs: number): void {
     const pad = globalThis.navigator?.getGamepads?.().find((p) => p && p.connected);
     if (!pad) return;
     const buttons = pad.buttons.map((b) => b.pressed);
+    const was = this.padWas;
+    this.padWas = buttons.slice();
     const start = buttons[9] ?? false;
     const stickOut = navFromPad(NO_BUTTONS, pad.axes) !== null;
     if (stickOut || buttons.some(Boolean)) this.usedInput('pad');
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (start && !this.padStartWas) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
+      // the course intro: any button pressed afresh skips it (Start pauses, as in the race; the A that
+      // started the race is still down, so it is no fresh press, nor is anything on a pad's first poll)
+      if (this.introOn && was.length && buttons.some((b, i) => b && i !== 9 && !was[i])) this.host.skipIntro?.();
       // over the line, a fresh A goes straight to the results (A held for a drift across it does not)
       const a = buttons[0] ?? false;
       if (a && !this.padAWas && this.playerDone) this.host.skipToResults?.();
@@ -472,6 +505,8 @@ export class UiRoot {
     if (e.repeat && (a === 'confirm' || a === 'back')) return;
     if (racing) {
       if (isPauseKey(e.code, e.key)) { e.preventDefault(); this.dispatch({ type: 'pause' }); }
+      // the course intro: any other key pressed afresh skips it (the Enter that started the race only repeats)
+      else if (this.introOn && !e.repeat && !NOT_A_PRESS.has(e.key)) { if (isRaceKey(e.code)) e.preventDefault(); this.host.skipIntro?.(); }
       // over the line, Enter goes straight to the results (Space, the drift key, does not)
       else if (this.playerDone && !e.repeat && (e.code === 'Enter' || e.code === 'NumpadEnter' || (!e.code && e.key === 'Enter'))) { e.preventDefault(); this.host.skipToResults?.(); }
       // the driving keys are the game's while racing: the browser does not scroll on Space or bookmark on Ctrl+D
@@ -807,7 +842,9 @@ export class UiRoot {
 
   /** A tap or click anywhere once the player has finished goes straight to the results (not the pause button). */
   private tapInRace(e: PointerEvent): void {
-    if (this.app.screen !== 'racing' || this.app.overlays.length || !this.playerDone) return;
+    if (this.app.screen !== 'racing' || this.app.overlays.length) return;
+    if (this.introOn) { this.host.skipIntro?.(); return; } // a tap skips the course intro
+    if (!this.playerDone) return;
     if ((e.target as HTMLElement | null)?.closest?.('[data-pause]')) return;
     this.host.skipToResults?.();
   }

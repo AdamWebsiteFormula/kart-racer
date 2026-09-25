@@ -281,6 +281,19 @@ export function seaLevel(track: Track): number {
 }
 
 /**
+ * Where the chase camera settles behind kart `k` at rest (on the grid before the go): the pose update()
+ * holds there, kept over the road and out of the sea as it keeps it. The course intro (intro.ts) ends
+ * on it and hands over with ChaseCam.reset(k, rest). Writes `out` when given.
+ */
+export function restPose(track: Track, k: KartState, out?: CamPose): CamPose {
+  const o = idealPose(k.position, k.heading, 0, false, 0, out);
+  clampToRoad(track, o.position, k);
+  const sea = seaLevel(track);
+  if (o.position[1] < sea + CAM.seaClear) o.position[1] = sea + CAM.seaClear;
+  return o;
+}
+
+/**
  * The chase camera (plan §4.7), for whichever kart it follows. It rides with the kart and eases only
  * its offset; its yaw lags the kart's so a turn or a drift shows; it falls back as the kart surges
  * and closes in as it brakes; a running boost holds the view a little wider and farther back (a
@@ -332,11 +345,15 @@ export class ChaseCam {
   /** the road under the camera last frame: where to look for it while the claw carries the kart (its own place on the track stands still meanwhile) */
   private readonly road: TrackHint = { t: 0, branch: 0 };
 
-  /** A new race: start 12 m back and 6 m up from `k`, so the countdown swoops in. */
-  reset(k: KartState): void {
+  /**
+   * A new race: start 12 m back and 6 m up from `k`, so the countdown swoops in; or, after a course
+   * intro, at `rest` (restPose), where the intro's crane landed, so the hand-over does not move.
+   */
+  reset(k: KartState, rest?: CamPose): void {
     const s = Math.sin(k.heading), c = Math.cos(k.heading), p = k.position;
     this.rig[0] = p[0] - s * 12; this.rig[1] = p[1] + 6; this.rig[2] = p[2] - c * 12;
     for (let i = 0; i < 3; i++) { this.rigLook[i] = p[i]; this.last[i] = p[i]; this.pos[i] = this.rig[i]; this.look[i] = p[i]; }
+    if (rest) for (let i = 0; i < 3; i++) { this.rig[i] = this.pos[i] = rest.position[i]; this.rigLook[i] = this.look[i] = rest.target[i]; }
     this.yaw = k.heading;
     this.speed = 0; this.surgeSpeed = 0; this.ride = 0; this.aim = 0; this.swing = 0; this.hold = 0;
     this.loopBlend = 0; this.sideOf = null; this.sinceRide = 0; this.tunnel = 0; this.fallFrom = NaN;

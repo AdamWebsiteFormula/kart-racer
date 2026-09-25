@@ -3,7 +3,7 @@
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, NoToneMapping, PCFShadowMap,
-  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type MeshStandardMaterial,
+  PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Mesh, type MeshStandardMaterial,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
@@ -30,7 +30,8 @@ import { decodeGhost } from './race-manager/ghost.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, RacerConfig, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { mirrored } from './track-builder/mirror.ts';
-import { ChaseCam, fovFor, kickedFov, smoothTo } from './game/camera.ts';
+import { ChaseCam, fovFor, kickedFov, restPose, smoothTo } from './game/camera.ts';
+import { CourseIntro, findStand, planIntro, type IntroKind } from './game/intro.ts';
 import { Accumulator } from './game/loop.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
@@ -40,7 +41,7 @@ import { Podium } from './game/podium.ts';
 import type { Crowd } from './art-pipeline/crowd.ts';
 import type { Reaction } from './kart-controller/anim.ts';
 import { medalFor } from './ui-hud/screens/menus.ts';
-import { CAST, UiRoot, attractTrack, browserBackend, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
+import { CAST, UiRoot, attractTrack, browserBackend, introCard, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
 
 // ---- content: every track file present is a built track ----
@@ -176,6 +177,15 @@ watchPixelRatio(window, applyRender); // a move between screens need not fire re
 let autopilot = false;
 let devStepping = false;
 let session: RaceSession | null = null;
+/**
+ * The course intro playing before this race's countdown (game/intro.ts), or null. The sim waits at
+ * tick 0 until it is over, so input logs and replays are the same with or without it.
+ */
+let intro: CourseIntro | null = null;
+/** dev only: kart.race starts straight at the countdown, as it always has (kart.race(id, racer, { intro: 'full' }) flies the intro first) */
+let devNoIntro = false;
+/** dev only: hold the intro at this many seconds in (kart.introAt), for checking its shots */
+let devIntroAt: number | null = null;
 let attract = true;
 let series: SeriesState | null = null;
 let overSent = false;
@@ -211,7 +221,8 @@ function roster(playerId: string | null): RacerConfig[] {
   return cast.map((c) => ({ racerId: c.id, archetype: c.archetype, isPlayer: c.id === playerId }));
 }
 
-function load(config: RaceConfig, isAttract: boolean): void {
+/** `introKind`: the course intro to fly before the countdown (game/intro.ts); none on a restart or the attract race. */
+function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | null = null): void {
   // the old race is freed once the new one's shaders are compiled, so the shaders both draw with carry over
   const old = session;
   const base = TRACKS.get(config.trackId) ?? TRACKS.get(FIRST_TRACK)!;
@@ -251,6 +262,22 @@ function load(config: RaceConfig, isAttract: boolean): void {
   acc.reset();
   vfx.reset();
   chase.reset(session.player ?? session.state.karts[0]);
+  // the course intro (game/intro.ts): the camera flies the course and lands on the chase camera's rest
+  // pose while the title card names it; the sim waits at tick 0, the countdown comes after it
+  const pk = session.player;
+  const stands = introKind ? (session.trackScene.group.getObjectByName('crowd-stands') as Mesh | undefined)?.geometry.getAttribute('position')?.array : undefined;
+  intro = introKind && pk && !isAttract && !devNoIntro
+    ? new CourseIntro(planIntro({
+      track: session.track, farLandmark: session.trackScene.farLandmark, kart: pk, rest: restPose(session.track, pk),
+      stand: stands ? findStand(session.track, stands) : undefined,
+    }, introKind))
+    : null;
+  ui.introCard(intro && pk ? introCard({
+    trackId: def.id, trackName: def.name, mode: config.mode, speedClass: config.speedClass, mirrored: def.mirrored === true, racerId: pk.racerId,
+    seriesId: series?.kind === 'grandPrix' ? series.cupId : series?.kind === 'knockout' ? series.setId : null,
+    race: series ? { index: series.kind === 'grandPrix' ? series.raceIndex : series.segment, count: series.trackIds.length } : undefined,
+    cutLine: config.knockout?.cutLine, dailySeed: config.mode === 'daily' ? config.seed : undefined, touch: coarse,
+  }) : null);
   // every shader this race can draw, hidden and off-screen ones too, compiles now, before the countdown runs
   warmup.begin(scene, camera, post?.enabled ?? false, performance.now() / 1000);
   // and its skies' paintings, so neither is decoded and uploaded on the frame it first shows
@@ -295,17 +322,20 @@ const host: UiHost = {
     const seed = Date.now() % 1_000_000;
     if (p.mode === 'grandPrix' && p.cupId) series = createGrandPrix({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
     if (p.mode === 'knockout' && p.cupId) series = createKnockout({ id: p.cupId, trackIds: p.tracks }, racers, p.speedClass, seed);
-    load(series ? withMirror(nextRace(series)!) : configFor(p), false);
+    // the course intro before the countdown: a short one in Time Trial and the Daily (game/intro.ts)
+    load(series ? withMirror(nextRace(series)!) : configFor(p), false, p.mode === 'timeTrial' || p.mode === 'daily' ? 'short' : 'full');
   },
   nextRace() {
     const next = series ? nextRace(series) : undefined;
-    if (next) load(withMirror(next), false); else startAttract();
+    // every race of a Grand Prix or a Knockout gets its intro
+    if (next) load(withMirror(next), false, 'full'); else startAttract();
   },
   restartRace() {
     // a Daily restarts as today's: past midnight UTC the old day's run could not be posted
     if (session) load(restartConfig(session.config, [...TRACKS.keys()]), false);
   },
   quitRace() { startAttract(); },
+  skipIntro() { intro?.skip(); },
   skipToResults() {
     // over the line and pressed on: the rest of the field is cut off now (projected times), no 12 s wait
     if (!session || attract || !session.player || session.player.finishTick === undefined) return;
@@ -501,6 +531,32 @@ function chaseCamera(frameDt: number, nowS: number, reduced: boolean): void {
   camera.fov = chase.fov;
 }
 
+/** How far out in front of the lens the sun's shadow box centres while the course intro looks at a far landmark (m). */
+const INTRO_SHADOW_REACH = 40;
+const sunAt: Vec3 = [0, 0, 0];
+/** the course intro's lean this frame (radians; the sweep banks into its curve) */
+let introRoll = 0;
+
+/** The course intro's flight (game/intro.ts), and a point in front of the lens for the sun's shadow box: its aim can be a landmark 500 m off. */
+function introCamera(reduced: boolean): void {
+  const v = intro!.camera(reduced);
+  for (let i = 0; i < 3; i++) { camPos[i] = v.pos[i]; camLook[i] = v.look[i]; }
+  camera.fov = v.fov;
+  introRoll = v.roll;
+  const dx = camLook[0] - camPos[0], dy = camLook[1] - camPos[1], dz = camLook[2] - camPos[2];
+  const k = Math.min(1, INTRO_SHADOW_REACH / (Math.hypot(dx, dy, dz) || 1));
+  sunAt[0] = camPos[0] + dx * k; sunAt[1] = camPos[1] + dy * k; sunAt[2] = camPos[2] + dz * k;
+}
+
+/** The course intro is over (played through or skipped): the chase camera takes over from the rest pose the flight landed on, the HUD comes back and the countdown starts. */
+function endIntro(): void {
+  const s = session;
+  if (intro && s?.player) chase.reset(s.player, intro.plan.rest);
+  intro = null;
+  ui.introCard(null);
+  acc.reset(); // the countdown starts from this frame, never catching up on the flight
+}
+
 /** Attract mode: a slow TV camera swinging around whoever leads. */
 function tvCamera(frameDt: number): void {
   const s = session!;
@@ -544,19 +600,31 @@ function step(now: number): void {
   }
 
   const racing = !attract && ui.app.screen === 'racing';
-  ui.touch.show(racing && !ui.paused);
+  ui.touch.show(racing && !ui.paused && !intro);
   const reduced = ui.reducedMotion;
   const nowS = now / 1000;
   WATER_CLOCK.value = nowS % 3600; // every water surface drifts on one clock (wrapped so noise keeps its precision)
   BUBBLE_CLOCK.value = WATER_CLOCK.value;
-  // measure only live play; after a pause or a hidden tab, warm up again before judging
-  const measuring = autoQuality() && !ui.paused && !document.hidden;
+  // measure only live play (not a course intro's flight, which sees far more of the course than the race does); after a pause or a hidden tab, warm up again before judging
+  const measuring = autoQuality() && !ui.paused && !document.hidden && !intro;
   if (measuring && !governing) governor.reset(nowS);
   governing = measuring;
   if (measuring && pendingQuality < 0 && governor.sample(rawMs, nowS)) qualityChanged(nowS);
-  if (pendingQuality >= 0 && warmup.prepared(nowS) && (calm() || nowS - pendingQuality > CALM_WAIT)) { pendingQuality = -1; applyRender(); governor.reset(nowS); }
+  // (never mid-flight in a course intro: it waits for the countdown)
+  if (pendingQuality >= 0 && !intro && warmup.prepared(nowS) && (calm() || nowS - pendingQuality > CALM_WAIT)) { pendingQuality = -1; applyRender(); governor.reset(nowS); }
+  // the course intro (game/intro.ts): its clock runs once the warm-up is over and its first frame drawn,
+  // never while paused or hidden; the sim waits at tick 0 until it is over
+  const running = !ui.paused && (!document.hidden || devStepping);
+  if (intro) {
+    if (running && !warmed) {
+      if (!intro.moving) { intro.moving = true; ui.introPhase('show'); } else intro.advance(frameDt);
+      if (import.meta.env.DEV && devIntroAt !== null) intro.time = Math.min(devIntroAt, intro.plan.duration - 1e-3);
+      if (intro.cardLeaving) ui.introPhase('out');
+    }
+    if (intro.done) endIntro();
+  }
   let simDt = 0;
-  if (!ui.paused && (!document.hidden || devStepping) && !warmed) {
+  if (running && !warmed && !intro) {
     const steps = acc.steps(frameDt * vfx.time.scale(nowS, reduced));
     simDt = steps * SIM_DT;
     for (let i = 0; i < steps; i++) {
@@ -582,12 +650,12 @@ function step(now: number): void {
 
   const cur = session!;
   if (warmup.active) return; // the attract loop just started its next race: compiling
-  cur.frame(acc.alpha, frameDt, reduced);
+  cur.frame(acc.alpha, frameDt, reduced, intro ? intro.sceneTime(cur.state.time) : undefined);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap, attract ? 0 : chase.tunnel);
   if (post) { post.gradeTo = cur.skyLight.grade ?? DAY_GRADE; if (lightSnap) post.snapGrade(); }
   lightSnap = false;
-  if (attract) tvCamera(frameDt); else chaseCamera(frameDt, nowS, reduced);
+  if (attract) tvCamera(frameDt); else if (intro) introCamera(reduced); else chaseCamera(frameDt, nowS, reduced);
   const ceremony = !attract && (podium?.showing ?? false);
   const liveDt = ui.paused || document.hidden ? 0 : frameDt;
   if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced);
@@ -601,11 +669,12 @@ function step(now: number): void {
   cur.dome?.position.copy(camera.position);
   cur.farRing?.position.set(camera.position.x, 0, camera.position.z);
   camera.lookAt(lookTmp.set(camLook[0], camLook[1], camLook[2]));
-  camera.rotateZ(attract ? 0 : vfx.roll(pl));
+  camera.rotateZ(attract ? 0 : intro ? introRoll : vfx.roll(pl));
   if (photo) { camera.position.set(...photo.pos); camera.lookAt(...photo.look); camera.fov = photo.fov; camera.updateProjectionMatrix(); }
-  sun.target.position.set(camLook[0], camLook[1], camLook[2]);
+  const at = intro ? sunAt : camLook;
+  sun.target.position.set(at[0], at[1], at[2]);
   const so = sunOffset(cur.def.environment?.sunDirection);
-  sun.position.set(camLook[0] + so[0], camLook[1] + so[1], camLook[2] + so[2]);
+  sun.position.set(at[0] + so[0], at[1] + so[1], at[2] + so[2]);
 
   // the ear sits on the camera, facing where it looks
   listener.position[0] = camPos[0]; listener.position[1] = camPos[1]; listener.position[2] = camPos[2];
@@ -688,11 +757,21 @@ if (import.meta.env.DEV) {
     /** dev: hold the camera still at `pos` looking at `look` (null to let go), for checking art */
     photo: (p: { pos: Vec3; look: Vec3; fov?: number } | null) => { photo = p ? { fov: 50, ...p } : null; },
     /** dev: jump straight into a quick race on any track */
-    race: (trackId: string, racerId = 'pip') => {
-      for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId }, { type: 'pickTrack', trackId }] as const) ui.dispatch(a);
+    race: (trackId: string, racerId = 'pip', opts: { intro?: IntroKind; mirror?: boolean } = {}) => {
+      // straight to the countdown, as it always was; `intro` flies the course intro first, `mirror` reflects the track
+      devNoIntro = true;
+      try {
+        for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId }, { type: 'pickTrack', trackId }] as const) ui.dispatch(a);
+      } finally { devNoIntro = false; }
       // from any other screen the menu walk does nothing: load the race directly
-      if (ui.app.screen !== 'racing' || session?.def.id !== trackId) load(configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] }), false);
-    }, camera, scene, acc,
+      const cfg = configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId] });
+      if (ui.app.screen !== 'racing' || session?.def.id !== trackId || opts.intro || opts.mirror) load(opts.mirror ? { ...cfg, mirrored: true } : cfg, false, opts.intro ?? null);
+    },
+    /** dev: hold the course intro at `s` seconds in (null lets it run), for checking its shots */
+    introAt: (s: number | null) => { devIntroAt = s; },
+    /** dev: the course intro under way (its plan and clock), or null */
+    get intro() { return intro; },
+    camera, scene, acc,
     /** dev: grant all six design §10 unlocks (three paints, two bodies, Mirror) to try them; saved like any earned unlock */
     unlockAll: () => ui.grantAllUnlocks(),
     /** dev: the podium ceremony on this race's track with these three (1st to 3rd), for checking it (no overlay) */

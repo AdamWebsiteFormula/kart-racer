@@ -1,0 +1,136 @@
+/* The course intro's title card (render/intro.ts; game/intro.ts flies the camera). House style: the
+   track's name in Lilita One over a ribbon in the track's accent, the cup on a chip above it, which race
+   this is on an ink pill under it, the player's racer in the corner. Tokens from ui.css. Reduced motion:
+   ui.css drops every animation and transition to 1 ms, so it simply appears and goes. */
+
+/* the race HUD waits under the card, and comes with the countdown */
+#ui .hud.intro-on > :not(.intro) { visibility: hidden; }
+
+#ui .intro { position: absolute; inset: 0; pointer-events: none; display: none; overflow: hidden; }
+#ui .intro:not([data-phase='off']) { display: block; }
+
+/* while the race's shaders compile nothing new is drawn: the card sits on ink, which lifts as the flight starts */
+.intro .curtain { position: absolute; inset: 0; background: var(--ink); opacity: 1; transition: opacity 520ms ease; }
+.intro:not([data-phase='hold']) .curtain { opacity: 0; }
+
+.intro .plate {
+  position: absolute;
+  left: calc(48px + var(--safe-l));
+  bottom: calc(72px + var(--safe-b));
+  max-width: calc(100vw - 96px - var(--safe-l) - var(--safe-r));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  isolation: isolate;
+}
+/* the ribbon behind the name, swept in from the left edge */
+.intro .plate::before {
+  content: '';
+  position: absolute;
+  left: calc(-48px - var(--safe-l) - 8px);
+  right: -36px;
+  top: 30%;
+  bottom: 10%;
+  z-index: -1;
+  background: var(--track-accent, var(--coral));
+  border: var(--stroke) solid var(--ink);
+  border-left: 0;
+  border-radius: 0 999px 999px 0;
+  box-shadow: var(--shadow-drop);
+  transform-origin: left center;
+  animation: intro-ribbon 560ms var(--out) both;
+}
+.intro .cup {
+  font: 700 18px/1 var(--body);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 999px;
+  padding: 8px 16px 7px;
+  box-shadow: 0 5px 0 var(--ink);
+  animation: intro-pop 520ms 80ms var(--pop) both;
+}
+.intro .name {
+  font-size: clamp(52px, 7.6vw, 112px);
+  line-height: 0.92;
+  white-space: nowrap;
+  animation: intro-pop 600ms 160ms var(--pop) both;
+}
+.intro .sub {
+  font: 600 20px/1 var(--body);
+  color: var(--paper);
+  background: rgb(27 27 47 / 0.8);
+  border-radius: 999px;
+  padding: 9px 16px 8px;
+  animation: intro-pop 520ms 300ms var(--pop) both;
+}
+
+.intro .driver {
+  position: absolute;
+  right: calc(36px + var(--safe-r));
+  bottom: calc(40px + var(--safe-b));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 22px 6px 6px;
+  background: var(--paper);
+  color: var(--ink);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 999px;
+  box-shadow: var(--shadow-drop);
+  animation: intro-in-right 520ms 380ms var(--pop) both;
+}
+.intro .driver .face {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 3px var(--accent, var(--sun));
+  background: #e6e6e6 var(--portrait) 50% 22% / 170% no-repeat;
+}
+.intro .driver .who { font: 400 26px/1 var(--display); letter-spacing: 0.01em; }
+
+.intro .skip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(18px + var(--safe-b));
+  transform: translateX(-50%);
+  font: 600 14px/1 var(--body);
+  color: var(--paper);
+  background: rgb(27 27 47 / 0.55);
+  border-radius: 999px;
+  padding: 7px 14px;
+  white-space: nowrap;
+  animation: intro-fade 420ms 900ms ease both;
+}
+
+/* a beat before the countdown it all goes, the way it came */
+.intro[data-phase='out'] .plate, .intro[data-phase='out'] .skip { animation: intro-leave 380ms ease-in both; }
+.intro[data-phase='out'] .driver { animation: intro-leave-right 380ms ease-in both; }
+
+@keyframes intro-ribbon { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes intro-pop { 0% { opacity: 0; transform: translateX(-70px) skewX(-8deg); } 60% { opacity: 1; transform: translateX(6px) skewX(2deg); } 100% { opacity: 1; transform: none; } }
+@keyframes intro-in-right { 0% { opacity: 0; transform: translateX(60px); } 100% { opacity: 1; transform: none; } }
+@keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes intro-leave { to { opacity: 0; transform: translateX(-60px); } }
+@keyframes intro-leave-right { to { opacity: 0; transform: translateX(60px); } }
+
+/* a phone on its side */
+@media (max-height: 500px) {
+  .intro .plate { left: calc(24px + var(--safe-l)); bottom: calc(30px + var(--safe-b)); gap: 7px; max-width: calc(100vw - 48px - var(--safe-l) - var(--safe-r)); }
+  .intro .plate::before { left: calc(-24px - var(--safe-l) - 8px); right: -24px; }
+  .intro .cup { font-size: 12px; padding: 5px 10px 4px; box-shadow: 0 3px 0 var(--ink); }
+  .intro .name { font-size: clamp(38px, 7.2vw, 64px); }
+  .intro .sub { font-size: 13px; padding: 6px 11px 5px; }
+  .intro .driver { right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); padding: 4px 14px 4px 4px; gap: 8px; box-shadow: 0 4px 0 var(--ink); }
+  .intro .driver .face { width: 38px; height: 38px; }
+  .intro .driver .who { font-size: 19px; }
+  .intro .skip { top: calc(12px + var(--safe-t)); bottom: auto; font-size: 12px; }
+}
+/* a narrow screen: the name keeps inside it */
+@media (max-width: 720px) {
+  .intro .name { white-space: normal; }
+}

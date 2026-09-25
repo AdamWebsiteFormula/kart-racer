@@ -155,8 +155,12 @@ export class RaceSession {
     return ev;
   }
 
-  /** Interpolated visuals for one rendered frame. */
-  frame(alpha: number, frameDt: number, reduced = false): void {
+  /**
+   * Interpolated visuals for one rendered frame. `sceneTime`: the race time to draw the course's
+   * creatures and hazards at instead of the sim's (the course intro, game/intro.ts, runs them on
+   * toward the countdown while the sim waits at tick 0; drawn only, the sim never reads it).
+   */
+  frame(alpha: number, frameDt: number, reduced = false, sceneTime?: number): void {
     const st = this.manager.state;
     const ch = this.skyChange;
     if (ch) {
@@ -171,7 +175,8 @@ export class RaceSession {
     const live = this.live;
     live.pickups = st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates;
     live.coins = st.coinStates;
-    this.trackScene.update(st.time, this.manager.lastActiveHazards, live);
+    if (sceneTime === undefined) this.trackScene.update(st.time, this.manager.lastActiveHazards, live);
+    else this.trackScene.update(sceneTime, undefined, live);
     this.itemsView.onFrame(this.items, st.karts, this.roots, alpha, st.time, frameDt, this.track);
     this.rescueView.onFrame(st.trackers, (i) => this.views[i].root.position, frameDt, st.time);
   }
