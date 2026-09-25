@@ -287,6 +287,15 @@ describe('leaderboard panel model (audit 24 Sept 2026)', () => {
     expect(boardModel('timeTrial', 'Harbor Loop', null, [], { state: 'idle' }, '8:00 PM').note).toBe('');
   });
 
+  it('a board row names the kart next to the racer (design §5, K6): "Pip in the Snack Truck"', () => {
+    const rows = boardModel('timeTrial', 'Harbor Loop', null, [
+      { id: 'a', name: 'Ada', racerId: 'pip', kartId: 'snacktruck', timeMs: 90000 },
+      { id: 'b', name: 'Bo', racerId: 'gus', kartId: 'snacktruck', timeMs: 91000 }, // his own: still named
+      { id: 'c', name: 'Cy', racerId: 'nova', kartId: 'not-a-kart', timeMs: 92000 }, // an old score, no kart known
+    ], { state: 'idle' }).rows;
+    expect(rows.map((r) => r.racer)).toEqual(['Pip in the Snack Truck', 'Big Gus in the Snack Truck', 'Nova']);
+  });
+
   it('Post is live whatever the board read did; Try again shows only when the read failed', () => {
     const off = boardModel('timeTrial', 'Harbor Loop', null, 'offline', { state: 'idle' });
     expect([off.buttonDisabled, off.retry]).toEqual([false, true]);

@@ -66,7 +66,7 @@ describe('faces in every results-type row', () => {
     expect(own(v, '.face-ic').map((f) => f.style.getPropertyValue('--portrait').match(/racers\/(\w+)\.webp/)?.[1])).toEqual(ORDER);
 
     v.renderResults(resultsModel({ ...results(['pip']), mode: 'timeTrial' }, 'pip', 'Harbor Loop'), 'Back to menu', { name: 'Ada' });
-    v.updateBoard(boardModel('timeTrial', 'Harbor Loop', null, [{ id: 'a', name: 'Ada', racerId: 'nova', timeMs: 90000 }, { id: 'b', name: 'Bo', racerId: 'gus', timeMs: 91000 }], { state: 'idle' }));
+    v.updateBoard(boardModel('timeTrial', 'Harbor Loop', null, [{ id: 'a', name: 'Ada', racerId: 'nova', kartId: 'pod', timeMs: 90000 }, { id: 'b', name: 'Bo', racerId: 'gus', kartId: 'snacktruck', timeMs: 91000 }], { state: 'idle' }));
     const board = [...v.root.querySelectorAll<HTMLElement>('.board-row')];
     expect(board.map((r) => r.querySelector<HTMLElement>('.face-ic')?.style.getPropertyValue('--crop'))).toEqual([faceCrop('nova'), faceCrop('gus')]);
     expect(board.map((r) => [...r.children].map(words))).toEqual([['cell', null, 'cell', 'cell', 'cell'], ['cell', null, 'cell', 'cell', 'cell']]);

@@ -4,6 +4,7 @@ import { grandPrixTable, starThresholdsFor } from '../../race-manager/series.ts'
 import type { GrandPrixState, KnockoutState, RaceMode, RaceResults } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
 import { accentOf, nameOf } from '../data/cast.ts';
+import { isKart, kartName } from '../data/karts.ts';
 import { move } from '../focus.ts';
 import { bestDelta, formatGap, formatMs, ordinal, type BestDelta } from '../format.ts';
 import type { FocusModel, NavAction } from '../types.ts';
@@ -153,8 +154,15 @@ export function knockoutCutModel(res: RaceResults, after: KnockoutState, playerI
 }
 
 // ---------------------------------------------------------------- leaderboard panel
-export interface BoardRowIn { id: string; name: string; racerId: string; timeMs: number }
+/** `kartId`: the kart the run was raced in (backend-leaderboard/client.ts BoardRow; K6, design §5). */
+export interface BoardRowIn { id: string; name: string; racerId: string; kartId: string; timeMs: number }
 export type BoardLoad = 'loading' | 'offline' | readonly BoardRowIn[];
+
+/** "Pip in the Snack Truck" (design §5, K6; the icon can come later): the racer's own name and their kart's, next to the face. An unknown kart id: the racer's name alone. */
+function raceLine(racerId: string, kartId: string): string {
+  const racer = nameOf(racerId);
+  return isKart(kartId) ? `${racer} in the ${kartName(kartId)}` : racer;
+}
 
 export interface BoardVM {
   title: string;
@@ -199,7 +207,7 @@ export function boardModel(mode: 'timeTrial' | 'daily', trackName: string, daily
   const best = post.best && post.best.id !== post.id ? post.best : null;
   const mine = best?.id ?? post.id;
   const rows = typeof load === 'string' ? [] : load.map((r, i) => ({
-    rank: ordinal(i + 1), name: r.name, racerId: r.racerId, racer: nameOf(r.racerId), accent: accentOf(r.racerId), time: formatMs(r.timeMs), me: r.id === mine,
+    rank: ordinal(i + 1), name: r.name, racerId: r.racerId, racer: raceLine(r.racerId, r.kartId), accent: accentOf(r.racerId), time: formatMs(r.timeMs), me: r.id === mine,
   }));
   const state = load === 'loading' ? 'loading' : load === 'offline' ? 'offline' : rows.length ? 'rows' : 'empty';
   const button = post.state === 'posting' ? 'Posting…' : post.state === 'posted' ? (post.rank && !best ? `Posted: ${ordinal(post.rank)}!` : 'Posted!') : 'Post my time';
