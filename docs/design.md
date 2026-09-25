@@ -34,6 +34,8 @@ Coins are everyone's speed bonus: a hit always spins you out and costs coins.
 
 Rig: one blobby body rig (root, spine, head, 2 arms) shared by all eight; heads and props swap. Idle: head turns into corners, body bobs, prop wobble (hat, key, float, awning). Racers may be AI-made 3D models (concept image, then image-to-3D via the Higgsfield connector), fitted to the kart footprint in `src/art-pipeline/glb.ts`; the code-built kart stays as the fallback. (Adam, 23 Sept 2026: the contest allows any tools; replaces the no-AI-mesh rule.)
 
+Racers from parts (Adam, 25 Sept 2026: "the wheels don't even spin", "they don't turn their heads"): each racer is rebuilt as a skinned driver (a 24-bone humanoid), its kart body and one wheel used four times (public/models/racers/manifest.json), merged at load into one skinned mesh and seated by IK on the kart's own seat, grips and foot rests, so any driver can sit in any kart. The wheels roll and steer and bob on their springs, the steering wheel turns in the driver's hands, the head looks into turns and drifts, at a rival alongside and at the camera on the grid, over the line and on the podium, and the arms throw items, fly up on a hit and celebrate the placing (art-pipeline rigged.ts, kart-controller driverAnim.ts). Until a racer's parts land it keeps its fused model.
+
 ## 5. Vehicles
 Each racer has one signature kart (above) plus two shared body styles unlockable later (Classic, Buggy). Karts own the class; racers own the personality. Exhaust colour = racer accent. Horn = racer sound (Pip chirp, Momo purr-rev, Nova chime, Juniper whistle, Otto squeaky float, Sprocket tick-tock, Boulder rumble, Gus foghorn).
 
