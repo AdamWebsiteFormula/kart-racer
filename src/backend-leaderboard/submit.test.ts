@@ -190,6 +190,9 @@ describe('submit-score: red-team 3 (24 Sept 2026; live once the function is rede
   });
 
   it('a body that trickles in is cut off after 15 s (408) instead of holding the worker', async () => {
+    // a few real milliseconds a step: on a loaded CI runner the real async work before the read (the
+    // hash, the slot) can outlast a handful of event-loop turns (25 Sept 2026: it failed there once)
+    const realWait = ((t: typeof setTimeout) => (ms: number) => new Promise<void>((r) => { t(r, ms); }))(globalThis.setTimeout);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
       // the start of a body, then nothing: the connection stays open
@@ -199,7 +202,7 @@ describe('submit-score: red-team 3 (24 Sept 2026; live once the function is rede
       // let the real async steps (the hash, the slot) run between ticks of the fake clock
       // (setImmediate is Node's and not faked: a real turn of the event loop)
       const turn = () => new Promise<void>((r) => (globalThis as unknown as { setImmediate(f: () => void): void }).setImmediate(r));
-      for (let i = 0; i < 60 && !done; i++) { await turn(); await vi.advanceTimersByTimeAsync(1000); }
+      for (let i = 0; i < 400 && !done; i++) { await turn(); await realWait(5); await vi.advanceTimersByTimeAsync(1000); }
       expect((done as Response | null)?.status).toBe(408);
     } finally { vi.useRealTimers(); }
   });
