@@ -185,7 +185,7 @@ export const ROAD_LOOKS: Readonly<Record<string, RoadLook>> = Object.freeze({
   harbour: { wear: 1, cracks: 0.55, patches: 0.7, sheen: 0.16, shine: 22 },
   meadow: { wear: 0.9, cracks: 0.75, patches: 0.5, sheen: 0.13, shine: 18 },
   canyon: { wear: 0.85, cracks: 1, patches: 0.35, sheen: 0.1, shine: 14, sand: '#e8a868' },
-  frost: { wear: 0.7, cracks: 0.35, patches: 0.25, sheen: 0.32, shine: 42, frost: 0.55 },
+  frost: { wear: 0.7, cracks: 0.35, patches: 0, sheen: 0.32, shine: 42, frost: 0.55 },
   skyline: { wear: 0.6, cracks: 0, patches: 0, sheen: 0.32, shine: 30, seams: 1 },
   boardwalk: { wear: 0.45, cracks: 0, patches: 0, sheen: 0.4, shine: 70, wet: 0.75, wetTint: '#8a6cff', spill: '#2fd8ff' },
 });
@@ -238,7 +238,8 @@ if (vMark < 0.5) {
     float box = max(q.x, q.y);
     float inside = 1.0 - smoothstep(-0.02, 0.02, box);
     float seam = 1.0 - smoothstep(0.02, 0.07, abs(box));
-    diffuseColor.rgb *= 1.0 - has * rwClean * (0.13 * inside + 0.3 * seam * (1.0 - smoothstep(20.0, 45.0, rwView)));
+    // faint: a dark box with a hard outline on a pale road read as a pit or a trap (screenshot review 24 Sept 2026)
+    diffuseColor.rgb *= 1.0 - has * rwClean * (0.06 * inside + 0.12 * seam * (1.0 - smoothstep(20.0, 45.0, rwView)));
   }
 #endif
 #if CRACKS > 0

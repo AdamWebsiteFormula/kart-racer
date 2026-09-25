@@ -15,7 +15,9 @@ import { DAY_GRADE } from '../art-pipeline/index.ts';
  * so it takes the EffectPass's one convolution slot, the plain chromatic aberration's before it; off a
  * boost it returns the colour untouched. Measured on an M4 Pro at 1920x1080: see docs/sops/vfx-juice.md.
  */
-export const LENS = Object.freeze({ taps: 8, streak: 0.075, inner: 0.62, soft: 0.55, fringe: 0.0045 });
+// fringe 0.0015 (was 0.0045): at 0.45 % of the screen the red/blue split drew rainbow outlines on bright
+// ridges during boosts (screenshot review 24 Sept 2026); a hair of it still reads as speed
+export const LENS = Object.freeze({ taps: 8, streak: 0.075, inner: 0.62, soft: 0.55, fringe: 0.0015 });
 
 const LENS_FRAG = `uniform float level;
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
