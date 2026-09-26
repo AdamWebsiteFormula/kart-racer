@@ -46,8 +46,14 @@ export interface Attachment { bone: string; shape: 'cone'; length: number; radiu
  * reads close to the fur, skin or plate right at the eye's own upper edge, so a shut lid looks like the
  * model's own material, not a decal. `shape: 'plate'` is a flatter, harder-edged shutter (Sprocket's LED
  * eyes, dimmed and relit rather than blinked); the default `'dome'` a soft lid with a real curve.
+ * `offsetL`, when given, is the LEFT eye's own separately-measured offset (Head's own frame, not
+ * mirrored): a Meshy image-to-3D driver's two eyes are not always placed symmetrically on the head bone
+ * (found fitting Juniper's: measured by eye from a straight-on shot, the two eyes came out about 1 cm
+ * apart in their own offset from Head, and one shared mirrored offset left a visible gap at one eye
+ * however far the other was pushed past a snug fit — an oversized lid on one side, still a gap on the
+ * other, no single size or position fixing both). Omit it and `-offset[0]` (mirrored) is used, as before.
  */
-export interface EyelidSpec { offset: V3; axis: V3; radiusX: number; radiusY: number; color: string; shape?: 'dome' | 'plate' }
+export interface EyelidSpec { offset: V3; offsetL?: V3; axis: V3; radiusX: number; radiusY: number; color: string; shape?: 'dome' | 'plate' }
 /** The steering wheel in the body's fitted frame: its middle, its column's axis toward the driver, the rim's radius (to its tube's middle). */
 export interface SteeringSpec { center: V3; axis: V3; radius: number }
 /** Pipe mouths in the body's fitted frame and the way they point (vfx-juice flames burn from them). */
@@ -75,7 +81,7 @@ export function isPartsSpec(s: unknown): s is PartsSpec {
   const p = s as PartsSpec | null;
   return !!p && typeof p === 'object'
     && typeof p.driver?.url === 'string' && typeof p.driver.height === 'number' && isV3(p.driver.seat)
-    && (p.driver.eyelid === undefined || (isV3(p.driver.eyelid.offset) && isV3(p.driver.eyelid.axis) && typeof p.driver.eyelid.radiusX === 'number' && typeof p.driver.eyelid.radiusY === 'number' && typeof p.driver.eyelid.color === 'string'))
+    && (p.driver.eyelid === undefined || (isV3(p.driver.eyelid.offset) && (p.driver.eyelid.offsetL === undefined || isV3(p.driver.eyelid.offsetL)) && isV3(p.driver.eyelid.axis) && typeof p.driver.eyelid.radiusX === 'number' && typeof p.driver.eyelid.radiusY === 'number' && typeof p.driver.eyelid.color === 'string'))
     && typeof p.body?.url === 'string' && typeof p.body.length === 'number' && typeof p.body.y === 'number'
     && (p.body.seat === undefined || isV3(p.body.seat)) && (p.body.grips === undefined || isPair(p.body.grips)) && (p.body.feet === undefined || isPair(p.body.feet))
     && typeof p.wheel?.url === 'string' && typeof p.wheel.radius === 'number' && Array.isArray(p.wheel.hubs) && p.wheel.hubs.length === 4 && p.wheel.hubs.every(isV3);
@@ -346,16 +352,16 @@ export const EYELID_TRIANGLES = 2 * EYELID_SEGMENTS.u * EYELID_SEGMENTS.v * 2;
 /**
  * One eyelid's flap, baked in the kart's frame at the hinge `at` (an eye's own offset from Head,
  * mirrored in X for the left/right pair: buildRiggedTemplate), on bone `bone`, painted from swatch
- * `swatch`. Authored at its OPEN pose (the bone's own bind rotation, identity): a short flap pointing
- * straight up the face from the hinge, a thin sliver at the eye's own top edge, like an open eye's own
- * lid line. A turn about the hinge's `axis` (RiggedKart.apply, 0 = this open pose, `closeAngle` = shut)
- * swings it up through the front of the eye and down to cover it, its width tapering to a point at the
- * hinge and to the full `radiusX` at its free edge, a slight bulge (`shape: 'plate'` barely any) following
- * the eye's own curve as it goes. Cheap and proven for a painted face with no blend shapes: "for
- * blinking you will need [a] separate layer" over the eye, not a UV trick alone (r/gamedev,
- * "Cheapest way of animating eyes in 3D model", reddit.com/r/gamedev/comments/y7ahz1) — here, a small
- * flap on a bone of its own, merged into the kart's one skinned mesh at no extra draw, exactly as Pip's
- * beak (attachmentPart) already does.
+ * `swatch`. Authored already at its FULLY SHUT shape (hinge at the eye's own top edge, hanging down the
+ * eye's own height): RiggedKart.apply scales the bone's own local Y and Z down from there for open,
+ * growing it back for shut (never a rotation — see this function's own body comment). A dome (organic)
+ * lid reads as an eye-shaped almond: no width at the hinge or at the free edge, full `radiusX` across
+ * the middle. A plate (Sprocket's LED shutter) keeps a constant width the whole way, a hard-edged
+ * mechanical blade. Both get a slight bulge following the eye's own curve. Cheap and proven for a
+ * painted face with no blend shapes: "for blinking you will need [a] separate layer" over the eye, not
+ * a UV trick alone (r/gamedev, "Cheapest way of animating eyes in 3D model",
+ * reddit.com/r/gamedev/comments/y7ahz1) — here, a small flap on a bone of its own, merged into the
+ * kart's one skinned mesh at no extra draw, exactly as Pip's beak (attachmentPart) already does.
  */
 function eyelidPart(spec: EyelidSpec, at: Vector3, bone: number, swatch: number): Part {
   const { u: NU, v: NV } = EYELID_SEGMENTS;
@@ -366,18 +372,31 @@ function eyelidPart(spec: EyelidSpec, at: Vector3, bone: number, swatch: number)
   // scales the bone's own local Y and Z down from there for open, growing it back for shut — never a rotation
   // (tried first and dropped: a flat flap on an arc goes edge-on to the camera partway through the swing, and
   // its own bulge — needed to clear the eye's curve — comes back to zero right at fully shut, exactly where it
-  // most needs to read; see the art-pipeline SOP's Decisions). Never quite 0 at the hinge (radiusX stays full
-  // width there too), so a squashed-flat "open" reads as a thin closed lid line, not a hole in the face. The
-  // bulge itself never quite reaches 0 either (a floor of 0.4 of its peak), so its own hinge and free edge —
-  // not only its middle — clear a round eye's curve too, all the way down to a fully shut, full-size lid.
+  // most needs to read; see the art-pipeline SOP's Decisions). Scale only ever touches Y and Z, never X: each
+  // vertex's own width (below) is baked in at its own fixed v, so squashing Y/Z toward the hinge for "open"
+  // leaves a thin sliver that is still narrow at both ends and fullest in the middle (an almost-closed eye's
+  // own line, pointed at its corners) rather than a flat bar. The bulge never quite reaches 0 (a floor of 0.4
+  // of its peak), so the hinge and free edge — not only the middle — clear a round eye's curve too, all the
+  // way down to a fully shut, full-size lid.
   for (let i = 0; i < P.count; i++) {
     // 0 at the hinge, 1 at the free edge (shut: the eye's own bottom); `0.5 - y`, not `y + 0.5`, so
     // increasing v still runs the same way across the plane's own winding (its top edge is v's 0, its
     // bottom v's 1 either way) — the flap's own Y decreasing as v grows would otherwise mirror the
     // plane in one axis and flip every triangle's winding, culled as backfaces (found rendering
     // Juniper's: right position, right colour, invisible from the front).
-    const v = 0.5 - P.getY(i);
-    const w = spec.radiusX * Math.sin((Math.PI / 2) * Math.max(0, v)); // a point at the hinge, full width at the free edge
+    const v = Math.max(0, Math.min(1, 0.5 - P.getY(i)));
+    // an organic lid (dome) reads as an eye's own lens/stadium shape, not a wedge: full `radiusX` across
+    // most of its length, easing to 0 only in the outer tenth at each end (a hard taper to a point at ONE
+    // end only, tried first, is exactly the flat-triangle silhouette the coordinator flagged; a taper that
+    // takes half its own length to reach full width, tried second — a plain sine peaking at the middle —
+    // left the eye's own top corners, close to the hinge, uncovered: found rendering Juniper's real eye,
+    // squarer at the corners than this taper reached; a real lid covers corner to corner almost
+    // immediately, rounding off only right at the tear duct and the outer corner). A robot's shutter
+    // (plate) keeps a constant width the whole way: a mechanical part reads fine hard-edged, and a
+    // shutter blade really is that shape.
+    const corner = 0.1, easeIn = Math.min(1, v / corner), easeOut = Math.min(1, (1 - v) / corner);
+    const lens = Math.sin((Math.PI / 2) * Math.max(0, Math.min(easeIn, easeOut)));
+    const w = spec.shape === 'plate' ? spec.radiusX : spec.radiusX * lens;
     P.setXYZ(i, P.getX(i) * 2 * w, -v * 2 * spec.radiusY, bulge * (0.4 + 0.6 * Math.sin(Math.PI * v)));
   }
   g.computeVertexNormals();
@@ -614,16 +633,18 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
   }
   const map = src.map((b) => bones.indexOf(byName.get(b.name)!));
 
-  // --- the eyelids: a small hinge bone each side under Head (one eye's own measurements, mirrored in X),
-  // its bind rotation identity (the geometry itself is baked in the kart's frame, at its own open pose,
-  // exactly as an Attachment's cone is: RiggedKart turns the two bones the same way every frame)
+  // --- the eyelids: a small hinge bone each side under Head (one eye's own measurements, mirrored in X
+  // unless `offsetL` gives the left eye its own — see EyelidSpec), its bind rotation identity (the
+  // geometry itself is baked in the kart's frame, at its own open pose, exactly as an Attachment's cone
+  // is: RiggedKart turns the two bones the same way every frame)
   const lid = spec.driver.eyelid;
   const eyelidBones: [Bone, Bone] | null = (() => {
     const head = byName.get('Head');
     if (!lid || !head) return null;
     const hp = new Vector3().setFromMatrixPosition(head.matrixWorld);
+    const offL = lid.offsetL ?? [-lid.offset[0], lid.offset[1], lid.offset[2]];
     const r = add('eyelidR', head, hp.clone().add(new Vector3(lid.offset[0], lid.offset[1], lid.offset[2])));
-    const l = add('eyelidL', head, hp.clone().add(new Vector3(-lid.offset[0], lid.offset[1], lid.offset[2])));
+    const l = add('eyelidL', head, hp.clone().add(new Vector3(offL[0], offL[1], offL[2])));
     return [r, l];
   })();
 

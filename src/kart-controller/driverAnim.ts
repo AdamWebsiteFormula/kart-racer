@@ -132,8 +132,12 @@ export const DRIVER_ANIM = Object.freeze({
     every: [2.6, 6.4] as const,
     /** s: down, held shut, and open (Animation Mentor's 3-5 / hold / 2-4 frames at 24 fps) */
     close: 0.09, hold: 0.045, open: 0.12,
-    /** 0..1: how shut a happy squint holds (a boost, a joyful finish) */
-    squint: 0.55,
+    /** 0..1: how shut a happy squint holds (a boost, a joyful finish) — well under 1: a squint covers
+     * the top of the iris and holds there, it does not read as a full blink (the eyelid geometry's own
+     * shut size carries some safety margin over the eye it measures, so a squint has to sit further
+     * below 1 than the margin alone to still look partial: found rendering Juniper's, where 0.55 looked
+     * indistinguishable from a full close) */
+    squint: 0.4,
     /** negative: eyes pulled open past neutral for a hit or a spin, held this many seconds after */
     wide: -0.18, wideHold: 0.5,
     /** 1/s: how fast the held squint/wide baseline eases toward its target (a blink itself is not eased: it snaps, per Animation Mentor) */
