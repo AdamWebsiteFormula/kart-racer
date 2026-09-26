@@ -30,7 +30,7 @@ export const STILL_YAW = 0.7;
  * read large. Framing an object by its bounding sphere at a fixed fov (only distance solved) is the
  * standard "frame selected" camera fit (as in Blender's View Selected or Unity's Frame Selected).
  */
-export const FRAME_FILL = 0.82;
+export const FRAME_FILL = 1.2; // the bounding sphere runs past the panel so the kart itself fills it, as MKW's selection screens do (0.82 left a small kart in a big panel, 26 Sept)
 /** The camera's original look-down angle above its target (its tuned position, 2.5 high and 8.2 back, looking at 0.7 up): kept fixed so only distance changes with a kart's size. */
 const CAMERA_ELEVATION = Math.atan2(2.5 - 0.7, 8.2);
 /** Distance floor and ceiling: never so close the near plane crowds a tiny kart, nor so far a huge one outgrows the far plane. */
