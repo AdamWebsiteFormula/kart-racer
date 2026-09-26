@@ -298,6 +298,11 @@ describe('leaderboard panel model (audit 24 Sept 2026)', () => {
       { id: 'c', name: 'Cy', racerId: 'nova', kartId: 'not-a-kart', timeMs: 92000 }, // an old score, no kart known
     ], { state: 'idle' }).rows;
     expect(rows.map((r) => r.racer)).toEqual(['Pip in the Snack Truck', 'Big Gus in the Snack Truck', 'Nova']);
+    // and its picture: a signature kart wears its owner's two colors whoever drives it; an old score has none
+    const gus = CAST.find((c) => c.id === 'gus')!;
+    expect(rows[0].kart).toEqual({ id: 'snacktruck', colors: [gus.accent, gus.secondary] });
+    expect(rows[1].kart).toEqual(rows[0].kart);
+    expect(rows[2].kart).toBeNull();
   });
 
   it('Post is live whatever the board read did; Try again shows only when the read failed', () => {

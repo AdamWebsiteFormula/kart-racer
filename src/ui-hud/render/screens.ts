@@ -1,7 +1,7 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TITLE, UI } from '../constants.ts';
-import { arrowSvg, cupSvg, iconFor, iconMarkup, lockSvg, medalSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
+import { arrowSvg, cupSvg, iconFor, iconMarkup, kartSvg, lockSvg, medalSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { AUTO_GAS_NOTE, CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
 import { DONE_HELP, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
@@ -753,7 +753,10 @@ export class ResultsView implements ScreenView {
       h('span', 'rk', e, r.rank);
       face(e, r.racerId);
       h('span', 'nm', e, r.name);
-      h('span', 'rc', e, r.racer);
+      // the kart's picture before "Pip in the Snack Truck" (kartSvg hides it from assistive tech: the words name it)
+      const rc = h('span', 'rc', e);
+      if (r.kart) h('span', 'kt', rc).innerHTML = kartSvg(r.kart.id, r.kart.colors[0], r.kart.colors[1]);
+      h('span', 'rt', rc, r.racer);
       h('span', 'tm', e, r.time);
       asRow(e);
     }

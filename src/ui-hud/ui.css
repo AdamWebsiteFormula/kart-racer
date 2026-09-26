@@ -912,7 +912,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 }
 .board-row .rk { font: 400 20px/1 var(--display); }
 .board-row .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
-.board-row .rc { font-size: 13px; opacity: 0.6; }
+.board-row .rc { display: inline-flex; align-items: center; gap: 6px; }
+.board-row .rt { font-size: 13px; opacity: 0.6; }
+.board-row .kt .kart-svg { display: block; width: 36px; height: auto; }
 .board-row .tm { font-variant-numeric: tabular-nums; }
 .board-row.me { background: var(--sun); }
 .board-form { display: flex; gap: 12px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
@@ -1135,6 +1137,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .standings .mv.down i { border-width: 8px 5px 0; }
   .standings .mv.same i { width: 9px; height: 3px; }
   .board-row { --face: 24px; }
+  .board-row .kt .kart-svg { width: 30px; }
   .res-head .stars .star { width: 30px; height: 30px; }
   .laps { margin-top: 6px; }
   .laps span { padding: 5px 9px; }

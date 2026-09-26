@@ -559,6 +559,19 @@ describe('leaderboard panel', () => {
     return { ui, posts, fetches: () => fetches };
   }
 
+  it('draws each row\'s kart picture before "Pip in the Snack Truck", hidden from assistive tech (design §5, K6)', async () => {
+    const { ui } = setup([{ id: 'a', name: 'Ada', racerId: 'pip', kartId: 'snacktruck', timeMs: 95000 }, { id: 'b', name: 'Bo', racerId: 'nova', kartId: 'not-a-kart', timeMs: 96000 }]);
+    await flush();
+    const [a, b] = [...document.querySelectorAll('#ui .board-row')];
+    const pic = a.querySelector('.rc .kt svg.kart-svg');
+    expect(pic?.getAttribute('data-kart')).toBe('snacktruck');
+    expect(pic?.getAttribute('aria-hidden')).toBe('true');
+    expect(a.querySelector('.rc .rt')?.textContent).toBe('Pip in the Snack Truck');
+    expect(b.querySelector('.kt')).toBeNull();
+    expect(b.querySelector('.rc .rt')?.textContent).toBe('Nova');
+    ui.dispose();
+  });
+
   it('shows the top times once they arrive, and starts in the name box for a first-timer', async () => {
     const { ui } = setup([{ id: 'a', name: 'Ada', racerId: 'gus', timeMs: 95000 }]);
     expect(document.querySelector('#ui .board-empty')?.textContent).toMatch(/Loading/);
