@@ -335,10 +335,6 @@
    "url": "audio/music/race-finale.mp3",
    "bpm": 160
   },
-  "results": {
-   "url": "audio/music/results.mp3",
-   "bpm": 100
-  },
   "race-harbour": {
    "url": "audio/music/race-harbour.mp3",
    "bpm": 150,
@@ -353,6 +349,14 @@
    "loop": [
     0.2,
     85.68
+   ]
+  },
+  "results": {
+   "url": "audio/music/results.mp3",
+   "bpm": 103,
+   "loop": [
+    35.13,
+    110.25
    ]
   }
  }
