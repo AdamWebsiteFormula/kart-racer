@@ -7,7 +7,8 @@ import { engineCutoff } from './engine.ts';
 
 export interface Manifest {
   sfx: Record<string, { url: string; loop?: boolean }>;
-  music: Record<string, { url: string; bpm: number }>;
+  /** `loop`: a song with an intro names its loop, bar-aligned seconds [start, end]: the intro plays once, then the loop (else the loop is found) */
+  music: Record<string, { url: string; bpm: number; loop?: readonly [number, number] }>;
 }
 
 /** What the analysis found in one recording. Times are buffer seconds. */
@@ -390,12 +391,18 @@ export function cutSfx(b: AudioBuffer, loop: boolean, id = ''): Sample {
   return { buffer: b, start, end, gain: peakSafe(levelGain(peakRms(env, HOP, 0.1), SFX_K, 8), peak) };
 }
 
-/** Level a song on its K-weighted average and find its loop; the first pass starts on its first beat, the wrap is baked seamless. */
-export function cutSong(b: AudioBuffer, bpm: number): Sample {
+/**
+ * Level a song on its K-weighted average and find its loop; the first pass starts on its first beat,
+ * the wrap is baked seamless. `loop` (seconds, from the manifest) names the loop of a song that opens
+ * with an intro: the intro plays once, then the loop, as race songs do (26 Sept 2026: looping a
+ * Lyria song from its top brought its opening fanfare back in the middle of the groove).
+ */
+export function cutSong(b: AudioBuffer, bpm: number, loop?: readonly [number, number]): Sample {
   const chs = channels(b), env = envelope(chs, b.sampleRate);
   const p = loopPoints(env, bpm);
-  const w = bakeLoop(chs, b.sampleRate, p.start, Math.min(p.end, b.duration - TAIL), AUDIO.songFade);
-  return { buffer: b, start: p.start, end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(songLevel(chs, b.sampleRate, w.start, w.end), SONG_K, 3), samplePeak(chs)) };
+  const [a, z] = loop ?? [p.start, p.end];
+  const w = bakeLoop(chs, b.sampleRate, a, Math.min(z, b.duration - TAIL), AUDIO.songFade);
+  return { buffer: b, start: Math.min(p.start, w.start), end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(songLevel(chs, b.sampleRate, w.start, w.end), SONG_K, 3), samplePeak(chs)) };
 }
 
 /**
@@ -528,7 +535,7 @@ export class SampleBank {
     let p = this.songs.get(key);
     if (!p) {
       const mine: Promise<Sample | null> = this.decode(ctx, m.url, SONG_TIER, key).then((b) => {
-        const s = b ? cutSong(b, m.bpm) : null;
+        const s = b ? cutSong(b, m.bpm, m.loop) : null;
         if (s && this.songs.get(key) === mine) this.ready.add(key);
         return s;
       });

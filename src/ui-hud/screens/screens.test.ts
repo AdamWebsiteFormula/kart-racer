@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LYRIA_SONGS } from '../../../scripts/elevenlabs/catalog.ts';
 import { applyResults, createGrandPrix, createKnockout } from '../../race-manager/series.ts';
 import type { GrandPrixState, KnockoutState, RaceResults, RacerConfig } from '../../race-manager/types.ts';
 import { UI } from '../constants.ts';
@@ -184,7 +185,10 @@ describe('results screens', () => {
     if (!fs.existsSync(manifest)) return; // a checkout without recordings
     const m = JSON.parse(fs.readFileSync(manifest, 'utf8')) as { sfx: object; music: object };
     expect(works.join('\n')).toContain(`Sound effects: ${Object.keys(m.sfx).length} original sounds`);
-    expect(works.join('\n')).toContain(`Music: ${Object.keys(m.music).length} original songs`);
+    // the songs made with Lyria have a row of their own (their own terms): the Eleven Music row counts the rest
+    const lyria = LYRIA_SONGS.filter((s) => s.id in m.music).length;
+    expect(works.join('\n')).toContain(`Music: ${Object.keys(m.music).length - lyria} original songs`);
+    if (lyria) expect(works.join('\n')).toMatch(/made for this game with Google Lyria 3\.5/);
   });
 
   it('the Knockout card promises one winner, as the cut screen crowns (8 → 6 → 4 → winner)', () => {

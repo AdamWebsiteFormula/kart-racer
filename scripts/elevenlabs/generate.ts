@@ -9,7 +9,7 @@
 //   add --force to remake files that already exist, --budget=N to cap the credits one run may spend
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { fileFor, SFX, sfxBody, songBody, SONGS, type SfxSpec, type SongSpec } from './catalog.ts';
+import { fileFor, LYRIA_SONGS, SFX, sfxBody, songBody, SONGS, type SfxSpec, type SongSpec } from './catalog.ts';
 
 const ROOT = new URL('../../', import.meta.url);
 const OUT = new URL('public/audio/', ROOT);
@@ -110,8 +110,10 @@ async function makeSong(key: string, s: SongSpec): Promise<string> {
 async function writeManifest(): Promise<void> {
   const sfx: Record<string, { url: string; loop?: true }> = {};
   for (const s of SFX) if (existsSync(sfxPath(s))) sfx[s.id] = s.loop ? { url: `audio/sfx/${fileFor(s.id)}`, loop: true } : { url: `audio/sfx/${fileFor(s.id)}` };
-  const music: Record<string, { url: string; bpm: number }> = {};
+  const music: Record<string, { url: string; bpm: number; loop?: readonly [number, number] }> = {};
   for (const s of SONGS) if (existsSync(songPath(s))) music[s.id] = { url: `audio/music/${fileFor(s.id)}`, bpm: s.bpm };
+  // the Lyria songs (made outside this script) keep their place and their loop
+  for (const s of LYRIA_SONGS) if (existsSync(new URL(`music/${fileFor(s.id)}`, OUT))) music[s.id] = { url: `audio/music/${fileFor(s.id)}`, bpm: s.bpm, loop: s.loop };
   await mkdir(OUT, { recursive: true });
   await writeFile(new URL('manifest.json', OUT), `${JSON.stringify({ sfx, music }, null, 1)}\n`);
   console.log(`manifest: ${Object.keys(sfx).length}/${SFX.length} sounds, ${Object.keys(music).length}/${SONGS.length} songs`);

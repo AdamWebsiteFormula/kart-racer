@@ -325,7 +325,11 @@
   },
   "race-harbour": {
    "url": "audio/music/race-harbour.mp3",
-   "bpm": 150
+   "bpm": 150,
+   "loop": [
+    12.54,
+    70.15
+   ]
   },
   "race-meadow": {
    "url": "audio/music/race-meadow.mp3",

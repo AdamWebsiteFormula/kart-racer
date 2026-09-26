@@ -9,7 +9,7 @@ import { LoadQueue } from '../performance/loadQueue.ts';
 import MANIFEST from '../../public/audio/manifest.json';
 import { engineCutoff, OFFROAD_BY_TRACK, racerPitch, ROAD_BY_TRACK } from './engine.ts';
 import { PATCHES } from './sfx.ts';
-import { MOMENT, SFX, sfxBody, SONG_MOMENT, SONGS, songBody } from '../../scripts/elevenlabs/catalog.ts';
+import { LYRIA_SONGS, MOMENT, SFX, sfxBody, SONG_MOMENT, songBody, SONGS } from '../../scripts/elevenlabs/catalog.ts';
 
 const HOP = 0.01;
 /** the loops the wheels can ask for (engine.ts wheelSound, sparkLayer) */
@@ -249,7 +249,12 @@ describe('music map', () => {
 
 describe('no singing and no human voices (Adam, 24 Sept 2026)', () => {
   it('every song asks for no vocals, and every song request forces an instrumental', () => {
-    expect(SONGS.length).toBeGreaterThanOrEqual(7);
+    expect(SONGS.length + LYRIA_SONGS.length).toBeGreaterThanOrEqual(7);
+    for (const s of LYRIA_SONGS) {
+      expect(s.prompt, s.id).toMatch(/\binstrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops\b/i);
+      expect(s.loop[1] - s.loop[0], s.id).toBeGreaterThan(30);
+      expect(SONGS.some((x) => x.id === s.id), `${s.id}: one maker only`).toBe(false);
+    }
     for (const s of SONGS) {
       expect(s.prompt, s.id).toMatch(/\binstrumental, no vocals\b/i);
       expect(s.prompt, s.id).not.toMatch(/\b(sing(s|ing|ers?)?|sung|vocal(?!s\b)\w*|voices?|choir|chant\w*|lyrics?|humming)\b/i);

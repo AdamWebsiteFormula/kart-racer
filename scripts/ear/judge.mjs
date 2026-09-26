@@ -26,7 +26,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
-import { fileFor, MOMENT, SFX, SONG_MOMENT, SONGS } from '../elevenlabs/catalog.ts';
+import { fileFor, LYRIA_SONGS, MOMENT, SFX, SONG_MOMENT, SONGS } from '../elevenlabs/catalog.ts';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const API = 'https://generativelanguage.googleapis.com/v1beta';
@@ -250,7 +250,7 @@ async function compare(id, paths) {
 }
 
 async function judgeSong(path, id, part) {
-  const s = SONGS.find((x) => x.id === id);
+  const s = SONGS.find((x) => x.id === id) ?? LYRIA_SONGS.find((x) => x.id === id);
   const what = part === 'seam'
     ? 'This excerpt is the loop seam exactly as the game plays it: the last 5 seconds before the loop end run straight into the first 5 seconds after the loop start, at the 5 second mark. Listen closely there for any click, gap, jump, change of level, stumble or break in the rhythm.'
     : part === 'edit'
@@ -267,7 +267,7 @@ async function judgeSong(path, id, part) {
 async function judgeSongSet(id, paths) {
   const parts = [];
   const names = ['start', 'middle', 'seam'];
-  const s = SONGS.find((x) => x.id === id);
+  const s = SONGS.find((x) => x.id === id) ?? LYRIA_SONGS.find((x) => x.id === id);
   parts.push({ text: `Song: "${id}".\nBrief: ${s?.prompt ?? ''}\nWhere it plays: ${SONG_MOMENT[id] ?? ''}\nYou will hear ${paths.length} excerpts of it.` });
   paths.forEach((p, i) => parts.push({ text: names[i] === 'seam'
     ? `Excerpt ${i + 1} (seam): the loop seam exactly as the game plays it: the last 5 seconds before the loop end run straight into the first 5 seconds after the loop start, at the 5 second mark; listen there for any click, gap, jump, change of level, stumble or break in the rhythm.`

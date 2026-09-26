@@ -22,6 +22,13 @@ export interface SfxSpec {
 
 export interface SongSpec { id: string; prompt: string; seconds: number; bpm: number }
 
+/**
+ * A song made with Google Lyria 3.5 (Gemini API, `lyria-3.5`), not ElevenLabs: its prompt as sent (the
+ * model has no instrumental switch, so the prompt forbids every kind of voice) and the loop the game
+ * plays after the intro (bar-aligned seconds, manifest `loop`). generate.ts never remakes one.
+ */
+export interface LyriaSong { id: string; model: 'lyria-3.5'; prompt: string; seconds: number; bpm: number; loop: readonly [number, number] }
+
 const CARTOON = 'Bright cartoon video game style, clean and punchy, no music, no voice.';
 
 export const SFX: readonly SfxSpec[] = [
@@ -202,15 +209,26 @@ const SONG_TAIL = 'Constant driving energy from the first second, no intro, no f
 // design §11: Sunrise Cup = brass/ska, Summit Cup = synth-brass/funk, finale = orchestral pop
 export const SONGS: readonly SongSpec[] = [
   { id: 'title', seconds: 64, bpm: 128, prompt: 'Title-screen theme for a bright cartoon kart racing video game. Sunny, catchy pop-rock: punchy brass lead melody, funky slap bass, bright electric guitar chops, glockenspiel sparkles, handclaps and driving drums. 128 BPM, G major. Upbeat, heroic and fun. Steady energy the whole way and it ends as it began, so it loops. Instrumental, no vocals.' },
-  // edited 25 Sept 2026 (not remade): the Demucs vocal stem taken out at 38.35-39.75 s, a cartoon woo-hoo the
-  // judge heard as a voice on five cuts; re-encoded at 192 kbps CBR, same length, loop and level (docs/sops/audio.md)
-  { id: 'race-harbour', seconds: 96, bpm: 150, prompt: `High-energy ska racing music for a sunny seaside cartoon kart race. Offbeat skanking guitar, a tight trumpet and trombone section playing a catchy lead, bouncy walking bass, fast snare fills, steel-drum sparkles. 150 BPM, F major. ${SONG_TAIL}` },
   { id: 'race-meadow', seconds: 96, bpm: 146, prompt: `Joyful brass-and-banjo racing music for a countryside cartoon kart race past windmills and meadows. Rolling banjo, a bright brass section lead, fiddle answers, offbeat ska guitar, bouncing bass, stomping drums. 146 BPM, D major. ${SONG_TAIL}` },
   { id: 'race-frost', seconds: 96, bpm: 140, prompt: `Funky racing music for a snowy mountain cartoon kart race. A synth-brass lead melody, slap funk bass, clavinet and wah guitar, sleigh bells and glockenspiel, tight punchy drums. 140 BPM, E major. Cool, bouncy and fast. ${SONG_TAIL}` },
   { id: 'race-boardwalk', seconds: 96, bpm: 140, prompt: `Neon night-carnival racing music for a cartoon kart race on a seaside boardwalk. Synth-brass stabs, funky synth bass, bright arpeggiated synths, a playful carnival organ hook, disco-funk drums with claps. 140 BPM, A major. Glittering, fun and fast. ${SONG_TAIL}` },
   { id: 'race-finale', seconds: 96, bpm: 160, prompt: `Soaring orchestral-pop racing music for the final track of a cartoon kart racing cup. A heroic brass fanfare melody, fast sweeping strings, harp runs, timpani hits, driving rock drums and electric bass. 160 BPM, E-flat major. Epic, triumphant and fun. ${SONG_TAIL}` },
   { id: 'results', seconds: 32, bpm: 100, prompt: 'A short happy results-screen loop for a cartoon kart racing game. A relaxed funky groove: electric piano, muted brass accents, bass, finger snaps and light drums. 100 BPM, C major. Warm and cheerful, and it ends as it began, so it loops. Instrumental, no vocals.' },
 ];
+
+/**
+ * Songs made with Lyria 3.5. race-harbour, 26 Sept 2026: blind one-on-one against the ElevenLabs song it
+ * replaces, twice, the Pro judge scored it 9/1/9/9 (polish, cheesiness, melody, brief) against 4-5/7/5/4
+ * (docs/sops/audio.md); no human voice on three overlapping cuts of the whole song; its loop (36 bars at
+ * 150 BPM after a 12 s intro) judged seamless on two cuts. Its tempo was asked as 152: the bars run at 150.
+ */
+export const LYRIA_SONGS: readonly LyriaSong[] = [
+  { id: 'race-harbour', model: 'lyria-3.5', seconds: 92, bpm: 150, loop: [12.54, 70.15], prompt: "Race music for the opening track of a bright, premium kart racing video game: a sunny seaside harbor town with piers and a lighthouse. Fast, high-energy ska-funk big band, recorded live in a studio: off-beat upstroke guitar skank, a driving, syncopated electric bass, crisp live drums with fast snare fills and a busy ride cymbal, and a tight horn section (trumpets, trombone, tenor sax) playing a catchy, singable lead melody with punchy stabs and answers. Bright, joyful and confident. 152 BPM, F major, 4/4. The full band plays from the very first beat, no intro. Structure: [0:00-0:30] the main theme on the brass; [0:30-0:45] B section: a sax and trombone counter-melody over walking bass; [0:45-1:00] stop-time horn hits and a drum break that keeps the drive; [1:00-1:30] the main theme returns with high trumpet harmony, and the last bar runs straight back into the first so the track loops. No fade-out, no ending. Modern, polished, punchy mix: wide stereo, tight low end, bright but smooth highs, loud and clean master. Instrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops. No toy or novelty instruments and no sound effects." },
+];
+// The ElevenLabs Harbour song this replaced (23 Sept 2026, edited 25 Sept):
+// // edited 25 Sept 2026 (not remade): the Demucs vocal stem taken out at 38.35-39.75 s, a cartoon woo-hoo the
+// // judge heard as a voice on five cuts; re-encoded at 192 kbps CBR, same length, loop and level (docs/sops/audio.md)
+// { id: 'race-harbour', seconds: 96, bpm: 150, prompt: `High-energy ska racing music for a sunny seaside cartoon kart race. Offbeat skanking guitar, a tight trumpet and trombone section playing a catchy lead, bouncy walking bass, fast snare fills, steel-drum sparkles. 150 BPM, F major. ${SONG_TAIL}` },
 
 /**
  * Where each sound plays in the game: the brief the ears judge a recording against (scripts/ear
