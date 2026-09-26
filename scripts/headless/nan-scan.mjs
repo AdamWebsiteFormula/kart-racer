@@ -3,7 +3,7 @@
 // half-float scene render (before bloom) is read back and its NaN/Inf pixels counted, and the canvas is
 // sampled for black. One NaN pixel is enough to black out a whole frame through bloom's blur (26 Sept
 // 2026: zero-length normals on prop models). For the first bad pixel on a track it names what a ray
-// through it hits. The scan slows frames, so the Auto governor is pinned (it would turn post off).
+// through it hits; a black output over a dark scene (a tunnel) is counted apart. The scan slows frames, so the Auto governor is pinned (it would turn post off).
 //   node scripts/headless/nan-scan.mjs [url] [--seconds=25] [--tracks=harbour-loop,meadow-run]
 import { openChrome, sleep } from './cdp.mjs';
 
@@ -34,7 +34,11 @@ const INSTALL = `(async () => {
         if (Number.isFinite(buf[i * 4]) && Number.isFinite(buf[i * 4 + 1]) && Number.isFinite(buf[i * 4 + 2])) continue;
         if (!bad++) first = { x: i % w, y: (i / w) | 0 };
       }
-      rec = { bad, first, w, h };
+      // the scene's own brightness at the same 8 x 8 points the output is sampled at below: a black
+      // output over a lit scene is the glitch; over a dark one (Canyon's mine tunnel) it is just dark
+      let lit = 0;
+      for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) { const o = (((((j + 0.5) / 8 * h) | 0) * w) + (((i + 0.5) / 8 * w) | 0)) * 4; lit += buf[o] + buf[o + 1] + buf[o + 2]; }
+      rec = { bad, first, w, h, lit: lit / 192 };
       if (bad && !window.__named) {
         window.__named = true;
         const rc = new T.Raycaster();
@@ -50,7 +54,8 @@ const INSTALL = `(async () => {
       let sum = 0;
       for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) { gl.readPixels(((i + 0.5) / 8 * W) | 0, ((j + 0.5) / 8 * H) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); sum += px[0] + px[1] + px[2]; }
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, prev);
-      rec.black = sum / 192 < 8;
+      rec.black = sum / 192 < 8 && rec.lit > 0.03;
+      rec.dark = sum / 192 < 8 && !rec.black;
       log.push(rec);
     }
     return res;
@@ -71,9 +76,9 @@ try {
     await sleep(seconds * 1000);
     await c.eval('window.__scan = false');
     const log = await c.eval('window.__nan');
-    const bad = log.filter((r) => r.bad), black = log.filter((r) => r.black), named = log.find((r) => r.hits);
+    const bad = log.filter((r) => r.bad), black = log.filter((r) => r.black), dark = log.filter((r) => r.dark).length, named = log.find((r) => r.hits);
     total += bad.length + black.length;
-    console.log(`${t.padEnd(17)} frames ${log.length}  NaN/Inf frames ${bad.length}  black frames ${black.length}${named ? `  first at [${named.first.x}, ${named.first.y}]: ${named.hits.join(' | ')}` : ''}`);
+    console.log(`${t.padEnd(17)} frames ${log.length}  NaN/Inf frames ${bad.length}  black frames ${black.length}${dark ? ` (plus ${dark} dark scene frames)` : ''}${named ? `  first at [${named.first.x}, ${named.first.y}]: ${named.hits.join(' | ')}` : ''}`);
   }
   await c.eval('kart.autopilot(false)');
 } finally { await c.close(); }
