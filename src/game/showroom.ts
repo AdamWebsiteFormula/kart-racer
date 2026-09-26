@@ -4,9 +4,9 @@
 // no second WebGL context. Its kart wears its own copies of the materials (never the near-camera fade
 // the rivals' shared ones carry) and gives them back when it changes.
 import {
-  AmbientLight, BufferAttribute, CircleGeometry, Color, CylinderGeometry, DirectionalLight, Group, HemisphereLight,
-  Mesh, MeshBasicMaterial, MeshToonMaterial, PerspectiveCamera, Scene, TorusGeometry,
-  type BufferGeometry, type Material, type Texture, type WebGLRenderer,
+  AmbientLight, BufferAttribute, Box3, CircleGeometry, Color, CylinderGeometry, DirectionalLight, Group, HemisphereLight,
+  Mesh, MeshBasicMaterial, MeshToonMaterial, PerspectiveCamera, Scene, Sphere, TorusGeometry,
+  type BufferGeometry, type Material, type Object3D, type Texture, type WebGLRenderer,
 } from 'three';
 import { buildRacerMesh, freeSkeletons, isShared, RACER_MODELS, toonRamp, type KartLook } from '../art-pipeline/index.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
@@ -19,6 +19,38 @@ export const SHOWROOM_BG = '#211b38';
 /** radians a second the kart turns; with reduced motion it stands still at a three-quarter view */
 export const TURN_RATE = 0.6;
 export const STILL_YAW = 0.7;
+
+/**
+ * The hero shot (Adam, 25 Sept 2026: "the kart looks small in a big panel"; Mario Kart World's own
+ * roster screen fills most of its panel height with the character, caption below — scratchpad/look/
+ * mkw-ref.jpg). The camera keeps its tuned field of view and look-down angle for every kart; only
+ * its distance changes, solved from the built racer's own bounding sphere (kart + driver together,
+ * frameOf) so it fills FRAME_FILL of the tighter dimension of whatever box the screen gives it, on
+ * any aspect ratio — a small kart (Pip's) and a tall one (Boulder's) or a long one (Nova's pod) all
+ * read large. Framing an object by its bounding sphere at a fixed fov (only distance solved) is the
+ * standard "frame selected" camera fit (as in Blender's View Selected or Unity's Frame Selected).
+ */
+export const FRAME_FILL = 0.82;
+/** The camera's original look-down angle above its target (its tuned position, 2.5 high and 8.2 back, looking at 0.7 up): kept fixed so only distance changes with a kart's size. */
+const CAMERA_ELEVATION = Math.atan2(2.5 - 0.7, 8.2);
+/** Distance floor and ceiling: never so close the near plane crowds a tiny kart, nor so far a huge one outgrows the far plane. */
+export const MIN_DISTANCE = 3, MAX_DISTANCE = 16;
+/** Before anything is built (or a racer with no model yet): the old fixed shot's own numbers. */
+const DEFAULT_FRAME = Object.freeze({ y: 0.7, radius: 1.9 });
+
+/**
+ * The distance a camera (this vertical `fovDeg`) must stand from a sphere of `radius` so it fills
+ * `fill` of the tighter side of the frame at this `aspect` (width / height): whichever of the
+ * vertical or horizontal half-angle is narrower binds. Pure: the geometry behind the hero shot,
+ * clamped to [MIN_DISTANCE, MAX_DISTANCE].
+ */
+export function frameDistance(radius: number, fovDeg: number, aspect: number, fill = FRAME_FILL): number {
+  const vFov = (fovDeg * Math.PI) / 180;
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+  const distV = radius / (fill * Math.sin(vFov / 2));
+  const distH = radius / (fill * Math.sin(hFov / 2));
+  return Math.min(MAX_DISTANCE, Math.max(MIN_DISTANCE, distV, distH));
+}
 
 /** A disc whose vertex colours fade from `inner` at the centre to `outer` at the rim (unlit, not tone-mapped). */
 function glowDisc(radius: number, inner: string, outer: string): Mesh {
@@ -39,8 +71,10 @@ export class Showroom {
   readonly camera = new PerspectiveCamera(30, 0.9, 0.5, 60);
   readonly background = new Color(SHOWROOM_BG);
   /** the kart on the stand, and what it is; a rigged racer (art-pipeline rigged.ts) sits in a KartView and idles, looking at you */
-  private kart: { key: string; root: Group; view: KartView | null; state: KartState } | null = null;
+  private kart: { key: string; root: Group; view: KartView | null; state: KartState; frame: { y: number; radius: number } } | null = null;
   private last = -1;
+  /** the frame `update` last solved the camera for (reference-compared to `kart.frame`, so a new kart re-solves even at the same aspect) */
+  private framed: { y: number; radius: number } | null = null;
   private readonly stand = new Group();
   /** the pedestal's own geometries and materials, freed with the showroom */
   private readonly own: (BufferGeometry | Material)[] = [];
@@ -85,8 +119,26 @@ export class Showroom {
     ownKartMaterials(root);
     const state = createKartState({ racerId });
     const view = root.userData.rig ? new KartView(makeConstants('medium', 150), root, state) : null;
-    this.stand.add(view ? view.root : root);
-    this.kart = { key, root, view, state };
+    const target = view ? view.root : root;
+    this.stand.add(target);
+    this.kart = { key, root, view, state, frame: this.frameOf(target) };
+  }
+
+  /**
+   * The kart-plus-driver bounding sphere, measured once in its rest pose (stable through the
+   * turntable's spin, so the hero shot never breathes in and out as it idles) and in the stand's
+   * own un-rotated frame (so a rotation already under way does not skew it). Empty geometry (a
+   * headless test) keeps the old fixed shot's numbers.
+   */
+  private frameOf(target: Object3D): { y: number; radius: number } {
+    const yaw = this.stand.rotation.y;
+    this.stand.rotation.y = 0;
+    this.stand.updateMatrixWorld(true);
+    const box = new Box3().setFromObject(target);
+    this.stand.rotation.y = yaw;
+    if (box.isEmpty()) return DEFAULT_FRAME;
+    const sphere = box.getBoundingSphere(new Sphere());
+    return { y: sphere.center.y, radius: Math.max(sphere.radius, 0.6) };
   }
 
   /** What stands on the stand now ('' for nothing). */
@@ -107,12 +159,16 @@ export class Showroom {
       k.view.onTick(k.state, dt, NEUTRAL_INPUT);
       k.view.onFrame(1, k.state, 0, dt, reduced);
     }
-    if (Math.abs(this.camera.aspect - aspect) > 1e-3) {
+    const frame = k?.frame ?? DEFAULT_FRAME;
+    if (Math.abs(this.camera.aspect - aspect) > 1e-3 || frame !== this.framed) {
       this.camera.aspect = aspect;
-      // a narrow box pulls back so the whole kart fits across it
-      this.camera.position.set(0, 2.5, 8.2 / Math.min(1, Math.max(0.6, aspect)));
-      this.camera.lookAt(0, 0.7, 0);
+      // this kart's own bounding sphere solves the distance that fills FRAME_FILL of the panel,
+      // at the camera's fixed fov and look-down angle, on any aspect ratio (frameDistance)
+      const dist = frameDistance(frame.radius, this.camera.fov, aspect);
+      this.camera.position.set(0, frame.y + dist * Math.sin(CAMERA_ELEVATION), dist * Math.cos(CAMERA_ELEVATION));
+      this.camera.lookAt(0, frame.y, 0);
       this.camera.updateProjectionMatrix();
+      this.framed = frame;
     }
   }
 

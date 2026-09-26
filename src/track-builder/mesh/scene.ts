@@ -310,9 +310,16 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           #else
             float p = vRoad.y * 2.0;
           #endif
-          float w = fwidth(p) * 1.5;
+          float wRaw = fwidth(p) * 1.5;
+          float w = min(wRaw, 0.5);
           float t = abs(fract(p) - 0.5) * 2.0;
           vec3 stripes = mix(uKerbA, uKerbB, smoothstep(0.5 - w, 0.5 + w, t));
+          // once a block is under about a pixel wide the anti-aliased blend above can only ever read
+          // as a flat 50/50 of the two colours (a true box filter's correct answer for a stripe, but
+          // red-and-white curbs read as a wrong, flat pink smear, not a receding pattern: Adam, 25 Sept
+          // 2026); fade the stripe's contrast out before it gets there, the same way the ground and
+          // road's own fine relief already fade to a plain base with distance (surfaces.ts *_RELIEF_FAR)
+          float resolved = 1.0 - smoothstep(0.2, 0.5, wRaw);
           // the place's own edge: two tones broken up along the road, with seams (slabs, planks)
           float q = sin(vRoad.y * 11.0 + vRoad.x * 3.0) * sin(vRoad.y * 4.3 - vRoad.x * 1.7) * 0.5 + 0.5;
           float seam = uEdgeJoints > 0.0 ? 1.0 - smoothstep(0.0, 0.08, abs(fract(vRoad.y * uEdgeJoints) - 0.5) * 2.0 - 0.9) : 0.0;
@@ -323,7 +330,7 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
             if (uEdgeMode > 0.5 && uEdgeMode < 1.5) corner = smoothstep(0.3, 0.6, vCurb);
             roadCurb = corner;
           #endif
-          diffuseColor.rgb = mix(plain, stripes, corner);
+          diffuseColor.rgb = mix(plain, stripes, corner * resolved);
         } else if (vMark > 1.5 && vMark < 2.5 && uOffroad > 0.5) {
           // an off-road track: no strip beside the road, the land itself meets the curb (land.ts)
           discard;
