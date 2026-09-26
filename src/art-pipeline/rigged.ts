@@ -20,8 +20,10 @@ import {
   MeshStandardMaterial, Quaternion, Skeleton, SkinnedMesh, Sphere, SRGBColorSpace, Vector3, type Material, type Mesh, type Object3D, type Texture,
 } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { KART_ANIM, type AnimPose } from '../kart-controller/anim.ts';
-import { DRIVER_ANIM, type ArmPose, type DriverPose, type KartRig } from '../kart-controller/driverAnim.ts';
+import { KART_ANIM, stepSpring, type AnimPose, type Spring } from '../kart-controller/anim.ts';
+import { DRIVER_ANIM, NO_GROUND, type ArmPose, type DriverPose, type KartRig, type WheelGround } from '../kart-controller/driverAnim.ts';
+import { jumpLift } from '../kart-controller/ground.ts';
+import type { TrackSample } from '../kart-controller/types.ts';
 import type { V3 } from './model.ts';
 import { isPbr, litWorld } from './look.ts';
 
@@ -784,6 +786,14 @@ export class RiggedKart implements KartRig {
   private readonly hubs: (Bone | null)[];
   private readonly wheels: (Bone | null)[];
   private readonly hubRest: Vector3[];
+  /** each wheel's own ground-follow travel (DRIVER_ANIM suspSpring/suspMax), on top of the shared bob */
+  private readonly susp: Spring[] = [{ x: 0, v: 0 }, { x: 0, v: 0 }, { x: 0, v: 0 }, { x: 0, v: 0 }];
+  /** the body bone's own extra roll [0] and pitch [1] toward a share of the four wheels' travel, a slower spring so it settles a moment after they do */
+  private readonly bodyTilt: [Spring, Spring] = [{ x: 0, v: 0 }, { x: 0, v: 0 }];
+  /** reused every call so sampling the road under a wheel allocates nothing (Track.sampleInto writes into it) */
+  private readonly groundScratch: TrackSample = {
+    position: [0, 0, 0], tangent: [0, 0, 0], normal: [0, 0, 0], groundY: 0, halfWidth: 0, surface: 'road', gripScale: 1,
+  };
   /** each animated bone's seated local turn, and the kart's axes in its parent's (seated) frame */
   private readonly base = new Map<Object3D, Quaternion>();
   private readonly axes = new Map<Object3D, { x: Vector3; y: Vector3; z: Vector3 }>();
@@ -848,10 +858,42 @@ export class RiggedKart implements KartRig {
     return { upper, fore, iUpper: i, side, aimUpper: fore.position.clone().normalize(), aimFore: hand.position.clone().normalize(), l1: fore.position.length(), l2: hand.position.length() };
   }
 
-  apply(a: Readonly<AnimPose>, d: Readonly<DriverPose>): void {
+  apply(a: Readonly<AnimPose>, d: Readonly<DriverPose>, ground: Readonly<WheelGround> = NO_GROUND, dt = 0): void {
     const T = DRIVER_ANIM;
+    // --- each wheel's own travel: the road under its own hub (null track: no data this frame, ease
+    // to 0), a critically damped spring, clamped to suspMax (past it the spring is bottomed out)
+    if (dt > 0) {
+      const track = ground.track;
+      for (let i = 0; i < 4; i++) {
+        let target = 0;
+        if (track) {
+          const r = this.hubRest[i];
+          const len = Math.max(1e-6, track.length);
+          const ti = ground.t + r.z / len, lat = ground.lateral + r.x;
+          const s = track.sampleInto ? track.sampleInto(ti, lat, ground.branch, this.groundScratch) : track.sample(ti, lat, ground.branch);
+          const lift = track.jumps.length ? jumpLift(track, ti, ground.branch, lat, s.halfWidth, s.open ?? 0) : 0;
+          const raw = s.groundY + lift - ground.centerY;
+          target = Number.isFinite(raw) ? Math.max(-T.suspMax, Math.min(T.suspMax, raw)) : 0;
+        }
+        stepSpring(this.susp[i], target, T.suspSpring, dt);
+      }
+    }
+    // --- the body tilts toward a share of the four wheels' own travel (left/right for roll,
+    // front/rear for pitch), through its own slower spring, so it settles a moment after they do
+    if (dt > 0) {
+      const susp = this.susp;
+      const leftUp = (susp[0].x + susp[2].x) / 2, rightUp = (susp[1].x + susp[3].x) / 2;
+      const frontUp = (susp[0].x + susp[1].x) / 2, rearUp = (susp[2].x + susp[3].x) / 2;
+      const rollTarget = Math.max(-T.suspBodyMax, Math.min(T.suspBodyMax, T.suspBodyShare * (leftUp - rightUp)));
+      const pitchTarget = Math.max(-T.suspBodyMax, Math.min(T.suspBodyMax, -T.suspBodyShare * (frontUp - rearUp)));
+      stepSpring(this.bodyTilt[0], rollTarget, T.suspBodySpring, dt);
+      stepSpring(this.bodyTilt[1], pitchTarget, T.suspBodySpring, dt);
+    }
     // --- the body on its springs; each wheel on its own, dropping toward the road as its corner lifts
-    if (this.body) this.body.position.set(0, a.heave, 0);
+    if (this.body) {
+      this.body.position.set(0, a.heave, 0);
+      this.body.quaternion.setFromAxisAngle(AXES.x, this.bodyTilt[1].x).multiply(_q.setFromAxisAngle(AXES.z, this.bodyTilt[0].x));
+    }
     const sr = Math.sin(a.roll), sp = Math.sin(a.pitch);
     const spin = d.spin % TAU;
     for (let i = 0; i < 4; i++) {
@@ -859,7 +901,7 @@ export class RiggedKart implements KartRig {
       if (!h || !w) continue;
       const lift = a.lift + r.x * sr - r.z * sp;
       const bob = Math.max(-T.bobMax, Math.min(T.bobMax, -lift * T.bobShare));
-      h.position.set(r.x, r.y + bob, r.z);
+      h.position.set(r.x, r.y + bob + this.susp[i].x, r.z);
       h.rotation.set(0, i < 2 ? a.steer : 0, 0);
       w.rotation.set(spin, 0, 0);
     }

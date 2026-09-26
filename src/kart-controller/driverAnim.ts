@@ -13,7 +13,7 @@
 // hit-stop. It reads the kart state, its input and the others' positions and writes none of them
 // (game/viewSim.test.ts). Every tuning number is in DRIVER_ANIM. No allocation after construction.
 import { stepSpring, type AnimPose, type KartAnim, type Reaction, type SpringTune } from './anim.ts';
-import type { InputState, KartState, Vec3 } from './types.ts';
+import type { InputState, KartState, TrackQuery, Vec3 } from './types.ts';
 
 /**
  * Every tuning number of the rigged driver, in one place (render only). Angles in radians; the kart's
@@ -29,6 +29,26 @@ export const DRIVER_ANIM = Object.freeze({
   bobMax: 0.06,
   /** rad the steering wheel turns at full lock (the road wheels' anim steerAngle is 0.38) */
   wheelTurn: 1.3,
+
+  // --- suspension: each wheel follows the road under its own hub, on top of the shared bob above
+  // (Adam, 25 Sept 2026, "will the wheels have shocks?"; research: Digital Foundry's Mario Kart World
+  // tech review, "karts bounce, squash and stretch as they make turns, jump, and grind rails"; the
+  // per-wheel raycast + spring-damper + clamped travel used by racer.nl's suspension tutorial and
+  // widely in arcade car controllers, e.g. a GameDev.net vehicle-physics thread's "wheels are just
+  // ray-casts and a whole bunch of springs", kept deliberately apart from the collision shape ("it
+  // often feels more natural to just let the springs resolve the situation"); a visual-only raycast
+  // driving just the wheel mesh's own offset, no physics, is the same idea a Reddit r/Unity3D post
+  // used for a car with "no physics use"). docs/sops/kart-controller.md Decisions has the sources)
+  /** Hz, zeta: the critically damped spring (zeta 1, no overshoot) each wheel's own travel eases through */
+  suspSpring: [7, 1] as SpringTune,
+  /** m: the most a wheel's own ground-follow travel adds beyond the shared bob (a curb, a bump, a ramp lip); past it the spring is bottomed out, like a real shock's bump stop */
+  suspMax: 0.045,
+  /** the share of the four wheels' own travel (left − right for roll, front − rear for pitch) the body bone tilts toward */
+  suspBodyShare: 0.5,
+  /** rad: the most that extra body tilt ever adds, small enough it never lifts the driver or a wheel into the body */
+  suspBodyMax: 0.045,
+  /** Hz, zeta: slower than suspSpring, so the body's own tilt visibly settles a moment after the wheel that set it does */
+  suspBodySpring: [3.5, 1] as SpringTune,
 
   // --- head: yaw on top of the kart animation's look (anim.ts), split over the neck and the head
   headSpring: [2.4, 0.82] as SpringTune,
@@ -553,11 +573,32 @@ function copyPose(to: DriverPose, from: DriverPose): void {
 }
 
 /**
+ * What a rigged kart needs to follow the road under its own four wheels this frame (KartView
+ * onFrame, render only): the track to sample (null: none this frame — a showroom, a ghost, the
+ * podium — every wheel eases back to its rest travel) and where the kart's own centre sits on it:
+ * its arc-length fraction and branch (KartState.t/.branch), its lateral offset from the centreline
+ * (metres, +right; ground.ts's lateralOffset, at the kart's own point), and its own current world Y
+ * (already snapped to its own ground, ramps included: KartState.position[1]). A wheel's own point is
+ * a small shift from these by its hub's local offset (its target is the road there, minus this Y).
+ */
+export interface WheelGround {
+  track: TrackQuery | null;
+  t: number;
+  branch: number;
+  lateral: number;
+  centerY: number;
+}
+/** No track this frame: every wheel's suspension eases back to 0 (a showroom, a ghost, the podium). */
+export const NO_GROUND: Readonly<WheelGround> = Object.freeze({ track: null, t: 0, branch: 0, lateral: 0, centerY: 0 });
+
+/**
  * What a rigged kart does with the two poses each frame (art-pipeline rigged.ts RiggedKart): the
- * chassis's springs (heave, roll, pitch, steer, lean, look, nod) and the driver's own.
+ * chassis's springs (heave, roll, pitch, steer, lean, look, nod) and the driver's own, and each
+ * wheel's own suspension travel toward the road under it (`ground`, `dt` the frame's seconds; both
+ * optional so a caller with nothing to offer, or an older one, gets today's springs alone).
  */
 export interface KartRig {
   /** the wheels' radius (m), for their roll */
   readonly wheelRadius: number;
-  apply(a: Readonly<AnimPose>, d: Readonly<DriverPose>): void;
+  apply(a: Readonly<AnimPose>, d: Readonly<DriverPose>, ground?: Readonly<WheelGround>, dt?: number): void;
 }

@@ -9,8 +9,8 @@
 import { Group, MathUtils, type Mesh, type Object3D } from 'three';
 import { KartAnim, newPose } from './anim.ts';
 import type { KartConstants } from './constants.ts';
-import { DriverAnim, newDriverPose, type DriverContext, type KartRig } from './driverAnim.ts';
-import { NEUTRAL_INPUT, type InputState, type KartState } from './types.ts';
+import { DriverAnim, newDriverPose, type DriverContext, type KartRig, type WheelGround } from './driverAnim.ts';
+import { NEUTRAL_INPUT, type InputState, type KartState, type TrackQuery, type TrackSample } from './types.ts';
 
 interface Pose { x: number; y: number; z: number; heading: number; angle: number }
 
@@ -60,6 +60,12 @@ export class KartView {
   private rig: KartRig | null;
   readonly driver: DriverAnim;
   private readonly driverPosed = newDriverPose();
+  /** reused every frame so asking the track for the kart's own lateral offset allocates nothing */
+  private readonly groundSample: TrackSample = {
+    position: [0, 0, 0], tangent: [0, 0, 0], normal: [0, 0, 0], groundY: 0, halfWidth: 0, surface: 'road', gripScale: 1,
+  };
+  /** a rigged kart's own wheel-suspension input, rebuilt in place each frame (onFrame's `track`) */
+  private readonly wheelGround: WheelGround = { track: null, t: 0, branch: 0, lateral: 0, centerY: 0 };
   /** what the driver can see, set by the race (or the podium, the showroom) before each tick */
   readonly look: DriverContext = { eye: null, faceEye: false, karts: null, self: -1 };
   /** the driver was stepped by frames while the sim waited (idle): drawn at its last step */
@@ -142,9 +148,10 @@ export class KartView {
   /**
    * Call once per frame with the accumulator fraction 0..1 and the current sim state. `reduced`
    * (reduced motion) scales the animation down. `steer` is unused (the animation reads the input
-   * per tick); kept for callers.
+   * per tick); kept for callers. `track` (null: none, as the showroom and the podium have): a
+   * rigged kart's own wheels follow the road under them (art-pipeline rigged.ts RiggedKart.apply).
    */
-  onFrame(alpha: number, s: KartState, _steer: number, frameDt: number, reduced = false): void {
+  onFrame(alpha: number, s: KartState, _steer: number, frameDt: number, reduced = false, track: TrackQuery | null = null): void {
     const p = this.prev, q = this.curr;
     let dh = q.heading - p.heading;
     while (dh > Math.PI) dh -= 2 * Math.PI;
@@ -186,7 +193,22 @@ export class KartView {
       if (r.steer >= 0) inf[r.steer] = a.steer * r.perRad;
       if (r.heave >= 0) inf[r.heave] = a.heave * r.perRad;
     }
-    // a racer built from parts: the same springs and the driver's own animation on its bones
-    if (this.rig) this.rig.apply(a, this.driver.pose(this.idled ? 1 : alpha, reduced, this.driverPosed));
+    // a racer built from parts: the same springs and the driver's own animation on its bones, and
+    // (a track to ask) each wheel's own travel toward the road under it
+    if (this.rig) {
+      const g = this.wheelGround;
+      g.track = track;
+      if (track) {
+        // the kart's own lateral offset from the centreline at its own t (ground.ts's lateralOffset,
+        // done here without its allocation): the point each wheel's own offset is measured from
+        const c = track.sampleInto ? track.sampleInto(s.t, 0, s.branch, this.groundSample) : track.sample(s.t, 0, s.branch);
+        const dx = s.position[0] - c.position[0], dz = s.position[2] - c.position[2];
+        g.t = s.t;
+        g.branch = s.branch;
+        g.lateral = dx * c.tangent[2] - dz * c.tangent[0];
+        g.centerY = s.position[1];
+      }
+      this.rig.apply(a, this.driver.pose(this.idled ? 1 : alpha, reduced, this.driverPosed), g, frameDt);
+    }
   }
 }

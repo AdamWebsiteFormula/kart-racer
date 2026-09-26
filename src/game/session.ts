@@ -223,7 +223,7 @@ export class RaceSession {
         this.views[k].idle(st.karts[k], frameDt);
       }
     }
-    for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt, reduced);
+    for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt, reduced, this.track);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k], st.time, reduced);
     const live = this.live;

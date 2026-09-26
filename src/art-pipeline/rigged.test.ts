@@ -5,10 +5,11 @@
 // animation on the bones (wheels roll and steer, the steering wheel turns and the hands go with it,
 // head, spine, body on its springs, a gesture's aim).
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { DataTexture, Matrix4, Quaternion, Vector3, type Bone, type MeshStandardMaterial, type Object3D, type SkinnedMesh, type Texture } from 'three';
+import { DataTexture, Euler, Matrix4, Quaternion, Vector3, type Bone, type MeshStandardMaterial, type Object3D, type SkinnedMesh, type Texture } from 'three';
 import { newPose } from '../kart-controller/anim.ts';
-import { DRIVER_ANIM, newDriverPose } from '../kart-controller/driverAnim.ts';
+import { DRIVER_ANIM, newDriverPose, type WheelGround } from '../kart-controller/driverAnim.ts';
 import { KART_ANIM } from '../kart-controller/anim.ts';
+import type { TrackJump, TrackQuery, TrackSample } from '../kart-controller/types.ts';
 import { SEATS } from './bodies.ts';
 import { RACER_MODELS, RacerModels, textureWithImage } from './glb.ts';
 import { buildRacerMesh, exhaustFor } from './kart.ts';
@@ -196,6 +197,124 @@ describe('RiggedKart: the animation on the bones', () => {
     const hand = world(bone(k, 'RightHand')).sub(world(bone(k, 'RightForeArm'))).normalize();
     expect(hand.y).toBeGreaterThan(0.95);
     for (const b of mesh(k).skeleton.bones) expect(Number.isFinite(b.quaternion.x)).toBe(true);
+  });
+});
+
+describe('per-wheel suspension: each wheel follows the road under its own hub', () => {
+  /** A flat TrackQuery whose height is `h(t, lateral)`; both sample() and sampleInto() (the fast path a real Track offers). */
+  const stubTrack = (h: (t: number, lateral: number) => number, jumps: TrackJump[] = []): TrackQuery => {
+    const fill = (t: number, lateral: number, out: TrackSample): TrackSample => {
+      const y = h(t, lateral);
+      out.position[0] = 0; out.position[1] = y; out.position[2] = t * 100;
+      out.tangent[0] = 0; out.tangent[1] = 0; out.tangent[2] = 1;
+      out.normal[0] = 0; out.normal[1] = 1; out.normal[2] = 0;
+      out.groundY = y; out.halfWidth = 8; out.surface = 'road'; out.gripScale = 1; out.open = 0;
+      return out;
+    };
+    return {
+      length: 100, jumps, boostPads: [], voidY: -50,
+      sample: (t, lateral) => fill(t, lateral, { position: [0, 0, 0], tangent: [0, 0, 0], normal: [0, 0, 0], groundY: 0, halfWidth: 0, surface: 'road', gripScale: 1 }),
+      sampleInto: (t, lateral, _branch, out) => fill(t, lateral, out),
+      nearestT: () => 0,
+      nearest: () => ({ t: 0, branch: 0 }),
+    };
+  };
+  /** Roll and pitch the body bone's own extra tilt reads as (kart-controller view.ts's chassis convention: x pitch, z roll, 'YXZ'). */
+  const bodyTilt = (k: Object3D) => new Euler().setFromQuaternion(bone(k, 'body').quaternion, 'YXZ');
+  const hubY = (k: Object3D, n: string) => bone(k, n).position.y;
+  const settle = (rig: RiggedKart, a: ReturnType<typeof newPose>, d: ReturnType<typeof newDriverPose>, ground: WheelGround, seconds = 4, dt = 1 / 60) => {
+    for (let s = 0; s < seconds / dt; s++) rig.apply(a, d, ground, dt);
+  };
+
+  it('with no track this frame, an old caller (2 args) sees exactly today\'s wheels: no travel added', () => {
+    const k = makeRigged(t), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    rig.apply(a, d);
+    const base = hubY(k, 'hubFL');
+    // a later frame with a track but dt 0 (a paused frame) moves nothing either
+    rig.apply(a, d, { track: stubTrack(() => 5), t: 0, branch: 0, lateral: 0, centerY: 0 }, 0);
+    expect(hubY(k, 'hubFL')).toBeCloseTo(base, 9);
+    expect(bodyTilt(k).z).toBeCloseTo(0, 9);
+  });
+
+  it('a wheel over a raised curb settles onto it, clamped to suspMax; the level side does not move; the body rolls toward it by the set share', () => {
+    const k = makeRigged(t), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    rig.apply(a, d); // base hub heights (bob and susp both 0)
+    const baseFL = hubY(k, 'hubFL'), baseFR = hubY(k, 'hubFR'), baseRL = hubY(k, 'hubRL'), baseRR = hubY(k, 'hubRR');
+    // the road is 1 m higher wherever lateral > 0 (hubFL/hubRL sit at +x, hubFR/hubRR at -x: hubSlot's own invariant)
+    const ground: WheelGround = { track: stubTrack((_t, lateral) => (lateral > 0 ? 1 : 0)), t: 0, branch: 0, lateral: 0, centerY: 0 };
+    settle(rig, a, d, ground);
+    expect(hubY(k, 'hubFL') - baseFL).toBeCloseTo(DRIVER_ANIM.suspMax, 3); // bottomed out on its bump stop
+    expect(hubY(k, 'hubRL') - baseRL).toBeCloseTo(DRIVER_ANIM.suspMax, 3);
+    expect(hubY(k, 'hubFR') - baseFR).toBeCloseTo(0, 3); // level ground under it: no travel
+    expect(hubY(k, 'hubRR') - baseRR).toBeCloseTo(0, 3);
+    // the body rolls toward the raised (+x) side by suspBodyShare of the difference, clamped to suspBodyMax
+    const wantRoll = Math.min(DRIVER_ANIM.suspBodyMax, DRIVER_ANIM.suspBodyShare * DRIVER_ANIM.suspMax);
+    expect(bodyTilt(k).z).toBeCloseTo(wantRoll, 3);
+    expect(bodyTilt(k).x).toBeCloseTo(0, 3); // no front/rear difference here: no pitch
+  });
+
+  it('a ramp lip ahead lifts the front wheels first; the body pitches nose-up toward them by the set share', () => {
+    const k = makeRigged(t), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    rig.apply(a, d);
+    const baseFL = hubY(k, 'hubFL'), baseRL = hubY(k, 'hubRL');
+    // the road rises 1 m from the kart's own t on: the front wheels (+z) reach it, the rear (-z) do not
+    const ground: WheelGround = { track: stubTrack((tt) => (tt > 0 ? 1 : 0)), t: 0, branch: 0, lateral: 0, centerY: 0 };
+    settle(rig, a, d, ground);
+    expect(hubY(k, 'hubFL') - baseFL).toBeCloseTo(DRIVER_ANIM.suspMax, 3);
+    expect(hubY(k, 'hubRL') - baseRL).toBeCloseTo(0, 3);
+    // + pitch dips the nose (AnimPose's convention), so a nose-up tilt from the front lifting is negative
+    const wantPitch = -Math.min(DRIVER_ANIM.suspBodyMax, DRIVER_ANIM.suspBodyShare * DRIVER_ANIM.suspMax);
+    expect(bodyTilt(k).x).toBeCloseTo(wantPitch, 3);
+  });
+
+  it('settles toward a moderate target too (not just the clamp), and eases back to 0 once the road is level again', () => {
+    const k = makeRigged(t), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    rig.apply(a, d);
+    const base = hubY(k, 'hubFL');
+    const small = DRIVER_ANIM.suspMax * 0.4; // well inside the clamp
+    const ground: WheelGround = { track: stubTrack(() => small), t: 0, branch: 0, lateral: 0, centerY: 0 };
+    settle(rig, a, d, ground);
+    expect(hubY(k, 'hubFL') - base).toBeCloseTo(small, 3);
+    // the road levels out: the same spring eases back down, not a jump
+    const level: WheelGround = { track: stubTrack(() => 0), t: 0, branch: 0, lateral: 0, centerY: 0 };
+    rig.apply(a, d, level, 1 / 60);
+    expect(hubY(k, 'hubFL')).toBeLessThan(base + small);
+    expect(hubY(k, 'hubFL')).toBeGreaterThan(base);
+    settle(rig, a, d, level);
+    expect(hubY(k, 'hubFL') - base).toBeCloseTo(0, 3);
+  });
+
+  it('no NaN on landings: a kart high in the air over the road, then set down on it, stays finite throughout', () => {
+    const k = makeRigged(t), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    const flat = stubTrack(() => 0);
+    const airborne: WheelGround = { track: flat, t: 0, branch: 0, lateral: 0, centerY: 40 }; // far above the road
+    for (let s = 0; s < 30; s++) {
+      rig.apply(a, d, airborne, 1 / 60);
+      for (const n of ['hubFL', 'hubFR', 'hubRL', 'hubRR']) expect(Number.isFinite(hubY(k, n))).toBe(true);
+      expect(Number.isFinite(bodyTilt(k).x)).toBe(true);
+      expect(Number.isFinite(bodyTilt(k).z)).toBe(true);
+    }
+    const landed: WheelGround = { ...airborne, centerY: 0 }; // the instant it touches down
+    for (let s = 0; s < 60; s++) {
+      rig.apply(a, d, landed, 1 / 60);
+      for (const n of ['hubFL', 'hubFR', 'hubRL', 'hubRR']) expect(Number.isFinite(hubY(k, n))).toBe(true);
+    }
+    expect(hubY(k, 'hubFL') - hubY(k, 'hubFR')).toBeCloseTo(0, 2); // settled level again
+  });
+
+  it('no NaN however the track answers: a groundY of NaN is caught, not carried into the springs', () => {
+    const k = makeRigged(t), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    const broken: WheelGround = { track: stubTrack(() => Number.NaN), t: 0, branch: 0, lateral: 0, centerY: 0 };
+    for (let s = 0; s < 30; s++) {
+      rig.apply(a, d, broken, 1 / 60);
+      for (const n of ['hubFL', 'hubFR', 'hubRL', 'hubRR']) expect(Number.isFinite(hubY(k, n))).toBe(true);
+    }
   });
 });
 
