@@ -43,7 +43,7 @@ export function trackAssets(biome?: string): TrackAssets {
     if (file) { geometries[name] = file.geometry; materials[name] = file.material; }
   }
   const surfaces = biome ? {
-    ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome),
+    ground: (kind: string, size: number, sunDirection?: readonly [number, number, number]) => groundMaterial(biome, kind, size, sunDirection), roadMap: roadGrain(), coast: () => coastMaterial(biome),
     // (the PBR look adds the road's racing line, tire marks and its own grain, per biome: roadDetail)
     road: (m: MeshToonMaterial) => { roadWear(m, biome); if (isPbr()) roadDetail(m, biome); },
     // Frostbite's lake on the snow, frozen by its Final Lap Shift (surfaces.ts FROST_LAKE)

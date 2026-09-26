@@ -5,7 +5,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { ROAD_LOOKS, trackAssets } from './index.ts';
 import { DEFAULT_LOOK, setLook } from './look.ts';
-import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR } from './surfaces.ts';
+import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, waterMaterial } from './surfaces.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 
@@ -147,5 +147,69 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
     expect(ROAD_RELIEF_FAR[1]).toBeGreaterThan(100);
     expect(GROUND_RELIEF_FAR[0]).toBeGreaterThan(15); // still crisp close up, not blurred near the kart
     expect(ROAD_RELIEF_FAR[0]).toBeGreaterThan(10);
+  });
+});
+
+describe('the sea (waterMaterial, waterDepth.ts): see-through, drawn first among see-through things, falls back cleanly', () => {
+  it('is transparent with depthWrite on, so later see-through things (shiftFx clouds, ghosts) still depth-test against its own surface', () => {
+    const m = waterMaterial('harbour');
+    expect(m.transparent).toBe(true);
+    expect(m.depthWrite).toBe(true);
+    expect(m.type).toBe('ShaderMaterial');
+  });
+
+  it('every sea biome falls back to the unknown-biome default (harbour) the same way groundMaterial does', () => {
+    expect(waterMaterial('not-a-real-biome')).toBe(waterMaterial('harbour'));
+  });
+
+  it('boardwalk is the night palette, harbour the day one', () => {
+    expect(waterMaterial('boardwalk').uniforms.night.value).toBe(1);
+    expect(waterMaterial('harbour').uniforms.night.value).toBe(0);
+  });
+
+  it('userData.attachDepth wires a mesh\'s onBeforeRender to the depth capture, without art-pipeline being imported by scene.ts (userData convention, like sharedMaterial)', () => {
+    const m = waterMaterial('harbour');
+    const attach = m.userData.attachDepth as ((mesh: { onBeforeRender?: unknown }) => void) | undefined;
+    expect(attach).toBeTypeOf('function');
+    const fakeMesh: { onBeforeRender?: (renderer: WebGLRenderer, scene: unknown, camera: unknown) => void } = {};
+    attach!(fakeMesh);
+    expect(fakeMesh.onBeforeRender).toBeTypeOf('function');
+  });
+
+  it('the capture falls back to uHasDepth = 0 (today\'s opaque look) when the renderer has no active render target, instead of throwing', () => {
+    const m = waterMaterial('harbour');
+    const attach = m.userData.attachDepth as (mesh: { onBeforeRender?: (r: WebGLRenderer, s: unknown, c: unknown) => void }) => void;
+    const fakeMesh: { onBeforeRender?: (r: WebGLRenderer, s: unknown, c: unknown) => void } = {};
+    attach(fakeMesh);
+    m.uniforms.uHasDepth.value = 1; // prove the hook actually ran and changed it, not that it was already 0
+    const fakeRenderer = { getRenderTarget: () => null } as unknown as WebGLRenderer;
+    expect(() => fakeMesh.onBeforeRender!(fakeRenderer, {}, {})).not.toThrow();
+    expect(m.uniforms.uHasDepth.value).toBe(0);
+  });
+
+  it('every call updates the shared material\'s sun direction (a mirrored race, mirror.ts, flips x on the very same biome; sunDir must not be baked in once)', () => {
+    const a = waterMaterial('harbour', [0.4, 0.8, 0.3]);
+    const dirA = (a.uniforms.sunDir.value as { x: number }).x;
+    const b = waterMaterial('harbour', [-0.4, 0.8, 0.3]);
+    expect(b).toBe(a); // the very same shared material
+    const dirB = (b.uniforms.sunDir.value as { x: number }).x;
+    expect(dirB).toBeLessThan(0);
+    expect(Math.sign(dirB)).not.toBe(Math.sign(dirA));
+  });
+
+  it("Harbour Loop's real scene: the water plane draws renderOrder -2 (right after every opaque thing, before every other see-through thing) and its onBeforeRender is really wired to the depth capture, not the default no-op", () => {
+    const def = TRACKS.find((d) => d.id === 'harbour-loop')!;
+    const scene = buildTrackScene(buildTrack(def), trackAssets(def.biome));
+    const ground = scene.group.getObjectByName('ground-water') as Mesh;
+    expect(ground).toBeTruthy();
+    expect(ground.renderOrder).toBe(-2);
+    const water = waterMaterial('harbour');
+    expect(ground.material).toBe(water);
+    // behavioural, not a prototype check: a no-op onBeforeRender would leave uHasDepth untouched
+    water.uniforms.uHasDepth.value = 1;
+    const fakeRenderer = { getRenderTarget: () => null } as unknown as WebGLRenderer;
+    ground.onBeforeRender(fakeRenderer, scene.group as never, {} as never, ground.geometry, water, undefined as never);
+    expect(water.uniforms.uHasDepth.value).toBe(0);
+    scene.dispose();
   });
 });

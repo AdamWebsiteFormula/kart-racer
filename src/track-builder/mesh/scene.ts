@@ -44,8 +44,8 @@ export interface TrackAssets {
   gradientMap?: Texture;
   /** a model file's own (textured) material for an asset key, same keys as `geometries`; never disposed by the scene */
   materials?: Record<string, Material>;
-  /** the ground plane's material (painted land, animated water); never disposed by the scene */
-  ground?: (kind: string, size: number) => Material | undefined;
+  /** the ground plane's material (painted land, animated water), given the track's own fixed sun direction (env.sunDirection: the water's own glint, art-pipeline surfaces.ts, follows it); never disposed by the scene */
+  ground?: (kind: string, size: number, sunDirection?: readonly [number, number, number]) => Material | undefined;
   /** a fine grain multiplied over every road's colours (not on planked roads); never disposed by the scene */
   roadMap?: Texture;
   /** the road's wear and sheen (art-pipeline surfaces.ts roadWear), patched onto the road material after its lines: same material, same draws */
@@ -1043,13 +1043,27 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   /** the near land/coast mesh (bake target: fine grid, already vertex-coloured), when this track has one */
   let coastMesh: Mesh | undefined;
   if (groundKind !== 'none') {
-    const own = assets.ground?.(groundKind, GROUND_SIZE);
+    const own = assets.ground?.(groundKind, GROUND_SIZE, env.sunDirection);
     const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), own ?? new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
     if (own) ground.userData.sharedMaterial = true;
     OWNED.add(ground.geometry);
     ground.name = `ground-${groundKind}`;
     ground.position.y = groundY;
     ground.receiveShadow = true;
+    if (groundKind === 'water') {
+      // see-through (its own material sets transparent/depthWrite), drawn right after every opaque
+      // thing and before every other see-through thing (shiftFx clouds -1, flames/glows 2, vents 2-3,
+      // particles 10, trails 20, kartFade ghosts), so its own onBeforeRender (below) reads exactly the
+      // opaque scene's depth: art-pipeline waterDepth.ts
+      ground.renderOrder = -2;
+      // a generic hook (any ground material may want one), so track-builder never imports art-pipeline
+      (own?.userData.attachDepth as ((mesh: Object3D) => void) | undefined)?.(ground);
+      // a companion mesh with real geometry near the camera (art-pipeline waterWaves.ts): the flat
+      // plane above has only two triangles, nowhere near enough to show a swell; this one shares its
+      // material (so the very same depth capture, translucency and foam apply) and follows the camera
+      const waveGrid = (own?.userData.waveGrid as ((waterY: number) => Object3D) | undefined)?.(groundY);
+      if (waveGrid) group.add(waveGrid);
+    }
     group.add(ground);
     // a sea track gets a coast along the road, a land track hills under its raised road, so every
     // roadside prop stands on ground and no road floats
