@@ -620,7 +620,7 @@ export const RACER_ENV = 0.5;
  * invisible there) and a night or backlit one gets exactly the lift it is missing, with no new scene
  * light (the ≤3-light budget, CLAUDE.md) and nothing to tune per track.
  */
-export const RACER_RIM = Object.freeze({ power: 2.6, strength: 0.55, color: [1, 0.98, 0.94] as const });
+export const RACER_RIM = Object.freeze({ power: 5, strength: 0.22, color: [1, 0.98, 0.94] as const }); // a thin edge line, as MKW's edge-lit racers (power 2.6, strength 0.55 whitewashed faceted rock and dark fur, 25 Sept)
 
 const RACER_RIM_DEFINES = `#define LK_RIM_POWER ${RACER_RIM.power.toFixed(3)}
 #define LK_RIM_STRENGTH ${RACER_RIM.strength.toFixed(3)}
