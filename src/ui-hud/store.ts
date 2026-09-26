@@ -14,6 +14,8 @@ export interface Settings {
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
+  /** the racers' voice lines (audio/barks.ts); absent in saves before 26 Sept 2026 */
+  voiceVolume: number;
   reducedMotion: 'auto' | 'on' | 'off';
   iconLabels: boolean;
   resolutionScale: number;
@@ -50,7 +52,7 @@ export const SAVE_KEY = 'kart-racer.save.v1';
 export const SAVE_VERSION = 1;
 
 export function defaultSettings(): Settings {
-  return { autoAccelerate: false, steeringAssist: false, quality: 'auto', masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.8, reducedMotion: 'auto', iconLabels: false, resolutionScale: 1, selectedRacerId: 'pip', selectedBodyId: DEFAULT_BODY, skinByRacer: {} };
+  return { autoAccelerate: false, steeringAssist: false, quality: 'auto', masterVolume: 0.8, musicVolume: 0.7, sfxVolume: 0.8, voiceVolume: 0.8, reducedMotion: 'auto', iconLabels: false, resolutionScale: 1, selectedRacerId: 'pip', selectedBodyId: DEFAULT_BODY, skinByRacer: {} };
 }
 
 export function defaultSave(): Save {
@@ -169,6 +171,7 @@ function sanitiseSettings(raw: unknown, unlocked: Save['unlocked'] = { skins: []
     masterVolume: num(r.masterVolume, 0, 1, d.masterVolume),
     musicVolume: num(r.musicVolume, 0, 1, d.musicVolume),
     sfxVolume: num(r.sfxVolume, 0, 1, d.sfxVolume),
+    voiceVolume: num(r.voiceVolume, 0, 1, d.voiceVolume),
     reducedMotion: oneOf(r.reducedMotion, ['auto', 'on', 'off'] as const, d.reducedMotion),
     iconLabels: typeof r.iconLabels === 'boolean' ? r.iconLabels : d.iconLabels,
     resolutionScale: num(r.resolutionScale, 0.5, 1, d.resolutionScale),

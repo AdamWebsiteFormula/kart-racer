@@ -2,6 +2,7 @@
 import type { InputState, KartState } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
+import { Barker, BARK_DUCK, type TakeCount } from './barks.ts';
 import { AudioBus, type Volumes } from './bus.ts';
 import { AUDIO } from './constants.ts';
 import { direct, hornFor, resetDirector, type Listener } from './director.ts';
@@ -11,7 +12,7 @@ import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
 import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
 import { noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
-import type { Cue, MusicCue, SfxId, SongId } from './types.ts';
+import type { BarkCue, Cue, MusicCue, SfxId, SongId } from './types.ts';
 import { mergeCues, rouletteGap, Voices } from './voices.ts';
 
 interface EngineVoice {
@@ -61,6 +62,10 @@ export class GameAudio {
   private readonly voices = new Voices();
   /** the roulette's last tick, cut when the next one starts so ticks never pile up */
   private tickVoice: Voice | null = null;
+  /** who says what and when (barks.ts), and the line ringing now (one at a time) */
+  private readonly barker = new Barker();
+  private barkVoice: Voice | null = null;
+  private readonly takes: TakeCount = (racerId, bark) => this.bank.voiceCount(racerId, bark);
 
   constructor(bus = new AudioBus(), bank = new SampleBank()) {
     this.bus = bus;
@@ -85,6 +90,7 @@ export class GameAudio {
     if (this.timer) return;
     this.timer = setInterval(() => this.pump(), AUDIO.schedulerTickMs);
     void this.bank.load(this.bus.ctx!);
+    void this.bank.loadVoices(this.bus.ctx!);
     if (!this.awaitGo && (this.wantSong || this.wantKey)) this.play(this.wantSong, this.wantKey);
   }
 
@@ -170,6 +176,7 @@ export class GameAudio {
    */
   newRace(song: SongId, trackId?: string, gridRank?: number, finishLine?: number, balloons = true): void {
     resetDirector(gridRank, finishLine, balloons);
+    this.barker.reset(gridRank ?? null, finishLine ?? AUDIO.podium);
     this.trackId = trackId ?? '';
     this.stingEnds = 0;
     this.songId = null;
@@ -224,6 +231,27 @@ export class GameAudio {
     return null;
   }
 
+  /** The Racer screen: the racer just picked says their line (Mario Kart's racers greet you the same way). */
+  select(racerId: string): void {
+    if (!this.bus.running) return;
+    const b = this.barker.select(racerId, this.takes, this.bus.time);
+    if (b) this.say(b, true);
+  }
+
+  /**
+   * A racer's line on the voice bus, one at a time: a line the barker lets cut in stops the one
+   * ringing. The music dips a little (−3 dB) under the player's own lines so the words carry.
+   */
+  private say(b: BarkCue, own: boolean): void {
+    const ctx = this.bus.ctx, s = this.bank.voiceLine(b.racerId, b.bark, b.n);
+    if (!ctx || !s || !this.bus.voice) return;
+    const t = ctx.currentTime + 0.005, seconds = s.end - s.start;
+    if (this.barkVoice && t < this.barker.until) this.barkVoice.stop(t);
+    this.barkVoice = playSample(ctx, this.bus.voice, s, t, b.gain * AUDIO.voiceLevel, b.pan);
+    this.barker.until = this.bus.time + seconds;
+    if (own) this.bus.musicDuck(seconds, BARK_DUCK);
+  }
+
   ui(kind: 'move' | 'confirm' | 'back'): void {
     this.sfx(kind === 'move' ? 'uiMove' : kind === 'confirm' ? 'uiConfirm' : 'uiBack');
   }
@@ -232,8 +260,14 @@ export class GameAudio {
   tick(race: readonly RaceEvent[], items: readonly ItemEvent[], l: Listener): void {
     if (!this.bus.running) return;
     const { cues, music } = direct(race, items, l, this.cues, this.music);
-    // one of each sound a tick, the loudest (a strike's three spins, a pile-up's bumps)
-    for (const c of mergeCues(cues)) this.sfx(c.sfx, c.gain, c.pan, c.rate);
+    // one of each sound a tick, the loudest (a strike's three spins, a pile-up's bumps); a racer
+    // whose lines are recorded says their own hit line (barks) in place of the creature yelp
+    for (const c of mergeCues(cues)) {
+      if (c.sfx.startsWith('yelp:') && this.bank.voiceCount(c.sfx.slice(5), 'hit') > 0) continue;
+      this.sfx(c.sfx, c.gain, c.pan, c.rate);
+    }
+    const bark = this.barker.pick(race, items, l, this.bus.time, this.takes);
+    if (bark) this.say(bark, bark.racerId === l.playerId);
     for (const m of music) {
       if (m.type === 'finalLap') {
         if (this.songKey) this.song?.lift(this.bus.time); else this.seq?.lift(this.bus.time);

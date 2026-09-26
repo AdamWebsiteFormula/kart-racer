@@ -1,15 +1,16 @@
 // One AudioContext, created and resumed on the first user gesture (Safari and Chrome both need
-// it). Graph: sfx → master; music → duck gain (big sounds) → presence dip (room for the cues) →
+// it). Graph: sfx → master; voice (the racers' lines) → master; music → duck gain (big sounds) → presence dip (room for the cues) →
 // low-pass (the hit duck, the pause) → master; master → top-octave low-pass → compressor → limiter → out.
 import { AUDIO } from './constants.ts';
 
-export interface Volumes { master: number; music: number; sfx: number }
+/** Slider values 0–1; `voice` is the racers' lines (a separate slider for speech: Game Accessibility Guidelines, basic). */
+export interface Volumes { master: number; music: number; sfx: number; voice: number }
 
 /** The gains the buses get for a set of slider values (0–1 each). Pure. */
-export function busGains(v: Volumes): { master: number; music: number; sfx: number } {
+export function busGains(v: Volumes): { master: number; music: number; sfx: number; voice: number } {
   const c = (x: number) => Math.min(1, Math.max(0, x));
   // perceptual: the square of the slider, so 50 % sounds like half, not a quarter off
-  return { master: AUDIO.master * c(v.master) ** 2, music: c(v.music) ** 2, sfx: c(v.sfx) ** 2 };
+  return { master: AUDIO.master * c(v.master) ** 2, music: c(v.music) ** 2, sfx: c(v.sfx) ** 2, voice: c(v.voice) ** 2 };
 }
 
 type Ctor = new () => AudioContext;
@@ -19,12 +20,14 @@ export class AudioBus {
   master: GainNode | null = null;
   music: GainNode | null = null;
   sfx: GainNode | null = null;
+  /** the racers' voice lines (audio.ts `say`) */
+  voice: GainNode | null = null;
   musicFilter: BiquadFilterNode | null = null;
   /** the music's own dip under a big sound (`musicDuck`), apart from the volume slider and the pause */
   musicDuckGain: GainNode | null = null;
   /** a wide dip in the music's presence band, so the cues are not masked there (`AUDIO.musicPocket`) */
   musicPocket: BiquadFilterNode | null = null;
-  private volumes: Volumes = { master: 0.8, music: 0.7, sfx: 0.8 };
+  private volumes: Volumes = { master: 0.8, music: 0.7, sfx: 0.8, voice: 0.8 };
   private readonly Ctx: Ctor | undefined;
   private readonly listeners: (() => void)[] = [];
 
@@ -109,7 +112,9 @@ export class AudioBus {
     music.connect(duck);
     const sfx = ctx.createGain();
     sfx.connect(master);
-    Object.assign(this, { ctx, master, music, sfx, musicFilter: lp, musicDuckGain: duck, musicPocket: pocket });
+    const voice = ctx.createGain();
+    voice.connect(master);
+    Object.assign(this, { ctx, master, music, sfx, voice, musicFilter: lp, musicDuckGain: duck, musicPocket: pocket });
     this.setVolumes(this.volumes);
     if (this.paused) this.setPaused(true);
   }
@@ -121,6 +126,7 @@ export class AudioBus {
     this.master!.gain.setTargetAtTime(g.master, t, 0.03);
     this.music!.gain.setTargetAtTime(g.music * (this.paused ? AUDIO.pause.music : 1), t, 0.03);
     this.sfx!.gain.setTargetAtTime(g.sfx, t, 0.03);
+    this.voice!.gain.setTargetAtTime(g.voice, t, 0.03);
   }
 
   /** The hit duck: the music drops behind a low-pass for a moment. */

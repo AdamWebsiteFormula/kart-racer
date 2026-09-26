@@ -72,6 +72,8 @@ export interface UiHost {
   screenChanged?(app: AppState): void;
   /** a menu blip: focus moved, something was picked, or we went back */
   uiSound?(kind: 'move' | 'confirm' | 'back'): void;
+  /** a racer was picked on the Racer screen: they say their line (audio barks) */
+  racerPicked?(racerId: string): void;
   /** the global leaderboard; absent means no board on the results screen */
   readonly leaderboard?: LeaderboardClient;
   /** the player has finished and pressed on (Enter, pad A or a tap): end the grace and show the results now */
@@ -331,6 +333,7 @@ export class UiRoot {
     if (wasPaused !== nowPaused) this.host.setPaused(nowPaused);
     // every pause opens on Resume: a Quit or Restart remembered from the last one ended the race on Enter (bug hunt 3)
     if (wasPaused && !nowPaused) this.focusBy.delete('pause');
+    if (a.type === 'pickRacer' && prev.screen === 'rosterSelect') this.host.racerPicked?.(next.racerId);
     if (a.type === 'pickRacer' || a.type === 'setSpeedClass') {
       this.save.settings.selectedRacerId = next.racerId;
       writeSave(this.backend, this.save);

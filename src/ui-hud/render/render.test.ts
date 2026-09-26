@@ -342,7 +342,7 @@ describe('UiRoot', () => {
     key('ArrowLeft');
     expect(ui.save.settings.masterVolume).toBeCloseTo(before - 0.1);
     // reduced motion writes the root attribute the stylesheet keys on (no Fullscreen row in jsdom)
-    for (let i = 0; i < 5; i++) key('ArrowDown');
+    for (let i = 0; i < 6; i++) key('ArrowDown');
     key('ArrowRight'); // Follow system → On
     expect(document.documentElement.dataset.reducedMotion).toBe('on');
     expect(UI.reducedMotionMs).toBe(1);

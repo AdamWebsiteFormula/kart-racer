@@ -69,8 +69,8 @@ describe('sfx patches', () => {
 
 describe('bus', () => {
   it('volumes map through a perceptual square, clamped', () => {
-    expect(busGains({ master: 1, music: 0.5, sfx: 2 })).toEqual({ master: AUDIO.master, music: 0.25, sfx: 1 });
-    expect(busGains({ master: -1, music: 0, sfx: 0 }).master).toBe(0);
+    expect(busGains({ master: 1, music: 0.5, sfx: 2, voice: 0.5 })).toEqual({ master: AUDIO.master, music: 0.25, sfx: 1, voice: 0.25 });
+    expect(busGains({ master: -1, music: 0, sfx: 0, voice: 0 }).master).toBe(0);
   });
 
   it('nothing exists until a gesture; then the graph is music → duck → presence dip → low-pass → master → top low-pass → compressor → limiter → out', () => {
@@ -133,14 +133,16 @@ describe('bus', () => {
     bus.duck();
     const f = (bus as unknown as { musicFilter: { frequency: Param } }).musicFilter.frequency;
     expect(f.calls.find((c) => c[0] === 'set')?.[1]).toBe(AUDIO.duckHz);
-    bus.setVolumes({ master: 0.5, music: 1, sfx: 1 });
+    bus.setVolumes({ master: 0.5, music: 1, sfx: 1, voice: 0.5 });
     const m = (bus as unknown as { master: { gain: Param } }).master.gain;
     expect(m.value).toBeCloseTo(AUDIO.master * 0.25);
+    // the racers' lines have their own slider (speech apart from effects and music)
+    expect((bus as unknown as { voice: { gain: Param } }).voice.gain.value).toBeCloseTo(0.25);
   });
 
   it('without Web Audio at all the game still runs silently', () => {
     const bus = new AudioBus(undefined);
     expect(bus.unlock()).toBe(false);
-    expect(() => { bus.duck(); bus.setHidden(true); bus.setVolumes({ master: 1, music: 1, sfx: 1 }); }).not.toThrow();
+    expect(() => { bus.duck(); bus.setHidden(true); bus.setVolumes({ master: 1, music: 1, sfx: 1, voice: 1 }); }).not.toThrow();
   });
 });

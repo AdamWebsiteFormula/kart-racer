@@ -77,4 +77,6 @@ export const AUDIO = Object.freeze({
   limiterDb: -6,
   /** the worst place that still earns the finish fanfare outside a Knockout (the podium) */
   podium: 3,
+  /** the racers' voice lines on their bus, over the level every recording is cut to (samples.ts cutSfx) */
+  voiceLevel: 1,
 });

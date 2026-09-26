@@ -4,6 +4,7 @@
 // thin Web Audio.
 import { AUDIO } from './constants.ts';
 import { engineCutoff } from './engine.ts';
+import type { Bark } from './types.ts';
 
 export interface Manifest {
   sfx: Record<string, { url: string; loop?: boolean }>;
@@ -454,6 +455,20 @@ const TIER_OF: ReadonlyMap<string, number> = new Map(SFX_TIERS.flatMap((ids, tie
 export const sfxTier = (id: string): number => TIER_OF.get(id) ?? (id.startsWith('yelp:') ? 2 : SFX_TIERS.length);
 /** The turn a song is fetched at: one is only asked for when it is wanted now (the title on the first key press, a race's as it loads). */
 export const SONG_TIER = 0;
+/** The racers' voice lines come down after every sound effect: a line not in yet is simply not said. */
+export const VOICE_TIER = SFX_TIERS.length + 1;
+
+/** The racers' voice lines (public/audio/voice.json, written by scripts/voice/build.ts): racer → moment → files, in take order. */
+export type VoiceManifest = Record<string, Partial<Record<Bark, string[]>>>;
+
+/**
+ * A context that decodes at the voice lines' own 24 kHz (half the memory of the game's 48 kHz; an
+ * AudioBuffer plays in any context), or the game's own where the browser has none.
+ */
+function voiceContext(ctx: BaseAudioContext): BaseAudioContext {
+  const Off = (globalThis as { OfflineAudioContext?: new (channels: number, length: number, rate: number) => BaseAudioContext }).OfflineAudioContext;
+  try { return Off ? new Off(1, 1, 24000) : ctx; } catch { return ctx; }
+}
 
 /**
  * Runs a file's download when its turn comes (main.ts: the game's one background line,
@@ -470,6 +485,9 @@ export class SampleBank {
   private manifest: Manifest | null = null;
   private readonly sfx = new Map<string, Sample>();
   private readonly songs = new Map<string, Promise<Sample | null>>();
+  /** each racer's lines by `racer:moment`, in take order; a moment is here only once all its takes are in */
+  private readonly lines = new Map<string, Sample[]>();
+  private voicing: Promise<void> | null = null;
   /** songs whose recording is decoded and kept */
   private readonly ready = new Set<string>();
   private loading: Promise<void> | null = null;
@@ -524,6 +542,29 @@ export class SampleBank {
   }
 
   get(id: string): Sample | undefined { return this.sfx.get(id); }
+
+  /**
+   * Fetch the voice list, then every racer's lines at VOICE_TIER, each levelled like a sound effect
+   * (cutSfx) as it lands. Safe to call again; fails soft (no list, no lines: nobody speaks).
+   */
+  loadVoices(ctx: BaseAudioContext): Promise<void> {
+    this.voicing ??= (async () => {
+      const r = await this.get_(`${this.base}audio/voice.json`).catch(() => null);
+      if (!r?.ok) return;
+      const list = (await r.json()) as VoiceManifest;
+      const low = voiceContext(ctx);
+      await Promise.all(Object.entries(list).flatMap(([racerId, moments]) => Object.entries(moments).map(async ([bark, urls]) => {
+        const got = await Promise.all((urls ?? []).map((u) => this.decode(low, u, VOICE_TIER)));
+        if (got.length && got.every((b) => b)) this.lines.set(`${racerId}:${bark}`, got.map((b) => cutSfx(b!, false, 'voice')));
+      })));
+    })().catch(() => undefined);
+    return this.voicing;
+  }
+
+  /** How many takes of a moment a racer has in (0 until they all are). */
+  voiceCount(racerId: string, bark: Bark): number { return this.lines.get(`${racerId}:${bark}`)?.length ?? 0; }
+  /** Take `n` of a racer's moment. */
+  voiceLine(racerId: string, bark: Bark, n: number): Sample | undefined { return this.lines.get(`${racerId}:${bark}`)?.[n]; }
   hasSong(key: string): boolean { return !!this.manifest?.music[key]; }
   /** Whether the song's recording is decoded (else the synth stands in while it comes down). */
   isReady(key: string): boolean { return this.ready.has(key); }

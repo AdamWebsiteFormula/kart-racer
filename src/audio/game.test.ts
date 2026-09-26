@@ -26,7 +26,8 @@ class FakeCtx {
   destination = {};
   sources: Source[] = [];
   constructor() { FakeCtx.last = this; }
-  private node<T extends object>(extra: T) { return Object.assign({ connect: (n: unknown) => n }, extra); }
+  /** every node remembers what it feeds (`to`), so a test can follow a sound to its bus */
+  private node<T extends object>(extra: T) { const n: { to: unknown[] } = Object.assign({ to: [] as unknown[], connect: (d: unknown) => { n.to.push(d); return d; } }, extra); return n as typeof n & T; }
   private source(kind: string, extra: object) {
     const s: Source & { start(w: number, o?: number): void; stop(w: number): void } = Object.assign(this.node(extra), {
       kind, start(w: number, o?: number) { s.startedAt = w; s.offset = o; }, stop(w: number) { s.stoppedAt = w; },
@@ -46,10 +47,13 @@ class FakeCtx {
   addEventListener() { /* no events here */ }
 }
 
+/** A fake bank's voice side: no lines recorded (a test that wants some gives its own). */
+const NO_VOICES = { loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined };
+
 const SONG: Sample = { buffer: { duration: 40 } as AudioBuffer, start: 0.5, end: 32.5, gain: 1 };
 /** The recorded race and results songs, or none (the synth plays). */
 function bank(recorded: boolean): SampleBank {
-  return { onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => recorded && (k === 'race-harbour' || k === 'results'), isReady: () => true, song: async () => SONG } as unknown as SampleBank;
+  return { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => recorded && (k === 'race-harbour' || k === 'results'), isReady: () => true, song: async () => SONG } as unknown as SampleBank;
 }
 const L: Listener = { playerId: 'p', position: [0, 0, 0], heading: 0, positionOf: () => undefined };
 const finish = (rank: number): RaceEvent => ({ type: 'finish', racerId: 'p', rank, tick: 1, dnf: false });
@@ -134,7 +138,7 @@ describe('a recording still coming down (the files take turns: performance/loadQ
     const file = new Promise<Sample>((r) => { arrive = r; });
     const state = { ready: false };
     const b = {
-      onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => k === key, isReady: (k: string) => k === key && state.ready, song: () => file,
+      ...NO_VOICES, onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => k === key, isReady: (k: string) => k === key && state.ready, song: () => file,
     } as unknown as SampleBank;
     return { b, land: () => { state.ready = true; arrive(SONG); } };
   }
@@ -178,7 +182,7 @@ describe('a recording still coming down (the files take turns: performance/loadQ
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
     let listed = false, asked = 0;
     const b = {
-      onLoaded: null, onManifest: null as (() => void) | null, load: async () => undefined, get: () => undefined,
+      ...NO_VOICES, onLoaded: null, onManifest: null as (() => void) | null, load: async () => undefined, get: () => undefined,
       hasSong: (k: string) => listed && k === 'title', isReady: () => false, song: () => { asked++; return new Promise<Sample>(() => undefined); },
     };
     const audio = new GameAudio(bus, b as unknown as SampleBank);
@@ -204,7 +208,7 @@ describe('a recording still coming down (the files take turns: performance/loadQ
 describe('the pause menu', () => {
   it('drops the music behind a low-pass and brings it back on resume; the sounds bus stays open', () => {
     const { audio, bus } = game(true);
-    const v = { master: 1, music: 0.8, sfx: 0.6 };
+    const v = { master: 1, music: 0.8, sfx: 0.6, voice: 0.8 };
     audio.setVolumes(v);
     const music = () => (bus.music as unknown as { gain: Param }).gain.value;
     const cutoff = () => (bus.musicFilter as unknown as { frequency: Param }).frequency.value;
@@ -304,7 +308,7 @@ describe('the sounds on the bus', () => {
   it('the Final Lap Shift holds the music down for most of its length; a slam dips it for a moment', () => {
     const SHIFT: Sample = { buffer: { duration: 3.5 } as AudioBuffer, start: 0, end: 3.4, gain: 1 };
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
-    const audio = new GameAudio(bus, { onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'shift' ? SHIFT : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
+    const audio = new GameAudio(bus, { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'shift' ? SHIFT : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
     bus.unlock();
     const calls: [number, number][] = [];
     bus.musicDuck = (hold = 0, depth = AUDIO.musicDuck.gain) => { calls.push([hold, depth]); };
@@ -331,7 +335,7 @@ describe('the sounds on the bus', () => {
   it('a cut tick frees its voice: a quick roll never runs into the cap of three', () => {
     const TICK: Sample = { buffer: { duration: 0.5 } as AudioBuffer, start: 0, end: 0.5, gain: 1 };
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
-    const audio = new GameAudio(bus, { onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'rouletteTick' ? TICK : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
+    const audio = new GameAudio(bus, { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'rouletteTick' ? TICK : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
     bus.unlock();
     const ctx = FakeCtx.last;
     const k = createKartState({ racerId: 'p' });
@@ -350,7 +354,7 @@ describe('the sounds on the bus', () => {
   it('the roulette ticks quick then slow, each tick cutting the one before', () => {
     const TICK: Sample = { buffer: { duration: 0.5 } as AudioBuffer, start: 0, end: 0.5, gain: 1 };
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
-    const audio = new GameAudio(bus, { onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'rouletteTick' ? TICK : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
+    const audio = new GameAudio(bus, { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: (id: string) => (id === 'rouletteTick' ? TICK : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank);
     bus.unlock();
     const ctx = FakeCtx.last;
     const k = createKartState({ racerId: 'p' });
@@ -373,7 +377,7 @@ describe('the wheels and sparks under the recorded engine', () => {
   const ENGINE = S(4), WOOD = S(3), SAND = S(3.1), SPARKS = S(2.9);
   function rig(track: string) {
     const lib: Record<string, Sample> = { 'engine-idle': ENGINE, 'engine-mid': ENGINE, 'engine-high': ENGINE, 'road-wood': WOOD, 'offroad-sand': SAND, offroad: SAND, sparks: SPARKS };
-    const b = { onLoaded: null, load: async () => undefined, get: (id: string) => lib[id], hasSong: () => false, song: async () => null } as unknown as SampleBank;
+    const b = { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: (id: string) => lib[id], hasSong: () => false, song: async () => null } as unknown as SampleBank;
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
     const audio = new GameAudio(bus, b);
     bus.unlock();
@@ -422,7 +426,7 @@ describe('the engines', () => {
   const LOOP: Sample = { buffer: { duration: 4 } as AudioBuffer, start: 0.03, end: 4, loopStart: 0.03, loopEnd: 4, gain: 1 };
   function rig() {
     let recorded = false;
-    const b = { onLoaded: null, load: async () => undefined, get: (id: string) => (recorded && id.startsWith('engine') ? LOOP : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank;
+    const b = { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: (id: string) => (recorded && id.startsWith('engine') ? LOOP : undefined), hasSong: () => false, song: async () => null } as unknown as SampleBank;
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
     const audio = new GameAudio(bus, b);
     bus.unlock();
@@ -446,5 +450,53 @@ describe('the engines', () => {
     const loops = ctx.sources.filter((x) => x.buffer === LOOP.buffer);
     expect(loops.length).toBe(3 + 3);
     expect(new Set(loops.map((x) => x.offset!.toFixed(3))).size).toBe(loops.length);
+  });
+});
+
+describe("the racers' voice lines (barks.ts)", () => {
+  const LINE: Sample = { buffer: { duration: 1 } as AudioBuffer, start: 0.05, end: 0.85, gain: 1 };
+  /** A bank with three takes of every moment for `racers`, and nothing else recorded. */
+  function voiced(racers: string[]) {
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const b = {
+      ...NO_VOICES, onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: () => false, song: async () => null,
+      voiceCount: (r: string) => (racers.includes(r) ? 3 : 0), voiceLine: (r: string) => (racers.includes(r) ? LINE : undefined),
+    } as unknown as SampleBank;
+    const audio = new GameAudio(bus, b);
+    bus.unlock();
+    const played: string[] = [];
+    const sfx = audio.sfx.bind(audio);
+    audio.sfx = (id, ...rest) => { played.push(id); return sfx(id, ...rest); };
+    const lines = () => FakeCtx.last.sources.filter((x) => x.kind === 'buffer' && x.offset === LINE.start);
+    return { audio, bus, played, lines };
+  }
+  const me: Listener = { playerId: 'pip', position: [0, 0, 0], heading: 0, positionOf: () => [0, 0, 0] };
+  const hit: RaceEvent = { type: 'kart', racerId: 'pip', event: { type: 'hit', kind: 'spin', spun: true, coinsLost: 1 } as never };
+
+  it('a racer with lines says their hit line on the voice bus in place of the creature yelp; one without keeps the yelp', () => {
+    const v = voiced(['pip']);
+    v.audio.newRace('raceSunrise', 'harbour-loop', 4);
+    v.audio.tick([hit], [], me);
+    expect(v.played).not.toContain('yelp:pip');
+    expect(v.lines()).toHaveLength(1);
+    // the line's gain node feeds the voice bus (its own slider), not the effects
+    const gain = (v.lines()[0] as unknown as { to: { to: unknown[] }[] }).to[0];
+    expect(gain.to).toContain(v.bus.voice);
+    const none = voiced([]);
+    none.audio.newRace('raceSunrise', 'harbour-loop', 4);
+    none.audio.tick([hit], [], me);
+    expect(none.played).toContain('yelp:pip');
+    expect(none.lines()).toHaveLength(0);
+  });
+
+  it('the racer picked on the Racer screen says their line, and the music dips a little under it', () => {
+    const v = voiced(['gus']);
+    let dips = 0;
+    v.bus.musicDuck = () => { dips++; };
+    v.audio.select('gus');
+    expect(v.lines()).toHaveLength(1);
+    expect(dips).toBe(1);
+    // muted (?mute): nothing, whatever is picked
+    expect(() => new GameAudio(AudioBus.silent(), bank(false)).select('gus')).not.toThrow();
   });
 });

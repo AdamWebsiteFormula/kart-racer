@@ -460,9 +460,10 @@ const host: UiHost = {
     settings = s; governor.reset(performance.now() / 1000); pendingQuality = -1; applyRender();
     // Low (or back) changes every shader: compile them all before the next frame draws (performance/warmup.ts)
     if (wasLow !== !renderer.shadowMap.enabled) warmup.begin(scene, camera, post?.enabled ?? false, performance.now() / 1000);
-    audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume });
+    audio.setVolumes({ master: s.masterVolume, music: s.musicVolume, sfx: s.sfxVolume, voice: s.voiceVolume });
   },
   uiSound(kind) { audio.ui(kind); },
+  racerPicked(racerId) { audio.select(racerId); },
   screenChanged(app) {
     // the series' podium ceremony (game/podium.ts), after its standings or its cut
     if (app.screen === 'podium' && podium && !podium.showing) startPodium();
@@ -476,7 +477,7 @@ const ui = new UiRoot(document.body, host, browserBackend(), { kartPick: UI.kart
 // countdown their gas waits for a finger, so a touch on the 2 is a rocket start
 input.setVirtual(() => ui.touch.state(session?.state.phase === 'countdown'));
 settings = ui.save.settings;
-audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume });
+audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume, voice: settings.voiceVolume });
 applyRender();
 // The title first (load-speed sweep, docs/sops/performance.md): its menu paints before the attract
 // race is built (half a second of script on a phone), then the race, then the background files.

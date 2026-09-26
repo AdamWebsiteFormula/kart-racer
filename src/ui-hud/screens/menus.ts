@@ -218,7 +218,7 @@ export function pauseMenu(twoByTwo = false, canRestart = true): MenuVM {
 }
 
 // ---- settings ----
-export type SettingId = 'autoAccelerate' | 'steeringAssist' | 'masterVolume' | 'musicVolume' | 'sfxVolume' | 'quality' | 'resolutionScale' | 'fullscreen' | 'reducedMotion' | 'iconLabels';
+export type SettingId = 'autoAccelerate' | 'steeringAssist' | 'masterVolume' | 'musicVolume' | 'sfxVolume' | 'voiceVolume' | 'quality' | 'resolutionScale' | 'fullscreen' | 'reducedMotion' | 'iconLabels';
 /** `help`: one short line on what the row does (the panel shows the focused row's, as MKW's options do) */
 export interface SettingRow { id: SettingId; label: string; value: string; fraction?: number; help: string }
 
@@ -238,6 +238,7 @@ export const SETTING_HELP = Object.freeze({
   masterVolume: 'Every sound in the game: music and effects together.',
   musicVolume: 'The songs in the menus and on every track.',
   sfxVolume: 'Engines, drifts, items, horns and menu clicks.',
+  voiceVolume: 'What racers shout on tricks, hits, passes and finishes.',
   quality: { auto: 'Auto picks the best look your device can keep smooth.', high: 'Shadows and every effect on. Best on a fast device.', low: 'No shadows or screen effects, for a smoother race.' },
   resolutionScale: 'How sharp the picture is. Lower it if the race stutters.',
   reducedMotion: { auto: "Follows your device's own reduce motion setting.", on: 'Calmer camera and screens: no swoops, shakes or slides.', off: 'Full motion: camera swoops, shakes and screen slides.' },
@@ -261,6 +262,7 @@ export function settingsMenu(s: Settings, fullscreen: boolean | null = null): { 
     { id: 'masterVolume', label: 'Master volume', value: pct(s.masterVolume), fraction: s.masterVolume, help: H.masterVolume },
     { id: 'musicVolume', label: 'Music', value: pct(s.musicVolume), fraction: s.musicVolume, help: H.musicVolume },
     { id: 'sfxVolume', label: 'Sound effects', value: pct(s.sfxVolume), fraction: s.sfxVolume, help: H.sfxVolume },
+    { id: 'voiceVolume', label: 'Voices', value: pct(s.voiceVolume), fraction: s.voiceVolume, help: H.voiceVolume },
     { id: 'quality', label: 'Graphics', value: s.quality === 'auto' ? 'Auto' : s.quality === 'high' ? 'High' : 'Low', help: H.quality[s.quality] },
     { id: 'resolutionScale', label: 'Resolution', value: pct(s.resolutionScale), fraction: (s.resolutionScale - 0.5) / 0.5, help: H.resolutionScale },
     ...(fullscreen === null ? [] : [{ id: 'fullscreen' as const, label: 'Fullscreen', value: onOff(fullscreen), help: H.fullscreen }]),
@@ -280,7 +282,7 @@ export function adjustSetting(s: Settings, id: SettingId, dir: -1 | 1): Settings
     case 'autoAccelerate': return { ...s, autoAccelerate: !s.autoAccelerate };
     case 'steeringAssist': return { ...s, steeringAssist: !s.steeringAssist };
     case 'fullscreen': return s;
-    case 'masterVolume': case 'musicVolume': case 'sfxVolume': return { ...s, [id]: step(s[id], dir, 0, 1) };
+    case 'masterVolume': case 'musicVolume': case 'sfxVolume': case 'voiceVolume': return { ...s, [id]: step(s[id], dir, 0, 1) };
     case 'resolutionScale': return { ...s, resolutionScale: step(s.resolutionScale, dir, 0.5, 1) };
     case 'quality': return { ...s, quality: cycle(['auto', 'high', 'low'] as const, s.quality, dir) };
     case 'reducedMotion': return { ...s, reducedMotion: cycle(['auto', 'on', 'off'] as const, s.reducedMotion, dir) };

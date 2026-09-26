@@ -74,6 +74,7 @@
         "quality": { "type": "string", "enum": ["low", "high", "auto"], "default": "auto" },
         "musicVolume": { "type": "number", "minimum": 0, "maximum": 1 },
         "sfxVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "voiceVolume": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.8, "description": "The racers' voice lines (src/audio/barks.ts), its own slider as the Game Accessibility Guidelines ask for speech. Absent in saves before 26 Sept 2026: the default." },
         "masterVolume": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.8 },
         "reducedMotion": { "type": "string", "enum": ["auto", "on", "off"], "default": "auto", "description": "auto follows prefers-reduced-motion" },
         "iconLabels": { "type": "boolean", "default": false, "description": "a letter on every item icon, on top of shape and colour" },

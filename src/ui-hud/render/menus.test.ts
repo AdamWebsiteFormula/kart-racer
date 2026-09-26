@@ -118,8 +118,12 @@ describe('Settings says what the focused row does', () => {
     key('ArrowLeft');
     expect(help().textContent).toBe(SETTING_HELP.musicVolume);
     expect(help().firstElementChild!.className).toBe('still');
-    // Graphics says what Auto does, then High once it is High, the new line coming in
+    // the racers' voices have their own slider, after the effects (speech apart: Game Accessibility Guidelines)
     key('ArrowDown'); key('ArrowDown');
+    expect(help().textContent).toBe(SETTING_HELP.voiceVolume);
+    expect(q('[data-id="voiceVolume"] .label')!.textContent).toBe('Voices');
+    // Graphics says what Auto does, then High once it is High, the new line coming in
+    key('ArrowDown');
     expect(help().textContent).toBe(SETTING_HELP.quality.auto);
     expect(help().textContent).toBe('Auto picks the best look your device can keep smooth.');
     key('ArrowRight');
@@ -154,7 +158,7 @@ describe('Settings says what the focused row does', () => {
     expect(ui.app.overlays).toEqual(['pause', 'settings']);
     expect(help().textContent).toBe(SETTING_HELP.autoAccelerate);
     // (no Fullscreen row in jsdom: it has no fullscreen, as an iPhone has none)
-    for (let i = 0; i < 7; i++) key('ArrowDown');
+    for (let i = 0; i < 8; i++) key('ArrowDown');
     expect(help().textContent).toBe(SETTING_HELP.reducedMotion.auto);
     key('ArrowRight');
     expect(help().textContent).toBe(SETTING_HELP.reducedMotion.on);
@@ -163,7 +167,7 @@ describe('Settings says what the focused row does', () => {
 
   it('every row and Done has a line, short enough to sit on one line of the panel', () => {
     const lines = [...Object.values(SETTING_HELP).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v))), DONE_HELP];
-    expect(lines.length).toBe(15);
+    expect(lines.length).toBe(16);
     // measured in Chrome at 15px Fredoka: the longest (55 characters) is 412 px of the panel's 444
     for (const l of lines) expect(l.length, l).toBeLessThanOrEqual(56);
     expect(new Set(lines).size).toBe(lines.length);
