@@ -5,10 +5,12 @@
 // public/models/racers/manifest.json is built from its parts instead (rigged.ts: a skinned driver,
 // its kart body and four wheels, one skinned mesh); its fused file stays the fallback.
 import { Box3, BufferAttribute, BufferGeometry, Group, Mesh, Source, type Material, type MeshStandardMaterial, type Object3D, type Texture } from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SEAT, SEATS, type BodyId } from './bodies.ts';
 import { paintFor, repaintPixels, type PaintRule } from './paints.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
+import { PBR } from './look.ts';
 import type { V3 } from './model.ts';
 import { MODEL_WHEELS, rigKart } from './rig.ts';
 import { buildComboTemplate, buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
@@ -430,6 +432,25 @@ export function bakedGeometry(mesh: Mesh): BufferGeometry {
 }
 
 /**
+ * A model file's geometry, smoothed for the PBR look: an AI image-to-3D export commonly gives each
+ * triangle its own private corners (no shared vertex at a seam two faces cross), so even a plainly
+ * round shape (a tree's canopy, a boulder) renders with hard per-triangle facets once continuous PBR
+ * shading (unlike the toon look's flat three-step ramp, which buries the same seams in one of its
+ * three bands) shows every one of them (Adam, 25 Sept 2026: "the trees look faceted"; confirmed by
+ * rendering oak.glb under `?look=toon` next to `?look=pbr`: identical geometry, only the PBR one
+ * showed facets, and raising ModelBuilder's own sphere tessellation changed nothing, ruling out a
+ * plain lack of detail). Welding coincident corners first (three's own mergeVertices, the standard
+ * fix for "my imported mesh looks faceted") and recomputing normals from that welded topology gives
+ * each shared corner one averaged, smooth normal, without moving a single vertex — so the silhouette
+ * is exactly what the file drew.
+ */
+function smoothed(g: BufferGeometry): BufferGeometry {
+  const welded = mergeVertices(g);
+  welded.computeVertexNormals();
+  return welded;
+}
+
+/**
  * Fit a geometry onto the box of the code-built model it replaces: the same height (or the same
  * widest side), centred on the same spot, standing on the same floor, so every placement and
  * clearance stays true. One uniform scale. Pure.
@@ -512,12 +533,19 @@ export class PropModels {
       let mesh: Mesh | undefined;
       gltf.scene.traverse((o) => { if (!mesh && (o as Mesh).isMesh) mesh = o as Mesh; });
       if (!mesh) return;
-      const geometry = bakedGeometry(mesh);
+      const geometry = smoothed(bakedGeometry(mesh));
       geometry.rotateY(spec.yaw ?? 0);
       fitToBox(geometry, target, spec.fit);
       const material = mesh.material as Material;
       material.userData.shared = true;
       const std = material as MeshStandardMaterial;
+      if (std.isMeshStandardMaterial) {
+        // an AI export's untouched glTF metallicFactor defaults to 1 (the format's own spec default,
+        // not the tool's choice): chrome, not this cartoon world's matte, non-metal props (look.ts PBR,
+        // the same roughness and metalness every other world surface renders with)
+        std.metalness = PBR.metalness;
+        std.roughness = PBR.roughness;
+      }
       if (spec.glow && std.isMeshStandardMaterial) { std.emissiveMap = std.map; std.emissive.set(0xffffff); std.emissiveIntensity = spec.glow; }
       this.ready.set(name, { geometry, material });
     } catch { /* a broken file leaves that prop code-built */ }
