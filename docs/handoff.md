@@ -1,6 +1,30 @@
-# Handoff (25 Sept 2026)
+# Handoff (26 Sept 2026)
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
+
+## State at 26 Sept 2026, 10:45 EDT (read this first; the sections below are older)
+
+**Live** (origin/main `f8bac0b`, Deploy green, live manifest checked): the title's TV camera rides with the leader, left of the menu; 15 judged sound effects (count, go, finalLap, finish, boost3, drift, engine-high, yelp:nova, hop, mouse, boostStart, tierUp, tierUp2, wall, yelp:gus); three Lyria 3.5 songs that beat the old ones twice, blind: Harbor Loop (12.5 s intro once, then a 36-bar loop), Frostbite Pass, Results. A song may name its loop in the manifest (`loop`: bar-aligned seconds). Meadow, Boardwalk, finale and title kept (no take won twice).
+
+**On local main, NOT pushed on purpose** (`c9c31de`, `ecccf5b`, `310e012` and this handoff): racer voice lines ("barks", Adam: "the characters also occasionally make verbal expressions", like MKW). The system is done and tested (src/audio/barks.ts, a Voices slider, a voice bus, a racer's hit line replaces their yelp) but `public/audio/voice.json` is not built yet, so nobody speaks. Push only with voice.json for all 8 racers: a Voices slider with no voices would confuse players.
+
+**Voice lines: finish them** (scripts/voice: catalog.ts lines and directions, generate.ts Gemini TTS, eleven.ts ElevenLabs, judge.ts Pro judge, build.ts → public/audio/voice/*.mp3 + voice.json, likeness.mjs one-clip famous-character check). One source per racer:
+- Juniper and Sprocket: ElevenLabs Eleven v3, designed voices (ids in scripts/voice/eleven-voices.json), takes in ~/.cache/rascal-voice/takes-el. All lines pass (23/23, 25/25).
+- Boulder: Gemini 3.8 Flash Lite (catalog `model`, `pace` 1.4), takes in ~/.cache/rascal-voice/takes; 22/25 pass (every moment covered; "Rolling!", "Rumble rumble!", "Oof!" left out).
+- Pip: Gemini 3.8 Flash; 21/23 pass; `pip-trick-1` "Airmail!" and `pip-hit-1` "Aah, my feathers!" need takes (lines changed today).
+- Momo, Nova, Otto, Gus: Gemini 3.8 Flash (Erinome, Aoede, Achird, Algenib), not made yet: the model allows 100 requests a day (resets 03:00 EDT) and 10 a minute. Steps: `node scripts/voice/generate.ts --only=momo,nova,otto,gus,pip --takes=1`, then `node scripts/voice/judge.ts --only=...`, second takes for lines with no take >= 7, then `node scripts/voice/build.ts --from=juniper:eleven,sprocket:eleven,pip:gemini,boulder:gemini,momo:gemini,nova:gemini,otto:gemini,gus:gemini`, a CREDITS row for the voices (new row only), npm run verify, a silent in-game check, push.
+- Judge lessons (26 Sept): in a batch the Pro judge has position bias and "resemblance" contagion (it called 12 Pip takes in one batch Toad; one clip a request said none). For any deciding hearing use one clip a request (`judge.ts --batch=1`, `likeness.mjs`), and re-check a batch's famous-character flag before rejecting a take. ElevenLabs Voice Design previews (a list read aloud) score as robotic; judge saved-voice lines instead. Lines like "Wheee!" and "Whoa-whoa-whoa!" were heard as Mario and Crash: the catalog test now bans whee, whoa, yip yip, tubular.
+
+**Water: not merged.** Branch `worktree-agent-af056b63ed1f6b863` (482b497, 0db94d5, 43f6ae5, and a NaN hunt in progress): see-through shallows from a scene-depth copy (no second render), a Gerstner swell (crest up to ~1.05 m), boats bob, per-fragment normals, camera floor over the crests, the Harbor tide raises the waves' base. Blocker: since round 2, the whole 3D view sometimes goes black for a frame (likely a NaN in the HDR buffer spread by bloom). Merge only after repeated checks show zero black frames (`node scripts/headless/water-look.mjs http://localhost:<port>/ <outdir>` on the worktree's dev server, ?mute is automatic) and stills of Harbor's and Boardwalk's Final Lap Shift. The user's top priority for water: objects partly under water must show through it.
+
+**Blinks: rejected, do not merge** branch `worktree-agent-a72eb189e4ecc0d1e`: the eyelids are flat flaps that read as boxes over the eyes up close, and a thin line stays visible when open. Next idea: painted closed-eye texture swaps per racer.
+
+**Accounts:** ElevenLabs key is new and unrestricted (Starter plan, ~21,400 credits left, 3 of 10 voice slots used: Juniper, Momo (unused), Sprocket). Gemini Pro judge: about 160 of 250 used today; resets 03:00 EDT. Higgsfield: 202 credits. GitHub: the Mac's active gh account is now AdamWillingham, which cannot push here; push with `git -c credential.helper= -c "credential.helper=!f() { echo username=x-access-token; echo \"password=$(gh auth token --user AdamWebsiteFormula)\"; }; f" push origin <ref>:main` (do not switch Adam's active account). Adam (26 Sept): when a push fails on the account, just ask him to sign in to the right GitHub account, or use the GitHub Desktop app.
+
+**Answered today:** jumps exist on every track (Harbor 1, Meadow 4, Canyon 5, Frostbite 5, Boardwalk 1, Skyline 1: ramps, hump rows, vents); hop at the lip for a trick and a boost on landing, like MKW; charge jumps left out on purpose.
+
+**Also waiting:** Momo's visible shocks; kart icons on board rows; alt paints on combos; `lap` and a `boost1` retake held back (judge vs local ear); trailer re-cut.
+
 
 ## State at 25 Sept 2026, 19:15 EDT (read this first)
 
