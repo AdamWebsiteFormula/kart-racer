@@ -14,14 +14,19 @@ interface WaveDef { dir: readonly [number, number]; wavelength: number; amplitud
 
 /**
  * A slow, calm swell (never choppy, per the research brief): four waves, mixed directions,
- * wavelengths 10-36 m, amplitudes 0.08-0.28 m. Speeds follow the deep-water dispersion relation
+ * wavelengths 10-34 m, amplitudes 0.11-0.46 m. Speeds follow the deep-water dispersion relation
  * (c = sqrt(g*lambda / 2pi)), so the long wave visibly outruns the short one, as real swell does.
+ * The main (34 m) wave carries the swell up to about 0.46 m (review, 26 Sept 2026: "the waves are not
+ * visible... a larger main swell, up to about 0.4-0.5 m on the longest wave, keep it calm and slow" —
+ * the others scaled up with it, same ratios as before, so the mix still reads as one calm sea, not a
+ * choppier one); STEEPNESS below already keeps every wave's own horizontal pull inside its
+ * non-self-intersecting bound, so a taller wave never sharpens into a breaking crest.
  */
 const WAVE_DEFS: readonly WaveDef[] = [
-  { dir: [1, 0.3], wavelength: 26, amplitude: 0.22 },
-  { dir: [-0.4, 1], wavelength: 15, amplitude: 0.13 },
-  { dir: [0.5, -0.8], wavelength: 34, amplitude: 0.28 },
-  { dir: [-0.9, -0.35], wavelength: 10, amplitude: 0.08 },
+  { dir: [1, 0.3], wavelength: 26, amplitude: 0.32 },
+  { dir: [-0.4, 1], wavelength: 15, amplitude: 0.16 },
+  { dir: [0.5, -0.8], wavelength: 34, amplitude: 0.46 },
+  { dir: [-0.9, -0.35], wavelength: 10, amplitude: 0.11 },
 ];
 
 /** Overall steepness (0-1): how much of each wave's own theoretical sharp-crest limit it uses. Low and gentle, not choppy. */
@@ -58,6 +63,29 @@ export function gerstnerHeight(x: number, z: number, t: number): number {
     y += w.amplitude * Math.sin(phase);
   }
   return y;
+}
+
+/**
+ * The same sum's height and its raw local slope (before `lkGerstnerNormal`'s own normalize) at (x, z,
+ * t), full strength (a floating prop always rides the real swell — never fading out near the camera
+ * the way the far, sparse background quad's own displacement does: `fade` is a vertex-shader-only
+ * concern). Read once a frame per floating decor instance (track-builder scene.ts, review of 26 Sept
+ * 2026: "make floating things bob with the same waves... a CPU copy of the same Gerstner sum at each
+ * instance's position per frame, rise plus a small pitch and roll"): `y` rises and falls the hull;
+ * `slopeX`/`slopeZ` (the same running sums `lkGerstnerNormal` calls `nx`/`nz`) tip it the same way the
+ * water's own shading tips toward the light.
+ */
+export function gerstnerRide(x: number, z: number, t: number): { y: number; slopeX: number; slopeZ: number } {
+  let y = 0, slopeX = 0, slopeZ = 0;
+  for (const w of WAVES) {
+    const phase = w.k * (w.dx * x + w.dz * z) - w.omega * t;
+    const s = Math.sin(phase), c = Math.cos(phase);
+    const wa = w.k * w.amplitude;
+    y += w.amplitude * s;
+    slopeX -= w.dx * wa * c;
+    slopeZ -= w.dz * wa * c;
+  }
+  return { y, slopeX, slopeZ };
 }
 
 const f = (n: number): string => n.toFixed(6);
@@ -101,39 +129,68 @@ ${WAVES.map((w) => `  {
 // ---- the near-camera grid the swell actually shows on ----
 
 /**
- * Metres square the wave grid covers, and its cell size: fine enough for a 10 m wave to read as a
- * curve, coarse enough that the vertex count stays modest (Harbour Loop's own scene, race-manager and
- * 8 karts and all, leaves only a few thousand triangles of headroom under the SOP's 400k ceiling: one
- * more prop or a busier decor pass elsewhere could use the rest). 33x33 cells, 2178 triangles.
+ * The graded (clipmap-style) wave grid: a fully-fine square of `innerCell`-sized cells right under the
+ * camera (`innerCells` of them each side), then cells widening by `growth` each ring out until they
+ * reach `maxCell`, out to `half` metres from the camera. Review of 26 Sept 2026: "with 6 m cells the
+ * shading and glints show triangle facets from the overview height and a 10 m wave is under-sampled...
+ * a radial or clipmap-style camera-following grid, fine near the camera (about 1.5-2 m cells) and
+ * coarse far out." The triangles this buys go where they are seen — close in, and along the 10-34 m
+ * waves' own curve — instead of spread evenly over a plane that is dead flat past WAVE_FADE.far anyway.
+ * A plain (non-clipmap) grading is used, not true nested rings: the axis below is warped once, the
+ * same regular row/column triangulation as a uniform grid triangulates it, so there is no ring boundary
+ * to crack — simpler to get right than a true clipmap, for the same graded result.
  */
-export const WAVE_GRID = Object.freeze({ size: 200, cell: 6 });
+export const WAVE_GRID = Object.freeze({ half: 100, innerCell: 1.8, innerCells: 8, growth: 1.25, maxCell: 12 });
 
-/** Where the swell fades out (metres from the camera): gone well inside the grid's own edge (half of WAVE_GRID.size, 100 m), so it meets the surrounding flat plane with no seam. */
+/** Where the swell fades out (metres from the camera): gone well inside the grid's own edge (WAVE_GRID.half, 100 m), so it meets the surrounding flat plane with no seam. */
 export const WAVE_FADE = Object.freeze({ near: 55, far: 90 });
+
+/**
+ * One graded half-axis from the centre (0) out to `half`: `innerCells` steps of `innerCell`, then each
+ * next step `growth` times the last, capped at `maxCell`, until `half` is reached (the last step
+ * clamped exactly to it). Mirrored by `gradedAxis` into the full, centre-symmetric axis both grid axes
+ * share (a separable graded grid, not a true radial one: the corners of the square, at up to half*sqrt(2)
+ * from the camera, sit past WAVE_FADE.far already, so their coarseness is never seen moving).
+ */
+function halfAxis(half: number, innerCell: number, innerCells: number, growth: number, maxCell: number): number[] {
+  const xs: number[] = [0];
+  let x = 0, cell = innerCell;
+  for (let k = 0; x < half; k++) {
+    if (k >= innerCells) cell = Math.min(maxCell, cell * growth);
+    x = Math.min(half, x + cell);
+    xs.push(x);
+  }
+  return xs;
+}
+
+/** The full, centre-symmetric axis both grid axes share: `halfAxis` mirrored, 0 kept once in the middle. */
+function gradedAxis(): number[] {
+  const half = halfAxis(WAVE_GRID.half, WAVE_GRID.innerCell, WAVE_GRID.innerCells, WAVE_GRID.growth, WAVE_GRID.maxCell);
+  const neg = half.slice(1).reverse().map((v) => -v);
+  return [...neg, ...half];
+}
 
 let sharedGeometry: BufferGeometry | null = null;
 /**
- * A flat grid (local XZ, y = 0), WAVE_GRID.size across, snapped in place by `attachWaveFollow`. Built
- * once and shared (never disposed by a scene, like the water material itself): the same geometry
- * serves every sea race, whatever biome.
+ * A flat grid (local XZ, y = 0), graded per `WAVE_GRID` (fine near its own centre, coarse at its edge,
+ * `WAVE_GRID.half` out), snapped in place by `attachWaveFollow`. Built once and shared (never disposed
+ * by a scene, like the water material itself): the same geometry serves every sea race, whatever biome.
  */
 export function waveGridGeometry(): BufferGeometry {
   if (sharedGeometry) return sharedGeometry;
-  const n = Math.round(WAVE_GRID.size / WAVE_GRID.cell);
-  const cell = WAVE_GRID.size / n;
-  const verts = n + 1;
+  const axis = gradedAxis(), n = axis.length, verts = n;
   const pos = new Float32Array(verts * verts * 3);
-  for (let j = 0; j <= n; j++) {
-    for (let i = 0; i <= n; i++) {
+  for (let j = 0; j < verts; j++) {
+    for (let i = 0; i < verts; i++) {
       const v = (j * verts + i) * 3;
-      pos[v] = (i - n / 2) * cell;
+      pos[v] = axis[i];
       pos[v + 1] = 0;
-      pos[v + 2] = (j - n / 2) * cell;
+      pos[v + 2] = axis[j];
     }
   }
   const index: number[] = [];
-  for (let j = 0; j < n; j++) {
-    for (let i = 0; i < n; i++) {
+  for (let j = 0; j < n - 1; j++) {
+    for (let i = 0; i < n - 1; i++) {
       const a = j * verts + i, b = a + 1, c = a + verts, d = c + 1;
       index.push(a, c, b, b, c, d);
     }
@@ -151,14 +208,15 @@ export function waveGridGeometry(): BufferGeometry {
 }
 
 /**
- * Cell-snapped so the grid moves in whole cells only (no per-vertex "swimming" as the camera drifts
- * within one), always centred close under the camera. `updateMatrixWorld` right after moving it: three
- * computes matrixWorld once, before onBeforeRender runs on anything, so without this the new position
- * would only reach the GPU a frame late (imperceptible at gameplay speeds, but wrong on the very frame
- * a headless check screenshots).
+ * Cell-snapped so the grid moves in whole (finest) cells only (no per-vertex "swimming" as the camera
+ * drifts within one), always centred close under the camera. `updateMatrixWorld` right after moving it:
+ * three computes matrixWorld once, before onBeforeRender runs on anything, so without this the new
+ * position would only reach the GPU a frame late (imperceptible at gameplay speeds, but wrong on the
+ * very frame a headless check screenshots). The far, coarse rings ride along and jump by the same small
+ * quantum as the fine centre — imperceptible out there, same as the old uniform grid's own (larger) jump.
  */
 export function attachWaveFollow(mesh: Object3D): void {
-  const cell = WAVE_GRID.size / Math.round(WAVE_GRID.size / WAVE_GRID.cell);
+  const cell = WAVE_GRID.innerCell;
   mesh.onBeforeRender = (_renderer, _scene, camera: Camera) => {
     mesh.position.x = Math.round(camera.position.x / cell) * cell;
     mesh.position.z = Math.round(camera.position.z / cell) * cell;

@@ -9,7 +9,7 @@ import { toonRamp } from './toon.ts';
 import { detailTexture } from './detail.ts';
 import { isPbr, litWorld, look, PBR } from './look.ts';
 import { WATER_DEPTH, WATER_DEPTH_GLSL, waterDepthHook, waterDepthUniforms } from './waterDepth.ts';
-import { buildWaveGridMesh, GERSTNER_GLSL, WAVE_FADE, WAVE_MAX_HEIGHT } from './waterWaves.ts';
+import { buildWaveGridMesh, gerstnerRide, GERSTNER_GLSL, WAVE_FADE, WAVE_MAX_HEIGHT } from './waterWaves.ts';
 import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts';
 
 /** Seconds, advanced by the game loop; every water surface animates from it. */
@@ -184,6 +184,9 @@ export function waterMaterial(biome: string, sunDirection?: readonly [number, nu
     // a companion mesh added beside it), without importing anything from art-pipeline
     m.userData.attachDepth = (mesh: Object3D) => { mesh.onBeforeRender = waterDepthHook(m!); };
     m.userData.waveGrid = (waterY: number) => buildWaveGridMesh(m!, waterY);
+    // a generic hook (track-builder never imports art-pipeline): the same Gerstner sum the shader
+    // itself displaces the wave grid with, for a floating decor instance (a boat) to ride each frame
+    m.userData.floatRide = gerstnerRide;
     waterCache.set(key, m);
   }
   const [sx, sy, sz] = sunDirection ?? DEFAULT_SUN;

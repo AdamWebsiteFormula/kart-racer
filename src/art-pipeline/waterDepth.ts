@@ -29,13 +29,20 @@ import {
  * shows. Depth here is always the vertical (world-space) drop from the water's own surface to
  * whatever is found behind a pixel, never the camera-ray distance, so the shoreline holds still as
  * the camera moves (Cyanilux's shoreline breakdown gives the same reason for the same choice).
- * land.ts's `SEABED_UNDER` keeps the coast's own seabed geometry sloping a little past `colorAt`, so
- * the slope never shows a cut edge.
+ * land.ts's `SEABED_UNDER` keeps the coast's own seabed geometry sloping well past `opaqueAt` (to
+ * `colorAt` and beyond), so the water is always fully opaque before that geometry's own far, flattened
+ * edge — no cut edge ever shows through the shallows (review, 26 Sept 2026, findings C and D: a washed-
+ * out grey band was showing exactly where alpha lingered mid-ramp long enough for the seabed's own pale
+ * underwater tint (land.ts) to show through a still-thin water tint; and a boat hull, the lighthouse
+ * rock and a pier post read barely translucent). alphaAt0 dropped from 0.3 to 0.12 (unmistakably clear
+ * right at the surface) and opaqueAt tightened from 2.5 to 1.7 m (fully hidden well inside the "gone by
+ * 2-3 m" ask, and with a shorter low-alpha ramp the seabed's own tint has far less room to wash the
+ * colour out); colorAt tightened to match, so the last, merely-tinted stretch stays short too.
  */
 export const WATER_DEPTH = Object.freeze({
-  alphaAt0: 0.3,
-  opaqueAt: 2.5,
-  colorAt: 4.0,
+  alphaAt0: 0.12,
+  opaqueAt: 1.7,
+  colorAt: 2.3,
   foamWidth: 0.35,
 });
 

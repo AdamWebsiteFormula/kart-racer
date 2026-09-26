@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { MeshBasicMaterial, PerspectiveCamera } from 'three';
 import {
-  buildWaveGridMesh, GERSTNER_GLSL, gerstnerHeight, WAVE_FADE, WAVE_GRID, WAVE_MAX_HEIGHT, WAVES, waveGridGeometry,
+  buildWaveGridMesh, GERSTNER_GLSL, gerstnerHeight, gerstnerRide, WAVE_FADE, WAVE_GRID, WAVE_MAX_HEIGHT, WAVES, waveGridGeometry,
 } from './waterWaves.ts';
 
 describe('gerstnerHeight: the TS mirror of the vertex shader\'s own sum', () => {
@@ -39,14 +39,46 @@ describe('gerstnerHeight: the TS mirror of the vertex shader\'s own sum', () => 
     expect(dirs.size).toBeGreaterThan(1); // not all the same direction
     for (const w of WAVES) {
       expect(Math.hypot(w.dx, w.dz)).toBeCloseTo(1, 5); // a unit direction
-      expect(w.amplitude).toBeGreaterThan(0.05);
-      expect(w.amplitude).toBeLessThan(0.35);
+      expect(w.amplitude).toBeGreaterThan(0.08);
+      expect(w.amplitude).toBeLessThan(0.55);
       // deep-water dispersion: omega^2 = g*k
       expect(w.omega * w.omega).toBeCloseTo(9.80665 * w.k, 5);
       // never steep enough to loop the crest over (the standard Gerstner stability bound)
       expect(w.q * w.amplitude * w.k).toBeLessThanOrEqual(1);
     }
     expect(WAVE_MAX_HEIGHT).toBeCloseTo(WAVES.reduce((s, w) => s + w.amplitude, 0), 6);
+  });
+});
+
+describe('gerstnerRide: the CPU copy a floating prop (a boat) reads once a frame', () => {
+  it('agrees with gerstnerHeight on the same point (the same sum, just also returning its slope)', () => {
+    for (const [x, z, t] of [[0, 0, 0], [5, -12, 3.4], [-30, 40, 11]] as const) {
+      expect(gerstnerRide(x, z, t).y).toBeCloseTo(gerstnerHeight(x, z, t), 9);
+    }
+  });
+
+  it('reads a real slope (not flat) somewhere over a patch and a few instants: a becalmed sea would never tip a boat', () => {
+    let maxSlope = 0;
+    for (let t = 0; t < 12; t += 0.5) {
+      for (let x = -20; x <= 20; x += 5) {
+        for (let z = -20; z <= 20; z += 5) {
+          const r = gerstnerRide(x, z, t);
+          maxSlope = Math.max(maxSlope, Math.abs(r.slopeX), Math.abs(r.slopeZ));
+        }
+      }
+    }
+    expect(maxSlope).toBeGreaterThan(0.02);
+  });
+
+  it('never fades with distance from any camera (unlike the vertex shader\'s own fade): a patch far outside WAVE_FADE.far still swells close to the full range', () => {
+    let maxY = 0;
+    for (let t = 0; t < 20; t += 0.7) {
+      for (let x = 480; x <= 520; x += 5) {
+        for (let z = 480; z <= 520; z += 5) maxY = Math.max(maxY, Math.abs(gerstnerRide(x, z, t).y));
+      }
+    }
+    expect(maxY).toBeGreaterThan(WAVE_MAX_HEIGHT * 0.6);
+    expect(maxY).toBeLessThanOrEqual(WAVE_MAX_HEIGHT + 1e-9);
   });
 });
 
@@ -66,19 +98,27 @@ describe('GERSTNER_GLSL: the shader twin reads the same numbers', () => {
 });
 
 describe('waveGridGeometry: the near-camera grid the swell actually shows on', () => {
-  it('is a flat (y=0) grid, WAVE_GRID.size across, with a triangle count that fits the performance SOP\'s tight per-track headroom', () => {
+  it('is a flat (y=0) grid, graded per WAVE_GRID (fine near its own centre, coarse at its edge), with a triangle count that fits the performance SOP\'s tight per-track headroom', () => {
     const g = waveGridGeometry();
     const pos = g.getAttribute('position');
-    const n = Math.round(WAVE_GRID.size / WAVE_GRID.cell);
-    expect(pos.count).toBe((n + 1) * (n + 1));
-    expect(g.index!.count / 3).toBe(n * n * 2);
+    // every row/column shares one graded axis, so the vertex count is its length squared
+    const side = Math.round(Math.sqrt(pos.count));
+    expect(side * side).toBe(pos.count);
+    expect(g.index!.count / 3).toBe((side - 1) * (side - 1) * 2);
     expect(g.index!.count / 3).toBeLessThan(5000); // Harbour Loop's own margin under the 400k ceiling (frameBudget.test.ts) is a few thousand
     let minX = Infinity, maxX = -Infinity;
+    const xs = new Set<number>();
     for (let i = 0; i < pos.count; i++) {
       expect(pos.getY(i)).toBe(0); // flat: the shader displaces it, the geometry itself does not
       minX = Math.min(minX, pos.getX(i)); maxX = Math.max(maxX, pos.getX(i));
+      xs.add(pos.getX(i));
     }
-    expect(maxX - minX).toBeCloseTo(WAVE_GRID.size, 0);
+    expect(maxX - minX).toBeCloseTo(WAVE_GRID.half * 2, 0);
+    // graded, not uniform: the row nearest the centre is WAVE_GRID.innerCell wide, the outermost ring far wider
+    const row = [...xs].sort((a, b) => a - b);
+    const mid = Math.floor(row.length / 2);
+    expect(row[mid + 1] - row[mid]).toBeCloseTo(WAVE_GRID.innerCell, 6);
+    expect(row[row.length - 1] - row[row.length - 2]).toBeGreaterThan(WAVE_GRID.innerCell * 2);
   });
 
   it('is shared (the very same object every call): built once, never disposed by a scene', () => {
@@ -86,18 +126,18 @@ describe('waveGridGeometry: the near-camera grid the swell actually shows on', (
   });
 
   it('WAVE_FADE finishes well inside the grid\'s own half-extent, so the swell meets the flat sea with no seam at the grid\'s edge', () => {
-    expect(WAVE_FADE.far).toBeLessThan(WAVE_GRID.size / 2);
+    expect(WAVE_FADE.far).toBeLessThan(WAVE_GRID.half);
     expect(WAVE_FADE.near).toBeLessThan(WAVE_FADE.far);
   });
 });
 
-describe('attachWaveFollow: the grid stays under the camera, snapped to whole cells', () => {
-  it('snaps position.x/z to the nearest cell multiple of the camera\'s own position, and leaves y alone', () => {
+describe('attachWaveFollow: the grid stays under the camera, snapped to whole (finest) cells', () => {
+  it('snaps position.x/z to the nearest innerCell multiple of the camera\'s own position, and leaves y alone', () => {
     const mesh = buildWaveGridMesh(new MeshBasicMaterial(), -1.5);
     const camera = new PerspectiveCamera();
     camera.position.set(123.4, 9, -87.6);
     mesh.onBeforeRender(undefined as never, undefined as never, camera, undefined as never, undefined as never, undefined as never);
-    const cell = WAVE_GRID.size / Math.round(WAVE_GRID.size / WAVE_GRID.cell);
+    const cell = WAVE_GRID.innerCell;
     expect(mesh.position.x).toBeCloseTo(Math.round(123.4 / cell) * cell, 6);
     expect(mesh.position.z).toBeCloseTo(Math.round(-87.6 / cell) * cell, 6);
     expect(mesh.position.y).toBe(-1.5);

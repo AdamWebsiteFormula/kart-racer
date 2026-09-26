@@ -3,7 +3,7 @@
 // count is the draw-call count. Placeholder geometries stand in until art-pipeline
 // supplies real ones through `assets`.
 import {
-  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Frustum, Group,
+  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Euler, Frustum, Group,
   InstancedBufferAttribute, InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
   RepeatWrapping, RGBAFormat, SphereGeometry, Quaternion, Vector3, SRGBColorSpace, Matrix4, type Camera, type Material, type Object3D, type Texture,
 } from 'three';
@@ -32,6 +32,15 @@ import { placeGrass } from './verge.ts';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/**
+ * Decor assets that float on the sea and so bob with it (review, 26 Sept 2026: "make floating things
+ * bob with the same waves... piers, posts and rocks stay fixed"); everything else with `footing: 'pier'`
+ * or none stands on solid ground or its own piling and never moves.
+ */
+const FLOATING_DECOR: ReadonlySet<string> = new Set(['boat']);
+/** How much of the swell's own local slope tips a floating boat (radians per radian of slope): a hull rides its wave less sharply than the water's own surface, more a gentle rock than a mirror of it. */
+const FLOAT_TILT_DAMP = 0.6;
 
 export interface TrackAssets {
   /** keyed by decor asset, barrier asset, `balloon`, `coin`, `boostPad`, `ramp`, hazard asset, landmark id */
@@ -767,6 +776,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   let farLandmark: [number, number, number] | undefined;
   let vistaParts: VistaParts | undefined;
   const occupied = new Occupancy();
+  /** the sea's own Gerstner sum (art-pipeline waterWaves.ts gerstnerRide, through the water material's userData: track-builder never imports art-pipeline directly), set below once the ground is built; undefined on a land track or if the Low tier's plain material never offers one */
+  let floatRide: ((x: number, z: number, t: number) => { y: number; slopeX: number; slopeZ: number }) | undefined;
+  /** floating decor instancers (FLOATING_DECOR) and each instance's own placed (flat-water) transform, read fresh every update(time) so the bob never accumulates drift */
+  const floatingBoats: { mesh: InstancedMesh; base: Float32Array; count: number }[] = [];
   for (const entry of env.decor ?? []) {
     const geo = geometryFor(assets, entry.asset, 'decor');
     // how far the prop reaches from its centre across the ground: a roadside one stands clear of where karts drive
@@ -793,6 +806,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     group.add(m);
     withHull(m, entry.asset);
     if (m.count > 0) pools.push(newPool(m, entry.band));
+    // a boat rides the sea's own swell (update(time) below): its placed matrix is its flat-water rest
+    // pose, read fresh each frame so the bob (and the Low tier's own thinning, which packs this same
+    // buffer from its own frozen copy) never compound into drift
+    if (FLOATING_DECOR.has(entry.asset) && p.count > 0) floatingBoats.push({ mesh: m, base: Float32Array.from(p.matrices.subarray(0, p.count * 16)), count: p.count });
     if (entry.footing === 'pier') {
       // each one out at sea stands on its own pier, sized to what stands on it
       const box = m.geometry.boundingBox ?? (m.geometry.computeBoundingBox(), m.geometry.boundingBox!);
@@ -950,6 +967,28 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const rolls = new Map<string, { x: number; z: number; q: Quaternion }>();
   const rollQ = new Quaternion(), rollAxis = new Vector3(), rollPos = new Vector3(), rollScale = new Vector3(1, 1, 1);
   const hidden = new Matrix4().makeScale(0, 0, 0);
+  // a floating boat's bob (review, 26 Sept 2026): read its placed (flat-water) transform fresh, add the
+  // sea's own rise there at `time` plus a small world-space pitch/roll from the same wave's local
+  // slope, on top of its own yaw — never accumulated, so it can never drift off its placed spot
+  const floatM = new Matrix4(), floatP = new Vector3(), floatQ = new Quaternion(), floatS = new Vector3(), floatTilt = new Quaternion(), floatE = new Euler();
+  const bobFloatingBoats = (time: number): void => {
+    if (!floatRide) return;
+    for (const fb of floatingBoats) {
+      for (let i = 0; i < fb.count; i++) {
+        floatM.fromArray(fb.base, i * 16);
+        floatM.decompose(floatP, floatQ, floatS);
+        const ride = floatRide(floatP.x, floatP.z, time);
+        floatP.y += ride.y;
+        // pitch (world X) raises the +Z side with the swell there, roll (world Z) raises the +X side:
+        // a damped small-angle read of the wave's own slope, so a hull rocks gently, never mirrors it
+        floatE.set(Math.atan(ride.slopeZ) * FLOAT_TILT_DAMP, 0, -Math.atan(ride.slopeX) * FLOAT_TILT_DAMP);
+        floatTilt.setFromEuler(floatE).multiply(floatQ);
+        floatM.compose(floatP, floatTilt, floatS);
+        fb.mesh.setMatrixAt(i, floatM);
+      }
+      fb.mesh.instanceMatrix.needsUpdate = true;
+    }
+  };
   // popped balloons and taken coins vanish until their timer runs out
   const syncLive = (name: string, timers: readonly { respawnRemaining: number }[] | undefined) => {
     const m = instancers.get(name), fs = featureSlots.get(name);
@@ -982,6 +1021,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     setStartLamps(startLamps, time);
     vents?.update(time);
     tickPads(time);
+    bobFloatingBoats(time);
     const dt = Math.min(0.1, Math.max(0, time - glowTime));
     glowTime = time;
     glowNow += (glowTo - glowNow) * (1 - Math.exp(-dt * PICKUP_EASE));
@@ -1063,6 +1103,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       // material (so the very same depth capture, translucency and foam apply) and follows the camera
       const waveGrid = (own?.userData.waveGrid as ((waterY: number) => Object3D) | undefined)?.(groundY);
       if (waveGrid) group.add(waveGrid);
+      // the same sum, for a floating decor instance to ride (bobFloatingBoats above)
+      floatRide = own?.userData.floatRide as typeof floatRide;
     }
     group.add(ground);
     // a sea track gets a coast along the road, a land track hills under its raised road, so every

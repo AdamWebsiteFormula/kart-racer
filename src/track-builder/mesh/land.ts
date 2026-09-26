@@ -42,12 +42,13 @@ const STRATA: readonly (readonly [number, number, number])[] = [[1.08, 0.98, 0.8
 /** Below the "water" a land track's hill or cliff falls before it flattens: never seen (hidden under its own opaque ground plane), so left alone. */
 const UNDER = 1.2;
 /**
- * Below a real sea (`CoastOptions.wet`) the coast keeps sloping before it flattens: deeper than the
- * water shader's own shallow-to-deep fade (art-pipeline surfaces.ts, about 2.5 m to opaque), so the
- * sandy seabed and anything standing in it (pier posts, boat hulls, rocks) never show a cut edge
- * through the translucent shallows. Sources: Nintendo "Ask the Developer" Vol.18 Pt.3 (MKW's shoal
- * floor shows through crystal-clear shallow water; deep water reads as blue) and Digital Foundry's
- * MKW tech review (Adam's water research brief, 26 Sept 2026).
+ * Below a real sea (`CoastOptions.wet`) the coast keeps sloping before it flattens: much deeper than the
+ * water shader's own shallow-to-deep fade (art-pipeline waterDepth.ts, opaque by 1.7 m), so the sandy
+ * seabed and anything standing in it (pier posts, boat hulls, rocks) never show a cut edge through the
+ * translucent shallows — the water is always fully opaque well before this geometry's own far,
+ * flattened edge. Sources: Nintendo "Ask the Developer" Vol.18 Pt.3 (MKW's shoal floor shows through
+ * crystal-clear shallow water; deep water reads as blue) and Digital Foundry's MKW tech review (Adam's
+ * water research brief, 26 Sept 2026).
  */
 const SEABED_UNDER = 4.5;
 

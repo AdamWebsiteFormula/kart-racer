@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { WATER_DEPTH, WATER_DEPTH_GLSL, waterAlphaAt, waterColorMixAt, waterDepthUniforms, waterFoamAt } from './waterDepth.ts';
 
-describe('waterAlphaAt: about 0.3 at the surface, opaque by WATER_DEPTH.opaqueAt', () => {
+describe('waterAlphaAt: WATER_DEPTH.alphaAt0 at the surface, opaque by WATER_DEPTH.opaqueAt', () => {
   it('is alphaAt0 right at the surface, 1 at and past opaqueAt, and monotonic between', () => {
     expect(waterAlphaAt(0)).toBeCloseTo(WATER_DEPTH.alphaAt0, 5);
     expect(waterAlphaAt(WATER_DEPTH.opaqueAt)).toBeCloseTo(1, 5);
