@@ -236,8 +236,12 @@ describe('a frame of the stage makes next to no garbage', () => {
     track.applyFinalLapShift();
     let t = 0;
     const stageFrame = () => { t += 1 / 60; stage.update(t, t, FOCUS, 0, false); };
-    // warm: the whole show three times (the compiler optimizes what the game runs all race), then from the shift again
-    for (let r = 0; r < 3; r++) { t = 0; for (let i = 0; i < 400; i++) stageFrame(); }
+    // warm: the whole show eight times (the compiler optimizes what the game runs all race), then from
+    // the shift again. Each run below replays this same bounded, deterministic 6 s window from t=0, so
+    // (unlike a sim held still and left to run on) there is no "busy" state here to drift away from —
+    // more reps just gives a slow or shared machine more chances to finish compiling before it counts
+    // (25 Sept 2026: a CI-only failure, 520.87 B against this same 512 limit, held ten pushes back).
+    for (let r = 0; r < 8; r++) { t = 0; for (let i = 0; i < 400; i++) stageFrame(); }
     t = 0;
     type Node = { selfSize: number; children: Node[]; callFrame: { functionName: string; url: string } };
     const sum = (n: Node): number => n.selfSize + n.children.reduce((s, c) => s + sum(c), 0);
@@ -245,17 +249,21 @@ describe('a frame of the stage makes next to no garbage', () => {
     const ins = new Session();
     ins.connect();
     try {
-      // the least of three runs of the show (a busy machine can leave the compiler's optimized code for later)
-      let made = Infinity;
-      for (let run = 0; run < 3; run++) {
+      // the least of several identical runs of the show (a late compile or a GC pause a run happens to
+      // catch can only add to its reading, never take from it, so more runs is a steadier "least")
+      const RUNS = 7;
+      const madeRuns: number[] = [];
+      for (let run = 0; run < RUNS; run++) {
         t = 0;
         await ins.post('HeapProfiler.startSampling', { samplingInterval: 64, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
         const N = 360;
         for (let i = 0; i < N; i++) stageFrame();
-        made = Math.min(made, under(((await ins.post('HeapProfiler.stopSampling')) as { profile: { head: Node } }).profile.head) / N);
+        madeRuns.push(under(((await ins.post('HeapProfiler.stopSampling')) as { profile: { head: Node } }).profile.head) / N);
       }
+      const made = Math.min(...madeRuns);
       // a few boxed numbers (a uniform's new value); an array, a closure or an iterator a frame would be kilobytes
-      expect(made, `${made.toFixed(0)} B a frame`).toBeLessThan(512);
+      if (import.meta.env.ALLOC_LOG) console.log(`${id} made=${made.toFixed(2)} (windows ${madeRuns.map((m) => m.toFixed(1)).join(', ')})`);
+      expect(made, `${made.toFixed(0)} B a frame (least of ${RUNS}: ${madeRuns.map((m) => m.toFixed(0)).join(', ')})`).toBeLessThan(512);
     } finally {
       ins.disconnect();
       scene.dispose();
