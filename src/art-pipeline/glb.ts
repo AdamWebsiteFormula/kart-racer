@@ -444,10 +444,47 @@ export function bakedGeometry(mesh: Mesh): BufferGeometry {
  * each shared corner one averaged, smooth normal, without moving a single vertex — so the silhouette
  * is exactly what the file drew.
  */
-function smoothed(g: BufferGeometry): BufferGeometry {
+export function smoothed(g: BufferGeometry): BufferGeometry {
   const welded = mergeVertices(g);
   welded.computeVertexNormals();
+  repairZeroNormals(welded);
   return welded;
+}
+
+/**
+ * Gives every zero-length (or non-finite) normal a real one; returns how many it fixed. Welding can
+ * leave a corner whose faces point opposite ways (a folded, zero-thickness sliver in an AI export) and
+ * their average cancels to (0, 0, 0). three's vertex shader normalizes it, and `normalize` of a zero
+ * vector is undefined in GLSL (NaN on this Mac's GPU), so each pixel those tiny faces cover renders as
+ * NaN, and bloom's blur spreads one NaN pixel over the whole frame: a black flash (26 Sept 2026: 1-5
+ * flashes per 25 s lap on five of six tracks, from 4-20 millimetre faces on 17 props and landmarks).
+ * Such a corner takes the normal of its largest face; a corner whose faces all have no area gets
+ * (0, 1, 0), and those faces never draw a pixel anyway.
+ */
+export function repairZeroNormals(g: BufferGeometry): number {
+  const n = g.getAttribute('normal'), p = g.getAttribute('position');
+  if (!n || !p) return 0;
+  const best = new Map<number, [number, number, number, number]>();
+  for (let i = 0; i < n.count; i++) {
+    const x = n.getX(i), y = n.getY(i), z = n.getZ(i);
+    if (!(x * x + y * y + z * z > 1e-12)) best.set(i, [0, 1, 0, 0]);
+  }
+  if (!best.size) return 0;
+  const index = g.index, tris = index ? index.count / 3 : p.count / 3;
+  for (let t = 0; t < tris; t++) {
+    const a = index ? index.getX(t * 3) : t * 3, b = index ? index.getX(t * 3 + 1) : t * 3 + 1, c = index ? index.getX(t * 3 + 2) : t * 3 + 2;
+    if (!best.has(a) && !best.has(b) && !best.has(c)) continue;
+    const ux = p.getX(b) - p.getX(a), uy = p.getY(b) - p.getY(a), uz = p.getZ(b) - p.getZ(a);
+    const vx = p.getX(c) - p.getX(a), vy = p.getY(c) - p.getY(a), vz = p.getZ(c) - p.getZ(a);
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx, len = Math.hypot(cx, cy, cz);
+    for (const v of [a, b, c]) {
+      const cur = best.get(v);
+      if (cur && len > cur[3]) best.set(v, [cx / len, cy / len, cz / len, len]);
+    }
+  }
+  for (const [i, [x, y, z]] of best) n.setXYZ(i, x, y, z);
+  n.needsUpdate = true;
+  return best.size;
 }
 
 /**

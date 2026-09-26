@@ -221,6 +221,50 @@ describe('scenery model files', () => {
     await none.load();
     expect(none.get('palm')).toBeUndefined();
   });
+
+  it('a folded sliver (two faces back to back) gets a real normal, not the (0, 0, 0) its faces average to', async () => {
+    const { BufferAttribute, BufferGeometry } = await import('three');
+    const { mergeVertices } = await import('three/examples/jsm/utils/BufferGeometryUtils.js');
+    const { repairZeroNormals, smoothed } = await import('./glb.ts');
+    // one 1/128 m triangle twice, the second wound the other way (powers of two, so float rounding
+    // leaves no residue): welded, its three corners' face normals cancel exactly
+    const e = 1 / 128, g = new BufferGeometry();
+    g.setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0, e, 0, 0, 0, e, 0, 0, 0, 0, 0, e, 0, e, 0, 0]), 3));
+    const plain = mergeVertices(g);
+    plain.computeVertexNormals();
+    expect(plain.getAttribute('normal').getZ(0)).toBe(0); // the fault itself, before the fix
+    const n = smoothed(g).getAttribute('normal');
+    expect(n.count).toBe(3);
+    for (let i = 0; i < n.count; i++) expect(Math.hypot(n.getX(i), n.getY(i), n.getZ(i))).toBeCloseTo(1, 6);
+    expect(Math.abs(n.getZ(0))).toBeCloseTo(1, 6);
+    // nothing left to fix the second time
+    const again = new BufferGeometry().setAttribute('position', g.getAttribute('position')).setAttribute('normal', n);
+    expect(repairZeroNormals(again)).toBe(0);
+  });
+
+  it('every prop file, loaded as the game loads it, has only unit-length normals (a zero one shades a NaN pixel; bloom spreads it into a black frame)', async () => {
+    (globalThis as { self?: unknown }).self ??= globalThis; // GLTFLoader reaches for a browser's `self` at a texture
+    const fs = (await import('node:fs' as string)) as { readdirSync(p: URL): string[]; readFileSync(p: URL): Uint8Array };
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+    const { bakedGeometry, smoothed } = await import('./glb.ts');
+    const dir = new URL('../../public/models/props/', import.meta.url);
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.glb'));
+    expect(files.length).toBeGreaterThan(20);
+    const quiet = [console.error, console.warn];
+    console.error = console.warn = () => {}; // textures cannot decode here, and need not
+    try {
+      for (const f of files) {
+        const b = fs.readFileSync(new URL(f, dir));
+        const scene = (await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, '')).scene;
+        let mesh: import('three').Mesh | undefined;
+        scene.traverse((o) => { if (!mesh && (o as import('three').Mesh).isMesh) mesh = o as import('three').Mesh; });
+        const n = smoothed(bakedGeometry(mesh!)).getAttribute('normal');
+        let bad = 0;
+        for (let i = 0; i < n.count; i++) if (!(Math.abs(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)) - 1) < 1e-3)) bad++;
+        expect(bad, f).toBe(0);
+      }
+    } finally { [console.error, console.warn] = quiet; }
+  }, 60_000);
 });
 
 describe('painted surfaces', () => {
