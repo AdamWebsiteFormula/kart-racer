@@ -44,11 +44,19 @@ function lit(m: Material): boolean {
 /**
  * Your own kart never fades (a rival's turns to a ghost through copies of its own: kartFade.ts). Its
  * materials, shared by every clone of the racer's model, become its own copies, freed with the session.
+ * A clone copies neither `onBeforeCompile` nor `customProgramCacheKey` (kartFade.ts's `variant()` carries
+ * the same note): without carrying them over by hand, the copy would silently drop the world's PBR
+ * lighting patch (look.ts's litWorld: the sun's gain, the wrap term, the sky's light) and any racer-only
+ * one (rigged.ts's racerRim), reverting to three's plain defaults — bug hunt, 25 Sept 2026: this is why a
+ * dark racer (Boulder, Momo) read as a flat black shape only in your own kart or on the podium (every
+ * racer there is its own copy too), never as a rival mid-race.
  */
 export function ownKartMaterials(root: Object3D): void {
   eachLit(root, (x) => {
     const c = x.clone(); // its own: nothing done to a rival's reaches it
     c.userData.shared = false;
+    c.onBeforeCompile = x.onBeforeCompile;
+    c.customProgramCacheKey = x.customProgramCacheKey;
     return c;
   });
 }

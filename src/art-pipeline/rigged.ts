@@ -601,13 +601,58 @@ function skinnedOf(root: Object3D): SkinnedMesh[] {
 /** A rigged kart's share of the painted sky's light in the PBR look (the world's is PBR.env). */
 export const RACER_ENV = 0.5;
 
+/**
+ * A rim (edge) light on every racer, Mario Kart World's own answer to a dark racer reading as a flat
+ * silhouette (Boulder's stone, Momo's charcoal fur, backlit by a bright night sky or the podium's
+ * trophy): Digital Foundry's Switch 2 tech breakdown notes each racer is "depicted with a distinctive
+ * animation and edge-lit lighting" from the character-select screen on (digitalfoundry.net, "Mario
+ * Kart World tech breakdown: what have we learned from the trailer?", 2025); Nintendo's own Switch 2
+ * Mario renders place "a subtle rim light along the edge of [the character] ... [to frame] his
+ * outline against" the scene (nintendoreporters.com, "Nintendo's Fresh Super Mario Renders..."). The
+ * technique itself is the games-industry standard fix for the same failure this SOP calls "the plaster
+ * effect" (gamedeveloper.com, "Character Rim Lighting") and for a lit model's far side "losing its
+ * shape and looking too flat" (Valve, developer.valvesoftware.com/wiki/Half_Lambert) — the same
+ * complaint Adam made of Boulder and Momo. `power`: how tight the fresnel edge is (higher, thinner);
+ * `strength`: its peak add, only ever reached at a grazing angle on an otherwise-black pixel;
+ * `color`: a near-white, so it reads as bounced light, not a tint. The shader patch below (`lkRimDark`)
+ * weights it by how little of the world's own sun, ambient and sky light (look.ts's LOOK_LIGHTS)
+ * already reached that pixel, so a bright day-lit kart keeps its own shading (this stays close to
+ * invisible there) and a night or backlit one gets exactly the lift it is missing, with no new scene
+ * light (the ≤3-light budget, CLAUDE.md) and nothing to tune per track.
+ */
+export const RACER_RIM = Object.freeze({ power: 2.6, strength: 0.55, color: [1, 0.98, 0.94] as const });
+
+const RACER_RIM_DEFINES = `#define LK_RIM_POWER ${RACER_RIM.power.toFixed(3)}
+#define LK_RIM_STRENGTH ${RACER_RIM.strength.toFixed(3)}
+#define LK_RIM_COLOR vec3(${RACER_RIM.color[0].toFixed(3)}, ${RACER_RIM.color[1].toFixed(3)}, ${RACER_RIM.color[2].toFixed(3)})
+`;
+/** `geometryNormal`, `geometryViewDir` and `outgoingLight` are already in scope here (lights_fragment_begin, just above); adds before the alpha and gl_FragColor write so tone mapping and fog still apply to it. */
+const RACER_RIM_FRAG = `
+  {
+    float lkRimF = pow( 1.0 - saturate( dot( normalize( geometryNormal ), normalize( geometryViewDir ) ) ), LK_RIM_POWER );
+    float lkRimDark = 1.0 - saturate( dot( outgoingLight, vec3( 0.2126, 0.7152, 0.0722 ) ) );
+    outgoingLight += lkRimF * lkRimDark * LK_RIM_STRENGTH * LK_RIM_COLOR;
+  }
+  #include <opaque_fragment>`;
+
+/** Patches RACER_RIM into a racer material's shader (chains with any `onBeforeCompile` already there: call before `litWorld`, so both run). */
+function racerRim(m: MeshStandardMaterial): void {
+  const prev = m.onBeforeCompile, key = m.customProgramCacheKey.bind(m);
+  m.onBeforeCompile = (shader, renderer) => {
+    prev.call(m, shader, renderer);
+    shader.fragmentShader = `${RACER_RIM_DEFINES}${shader.fragmentShader.replace('#include <opaque_fragment>', RACER_RIM_FRAG)}`;
+  };
+  m.customProgramCacheKey = () => `${key()}|rim`;
+}
+
 /** The racers' look, as the fused model files had it: lit PBR at a high roughness, no metal, no glow (Meshy's driver comes with its color as emission). */
 export function riggedMaterial(map: Texture | null): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ map, roughness: 0.82, metalness: 0, color: new Color(1, 1, 1) });
   m.name = 'rigged-racer';
   // the PBR look: the world's sun and the painted sky light the karts too (Adam, 25 Sept 2026: no shading
-  // on the karts), in place of the page's even studio room, which lit every side alike
-  if (isPbr()) { m.userData.lookEnv = RACER_ENV; litWorld(m); }
+  // on the karts), in place of the page's even studio room, which lit every side alike; racerRim first,
+  // so litWorld's own onBeforeCompile chains after it (both patch the same compiled shader in turn)
+  if (isPbr()) { m.userData.lookEnv = RACER_ENV; racerRim(m); litWorld(m); }
   m.userData.shared = true; // every kart and race shares it: a finished race must not dispose it
   return m;
 }
