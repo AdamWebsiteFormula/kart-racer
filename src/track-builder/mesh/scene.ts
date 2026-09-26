@@ -13,7 +13,7 @@ import { buildTrack, type Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, ribbonOptions, type Chunk } from './chunks.ts';
 import { buildRibbon, sampleRange } from './road.ts';
-import { buildShiftStage, type LakeHook, type ShiftStage } from './shiftStage.ts';
+import { buildShiftStage, type LakeHook, type SeaTideHook, type ShiftStage } from './shiftStage.ts';
 import { hashString, mulberry32, Occupancy, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
 import { CREATURE_GHOST, CreatureView } from './creatures.ts';
@@ -65,6 +65,8 @@ export interface TrackAssets {
   vista?: (ctx: VistaContext) => VistaParts | null;
   /** a lake painted on the snow that freezes at the Final Lap Shift (art-pipeline surfaces.ts; Frostbite): the stage sets it */
   lake?: LakeHook;
+  /** Harbour Loop's flood tide (art-pipeline waterWaves.ts SEA_TIDE): shiftStage.ts's seaRise writes the current rise into it every frame; never disposed by a scene. */
+  tide?: SeaTideHook;
   /**
    * the world's look (art-pipeline look.ts applyLook, the PBR prototype): run over the scene once it is
    * built and again whenever it makes new meshes (a shortcut opening, the shift's features); it swaps
@@ -1237,7 +1239,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const stage = buildShiftStage({
     track, twin, palette, gradient: GRADIENT ?? null, group, groundY: groundKind === 'none' ? NaN : groundY, groundAt,
     clear: (x, z, r) => !occupied.hits(x, z, r), geometry: (k) => geometryFor(assets, k, 'decor'), material: (k) => assets.materials?.[k],
-    roadMaterial, lake: assets.lake,
+    roadMaterial, lake: assets.lake, tide: assets.tide,
   }) ?? undefined;
   if (stage) {
     group.add(stage.group);

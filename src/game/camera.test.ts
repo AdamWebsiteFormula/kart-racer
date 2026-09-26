@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PerspectiveCamera, Raycaster, Vector3, type BufferGeometry } from 'three';
 import { itemGeometry, KART_FIT } from '../art-pipeline/index.ts';
+import { SEA_TIDE, tideScale, WAVE_MAX_HEIGHT } from '../art-pipeline/waterWaves.ts';
 import { BASE } from '../kart-controller/constants.ts';
 import type { Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
@@ -9,7 +10,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import canyonJson from '../track-builder/tracks/canyon-rush.json';
 import { JUICE } from '../vfx-juice/juice.ts';
-import { CAM, carry, clampToRoad, fovFor, idealPose, kickedFov, smoothTo, surgeOffset } from './camera.ts';
+import { CAM, carry, clampAboveSea, clampToRoad, fovFor, idealPose, kickedFov, seaLevel, smoothTo, surgeOffset } from './camera.ts';
 import { TRAIL_BACK, TRAIL_BALL_SCALE, TRAIL_DECOY_SCALE } from './itemsView.ts';
 
 const TRACKS = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
@@ -85,6 +86,45 @@ describe('chase camera', () => {
       // Canyon's mine and Skyline's steepest drop; nowhere on the other four
       if (def.id !== 'canyon-rush' && def.id !== 'skyline-circuit') expect(moved, def.id).toBe(0);
     }
+  });
+});
+
+describe('clampAboveSea: no camera reads under the sea\'s actual surface, whatever the swell or a flood\'s own tide (review, 26 Sept 2026, finding 1: "the black frames are... the camera under the swell")', () => {
+  it('CAM.seaClear alone clears WAVE_MAX_HEIGHT (the tallest any crest ever reaches), with a real margin, so a flat-sea floor is always safe wherever the camera\'s own xz sits', () => {
+    expect(CAM.seaClear).toBeGreaterThan(WAVE_MAX_HEIGHT + 0.15);
+  });
+
+  it('seaLevel folds in the current tide (SEA_TIDE.rise): 0 leaves it exactly track.groundPlaneY, a flood\'s own rise lifts it by the same amount', () => {
+    const track = buildTrack(TRACKS['../track-builder/tracks/harbour-loop.json']);
+    expect(seaLevel(track)).toBe(track.groundPlaneY);
+    SEA_TIDE.rise.value = 0.7;
+    expect(seaLevel(track)).toBeCloseTo(track.groundPlaneY + 0.7, 9);
+    SEA_TIDE.rise.value = 0; // never leave a test's own tide for the next one
+  });
+
+  it('clampAboveSea lifts a position at (or under) the flat sea up to the crest-safe floor, on every water track, at no tide and at Harbour\'s own full flood tide', () => {
+    let waterTracks = 0;
+    for (const def of Object.values(TRACKS)) {
+      if (def.environment?.ground?.kind !== 'water') continue;
+      waterTracks++;
+      const track = buildTrack(def);
+      for (const tide of [0, 0.35, 0.7]) {
+        SEA_TIDE.rise.value = tide;
+        const pos: Vec3 = [10, track.groundPlaneY + tide, -10]; // right at the current sea's own flat level: no margin of its own
+        clampAboveSea(pos, track);
+        // safe against the tallest crest this tide could still leave (tideScale only ever shrinks it further)
+        expect(pos[1]).toBeGreaterThanOrEqual(track.groundPlaneY + tide + WAVE_MAX_HEIGHT * tideScale(tide) + 0.05);
+      }
+    }
+    expect(waterTracks).toBeGreaterThanOrEqual(2); // Harbour Loop and Boardwalk Nights, at least
+    SEA_TIDE.rise.value = 0;
+  });
+
+  it('does nothing on a track with no sea', () => {
+    const track = buildTrack(TRACKS['../track-builder/tracks/canyon-rush.json']);
+    const pos: Vec3 = [5, -50, 5];
+    clampAboveSea(pos, track);
+    expect(pos).toEqual([5, -50, 5]);
   });
 });
 

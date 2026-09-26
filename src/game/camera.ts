@@ -7,6 +7,7 @@ import type { Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import type { Track } from '../track-builder/track.ts';
 import { JUICE, boostHold } from '../vfx-juice/juice.ts';
+import { SEA_TIDE, WAVE_MAX_HEIGHT } from '../art-pipeline/waterWaves.ts';
 
 export const CAM = Object.freeze({
   /** loop-the-loop side view: out to the left by this many ring radii, back by this many, up by this many */
@@ -35,12 +36,17 @@ export const CAM = Object.freeze({
   /**
    * Falls and the claw (Boardwalk's "jarring underwater transition": the camera followed a kart 5 m
    * down off the pier and aimed 2.4 m under the sea while the claw fetched it). The camera keeps
-   * seaClear above a sea (a water track's ground plane); it follows a falling kart no deeper than
-   * fallFollow under where it fell, nor under seaFollow above the water, and while the claw carries it
-   * (7 m up, over the start gantry's beam at 6.2 m) no higher than carryRise over where it fell: it
-   * watches from the road. That followed height eases at fallEase (1/s) and back after, never a jump.
+   * seaClear above a sea (a water track's ground plane, plus the current tide: seaLevel below) — enough
+   * to clear WAVE_MAX_HEIGHT, the tallest a crest ever reaches, wherever the camera's own xz happens to
+   * be, with a real margin on top (review, 26 Sept 2026, finding 1: "the black frames are... the camera
+   * under the swell... with amplitudes [summing to about 1.05 m] a still camera at 0.9 m went black on
+   * 2 of 4 frames" — 0.9 m was inside CAM.seaFollow/under the old, wave-blind 1.2 m floor). It follows a
+   * falling kart no deeper than fallFollow under where it fell, nor under seaFollow above the water, and
+   * while the claw carries it (7 m up, over the start gantry's beam at 6.2 m) no higher than carryRise
+   * over where it fell: it watches from the road. That followed height eases at fallEase (1/s) and back
+   * after, never a jump.
    */
-  seaClear: 1.2, fallFollow: 1.5, seaFollow: 0.3, carryRise: 1.8, fallEase: 6,
+  seaClear: WAVE_MAX_HEIGHT + 0.3, fallFollow: 1.5, seaFollow: 0.3, carryRise: 1.8, fallEase: 6,
   /**
    * the height the camera rides at follows the kart's at this rate (1/s), not rigidly: a drift's hop, a
    * bump or a kerb no longer bounce the whole view, and off a ramp the kart rises in the frame before the
@@ -280,9 +286,28 @@ export function surgeOffset(v: number, eased: number): number {
   return Math.max(-CAM.surgeClose, Math.min(CAM.surgeMax, (v - eased) * CAM.surgeBack));
 }
 
-/** The sea's surface on a water track (its ground plane), else -Infinity. */
+/**
+ * The sea's actual current surface on a water track (its ground plane, plus SEA_TIDE.rise — Harbour
+ * Loop's own flood tide, art-pipeline waterWaves.ts: 0 on every other track, and for most of a flood
+ * one's own race too, so this is exactly `track.groundPlaneY` there, as before), else -Infinity.
+ */
 export function seaLevel(track: Track): number {
-  return track.def.environment?.ground?.kind === 'water' ? track.groundPlaneY : -Infinity;
+  return track.def.environment?.ground?.kind === 'water' ? track.groundPlaneY + SEA_TIDE.rise.value : -Infinity;
+}
+
+/**
+ * Never lets a camera position read under the sea's actual surface: CAM.seaClear already clears
+ * WAVE_MAX_HEIGHT (the tallest any crest reaches, wherever the camera's own xz sits) with a margin, so
+ * one shared, conservative floor is enough for every camera, never a per-position wave lookup. A no-op
+ * on a track with no sea. Shared by the chase camera (both its own sites below), the finish camera
+ * (game/celebrate.ts), the course intro's low moves (game/intro.ts) and the title's TV camera
+ * (main.ts) — review, 26 Sept 2026, finding 1: "check the chase, intro, finish and title cameras."
+ */
+export function clampAboveSea(pos: Vec3, track: Track): void {
+  const floor = seaLevel(track);
+  if (floor === -Infinity) return;
+  const y = floor + CAM.seaClear;
+  if (pos[1] < y) pos[1] = y;
 }
 
 /**
@@ -293,8 +318,7 @@ export function seaLevel(track: Track): number {
 export function restPose(track: Track, k: KartState, out?: CamPose): CamPose {
   const o = idealPose(k.position, k.heading, 0, false, 0, out);
   clampToRoad(track, o.position, k);
-  const sea = seaLevel(track);
-  if (o.position[1] < sea + CAM.seaClear) o.position[1] = sea + CAM.seaClear;
+  clampAboveSea(o.position, track);
   return o;
 }
 
@@ -458,8 +482,9 @@ export class ChaseCam {
       // and it turns toward the kart
       this.look[i] = this.rigLook[i] + (this.ring[i] + off * CAM.loopTrack - this.rigLook[i]) * w;
     }
-    // never under the sea's surface (the claw's catch is 5 m under a pier's deck)
-    if (this.pos[1] < sea + CAM.seaClear) this.pos[1] = sea + CAM.seaClear;
+    // never under the sea's surface (the claw's catch is 5 m under a pier's deck), nor under its own
+    // crest or a flood's own tide (clampAboveSea reads both fresh: `sea` above is the flat level alone)
+    clampAboveSea(this.pos, track);
 
     this.fov = fovFor(this.speed) + JUICE.holdFov * this.hold * r;
     // the mine: how deep the lens is, for the light

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { MeshBasicMaterial, PerspectiveCamera } from 'three';
 import {
-  buildWaveGridMesh, GERSTNER_GLSL, gerstnerHeight, gerstnerRide, WAVE_FADE, WAVE_GRID, WAVE_MAX_HEIGHT, WAVES, waveGridGeometry,
+  buildWaveGridMesh, GERSTNER_GLSL, gerstnerHeight, gerstnerRide, SEA_TIDE, tideScale, WAVE_FADE, WAVE_GRID, WAVE_MAX_HEIGHT, WAVES, waveGridGeometry,
 } from './waterWaves.ts';
 
 describe('gerstnerHeight: the TS mirror of the vertex shader\'s own sum', () => {
@@ -132,7 +132,7 @@ describe('waveGridGeometry: the near-camera grid the swell actually shows on', (
 });
 
 describe('attachWaveFollow: the grid stays under the camera, snapped to whole (finest) cells', () => {
-  it('snaps position.x/z to the nearest innerCell multiple of the camera\'s own position, and leaves y alone', () => {
+  it('snaps position.x/z to the nearest innerCell multiple of the camera\'s own position, and leaves y at waterY with no tide', () => {
     const mesh = buildWaveGridMesh(new MeshBasicMaterial(), -1.5);
     const camera = new PerspectiveCamera();
     camera.position.set(123.4, 9, -87.6);
@@ -141,6 +141,50 @@ describe('attachWaveFollow: the grid stays under the camera, snapped to whole (f
     expect(mesh.position.x).toBeCloseTo(Math.round(123.4 / cell) * cell, 6);
     expect(mesh.position.z).toBeCloseTo(Math.round(-87.6 / cell) * cell, 6);
     expect(mesh.position.y).toBe(-1.5);
+  });
+
+  it('review, 26 Sept 2026, finding 2: follows SEA_TIDE.rise too, so the near-camera swell rides the very same tide-raised sea as the flat far plane (shiftStage.ts seaRise)', () => {
+    const mesh = buildWaveGridMesh(new MeshBasicMaterial(), -1.5);
+    const camera = new PerspectiveCamera();
+    camera.position.set(0, 9, 0);
+    SEA_TIDE.rise.value = 0.7;
+    mesh.onBeforeRender(undefined as never, undefined as never, camera, undefined as never, undefined as never, undefined as never);
+    expect(mesh.position.y).toBeCloseTo(-1.5 + 0.7, 9);
+    SEA_TIDE.rise.value = 0; // never leave a test's own tide for the next one
+  });
+});
+
+describe('SEA_TIDE / tideScale: Harbour Loop\'s flood tide, shared with track-builder through TrackAssets.tide (review, 26 Sept 2026, finding 2)', () => {
+  it('is 0/1 (no tide) by default', () => {
+    expect(SEA_TIDE.rise.value).toBe(0);
+    expect(SEA_TIDE.scale.value).toBe(1);
+  });
+
+  it('tideScale is 1 at no tide, shrinks monotonically as the tide rises, and never drops below its floor', () => {
+    expect(tideScale(0)).toBe(1);
+    let prev = 1;
+    for (let r = 0.1; r <= 1.2; r += 0.1) {
+      const s = tideScale(r);
+      expect(s).toBeLessThanOrEqual(prev + 1e-9);
+      expect(s).toBeGreaterThan(0);
+      prev = s;
+    }
+  });
+
+  it('SEA_TIDE.scale.value is always tideScale(SEA_TIDE.rise.value): derived fresh, never a separately-written number that could drift', () => {
+    for (const r of [0, 0.2, 0.5, 0.7, 1]) {
+      SEA_TIDE.rise.value = r;
+      expect(SEA_TIDE.scale.value).toBe(tideScale(r));
+    }
+    SEA_TIDE.rise.value = 0;
+  });
+
+  it('Harbour Loop\'s own numbers: at its full 0.7 m tide, the tallest crest still clears its lowest road point over the sea (1.53 m over the flat sea) by comfortably over the review\'s own 0.3 m ask', () => {
+    const fullTide = 0.7;
+    const crestAtFullTide = WAVE_MAX_HEIGHT * tideScale(fullTide);
+    const lowestRoadOverFlatSea = 1.53; // measured (buildTrack + lut.minY), Harbour Loop, branch 0
+    const clearance = lowestRoadOverFlatSea - fullTide - crestAtFullTide;
+    expect(clearance).toBeGreaterThan(0.3);
   });
 });
 

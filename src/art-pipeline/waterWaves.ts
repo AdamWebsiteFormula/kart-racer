@@ -6,6 +6,7 @@
 // the whole displacement out by distance from the camera, so a coarse, far-away triangle (with nowhere
 // near enough vertices to show a swell anyway) simply reads flat, exactly as it does today.
 import { BufferAttribute, BufferGeometry, Mesh, Vector3, type Camera, type Object3D } from 'three';
+import type { SeaTideHook } from '../track-builder/mesh/shiftStage.ts';
 
 const G = 9.80665;
 
@@ -50,6 +51,35 @@ export const WAVES: readonly WaveConst[] = waveConstants(WAVE_DEFS);
 
 /** The tallest a crest reaches (sum of amplitudes): how far a "near the top" foam test should look. */
 export const WAVE_MAX_HEIGHT = WAVES.reduce((s, w) => s + w.amplitude, 0);
+
+/** Below this the swell's own scale (`tideScale`) never drops, however far the tide still has to rise: a floor, not a target — real amplitude tuning later stays safe against it too. */
+const TIDE_MIN_SCALE = 0.4;
+/** How much of `tideScale`'s "1 minus" comes off per metre of tide: tuned against Harbour Loop's own numbers (review, 26 Sept 2026, finding 2) — its flood rises SHOW.flood.sea (shiftShow.ts) 0.7 m, and its lowest road point over the sea sits 1.53 m over the flat sea (buildTrack + lut.minY) — so at full tide the crest must clear 1.53 - 0.7 = 0.83 m by at least the ask's 0.3 m, i.e. the crest itself must be under 0.53 m: WAVE_MAX_HEIGHT (about 1.05 m) * tideScale(0.7) = 1.05 * max(0.4, 1 - 0.7*0.85) = 1.05 * 0.405 ≈ 0.43 m, clearing by about 0.40 m — checked in waterWaves.test.ts against Harbour's own measured numbers, not just asserted here. */
+const TIDE_FADE_PER_METRE = 0.85;
+/**
+ * How much of the swell survives at `tideMetres` of a track's own flood tide: 1 with none, shrinking to
+ * `TIDE_MIN_SCALE` once the tide is fully in, so the tallest possible crest plus the tide's own rise
+ * never comes near the road it is not meant to reach (review, 26 Sept 2026, finding 2: "keep every
+ * crest at least about 0.3 m under the main road... scale the swell down with the tide"). 1 on every
+ * track with no flood (`tideMetres` stays 0 there): no change to Boardwalk Nights or a land track.
+ */
+export function tideScale(tideMetres: number): number {
+  return Math.max(TIDE_MIN_SCALE, 1 - tideMetres * TIDE_FADE_PER_METRE);
+}
+
+/**
+ * Harbour Loop's flood tide, shared with track-builder through `TrackAssets.tide` (the same pattern as
+ * `WATER_CLOCK`: shiftStage.ts's own `seaRise` piece writes `rise.value` every frame it plays, track-
+ * builder never importing this module to do it). `scale` is never written directly: its `value` is
+ * `tideScale(rise.value)`, read fresh by whoever asks (the water shader's own uniform, a floating
+ * boat's bob) — one number in, everything derived from it, so the two can never drift apart. Reset to
+ * 0 at the top of `waterMaterial()` (surfaces.ts) every time a scene is built, so a stale tide from a
+ * previous race can never leak into the next one.
+ */
+export const SEA_TIDE: SeaTideHook = {
+  rise: { value: 0 },
+  scale: { get value(): number { return tideScale(SEA_TIDE.rise.value); } },
+};
 
 /**
  * The world-space Y a flat sea would have at (x, z) at time `t`: the same sum the vertex shader
@@ -209,17 +239,24 @@ export function waveGridGeometry(): BufferGeometry {
 
 /**
  * Cell-snapped so the grid moves in whole (finest) cells only (no per-vertex "swimming" as the camera
- * drifts within one), always centred close under the camera. `updateMatrixWorld` right after moving it:
- * three computes matrixWorld once, before onBeforeRender runs on anything, so without this the new
- * position would only reach the GPU a frame late (imperceptible at gameplay speeds, but wrong on the
- * very frame a headless check screenshots). The far, coarse rings ride along and jump by the same small
- * quantum as the fine centre — imperceptible out there, same as the old uniform grid's own (larger) jump.
+ * drifts within one), always centred close under the camera; its own height follows `SEA_TIDE.rise`
+ * every frame too (review, 26 Sept 2026, finding 2: "make the wave grid... follow the sea's actual
+ * height" — Harbour Loop's flood tide raises the flat sea plane, shiftStage.ts seaRise, but this near-
+ * camera grid is a separate mesh with no shift code of its own; reading the very same shared number
+ * keeps the two one sea, never a seam between a risen far plane and a stale near one). `waterY` is its
+ * still-water rest height (`SEA_TIDE.rise.value` is 0 on every track with no flood, and for most of a
+ * flood one's own race too, so this is a no-op there). `updateMatrixWorld` right after moving it: three
+ * computes matrixWorld once, before onBeforeRender runs on anything, so without this the new position
+ * would only reach the GPU a frame late (imperceptible at gameplay speeds, but wrong on the very frame
+ * a headless check screenshots). The far, coarse rings ride along and jump by the same small quantum as
+ * the fine centre — imperceptible out there, same as the old uniform grid's own (larger) jump.
  */
-export function attachWaveFollow(mesh: Object3D): void {
+export function attachWaveFollow(mesh: Object3D, waterY: number): void {
   const cell = WAVE_GRID.innerCell;
   mesh.onBeforeRender = (_renderer, _scene, camera: Camera) => {
     mesh.position.x = Math.round(camera.position.x / cell) * cell;
     mesh.position.z = Math.round(camera.position.z / cell) * cell;
+    mesh.position.y = waterY + SEA_TIDE.rise.value;
     mesh.updateMatrixWorld(true);
   };
 }
@@ -235,7 +272,7 @@ export function buildWaveGridMesh(material: Mesh['material'], waterY: number): M
   mesh.renderOrder = -1.99;
   mesh.receiveShadow = true;
   mesh.userData.sharedMaterial = true;
-  attachWaveFollow(mesh);
+  attachWaveFollow(mesh, waterY);
   return mesh;
 }
 

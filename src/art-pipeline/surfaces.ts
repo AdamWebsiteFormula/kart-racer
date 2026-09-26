@@ -9,7 +9,7 @@ import { toonRamp } from './toon.ts';
 import { detailTexture } from './detail.ts';
 import { isPbr, litWorld, look, PBR } from './look.ts';
 import { WATER_DEPTH, WATER_DEPTH_GLSL, waterDepthHook, waterDepthUniforms } from './waterDepth.ts';
-import { buildWaveGridMesh, gerstnerRide, GERSTNER_GLSL, WAVE_FADE, WAVE_MAX_HEIGHT } from './waterWaves.ts';
+import { buildWaveGridMesh, gerstnerRide, GERSTNER_GLSL, SEA_TIDE, WAVE_FADE, WAVE_MAX_HEIGHT } from './waterWaves.ts';
 import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts';
 
 /** Seconds, advanced by the game loop; every water surface animates from it. */
@@ -21,26 +21,28 @@ export const WATER_CLOCK = { value: 0 };
  * `buildWaveGridMesh`; scene.ts adds it beside the flat far plane this same material also draws): a
  * sum of Gerstner waves (`GERSTNER_GLSL`) displaces `position` before anything else reads it, so the
  * fog, the fragment shader's `vWorld` (hence the depth-based shoreline/foam: the swell genuinely moves
- * the waterline up and down the sand) and the analytic normal (`vGerstnerNormal`, `vCrest` for
- * whitecaps) all follow the same displaced surface. `fade` (1 near the camera, 0 by WAVE_FADE.far)
- * zeroes it near the grid's own far edge, so it meets the flat plane with no seam, and reduces the
- * flat plane's own few, huge vertices (too sparse to show a swell at all) to exactly their old, flat
- * selves.
+ * the waterline up and down the sand) and `vCrest` (whitecaps) all follow the same displaced surface —
+ * the analytic normal itself is evaluated fresh per fragment (WATER_FRAG below), not interpolated from
+ * here (review, 26 Sept 2026, finding 3: "facets in the sky reflection... evaluate the Gerstner normal
+ * per fragment from world xz... instead of interpolating vertex normals"). `fade` (1 near the camera, 0
+ * by WAVE_FADE.far) zeroes it near the grid's own far edge, so it meets the flat plane with no seam,
+ * and reduces the flat plane's own few, huge vertices (too sparse to show a swell at all) to exactly
+ * their old, flat selves; `uTideFade` (Harbour Loop's flood tide, art-pipeline waterWaves.ts SEA_TIDE)
+ * shrinks it further once the tide is in, 1 everywhere else.
  */
 const WATER_VERT = `
 uniform float time;
+uniform float uTideFade;
 varying vec3 vWorld;
-varying vec3 vGerstnerNormal;
 varying float vCrest;
 #include <fog_pars_vertex>
 ${GERSTNER_GLSL}
 void main() {
   vec4 rest = modelMatrix * vec4(position, 1.0);
-  float fade = 1.0 - smoothstep(${WAVE_FADE.near.toFixed(1)}, ${WAVE_FADE.far.toFixed(1)}, length(rest.xz - cameraPosition.xz));
+  float fade = (1.0 - smoothstep(${WAVE_FADE.near.toFixed(1)}, ${WAVE_FADE.far.toFixed(1)}, length(rest.xz - cameraPosition.xz))) * uTideFade;
   vec3 disp = lkGerstner(rest.xz, time, fade);
   vec4 w = rest + vec4(disp, 0.0);
   vWorld = w.xyz;
-  vGerstnerNormal = lkGerstnerNormal(rest.xz, time, fade);
   vCrest = clamp(disp.y / ${WAVE_MAX_HEIGHT.toFixed(4)}, -1.0, 1.0);
   vec4 mvPosition = viewMatrix * w;
   gl_Position = projectionMatrix * mvPosition;
@@ -61,13 +63,13 @@ void main() {
  * opaque, with the old vertical horizon fade — never a torn or half-drawn frame.
  */
 const WATER_FRAG = `
-uniform float time; uniform vec3 deep; uniform vec3 shallow; uniform vec3 sparkle; uniform vec3 horizon;
+uniform float time; uniform float uTideFade; uniform vec3 deep; uniform vec3 shallow; uniform vec3 sparkle; uniform vec3 horizon;
 uniform vec3 sunDir; uniform float night;
 varying vec3 vWorld;
-varying vec3 vGerstnerNormal;
 varying float vCrest;
 #include <fog_pars_fragment>
 ${WATER_DEPTH_GLSL}
+${GERSTNER_GLSL}
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
@@ -118,12 +120,19 @@ void main() {
 
   float dep = lkSceneDropBelow();
 
-  // the swell's own analytic normal (vGerstnerNormal: flat (0,1,0) off the wave grid, or far from the
-  // camera on it) plus two scrolling procedural ripple layers on top (no normal map: a world-space
-  // bump from a noise height field's own slope, so it never swims as the camera turns, unlike a
-  // screen-space derivative would) → Schlick Fresnel toward the sky/horizon colour, and a sun glint
+  // the swell's own analytic normal, evaluated fresh at this fragment's own world xz (not interpolated
+  // from the vertex shader: on the graded grid's own coarse, far rings — or the flat far plane's two
+  // huge triangles — a linearly-interpolated per-vertex normal read as visibly faceted in the sky's own
+  // reflection, review 26 Sept 2026 finding 3; the same fade the vertex shader computed for its own
+  // displacement, recomputed here from vWorld instead of carried as a varying: one extra length and
+  // smoothstep call, cheaper than a second varying) plus two scrolling procedural ripple layers on top (no
+  // normal map: a world-space bump from a noise height field's own slope, so it never swims as the
+  // camera turns, unlike a screen-space derivative would) → Schlick Fresnel toward the sky/horizon
+  // colour, and a sun glint
+  float fade = (1.0 - smoothstep(${WAVE_FADE.near.toFixed(1)}, ${WAVE_FADE.far.toFixed(1)}, length(vWorld.xz - cameraPosition.xz))) * uTideFade;
+  vec3 gNormal = lkGerstnerNormal(vWorld.xz, time, fade);
   vec2 slope = lkSlopeOf(vWorld.xz, 0.1, vec2(0.5, 0.18), time) * 0.6 + lkSlopeOf(vWorld.xz, 0.17, vec2(-0.32, 0.46), time) * 0.4;
-  vec3 nrm = normalize(vGerstnerNormal + vec3(-slope.x * 0.35, 0.0, -slope.y * 0.35));
+  vec3 nrm = normalize(gNormal + vec3(-slope.x * 0.35, 0.0, -slope.y * 0.35));
   float ndv = clamp(dot(nrm, viewDir), 0.0, 1.0);
   float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
   c = mix(c, horizon, fresnel * 0.7);
@@ -166,6 +175,9 @@ const DEFAULT_SUN: readonly [number, number, number] = [0.4, 0.8, 0.3];
  * not baked in once — since a mirrored race (mirror.ts) flips its x on the very same biome.
  */
 export function waterMaterial(biome: string, sunDirection?: readonly [number, number, number]): ShaderMaterial {
+  // a stale tide from a previous race (Harbour's own, or anyone's before it) must never leak into this
+  // one: every scene build calls this once (scene.ts), cache hit or not, so this always runs first
+  SEA_TIDE.rise.value = 0;
   const key = WATERS[biome] ? biome : 'harbour';
   let m = waterCache.get(key);
   if (!m) {
@@ -179,14 +191,20 @@ export function waterMaterial(biome: string, sunDirection?: readonly [number, nu
       }]),
     });
     m.uniforms.time = WATER_CLOCK; // one clock for every water surface
+    m.uniforms.uTideFade = SEA_TIDE.scale; // 1 with no tide; shrinks as Harbour's own flood comes in
     m.userData.shared = true;
     // track-builder's scene.ts calls these generically (any material may want a hand in its mesh, or
     // a companion mesh added beside it), without importing anything from art-pipeline
     m.userData.attachDepth = (mesh: Object3D) => { mesh.onBeforeRender = waterDepthHook(m!); };
     m.userData.waveGrid = (waterY: number) => buildWaveGridMesh(m!, waterY);
     // a generic hook (track-builder never imports art-pipeline): the same Gerstner sum the shader
-    // itself displaces the wave grid with, for a floating decor instance (a boat) to ride each frame
-    m.userData.floatRide = gerstnerRide;
+    // itself displaces the wave grid with, for a floating decor instance (a boat) to ride each frame —
+    // the same tide scale the shader's own uTideFade reads, plus the tide's own rise (a boat floats,
+    // it does not merely shrink: review, 26 Sept 2026, finding 2)
+    m.userData.floatRide = (x: number, z: number, t: number) => {
+      const r = gerstnerRide(x, z, t), s = SEA_TIDE.scale.value;
+      return { y: r.y * s + SEA_TIDE.rise.value, slopeX: r.slopeX * s, slopeZ: r.slopeZ * s };
+    };
     waterCache.set(key, m);
   }
   const [sx, sy, sz] = sunDirection ?? DEFAULT_SUN;

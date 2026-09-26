@@ -6,6 +6,7 @@ import type { TrackDefinition } from '../track-builder/types.ts';
 import { ROAD_LOOKS, trackAssets } from './index.ts';
 import { DEFAULT_LOOK, setLook } from './look.ts';
 import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, waterMaterial } from './surfaces.ts';
+import { SEA_TIDE, tideScale } from './waterWaves.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 
@@ -211,5 +212,45 @@ describe('the sea (waterMaterial, waterDepth.ts): see-through, drawn first among
     ground.onBeforeRender(fakeRenderer, scene.group as never, {} as never, ground.geometry, water, undefined as never);
     expect(water.uniforms.uHasDepth.value).toBe(0);
     scene.dispose();
+  });
+});
+
+describe('the sea\'s swell, review round 2 (26 Sept 2026): a per-fragment normal and Harbour\'s own flood tide', () => {
+  it('finding 3: the analytic normal is evaluated in the fragment shader (from vWorld, fresh per pixel), not carried as an interpolated vertex varying', () => {
+    const m = waterMaterial('harbour');
+    expect(m.vertexShader).not.toContain('vGerstnerNormal');
+    expect(m.fragmentShader).not.toContain('vGerstnerNormal');
+    expect(m.fragmentShader).toContain('lkGerstnerNormal(vWorld.xz');
+    // the vertex shader still needs its own fade for the displacement itself; the fragment recomputes
+    // its own copy from vWorld (not a second varying) so the normal matches the same fade
+    expect(m.vertexShader).toContain('uTideFade');
+    expect(m.fragmentShader).toContain('uTideFade');
+  });
+
+  it('finding 2: uTideFade is wired straight to SEA_TIDE.scale (a live reference, like WATER_CLOCK — not a one-time copy), 1 with no tide', () => {
+    SEA_TIDE.rise.value = 0;
+    const m = waterMaterial('harbour');
+    expect(m.uniforms.uTideFade.value).toBe(1);
+    SEA_TIDE.rise.value = 0.7;
+    expect(m.uniforms.uTideFade.value).toBeCloseTo(tideScale(0.7), 9);
+    SEA_TIDE.rise.value = 0; // never leave a test's own tide for the next one
+  });
+
+  it('waterMaterial() resets SEA_TIDE.rise to 0 every time it is called (a stale tide from a previous race must never leak into the next), even on a cache hit', () => {
+    SEA_TIDE.rise.value = 0.5;
+    waterMaterial('harbour');
+    expect(SEA_TIDE.rise.value).toBe(0);
+  });
+
+  it('finding 2: a floating prop\'s bob (userData.floatRide) rides the tide\'s own rise and shrinks with its scale, exactly like the shader\'s uTideFade', () => {
+    const m = waterMaterial('harbour');
+    const floatRide = m.userData.floatRide as (x: number, z: number, t: number) => { y: number; slopeX: number; slopeZ: number };
+    SEA_TIDE.rise.value = 0;
+    const flat = floatRide(12, -8, 3.4);
+    SEA_TIDE.rise.value = 0.7;
+    const tidal = floatRide(12, -8, 3.4);
+    expect(tidal.y).toBeCloseTo(flat.y * tideScale(0.7) + 0.7, 9);
+    expect(tidal.slopeX).toBeCloseTo(flat.slopeX * tideScale(0.7), 9);
+    SEA_TIDE.rise.value = 0; // never leave a test's own tide for the next one
   });
 });

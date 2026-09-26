@@ -42,6 +42,19 @@ export interface LakeHook {
   /** 0..1: frozen everywhere, faded in (reduced motion) */
   fade: { value: number };
 }
+
+/**
+ * Harbour Loop's flood tide (art-pipeline waterWaves.ts SEA_TIDE): how far the sea has actually risen
+ * this frame (metres, 0 outside a flood shift), read by the wave grid (and a floating boat's own bob)
+ * so they ride the true, tide-raised sea instead of the flat sea's own build-time height — and by the
+ * chase, finish, intro and title cameras' sea floor (game/camera.ts seaLevel), so none of them can read
+ * a stale, too-low sea level once the tide is in (review, 26 Sept 2026, finding 2). `scale` is derived
+ * from `rise` on the art-pipeline side (never written here): only `rise` is ever set.
+ */
+export interface SeaTideHook {
+  rise: { value: number };
+  scale: { value: number };
+}
 /** Points along the lake's middle at most (the shader's array). */
 export const LAKE_POINTS = 12;
 
@@ -67,6 +80,7 @@ export interface StageContext {
   /** the track's road material (Skyline's retracting bridges are road) */
   roadMaterial: Material;
   lake?: LakeHook;
+  tide?: SeaTideHook;
 }
 
 /** A sound the game plays under the shift's sting: at a world point (fading with distance) or everywhere. */
@@ -419,7 +433,13 @@ function flood(ctx: StageContext): Piece | null {
   };
 }
 
-/** The sea comes up round the course with the tide. */
+/**
+ * The sea comes up round the course with the tide: the flat sea plane's own position (unchanged), and
+ * (review, 26 Sept 2026, finding 2) the same rise into `ctx.tide.rise`, the one shared number the wave
+ * grid (art-pipeline waterWaves.ts attachWaveFollow) and every camera's sea floor (game/camera.ts
+ * seaLevel) read each frame, so both the near-camera swell and the far flat plane stay one sea, and no
+ * camera's floor is measured against a level the tide has already left behind.
+ */
 function seaRise(ctx: StageContext): Piece | null {
   const sea = ctx.group.getObjectByName('ground-water');
   if (!sea) return null;
@@ -427,7 +447,9 @@ function seaRise(ctx: StageContext): Piece | null {
   return {
     meshes: [],
     update(f) {
-      sea.position.y = base + (f.since < 0 ? 0 : SHOW.flood.sea * ease(f.since, SHOW.flood.rise[0], SHOW.flood.rise[1]));
+      const rise = f.since < 0 ? 0 : SHOW.flood.sea * ease(f.since, SHOW.flood.rise[0], SHOW.flood.rise[1]);
+      sea.position.y = base + rise;
+      if (ctx.tide) ctx.tide.rise.value = rise;
     },
   };
 }

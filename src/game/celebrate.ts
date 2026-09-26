@@ -7,7 +7,7 @@
 import type { Reaction } from '../kart-controller/anim.ts';
 import type { KartState, TrackSample, Vec3 } from '../kart-controller/types.ts';
 import type { Track } from '../track-builder/track.ts';
-import { CAM, chaseYaw, clampToRoad } from './camera.ts';
+import { CAM, chaseYaw, clampAboveSea, clampToRoad } from './camera.ts';
 
 export const CELEBRATE = Object.freeze({
   /** seconds (real time, a pause not counted) from the line to the results; a press skips the rest */
@@ -140,6 +140,9 @@ export class FinishCam {
     p[1] = this.y + h;
     p[2] = root.z + (fz * ca + sz * sa) * d;
     clampToRoad(track, p, k);
+    // review, 26 Sept 2026, finding 1: every camera near a water track's sea keeps clear of its own
+    // crest, not only the road (this swing can pass close by a coastal finish line)
+    clampAboveSea(p, track);
     const lf = lerp(this.look0[0], 0, e), ls = lerp(this.look0[1], 0, e);
     this.look[0] = root.x + fx * lf + sx * ls;
     this.look[1] = this.y + lerp(this.look0[2], C.lookHeight, e);
