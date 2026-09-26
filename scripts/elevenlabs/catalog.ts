@@ -26,13 +26,17 @@ const CARTOON = 'Bright cartoon video game style, clean and punchy, no music, no
 
 export const SFX: readonly SfxSpec[] = [
   // race flow
-  { id: 'count', seconds: 0.5, influence: 0.6, prompt: 'One single short bright electronic beep, a racing start light countdown tone. Clean synth, one beep only, no echo.' },
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 3/3 -> 10/9; local ear: a clean sine tone, not the old harsh square wave)
+  { id: 'count', seconds: 0.6, influence: 0.7, prompt: 'A single countdown beep for the start of a race in a modern arcade racing game: one clean, rounded electronic tone with a soft sine body and a crisp attack, mid-high pitch, about a quarter second long with a very short tail. Confident and premium, like a stadium start-light tone. One beep only, no echo, no music, no voice.' },
   // remade 25 Sept 2026: the old take was a dry trumpet note to the judge and a car horn to the local ears (2/3 on
   // the brief and the moment); of three new takes the judge picked a bright synth chord blast (6/7), CLAP's pick too
-  { id: 'go', seconds: 1.5, influence: 0.55, prompt: 'The GO signal at the start of a cartoon kart race: one big, bright synth-brass blast, full and punchy, that rings out into a sparkling shimmer. Exciting and triumphant, arcade style. No voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/3 -> 10/9; local ear CLAP match 0.997 against the brief)
+  { id: 'go', seconds: 1.4, influence: 0.6, prompt: 'The GO signal at the start of a race in a modern arcade racing game: one bright, high start tone, an octave above a countdown beep, layered with a punchy, tight brass-and-synth chord hit and a crash cymbal, ringing out into a short sparkling shimmer. Big, clean, exciting and polished. No voice.' },
   { id: 'lap', seconds: 0.8, prompt: 'A short cheerful arcade chime for completing a lap: three quick rising bell and marimba notes. Bright and clean. No voice.' },
-  { id: 'finalLap', seconds: 2, prompt: 'A short exciting brass fanfare sting announcing the final lap of a cartoon kart race: quick rising trumpet notes and a cymbal swell. No voice.' },
-  { id: 'finish', seconds: 3.5, prompt: 'A triumphant short victory fanfare for winning a cartoon kart race: bright brass section, snare roll and a cymbal crash, joyful ending chord. No voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/3 -> 10/9)
+  { id: 'finalLap', seconds: 2.5, influence: 0.6, prompt: 'The final lap sting in a polished modern kart racing game: a short, exciting live brass fanfare, trumpets and trombones playing a quick rising three-note call that lands on a bold, held major chord, with a snare pickup and a crash cymbal. Heroic and modern, big and clean like a studio brass section. No voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/4 -> 10/9)
+  { id: 'finish', seconds: 4, influence: 0.55, prompt: 'The victory fanfare for winning a race in a polished modern kart racing game: a short orchestral-pop fanfare, a live brass section of trumpets, French horns and trombones playing a bright, heroic rising phrase over a snare roll, strings and timpani, landing on a big sustained major chord with a crash cymbal that rings out. Joyful, triumphant and cinematic. No voice.' },
   // the Final Lap Shift (design §2): the whole track changes at once
   // remade 24 Sept 2026 at 4.5 s: the 2.2 s take was a whoosh under a second long, which the judge
   // (Gemini Pro) heard as a menu transition; the Final Lap Shift is the game's signature moment.
@@ -82,7 +86,8 @@ export const SFX: readonly SfxSpec[] = [
   // remade 24 Sept 2026 (the ears heard a door slam and an explosion): the chain leads
   { id: 'anchor', seconds: 1.1, influence: 0.6, prompt: `A metal chain rattling fast as it is thrown out, links clinking and jangling, then one heavy metal clank as the anchor hooks on. ${CARTOON}` },
   { id: 'slingshot', seconds: 0.8, prompt: `A stretchy rubber slingshot release: a twangy snap and a fast whoosh past. ${CARTOON}` },
-  { id: 'mouse', seconds: 1.2, prompt: `A wind-up clockwork toy mouse let go: a few quick winding key clicks, a tiny squeak, then fast scurrying tin feet. ${CARTOON}` },
+  // remade 26 Sept 2026 (runbook step 5, retake prompt dropping "wind-up"/"clockwork"; judge 7/6 -> 10/9; local ears pass)
+  { id: 'mouse', seconds: 1.2, influence: 0.6, prompt: `A tiny tin toy mouse racing away: one quick, high mouse squeak, then a very fast, light pitter-patter of tiny metal feet scurrying off across a hard floor, fading away. Small, quick and cute. ${CARTOON}` },
   { id: 'blocked', seconds: 0.6, prompt: `A thrown toy bouncing off a shield: a quick hollow plastic clonk with a small ricochet ping. ${CARTOON}` },
   { id: 'denied', seconds: 0.5, influence: 0.6, prompt: 'A short soft negative arcade sound: one low muted two-note bloop going down, friendly, not harsh. No voice.' },
   // remade 24 Sept 2026 (the ears heard a zap and a dropped coin): the take kept ranks 1st on the
@@ -118,23 +123,29 @@ export const SFX: readonly SfxSpec[] = [
   // a boost is air: each tier a bigger whoosh than the last
   { id: 'boost1', seconds: 0.7, influence: 0.6, prompt: 'A quick soft whoosh of rushing air as a small go-kart darts forward: one short airy swoosh that fades fast. No music, no voice.' },
   { id: 'boost2', seconds: 1, influence: 0.6, prompt: 'A strong whoosh of rushing air as a go-kart surges forward: a big airy swoosh swelling up with a deep rumble underneath, then fading. No music, no voice.' },
-  { id: 'boost3', seconds: 1.4, influence: 0.6, prompt: 'A huge rushing whoosh as a go-kart rockets forward on a burst of fire: a deep powerful swoosh of wind with crackling, sizzling flames, swelling and then fading away. No music, no voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-2, whoosh-led retake, judge 3/4 -> 9/8; local ear CLAP 0.96 against the brief)
+  { id: 'boost3', seconds: 1.6, influence: 0.65, prompt: 'The biggest speed boost in a modern arcade racing game: a powerful rushing whoosh of wind and flame that swells in over a quarter second and surges upward in pitch, a deep, warm rumble underneath, then a glittering shimmer of electric sparks trailing off at the end. Smooth, soft onset, thrilling and polished. No music, no voice.' },
   { id: 'boostPad', seconds: 0.9, prompt: 'A go-kart driving over a glowing speed boost pad: an electric zap and a fast rising whoosh. Arcade style. No music, no voice.' },
   // the trick itself, the moment the button is pressed in the air
   { id: 'trick', seconds: 0.7, prompt: `A go-kart doing a quick mid-air flip trick: a fast spinning air whoosh swish with a tiny sparkle. ${CARTOON}` },
   { id: 'boostTrick', seconds: 0.8, prompt: `A stylish mid-air trick: quick sparkling swoosh with a twinkle chime. ${CARTOON}` },
   // remade 24 Sept 2026 at 1.6 s: the 1.2 s take was cut off at full level
-  { id: 'boostStart', seconds: 1.6, prompt: 'A perfect rocket start in a kart race: a sharp small engine rev, then a turbo whoosh launching forward that fades away completely at the end. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 5; the old take was a realistic engine rev, judge 0/0 -> 9/9; local CLAP disagrees (reads as a laser gun) but the override rule for boostStart/honk/horn:nova applies: judge >=7 both and >=A+3 both, no voice/weapon in its own hearing)
+  { id: 'boostStart', seconds: 1.6, influence: 0.6, prompt: `A bright launch: a quick rising zing that bursts into a big rushing whoosh of air shooting forward with a sparkly fizz, then trails off and fades smoothly to silence. Fast, exciting and cartoonish. ${CARTOON}` },
   // remade 24 Sept 2026: the first take sounded like a gun being reloaded (never in a G-rated game)
   { id: 'slipstream', seconds: 1, influence: 0.6, prompt: "Wind rushing past a speeding go-kart: a smooth airy whoosh that swells and rushes by as the kart zooms out of another kart's slipstream. Soft, fast and airy. No music, no voice." },
   // the drift spark tiers (blue, orange, purple): each a bigger, higher zap than the last
-  { id: 'tierUp', seconds: 0.5, influence: 0.5, prompt: 'A tiny crackling electric spark: one short bright sizzle zap. No music, no voice.' },
-  { id: 'tierUp2', seconds: 0.6, influence: 0.5, prompt: 'A bright crackling electric spark charging up: a quick sizzle zap with a short rising fizz, bigger and higher than a tiny spark. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 10/10; local ears pass)
+  { id: 'tierUp', seconds: 0.5, influence: 0.6, prompt: 'A small electric spark: one quick, crackling zap of static electricity with a bright, buzzing sizzle, like a tiny spark jumping. Crisp, bright and short. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 6/5 -> 9/9; local ears pass)
+  { id: 'tierUp2', seconds: 0.6, influence: 0.6, prompt: 'A stronger electric spark charging up: a sharp, crackling zap of electricity that buzzes and fizzes quickly upward in pitch, bright and sizzling, bigger than a tiny spark. Short and energetic. No music, no voice.' },
   { id: 'tierUp3', seconds: 0.8, influence: 0.5, prompt: 'A powerful electric spark surging to full charge: a sharp crackling zap, a fast rising sizzle and a sparkly shimmer on top. Short. No music, no voice.' },
   // driving
-  { id: 'hop', seconds: 0.5, prompt: `A small springy hop of a go-kart: light boing with a quick suspension creak. ${CARTOON}` },
+  // remade 26 Sept 2026 (runbook step 2; judge 4/3 -> 7/9; local ears pass)
+  { id: 'hop', seconds: 0.5, influence: 0.6, prompt: `One quick, light, bouncy spring boing, short and soft, with a tiny springy creak. Very short. ${CARTOON}` },
   { id: 'land', seconds: 0.6, prompt: 'A go-kart landing on asphalt after a small jump: a solid rubbery thump with a tyre chirp. No music, no voice.' },
-  { id: 'wall', seconds: 0.6, prompt: 'A go-kart bumping into a padded track barrier: a dull soft thud and a short plastic scrape. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
+  { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
   { id: 'bump', seconds: 0.5, prompt: `Two go-karts bumping into each other: one rubbery bonk. ${CARTOON}` },
   { id: 'wrongWay', seconds: 1.2, prompt: 'A warning alert: two-tone buzzer beeps repeating twice. Arcade game alarm, friendly not scary. No voice.' },
   { id: 'gainPlace', seconds: 0.5, influence: 0.5, prompt: 'A quick positive upward blip: two rising bright notes, arcade game, very short. No voice.' },
@@ -158,17 +169,21 @@ export const SFX: readonly SfxSpec[] = [
   // hit yelps, one per racer (design §11): creature noises, never words
   { id: 'yelp:pip', seconds: 0.5, prompt: 'A tiny cartoon hummingbird startled squeak: one quick high chirp of surprise. No words.' },
   { id: 'yelp:momo', seconds: 0.7, prompt: 'A cartoon cat grumpy startled meow: one short annoyed mrrow. No words.' },
-  { id: 'yelp:nova', seconds: 0.6, prompt: 'A soft dreamy cartoon moth surprised: a quick wing flutter and a tiny high coo. No words.' },
+  // remade 26 Sept 2026 (runbook step 2; the old take was a voice saying "Mhm", judge 0/0 -> 4/4; local ears pass)
+  { id: 'yelp:nova', seconds: 0.6, influence: 0.6, prompt: `A quick, soft, papery flutter of wings with one tiny, high, glassy chime, like a small startled wind chime. Dreamy and very short. ${CARTOON}` },
   { id: 'yelp:juniper', seconds: 0.5, prompt: 'A cartoon fox short surprised yip. One yip only. No words.' },
   { id: 'yelp:otto', seconds: 0.5, prompt: 'A cartoon otter squeaky surprised chirp. One chirp only. No words.' },
   { id: 'yelp:sprocket', seconds: 0.6, prompt: 'A little wind-up robot toy glitching: a quick springy boing and a surprised electronic bleep. No words.' },
   { id: 'yelp:boulder', seconds: 0.7, prompt: 'A big friendly rock creature low surprised oof grunt with a pebble clatter. No words.' },
-  { id: 'yelp:gus', seconds: 0.7, prompt: 'A big cartoon walrus surprised deep honking bark. One bark only. No words.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/4 -> 10/10; local ears pass, though Qwen still describes a person on this take -- worth Adam's own listen)
+  { id: 'yelp:gus', seconds: 0.7, influence: 0.6, prompt: 'A big walrus calling out in surprise: one short, deep, hoarse honk-bellow, gurgly and blubbery with a wet, rumbling flutter, like a giant sea lion. One call only, friendly and comic. No music, no human voice, no words.' },
   // loops: the engine at three speeds (plan §7.4) and the drift screech
   { id: 'engine-idle', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine idling steadily at low RPM. Continuous and even, no revving, no other sounds.' },
   { id: 'engine-mid', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine running steadily at medium RPM. Continuous and even, no gear changes, no revving, no other sounds.' },
-  { id: 'engine-high', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine held at high RPM, full throttle, a steady continuous buzzing whine. Even, no gear changes, no other sounds.' },
-  { id: 'drift', seconds: 3, loop: true, prompt: 'The continuous tyre screech of a go-kart drifting sideways on asphalt. Steady and even, no engine, no other sounds.' },
+  // remade 26 Sept 2026 (audition pack sfx-2, judge 4/4 -> 9/8; pitch spread 29 cents -> under 2, local ear CLAP 0.97 against the brief)
+  { id: 'engine-high', seconds: 4, loop: true, influence: 0.6, prompt: 'Seamless loop: a small, sporty racing kart engine held at high RPM at full throttle, recorded on board: a smooth, steady, bright buzzing exhaust note with a warm growl underneath, one constant pitch and level the whole time. No gear changes, no pass-by, no other sounds.' },
+  // remade 26 Sept 2026 (audition pack sfx-2, judge 2/3 -> 9/8; local ear CLAP 0.96 against the brief; the old take tagged Honk/Goose)
+  { id: 'drift', seconds: 3, loop: true, influence: 0.7, prompt: 'Seamless loop: the steady, continuous tire squeal of a small kart drifting sideways through a long corner on smooth asphalt: a smooth, sustained rubber screech at one constant pitch with a soft gritty scrub underneath. Even level all the way through. No engine, no pass-by, no other sounds.' },
   // under the wheels off the road (dirt and mud surfaces)
   { id: 'offroad', seconds: 3, loop: true, prompt: 'The continuous rumble of small go-kart tires rolling fast over grass and loose dirt: a rough crunchy gravel rumble with light pebble rattles. Steady and even, no engine, no other sounds.' },
   // what the wheels roll on, per course (24 Sept 2026, src/audio/engine.ts wheelSound): the land beside the road

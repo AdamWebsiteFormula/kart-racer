@@ -58,7 +58,8 @@ export const cutDb = (id: string): number => (PUNCH.has(id) ? -12 : TIGHT.has(id
 /** the final-lap fanfare's length: the music waits this long before it comes back faster */
 export const FANFARE_SECONDS = 2.1;
 /** the stings' lengths (catalog `finish`, `finishLow`, `koOut`, `koSafe`, plus a breath): the results song waits for their last chord */
-export const STING_SECONDS = Object.freeze({ finish: 3.6, finishLow: 2.3, koOut: 2.3, koSafe: 2.1 });
+// finish raised 3.6 -> 4.1 on 26 Sept 2026: the remade finish-fanfare (audition pack, judge 10/9) runs 4.0 s, up from 3.5 s
+export const STING_SECONDS = Object.freeze({ finish: 4.1, finishLow: 2.3, koOut: 2.3, koSafe: 2.1 });
 
 // ---------------------------------------------------------------- analysis (pure)
 
