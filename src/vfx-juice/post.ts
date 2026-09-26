@@ -59,6 +59,27 @@ class FloorEffect extends Effect {
   constructor() { super('FloorEffect', FLOOR_FRAG, { blendFunction: BlendFunction.SRC }); }
 }
 
+/**
+ * Bloom never spreads a NaN or an Inf (26 Sept 2026: one NaN pixel on a prop turned whole frames black,
+ * 1-5 times a lap on five of six tracks; bloom's mip-chain blur spreads one bad pixel over the screen).
+ * The same guard as Unity's post stack, "Stop NaN propagation" (its manual, post-processing 3.2). It is
+ * patched into bloom's threshold pass, the one read of the scene that every blur level starts from, so
+ * it costs no extra pass or draw. It tests the float's exponent bits, not isnan(): a fast-math shader
+ * compiler may drop isnan().
+ */
+export const BLOOM_INPUT = 'vec4 texel=texture2D(inputBuffer,vUv);';
+export const BLOOM_GUARD = 'if(any(equal(floatBitsToUint(texel)&uvec4(0x7f800000u),uvec4(0x7f800000u))))texel=vec4(0.0);';
+
+/** Adds BLOOM_GUARD to `bloom`'s threshold shader; false if postprocessing's shader no longer has the line it follows (post.test.ts fails on that). */
+export function guardBloomInput(bloom: BloomEffect): boolean {
+  const m = bloom.luminanceMaterial;
+  if (m.fragmentShader.includes(BLOOM_GUARD)) return true;
+  if (!m.fragmentShader.includes(BLOOM_INPUT)) return false;
+  m.fragmentShader = m.fragmentShader.replace(BLOOM_INPUT, BLOOM_INPUT + BLOOM_GUARD);
+  m.needsUpdate = true;
+  return true;
+}
+
 /** The colour lift eased toward `to` over `dt` seconds, at the rate the scene's lights ease (main.ts applyLight). */
 export const easeGrade = (from: number, to: number, dt: number): number => from + (to - from) * (1 - Math.exp(-dt * 1.6));
 
@@ -89,6 +110,7 @@ export class Post {
     this.composer = new EffectComposer(renderer, { frameBufferType: HalfFloatType, multisampling: 4 });
     this.composer.addPass(new RenderPass(scene, camera));
     const bloom = new BloomEffect({ luminanceThreshold: 1.0, luminanceSmoothing: 0.15, intensity: 1.1, mipmapBlur: true, radius: 0.7 });
+    guardBloomInput(bloom);
     const vignette = new VignetteEffect({ darkness: 0.32, offset: 0.4 });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
     // the filmic curve flattens colour a little: give it back, cartoon-bright but not garish

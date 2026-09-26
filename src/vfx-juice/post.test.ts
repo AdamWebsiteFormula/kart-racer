@@ -1,6 +1,22 @@
+import { BloomEffect } from 'postprocessing';
 import { describe, expect, it } from 'vitest';
 import { DAY_GRADE, lightOf } from '../art-pipeline/index.ts';
-import { easeGrade, FLOOR_FRAG, msaaSamples } from './post.ts';
+import { BLOOM_GUARD, BLOOM_INPUT, easeGrade, FLOOR_FRAG, guardBloomInput, msaaSamples } from './post.ts';
+
+describe('bloom never spreads a NaN or Inf pixel over the frame (black flashes, 2026-09-26)', () => {
+  it('the threshold pass every bloom blur starts from drops a non-finite texel, once', () => {
+    const bloom = new BloomEffect({ luminanceThreshold: 1.0, mipmapBlur: true });
+    // the line the guard follows is in the installed postprocessing's own shader (an upgrade that changes it fails here)
+    expect(bloom.luminanceMaterial.fragmentShader).toContain(BLOOM_INPUT);
+    expect(guardBloomInput(bloom)).toBe(true);
+    expect(guardBloomInput(bloom)).toBe(true);
+    const f = bloom.luminanceMaterial.fragmentShader;
+    expect(f).toContain(BLOOM_INPUT + BLOOM_GUARD);
+    expect(f.split(BLOOM_GUARD).length).toBe(2);
+    // exponent bits all ones: Inf or NaN, whatever the compiler assumes about isnan()
+    expect(BLOOM_GUARD).toContain('floatBitsToUint(texel)&uvec4(0x7f800000u)');
+  });
+});
 
 describe('no negative colour reaches the sRGB encode (Firefox drew those pixels black, 2026-09-24)', () => {
   it('the day lift pushes a strong green below 0, and the chain ends by flooring every channel at 0', () => {
