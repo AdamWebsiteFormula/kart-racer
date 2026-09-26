@@ -346,7 +346,8 @@
       {
         "asset": "boat",
         "instances": 40,
-        "band": "far"
+        "band": "far",
+        "lift": -0.5
       },
       { "asset": "barrel", "instances": 30, "band": "roadside", "lift": 1.02 },
       { "asset": "stall", "instances": 16, "band": "roadside" },

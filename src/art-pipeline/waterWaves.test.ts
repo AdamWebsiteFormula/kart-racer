@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { MeshBasicMaterial, PerspectiveCamera } from 'three';
 import {
-  buildWaveGridMesh, GERSTNER_GLSL, gerstnerHeight, gerstnerRide, SEA_TIDE, tideScale, WAVE_FADE, WAVE_GRID, WAVE_MAX_HEIGHT, WAVES, waveGridGeometry,
+  buildWaveGridMesh, GERSTNER_GLSL, gerstnerHeight, gerstnerRide, SEA_TIDE, tideScale, WAVE_FADE, waveFade, WAVE_GRID, WAVE_MAX_HEIGHT, WAVES, waveGridGeometry,
 } from './waterWaves.ts';
 
 describe('gerstnerHeight: the TS mirror of the vertex shader\'s own sum', () => {
@@ -197,5 +197,21 @@ describe('buildWaveGridMesh: a companion to the flat sea plane, sharing its mate
     expect(mesh.userData.sharedMaterial).toBe(true);
     expect(mesh.renderOrder).toBeGreaterThan(-2); // after the flat plane's -2 (scene.ts)
     expect(mesh.renderOrder).toBeLessThan(-1); // still before shiftFx clouds (-1) and everything else see-through
+  });
+
+  it('is never frustum culled: three culls before onBeforeRender moves it, so after a camera cut its old spot would keep it culled and unmoved', () => {
+    expect(buildWaveGridMesh(new MeshBasicMaterial(), -2).frustumCulled).toBe(false);
+  });
+});
+
+describe('waveFade: how much swell shows at a distance from the camera, the shaders\' own 1 - smoothstep(near, far, d)', () => {
+  it('is whole to WAVE_FADE.near, half midway, gone from WAVE_FADE.far, and eases between', () => {
+    const glsl = (d: number) => { const t = Math.min(1, Math.max(0, (d - WAVE_FADE.near) / (WAVE_FADE.far - WAVE_FADE.near))); return 1 - t * t * (3 - 2 * t); };
+    expect(waveFade(0)).toBe(1);
+    expect(waveFade(WAVE_FADE.near)).toBe(1);
+    expect(waveFade((WAVE_FADE.near + WAVE_FADE.far) / 2)).toBeCloseTo(0.5, 9);
+    expect(waveFade(WAVE_FADE.far)).toBe(0);
+    expect(waveFade(1e4)).toBe(0);
+    for (let d = 0; d < 120; d += 3.7) expect(waveFade(d)).toBeCloseTo(glsl(d), 12);
   });
 });

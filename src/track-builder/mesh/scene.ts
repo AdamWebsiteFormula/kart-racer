@@ -778,10 +778,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   let farLandmark: [number, number, number] | undefined;
   let vistaParts: VistaParts | undefined;
   const occupied = new Occupancy();
-  /** the sea's own Gerstner sum (art-pipeline waterWaves.ts gerstnerRide, through the water material's userData: track-builder never imports art-pipeline directly), set below once the ground is built; undefined on a land track or if the Low tier's plain material never offers one */
-  let floatRide: ((x: number, z: number, t: number) => { y: number; slopeX: number; slopeZ: number }) | undefined;
-  /** floating decor instancers (FLOATING_DECOR) and each instance's own placed (flat-water) transform, read fresh every update(time) so the bob never accumulates drift */
-  const floatingBoats: { mesh: InstancedMesh; base: Float32Array; count: number }[] = [];
+  /** the sea as drawn at (x, z) for a camera at (eyeX, eyeZ) (art-pipeline surfaces.ts floatRide, through the water material's userData: track-builder never imports art-pipeline directly), set below once the ground is built; undefined on a land track or if the Low tier's plain material never offers one */
+  let floatRide: ((x: number, z: number, eyeX: number, eyeZ: number) => { y: number; slopeX: number; slopeZ: number }) | undefined;
+  /** floating decor instancers (FLOATING_DECOR), each instance's own placed (flat-water) transform, read fresh every frame so the bob never accumulates drift, and the Low tier's pool for its slots */
+  const floatingBoats: { mesh: InstancedMesh; base: Float32Array; count: number; pool: Pool | null }[] = [];
   for (const entry of env.decor ?? []) {
     const geo = geometryFor(assets, entry.asset, 'decor');
     // how far the prop reaches from its centre across the ground: a roadside one stands clear of where karts drive
@@ -807,11 +807,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     instancers.set(m.name, m);
     group.add(m);
     withHull(m, entry.asset);
-    if (m.count > 0) pools.push(newPool(m, entry.band));
-    // a boat rides the sea's own swell (update(time) below): its placed matrix is its flat-water rest
-    // pose, read fresh each frame so the bob (and the Low tier's own thinning, which packs this same
-    // buffer from its own frozen copy) never compound into drift
-    if (FLOATING_DECOR.has(entry.asset) && p.count > 0) floatingBoats.push({ mesh: m, base: Float32Array.from(p.matrices.subarray(0, p.count * 16)), count: p.count });
+    const pool = m.count > 0 ? newPool(m, entry.band) : null;
+    if (pool) pools.push(pool);
+    // a boat rides the sea's own swell (bobFloatingBoats, from cull): its placed matrix is its
+    // flat-water rest pose, read fresh each frame so the bob never compounds into drift
+    if (FLOATING_DECOR.has(entry.asset) && p.count > 0) floatingBoats.push({ mesh: m, base: Float32Array.from(p.matrices.subarray(0, p.count * 16)), count: p.count, pool });
     if (entry.footing === 'pier') {
       // each one out at sea stands on its own pier, sized to what stands on it
       const box = m.geometry.boundingBox ?? (m.geometry.computeBoundingBox(), m.geometry.boundingBox!);
@@ -970,24 +970,31 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const rollQ = new Quaternion(), rollAxis = new Vector3(), rollPos = new Vector3(), rollScale = new Vector3(1, 1, 1);
   const hidden = new Matrix4().makeScale(0, 0, 0);
   // a floating boat's bob (review, 26 Sept 2026): read its placed (flat-water) transform fresh, add the
-  // sea's own rise there at `time` plus a small world-space pitch/roll from the same wave's local
-  // slope, on top of its own yaw — never accumulated, so it can never drift off its placed spot
-  const floatM = new Matrix4(), floatP = new Vector3(), floatQ = new Quaternion(), floatS = new Vector3(), floatTilt = new Quaternion(), floatE = new Euler();
-  const bobFloatingBoats = (time: number): void => {
+  // sea's height there as drawn for this camera (the water's own clock, and its swell faded with
+  // distance, so a far boat sits on the far, flat sea) plus a small world-space pitch/roll from the
+  // same wave's local slope, on top of its own yaw — never accumulated, so it never drifts off its spot.
+  // Once a frame from cull, after the Low tier's thinning: at Low, slot s holds copy shown[s]
+  const floatM = new Matrix4(), floatP = new Vector3(), floatQ = new Quaternion(), floatS = new Vector3(), floatTilt = new Quaternion(), floatE = new Euler(), floatEye = new Vector3();
+  const bobFloatingBoats = (camera: Camera): void => {
     if (!floatRide) return;
+    camera.getWorldPosition(floatEye);
     for (const fb of floatingBoats) {
-      for (let i = 0; i < fb.count; i++) {
+      const packed = fb.pool?.thinned === true, slots = packed ? fb.pool!.count : fb.count;
+      for (let s = 0; s < slots; s++) {
+        const i = packed ? fb.pool!.shown[s] : s;
         floatM.fromArray(fb.base, i * 16);
         floatM.decompose(floatP, floatQ, floatS);
-        const ride = floatRide(floatP.x, floatP.z, time);
+        const ride = floatRide(floatP.x, floatP.z, floatEye.x, floatEye.z);
         floatP.y += ride.y;
         // pitch (world X) raises the +Z side with the swell there, roll (world Z) raises the +X side:
         // a damped small-angle read of the wave's own slope, so a hull rocks gently, never mirrors it
         floatE.set(Math.atan(ride.slopeZ) * FLOAT_TILT_DAMP, 0, -Math.atan(ride.slopeX) * FLOAT_TILT_DAMP);
         floatTilt.setFromEuler(floatE).multiply(floatQ);
         floatM.compose(floatP, floatTilt, floatS);
-        fb.mesh.setMatrixAt(i, floatM);
+        fb.mesh.setMatrixAt(s, floatM);
       }
+      fb.mesh.instanceMatrix.clearUpdateRanges();
+      if (slots > 0) fb.mesh.instanceMatrix.addUpdateRange(0, slots * 16);
       fb.mesh.instanceMatrix.needsUpdate = true;
     }
   };
@@ -1023,7 +1030,6 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     setStartLamps(startLamps, time);
     vents?.update(time);
     tickPads(time);
-    bobFloatingBoats(time);
     const dt = Math.min(0.1, Math.max(0, time - glowTime));
     glowTime = time;
     glowNow += (glowTo - glowNow) * (1 - Math.exp(-dt * PICKUP_EASE));
@@ -1105,7 +1111,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       // material (so the very same depth capture, translucency and foam apply) and follows the camera
       const waveGrid = (own?.userData.waveGrid as ((waterY: number) => Object3D) | undefined)?.(groundY);
       if (waveGrid) group.add(waveGrid);
-      // the same sum, for a floating decor instance to ride (bobFloatingBoats above)
+      // the sea as drawn, for a floating decor instance to ride (bobFloatingBoats above)
       floatRide = own?.userData.floatRide as typeof floatRide;
     }
     group.add(ground);
@@ -1310,6 +1316,38 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   /** whether the Low tier's thinning is on (cull), and the view its last run was for */
   let lowOn = false, sinceCull = 0, lastFov = 0, lastFar = 0;
   const lastEye = new Vector3(Infinity, Infinity, Infinity), lastDir = new Vector3();
+  /** The Low tier's thinning (TrackScene.cull); off Low, every copy as placed. */
+  const thinDecor = (camera: Camera, low: boolean, fogFar: number): void => {
+    if (low !== lowOn) {
+      lowOn = low;
+      // the far vista's movers (its fliers, already folded away at Low in its shader) and the crowd (drawn with no copies at Low) skip their draws
+      for (const m of vistaParts?.world ?? []) if (m.name === 'vista-movers' || m.name.startsWith('crowd') && m.name !== 'crowd-stands') m.visible = !low;
+      if (!low) for (const p of pools) restorePool(p);
+      lastEye.set(Infinity, Infinity, Infinity); // a fresh run the next time Low comes
+    }
+    if (!low) return;
+    camera.updateMatrixWorld();
+    CULL_EYE.setFromMatrixPosition(camera.matrixWorld);
+    camera.getWorldDirection(CULL_DIR);
+    const cam = camera as Camera & { fov?: number; aspect?: number; near?: number; far?: number; zoom?: number; isPerspectiveCamera?: boolean };
+    const fov = cam.fov ?? 60, R = LOW_RECULL;
+    // the view has not moved enough to show anything new: last run's copies still cover it
+    if (CULL_EYE.distanceToSquared(lastEye) < R.move * R.move && CULL_DIR.dot(lastDir) > Math.cos((R.turn * Math.PI) / 180)
+      && Math.abs(fov - lastFov) < 1 && fogFar === lastFar && ++sinceCull < R.frames) return;
+    sinceCull = 0;
+    lastEye.copy(CULL_EYE); lastDir.copy(CULL_DIR); lastFov = fov; lastFar = fogFar;
+    // the lens's view, `margin` degrees wider
+    if (cam.isPerspectiveCamera) {
+      const top = (cam.near! * Math.tan((((fov + R.margin) * Math.PI) / 180) / 2)) / (cam.zoom ?? 1), side = top * cam.aspect!;
+      CULL_PROJ.makePerspective(-side, side, top, -top, cam.near!, cam.far!);
+    } else CULL_PROJ.copy(camera.projectionMatrix);
+    CULL_PV.multiplyMatrices(CULL_PROJ, camera.matrixWorldInverse);
+    CULL_FRUSTUM.setFromProjectionMatrix(CULL_PV);
+    for (let q = 0; q < 6; q++) { const pl = CULL_FRUSTUM.planes[q]; CULL_PLANES[q * 4] = pl.normal.x; CULL_PLANES[q * 4 + 1] = pl.normal.y; CULL_PLANES[q * 4 + 2] = pl.normal.z; CULL_PLANES[q * 4 + 3] = pl.constant; }
+    // a copy of radius r covers r / (d tan(fov / 2)) of the screen's half height at distance d
+    const reach = 1 / (LOW_MIN_SIZE * Math.tan(((fov * Math.PI) / 180) / 2));
+    for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
+  };
   const scene: TrackScene = {
     group, palette, chunks, decor, dressing, farLandmark, vista: vistaParts, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
@@ -1325,35 +1363,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       return n;
     },
     cull: (camera, low, fogFar = Infinity) => {
-      if (low !== lowOn) {
-        lowOn = low;
-        // the far vista's movers (its fliers, already folded away at Low in its shader) and the crowd (drawn with no copies at Low) skip their draws
-        for (const m of vistaParts?.world ?? []) if (m.name === 'vista-movers' || m.name.startsWith('crowd') && m.name !== 'crowd-stands') m.visible = !low;
-        if (!low) for (const p of pools) restorePool(p);
-        lastEye.set(Infinity, Infinity, Infinity); // a fresh run the next time Low comes
-      }
-      if (!low) return;
-      camera.updateMatrixWorld();
-      CULL_EYE.setFromMatrixPosition(camera.matrixWorld);
-      camera.getWorldDirection(CULL_DIR);
-      const cam = camera as Camera & { fov?: number; aspect?: number; near?: number; far?: number; zoom?: number; isPerspectiveCamera?: boolean };
-      const fov = cam.fov ?? 60, R = LOW_RECULL;
-      // the view has not moved enough to show anything new: last run's copies still cover it
-      if (CULL_EYE.distanceToSquared(lastEye) < R.move * R.move && CULL_DIR.dot(lastDir) > Math.cos((R.turn * Math.PI) / 180)
-        && Math.abs(fov - lastFov) < 1 && fogFar === lastFar && ++sinceCull < R.frames) return;
-      sinceCull = 0;
-      lastEye.copy(CULL_EYE); lastDir.copy(CULL_DIR); lastFov = fov; lastFar = fogFar;
-      // the lens's view, `margin` degrees wider
-      if (cam.isPerspectiveCamera) {
-        const top = (cam.near! * Math.tan((((fov + R.margin) * Math.PI) / 180) / 2)) / (cam.zoom ?? 1), side = top * cam.aspect!;
-        CULL_PROJ.makePerspective(-side, side, top, -top, cam.near!, cam.far!);
-      } else CULL_PROJ.copy(camera.projectionMatrix);
-      CULL_PV.multiplyMatrices(CULL_PROJ, camera.matrixWorldInverse);
-      CULL_FRUSTUM.setFromProjectionMatrix(CULL_PV);
-      for (let q = 0; q < 6; q++) { const pl = CULL_FRUSTUM.planes[q]; CULL_PLANES[q * 4] = pl.normal.x; CULL_PLANES[q * 4 + 1] = pl.normal.y; CULL_PLANES[q * 4 + 2] = pl.normal.z; CULL_PLANES[q * 4 + 3] = pl.constant; }
-      // a copy of radius r covers r / (d tan(fov / 2)) of the screen's half height at distance d
-      const reach = 1 / (LOW_MIN_SIZE * Math.tan(((fov * Math.PI) / 180) / 2));
-      for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
+      thinDecor(camera, low, fogFar);
+      bobFloatingBoats(camera);
     },
     lens: (camera, closeUp = false) => {
       camera.getWorldPosition(LENS_EYE);

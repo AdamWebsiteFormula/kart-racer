@@ -175,6 +175,12 @@ export const WAVE_GRID = Object.freeze({ half: 100, innerCell: 1.8, innerCells: 
 /** Where the swell fades out (metres from the camera): gone well inside the grid's own edge (WAVE_GRID.half, 100 m), so it meets the surrounding flat plane with no seam. */
 export const WAVE_FADE = Object.freeze({ near: 55, far: 90 });
 
+/** How much of the swell shows `distance` metres (in xz) from the camera: 1 to WAVE_FADE.near, 0 from WAVE_FADE.far; the shaders' own `1.0 - smoothstep(near, far, d)` (surfaces.ts), for a floating prop to ride the sea as drawn. */
+export function waveFade(distance: number): number {
+  const k = Math.min(1, Math.max(0, (distance - WAVE_FADE.near) / (WAVE_FADE.far - WAVE_FADE.near)));
+  return 1 - k * k * (3 - 2 * k);
+}
+
 /**
  * One graded half-axis from the centre (0) out to `half`: `innerCells` steps of `innerCell`, then each
  * next step `growth` times the last, capped at `maxCell`, until `half` is reached (the last step
@@ -272,6 +278,10 @@ export function buildWaveGridMesh(material: Mesh['material'], waterY: number): M
   mesh.renderOrder = -1.99;
   mesh.receiveShadow = true;
   mesh.userData.sharedMaterial = true;
+  // never frustum culled: it always lies around the camera, and three culls before onBeforeRender
+  // moves it, so after a camera cut (the intro, a respawn, the title's TV camera) its old spot out of
+  // view would keep it culled, and so never moved, until the camera looked back there
+  mesh.frustumCulled = false;
   attachWaveFollow(mesh, waterY);
   return mesh;
 }

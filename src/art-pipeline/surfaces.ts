@@ -9,7 +9,7 @@ import { toonRamp } from './toon.ts';
 import { detailTexture } from './detail.ts';
 import { isPbr, litWorld, look, PBR } from './look.ts';
 import { WATER_DEPTH, WATER_DEPTH_GLSL, waterDepthHook, waterDepthUniforms } from './waterDepth.ts';
-import { buildWaveGridMesh, gerstnerRide, GERSTNER_GLSL, SEA_TIDE, WAVE_FADE, WAVE_MAX_HEIGHT } from './waterWaves.ts';
+import { buildWaveGridMesh, gerstnerRide, GERSTNER_GLSL, SEA_TIDE, WAVE_FADE, waveFade, WAVE_MAX_HEIGHT } from './waterWaves.ts';
 import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts';
 
 /** Seconds, advanced by the game loop; every water surface animates from it. */
@@ -197,12 +197,13 @@ export function waterMaterial(biome: string, sunDirection?: readonly [number, nu
     // a companion mesh added beside it), without importing anything from art-pipeline
     m.userData.attachDepth = (mesh: Object3D) => { mesh.onBeforeRender = waterDepthHook(m!); };
     m.userData.waveGrid = (waterY: number) => buildWaveGridMesh(m!, waterY);
-    // a generic hook (track-builder never imports art-pipeline): the same Gerstner sum the shader
-    // itself displaces the wave grid with, for a floating decor instance (a boat) to ride each frame —
-    // the same tide scale the shader's own uTideFade reads, plus the tide's own rise (a boat floats,
-    // it does not merely shrink: review, 26 Sept 2026, finding 2)
-    m.userData.floatRide = (x: number, z: number, t: number) => {
-      const r = gerstnerRide(x, z, t), s = SEA_TIDE.scale.value;
+    // a generic hook (track-builder never imports art-pipeline): the sea as the shader draws it at
+    // (x, z) for a floating decor instance (a boat) to ride each frame, seen from a camera at (eyeX,
+    // eyeZ): the same Gerstner sum on the same clock (WATER_CLOCK), faded with distance from the camera
+    // as the vertex shader fades it, times the tide scale uTideFade reads, plus the tide's own rise (a
+    // boat floats, it does not merely shrink: review, 26 Sept 2026, finding 2)
+    m.userData.floatRide = (x: number, z: number, eyeX: number, eyeZ: number) => {
+      const r = gerstnerRide(x, z, WATER_CLOCK.value), s = waveFade(Math.hypot(x - eyeX, z - eyeZ)) * SEA_TIDE.scale.value;
       return { y: r.y * s + SEA_TIDE.rise.value, slopeX: r.slopeX * s, slopeZ: r.slopeZ * s };
     };
     waterCache.set(key, m);

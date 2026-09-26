@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ShaderChunk, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
+import { PerspectiveCamera, ShaderChunk, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { ROAD_LOOKS, trackAssets } from './index.ts';
 import { DEFAULT_LOOK, setLook } from './look.ts';
-import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, waterMaterial } from './surfaces.ts';
-import { SEA_TIDE, tideScale } from './waterWaves.ts';
+import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, WATER_CLOCK, waterMaterial } from './surfaces.ts';
+import { gerstnerRide, SEA_TIDE, tideScale, WAVE_FADE } from './waterWaves.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 
@@ -242,15 +242,72 @@ describe('the sea\'s swell, review round 2 (26 Sept 2026): a per-fragment normal
     expect(SEA_TIDE.rise.value).toBe(0);
   });
 
-  it('finding 2: a floating prop\'s bob (userData.floatRide) rides the tide\'s own rise and shrinks with its scale, exactly like the shader\'s uTideFade', () => {
+  it('a floating prop\'s bob (userData.floatRide) is the sea as drawn: the water\'s own clock, the swell faded with distance from the camera like the shader, the tide\'s rise and scale', () => {
     const m = waterMaterial('harbour');
-    const floatRide = m.userData.floatRide as (x: number, z: number, t: number) => { y: number; slopeX: number; slopeZ: number };
+    const floatRide = m.userData.floatRide as (x: number, z: number, eyeX: number, eyeZ: number) => { y: number; slopeX: number; slopeZ: number };
+    const clock = WATER_CLOCK.value;
     SEA_TIDE.rise.value = 0;
-    const flat = floatRide(12, -8, 3.4);
+    // the camera right over it: the full swell, on the clock every water shader reads (not the race's)
+    WATER_CLOCK.value = 3.4;
+    const near = floatRide(12, -8, 12, -8), r = gerstnerRide(12, -8, 3.4);
+    expect(near.y).toBeCloseTo(r.y, 9);
+    expect(near.slopeX).toBeCloseTo(r.slopeX, 9);
+    WATER_CLOCK.value = 7.9;
+    expect(floatRide(12, -8, 12, -8).y).toBeCloseTo(gerstnerRide(12, -8, 7.9).y, 9);
+    // halfway through the fade, half the swell; past WAVE_FADE.far the sea is drawn flat: no bob, no tilt
+    const mid = (WAVE_FADE.near + WAVE_FADE.far) / 2;
+    expect(floatRide(12, -8, 12 + mid, -8).y).toBeCloseTo(gerstnerRide(12, -8, 7.9).y * 0.5, 9);
+    const far = floatRide(12, -8, 12, -8 - WAVE_FADE.far - 1);
+    expect(Math.abs(far.y) + Math.abs(far.slopeX) + Math.abs(far.slopeZ)).toBe(0);
+    // the tide: raised by its rise, the swell shrunk by its scale (finding 2)
     SEA_TIDE.rise.value = 0.7;
-    const tidal = floatRide(12, -8, 3.4);
-    expect(tidal.y).toBeCloseTo(flat.y * tideScale(0.7) + 0.7, 9);
-    expect(tidal.slopeX).toBeCloseTo(flat.slopeX * tideScale(0.7), 9);
-    SEA_TIDE.rise.value = 0; // never leave a test's own tide for the next one
+    const tidal = floatRide(12, -8, 12, -8);
+    expect(tidal.y).toBeCloseTo(gerstnerRide(12, -8, 7.9).y * tideScale(0.7) + 0.7, 9);
+    expect(tidal.slopeX).toBeCloseTo(gerstnerRide(12, -8, 7.9).slopeX * tideScale(0.7), 9);
+    SEA_TIDE.rise.value = 0; // never leave a test's own tide or clock for the next one
+    WATER_CLOCK.value = clock;
+  });
+
+  it('Harbor\'s boats: as placed once past the swell\'s fade, and at the Low tier every drawn slot holds a boat in view, bobbed (cull thins, then bobs)', () => {
+    const def = TRACKS.find((d) => d.id === 'harbour-loop')!;
+    const scene = buildTrackScene(buildTrack(def), trackAssets(def.biome));
+    const boats = scene.instancers.get('decor:boat')!;
+    const n = boats.count, placed = Float32Array.from((boats.instanceMatrix.array as Float32Array).subarray(0, n * 16));
+    expect(n).toBeGreaterThan(4);
+    const at = (a: ArrayLike<number>, i: number) => [a[i * 16 + 12], a[i * 16 + 13], a[i * 16 + 14]];
+    const cam = new PerspectiveCamera(60, 16 / 9, 0.3, 1400);
+    // far off the course: every boat past WAVE_FADE.far, so each sits exactly where it was placed
+    cam.position.set(4000, 40, 4000); cam.lookAt(0, 0, 0); cam.updateMatrixWorld();
+    scene.cull(cam, false);
+    for (let i = 0; i < n; i++) at(boats.instanceMatrix.array, i).forEach((v, k) => expect(v).toBeCloseTo(at(placed, i)[k], 4));
+    // low over the last boat, looking at it: the Low tier packs the boats in view to the front of the
+    // buffer; each drawn slot must hold the very boat it holds on the same track with no bob at all
+    // (a plain ground: no floatRide), only raised or lowered by the swell, and it moves with the clock
+    const [bx, by, bz] = at(placed, n - 1);
+    cam.position.set(bx + 8, by + 3, bz + 8); cam.lookAt(bx, by, bz); cam.updateMatrixWorld();
+    const still = buildTrackScene(buildTrack(def), { ...trackAssets(def.biome), ground: undefined });
+    const stillBoats = still.instancers.get('decor:boat')!;
+    WATER_CLOCK.value = 1.3;
+    scene.cull(cam, true);
+    still.cull(cam, true);
+    expect(boats.count).toBeGreaterThan(0);
+    expect(boats.count).toBeLessThan(n);
+    expect(boats.count).toBe(stillBoats.count);
+    for (let s = 0; s < boats.count; s++) {
+      const [x, , z] = at(boats.instanceMatrix.array, s), [sx, , sz] = at(stillBoats.instanceMatrix.array, s);
+      expect(x, `slot ${s} x`).toBeCloseTo(sx, 4);
+      expect(z, `slot ${s} z`).toBeCloseTo(sz, 4);
+    }
+    // the nearest boat drawn rides the swell (well inside its fade): its height moves with the water's clock
+    const dist = (s: number) => Math.hypot(at(boats.instanceMatrix.array, s)[0] - cam.position.x, at(boats.instanceMatrix.array, s)[2] - cam.position.z);
+    const slot = Array.from({ length: boats.count }, (_, s) => s).sort((a, b) => dist(a) - dist(b))[0];
+    expect(dist(slot)).toBeLessThan(WAVE_FADE.near);
+    const first = at(boats.instanceMatrix.array, slot)[1];
+    WATER_CLOCK.value = 4.1;
+    scene.cull(cam, true);
+    expect(Math.abs(at(boats.instanceMatrix.array, slot)[1] - first)).toBeGreaterThan(0.01);
+    still.dispose();
+    WATER_CLOCK.value = 0;
+    scene.dispose();
   });
 });
