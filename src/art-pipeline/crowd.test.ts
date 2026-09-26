@@ -219,6 +219,28 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the crowd', (_id, def)
     scene.dispose();
   });
 
+  it('never reads as floating: the coast still holds a stretch out past every ground critter, roughly the way it faces away from the road (bug hunt, 25 Sept 2026: a Harbour Loop village pair stood on dry land that fell to the sea a few metres on, out of the single-point check)', () => {
+    const track = buildTrack(def), scene = buildTrackScene(track, trackAssets(def.biome));
+    const { crowd } = crowdOf(scene.group);
+    const water = def.environment?.ground?.kind === 'water' ? def.environment.ground.y ?? 0 : null;
+    if (water !== null) {
+      const land = landHeight(scene.group.getObjectByName('coast') as Mesh | undefined);
+      for (const s of crowd.layout.spectators) {
+        if (s.on !== 'ground') continue;
+        // yaw's local +Z faces the road; away from it (roughly toward the sea, for a coastal spot) is -Z
+        const ax = -Math.sin(s.yaw), az = -Math.cos(s.yaw);
+        for (const d of [-0.6, 0, 0.6]) {
+          const dx = ax * Math.cos(d) - az * Math.sin(d), dz = ax * Math.sin(d) + az * Math.cos(d);
+          const g = land(s.at[0] + dx * 7, s.at[2] + dz * 7);
+          const where = `${s.species} at ${s.at.map((v) => v.toFixed(1)).join(',')}, 7 m off ${d.toFixed(1)} rad from its own outward line`;
+          expect(g, `${where}: off the land's grid`).not.toBeNull();
+          expect(g!, `${where}: the coast already reads as water there`).toBeGreaterThan(water + 0.5);
+        }
+      }
+    }
+    scene.dispose();
+  });
+
   it('frees its geometry and material with the scene', () => {
     const scene = buildTrackScene(buildTrack(def), trackAssets(def.biome));
     const { meshes } = crowdOf(scene.group);

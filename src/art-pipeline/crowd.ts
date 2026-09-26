@@ -55,6 +55,20 @@ export const CROWD = Object.freeze({
 
 /** Metres past the course limit (or a pier's or sky road's solid edge) a stand, a critter or a rope line keeps at the least. */
 export const CLEAR = 1.6;
+/**
+ * A sea coast's flat top is one height from the shoulder out to its own edge (COAST.flat, scene.ts):
+ * a spot a hair past the 0.6 m water check can still sit metres shy of where the slope (and the sea)
+ * begins, since the flat top reads the same height right up to its own lip. `ground()` also rules out
+ * anywhere the coast dips toward the water within this many metres (SEA_RING), over the fan of angles
+ * below either side of the road's own outward line (SEA_FAN, radians), so nobody stands at that lip
+ * looking out over open water with the beach's edge out of frame (bug hunt, 25 Sept 2026: a village
+ * pair on Harbour Loop's start straight read as floating over the harbour on the GP results backdrop;
+ * their own point was dry, but the coast fell away within 9 m of them, outward, unseen by the
+ * single-point check; a full circle round the point instead false-failed the whole beach, only
+ * COAST.flat m wide end to end, so the fan looks only the one way the water can actually be).
+ */
+const SEA_RING: readonly number[] = [9];
+const SEA_FAN: readonly number[] = [-0.5, 0, 0.5];
 /** A pier's deck (land.ts, a walled sea track): flat this far past the curb (the shoulder and the coast's flat, less a margin), this far under the road. */
 const PIER_DECK = 6 + 14 - 2, PIER_DROP = 0.4 + 0.12;
 
@@ -842,8 +856,15 @@ class Placer {
     }
     return { past: best, y: by };
   }
-  /** The ground under (x, z), or null where there is none to stand on (the sea, no ground). */
-  ground(x: number, z: number, roadY: number): number | null {
+  /**
+   * The ground under (x, z), or null where there is none to stand on (the sea, no ground). `away`:
+   * the unit direction from the road that placed this candidate (its `ox, oz`); when given and the
+   * biome is a sea, also refuses a spot the coast falls away from within SEA_RING m, roughly that way
+   * on (a lone critter with no footing to read by). Omitted by a stand or a rope post's footprint or
+   * foundation points, which already check their own footprint is level and get their solidity from
+   * the model built there, and by the generic `level()` probes, which only re-sample close by.
+   */
+  ground(x: number, z: number, roadY: number, away?: readonly [number, number]): number | null {
     if (this.biome.sky) return null;
     if (this.biome.pier) {
       // the scene gives a pier no land function: its deck is flat out to PIER_DECK past the curb
@@ -853,7 +874,22 @@ class Placer {
     const g = this.ctx.groundAt?.(x, z) ?? this.ctx.groundY;
     if (!Number.isFinite(g)) return null;
     // a sea track's land (its coast) stands over the water; the water is no place to stand, nor the coast's slope into it
-    if (this.biome.sea && (g < this.ctx.groundY + 0.6 || g < roadY - 2.5)) return null;
+    if (this.biome.sea) {
+      if (g < this.ctx.groundY + 0.6 || g < roadY - 2.5) return null;
+      // the flat top reads this same height right up to its own edge, so a point can pass alone while
+      // the coast already falls away a few (or a few more) metres on, back toward the road that placed
+      // it: refuse anywhere the sea shows within SEA_RING m of a fan either side of that line, at each
+      // ring so a dip past the nearer one is never missed between the two (a full circle round the
+      // point instead false-failed a beach only COAST.flat m wide: the road side of it is never the sea)
+      if (away) {
+        const base = Math.atan2(away[0], away[1]);
+        for (const R of SEA_RING) for (const d of SEA_FAN) {
+          const a = base + d;
+          const gg = this.ctx.groundAt?.(x + Math.sin(a) * R, z + Math.cos(a) * R) ?? this.ctx.groundY;
+          if (gg < this.ctx.groundY + 0.6) return null;
+        }
+      }
+    }
     return g;
   }
   /** Is a circle of radius r at (x, z) free of props, the start gantry, the vista's perches and the crowd itself? */
@@ -934,6 +970,8 @@ function tryStand(p: Placer, spot: Spot, side: 'in' | 'out', L: number, rows: nu
           if (c.past < CLEAR + 0.2) { ok = false; break; }
           if (!p.free(x, z, 0.9)) { ok = false; break; }
           if (!p.biome.sky) {
+            // the structure itself reads as solid ground (its own model bridges to the footprint's
+            // height average below), so this dense sample skips the lip check meant for a lone critter
             const g = p.ground(x, z, f.p[1]);
             if (g === null) { ok = false; break; }
             lo = Math.min(lo, g); hi = Math.max(hi, g); sumY += g; nY++;
@@ -996,7 +1034,7 @@ function tryGroup(p: Placer, spot: Spot, side: 'in' | 'out', st: StandStyle, gro
           if (p.clearance(x, z).past < CLEAR + 0.5 || !p.free(x, z, 0.45)) continue;
           let y = platformY;
           if (!p.biome.sky) {
-            const g = p.ground(x, z, f.p[1]);
+            const g = p.ground(x, z, f.p[1], [ox, oz]);
             if (g === null || !level(p, x, z, f.p[1], 0.45, 0.35) || !level(p, x, z, f.p[1], LIP, 0.6)) continue;
             y = g;
           }
@@ -1051,7 +1089,7 @@ function placeVillage(p: Placer, spot: Spot, b: Built, kit: (only?: string[]) =>
     if (p.clearance(x, z).past < CLEAR + 0.5 || !p.free(x, z, 0.6)) continue;
     let y = f.p[1] + 0.3 + p.rng() * 1.8; // a sprite hovering by the road
     if (!p.biome.sky) {
-      const g = p.ground(x, z, f.p[1]);
+      const g = p.ground(x, z, f.p[1], [ox, oz]);
       if (g === null || !level(p, x, z, f.p[1], 0.45, 0.3) || !level(p, x, z, f.p[1], LIP, 0.6)) continue;
       y = g;
     }
@@ -1072,7 +1110,7 @@ function placeVillage(p: Placer, spot: Spot, b: Built, kit: (only?: string[]) =>
       if (p.clearance(fx, fz).past < CLEAR + 0.5 || !p.free(fx, fz, 0.45)) continue;
       let fy = y + (p.rng() - 0.5) * 0.8;
       if (!p.biome.sky) {
-        const g = p.ground(fx, fz, f.p[1]);
+        const g = p.ground(fx, fz, f.p[1], [ox, oz]);
         if (g === null || !level(p, fx, fz, f.p[1], 0.45, 0.3) || !level(p, fx, fz, f.p[1], LIP, 0.6)) continue;
         fy = g;
       }
