@@ -61,15 +61,19 @@ export const DETAIL_SIZE = 512;
 /**
  * A detail map texture for an albedo that is still loading: flat until `loaded` gives the image, then
  * its relief (drawn once through a canvas). Mirrored like the albedo; mipmapped, so the relief smooths
- * out with distance instead of shimmering. No page (tests): stays flat.
+ * out with distance instead of shimmering. No page (tests): stays flat. The flat stand-in is already
+ * DETAIL_SIZE square: WebGL2 fixes a texture's size at its first upload (three's texStorage2D), so a
+ * 4 x 4 stand-in drawn before the albedo arrived could never take the relief (Firefox: "texSubImage:
+ * Offset+size must be <= the size of the existing specified image", the ground and road flat for the
+ * whole session; 26 Sept 2026).
  */
 export function detailTexture(loaded: Promise<Texture> | null): Texture {
   const flat = typeof document === 'undefined' ? null : document.createElement('canvas');
   let t: Texture;
   if (flat) {
-    flat.width = flat.height = 4;
+    flat.width = flat.height = DETAIL_SIZE;
     const g = flat.getContext('2d');
-    if (g) { g.fillStyle = 'rgb(128, 128, 128)'; g.fillRect(0, 0, 4, 4); }
+    if (g) { g.fillStyle = 'rgb(128, 128, 128)'; g.fillRect(0, 0, DETAIL_SIZE, DETAIL_SIZE); }
     t = new CanvasTexture(flat);
   } else t = new Texture();
   t.wrapS = t.wrapT = MirroredRepeatWrapping;
