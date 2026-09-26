@@ -5,7 +5,7 @@
 //   node scripts/voice/eleven.ts check                         which permissions the key has
 //   node scripts/voice/eleven.ts design <racer> [--seed=n]     three previews → ~/.cache/rascal-voice/design/<racer>-s<seed>-p<k>.mp3 (+ .json)
 //   node scripts/voice/eleven.ts save <racer> <generated_voice_id>   add that voice to the account; its id goes in eleven-voices.json
-//   node scripts/voice/eleven.ts speak [--only=pip,gus] [--takes=2]   every line in the saved voices → ~/.cache/rascal-voice/takes-el/<key>-t<k>.wav
+//   node scripts/voice/eleven.ts speak [--only=pip,gus] [--keys=gus-hit-1,...] [--takes=2]   every line in the saved voices → ~/.cache/rascal-voice/takes-el/<key>-t<k>.wav
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { allLines, CAST } from './catalog.ts';
@@ -121,18 +121,19 @@ async function save(racer: string, generated: string): Promise<void> {
 async function speak(): Promise<void> {
   const voices = saved();
   const only = flag('only')?.split(',');
+  const keys = flag('keys')?.split(',');
   const takes = Number(flag('takes', '2'));
   const out = `${HOME}/takes-el`;
   mkdirSync(out, { recursive: true });
   let made = 0;
   for (const l of allLines()) {
-    if (!voices[l.racerId] || (only && !only.includes(l.racerId))) continue;
+    if (!voices[l.racerId] || (only && !only.includes(l.racerId)) || (keys && !keys.includes(l.key))) continue;
     for (let k = 1; k <= takes; k++) {
       const file = `${out}/${l.key}-t${k}.wav`;
       if (existsSync(file)) continue;
       const tag = OWN_TAG[l.racerId]?.[l.bark] ?? TAG[l.bark];
-      // take 1 natural, take 2 creative (Eleven v3's stability steps: 0 creative, 0.5 natural, 1 robust)
-      const body = { text: `${tag} ${l.line}`, model_id: 'eleven_v3', voice_settings: { stability: k === 1 ? 0.5 : 0 } };
+      // odd takes natural, even takes creative (Eleven v3's stability steps: 0 creative, 0.5 natural, 1 robust)
+      const body = { text: `${tag} ${l.line}`, model_id: 'eleven_v3', voice_settings: { stability: k % 2 === 1 ? 0.5 : 0 } };
       const r = await fetch(`${API}/v1/text-to-speech/${voices[l.racerId]}?output_format=pcm_24000`, { method: 'POST', headers, body: JSON.stringify(body) });
       if (!r.ok) { console.error(`${l.key} t${k}: ${r.status} ${(await r.text()).slice(0, 200)}`); if (r.status === 401 || r.status === 402) process.exit(1); continue; }
       writeFileSync(file, wav(Buffer.from(await r.arrayBuffer()), 24000));

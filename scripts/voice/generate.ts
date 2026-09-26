@@ -37,12 +37,12 @@ const maxSeconds = (line: string) => 1.6 + line.split(/\s+/).length * 0.55;
 
 let last = 0;
 let dayRefusals = 0;
-async function speak(text: string, voice: string): Promise<Buffer | 'quota' | null> {
+async function speak(text: string, voice: string, model = MODEL): Promise<Buffer | 'quota' | null> {
   const at = Math.max(Date.now(), last + GAP_MS);
   last = at;
   if (at > Date.now()) await sleep(at - Date.now());
   const body = { contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key!, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key!, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
   if (!r) return null;
   const t = await r.json().catch(() => ({}));
   if (r.status === 429) {
@@ -71,9 +71,9 @@ for (const l of jobs) for (let k = 1; k <= TAKES; k++) {
 }
 async function one({ l, k, file }: (typeof todo)[number]): Promise<void> {
   for (let attempt = 0; attempt < 3 && !stop; attempt++) {
-    const w = await speak(prompt(l.racerId, l.bark, l.line), CAST[l.racerId].voice);
+    const w = await speak(prompt(l.racerId, l.bark, l.line), CAST[l.racerId].voice, CAST[l.racerId].model);
     if (w === 'quota') { stop = true; console.error('The daily limit is reached: run again tomorrow (takes so far are kept).'); return; }
-    if (w && seconds(w) <= maxSeconds(l.line)) {
+    if (w && seconds(w) <= maxSeconds(l.line) * (CAST[l.racerId].pace ?? 1)) {
       writeFileSync(file, w);
       made++;
       console.log(`${l.key} t${k}: ${seconds(w).toFixed(2)} s  "${l.line}"`);

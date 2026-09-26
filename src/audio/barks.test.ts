@@ -204,7 +204,8 @@ describe('the voice line catalog (scripts/voice/catalog.ts)', () => {
   it('lines are short, original and G-rated: no franchise catchphrase, no imitation', () => {
     // the moments heard often stay a breath long; the finish and the racer screen may take a phrase
     const RARE: ReadonlySet<Bark> = new Set(['select', 'win', 'good', 'lose']);
-    const banned = [/wa+h+o+o/i, /ya+h+o+o/i, /mamma mia/i, /let'?s-a/i, /here we go/i, /okey.?dokey/i, /yippee/i, /woo-?hoo/i, /cowabunga/i,
+    // also the shouts a judge, asked one clip at a time with no name given, heard as a famous character's (26 Sept 2026)
+    const banned = [/\bwhe+\b/i, /\bwhoa\b/i, /yip yip/i, /tubular/i, /wa+h+o+o/i, /ya+h+o+o/i, /mamma mia/i, /let'?s-a/i, /here we go/i, /okey.?dokey/i, /yippee/i, /woo-?hoo/i, /cowabunga/i,
       /meep meep/i, /infinity and beyond/i, /yabba/i, /hasta la vista/i, /ho ho ho/i, /it'?s-a me/i, /mario|luigi|peach|bowser|yoshi|nintendo/i];
     const rude = [/\bstupid\b/i, /\bidiot\b/i, /\bshut up\b/i, /\bloser\b/i, /\bdumb\b/i, /\bhate\b/i, /\bkill\b/i, /\bdie\b/i];
     for (const l of allLines()) {

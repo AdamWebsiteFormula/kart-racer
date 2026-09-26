@@ -13,6 +13,10 @@ export interface CastVoice {
   name: string;
   /** Gemini's prebuilt voice, picked by the judge from three per racer (26 Sept 2026) */
   voice: string;
+  /** the text-to-speech model when not MODEL: 3.8 Flash Lite matched Flash for Boulder only (9 and 9, one clip each; Gus 3 to 9, Otto 7 to 9) */
+  model?: string;
+  /** how much longer than the usual pace a take may run (a slow talker): generate.ts's length check */
+  pace?: number;
   /** who they are and how they sound: the prompt's audio profile */
   profile: string;
   lines: Partial<Record<Bark, readonly string[]>>;
@@ -42,10 +46,10 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
       select: ['Special delivery!', 'Pip\'s on the way!'],
       start: ['Zoom!', 'And we\'re off!'],
       boost: ['Zippity-zoom!', 'Full throttle!'],
-      trick: ['Wheee!', 'Loop-de-loo!', 'Yeah-yeah-yeah!'],
+      trick: ['Airmail!', 'Loop-de-loo!', 'Yeah-yeah-yeah!'],
       hitRival: ['Gotcha!', 'Package delivered!', 'Signed and sealed!'],
       overtake: ['Coming through!', 'Express lane!', 'Zip zip, passing!'],
-      hit: ['Whoa-whoa-whoa!', 'My parcels!', 'Ow, ow!'],
+      hit: ['Aah, my feathers!', 'My parcels!', 'Ow, ow!'],
       win: ['Delivered on time!', 'First class!'],
       good: ['Not bad, not bad!'],
       lose: ['Return to sender...', 'Aw, late again!'],
@@ -74,10 +78,10 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
       select: ['Ready for liftoff!', 'To the lights!'],
       start: ['Liftoff!', 'Here I float!'],
       boost: ['Ooh, shiny!', 'Warp speed!'],
-      trick: ['Weightless!', 'Wheee, stars!', 'Floating!'],
+      trick: ['Weightless!', 'So many stars!', 'Floating!'],
       hitRival: ['Bullseye!', 'Twinkle, twinkle!', 'Oops, stardust!'],
       overtake: ['Lights ahead!', 'Pardon me!', 'Drifting by!'],
-      hit: ['Oh, my wings!', 'Whoa!', 'Ouch!'],
+      hit: ['Oh, my wings!', 'Eek!', 'Ouch!'],
       win: ['I reached the lights!', 'Out of this world!'],
       good: ['So pretty!'],
       lose: ['Lost in space...', 'Aw, moondust.'],
@@ -91,7 +95,7 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
       start: ['Trail\'s open!', 'By the book!'],
       boost: ['Full speed ahead!', 'Now we\'re talking!'],
       trick: ['Yee-haw!', 'Hup!', 'Stick the landing!'],
-      hitRival: ['Ticket for you!', 'Fair and square!', 'Yip yip!'],
+      hitRival: ['Ticket for you!', 'Fair and square!', 'Ranger rules!'],
       overtake: ['Passing on the left!', 'Keep right!', 'Stay in your lane!'],
       hit: ['Hey, no fair!', 'Yipe!', 'Rude!'],
       win: ['Gold star for me!', 'Top of the trail!'],
@@ -105,12 +109,12 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
     lines: {
       select: ['Surf\'s up!', 'Hey, everybody!'],
       start: ['Let\'s ride!', 'Catch the wave!'],
-      boost: ['Riding the wave!', 'Whoa, smooth!'],
-      trick: ['Hang loose!', 'Radical!', 'Wheee!'],
+      boost: ['Riding the wave!', 'Silky smooth!'],
+      trick: ['Hang loose!', 'Nice and easy!', 'Cruising!'],
       hitRival: ['Wipeout!', 'Splash!', 'Heh, sorry, dude!'],
       overtake: ['Later, dude!', 'See ya!', 'Coming through, pals!'],
-      hit: ['Whoa, gnarly!', 'Glub!', 'Bummer!'],
-      win: ['Totally tubular!', 'Best day ever!'],
+      hit: ['Gnarly wipeout!', 'Glub!', 'Bummer!'],
+      win: ['What a ride!', 'Best day ever!'],
       good: ['Pretty sweet!'],
       lose: ['Eh, no worries.', 'Bummer, dude.'],
     },
@@ -122,11 +126,11 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
       select: ['Sprocket, fully wound!', 'Systems ready!'],
       start: ['Launch sequence: go!', 'Tick-tock, go!'],
       boost: ['Maximum torque!', 'Speed plus one!'],
-      trick: ['Rotation complete!', 'Flip executed!', 'Wheee! Beep!'],
+      trick: ['Rotation complete!', 'Flip executed!', 'Airborne! Beep!'],
       hitRival: ['Target reached.', 'Direct hit. Beep boop.', 'Calculated.'],
       overtake: ['Position improved.', 'Passing. Excuse me.', 'Plus one place!'],
       hit: ['Error! Error!', 'Gears rattled!', 'Ow. That was a hit.'],
-      win: ['Result: first place!', 'Winning. As predicted.'],
+      win: ['Result: first place!', 'Victory computed!'],
       good: ['Acceptable result.'],
       lose: ['Recalculating...', 'Needs more winding.'],
       // in order: said at the start of lap two, and of the last lap
@@ -134,13 +138,13 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
     },
   },
   boulder: {
-    name: 'Boulder', voice: 'Charon',
+    name: 'Boulder', voice: 'Charon', model: 'gemini-3.8-flash-lite-tts', pace: 1.4,
     profile: 'A big round friendly rock golem (male) in a bright cartoon kart-racing game: very low, slow, gentle and rumbly, a soft-hearted giant who apologizes after bumping anyone.',
     lines: {
       select: ['Hello, friends!', 'Boulder, ready to roll.'],
       start: ['Rolling!', 'Here I rumble!'],
       boost: ['Rumble rumble!', 'Big push!'],
-      trick: ['Whoa, I\'m flying!', 'Heave-ho!', 'Up we go!'],
+      trick: ['Oh my, I\'m flying!', 'Heave-ho!', 'Up we go!'],
       hitRival: ['Oh no, sorry!', 'Oops! My fault!', 'Sorry, friend!'],
       overtake: ['Pardon me, friend.', 'Excuse me, coming through.', 'Big rock passing!'],
       hit: ['Oof!', 'Oh, pebbles!', 'Ow, my moss!'],
@@ -157,10 +161,10 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
       select: ['Big Gus is cooking!', 'Who\'s hungry?'],
       start: ['Order up!', 'Soup\'s on!'],
       boost: ['Turn up the heat!', 'Sizzle!'],
-      trick: ['Flip the pancake!', 'Whoa-ha-ha!', 'Up she goes!'],
+      trick: ['Flip the pancake!', 'Ha-ha, airborne!', 'Up she goes!'],
       hitRival: ['Ha-ha! Taste test!', 'Bon appétit!', 'Hot delivery!'],
       overtake: ['Hot plate coming through!', 'Make way for the chef!', 'Out of my kitchen!'],
-      hit: ['My soufflé!', 'Whoa, spilled the soup!', 'Oof!'],
+      hit: ['My soufflé!', 'Oh no, the soup!', 'Oof!'],
       win: ['Dinner is served!', 'Chef\'s kiss!'],
       good: ['Delicious race!'],
       lose: ['Burnt the toast...', 'Ah, seconds next time!'],
