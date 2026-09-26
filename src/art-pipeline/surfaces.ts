@@ -502,7 +502,7 @@ export function roadWear(m: MeshToonMaterial, biome: string): void {
   m.customProgramCacheKey = () => `${key()}|wear-${biome}`;
 }
 
-/** Metres of road a tile of the asphalt's relief covers (detail.ts), in world space. */
+/** Metres of road a tile of its own relief covers (detail.ts, roadDetailSource), in world space. */
 export const ROAD_GRAIN_METRES = 4;
 
 /**
@@ -512,13 +512,14 @@ export const ROAD_GRAIN_METRES = 4;
  *   where the karts have polished it, with faint tire marks along it, two wheel tracks a kart apart
  *   and a second pair a little wide, broken along the road, darker in the corners, gone before they
  *   could shimmer (by distance and by how wide a pixel is);
- * - the asphalt's grain (the albedo's own relief, detail.ts) in the normal, in world space, faded with
- *   distance, and in the roughness: rough in the cavities, smoother on the polished line, the paint
- *   and the curbs, never a mirror.
+ * - the surface's own grain (`roadDetailSource(biome)`: the asphalt's grit and cracks, or Boardwalk's
+ *   plank grain, or Frostbite's packed-snow sparkle and ruts) in the normal, in world space, faded
+ *   with distance, and in the roughness: rough in the cavities, smoother on the polished line, the
+ *   paint and the curbs, never a mirror.
  * Same material, same draw calls. Only a MeshStandardMaterial compiles it (STANDARD).
  */
-export function roadDetail(m: MeshToonMaterial): void {
-  const uniforms = { uRoadGrain: { value: detailMap('asphalt') } };
+export function roadDetail(m: MeshToonMaterial, biome: string): void {
+  const uniforms = { uRoadGrain: { value: roadDetailSource(biome) } };
   const g = ROAD_GRAIN_METRES.toFixed(2);
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
@@ -609,6 +610,71 @@ function planks(): Texture {
     texCache.set('planks', t);
   }
   return t;
+}
+
+/** Packed snow (Frostbite Pass): sparkle flecks and two shallow tire ruts, a kart's own track apart. */
+function snowRoadCanvas(): Texture {
+  let t = texCache.get('snow-road');
+  if (!t) {
+    if (typeof document === 'undefined') t = new Texture();
+    else {
+      const c = document.createElement('canvas');
+      c.width = c.height = 256;
+      const g = c.getContext('2d');
+      if (g) {
+        g.fillStyle = 'rgb(224, 230, 240)';
+        g.fillRect(0, 0, 256, 256);
+        // two packed ruts, a kart's own wheels apart: a firm edge (compressed snow meets loose) each
+        // side, so the Sobel slope below finds them as readily as the sparkle flecks (a wide, gentle
+        // gradient alone normalises away next to the flecks' own sharp edges), packed grain inside
+        for (const x of [84, 172]) {
+          const grad = g.createLinearGradient(x - 12, 0, x + 12, 0);
+          grad.addColorStop(0, 'rgba(160, 170, 190, 0)');
+          grad.addColorStop(0.22, 'rgba(160, 170, 190, 0.75)');
+          grad.addColorStop(0.78, 'rgba(160, 170, 190, 0.75)');
+          grad.addColorStop(1, 'rgba(160, 170, 190, 0)');
+          g.fillStyle = grad;
+          g.fillRect(x - 12, 0, 24, 256);
+          for (let k = 0; k < 90; k++) {
+            const px = x - 10 + ((k * 7) % 20), py = (k * 11) % 256, shade = k % 2 ? 40 : -40;
+            g.fillStyle = `rgba(${shade > 0 ? 210 : 130}, ${shade > 0 ? 216 : 140}, ${shade > 0 ? 228 : 160}, 0.5)`;
+            g.fillRect(px, py, 2, 1 + (k % 2));
+          }
+        }
+        // sparkle: sparse bright flecks where packed snow catches the light, denser off the ruts
+        for (let k = 0; k < 220; k++) {
+          const x = (k * 53 + (k % 7) * 11) % 256, y = (k * 97 + (k % 5) * 19) % 256;
+          const onRut = Math.abs(x - 84) < 13 || Math.abs(x - 172) < 13;
+          if (onRut && k % 2 === 0) continue; // the ruts themselves sparkle less: packed, not fresh
+          const s = 1 + (k % 2);
+          g.fillStyle = `rgba(255, 255, 255, ${(0.3 + (k % 4) * 0.1).toFixed(2)})`;
+          g.fillRect(x, y, s, s);
+        }
+      }
+      t = new CanvasTexture(c);
+    }
+    t.colorSpace = SRGBColorSpace;
+    t.wrapS = t.wrapT = RepeatWrapping;
+    t.userData.shared = true;
+    texCache.set('snow-road', t);
+  }
+  return t;
+}
+
+/**
+ * The road's own detail source for `roadDetail` (its fine relief: bump and roughness, not colour):
+ * every biome but two reads the asphalt's own grit and cracks (detailMap, from its loaded photo).
+ * Boardwalk's deck and Frostbite's snow are not asphalt, so each gets its own pattern run through the
+ * same relief extraction (detail.ts detailPixels: a Sobel slope, so the ridges follow the grain and
+ * the ruts) — planks() already exists for the deck's own colour (Adam, 25 Sept 2026: "Boardwalk's
+ * planks and the snow roads get the asphalt's grain detail today"); `detailTexture` takes any texture
+ * already in hand the same way it takes a still-loading photo, wrapped in an already-resolved promise.
+ */
+let plankDetail: Texture | undefined, snowRoadDetail: Texture | undefined;
+function roadDetailSource(biome: string): Texture {
+  if (biome === 'boardwalk') return (plankDetail ??= detailTexture(Promise.resolve(planks())));
+  if (biome === 'frost') return (snowRoadDetail ??= detailTexture(Promise.resolve(snowRoadCanvas())));
+  return detailMap('asphalt');
 }
 
 /**
