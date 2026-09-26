@@ -3,7 +3,7 @@
 // count is the draw-call count. Placeholder geometries stand in until art-pipeline
 // supplies real ones through `assets`.
 import {
-  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Frustum, Group,
+  BackSide, BoxGeometry, BufferGeometry, Color, ConeGeometry, CylinderGeometry, DataTexture, DynamicDrawUsage, Euler, Frustum, Group,
   InstancedBufferAttribute, InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshToonMaterial, PlaneGeometry,
   RepeatWrapping, RGBAFormat, SphereGeometry, Quaternion, Vector3, SRGBColorSpace, Matrix4, type Camera, type Material, type Object3D, type Texture,
 } from 'three';
@@ -13,7 +13,7 @@ import { buildTrack, type Track } from '../track.ts';
 import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, ribbonOptions, type Chunk } from './chunks.ts';
 import { buildRibbon, sampleRange } from './road.ts';
-import { buildShiftStage, type LakeHook, type ShiftStage } from './shiftStage.ts';
+import { buildShiftStage, type LakeHook, type SeaTideHook, type ShiftStage } from './shiftStage.ts';
 import { hashString, mulberry32, Occupancy, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
 import { CREATURE_GHOST, CreatureView } from './creatures.ts';
@@ -33,6 +33,15 @@ import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './pa
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
+/**
+ * Decor assets that float on the sea and so bob with it (review, 26 Sept 2026: "make floating things
+ * bob with the same waves... piers, posts and rocks stay fixed"); everything else with `footing: 'pier'`
+ * or none stands on solid ground or its own piling and never moves.
+ */
+const FLOATING_DECOR: ReadonlySet<string> = new Set(['boat']);
+/** How much of the swell's own local slope tips a floating boat (radians per radian of slope): a hull rides its wave less sharply than the water's own surface, more a gentle rock than a mirror of it. */
+const FLOAT_TILT_DAMP = 0.6;
+
 export interface TrackAssets {
   /** keyed by decor asset, barrier asset, `balloon`, `coin`, `boostPad`, `ramp`, hazard asset, landmark id */
   geometries?: Record<string, BufferGeometry>;
@@ -44,8 +53,8 @@ export interface TrackAssets {
   gradientMap?: Texture;
   /** a model file's own (textured) material for an asset key, same keys as `geometries`; never disposed by the scene */
   materials?: Record<string, Material>;
-  /** the ground plane's material (painted land, animated water); never disposed by the scene */
-  ground?: (kind: string, size: number) => Material | undefined;
+  /** the ground plane's material (painted land, animated water), given the track's own fixed sun direction (env.sunDirection: the water's own glint, art-pipeline surfaces.ts, follows it); never disposed by the scene */
+  ground?: (kind: string, size: number, sunDirection?: readonly [number, number, number]) => Material | undefined;
   /** a fine grain multiplied over every road's colours (not on planked roads); never disposed by the scene */
   roadMap?: Texture;
   /** the road's wear and sheen (art-pipeline surfaces.ts roadWear), patched onto the road material after its lines: same material, same draws */
@@ -56,6 +65,8 @@ export interface TrackAssets {
   vista?: (ctx: VistaContext) => VistaParts | null;
   /** a lake painted on the snow that freezes at the Final Lap Shift (art-pipeline surfaces.ts; Frostbite): the stage sets it */
   lake?: LakeHook;
+  /** Harbour Loop's flood tide (art-pipeline waterWaves.ts SEA_TIDE): shiftStage.ts's seaRise writes the current rise into it every frame; never disposed by a scene. */
+  tide?: SeaTideHook;
   /**
    * the world's look (art-pipeline look.ts applyLook, the PBR prototype): run over the scene once it is
    * built and again whenever it makes new meshes (a shortcut opening, the shift's features); it swaps
@@ -767,6 +778,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   let farLandmark: [number, number, number] | undefined;
   let vistaParts: VistaParts | undefined;
   const occupied = new Occupancy();
+  /** the sea as drawn at (x, z) for a camera at (eyeX, eyeZ) (art-pipeline surfaces.ts floatRide, through the water material's userData: track-builder never imports art-pipeline directly), set below once the ground is built; undefined on a land track or if the Low tier's plain material never offers one */
+  let floatRide: ((x: number, z: number, eyeX: number, eyeZ: number) => { y: number; slopeX: number; slopeZ: number }) | undefined;
+  /** floating decor instancers (FLOATING_DECOR), each instance's own placed (flat-water) transform, read fresh every frame so the bob never accumulates drift, and the Low tier's pool for its slots */
+  const floatingBoats: { mesh: InstancedMesh; base: Float32Array; count: number; pool: Pool | null }[] = [];
   for (const entry of env.decor ?? []) {
     const geo = geometryFor(assets, entry.asset, 'decor');
     // how far the prop reaches from its centre across the ground: a roadside one stands clear of where karts drive
@@ -792,7 +807,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     instancers.set(m.name, m);
     group.add(m);
     withHull(m, entry.asset);
-    if (m.count > 0) pools.push(newPool(m, entry.band));
+    const pool = m.count > 0 ? newPool(m, entry.band) : null;
+    if (pool) pools.push(pool);
+    // a boat rides the sea's own swell (bobFloatingBoats, from cull): its placed matrix is its
+    // flat-water rest pose, read fresh each frame so the bob never compounds into drift
+    if (FLOATING_DECOR.has(entry.asset) && p.count > 0) floatingBoats.push({ mesh: m, base: Float32Array.from(p.matrices.subarray(0, p.count * 16)), count: p.count, pool });
     if (entry.footing === 'pier') {
       // each one out at sea stands on its own pier, sized to what stands on it
       const box = m.geometry.boundingBox ?? (m.geometry.computeBoundingBox(), m.geometry.boundingBox!);
@@ -950,6 +969,35 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const rolls = new Map<string, { x: number; z: number; q: Quaternion }>();
   const rollQ = new Quaternion(), rollAxis = new Vector3(), rollPos = new Vector3(), rollScale = new Vector3(1, 1, 1);
   const hidden = new Matrix4().makeScale(0, 0, 0);
+  // a floating boat's bob (review, 26 Sept 2026): read its placed (flat-water) transform fresh, add the
+  // sea's height there as drawn for this camera (the water's own clock, and its swell faded with
+  // distance, so a far boat sits on the far, flat sea) plus a small world-space pitch/roll from the
+  // same wave's local slope, on top of its own yaw — never accumulated, so it never drifts off its spot.
+  // Once a frame from cull, after the Low tier's thinning: at Low, slot s holds copy shown[s]
+  const floatM = new Matrix4(), floatP = new Vector3(), floatQ = new Quaternion(), floatS = new Vector3(), floatTilt = new Quaternion(), floatE = new Euler(), floatEye = new Vector3();
+  const bobFloatingBoats = (camera: Camera): void => {
+    if (!floatRide) return;
+    camera.getWorldPosition(floatEye);
+    for (const fb of floatingBoats) {
+      const packed = fb.pool?.thinned === true, slots = packed ? fb.pool!.count : fb.count;
+      for (let s = 0; s < slots; s++) {
+        const i = packed ? fb.pool!.shown[s] : s;
+        floatM.fromArray(fb.base, i * 16);
+        floatM.decompose(floatP, floatQ, floatS);
+        const ride = floatRide(floatP.x, floatP.z, floatEye.x, floatEye.z);
+        floatP.y += ride.y;
+        // pitch (world X) raises the +Z side with the swell there, roll (world Z) raises the +X side:
+        // a damped small-angle read of the wave's own slope, so a hull rocks gently, never mirrors it
+        floatE.set(Math.atan(ride.slopeZ) * FLOAT_TILT_DAMP, 0, -Math.atan(ride.slopeX) * FLOAT_TILT_DAMP);
+        floatTilt.setFromEuler(floatE).multiply(floatQ);
+        floatM.compose(floatP, floatTilt, floatS);
+        fb.mesh.setMatrixAt(s, floatM);
+      }
+      fb.mesh.instanceMatrix.clearUpdateRanges();
+      if (slots > 0) fb.mesh.instanceMatrix.addUpdateRange(0, slots * 16);
+      fb.mesh.instanceMatrix.needsUpdate = true;
+    }
+  };
   // popped balloons and taken coins vanish until their timer runs out
   const syncLive = (name: string, timers: readonly { respawnRemaining: number }[] | undefined) => {
     const m = instancers.get(name), fs = featureSlots.get(name);
@@ -1043,13 +1091,29 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   /** the near land/coast mesh (bake target: fine grid, already vertex-coloured), when this track has one */
   let coastMesh: Mesh | undefined;
   if (groundKind !== 'none') {
-    const own = assets.ground?.(groundKind, GROUND_SIZE);
+    const own = assets.ground?.(groundKind, GROUND_SIZE, env.sunDirection);
     const ground = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE).rotateX(-Math.PI / 2), own ?? new MeshToonMaterial({ color: toColor(palette.ground), gradientMap: GRADIENT ?? null }));
     if (own) ground.userData.sharedMaterial = true;
     OWNED.add(ground.geometry);
     ground.name = `ground-${groundKind}`;
     ground.position.y = groundY;
     ground.receiveShadow = true;
+    if (groundKind === 'water') {
+      // see-through (its own material sets transparent/depthWrite), drawn right after every opaque
+      // thing and before every other see-through thing (shiftFx clouds -1, flames/glows 2, vents 2-3,
+      // particles 10, trails 20, kartFade ghosts), so its own onBeforeRender (below) reads exactly the
+      // opaque scene's depth: art-pipeline waterDepth.ts
+      ground.renderOrder = -2;
+      // a generic hook (any ground material may want one), so track-builder never imports art-pipeline
+      (own?.userData.attachDepth as ((mesh: Object3D) => void) | undefined)?.(ground);
+      // a companion mesh with real geometry near the camera (art-pipeline waterWaves.ts): the flat
+      // plane above has only two triangles, nowhere near enough to show a swell; this one shares its
+      // material (so the very same depth capture, translucency and foam apply) and follows the camera
+      const waveGrid = (own?.userData.waveGrid as ((waterY: number) => Object3D) | undefined)?.(groundY);
+      if (waveGrid) group.add(waveGrid);
+      // the sea as drawn, for a floating decor instance to ride (bobFloatingBoats above)
+      floatRide = own?.userData.floatRide as typeof floatRide;
+    }
     group.add(ground);
     // a sea track gets a coast along the road, a land track hills under its raised road, so every
     // roadside prop stands on ground and no road floats
@@ -1181,7 +1245,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const stage = buildShiftStage({
     track, twin, palette, gradient: GRADIENT ?? null, group, groundY: groundKind === 'none' ? NaN : groundY, groundAt,
     clear: (x, z, r) => !occupied.hits(x, z, r), geometry: (k) => geometryFor(assets, k, 'decor'), material: (k) => assets.materials?.[k],
-    roadMaterial, lake: assets.lake,
+    roadMaterial, lake: assets.lake, tide: assets.tide,
   }) ?? undefined;
   if (stage) {
     group.add(stage.group);
@@ -1252,6 +1316,38 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   /** whether the Low tier's thinning is on (cull), and the view its last run was for */
   let lowOn = false, sinceCull = 0, lastFov = 0, lastFar = 0;
   const lastEye = new Vector3(Infinity, Infinity, Infinity), lastDir = new Vector3();
+  /** The Low tier's thinning (TrackScene.cull); off Low, every copy as placed. */
+  const thinDecor = (camera: Camera, low: boolean, fogFar: number): void => {
+    if (low !== lowOn) {
+      lowOn = low;
+      // the far vista's movers (its fliers, already folded away at Low in its shader) and the crowd (drawn with no copies at Low) skip their draws
+      for (const m of vistaParts?.world ?? []) if (m.name === 'vista-movers' || m.name.startsWith('crowd') && m.name !== 'crowd-stands') m.visible = !low;
+      if (!low) for (const p of pools) restorePool(p);
+      lastEye.set(Infinity, Infinity, Infinity); // a fresh run the next time Low comes
+    }
+    if (!low) return;
+    camera.updateMatrixWorld();
+    CULL_EYE.setFromMatrixPosition(camera.matrixWorld);
+    camera.getWorldDirection(CULL_DIR);
+    const cam = camera as Camera & { fov?: number; aspect?: number; near?: number; far?: number; zoom?: number; isPerspectiveCamera?: boolean };
+    const fov = cam.fov ?? 60, R = LOW_RECULL;
+    // the view has not moved enough to show anything new: last run's copies still cover it
+    if (CULL_EYE.distanceToSquared(lastEye) < R.move * R.move && CULL_DIR.dot(lastDir) > Math.cos((R.turn * Math.PI) / 180)
+      && Math.abs(fov - lastFov) < 1 && fogFar === lastFar && ++sinceCull < R.frames) return;
+    sinceCull = 0;
+    lastEye.copy(CULL_EYE); lastDir.copy(CULL_DIR); lastFov = fov; lastFar = fogFar;
+    // the lens's view, `margin` degrees wider
+    if (cam.isPerspectiveCamera) {
+      const top = (cam.near! * Math.tan((((fov + R.margin) * Math.PI) / 180) / 2)) / (cam.zoom ?? 1), side = top * cam.aspect!;
+      CULL_PROJ.makePerspective(-side, side, top, -top, cam.near!, cam.far!);
+    } else CULL_PROJ.copy(camera.projectionMatrix);
+    CULL_PV.multiplyMatrices(CULL_PROJ, camera.matrixWorldInverse);
+    CULL_FRUSTUM.setFromProjectionMatrix(CULL_PV);
+    for (let q = 0; q < 6; q++) { const pl = CULL_FRUSTUM.planes[q]; CULL_PLANES[q * 4] = pl.normal.x; CULL_PLANES[q * 4 + 1] = pl.normal.y; CULL_PLANES[q * 4 + 2] = pl.normal.z; CULL_PLANES[q * 4 + 3] = pl.constant; }
+    // a copy of radius r covers r / (d tan(fov / 2)) of the screen's half height at distance d
+    const reach = 1 / (LOW_MIN_SIZE * Math.tan(((fov * Math.PI) / 180) / 2));
+    for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
+  };
   const scene: TrackScene = {
     group, palette, chunks, decor, dressing, farLandmark, vista: vistaParts, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
@@ -1267,35 +1363,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       return n;
     },
     cull: (camera, low, fogFar = Infinity) => {
-      if (low !== lowOn) {
-        lowOn = low;
-        // the far vista's movers (its fliers, already folded away at Low in its shader) and the crowd (drawn with no copies at Low) skip their draws
-        for (const m of vistaParts?.world ?? []) if (m.name === 'vista-movers' || m.name.startsWith('crowd') && m.name !== 'crowd-stands') m.visible = !low;
-        if (!low) for (const p of pools) restorePool(p);
-        lastEye.set(Infinity, Infinity, Infinity); // a fresh run the next time Low comes
-      }
-      if (!low) return;
-      camera.updateMatrixWorld();
-      CULL_EYE.setFromMatrixPosition(camera.matrixWorld);
-      camera.getWorldDirection(CULL_DIR);
-      const cam = camera as Camera & { fov?: number; aspect?: number; near?: number; far?: number; zoom?: number; isPerspectiveCamera?: boolean };
-      const fov = cam.fov ?? 60, R = LOW_RECULL;
-      // the view has not moved enough to show anything new: last run's copies still cover it
-      if (CULL_EYE.distanceToSquared(lastEye) < R.move * R.move && CULL_DIR.dot(lastDir) > Math.cos((R.turn * Math.PI) / 180)
-        && Math.abs(fov - lastFov) < 1 && fogFar === lastFar && ++sinceCull < R.frames) return;
-      sinceCull = 0;
-      lastEye.copy(CULL_EYE); lastDir.copy(CULL_DIR); lastFov = fov; lastFar = fogFar;
-      // the lens's view, `margin` degrees wider
-      if (cam.isPerspectiveCamera) {
-        const top = (cam.near! * Math.tan((((fov + R.margin) * Math.PI) / 180) / 2)) / (cam.zoom ?? 1), side = top * cam.aspect!;
-        CULL_PROJ.makePerspective(-side, side, top, -top, cam.near!, cam.far!);
-      } else CULL_PROJ.copy(camera.projectionMatrix);
-      CULL_PV.multiplyMatrices(CULL_PROJ, camera.matrixWorldInverse);
-      CULL_FRUSTUM.setFromProjectionMatrix(CULL_PV);
-      for (let q = 0; q < 6; q++) { const pl = CULL_FRUSTUM.planes[q]; CULL_PLANES[q * 4] = pl.normal.x; CULL_PLANES[q * 4 + 1] = pl.normal.y; CULL_PLANES[q * 4 + 2] = pl.normal.z; CULL_PLANES[q * 4 + 3] = pl.constant; }
-      // a copy of radius r covers r / (d tan(fov / 2)) of the screen's half height at distance d
-      const reach = 1 / (LOW_MIN_SIZE * Math.tan(((fov * Math.PI) / 180) / 2));
-      for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
+      thinDecor(camera, low, fogFar);
+      bobFloatingBoats(camera);
     },
     lens: (camera, closeUp = false) => {
       camera.getWorldPosition(LENS_EYE);

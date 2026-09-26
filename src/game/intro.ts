@@ -14,7 +14,7 @@
 import type { KartState, TrackHint, TrackSample, Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import type { Track } from '../track-builder/track.ts';
-import { CAM, clampToRoad, loopCamPose, type CamPose } from './camera.ts';
+import { CAM, clampAboveSea, clampToRoad, loopCamPose, type CamPose } from './camera.ts';
 
 export type IntroKind = 'full' | 'short';
 
@@ -262,7 +262,7 @@ export function spotAt(track: Track, s: Spot, branch = 0): Vec3 {
   return [scratch.position[0], scratch.groundY + s.up, scratch.position[2]];
 }
 
-/** Keep a low move's point over the road: inside its walls (with a margin), over it and under a tunnel's beams. */
+/** Keep a low move's point over the road: inside its walls (with a margin), over it, under a tunnel's beams, and (review, 26 Sept 2026, finding 1: Harbor's own low glide passes over the pier ramp and the sea) never under the sea's own surface. */
 function onRoad(track: Track, p: Vec3, hint: TrackHint): TrackHint {
   const at = clampToRoad(track, p, hint);
   // a little further in than the chase camera's own margin: the lens swings less than a chase rig
@@ -275,6 +275,7 @@ function onRoad(track: Track, p: Vec3, hint: TrackHint): TrackHint {
     const out = lateral - Math.sign(lateral) * reach;
     p[0] -= rx * out; p[2] -= rz * out;
   }
+  clampAboveSea(p, track);
   return at;
 }
 

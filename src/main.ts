@@ -31,7 +31,7 @@ import { decodeGhost } from './race-manager/ghost.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { mirrored } from './track-builder/mirror.ts';
-import { ChaseCam, fovFor, kickedFov, restPose, smoothTo } from './game/camera.ts';
+import { ChaseCam, clampAboveSea, fovFor, kickedFov, restPose, smoothTo } from './game/camera.ts';
 import { CourseIntro, findStand, planIntro, type IntroKind } from './game/intro.ts';
 import { DriveAssist } from './game/assist.ts';
 import { Accumulator } from './game/loop.ts';
@@ -798,6 +798,8 @@ function tvCamera(frameDt: number): void {
   // the camera's right, flat: the look point moves that way so the leader sits a third in from the left
   const dx = k.x - camPos[0], dz = k.z - camPos[2], len = Math.hypot(dx, dz) || 1;
   smoothTo(camLook, [k.x - (dz / len) * TV_ASIDE, k.y + 0.4, k.z + (dx / len) * TV_ASIDE], 0.25, frameDt);
+  // review, 26 Sept 2026, finding 1: the leader can be down by the coast; the TV orbit keeps clear of the sea's own surface too
+  clampAboveSea(camPos, s.track);
   camera.fov = 58;
 }
 /** metres the title camera aims past the leader, to its right: the kart shows left of the centred menu */

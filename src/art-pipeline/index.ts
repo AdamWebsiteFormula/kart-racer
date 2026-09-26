@@ -4,6 +4,7 @@ import type { TrackAssets } from '../track-builder/mesh/index.ts';
 import { trackAssetsFor } from './decor.ts';
 import { PROP_MODELS } from './glb.ts';
 import { coastMaterial, FROST_LAKE, groundMaterial, roadDetail, roadGrain, roadWear } from './surfaces.ts';
+import { SEA_TIDE } from './waterWaves.ts';
 import { toonRamp } from './toon.ts';
 import { buildVista } from './vista.ts';
 import { withCrowd } from './crowd.ts';
@@ -43,11 +44,13 @@ export function trackAssets(biome?: string): TrackAssets {
     if (file) { geometries[name] = file.geometry; materials[name] = file.material; }
   }
   const surfaces = biome ? {
-    ground: (kind: string, size: number) => groundMaterial(biome, kind, size), roadMap: roadGrain(), coast: () => coastMaterial(biome),
+    ground: (kind: string, size: number, sunDirection?: readonly [number, number, number]) => groundMaterial(biome, kind, size, sunDirection), roadMap: roadGrain(), coast: () => coastMaterial(biome),
     // (the PBR look adds the road's racing line, tire marks and its own grain, per biome: roadDetail)
     road: (m: MeshToonMaterial) => { roadWear(m, biome); if (isPbr()) roadDetail(m, biome); },
     // Frostbite's lake on the snow, frozen by its Final Lap Shift (surfaces.ts FROST_LAKE)
     ...(biome === 'frost' ? { lake: FROST_LAKE } : {}),
+    // Harbour Loop's flood tide (waterWaves.ts SEA_TIDE): the only sea track with a Final Lap Shift that raises the sea
+    ...(biome === 'harbour' ? { tide: SEA_TIDE } : {}),
   } : {};
   // the far vista: set-pieces, movers and glows past the scenery (vista.ts); the crowd by the road (crowd.ts)
   // the PBR prototype (look.ts, ?look=pbr): the world's materials swapped for their stylized-PBR twins once

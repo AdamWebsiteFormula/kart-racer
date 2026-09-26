@@ -3,79 +3,213 @@
 // by a scene. WATER_CLOCK is the one time uniform every water material reads; the game ticks it.
 import {
   CanvasTexture, Color, MeshStandardMaterial, MeshToonMaterial, MirroredRepeatWrapping, RepeatWrapping, ShaderMaterial, SRGBColorSpace, TextureLoader,
-  Texture, UniformsLib, UniformsUtils, type Material, type WebGLProgramParametersWithUniforms,
+  Texture, UniformsLib, UniformsUtils, Vector3, type Material, type Object3D, type WebGLProgramParametersWithUniforms,
 } from 'three';
 import { toonRamp } from './toon.ts';
 import { detailTexture } from './detail.ts';
 import { isPbr, litWorld, look, PBR } from './look.ts';
+import { WATER_DEPTH, WATER_DEPTH_GLSL, waterDepthHook, waterDepthUniforms } from './waterDepth.ts';
+import { buildWaveGridMesh, gerstnerRide, GERSTNER_GLSL, SEA_TIDE, WAVE_FADE, waveFade, WAVE_MAX_HEIGHT } from './waterWaves.ts';
 import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts';
 
 /** Seconds, advanced by the game loop; every water surface animates from it. */
 export const WATER_CLOCK = { value: 0 };
 
+/**
+ * Real wave geometry (research brief, 26 Sept 2026: Digital Foundry's MKW tech review — "waves have
+ * real geometric undulation... with foam on the crests"), on the near-camera grid only (waterWaves.ts
+ * `buildWaveGridMesh`; scene.ts adds it beside the flat far plane this same material also draws): a
+ * sum of Gerstner waves (`GERSTNER_GLSL`) displaces `position` before anything else reads it, so the
+ * fog, the fragment shader's `vWorld` (hence the depth-based shoreline/foam: the swell genuinely moves
+ * the waterline up and down the sand) and `vCrest` (whitecaps) all follow the same displaced surface —
+ * the analytic normal itself is evaluated fresh per fragment (WATER_FRAG below), not interpolated from
+ * here (review, 26 Sept 2026, finding 3: "facets in the sky reflection... evaluate the Gerstner normal
+ * per fragment from world xz... instead of interpolating vertex normals"). `fade` (1 near the camera, 0
+ * by WAVE_FADE.far) zeroes it near the grid's own far edge, so it meets the flat plane with no seam,
+ * and reduces the flat plane's own few, huge vertices (too sparse to show a swell at all) to exactly
+ * their old, flat selves; `uTideFade` (Harbour Loop's flood tide, art-pipeline waterWaves.ts SEA_TIDE)
+ * shrinks it further once the tide is in, 1 everywhere else.
+ */
 const WATER_VERT = `
+uniform float time;
+uniform float uTideFade;
 varying vec3 vWorld;
+varying float vCrest;
 #include <fog_pars_vertex>
+${GERSTNER_GLSL}
 void main() {
-  vec4 w = modelMatrix * vec4(position, 1.0);
+  vec4 rest = modelMatrix * vec4(position, 1.0);
+  float fade = (1.0 - smoothstep(${WAVE_FADE.near.toFixed(1)}, ${WAVE_FADE.far.toFixed(1)}, length(rest.xz - cameraPosition.xz))) * uTideFade;
+  vec3 disp = lkGerstner(rest.xz, time, fade);
+  vec4 w = rest + vec4(disp, 0.0);
   vWorld = w.xyz;
+  vCrest = clamp(disp.y / ${WAVE_MAX_HEIGHT.toFixed(4)}, -1.0, 1.0);
   vec4 mvPosition = viewMatrix * w;
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
 
+/**
+ * MKW-style sea (research brief, 26 Sept 2026): the shoal floor and anything standing in it (a pier
+ * post, a boat hull, a rock) show through crystal-clear shallow water, fading to blue with depth
+ * (waterDepth.ts's `lkSceneDropBelow`/`lkWaterAlpha`/`lkWaterColorMix`, read from the scene depth
+ * captured just before this material draws: art-pipeline waterDepth.ts, scene.ts renderOrder -2);
+ * white foam at the shoreline (`lkWaterFoam`), broken by scrolling noise, with faint bands lapping
+ * toward the shore; two scrolling procedural "normal" layers (no normal map: a world-space bump from
+ * a noise height field's own slope, so it never swims as the camera turns, unlike a screen-space
+ * derivative would) feed a Schlick Fresnel toward the sky/horizon colour and a sun glint. `uHasDepth`
+ * 0 (the performance governor's Low tier draws straight to the canvas, or anything about the copy is
+ * missing) falls all the way back to the original look: the slow drifting deep/shallow noise patches,
+ * opaque, with the old vertical horizon fade — never a torn or half-drawn frame.
+ */
 const WATER_FRAG = `
-uniform float time; uniform vec3 deep; uniform vec3 shallow; uniform vec3 sparkle; uniform vec3 horizon;
+uniform float time; uniform float uTideFade; uniform vec3 deep; uniform vec3 shallow; uniform vec3 sparkle; uniform vec3 horizon;
+uniform vec3 sunDir; uniform float night;
 varying vec3 vWorld;
+varying float vCrest;
 #include <fog_pars_fragment>
+${WATER_DEPTH_GLSL}
+${GERSTNER_GLSL}
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
+// a scrolling layer's own world-space slope: finite differences of a noise height field, a small
+// fixed world-space step apart, so the "normal" it feeds never swims as the camera turns (a
+// screen-space derivative would)
+vec2 lkSlopeOf(vec2 worldXZ, float scale, vec2 drift, float t) {
+  float e = 0.25;
+  vec2 base = worldXZ * scale + drift * t;
+  float h0 = noise(base), hx = noise(base + vec2(e * scale, 0.0)), hz = noise(base + vec2(0.0, e * scale));
+  return vec2(h0 - hx, h0 - hz) / e;
+}
 void main() {
-  vec2 p = vWorld.xz * 0.06;
-  // two slow drifting layers make soft patches of deep and shallow water
-  float n = noise(p + vec2(time * 0.04, time * 0.025)) * 0.6 + noise(p * 2.3 - vec2(time * 0.03, -time * 0.05)) * 0.4;
-  vec3 c = mix(deep, shallow, smoothstep(0.3, 0.8, n));
-  // cartoon sparkle: thin bright lines where two moving ripple fields cross the same level
+  vec3 viewDir = normalize(cameraPosition - vWorld);
+  bool haveDepth = uHasDepth > 0.5;
+
+  vec3 c;
+  if (haveDepth) {
+    // shallow (turquoise) to deep (this material's own tone), by the vertical depth of whatever the
+    // captured scene depth finds behind this pixel
+    c = mix(shallow, deep, lkWaterColorMix(lkSceneDropBelow()));
+  } else {
+    // two slow drifting layers make soft patches of deep and shallow water (today's look, unchanged)
+    vec2 p = vWorld.xz * 0.06;
+    float n = noise(p + vec2(time * 0.04, time * 0.025)) * 0.6 + noise(p * 2.3 - vec2(time * 0.03, -time * 0.05)) * 0.4;
+    c = mix(deep, shallow, smoothstep(0.3, 0.8, n));
+  }
+
+  // cartoon sparkle: thin bright lines where two moving ripple fields cross the same level (both paths)
   vec2 q = vWorld.xz * 0.22;
-  float d = abs(noise(q + vec2(time * 0.35, 0.0)) - noise(q * 1.07 - vec2(0.0, time * 0.3)));
+  float sd = abs(noise(q + vec2(time * 0.35, 0.0)) - noise(q * 1.07 - vec2(0.0, time * 0.3)));
   // a thin line at any distance: its width follows the screen, not the world
-  float line = 1.0 - smoothstep(0.0, max(0.012, fwidth(d) * 1.4), d);
-  float view = length(cameraPosition.xz - vWorld.xz);
-  c = mix(c, sparkle, line * 0.6 * (1.0 - smoothstep(60.0, 260.0, view)));
-  // towards the horizon the water mirrors the sky
-  vec3 v = normalize(cameraPosition - vWorld);
-  c = mix(c, horizon, pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0) * 0.55);
-  gl_FragColor = vec4(c, 1.0);
+  float sline = 1.0 - smoothstep(0.0, max(0.012, fwidth(sd) * 1.4), sd);
+  float viewDist = length(cameraPosition.xz - vWorld.xz);
+  c = mix(c, sparkle, sline * 0.6 * (1.0 - smoothstep(60.0, 260.0, viewDist)));
+
+  if (!haveDepth) {
+    // towards the horizon the water mirrors the sky (today's look, unchanged); nothing below needs a
+    // scene depth this frame does not have
+    c = mix(c, horizon, pow(1.0 - clamp(viewDir.y, 0.0, 1.0), 4.0) * 0.55);
+    gl_FragColor = vec4(c, 1.0);
+    #include <fog_fragment>
+    return;
+  }
+
+  float dep = lkSceneDropBelow();
+
+  // the swell's own analytic normal, evaluated fresh at this fragment's own world xz (not interpolated
+  // from the vertex shader: on the graded grid's own coarse, far rings — or the flat far plane's two
+  // huge triangles — a linearly-interpolated per-vertex normal read as visibly faceted in the sky's own
+  // reflection, review 26 Sept 2026 finding 3; the same fade the vertex shader computed for its own
+  // displacement, recomputed here from vWorld instead of carried as a varying: one extra length and
+  // smoothstep call, cheaper than a second varying) plus two scrolling procedural ripple layers on top (no
+  // normal map: a world-space bump from a noise height field's own slope, so it never swims as the
+  // camera turns, unlike a screen-space derivative would) → Schlick Fresnel toward the sky/horizon
+  // colour, and a sun glint
+  float fade = (1.0 - smoothstep(${WAVE_FADE.near.toFixed(1)}, ${WAVE_FADE.far.toFixed(1)}, length(vWorld.xz - cameraPosition.xz))) * uTideFade;
+  vec3 gNormal = lkGerstnerNormal(vWorld.xz, time, fade);
+  vec2 slope = lkSlopeOf(vWorld.xz, 0.1, vec2(0.5, 0.18), time) * 0.6 + lkSlopeOf(vWorld.xz, 0.17, vec2(-0.32, 0.46), time) * 0.4;
+  vec3 nrm = normalize(gNormal + vec3(-slope.x * 0.35, 0.0, -slope.y * 0.35));
+  float ndv = clamp(dot(nrm, viewDir), 0.0, 1.0);
+  float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
+  c = mix(c, horizon, fresnel * 0.7);
+  vec3 halfV = normalize(sunDir + viewDir);
+  float glint = pow(max(dot(nrm, halfV), 0.0), 60.0);
+  c += vec3(1.0, 0.96, 0.82) * glint * (1.0 - night * 0.55);
+
+  float alpha = lkWaterAlpha(dep);
+
+  // foam: a soft line at the shoreline, broken by scrolling noise, plus faint bands lapping toward it
+  float foamBase = lkWaterFoam(dep);
+  float breakup = noise(vWorld.xz * 0.8 + vec2(time * 0.18, time * 0.12)) * 0.6 + 0.4;
+  float foam = foamBase * smoothstep(0.2, 0.85, breakup);
+  float bandRange = ${(WATER_DEPTH.foamWidth * 3.2).toFixed(3)};
+  if (dep > 0.0 && dep < bandRange) {
+    float phase = fract(dep * 0.5 - time * 0.2);
+    foam = max(foam, smoothstep(0.8, 1.0, phase) * (1.0 - dep / bandRange) * 0.5);
+  }
+  // whitecaps: a soft cap only on the highest crests (subtle, MKW-like: never a solid white sheet),
+  // broken by the same scrolling noise as the shoreline foam
+  float whitecap = smoothstep(0.6, 0.92, vCrest) * smoothstep(0.35, 0.85, breakup);
+  foam = max(foam, whitecap * 0.7);
+  vec3 foamColor = mix(vec3(1.0), vec3(0.82, 0.9, 1.0), night);
+  c = mix(c, foamColor, clamp(foam, 0.0, 1.0) * (1.0 - night * 0.3));
+
+  gl_FragColor = vec4(c, alpha);
   #include <fog_fragment>
 }`;
 
-const WATERS: Readonly<Record<string, { deep: string; shallow: string; sparkle: string; horizon: string }>> = Object.freeze({
+const WATERS: Readonly<Record<string, { deep: string; shallow: string; sparkle: string; horizon: string; night?: boolean }>> = Object.freeze({
   harbour: { deep: '#1b7fc0', shallow: '#46c2e6', sparkle: '#f2fdff', horizon: '#bfe8f7' },
-  boardwalk: { deep: '#0a1440', shallow: '#1d3f86', sparkle: '#9fe6ff', horizon: '#6a3a9a' },
+  boardwalk: { deep: '#0a1440', shallow: '#1d3f86', sparkle: '#9fe6ff', horizon: '#6a3a9a', night: true },
 });
 
 const waterCache = new Map<string, ShaderMaterial>();
-/** The water for a biome (harbour blue by default), shared by every race on it. */
-export function waterMaterial(biome: string): ShaderMaterial {
+const DEFAULT_SUN: readonly [number, number, number] = [0.4, 0.8, 0.3];
+/**
+ * The water for a biome (harbour blue by default), shared by every race on it. `sunDirection` (the
+ * track's own env.sunDirection, track-builder scene.ts) sets the sun glint's direction every call —
+ * not baked in once — since a mirrored race (mirror.ts) flips its x on the very same biome.
+ */
+export function waterMaterial(biome: string, sunDirection?: readonly [number, number, number]): ShaderMaterial {
+  // a stale tide from a previous race (Harbour's own, or anyone's before it) must never leak into this
+  // one: every scene build calls this once (scene.ts), cache hit or not, so this always runs first
+  SEA_TIDE.rise.value = 0;
   const key = WATERS[biome] ? biome : 'harbour';
   let m = waterCache.get(key);
   if (!m) {
     const w = WATERS[key];
     m = new ShaderMaterial({
-      vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, fog: true,
-      uniforms: UniformsUtils.merge([UniformsLib.fog, {
+      vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, fog: true, transparent: true, depthWrite: true,
+      uniforms: UniformsUtils.merge([UniformsLib.fog, waterDepthUniforms(), {
         time: { value: 0 }, deep: { value: new Color(w.deep) }, shallow: { value: new Color(w.shallow) },
         sparkle: { value: new Color(w.sparkle) }, horizon: { value: new Color(w.horizon) },
+        sunDir: { value: new Vector3(...DEFAULT_SUN).normalize() }, night: { value: w.night ? 1 : 0 },
       }]),
     });
     m.uniforms.time = WATER_CLOCK; // one clock for every water surface
+    m.uniforms.uTideFade = SEA_TIDE.scale; // 1 with no tide; shrinks as Harbour's own flood comes in
     m.userData.shared = true;
+    // track-builder's scene.ts calls these generically (any material may want a hand in its mesh, or
+    // a companion mesh added beside it), without importing anything from art-pipeline
+    m.userData.attachDepth = (mesh: Object3D) => { mesh.onBeforeRender = waterDepthHook(m!); };
+    m.userData.waveGrid = (waterY: number) => buildWaveGridMesh(m!, waterY);
+    // a generic hook (track-builder never imports art-pipeline): the sea as the shader draws it at
+    // (x, z) for a floating decor instance (a boat) to ride each frame, seen from a camera at (eyeX,
+    // eyeZ): the same Gerstner sum on the same clock (WATER_CLOCK), faded with distance from the camera
+    // as the vertex shader fades it, times the tide scale uTideFade reads, plus the tide's own rise (a
+    // boat floats, it does not merely shrink: review, 26 Sept 2026, finding 2)
+    m.userData.floatRide = (x: number, z: number, eyeX: number, eyeZ: number) => {
+      const r = gerstnerRide(x, z, WATER_CLOCK.value), s = waveFade(Math.hypot(x - eyeX, z - eyeZ)) * SEA_TIDE.scale.value;
+      return { y: r.y * s + SEA_TIDE.rise.value, slopeX: r.slopeX * s, slopeZ: r.slopeZ * s };
+    };
     waterCache.set(key, m);
   }
+  const [sx, sy, sz] = sunDirection ?? DEFAULT_SUN;
+  (m.uniforms.sunDir.value as Vector3).set(sx, sy, sz).normalize();
   return m;
 }
 
@@ -280,8 +414,8 @@ const groundCache = new Map<string, Material>();
  * In the PBR look (look.ts) the painted ground is a rough MeshStandardMaterial that varies across the
  * land and carries the texture's own relief.
  */
-export function groundMaterial(biome: string, kind: string, size: number): Material | undefined {
-  if (kind === 'water') return waterMaterial(biome);
+export function groundMaterial(biome: string, kind: string, size: number, sunDirection?: readonly [number, number, number]): Material | undefined {
+  if (kind === 'water') return waterMaterial(biome, sunDirection);
   const g = GROUNDS[biome];
   if (!g || kind !== 'plane') return undefined;
   const key = `${biome}:${size}:${look()}`;

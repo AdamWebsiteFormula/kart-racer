@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ShaderChunk, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
+import { PerspectiveCamera, ShaderChunk, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { ROAD_LOOKS, trackAssets } from './index.ts';
 import { DEFAULT_LOOK, setLook } from './look.ts';
-import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR } from './surfaces.ts';
+import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, WATER_CLOCK, waterMaterial } from './surfaces.ts';
+import { gerstnerRide, SEA_TIDE, tideScale, WAVE_FADE } from './waterWaves.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 
@@ -147,5 +148,166 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
     expect(ROAD_RELIEF_FAR[1]).toBeGreaterThan(100);
     expect(GROUND_RELIEF_FAR[0]).toBeGreaterThan(15); // still crisp close up, not blurred near the kart
     expect(ROAD_RELIEF_FAR[0]).toBeGreaterThan(10);
+  });
+});
+
+describe('the sea (waterMaterial, waterDepth.ts): see-through, drawn first among see-through things, falls back cleanly', () => {
+  it('is transparent with depthWrite on, so later see-through things (shiftFx clouds, ghosts) still depth-test against its own surface', () => {
+    const m = waterMaterial('harbour');
+    expect(m.transparent).toBe(true);
+    expect(m.depthWrite).toBe(true);
+    expect(m.type).toBe('ShaderMaterial');
+  });
+
+  it('every sea biome falls back to the unknown-biome default (harbour) the same way groundMaterial does', () => {
+    expect(waterMaterial('not-a-real-biome')).toBe(waterMaterial('harbour'));
+  });
+
+  it('boardwalk is the night palette, harbour the day one', () => {
+    expect(waterMaterial('boardwalk').uniforms.night.value).toBe(1);
+    expect(waterMaterial('harbour').uniforms.night.value).toBe(0);
+  });
+
+  it('userData.attachDepth wires a mesh\'s onBeforeRender to the depth capture, without art-pipeline being imported by scene.ts (userData convention, like sharedMaterial)', () => {
+    const m = waterMaterial('harbour');
+    const attach = m.userData.attachDepth as ((mesh: { onBeforeRender?: unknown }) => void) | undefined;
+    expect(attach).toBeTypeOf('function');
+    const fakeMesh: { onBeforeRender?: (renderer: WebGLRenderer, scene: unknown, camera: unknown) => void } = {};
+    attach!(fakeMesh);
+    expect(fakeMesh.onBeforeRender).toBeTypeOf('function');
+  });
+
+  it('the capture falls back to uHasDepth = 0 (today\'s opaque look) when the renderer has no active render target, instead of throwing', () => {
+    const m = waterMaterial('harbour');
+    const attach = m.userData.attachDepth as (mesh: { onBeforeRender?: (r: WebGLRenderer, s: unknown, c: unknown) => void }) => void;
+    const fakeMesh: { onBeforeRender?: (r: WebGLRenderer, s: unknown, c: unknown) => void } = {};
+    attach(fakeMesh);
+    m.uniforms.uHasDepth.value = 1; // prove the hook actually ran and changed it, not that it was already 0
+    const fakeRenderer = { getRenderTarget: () => null } as unknown as WebGLRenderer;
+    expect(() => fakeMesh.onBeforeRender!(fakeRenderer, {}, {})).not.toThrow();
+    expect(m.uniforms.uHasDepth.value).toBe(0);
+  });
+
+  it('every call updates the shared material\'s sun direction (a mirrored race, mirror.ts, flips x on the very same biome; sunDir must not be baked in once)', () => {
+    const a = waterMaterial('harbour', [0.4, 0.8, 0.3]);
+    const dirA = (a.uniforms.sunDir.value as { x: number }).x;
+    const b = waterMaterial('harbour', [-0.4, 0.8, 0.3]);
+    expect(b).toBe(a); // the very same shared material
+    const dirB = (b.uniforms.sunDir.value as { x: number }).x;
+    expect(dirB).toBeLessThan(0);
+    expect(Math.sign(dirB)).not.toBe(Math.sign(dirA));
+  });
+
+  it("Harbour Loop's real scene: the water plane draws renderOrder -2 (right after every opaque thing, before every other see-through thing) and its onBeforeRender is really wired to the depth capture, not the default no-op", () => {
+    const def = TRACKS.find((d) => d.id === 'harbour-loop')!;
+    const scene = buildTrackScene(buildTrack(def), trackAssets(def.biome));
+    const ground = scene.group.getObjectByName('ground-water') as Mesh;
+    expect(ground).toBeTruthy();
+    expect(ground.renderOrder).toBe(-2);
+    const water = waterMaterial('harbour');
+    expect(ground.material).toBe(water);
+    // behavioural, not a prototype check: a no-op onBeforeRender would leave uHasDepth untouched
+    water.uniforms.uHasDepth.value = 1;
+    const fakeRenderer = { getRenderTarget: () => null } as unknown as WebGLRenderer;
+    ground.onBeforeRender(fakeRenderer, scene.group as never, {} as never, ground.geometry, water, undefined as never);
+    expect(water.uniforms.uHasDepth.value).toBe(0);
+    scene.dispose();
+  });
+});
+
+describe('the sea\'s swell, review round 2 (26 Sept 2026): a per-fragment normal and Harbour\'s own flood tide', () => {
+  it('finding 3: the analytic normal is evaluated in the fragment shader (from vWorld, fresh per pixel), not carried as an interpolated vertex varying', () => {
+    const m = waterMaterial('harbour');
+    expect(m.vertexShader).not.toContain('vGerstnerNormal');
+    expect(m.fragmentShader).not.toContain('vGerstnerNormal');
+    expect(m.fragmentShader).toContain('lkGerstnerNormal(vWorld.xz');
+    // the vertex shader still needs its own fade for the displacement itself; the fragment recomputes
+    // its own copy from vWorld (not a second varying) so the normal matches the same fade
+    expect(m.vertexShader).toContain('uTideFade');
+    expect(m.fragmentShader).toContain('uTideFade');
+  });
+
+  it('finding 2: uTideFade is wired straight to SEA_TIDE.scale (a live reference, like WATER_CLOCK — not a one-time copy), 1 with no tide', () => {
+    SEA_TIDE.rise.value = 0;
+    const m = waterMaterial('harbour');
+    expect(m.uniforms.uTideFade.value).toBe(1);
+    SEA_TIDE.rise.value = 0.7;
+    expect(m.uniforms.uTideFade.value).toBeCloseTo(tideScale(0.7), 9);
+    SEA_TIDE.rise.value = 0; // never leave a test's own tide for the next one
+  });
+
+  it('waterMaterial() resets SEA_TIDE.rise to 0 every time it is called (a stale tide from a previous race must never leak into the next), even on a cache hit', () => {
+    SEA_TIDE.rise.value = 0.5;
+    waterMaterial('harbour');
+    expect(SEA_TIDE.rise.value).toBe(0);
+  });
+
+  it('a floating prop\'s bob (userData.floatRide) is the sea as drawn: the water\'s own clock, the swell faded with distance from the camera like the shader, the tide\'s rise and scale', () => {
+    const m = waterMaterial('harbour');
+    const floatRide = m.userData.floatRide as (x: number, z: number, eyeX: number, eyeZ: number) => { y: number; slopeX: number; slopeZ: number };
+    const clock = WATER_CLOCK.value;
+    SEA_TIDE.rise.value = 0;
+    // the camera right over it: the full swell, on the clock every water shader reads (not the race's)
+    WATER_CLOCK.value = 3.4;
+    const near = floatRide(12, -8, 12, -8), r = gerstnerRide(12, -8, 3.4);
+    expect(near.y).toBeCloseTo(r.y, 9);
+    expect(near.slopeX).toBeCloseTo(r.slopeX, 9);
+    WATER_CLOCK.value = 7.9;
+    expect(floatRide(12, -8, 12, -8).y).toBeCloseTo(gerstnerRide(12, -8, 7.9).y, 9);
+    // halfway through the fade, half the swell; past WAVE_FADE.far the sea is drawn flat: no bob, no tilt
+    const mid = (WAVE_FADE.near + WAVE_FADE.far) / 2;
+    expect(floatRide(12, -8, 12 + mid, -8).y).toBeCloseTo(gerstnerRide(12, -8, 7.9).y * 0.5, 9);
+    const far = floatRide(12, -8, 12, -8 - WAVE_FADE.far - 1);
+    expect(Math.abs(far.y) + Math.abs(far.slopeX) + Math.abs(far.slopeZ)).toBe(0);
+    // the tide: raised by its rise, the swell shrunk by its scale (finding 2)
+    SEA_TIDE.rise.value = 0.7;
+    const tidal = floatRide(12, -8, 12, -8);
+    expect(tidal.y).toBeCloseTo(gerstnerRide(12, -8, 7.9).y * tideScale(0.7) + 0.7, 9);
+    expect(tidal.slopeX).toBeCloseTo(gerstnerRide(12, -8, 7.9).slopeX * tideScale(0.7), 9);
+    SEA_TIDE.rise.value = 0; // never leave a test's own tide or clock for the next one
+    WATER_CLOCK.value = clock;
+  });
+
+  it('Harbor\'s boats: as placed once past the swell\'s fade, and at the Low tier every drawn slot holds a boat in view, bobbed (cull thins, then bobs)', () => {
+    const def = TRACKS.find((d) => d.id === 'harbour-loop')!;
+    const scene = buildTrackScene(buildTrack(def), trackAssets(def.biome));
+    const boats = scene.instancers.get('decor:boat')!;
+    const n = boats.count, placed = Float32Array.from((boats.instanceMatrix.array as Float32Array).subarray(0, n * 16));
+    expect(n).toBeGreaterThan(4);
+    const at = (a: ArrayLike<number>, i: number) => [a[i * 16 + 12], a[i * 16 + 13], a[i * 16 + 14]];
+    const cam = new PerspectiveCamera(60, 16 / 9, 0.3, 1400);
+    // far off the course: every boat past WAVE_FADE.far, so each sits exactly where it was placed
+    cam.position.set(4000, 40, 4000); cam.lookAt(0, 0, 0); cam.updateMatrixWorld();
+    scene.cull(cam, false);
+    for (let i = 0; i < n; i++) at(boats.instanceMatrix.array, i).forEach((v, k) => expect(v).toBeCloseTo(at(placed, i)[k], 4));
+    // low over the last boat, looking at it: the Low tier packs the boats in view to the front of the
+    // buffer; each drawn slot must hold the very boat it holds on the same track with no bob at all
+    // (a plain ground: no floatRide), only raised or lowered by the swell, and it moves with the clock
+    const [bx, by, bz] = at(placed, n - 1);
+    cam.position.set(bx + 8, by + 3, bz + 8); cam.lookAt(bx, by, bz); cam.updateMatrixWorld();
+    const still = buildTrackScene(buildTrack(def), { ...trackAssets(def.biome), ground: undefined });
+    const stillBoats = still.instancers.get('decor:boat')!;
+    WATER_CLOCK.value = 1.3;
+    scene.cull(cam, true);
+    still.cull(cam, true);
+    expect(boats.count).toBeGreaterThan(0);
+    expect(boats.count).toBeLessThan(n);
+    expect(boats.count).toBe(stillBoats.count);
+    for (let s = 0; s < boats.count; s++) {
+      const [x, , z] = at(boats.instanceMatrix.array, s), [sx, , sz] = at(stillBoats.instanceMatrix.array, s);
+      expect(x, `slot ${s} x`).toBeCloseTo(sx, 4);
+      expect(z, `slot ${s} z`).toBeCloseTo(sz, 4);
+    }
+    // the nearest boat drawn rides the swell (well inside its fade): its height moves with the water's clock
+    const dist = (s: number) => Math.hypot(at(boats.instanceMatrix.array, s)[0] - cam.position.x, at(boats.instanceMatrix.array, s)[2] - cam.position.z);
+    const slot = Array.from({ length: boats.count }, (_, s) => s).sort((a, b) => dist(a) - dist(b))[0];
+    expect(dist(slot)).toBeLessThan(WAVE_FADE.near);
+    const first = at(boats.instanceMatrix.array, slot)[1];
+    WATER_CLOCK.value = 4.1;
+    scene.cull(cam, true);
+    expect(Math.abs(at(boats.instanceMatrix.array, slot)[1] - first)).toBeGreaterThan(0.01);
+    still.dispose();
+    WATER_CLOCK.value = 0;
+    scene.dispose();
   });
 });

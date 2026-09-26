@@ -39,8 +39,21 @@ export interface CoastOptions {
 /** Strata tints (multiplied over the texture), bottom to top, one band per 2.4 m. */
 const STRATA: readonly (readonly [number, number, number])[] = [[1.08, 0.98, 0.88], [0.8, 0.5, 0.38], [1, 0.78, 0.62], [0.72, 0.44, 0.34], [1.05, 0.9, 0.76], [0.88, 0.6, 0.46]];
 
-/** Below the sea by this much the slope stops: nothing there shows. */
+/** Below the "water" a land track's hill or cliff falls before it flattens: never seen (hidden under its own opaque ground plane), so left alone. */
 const UNDER = 1.2;
+/**
+ * Below a real sea (`CoastOptions.wet`) the coast keeps sloping before it flattens: much deeper than the
+ * water shader's own shallow-to-deep fade (art-pipeline waterDepth.ts, opaque by 1.7 m), so the sandy
+ * seabed and anything standing in it (pier posts, boat hulls, rocks) never show a cut edge through the
+ * translucent shallows — the water is always fully opaque well before this geometry's own far,
+ * flattened edge. Sources: Nintendo "Ask the Developer" Vol.18 Pt.3 (MKW's shoal floor shows through
+ * crystal-clear shallow water; deep water reads as blue) and Digital Foundry's MKW tech review (Adam's
+ * water research brief, 26 Sept 2026).
+ */
+const SEABED_UNDER = 4.5;
+
+/** How far a coast's slope falls before it flattens: SEABED_UNDER on a real sea, UNDER (unchanged) on a land track's hill. */
+function coastFall(o: CoastOptions): number { return o.wet ? SEABED_UNDER : UNDER; }
 /** The land's top sits this far under the road's outer shoulder, so the two never fight. */
 const UNDER_ROAD = 0.12;
 /** Metres over which an open edge's cliff falls: near sheer, as the physics has no ground past it. */
@@ -68,7 +81,7 @@ export function landAt(land: RoadIndex, o: CoastOptions, x: number, z: number): 
   let y = q.top;
   if (past > lip) {
     const k = Math.min(1, (past - lip) / fall);
-    y = q.top + (o.waterY - UNDER - q.top) * (k * k * (3 - 2 * k));
+    y = q.top + (o.waterY - coastFall(o) - q.top) * (k * k * (3 - 2 * k));
   }
   OUT.y = y;
   OUT.mix = Math.max(0, Math.min(1, (past - lip + 1.5) / 3));
@@ -123,6 +136,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
     }
   }
   if (!xs.length) return null;
+  const seaFall = coastFall(o);
   const reach = widest + o.flat + o.slope;
   const B = Math.max(8, reach);
   const buckets = new Map<number, number[]>();
@@ -165,7 +179,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
       };
       // under a road a race can hide the land stays (it lies offroadDrop under it, as beside every curb)
       const inFixed = fk >= 0 ? edges[fk] - BUILDER.shoulderWidth - Math.sqrt(fixedBest) : -1, onFixed = inFixed > 0.5;
-      let y = o.waterY - UNDER, mix = 1;
+      let y = o.waterY - seaFall, mix = 1;
       if (o.land) {
         if (at) { y = at.y; mix = at.mix; under[v] = at.under && onFixed ? 1 : 0; bore[v] = at.bore; curb[v] = Math.min(CURB_FAR, at.edge); }
         // under a road that is always drawn the land never stands above it (at a shortcut's mouth the
@@ -188,7 +202,7 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
         else {
           const k = Math.min(1, (d - lip) / fall);
           // an eased fall: a soft lip at the top, a gentle beach into the sea
-          y = top + (o.waterY - UNDER - top) * (k * k * (3 - 2 * k));
+          y = top + (o.waterY - seaFall - top) * (k * k * (3 - 2 * k));
         }
         mix = Math.max(0, Math.min(1, (d - lip + 1.5) / 3));
         under[v] = onFixed ? 1 : 0;
@@ -197,9 +211,15 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
       pos[v * 3] = x; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z;
       uv[v * 2] = x; uv[v * 2 + 1] = z;
       blend[v] = mix;
-      // wet sand darkens toward the waterline; a cliff shows its rock bands
+      // wet sand darkens toward the waterline; under it, darker and a little blue-green with depth
+      // (the water shader itself, surfaces.ts, does most of that fading; this just keeps the seabed
+      // itself from reading pure white through the shallows) down to the same floor its slope falls
+      // to; a cliff shows its rock bands
       let r = 1, gg = 1, bb = 1;
-      if (o.wet) { const c = 1 - Math.max(0, Math.min(1, 1 - (y - o.waterY) / 0.8)) * 0.3; r = gg = bb = c; }
+      if (o.wet) {
+        if (y >= o.waterY) { const c = 1 - Math.max(0, Math.min(1, 1 - (y - o.waterY) / 0.8)) * 0.3; r = gg = bb = c; }
+        else { const depth = Math.min(1, (o.waterY - y) / seaFall); r = 0.7 - depth * 0.28; gg = 0.7 - depth * 0.16; bb = 0.7 - depth * 0.02; }
+      }
       if (o.strata && mix > 0.2) {
         const band = STRATA[((Math.floor((y - o.waterY) / 2.4) % STRATA.length) + STRATA.length) % STRATA.length];
         const k = Math.min(1, (mix - 0.2) / 0.5);
@@ -209,12 +229,17 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
     }
   }
 
+  // land tracks keep the old, tight cull (anything even slightly under the "water" is hidden under
+  // its own opaque ground plane anyway); a real sea only culls once a quad has reached the flattened
+  // floor `seaFall` metres down, so the newly deepened, gently-sloping seabed survives to be seen
+  // through the translucent shallows (surfaces.ts)
+  const cullBelow = o.wet ? o.waterY - seaFall - 0.05 : o.waterY - 0.05;
   const index: number[] = [];
   for (let j = 0; j < nz - 1; j++) {
     for (let i = 0; i < nx - 1; i++) {
       const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
       if (under[a] && under[b] && under[c] && under[d]) continue;
-      if (Math.max(pos[a * 3 + 1], pos[b * 3 + 1], pos[c * 3 + 1], pos[d * 3 + 1]) < o.waterY - 0.05) continue; // all under the sea
+      if (Math.max(pos[a * 3 + 1], pos[b * 3 + 1], pos[c * 3 + 1], pos[d * 3 + 1]) < cullBelow) continue; // flattened at the floor: nothing left to show
       if (((bore[a] | bore[b] | bore[c]) & SHEET) !== SHEET) index.push(a, c, b);
       if (((bore[b] | bore[c] | bore[d]) & SHEET) !== SHEET) index.push(b, c, d);
     }
