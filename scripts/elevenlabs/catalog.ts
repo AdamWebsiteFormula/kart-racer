@@ -60,7 +60,10 @@ export const SFX: readonly SfxSpec[] = [
   // a door slam and a splat
   { id: 'balloon', seconds: 0.7, influence: 0.6, prompt: `A cartoon item balloon popping as a kart drives through it: a bright, bouncy rubber pop, followed at once by a quick sparkly twinkle of magic chimes. Fun and rewarding, never harsh. ${CARTOON}` },
   // remade 24 Sept 2026 (the ears heard a click and a hammer on metal): the chime is the point
-  { id: 'coin', seconds: 0.5, influence: 0.6, prompt: 'A classic arcade coin pickup: a bright, sparkly two-note chime going up, like a tiny glockenspiel. Clean and short. No voice.' },
+  // 26 Sept 2026: the shipped take is three bell notes, C6 -> C7 -> G7 (measured 1049, 2094, 3138 Hz), not the
+  // famous two-note B -> E (a perfect fourth) square-wave coin; the Pro judge, asked neutrally, hears a generic
+  // chime (1/10). The prompt now asks for what shipped, never "two notes going up", so a remake cannot drift there
+  { id: 'coin', seconds: 0.5, influence: 0.6, prompt: 'A classic arcade coin pickup: a quick, bright run of three rising bell tones, like a tiny glockenspiel. Clean and short. No voice.' },
   // remade 24 Sept 2026: the first was a 5 ms click, so spiky that at a level you could hear it
   // over the music it pushed the output past −1 dB true peak; a tick with a note has body
   { id: 'rouletteTick', seconds: 0.5, influence: 0.6, prompt: 'One single short bright wooden tock with a clear pitched note, like a prize wheel peg knocking once: a tiny marimba-like tick. Dry, no echo, no music, no voice.' },
@@ -150,6 +153,12 @@ export const SFX: readonly SfxSpec[] = [
   // driving
   // remade 26 Sept 2026 (runbook step 2; judge 4/3 -> 7/9; local ears pass)
   { id: 'hop', seconds: 0.5, influence: 0.6, prompt: `One quick, light, bouncy spring boing, short and soft, with a tiny springy creak. Very short. ${CARTOON}` },
+  // 26 Sept 2026: no single take sells both halves (they read as a wooden knock, a drum, a boing), so land.mp3 is
+  // two takes layered: a thump ("A heavy, low, dull thud of a small car's suspension bottoming out on a road: deep
+  // and weighty, rubbery, very short. No metal clang, no wood, no music, no voice.") and, 30 ms later at 0.2 of its
+  // peak, low-passed at 2.5 kHz, a chirp ("A very short tire chirp: rubber tires squeak once on dry asphalt as a
+  // small car touches down. Quick and bright, no engine, no music, no voice."), 0.6 s. Judge 2/3 -> 8/8 (compare),
+  // 10/10, 9/9, 10/10 alone. This prompt stays as the judge's brief
   { id: 'land', seconds: 0.6, prompt: 'A go-kart landing on asphalt after a small jump: a solid rubbery thump with a tyre chirp. No music, no voice.' },
   // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
   { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
