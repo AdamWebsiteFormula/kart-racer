@@ -774,17 +774,37 @@ function showShift(s: RaceSession, audible: boolean, reduced: boolean): void {
   }
 }
 
-/** Attract mode: a slow TV camera swinging around whoever leads. */
+/**
+ * Attract mode: a slow TV camera swinging around whoever leads. The title's menu sits in the middle of
+ * the screen, so the camera aims past the leader to its right (rule of thirds) and the kart shows left
+ * of the menu, close enough to read the racer (26 Sept 2026: at 16 m, dead centre, the menu hid it).
+ * Camera and aim ride along with the leader each frame, so the easing only shapes the framing: eased
+ * alone, they trailed a kart at race speed by some 15 m and the frame showed empty road.
+ */
 function tvCamera(frameDt: number): void {
   const s = session!;
-  const k = s.views[s.leader()].root.position;
+  const lead = s.leader();
+  const k = s.views[lead].root.position;
+  if (lead === tvKart) {
+    const d = [k.x - tvPrev.x, k.y - tvPrev.y, k.z - tvPrev.z];
+    for (let a = 0; a < 3; a++) { camPos[a] += d[a]; camLook[a] += d[a]; }
+  }
+  tvKart = lead;
+  tvPrev.copy(k);
   orbit += frameDt * (ui.reducedMotion ? 0.02 : 0.12);
-  const r = 16;
-  const want: Vec3 = [k.x + Math.sin(orbit) * r, k.y + 5.5, k.z + Math.cos(orbit) * r];
+  const r = 11;
+  const want: Vec3 = [k.x + Math.sin(orbit) * r, k.y + 2.8, k.z + Math.cos(orbit) * r];
   smoothTo(camPos, want, 0.6, frameDt);
-  smoothTo(camLook, [k.x, k.y + 1, k.z], 0.25, frameDt);
+  // the camera's right, flat: the look point moves that way so the leader sits a third in from the left
+  const dx = k.x - camPos[0], dz = k.z - camPos[2], len = Math.hypot(dx, dz) || 1;
+  smoothTo(camLook, [k.x - (dz / len) * TV_ASIDE, k.y + 0.4, k.z + (dx / len) * TV_ASIDE], 0.25, frameDt);
   camera.fov = 58;
 }
+/** metres the title camera aims past the leader, to its right: the kart shows left of the centred menu */
+const TV_ASIDE = 4;
+/** the kart the title camera rode with last frame, and where it was */
+let tvKart = -1;
+const tvPrev = new Vector3();
 
 // ---- loop ----
 /** dev only: a fixed camera for checking art up close (kart.photo); with `kart`, pos and look are in that kart's frame and the camera rides along */
