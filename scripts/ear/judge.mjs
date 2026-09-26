@@ -8,9 +8,13 @@
 //   node scripts/ear/judge.mjs compare <id> <path,path,...>     takes side by side: which fits the brief best
 //   node scripts/ear/judge.mjs song <path> --as=<song> --part=start|middle|seam|edit   (edit: a blind check of an edited stretch)
 //   node scripts/ear/judge.mjs songset <song> <start.wav,middle.wav,seam.wav>   a song's three excerpts, one request
-//   node scripts/ear/judge.mjs voices <excerpt.wav> [--from=<s>]  is any human voice in this music excerpt, and when
-//          (a plain question with no brief, so nothing leads the ear; --from = the excerpt's start in the song,
-//          added to each time). Settle a heard voice with two different cuts that agree on the time.
+//   node scripts/ear/judge.mjs voices <excerpt.wav>[,<excerpt2.wav>,...] [--from=<s>[,<s2>,...]]  is any human voice
+//          in this music excerpt, and when (a plain question with no brief, so nothing leads the ear; --from = each
+//          excerpt's start in the song, added to each time). Several excerpts in one request (one Pro call, several
+//          clips): each is judged on its own, no cross-talk. Settle a heard voice with two different cuts that agree.
+//   node scripts/ear/judge.mjs duel <song> <pathP.mp3,pathQ.mp3>   a blind one-on-one: two takes of the same song
+//          (labelled P and Q, order carries no meaning) scored the same way music was compared for race-harbour:
+//          polish, cheesiness, melody, brief fit (each 0-10) for each take, vocals for each, and an overall preference.
 //   flags: --model=gemini-pro-latest (falls back to gemini-3.1-pro-preview when busy), --thinking=low|high,
 //          --budget=8 (US dollars: no call starts once the ledger has spent this much), --patience=10 (minutes),
 //          --briefs=<file.json> (sfx, batch, file, compare: {id: prompt} or {id: {prompt, seconds}}, the brief new
@@ -111,6 +115,40 @@ const SONG_SCHEMA = S('OBJECT', {
   propertyOrdering: ['heard', 'moodFit', 'energyVsMKWRaceTheme', 'vocals', 'vocalsDetail', 'seamProblems', 'problems', 'verdict'],
 });
 
+const DUEL_SCHEMA = S('OBJECT', {
+  properties: {
+    p: S('OBJECT', {
+      properties: {
+        heard: S('STRING', { description: 'One or two sentences: instruments, groove and mood, as if you had no brief.' }),
+        polish: S('INTEGER', { description: '0-10: a polished, professional live-studio recording (10) vs a cheap, cheesy, low-quality MIDI backing track (0).' }),
+        cheesiness: S('INTEGER', { description: '0-10: how cheesy or tacky it sounds. 0 is not cheesy at all; 10 is very cheesy.' }),
+        melody: S('INTEGER', { description: '0-10: how memorable and singable the lead melody is.' }),
+        briefFit: S('INTEGER', { description: '0-10: how well it fits the brief and the moment.' }),
+        vocals: S('STRING', { enum: ['none', 'present'], description: 'Any human voice anywhere: singing, humming, shouting, cheering, a crowd, speech, or a sampled vocal chop.' }),
+        vocalsDetail: S('STRING'),
+      },
+      required: ['heard', 'polish', 'cheesiness', 'melody', 'briefFit', 'vocals', 'vocalsDetail'],
+      propertyOrdering: ['heard', 'polish', 'cheesiness', 'melody', 'briefFit', 'vocals', 'vocalsDetail'],
+    }),
+    q: S('OBJECT', {
+      properties: {
+        heard: S('STRING', { description: 'One or two sentences: instruments, groove and mood, as if you had no brief.' }),
+        polish: S('INTEGER', { description: '0-10: a polished, professional live-studio recording (10) vs a cheap, cheesy, low-quality MIDI backing track (0).' }),
+        cheesiness: S('INTEGER', { description: '0-10: how cheesy or tacky it sounds. 0 is not cheesy at all; 10 is very cheesy.' }),
+        melody: S('INTEGER', { description: '0-10: how memorable and singable the lead melody is.' }),
+        briefFit: S('INTEGER', { description: '0-10: how well it fits the brief and the moment.' }),
+        vocals: S('STRING', { enum: ['none', 'present'], description: 'Any human voice anywhere: singing, humming, shouting, cheering, a crowd, speech, or a sampled vocal chop.' }),
+        vocalsDetail: S('STRING'),
+      },
+      required: ['heard', 'polish', 'cheesiness', 'melody', 'briefFit', 'vocals', 'vocalsDetail'],
+      propertyOrdering: ['heard', 'polish', 'cheesiness', 'melody', 'briefFit', 'vocals', 'vocalsDetail'],
+    }),
+    preferred: S('STRING', { enum: ['P', 'Q'], description: 'Which of the two you prefer overall for this moment.' }),
+    reason: S('STRING'),
+  },
+  required: ['p', 'q', 'preferred', 'reason'],
+  propertyOrdering: ['p', 'q', 'preferred', 'reason'],
+});
 const VOICE_SCHEMA = S('OBJECT', {
   properties: {
     heard: S('STRING', { description: 'The instruments and sounds in this excerpt, in one or two sentences.' }),
@@ -131,6 +169,12 @@ const VOICE_SCHEMA = S('OBJECT', {
   required: ['heard', 'humanVoice', 'voices', 'lookalikes'],
   propertyOrdering: ['heard', 'humanVoice', 'voices', 'lookalikes'],
 });
+/** Several voice-check excerpts in one request (the daily cap): each judged on its own, no cross-talk between clips. */
+const VOICE_BATCH_SCHEMA = S('ARRAY', { items: S('OBJECT', {
+  properties: { clip: S('INTEGER'), ...VOICE_SCHEMA.properties },
+  required: ['clip', ...VOICE_SCHEMA.required],
+  propertyOrdering: ['clip', ...VOICE_SCHEMA.propertyOrdering],
+}) });
 
 /**
  * The clip as the model gets it: Gemini hears nothing in a clip much under a second (a 0.5 s coin came
@@ -309,6 +353,42 @@ async function voices(path, from) {
   return { file: basename(path), from, seconds: Number(secs.toFixed(2)), ...r, songTimes: (r.voices ?? []).map((v) => [at(v.at), at(v.until)]) };
 }
 
+/** Several voice-check excerpts in one request: the same question as `voices`, asked once per clip, no cross-talk. */
+async function voicesBatch(paths, froms) {
+  const secsList = paths.map(wavSeconds);
+  const parts = [{ text: `You will hear ${paths.length} separate excerpts of music tracks, each its own clip. For each clip on its own: ` +
+    'is there any human voice anywhere in it (singing, humming, shouting, cheering, a crowd, speech, or a sampled vocal chop)? ' +
+    'Answer only from what you hear. For each voice, give its time in seconds from the start of that clip and how sure you are. ' +
+    'Also list any instrument sounds in that clip that could be mistaken for a voice, with their times.' }];
+  paths.forEach((p, i) => parts.push({ text: `Clip ${i + 1} (${secsList[i].toFixed(1)} s):` }, audioPart(p, false)));
+  parts.push({ text: `Return a JSON array with exactly ${paths.length} objects, one per clip in order (clip = its number).` });
+  const r = await generate(parts, VOICE_BATCH_SCHEMA, `voices x${paths.length} ${paths.map((p) => basename(p)).join(',')}`);
+  if (!Array.isArray(r)) return paths.map((p, i) => ({ file: basename(p), from: froms[i], ...r }));
+  return paths.map((p, i) => {
+    const x = r.find((y) => y.clip === i + 1) ?? r[i] ?? {};
+    const at = (t) => (typeof t === 'number' ? Number((t + froms[i]).toFixed(2)) : t);
+    return { file: basename(p), from: froms[i], seconds: Number(secsList[i].toFixed(2)), ...x, songTimes: (x.voices ?? []).map((v) => [at(v.at), at(v.until)]), model: r.model, usd: r.usd / paths.length };
+  });
+}
+
+/**
+ * A blind one-on-one: two takes of the same song, labelled P and Q (order carries no meaning, so
+ * neither is named "old" or "new" to the model). Scored the way music was compared for race-harbour:
+ * polish, cheesiness, melody and brief fit for each take, vocals for each, and an overall preference.
+ */
+async function duel(id, pathP, pathQ) {
+  const s = SONGS.find((x) => x.id === id) ?? LYRIA_SONGS.find((x) => x.id === id);
+  const text = `Two race-music takes for the same song, blind-labelled P and Q (the order carries no meaning). ` +
+    `Brief: ${s?.prompt ?? ''}\nWhere it plays: ${SONG_MOMENT[id] ?? ''}\n` +
+    'Judge each independently: polish (0-10: a polished, professional live-studio recording is 10, a cheap, cheesy, low-quality ' +
+    'MIDI backing track is 0), cheesiness (0-10: how cheesy or tacky it sounds; 0 is not cheesy at all, 10 is very cheesy), ' +
+    'melody (0-10: how memorable and singable the lead melody is), briefFit (0-10: how well it fits the brief and the moment). ' +
+    'Also say whether you hear any human voice, humming, singing, shout or vocal chop anywhere in each (vocals), with detail. ' +
+    'Then say which of the two you prefer overall for this moment (preferred) and why (reason).';
+  const parts = [{ text }, { text: 'Take P:' }, audioPart(pathP, false), { text: 'Take Q:' }, audioPart(pathQ, false)];
+  return { id, p: basename(pathP), q: basename(pathQ), ...(await generate(parts, DUEL_SCHEMA, `duel ${id} ${basename(pathP)} vs ${basename(pathQ)}`)) };
+}
+
 const out = (r) => console.log(JSON.stringify(r));
 const [mode, ...rest] = words;
 const BATCH = Number(flag('batch', '1'));
@@ -338,9 +418,17 @@ if (mode === 'sfx') {
 } else if (mode === 'song') {
   out(await judgeSong(rest[0], flag('as'), flag('part', 'start')));
 } else if (mode === 'voices') {
-  out(await voices(rest[0], Number(flag('from', '0'))));
+  const paths = rest[0].split(',');
+  const froms = flag('from', '0').split(',').map(Number);
+  const fromsFull = paths.map((_, i) => froms[i] ?? froms[0] ?? 0);
+  if (paths.length === 1) out(await voices(paths[0], fromsFull[0]));
+  else for (const r of await voicesBatch(paths, fromsFull)) out(r);
+} else if (mode === 'duel') {
+  const [pathP, pathQ] = rest[1].split(',');
+  out(await duel(rest[0], pathP, pathQ));
 } else {
-  console.error('usage: judge.mjs sfx [id ...] | file <path> --as=<id> | compare <id> <paths> | song <path> --as=<song> --part=<start|middle|seam> | voices <excerpt.wav> [--from=<s>]');
+  console.error('usage: judge.mjs sfx [id ...] | file <path> --as=<id> | compare <id> <paths> | song <path> --as=<song> --part=<start|middle|seam> | ' +
+    'voices <excerpt.wav>[,<excerpt2.wav>,...] [--from=<s>[,<s2>,...]] | duel <song> <pathP,pathQ>');
   process.exit(1);
 }
 console.error(`gemini ledger: $${spent().toFixed(3)} spent in all (${LEDGER})`);
