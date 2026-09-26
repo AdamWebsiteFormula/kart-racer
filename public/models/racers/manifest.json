@@ -1,6 +1,7 @@
 {
  "juniper": {
-  "driver": {"url": "models/racers/juniper/driver.glb", "height": 1.25, "seat": [0, -0.05, -0.2]},
+  "driver": {"url": "models/racers/juniper/driver.glb", "height": 1.25, "seat": [0, -0.05, -0.2],
+   "eyelid": {"offset": [0.095, 0.172, 0.119], "axis": [1, 0, 0], "radiusX": 0.058, "radiusY": 0.062, "color": "#c65a2e"}},
   "body": {
    "url": "models/racers/juniper/body.glb", "yaw": -1.5708, "length": 2.1, "y": 0.1,
    "seat": [0, 0.55, -0.09],
@@ -12,7 +13,8 @@
   "wheel": {"url": "models/racers/juniper/wheel.glb", "radius": 0.29, "hubs": [[-0.5, 0.29, 0.66], [0.5, 0.29, 0.66], [-0.5, 0.29, -0.55], [0.5, 0.29, -0.55]]}
  },
  "pip": {
-  "driver": {"url": "models/racers/pip/driver.glb", "height": 1.2, "seat": [-0.025, 0.186, 0.131]},
+  "driver": {"url": "models/racers/pip/driver.glb", "height": 1.2, "seat": [-0.025, 0.186, 0.131],
+   "eyelid": {"offset": [0.095, 0.241, 0.139], "axis": [1, 0, 0], "radiusX": 0.075, "radiusY": 0.062, "color": "#1c9c9a"}},
   "body": {
    "url": "models/racers/pip/body.glb", "yaw": 0, "length": 2.1, "y": 0.076,
    "seat": [0.0, 0.715, 0.2],
@@ -23,7 +25,8 @@
   "wheel": {"url": "models/racers/pip/wheel.glb", "radius": 0.21, "hubs": [[-0.665, 0.21, 0.7], [0.665, 0.21, 0.7], [-0.67, 0.21, -0.37], [0.67, 0.21, -0.37]]}
  },
  "momo": {
-  "driver": {"url": "models/racers/momo/driver.glb", "height": 1.22, "seat": [-0.002, -0.089, 0.191]},
+  "driver": {"url": "models/racers/momo/driver.glb", "height": 1.22, "seat": [-0.002, -0.089, 0.191],
+   "eyelid": {"offset": [0.1, 0.143, 0.169], "axis": [1, 0, 0], "radiusX": 0.06, "radiusY": 0.05, "color": "#3a3a3f"}},
   "body": {
    "url": "models/racers/momo/body.glb", "yaw": -1.5708, "length": 2.0, "y": 0.128,
    "seat": [0.0, 0.515, 0.19],
@@ -47,7 +50,8 @@
   "wheel": {"url": "models/racers/nova/wheel.glb", "radius": 0.21, "hubs": [[-0.994, 0.21, 0.4], [0.994, 0.21, 0.4], [-0.942, 0.21, -0.571], [0.942, 0.21, -0.571]]}
  },
  "otto": {
-  "driver": {"url": "models/racers/otto/driver.glb", "height": 1.3, "seat": [0.0, -0.059, -0.113]},
+  "driver": {"url": "models/racers/otto/driver.glb", "height": 1.3, "seat": [0.0, -0.059, -0.113],
+   "eyelid": {"offset": [0.075, 0.167, 0.137], "axis": [1, 0, 0], "radiusX": 0.045, "radiusY": 0.042, "color": "#7a4f27"}},
   "body": {
    "url": "models/racers/otto/body.glb", "yaw": 0, "length": 2.1, "y": 0.179,
    "seat": [0.0, 0.5, -0.06],
@@ -59,7 +63,8 @@
   "wheel": {"url": "models/racers/otto/wheel.glb", "radius": 0.26, "hubs": [[-0.573, 0.26, 0.605], [0.573, 0.26, 0.605], [-0.573, 0.26, -0.5], [0.573, 0.26, -0.5]]}
  },
  "sprocket": {
-  "driver": {"url": "models/racers/sprocket/driver.glb", "height": 1.35, "seat": [0.04, -0.074, -0.069]},
+  "driver": {"url": "models/racers/sprocket/driver.glb", "height": 1.35, "seat": [0.04, -0.074, -0.069],
+   "eyelid": {"offset": [0.06, 0.169, 0.103], "axis": [1, 0, 0], "radiusX": 0.036, "radiusY": 0.036, "color": "#12161c", "shape": "plate"}},
   "body": {
    "url": "models/racers/sprocket/body.glb", "yaw": -1.5708, "length": 2.1, "y": 0.09,
    "seat": [0.045, 0.545, -0.05],
@@ -71,7 +76,8 @@
   "wheel": {"url": "models/racers/sprocket/wheel.glb", "radius": 0.24, "hubs": [[-0.718, 0.24, 0.65], [0.718, 0.24, 0.65], [-0.688, 0.24, -0.535], [0.688, 0.24, -0.535]]}
  },
  "boulder": {
-  "driver": {"url": "models/racers/boulder/driver.glb", "height": 1.4, "seat": [0.004, 0.301, 0.075]},
+  "driver": {"url": "models/racers/boulder/driver.glb", "height": 1.4, "seat": [0.004, 0.301, 0.075],
+   "eyelid": {"offset": [0.1, 0.16, 0.198], "axis": [1, 0, 0], "radiusX": 0.036, "radiusY": 0.036, "color": "#8f9194"}},
   "body": {
    "url": "models/racers/boulder/body.glb", "yaw": -1.5708, "length": 2.1, "y": 0.06,
    "seat": [0.0, 0.935, 0.08],
@@ -83,7 +89,8 @@
   "wheel": {"url": "models/racers/boulder/wheel.glb", "radius": 0.3, "hubs": [[-0.8, 0.3, 0.74], [0.8, 0.3, 0.74], [-0.8, 0.3, -0.745], [0.8, 0.3, -0.745]]}
  },
  "gus": {
-  "driver": {"url": "models/racers/gus/driver.glb", "height": 1.55, "seat": [-0.027, 0.276, 0.128]},
+  "driver": {"url": "models/racers/gus/driver.glb", "height": 1.55, "seat": [-0.027, 0.276, 0.128],
+   "eyelid": {"offset": [0.1, 0.193, 0.078], "axis": [1, 0, 0], "radiusX": 0.05, "radiusY": 0.046, "color": "#8a5a30"}},
   "body": {
    "url": "models/racers/gus/body.glb", "yaw": -1.5708, "length": 2.1, "y": 0.08,
    "seat": [-0.03, 0.8, 0.15],

@@ -13,7 +13,7 @@ import { decorGeometry } from './decor.ts';
 import { PBR } from './look.ts';
 import type { V3 } from './model.ts';
 import { MODEL_WHEELS, rigKart } from './rig.ts';
-import { buildComboTemplate, buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
+import { buildComboTemplate, buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, swatchColorsFor, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
 import { atOnce, type Schedule } from '../performance/loadQueue.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 
@@ -157,7 +157,7 @@ export class RacerModels {
       o.traverse((x) => { const m = (x as Mesh).material as MeshStandardMaterial | undefined; if (!img && (x as Mesh).isMesh && m?.map?.image) img = m.map.image as CanvasImageSource; });
       return img;
     };
-    const atlas = drawAtlas({ driver: image(driver.scene), body: image(body.scene), wheel: image(wheel.scene) }, (spec.driver.attachments ?? []).map((a) => a.color));
+    const atlas = drawAtlas({ driver: image(driver.scene), body: image(body.scene), wheel: image(wheel.scene) }, swatchColorsFor(spec));
     // (two short tasks, not one long one: a racer can land mid-flight in a course intro)
     await new Promise((r) => setTimeout(r, 0));
     const t = buildRiggedTemplate(id, spec, { driver: driver.scene, body: body.scene, wheel: wheel.scene }, atlas?.texture ?? null, atlas?.dark ?? null);

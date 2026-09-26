@@ -15,7 +15,7 @@ import { RACER_MODELS, RacerModels, textureWithImage } from './glb.ts';
 import { buildRacerMesh, exhaustFor } from './kart.ts';
 import { portDir } from './racers.ts';
 import { isShared } from './toon.ts';
-import { cutSteering, hubSlot, isPartsSpec, KART_BONES, makeRigged, makeRiggedDriver, partOf, riggedMaterial, type PartsSpec, type RiggedKart, type RiggedTemplate } from './rigged.ts';
+import { cutSteering, EYELID_TRIANGLES, hubSlot, isPartsSpec, KART_BONES, makeRigged, makeRiggedDriver, partOf, riggedMaterial, type PartsSpec, type RiggedKart, type RiggedTemplate } from './rigged.ts';
 import { partsManifest, riggedTemplate, trianglesIn } from './__tests__/parts.ts';
 
 /** The triangle budget per part file (scripts/models/racer-parts.sh shrinks a racer's files to it). */
@@ -24,7 +24,16 @@ const BUDGET = Object.freeze({ driver: 20_000, body: 8_000, wheel: 2_500 });
 let MANIFEST: Record<string, PartsSpec>;
 let spec: PartsSpec;
 let t: RiggedTemplate;
-beforeAll(async () => { MANIFEST = await partsManifest(); spec = MANIFEST.juniper; t = await riggedTemplate('juniper'); }, 120_000);
+/** Nova: the one racer with no eyelid in the manifest (design §4, "visor down: no eyes visible"). */
+let novaSpec: PartsSpec;
+let tNova: RiggedTemplate;
+beforeAll(async () => {
+  MANIFEST = await partsManifest();
+  spec = MANIFEST.juniper;
+  t = await riggedTemplate('juniper');
+  novaSpec = MANIFEST.nova;
+  tNova = await riggedTemplate('nova');
+}, 120_000);
 
 const mesh = (o: Object3D) => o.getObjectByName('rigged') as SkinnedMesh;
 const bone = (o: Object3D, n: string) => o.getObjectByName(n) as Bone;
@@ -56,12 +65,14 @@ describe('the merge: one skinned mesh', () => {
     const names = m.skeleton.bones.map((b) => b.name);
     expect(names.slice(0, KART_BONES.length)).toEqual([...KART_BONES]);
     for (const n of ['Hips', 'Spine', 'neck', 'Head', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightArm', 'RightForeArm', 'RightHand', 'LeftUpLeg', 'RightFoot']) expect(names).toContain(n);
-    expect(names.length).toBe(KART_BONES.length + 24);
+    // Juniper has an eyelid (manifest.json): two more bones under Head, one for each eye
+    expect(names).toEqual(expect.arrayContaining(['eyelidL', 'eyelidR']));
+    expect(names.length).toBe(KART_BONES.length + 24 + 2);
     let meshes = 0;
     t.root.traverse((o) => { if ((o as SkinnedMesh).isMesh) meshes++; });
     expect(meshes, 'one draw call').toBe(1);
     const files = await trianglesIn(spec.driver.url) + await trianglesIn(spec.body.url) + 4 * await trianglesIn(spec.wheel.url);
-    expect(t.triangles).toBe(files);
+    expect(t.triangles).toBe(files + EYELID_TRIANGLES);
     // every vertex on real bones, weights summing to one
     const J = m.geometry.getAttribute('skinIndex'), W = m.geometry.getAttribute('skinWeight');
     for (let i = 0; i < J.count; i += 7) {
@@ -197,6 +208,56 @@ describe('RiggedKart: the animation on the bones', () => {
     const hand = world(bone(k, 'RightHand')).sub(world(bone(k, 'RightForeArm'))).normalize();
     expect(hand.y).toBeGreaterThan(0.95);
     for (const b of mesh(k).skeleton.bones) expect(Number.isFinite(b.quaternion.x)).toBe(true);
+  });
+});
+
+describe('the eyelids: a small hinge over each eye, for a painted face with no blend shapes', () => {
+  it('sits one each side of Head, this far from it (EyelidSpec.offset), mirrored', () => {
+    const lid = spec.driver.eyelid!;
+    const want = Math.hypot(...lid.offset); // distance from Head is invariant to Head's own rotation (a seated lean included)
+    const headAt = world(bone(t.root, 'Head'));
+    const r = world(bone(t.root, 'eyelidR')), l = world(bone(t.root, 'eyelidL'));
+    expect(r.distanceTo(headAt)).toBeCloseTo(want, 2);
+    expect(l.distanceTo(headAt)).toBeCloseTo(want, 2);
+    expect(r.distanceTo(l)).toBeGreaterThan(2 * lid.offset[0] - 0.05); // mirrored in X: the pair is at least about 2x offset.x apart
+  });
+
+  it('a racer with none (Nova: design §4, "visor down: no eyes visible") gets no such bones; posing it does nothing odd', () => {
+    expect(novaSpec.driver.eyelid).toBeUndefined();
+    expect(tNova.root.getObjectByName('eyelidR')).toBeUndefined();
+    expect(tNova.root.getObjectByName('eyelidL')).toBeUndefined();
+    const k = makeRigged(tNova), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    d.eyelid = 1; // a racer with no eyelid just ignores it
+    expect(() => rig.apply(a, d)).not.toThrow();
+    for (const b of mesh(k).skeleton.bones) expect(Number.isFinite(b.quaternion.x)).toBe(true);
+  });
+
+  it('RiggedKart grows both hinges the same way, scaling from a squashed-flat open to a full-length shut, clamped at either end', () => {
+    // Juniper's own Head bone (the file's auto-rig) sits 167° from level at bind, not near-identity like
+    // a code-built bone (the `steer` bone): the eyelid's own local rotation, set once at construction,
+    // is left exactly as it was (never touched here) — only the bone's own local scale (y and z, the
+    // flap's own length and bulge; x, its width, stays put) poses the blink, so no conversion into
+    // Head's own local frame is needed the way a rotating hinge would have (tried first and dropped:
+    // art-pipeline SOP Decisions).
+    const k = makeRigged(t), rig = k.userData.rig as RiggedKart;
+    const a = newPose(), d = newDriverPose();
+    const restQuat = bone(k, 'eyelidR').quaternion.clone();
+    rig.apply(a, d); // d.eyelid 0: open (clamped to the 0.04 floor)
+    expect(bone(k, 'eyelidR').scale.y).toBeCloseTo(0.04, 3);
+    expect(bone(k, 'eyelidR').scale.z).toBeCloseTo(0.04, 3);
+    expect(bone(k, 'eyelidR').scale.x).toBeCloseTo(1, 6); // width never scales
+    expect(bone(k, 'eyelidR').quaternion.angleTo(restQuat)).toBeCloseTo(0, 6); // rotation is never touched
+    d.eyelid = 1; // shut
+    rig.apply(a, d);
+    expect(bone(k, 'eyelidR').scale.y).toBeCloseTo(1, 6);
+    expect(bone(k, 'eyelidL').scale.y).toBeCloseTo(1, 6); // both eyes grow the very same way
+    d.eyelid = 0.5; // halfway
+    rig.apply(a, d);
+    expect(bone(k, 'eyelidR').scale.y).toBeCloseTo(0.5, 6);
+    d.eyelid = -0.9; // wide eyes: nothing further open than fully open to scale to
+    rig.apply(a, d);
+    expect(bone(k, 'eyelidR').scale.y).toBeCloseTo(0.04, 3);
   });
 });
 

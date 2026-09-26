@@ -17,7 +17,7 @@
 // two-bone IK).
 import {
   Bone, BufferAttribute, BufferGeometry, CanvasTexture, ClampToEdgeWrapping, Color, CylinderGeometry, Euler, Group, LinearMipmapLinearFilter, Matrix4,
-  MeshStandardMaterial, Quaternion, Skeleton, SkinnedMesh, Sphere, SRGBColorSpace, Vector3, type Material, type Mesh, type Object3D, type Texture,
+  MeshStandardMaterial, PlaneGeometry, Quaternion, Skeleton, SkinnedMesh, Sphere, SRGBColorSpace, Vector3, type Material, type Mesh, type Object3D, type Texture,
 } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { KART_ANIM, stepSpring, type AnimPose, type Spring } from '../kart-controller/anim.ts';
@@ -30,6 +30,24 @@ import { isPbr, litWorld } from './look.ts';
 // ---------------------------------------------------------------- the manifest
 /** A small code-built part on a driver's bone (a beak, a feather): a tapered cone, root at `offset` from the bone (the kart's frame, the driver standing as fitted), pointing +Z turned by `rotation` (radians, XYZ). */
 export interface Attachment { bone: string; shape: 'cone'; length: number; radiusRoot: number; radiusTip: number; color: string; offset: V3; rotation?: V3 }
+/**
+ * One eye's own hinge and lid, for a painted face with no face bones or blend shapes (docs/sops/
+ * kart-controller.md, "the eyes"): a small flap on a bone of its own under Head, unrolling down over
+ * the eye like a windowshade (RiggedKart scales it along its own length: a rotating hinge was tried
+ * first and dropped — see the art-pipeline SOP's Decisions — because a flat flap swung on an arc goes
+ * edge-on to the camera partway through and comes back near-invisible right at fully shut, exactly
+ * where it must read most clearly; a scale never does). `offset` is the hinge's place — at the eye's
+ * own top edge, where a real upper lid meets the brow — as an offset from the Head bone (the kart
+ * frame, the driver fitted but not yet seated: buildRiggedTemplate measures it there, same as an
+ * Attachment's `offset`); mirrored in X for the other eye, so one measured eye does both. `axis` is the
+ * hinge's own line (kart frame, `[1, 0, 0]` for a level face): the flap's own width runs along it, baked
+ * in at build time (never animated). `radiusX`/`radiusY` are the lid's own half-width at its free edge
+ * and its length (hinge to free edge: about the eye's own height, so shut it just covers it). `color`
+ * reads close to the fur, skin or plate right at the eye's own upper edge, so a shut lid looks like the
+ * model's own material, not a decal. `shape: 'plate'` is a flatter, harder-edged shutter (Sprocket's LED
+ * eyes, dimmed and relit rather than blinked); the default `'dome'` a soft lid with a real curve.
+ */
+export interface EyelidSpec { offset: V3; axis: V3; radiusX: number; radiusY: number; color: string; shape?: 'dome' | 'plate' }
 /** The steering wheel in the body's fitted frame: its middle, its column's axis toward the driver, the rim's radius (to its tube's middle). */
 export interface SteeringSpec { center: V3; axis: V3; radius: number }
 /** Pipe mouths in the body's fitted frame and the way they point (vfx-juice flames burn from them). */
@@ -42,7 +60,7 @@ export interface ExhaustSpec { ports: V3[]; dir: V3 }
 export interface SeatSpec { seat: V3; grips: readonly [V3, V3]; feet: readonly [V3, V3] }
 export interface PartsSpec {
   /** fitted to `height` (m, standing); `seat` (its feet's origin) is used only when the body has no seat */
-  driver: { url: string; height: number; seat: V3; attachments?: Attachment[] };
+  driver: { url: string; height: number; seat: V3; attachments?: Attachment[]; eyelid?: EyelidSpec };
   /** turned `yaw` about Y to face +Z, `length` m nose to tail, its lowest point at `y` */
   body: { url: string; yaw: number; length: number; y: number; seat?: V3; grips?: [V3, V3]; feet?: [V3, V3]; steering?: SteeringSpec; exhaust?: ExhaustSpec };
   /** fitted to `radius`, one at each hub (the kart's frame); the ones at −X mirrored so their rims face out */
@@ -57,6 +75,7 @@ export function isPartsSpec(s: unknown): s is PartsSpec {
   const p = s as PartsSpec | null;
   return !!p && typeof p === 'object'
     && typeof p.driver?.url === 'string' && typeof p.driver.height === 'number' && isV3(p.driver.seat)
+    && (p.driver.eyelid === undefined || (isV3(p.driver.eyelid.offset) && isV3(p.driver.eyelid.axis) && typeof p.driver.eyelid.radiusX === 'number' && typeof p.driver.eyelid.radiusY === 'number' && typeof p.driver.eyelid.color === 'string'))
     && typeof p.body?.url === 'string' && typeof p.body.length === 'number' && typeof p.body.y === 'number'
     && (p.body.seat === undefined || isV3(p.body.seat)) && (p.body.grips === undefined || isPair(p.body.grips)) && (p.body.feet === undefined || isPair(p.body.feet))
     && typeof p.wheel?.url === 'string' && typeof p.wheel.radius === 'number' && Array.isArray(p.wheel.hubs) && p.wheel.hubs.length === 4 && p.wheel.hubs.every(isV3);
@@ -312,6 +331,70 @@ function attachmentPart(a: Attachment, at: Vector3, bone: number, swatch: number
   return p;
 }
 
+/** The atlas swatches a racer's part needs (glb.ts's `drawAtlas` call): the attachments' colors, then the eyelids' (one swatch each, same order `buildRiggedTemplate` reads them in). */
+export function swatchColorsFor(spec: PartsSpec): string[] {
+  const out = (spec.driver.attachments ?? []).map((a) => a.color);
+  if (spec.driver.eyelid) out.push(spec.driver.eyelid.color, spec.driver.eyelid.color);
+  return out;
+}
+
+/** The eyelid flap's own grid (a cheap curved strip: kept tiny, since two of them ship on every kart that has one). */
+export const EYELID_SEGMENTS = Object.freeze({ u: 5, v: 5 });
+/** Triangles the two eyelids add to a kart that has them (rigged.test.ts's triangle budget). */
+export const EYELID_TRIANGLES = 2 * EYELID_SEGMENTS.u * EYELID_SEGMENTS.v * 2;
+
+/**
+ * One eyelid's flap, baked in the kart's frame at the hinge `at` (an eye's own offset from Head,
+ * mirrored in X for the left/right pair: buildRiggedTemplate), on bone `bone`, painted from swatch
+ * `swatch`. Authored at its OPEN pose (the bone's own bind rotation, identity): a short flap pointing
+ * straight up the face from the hinge, a thin sliver at the eye's own top edge, like an open eye's own
+ * lid line. A turn about the hinge's `axis` (RiggedKart.apply, 0 = this open pose, `closeAngle` = shut)
+ * swings it up through the front of the eye and down to cover it, its width tapering to a point at the
+ * hinge and to the full `radiusX` at its free edge, a slight bulge (`shape: 'plate'` barely any) following
+ * the eye's own curve as it goes. Cheap and proven for a painted face with no blend shapes: "for
+ * blinking you will need [a] separate layer" over the eye, not a UV trick alone (r/gamedev,
+ * "Cheapest way of animating eyes in 3D model", reddit.com/r/gamedev/comments/y7ahz1) — here, a small
+ * flap on a bone of its own, merged into the kart's one skinned mesh at no extra draw, exactly as Pip's
+ * beak (attachmentPart) already does.
+ */
+function eyelidPart(spec: EyelidSpec, at: Vector3, bone: number, swatch: number): Part {
+  const { u: NU, v: NV } = EYELID_SEGMENTS;
+  const g = new PlaneGeometry(1, 1, NU, NV); // XY plane, z 0; x, y in [-0.5, 0.5]
+  const P = g.getAttribute('position');
+  const bulge = spec.radiusY * (spec.shape === 'plate' ? 0.35 : 0.55);
+  // authored already at its SHUT shape (hinge to the eye's own height, 2 * radiusY, straight down): RiggedKart
+  // scales the bone's own local Y and Z down from there for open, growing it back for shut — never a rotation
+  // (tried first and dropped: a flat flap on an arc goes edge-on to the camera partway through the swing, and
+  // its own bulge — needed to clear the eye's curve — comes back to zero right at fully shut, exactly where it
+  // most needs to read; see the art-pipeline SOP's Decisions). Never quite 0 at the hinge (radiusX stays full
+  // width there too), so a squashed-flat "open" reads as a thin closed lid line, not a hole in the face. The
+  // bulge itself never quite reaches 0 either (a floor of 0.4 of its peak), so its own hinge and free edge —
+  // not only its middle — clear a round eye's curve too, all the way down to a fully shut, full-size lid.
+  for (let i = 0; i < P.count; i++) {
+    // 0 at the hinge, 1 at the free edge (shut: the eye's own bottom); `0.5 - y`, not `y + 0.5`, so
+    // increasing v still runs the same way across the plane's own winding (its top edge is v's 0, its
+    // bottom v's 1 either way) — the flap's own Y decreasing as v grows would otherwise mirror the
+    // plane in one axis and flip every triangle's winding, culled as backfaces (found rendering
+    // Juniper's: right position, right colour, invisible from the front).
+    const v = 0.5 - P.getY(i);
+    const w = spec.radiusX * Math.sin((Math.PI / 2) * Math.max(0, v)); // a point at the hinge, full width at the free edge
+    P.setXYZ(i, P.getX(i) * 2 * w, -v * 2 * spec.radiusY, bulge * (0.4 + 0.6 * Math.sin(Math.PI * v)));
+  }
+  g.computeVertexNormals();
+  // the hinge's own axis onto the kart's +X (a level face needs no turn at all)
+  const axis = new Vector3(...spec.axis).normalize();
+  if (Math.abs(axis.x - 1) > 1e-6 || Math.abs(axis.y) > 1e-6 || Math.abs(axis.z) > 1e-6) {
+    g.applyMatrix4(new Matrix4().makeRotationFromQuaternion(new Quaternion().setFromUnitVectors(new Vector3(1, 0, 0), axis)));
+  }
+  g.translate(at.x, at.y, at.z);
+  const [sx, sy, sw, sh] = swatchRect(swatch);
+  const UV = g.getAttribute('uv');
+  for (let i = 0; i < UV.count; i++) UV.setXY(i, (sx + sw / 2) / ATLAS.w, (sy + sh / 2) / ATLAS.h);
+  const p = partOf(g, bone);
+  g.dispose();
+  return p;
+}
+
 /** Merge parts into one skinned geometry. */
 export function mergeParts(parts: readonly Part[]): BufferGeometry {
   let nv = 0, ni = 0;
@@ -531,6 +614,19 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
   }
   const map = src.map((b) => bones.indexOf(byName.get(b.name)!));
 
+  // --- the eyelids: a small hinge bone each side under Head (one eye's own measurements, mirrored in X),
+  // its bind rotation identity (the geometry itself is baked in the kart's frame, at its own open pose,
+  // exactly as an Attachment's cone is: RiggedKart turns the two bones the same way every frame)
+  const lid = spec.driver.eyelid;
+  const eyelidBones: [Bone, Bone] | null = (() => {
+    const head = byName.get('Head');
+    if (!lid || !head) return null;
+    const hp = new Vector3().setFromMatrixPosition(head.matrixWorld);
+    const r = add('eyelidR', head, hp.clone().add(new Vector3(lid.offset[0], lid.offset[1], lid.offset[2])));
+    const l = add('eyelidL', head, hp.clone().add(new Vector3(-lid.offset[0], lid.offset[1], lid.offset[2])));
+    return [r, l];
+  })();
+
   // --- the parts in the kart's frame, on their bones, UVs into the atlas
   const bodyGeo = baked(firstMesh(parts.body)!, fitBody(parts.body, spec.body));
   const bp = partOf(bodyGeo, bones.indexOf(body));
@@ -553,6 +649,11 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
     const b = byName.get(a.bone);
     return b ? [attachmentPart(a, new Vector3().setFromMatrixPosition(b.matrixWorld), bones.indexOf(b), i)] : [];
   });
+  // the eyelids' own swatches, after the attachments' (never the same one)
+  const eyelidExtras: Part[] = eyelidBones && lid
+    ? [eyelidPart(lid, new Vector3().setFromMatrixPosition(eyelidBones[0].matrixWorld), bones.indexOf(eyelidBones[0]), extras.length),
+       eyelidPart(lid, new Vector3().setFromMatrixPosition(eyelidBones[1].matrixWorld), bones.indexOf(eyelidBones[1]), extras.length + 1)]
+    : [];
 
   // --- the skinned meshes: the bind is the fitted A-pose; then the driver sits in its own kart
   const boneInverses = bones.map((b) => new Matrix4().copy(b.matrixWorld).invert());
@@ -560,8 +661,8 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
   const hipsAt = new Vector3().setFromMatrixPosition(byName.get('Hips')?.matrixWorld ?? new Matrix4()).toArray() as V3;
   const seat = seatOf(spec, hipsAt);
   const material = riggedMaterial(atlas);
-  const full = mergeParts([bp, ...wheelParts, dp, ...extras]);
-  const alone = mergeParts([dp, ...extras]);
+  const full = mergeParts([bp, ...wheelParts, dp, ...extras, ...eyelidExtras]);
+  const alone = mergeParts([dp, ...extras, ...eyelidExtras]);
   // the kart alone (no driver), for buildComboTemplate's kart side: same bones [0, KART_BONES.length)
   const kartOnly = mergeParts([bp, ...wheelParts]);
   const root = skinnedRoot(kart, bones, boneInverses, full, material, `racer-${racerId}`);
@@ -857,6 +958,19 @@ export class RiggedKart implements KartRig {
   private readonly fkPos: Vector3[] = [];
   private readonly fkRot: Quaternion[] = [];
   private readonly spineBaseRot = new Quaternion();
+  /**
+   * The eyelids' own hinge bones (null: this racer has none — Nova's visor, or one skipped after a
+   * look). Their local rotation is set once at construction (`add`, in buildRiggedTemplate) and never
+   * touched again — it already cancels out whatever twist the driver file's own rig gave Head (a real
+   * one, found rendering Juniper's: its own bind rotation is 167° from level), so the flap turns with
+   * Head's own look exactly as the rest of the face does. DriverPose.eyelid poses them by SCALE instead
+   * (0 open .. 1 shut, along the flap's own authored length and bulge, its width untouched): a rotating
+   * hinge was tried first and dropped (art-pipeline SOP Decisions) — a flat flap swung on an arc goes
+   * edge-on to the camera partway through, and its own bulge (needed to clear the eye's curve) returns
+   * to zero right at fully shut, exactly where it most needs to read.
+   */
+  private readonly eyelidR: Bone | null;
+  private readonly eyelidL: Bone | null;
 
   constructor(root: Object3D, t: RiggedTemplate, grips: readonly [V3, V3] | null, steering: SteeringSpec | undefined) {
     const bone = (n: string) => root.getObjectByName(n) ?? null;
@@ -894,6 +1008,8 @@ export class RiggedKart implements KartRig {
     this.arms = [this.chain(bone('LeftArm'), bone('LeftForeArm'), bone('LeftHand'), 1), this.chain(bone('RightArm'), bone('RightForeArm'), bone('RightHand'), -1)];
     this.grips = grips ? [new Vector3(...grips[0]), new Vector3(...grips[1])] : null;
     this.steering = steering ? { c: new Vector3(...steering.center), n: new Vector3(...steering.axis).normalize() } : null;
+    this.eyelidR = bone('eyelidR') as Bone | null;
+    this.eyelidL = bone('eyelidL') as Bone | null;
   }
 
   private chain(upper: Object3D | null, fore: Object3D | null, hand: Object3D | null, side: number): Chain | null {
@@ -960,6 +1076,16 @@ export class RiggedKart implements KartRig {
     const yaw = a.look + d.headYaw, pitch = a.nod + d.headPitch;
     if (this.neck) this.offset(this.neck, 0, pitch * 0.35, yaw * 0.35);
     if (this.head) this.offset(this.head, d.headRoll, pitch * 0.65, yaw * 0.65);
+    // --- the eyelids (a racer with none: Nova's visor, or one skipped after a look): DriverPose.eyelid,
+    // 0 open .. 1 shut, a little past either end for a hit's wide eyes or a landing's wince; both bones
+    // turn the same way (the hinge runs across the face, so no mirroring is needed, only the position is)
+    if (this.eyelidR && this.eyelidL) {
+      // never quite 0 (a squashed-flat flap still reads as a thin closed lid line, not a hole); a
+      // "wide" (negative) eyelid has nothing further open to scale to, so it clamps at fully open too
+      const s = Math.max(0.04, Math.min(1, d.eyelid));
+      this.eyelidR.scale.set(1, s, s);
+      this.eyelidL.scale.set(1, s, s);
+    }
     // --- shoulders up (a shrug) or down: the left's bone points +X, so up is a turn about +Z
     const s = this.shoulders;
     if (s[0]) this.offset(s[0], -d.shrug * T.shrug, 0, 0);

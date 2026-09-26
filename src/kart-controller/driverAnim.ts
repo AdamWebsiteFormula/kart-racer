@@ -102,6 +102,60 @@ export const DRIVER_ANIM = Object.freeze({
 
   /** reduced motion: every move this much, no flailing */
   reducedScale: 0.35,
+
+  // --- eyes (Adam, 26 Sept 2026: "just plastered in one expression ... they don't look around like
+  // they do on Mario Kart World" — the look was already built above; the faces were still frozen): a
+  // painted face with no face bones or blend shapes gets a small eyelid flap on a hinge bone instead
+  // (art-pipeline rigged.ts EyelidSpec, buildRiggedTemplate), merged into the kart's one skinned mesh at
+  // no extra draw, closing over the eye exactly as Pip's beak attaches to a bone. Cheap and proven for
+  // this: a r/gamedev thread on the cheapest way to animate 3D eyes gives a texture trick for looking
+  // around but says plainly "for blinking you will need [a] separate layer on top, with alpha channel"
+  // over the eye (reddit.com/r/gamedev/comments/y7ahz1). Timing is Animation Mentor's own blink
+  // breakdown (Natasha Krinsky, an animator on Life is Strange, Madden and Clockwork Revolution): "most
+  // blinks take 3-5 frames down, a brief hold, and 2-4 frames to open" at 24 fps (about 0.125-0.21 s
+  // down, a short hold, 0.08-0.17 s up: animationmentor.com/blog/tutorial-animate-blinks-eye-movement),
+  // and her own note to "vary blink speed ... slow for fatigue or sadness, quick for excitement or
+  // nerves" is exactly the per-racer table below (EYE_TIMING). The interval between blinks is a
+  // r/gamedev thread on blink frequency: "an interval of 2-10 seconds; actual rates vary ... averaging
+  // around 10 blinks a minute" (reddit.com/r/gamedev/comments/26ttqk). Mario Kart World gives each
+  // racer "a distinctive animation" from the character-select screen on (Digital Foundry, "Mario Kart
+  // World tech breakdown", digitalfoundry.net) and its own cast blinks and squints individually — one
+  // eyelid at a time for Daisy, pupils narrowing for Koopa and Birdo (r/mariokart, "Mario Kart World
+  // Expressions") — so ours differ by racer too (EYE_TIMING): Momo's cat eyes are already heavy-lidded
+  // in the paint, so a slower, longer blink suits her deadpan; Pip never stops moving, so hers is
+  // quicker; Sprocket is a robot, so his "lid" is a metal shutter dimming and relighting an LED, snapped
+  // rather than eased, and never idle-blinks (a wind-up toy has no eyes to keep moist). A hit's wide
+  // eyes and a hard landing's wince share the same one hinge, so the whole system is a single number a
+  // racer (0 open .. 1 shut, briefly past either end) and one pair of bones.
+  blink: Object.freeze({
+    /** s: how long between idle blinks, chosen anew (hash01) after each one */
+    every: [2.6, 6.4] as const,
+    /** s: down, held shut, and open (Animation Mentor's 3-5 / hold / 2-4 frames at 24 fps) */
+    close: 0.09, hold: 0.045, open: 0.12,
+    /** 0..1: how shut a happy squint holds (a boost, a joyful finish) */
+    squint: 0.55,
+    /** negative: eyes pulled open past neutral for a hit or a spin, held this many seconds after */
+    wide: -0.18, wideHold: 0.5,
+    /** 1/s: how fast the held squint/wide baseline eases toward its target (a blink itself is not eased: it snaps, per Animation Mentor) */
+    easeRate: 14,
+    /** m/s of fall a landing needs to earn a wince (a hop's own landing is gentler than this) */
+    landMinFall: 6,
+  }),
+});
+
+/** A racer's own blink timing, a multiple of DRIVER_ANIM.blink's shared numbers (or, for `wide`/`squint`,
+ * a value of its own): Digital Foundry's "distinctive animation" per racer, above. Missing keys default
+ * to 1 (a multiplier) or the shared number (an absolute); a racer not listed here is fully default.
+ * `noIdle`: never idle-blinks (Sprocket: a wind-up toy's eyes have no reason to). */
+export const EYE_TIMING: Readonly<Record<string, Readonly<{ rate?: number; close?: number; hold?: number; open?: number; squint?: number; wide?: number; noIdle?: boolean }>>> = Object.freeze({
+  // deadpan cat eyes, heavy-lidded in the paint already (design §4): slower, longer, less often; barely squints further when happy (staying deadpan)
+  momo: { rate: 1.7, close: 1.6, hold: 2.4, open: 1.4, squint: 0.25 },
+  // fast-talking hummingbird, never stops moving (design §4): quicker, more often
+  pip: { rate: 0.7, close: 0.85, hold: 0.7, open: 0.8 },
+  // a wind-up robot (design §4): the hinge is a metal shutter over an LED, not an eyelid, so it never
+  // idle-blinks; a hit dims it (mostly shut, not "wide", for an eye that has no white to widen) and a
+  // boost or a finish relights it brighter than its resting glow (squint negative: more open, not less)
+  sprocket: { noIdle: true, close: 0.55, open: 0.6, squint: -0.3, wide: 0.85 },
 });
 
 export type DriverAnimTuning = typeof DRIVER_ANIM;
@@ -123,13 +177,15 @@ export interface DriverPose {
   spineTwist: number;
   /** 0..1: shoulders up */
   shrug: number;
+  /** 0 open .. 1 shut (briefly past either end: a hit's wide eyes, a landing's wince); a racer with no eyelid ignores it */
+  eyelid: number;
   armL: ArmPose;
   armR: ArmPose;
 }
 
 const arm = (): ArmPose => ({ wheel: 1, upper: [0, -1, 0], fore: [0, 0, 1] });
 export function newDriverPose(): DriverPose {
-  return { spin: 0, headYaw: 0, headPitch: 0, headRoll: 0, spinePitch: 0, spineTwist: 0, shrug: 0, armL: arm(), armR: arm() };
+  return { spin: 0, headYaw: 0, headPitch: 0, headRoll: 0, spinePitch: 0, spineTwist: 0, shrug: 0, eyelid: 0, armL: arm(), armR: arm() };
 }
 
 /** Where the rigged driver looks from outside the kart this tick (game/session.ts, podium.ts, showroom.ts). */
@@ -362,11 +418,37 @@ export class DriverAnim {
   private readonly aimR = arm();
   private readonly aimL = arm();
   private readonly b: Bearing = { yaw: 0, pitch: 0, dist: 0 };
+  /** the eyes (DRIVER_ANIM.blink, EYE_TIMING): this racer's own multipliers, an idle blink's start and
+   * when the next one may begin, and the eased squint/wide baseline a boost, a finish or a hit holds */
+  private readonly eyeMul: { rate: number; close: number; hold: number; open: number; squint: number; wide: number; noIdle: boolean };
+  private blinkAt = -10;
+  private blinkNext = 0;
+  private blinkN = 0;
+  private eyeBase = 0;
 
-  constructor(seed = 0, tuning: DriverAnimTuning = DRIVER_ANIM) {
+  constructor(seed = 0, tuning: DriverAnimTuning = DRIVER_ANIM, racerId?: string) {
     this.t = tuning;
     this.seed = seed;
     this.idleNext = tuning.glance.every[0] + hash01(seed, 0) * (tuning.glance.every[1] - tuning.glance.every[0]);
+    const m = (racerId && EYE_TIMING[racerId]) || {};
+    this.eyeMul = { rate: m.rate ?? 1, close: m.close ?? 1, hold: m.hold ?? 1, open: m.open ?? 1, squint: m.squint ?? tuning.blink.squint, wide: m.wide ?? tuning.blink.wide, noIdle: m.noIdle ?? false };
+    this.blinkNext = this.nextBlinkGap();
+  }
+
+  private nextBlinkGap(): number {
+    const g = this.t.blink;
+    return lerp(g.every[0], g.every[1], hash01(this.seed + 41, this.blinkN)) * this.eyeMul.rate;
+  }
+
+  /** How shut a blink that started `dt` s ago holds the eye right now (0 outside any blink window): a snap down, a brief hold, an ease back open — Animation Mentor's own timing, per this racer's own multipliers. */
+  private blinkEnvelope(dt: number): number {
+    if (dt < 0) return 0;
+    const g = this.t.blink, m = this.eyeMul;
+    const close = g.close * m.close, hold = g.hold * m.hold, open = g.open * m.open;
+    if (dt < close) return sstep(0, close, dt);
+    if (dt < close + hold) return 1;
+    if (dt < close + hold + open) return 1 - sstep(0, open, dt - close - hold);
+    return 0;
   }
 
   /** An item was used this tick (game/session.ts from the items' events): the right arm throws, tosses or raises it. */
@@ -470,7 +552,8 @@ export class DriverAnim {
     // --- the spine: forward on the gas, back on a boost, folding over on a landing
     const boostK = s.boost.remaining > 0 && s.boost.multiplier > 1 ? (s.boost.multiplier - 1) / 0.3 : 0;
     const spineT = grounded && !spinning && !reaction ? clamp(input.throttle, 0, 1) * t.throttleLean - boostK * t.boostLean : 0;
-    if (grounded && !this.wasGrounded) this.spine.v += t.landFold * Math.min(12, Math.max(0, -this.airVy));
+    const justLanded = grounded && !this.wasGrounded, fallSpeed = justLanded ? Math.max(0, -this.airVy) : 0;
+    if (justLanded) this.spine.v += t.landFold * Math.min(12, fallSpeed);
     if (!grounded) this.airVy = s.verticalVelocity;
     this.wasGrounded = grounded;
     stepSpring(this.spine, spineT, t.spineSpring, dt);
@@ -481,6 +564,26 @@ export class DriverAnim {
     curr.spineTwist = this.twist.x;
     curr.headRoll = -anim.curr.lean * t.headTilt;
     curr.shrug = 0;
+
+    // --- the eyes: a squint (a boost, a joyful finish) or wide eyes (a hit, a spin) ease in as a
+    // baseline; a blink (idle, or a hard landing's wince) is not eased — it snaps shut, per Animation
+    // Mentor's own timing — closing whatever the baseline leaves left to shut, so it always reaches
+    // fully closed at its peak whether the baseline was a squint or wide eyes, and eases back to
+    // exactly the baseline once it is done
+    const bt = t.blink;
+    let eyeWant = 0;
+    if (reaction === 'champion' || reaction === 'cheer' || reaction === 'bounce') eyeWant = this.eyeMul.squint;
+    else if (boostK > 0) eyeWant = this.eyeMul.squint * 0.8;
+    if (spinning || now - this.spinEnded < bt.wideHold) eyeWant = this.eyeMul.wide;
+    this.eyeBase += (eyeWant - this.eyeBase) * Math.min(1, bt.easeRate * dt);
+    if (fallSpeed > bt.landMinFall) this.blinkAt = now; // a hard landing: the eyes screw shut a moment, like a blink
+    if (!this.eyeMul.noIdle && !reaction && !spinning && now - this.spinEnded >= bt.wideHold && now >= this.blinkNext) {
+      this.blinkAt = now;
+      this.blinkNext = now + this.nextBlinkGap();
+      this.blinkN++;
+    }
+    const blink = this.blinkEnvelope(now - this.blinkAt);
+    curr.eyelid = this.eyeBase + blink * (1 - this.eyeBase);
 
     // --- the arms: the wheel, or a gesture (a finish reaction, a hit, a trick, an item)
     const R = this.aimR, L = this.aimL;
@@ -531,6 +634,8 @@ export class DriverAnim {
     out.spinePitch = lerp(a.spinePitch, b.spinePitch, alpha) * k;
     out.spineTwist = lerp(a.spineTwist, b.spineTwist, alpha);
     out.shrug = lerp(a.shrug, b.shrug, alpha) * k;
+    // the eyes are not a flourish (reduced motion is about vection, not a blink): unscaled at any setting
+    out.eyelid = lerp(a.eyelid, b.eyelid, alpha);
     lerpArm(out.armL, a.armL, b.armL, alpha);
     lerpArm(out.armR, a.armR, b.armR, alpha);
     return out;
@@ -567,7 +672,7 @@ function copyArm(to: ArmPose, from: ArmPose): void {
 
 function copyPose(to: DriverPose, from: DriverPose): void {
   to.spin = from.spin; to.headYaw = from.headYaw; to.headPitch = from.headPitch; to.headRoll = from.headRoll;
-  to.spinePitch = from.spinePitch; to.spineTwist = from.spineTwist; to.shrug = from.shrug;
+  to.spinePitch = from.spinePitch; to.spineTwist = from.spineTwist; to.shrug = from.shrug; to.eyelid = from.eyelid;
   copyArm(to.armL, from.armL);
   copyArm(to.armR, from.armR);
 }

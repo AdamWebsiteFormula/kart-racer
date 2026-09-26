@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { KartAnim, type Reaction } from './anim.ts';
 import { makeConstants } from './constants.ts';
 import {
-  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, type DriverContext, type DriverPose,
+  bearing, DRIVER_ANIM, DriverAnim, EYE_TIMING, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, type DriverContext, type DriverPose,
 } from './driverAnim.ts';
 import { SIM_DT } from './step.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type KartState, type Vec3 } from './types.ts';
@@ -14,10 +14,10 @@ const c = makeConstants('medium', 150);
 const dt = SIM_DT;
 const T = DRIVER_ANIM;
 
-/** A kart and its two animations, ticked together as KartView does. */
-function rig(seed = 0) {
-  const anim = new KartAnim(c, seed), driver = new DriverAnim(seed);
-  const s = createKartState({ racerId: 'juniper' });
+/** A kart and its two animations, ticked together as KartView does; `racerId` picks the eyes' own timing too (EYE_TIMING). */
+function rig(seed = 0, racerId = 'juniper') {
+  const anim = new KartAnim(c, seed), driver = new DriverAnim(seed, undefined, racerId);
+  const s = createKartState({ racerId });
   const pose = newDriverPose();
   const tick = (n: number, input: InputState = NEUTRAL_INPUT, ctx?: DriverContext, each?: (i: number) => void): DriverPose => {
     for (let i = 0; i < n; i++) {
@@ -255,5 +255,117 @@ describe('DriverAnim: body and arms', () => {
     d.tick(frozen, input, 0, anim, ctx);
     expect(JSON.stringify(d.curr)).toBe(before);
     expect(Number.isFinite(d.curr.headYaw)).toBe(true);
+  });
+});
+
+describe('DriverAnim: the eyes', () => {
+  it('blinks now and then while idling: deterministic per seed, bounded, and not the same seed twice over', () => {
+    const sample = (seed: number, ticks: number) => {
+      const r = rig(seed);
+      const out: number[] = [];
+      r.tick(ticks, NEUTRAL_INPUT, undefined, () => out.push(r.driver.curr.eyelid));
+      return out;
+    };
+    const a = sample(11, 120 * 20), b = sample(11, 120 * 20), c2 = sample(12, 120 * 20);
+    expect(a).toEqual(b); // same seed, same render clock: byte for byte
+    expect(a).not.toEqual(c2); // a different seed blinks at different moments
+    for (const v of a) { expect(v).toBeLessThanOrEqual(1 + 1e-6); expect(v).toBeGreaterThanOrEqual(-1); }
+    // at least one full blink (near 1) and mostly open in between, over 20 s at DRIVER_ANIM.blink.every [2.6, 6.4]
+    expect(Math.max(...a)).toBeGreaterThan(0.9);
+    expect(a.filter((v) => v > 0.5).length / a.length).toBeLessThan(0.15);
+  });
+
+  it('a racer\'s own timing (EYE_TIMING) changes how it blinks: Momo\'s own hold (2.4x) outweighs her rarer rate (1.7x), so over many blinks she spends more of her time fully shut than Juniper\'s default eyes', () => {
+    const shutFraction = (racerId: string, seed: number) => {
+      const r = rig(seed, racerId);
+      let shut = 0, n = 0;
+      r.tick(120 * 60, NEUTRAL_INPUT, undefined, () => { n++; if (r.driver.curr.eyelid > 0.99) shut++; });
+      return shut / n;
+    };
+    expect(shutFraction('momo', 3)).toBeGreaterThan(shutFraction('juniper', 3));
+  });
+
+  it('squints on a boost, held near EYE_TIMING\'s own amount once eased in', () => {
+    const r = rig();
+    r.s.boost = { source: 'item', remaining: 5, multiplier: 1.4 };
+    let minLate = 1;
+    r.tick(120, { ...NEUTRAL_INPUT, throttle: 1 }, undefined, (i) => { if (i > 90) minLate = Math.min(minLate, r.driver.curr.eyelid); });
+    expect(minLate).toBeGreaterThan(T.blink.squint * 0.7);
+  });
+
+  it('a joyful finish reaction squints too; a shrug or a deflated one does not', () => {
+    const r = rig();
+    r.anim.react('champion');
+    let minLate = 1;
+    r.tick(90, NEUTRAL_INPUT, undefined, (i) => { if (i > 60) minLate = Math.min(minLate, r.driver.curr.eyelid); });
+    expect(minLate).toBeGreaterThan(0.1);
+    const d = rig();
+    d.anim.react('deflated');
+    let maxLate = -1;
+    d.tick(90, NEUTRAL_INPUT, undefined, (i) => { if (i > 60) maxLate = Math.max(maxLate, d.driver.curr.eyelid); });
+    expect(maxLate).toBeLessThan(0.15);
+  });
+
+  it('wide eyes through a hit or a spin, easing back to neutral once wideHold has passed', () => {
+    const r = rig();
+    r.s.status.spinRemaining = 0.2; // a short spin: it clearly ends inside this test's own window
+    let duringSpin = 1;
+    // an epsilon snap, as every countdown timer in the sim needs (kart-controller SOP Lessons, 2026-09-15):
+    // repeated subtraction lands on a tiny positive residue, not exactly 0, and `spinning` reads it as still spinning
+    const spin = () => { r.s.status.spinRemaining = Math.max(0, r.s.status.spinRemaining - dt); if (r.s.status.spinRemaining < 1e-9) r.s.status.spinRemaining = 0; };
+    r.tick(Math.round(0.2 / dt), NEUTRAL_INPUT, undefined, () => { spin(); duringSpin = Math.min(duringSpin, r.driver.curr.eyelid); });
+    expect(duringSpin).toBeLessThan(T.blink.wide * 0.6); // clearly wide (negative), not neutral
+    // wideHold (0.5 s) plus room for the ease (1/easeRate ≈ 0.07 s) to settle back near neutral
+    r.tick(Math.round((T.blink.wideHold + 0.4) / dt));
+    // well past wideHold now: sample a short window and take the least (a blink can only push it up, never down)
+    let recovered = 1;
+    r.tick(30, NEUTRAL_INPUT, undefined, () => { recovered = Math.min(recovered, r.driver.curr.eyelid); });
+    expect(recovered).toBeGreaterThan(T.blink.wide * 0.3);
+  });
+
+  it('a hard landing wrings the eyes shut for a moment (a wince), gentler hops do not', () => {
+    const r = rig();
+    r.s.grounded = false;
+    r.s.verticalVelocity = -12; // falling fast, past landMinFall
+    r.tick(10); // a few airborne ticks so the fall speed is on record
+    r.s.grounded = true; // touches down this tick
+    let peak = 0;
+    r.tick(30, NEUTRAL_INPUT, undefined, () => { peak = Math.max(peak, r.driver.curr.eyelid); });
+    expect(peak).toBeGreaterThan(0.9);
+
+    const hop = rig();
+    hop.s.grounded = false;
+    hop.s.verticalVelocity = -1.5; // a gentle hop's landing: under landMinFall
+    hop.tick(10);
+    hop.s.grounded = true;
+    let peakHop = 0;
+    hop.tick(30, NEUTRAL_INPUT, undefined, () => { peakHop = Math.max(peakHop, hop.driver.curr.eyelid); });
+    expect(peakHop).toBeLessThan(0.5);
+  });
+
+  it('Sprocket\'s shutter never idle-blinks, but still reacts (dims) to a hit, the opposite sign of an organic racer\'s wide eyes', () => {
+    expect(EYE_TIMING.sprocket?.noIdle).toBe(true);
+    const s = rig(9, 'sprocket');
+    let maxIdle = 0;
+    s.tick(120 * 20, NEUTRAL_INPUT, undefined, () => { maxIdle = Math.max(maxIdle, s.driver.curr.eyelid); });
+    expect(maxIdle).toBeLessThan(0.05); // no idle blink at all over 20 s
+    s.s.status.spinRemaining = 1;
+    let duringHit = 0;
+    s.tick(30, NEUTRAL_INPUT, undefined, () => { duringHit = Math.max(duringHit, s.driver.curr.eyelid); });
+    expect(duringHit).toBeGreaterThan((EYE_TIMING.sprocket?.wide ?? 0) * 0.5); // positive (dims), not negative like an organic racer's wide eyes
+  });
+
+  it('never writes the kart state, and reduced motion leaves it untouched (it is not a flourish)', () => {
+    const r = rig(), reduced = rig();
+    r.s.speed = 10; reduced.s.speed = 10;
+    const pFull = r.tick(150, { ...NEUTRAL_INPUT, throttle: 1 });
+    const pReduced = newDriverPose();
+    for (let i = 0; i < 150; i++) {
+      reduced.s.position[2] += reduced.s.speed * dt;
+      reduced.anim.tick(reduced.s, { ...NEUTRAL_INPUT, throttle: 1 }, dt);
+      reduced.driver.tick(reduced.s, { ...NEUTRAL_INPUT, throttle: 1 }, dt, reduced.anim);
+    }
+    reduced.driver.pose(1, true, pReduced);
+    expect(pReduced.eyelid).toBeCloseTo(pFull.eyelid, 9);
   });
 });

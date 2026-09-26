@@ -77,7 +77,7 @@ export class KartView {
     this.root.add(mesh);
     this.prev = this.curr = KartView.pose(s);
     this.anim = new KartAnim(c, seed);
-    this.driver = new DriverAnim(seed);
+    this.driver = new DriverAnim(seed, undefined, s.racerId);
     this.rigs = findRigs(mesh);
     this.rig = KartView.rigOf(mesh);
     if (this.rig) this.driver.radius = this.rig.wheelRadius;
