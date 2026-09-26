@@ -12,6 +12,7 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 - The stylized-PBR look is the default (`?look=toon` for the old); karts take the world's light and receive shadows.
 - Baked soft shading at load (track-builder/mesh/bake.ts: AO + the fixed sun's shadow into vertex colors; decor receives shadows), MKW-style height haze in each sky's horizon color, ground relief to 320 m, furrowed Meadow fields, hummocked Skyline islands.
 - New boost flames and drift sparks; rivals stay solid near the camera like MKW (CAM.kartFade 1.3 m).
+- Evening, all live and checked: per-wheel suspension (each wheel follows the road under it; the body tilts a little after it); a thin rim light on racers (RACER_RIM power 5, strength 0.22) so dark racers read at night; the player's own kart and the podium racers keep the PBR lighting (kartMesh.ts clones now keep onBeforeCompile); no crowd spectator stands over water (a test on all six tracks); fps.mjs measures a real race again (5 Enters since the Kart screen). QA pass of every mode with seven combos: zero console errors, steady 60 fps (75 draws, 1.1 M triangles at 1080p on the M4 Pro).
 - allocation.test.ts FRAME_GROWTH_BYTES is 96 (no leak: heap flat over 80,000 frames; CI reads ~1.15x the Mac's 59-62 B).
 
 **Waiting:**
