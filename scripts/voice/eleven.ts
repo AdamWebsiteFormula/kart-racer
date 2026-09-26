@@ -38,6 +38,18 @@ export const DESIGN: Readonly<Record<string, string>> = {
   gus: 'An original cartoon voice for Big Gus, a huge jolly walrus chef (male) in a family kart-racing game. Deep, booming, warm and hearty with a rich belly laugh, generous and loud, a hint of gravel. Clear General American accent, crisp studio recording.',
 };
 
+/**
+ * Second-round descriptions (26 Sept 2026): the first round's Momo, Otto, Boulder and Gus previews were
+ * judged robotic or off the brief (a squeaky Boulder, a boyish Momo, an Otto likened to a famous cartoon
+ * turtle), so these say plainly how the voice sounds as a person would, pitch and pace first.
+ */
+export const DESIGN2: Readonly<Record<string, string>> = {
+  momo: 'A dry, deadpan woman in her thirties with a low, smoky, relaxed voice. She speaks slowly and flatly, unimpressed, with a smug half-smile you can hear; cool, competent and quietly funny. General American accent. Warm, natural, studio quality.',
+  otto: 'A mellow young man in his twenties with a warm, relaxed, sunny voice and an easy laid-back drawl; unhurried and friendly, he laughs easily. Medium-low pitch, West Coast American accent. An original voice, natural and warm, studio quality.',
+  boulder: 'A huge, gentle giant of a man with a very deep, warm, rumbling bass voice. He speaks slowly and softly with long vowels, kind and a little shy. Very low pitch, General American accent. Natural, warm, studio quality.',
+  gus: 'A big jolly man in his fifties with a deep, booming, warm baritone and a hearty belly laugh, loud and generous, like a friendly chef calling out orders in a busy kitchen; a hint of gravel. General American accent. Natural, studio quality.',
+};
+
 /** The delivery tag Eleven v3 reads before each line, by moment (Momo stays deadpan: her tag wins). */
 const TAG: Readonly<Record<Bark, string>> = {
   select: '[excited]', start: '[excited]', boost: '[excited]', trick: '[shouting]', hitRival: '[mischievously]', overtake: '[playfully]',
@@ -77,17 +89,21 @@ async function check(): Promise<void> {
 async function design(racer: string): Promise<void> {
   const seed = Number(flag('seed', String(Math.floor(Math.random() * 1e6))));
   const c = CAST[racer];
-  // the preview says the racer's own lines, so the judge hears the voice doing the job
-  let text = Object.values(c.lines).flat().join(' ');
-  if (text.length > 900) text = text.slice(0, text.lastIndexOf(' ', 900));
-  const r = await fetch(`${API}/v1/text-to-voice/design`, { method: 'POST', headers, body: JSON.stringify({ voice_description: DESIGN[racer], model_id: 'eleven_ttv_v3', text, seed, guidance_scale: 5, loudness: 0.5 }) });
+  // the preview says a few of the racer's own lines, so the judge hears the voice doing the job; just
+  // over the 100 characters Voice Design asks for, since the preview is paid by the character
+  const pick = (['select', 'trick', 'hitRival', 'hit', 'win', 'overtake', 'lose'] as const).flatMap((b) => c.lines[b] ?? []);
+  let text = '';
+  for (const l of pick) { if (text.length >= 100) break; text += (text ? ' ' : '') + l; }
+  // a second round may try a plainer description (--describe from DESIGN2) and follow it harder (--guidance)
+  const description = args.includes('--second') ? DESIGN2[racer] ?? DESIGN[racer] : DESIGN[racer];
+  const r = await fetch(`${API}/v1/text-to-voice/design`, { method: 'POST', headers, body: JSON.stringify({ voice_description: description, model_id: 'eleven_ttv_v3', text, seed, guidance_scale: Number(flag('guidance', '5')), loudness: 0.5 }) });
   if (!r.ok) { console.error(`design ${racer}: ${r.status} ${(await r.text()).slice(0, 300)}`); process.exit(1); }
   const j = await r.json();
   mkdirSync(`${HOME}/design`, { recursive: true });
   (j.previews as { audio_base_64: string; generated_voice_id: string; duration_secs: number }[]).forEach((p, k) => {
     const base = `${HOME}/design/${racer}-s${seed}-p${k + 1}`;
     writeFileSync(`${base}.mp3`, Buffer.from(p.audio_base_64, 'base64'));
-    writeFileSync(`${base}.json`, JSON.stringify({ racer, seed, generated_voice_id: p.generated_voice_id, seconds: p.duration_secs, description: DESIGN[racer], text }, null, 1));
+    writeFileSync(`${base}.json`, JSON.stringify({ racer, seed, generated_voice_id: p.generated_voice_id, seconds: p.duration_secs, description, text }, null, 1));
     console.log(`${base}.mp3  ${p.duration_secs?.toFixed?.(1) ?? '?'} s  ${p.generated_voice_id}`);
   });
 }
