@@ -15,7 +15,8 @@ const cpu = Number(flag('cpu', '1')), frames = Number(flag('frames', '1200'));
 const c = await openChrome({ width, height, dpr: Number(dpr ?? 1), uncapped: args.includes('--uncapped') });
 try {
   await c.goto(url, 6000);
-  for (let i = 0; i < 4; i++) { await c.key('Enter', 'Enter', 13); await sleep(900); } // title → mode → racer → track
+  // title → mode → racer → kart (K7, any racer in any kart, on by default) → track → racing
+  for (let i = 0; i < 5; i++) { await c.key('Enter', 'Enter', 13); await sleep(900); }
   if (cpu > 1) await c.send('Emulation.setCPUThrottlingRate', { rate: cpu });
   await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 });
   await sleep(5000); // past the countdown
