@@ -48,12 +48,15 @@ Read this first in a new chat, then CLAUDE.md. It carries the state, not the his
 - Score function: the core file is rebuilt (`core-8e4365e9b4edf93c`); the live function is still v17 (`core-019f61ef2f9600d9`). Solo verdicts read nothing that changed, so a redeploy is optional.
 - The six course creatures are off every track (live 25 Sept 2026, score core client version 5, submit-score v18); README and contest entry updated.
 
-## Pending (25 Sept 2026)
-- **Sound judge pass, after 20:00 EDT.** Gemini Pro allows 250 requests a day for gemini-3.1-pro and its aliases; the day resets at 00:00 UTC (20:00 EDT). Run the runbook: `scratchpad/ear3/RUNBOOK-after-2000EDT.md` in the 25 Sept session's scratchpad, or its durable copy `~/.cache/rascal-ear/pass-2026-09-25/ear3/RUNBOOK-after-2000EDT.md` (same layout; swap the path prefix if the scratchpad is gone). About 45 requests: splice checks for two song voices, compares for 23 remade sounds (drift, hop, six sounds with human-like voices, boosts, tier-ups and more), the 4 unjudged songs. Install only takes that pass its accept rules; then `npm run verify`, push, live smoke.
-- **Adam decided (25 Sept):** keep the title song's "Hey!" shout at 13.5-14.2 s (option B). The runbook skips the title splice; do not install `title.splice13.*`.
-- The `land` sound has no usable take (all six came back too quiet); it needs a new prompt.
-- The goose `honk` reads as a sheep bleat to the local ear (AudioSet: Bleat 0.63, Sheep 0.26): check it in the judge pass.
-- 25 Sept fixes, all live: the podium's winners no longer vanish (a 0 s frame put NaN in their springs), creatures dissolve near the lens (the goose ran through the camera), held items ride small so they never hide your kart, the storm sky rolls in before its first bolt, the mode screen's second row is centred, the steering pad never throws on a phone.
+## Pending sound list (handed over by the "Game quality review" session, 26 Sept 00:50 EDT; that session has stopped)
+Run after the audition pack's sound-effect requests, when Gemini Pro answers (test one small request first; never retry in a loop; about 25-30 Pro requests):
+- Runbook with accept rules, install steps and commands: ~/.cache/rascal-ear/pass-2026-09-25/ear3/RUNBOOK-after-2000EDT.md (the durable copy; takes in staged/takes with pending.json and staged/takes2 with pending2.json and briefs2.json: judge.mjs --briefs as its step 5 says).
+- Compares only: step 2: yelp:nova, yelp:juniper, yelp:boulder, hop; step 5: yelp:gus, strike, mouse, boostStart, trick, tierUp, tierUp2, wall, horn:momo, horn:nova (14), then step 4's re-judge batch.
+- Report only (step 3): shift, koSafe, the five surface loops, and the songsets race-frost, race-boardwalk, race-finale, results.
+- Skip: the title splice (**Adam decided on 25 Sept to keep the title song's "Hey!" shout at 13.5-14.2 s, option B**); the six creature sounds (yetiThrow, slam, roar, honk, whaleSong, tailSlap: creatures are parked); drift, engine-high and boost3 (the audition pack judges them); step 1's Harbour 51 s splice and 128 kbps re-encode only if a Lyria song replaces the Harbour theme.
+- `land` has no usable take: it needs a new prompt.
+- Tools (outside the repo, ~/.cache/rascal-ear/tools-2026-09-25/): flow.mjs runs whole modes silently with the board blocked (handles the Kart screen: FLOW_URL=http://localhost:<port>/ node flow.mjs outdir knockout:coastline:momo:stomper); soak.mjs a 12-race leak check; sheet.mjs contact sheets from clips; sweep.mjs the cross-browser sweep (needs a pickKart step since the Kart screen). Checked at 3f07902: 60 fps at 1080p also with the CPU slowed 4x; no errors in Safari, Firefox or on an iPhone. Record clips from a separate worktree server (a Vite reload kills a recording).
+- After the 03:07 EDT Pro test: fix CLAUDE.md's line that says the Pro cap resets at 00:00 UTC to what the test shows.
 
 ## Adam's rules (all agents)
 - **Everything rated G.** Female racers (Nova, Juniper, Momo) stay fully dressed and modest. Check all new art and prompts.
