@@ -5,7 +5,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 **Play now: https://adamwebsiteformula.github.io/kart-racer/**
 Keyboard, gamepad or a phone turned sideways; tested in Chrome, Firefox and Safari. Sound on.
 
-![Harbor Loop: the pack races along the seaside road past the lighthouse](docs/img/harbour-loop.jpg)
+![Harbor Loop: the pack races along the seaside road, the volcano island ahead](docs/img/harbour-loop-pack.jpg)
 
 Inspired by the feel of Mario Kart World. Every racer, track, item and sound is our own.
 
@@ -36,22 +36,26 @@ Time Trial and the Daily post to a global leaderboard.
 
 ## Highlights
 
-- **8 original racers** in light, medium and heavy classes, from Pip the hummingbird courier to Big Gus the walrus chef, each with a signature kart, horn and yelp. Unlock 3 alt paints and 2 more kart bodies.
+- **8 original racers** in light, medium and heavy classes, rebuilt as rigged 3D drivers, from Pip the hummingbird courier to Big Gus the walrus chef: heads that turn and look around, arms that gesture, each with a horn and a yelp. Unlock 3 alt paints.
+- **Any racer, any kart.** Ten karts (each racer's own, plus the unlockable Classic and Buggy) with four live stat bars: Speed, Accel, Handling, Weight. Every combination is tested fair on all six tracks. Low-back karts, so the driver always shows.
 - **6 tracks** with a neon loop-the-loop, geysers, a ski jump, trick bumps, boost pads and cliff edges with no walls (fall off and a claw carries you back).
 - **The Final Lap Shift.** When the leader starts the last lap, every track changes: the tide comes in, a storm rolls over, the rope bridge falls and the only way on is a lantern-lit mine, a blizzard freezes the lake into a shortcut, fireworks open a ramp at the Ferris wheel, and at nightfall the sky rail becomes the only road.
 - **13 original items**, two held at a time: become a giant **Strike Ball** and bowl the pack over, boing over trouble on a **Pogo Spring**, hook the racer ahead with a **Grapple Anchor** and slingshot past, send a **Wind-Up Mouse** weaving through the field.
 - **Drifting that pays.** Blue, orange and purple sparks at 0.55, 1.33 and 2.33 s. A test races every track with and without drifting: drifting wins by 3.8 to 7.7 s a race.
-- **Race day, not just a race.** A camera fly-through of each course before the countdown, far vistas with a landmark ahead of every start line, birds and fireworks overhead, over a hundred cheering critter spectators per track, karts that lean, bounce and squash, a slow-motion finish with your racer's reaction, and a podium ceremony after every Grand Prix and Knockout final.
+- **A painted-diorama look.** Soft stylized PBR with baked soft shading, painted horizon haze, and a thin rim light so racers read even at night.
+- **Race day, not just a race.** A camera fly-through of each course before the countdown, far vistas with a landmark ahead of every start line, birds and fireworks overhead, over a hundred cheering critter spectators per track, karts that lean, bounce and squash on springs (each wheel follows the road on its own), boost flames and drift sparks, a slow-motion finish with your racer's reaction, and a podium ceremony after every Grand Prix and Knockout final.
 - **102 sound effects and 7 instrumental songs**, checked by AI listening models and mixed by measurement.
-- **A leaderboard you can trust.** The 120 Hz sim is deterministic and bit-identical across chips and JavaScript engines, so the server replays every posted run with the real game code and stores its own time. Hardened by three red-team passes: a strict Content-Security-Policy, an origin allowlist, rate limits and a name filter.
-- **Fast.** Full races held a locked 60 fps on an M4 Pro (16.7 ms frames, none over 20 ms, even with the CPU slowed 4×). The live site shows the title in under 1 s on fast 4G; the game's code is 446 KB gzipped.
+- **A leaderboard you can trust.** The 120 Hz sim is deterministic and bit-identical across chips and JavaScript engines, so the server replays every posted run with the real game code and stores its own time and the kart you raced in. Hardened by three red-team passes: a strict Content-Security-Policy, an origin allowlist, rate limits and a name filter.
+- **Fast.** Full races held a locked 60 fps on an M4 Pro (16.7 ms frames, none over 20 ms, even with the CPU slowed 4×). The live site shows the title in under 1 s on fast 4G; the game's code is 514 KB gzipped.
 - **Accessible.** Reduce motion (follows your system), item letters so items never rely on color, screen-reader labels, and full keyboard and gamepad menus.
-- **1,466 automated tests**, run with the type check, build and bundle gate before every deploy.
+- **1,785 automated tests**, run with the type check, build and bundle gate before every deploy.
 
 <p>
-  <img src="docs/img/harbor-start.jpg" width="49%" alt="Harbor Loop: GO! as the pack leaves the grid, a smoking volcano island ahead">
-  <img src="docs/img/boardwalk-loop.jpg" width="49%" alt="Boardwalk Nights: the pack heads into the neon loop-the-loop">
+  <img src="docs/img/kart-screen.jpg" width="49%" alt="The Kart screen: any racer in any of ten karts, with four live stat bars">
+  <img src="docs/img/boardwalk-nights-night.jpg" width="49%" alt="Boardwalk Nights: the pack heads into the neon loop-the-loop at night">
 </p>
+
+![Skyline Circuit: racing above the clouds, boost flames lit](docs/img/skyline-circuit-scenic.jpg)
 
 ![The six tracks: Harbor Loop, Meadow Run and Canyon Rush (Sunrise Cup); Frostbite Pass, Boardwalk Nights and Skyline Circuit (Summit Cup)](docs/img/six-tracks.jpg)
 
@@ -65,7 +69,7 @@ Made for the *AI Automations with Jack* September 2026 game competition, from a 
 |---|---|
 | Design, code, tests, tuning and reviews | Claude Code (Claude Opus), with agents working in parallel |
 | Racer concept art, portraits, painted skies, item art | AI images via Higgsfield (GPT Image 2.5 for the racers and skies) |
-| 3D racers, landmarks and scenery | Image-to-3D via Higgsfield (Tripo H3.1 for the racers) |
+| 3D racers, landmarks and scenery | Image-to-3D via Higgsfield (Meshy v7 for the rigged drivers, Tripo H3.1 for kart bodies, wheels, landmarks and scenery) |
 | Music and sound effects | ElevenLabs (Eleven Music, Sound Effects) |
 | Listening and gameplay review | Local audio models (CLAP, AST, Qwen2.5-Omni) and Gemini |
 | Engine and leaderboard | Three.js, TypeScript, Vite; Supabase |
@@ -77,7 +81,7 @@ Every system has its own SOP and headless tests, built on seven shared data sche
 ```bash
 npm install
 npm run dev       # then open http://localhost:5173/
-npm run verify    # type check, 1,466 tests, build and bundle gate
+npm run verify    # type check, 1,785 tests, build and bundle gate
 ```
 
 Add `?mute` to the address for a silent game. Credits and licenses are in [CREDITS.md](CREDITS.md).

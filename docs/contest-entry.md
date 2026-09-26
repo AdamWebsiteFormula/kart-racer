@@ -8,21 +8,21 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 - **Code:** https://github.com/AdamWebsiteFormula/kart-racer
 - Keyboard, gamepad or touch (a phone turned sideways); tested in Chrome, Firefox and Safari. Sound on, or add `?mute` to the address for a silent game.
 
-![Harbor Loop: the pack races along the seaside road past the lighthouse](img/harbour-loop.jpg)
+![Harbor Loop: the pack races along the seaside road, the volcano island ahead](img/harbour-loop-pack.jpg)
 
 ## At a glance
 
 | What | Detail |
 |---|---|
-| Racers | 8 originals in 3 classes; 3 unlockable paints and 2 unlockable kart bodies |
+| Racers | 8 originals in 3 classes, rebuilt as rigged 3D drivers; any racer in any of 10 karts |
 | Tracks | 6 in 2 cups, each with a Final Lap Shift |
 | Items | 13 originals, two held at a time |
 | Modes | Quick Race, Grand Prix, Knockout, Time Trial, Daily Challenge, plus Mirror |
 | Sound | 102 sound effects and 7 instrumental songs |
 | Sim | Fixed 120 Hz, deterministic, bit-identical across chips and JavaScript engines |
-| Leaderboard | Global; the server replays every run and stores its own time |
-| Speed | 60 fps measured; title on screen in under 1 s on fast 4G; 446 KB of gzipped code |
-| Tests | 1,466 automated, run before every deploy |
+| Leaderboard | Global; the server replays every run and stores its own time and the kart raced |
+| Speed | 60 fps measured; title on screen in under 1 s on fast 4G; 514 KB of gzipped code |
+| Tests | 1,785 automated, run before every deploy |
 
 ## How to play
 
@@ -75,6 +75,8 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 - Each shift plays a set piece that reads from the chase camera in 2 to 3 seconds: the tide rolls in over the beach road, lightning fells an oak across the hedgerow cut, the rope bridge snaps and falls plank by plank, the lake freezes out from the crossing, two Ferris-wheel spokes swing down into the new ramp under fireworks, and the old sky bridges retract. Flashes stay at most three a second; reduced motion cuts instead of sweeping.
 - Every track has 5 or 6 boost pads and a shortcut, and every shortcut is tested to be worth taking: a Hard AI forced onto it must be at least as fast as the road.
 
+![Skyline Circuit: racing above the clouds, boost flames lit](img/skyline-circuit-scenic.jpg)
+
 ### Racers
 
 | Racer | Who | Class | Signature kart |
@@ -93,6 +95,12 @@ Light racers accelerate and turn best; heavy ones win the shoving matches. Top s
 Unlocks (looks only; the racer owns the class): Pip's Berry paint (Time Trial gold on every Sunrise Cup track), Boulder's Frost paint (win a Knockout), Sprocket's Mint paint (fire 10 purple drift boosts), the Classic body (finish a Grand Prix), the Buggy body (race a Knockout to the end) and Mirror mode (Time Trial gold on every track).
 
 ![The cast: concept art for the eight racers](media/cast.jpg)
+
+### Vehicles
+
+Any racer can drive any kart, the way Mario Kart World lets you mix and match. Ten karts: each racer's own signature kart, plus the Classic and Buggy, unlockable twins with the same stats (an unlock changes the look, never the speed). Four stats show as live bars on the Kart screen: Speed, Accel, Handling and Weight. Put a racer in another kart and their class stays, but the kart's stats take the place of their own — every racer-and-kart pair is tested fair on all six tracks, within about 4% of the track's median time. Low-back karts, so the driver always shows: each wheel follows the road on its own spring, and the steering wheel turns in their hands.
+
+![The Kart screen: any racer in any of ten karts, with four live stat bars](img/kart-screen.jpg)
 
 ### Items
 
@@ -118,15 +126,15 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 
 <p>
   <img src="img/harbor-start.jpg" width="49%" alt="Harbor Loop: GO! as the pack leaves the grid, a smoking volcano island ahead">
-  <img src="img/boardwalk-loop.jpg" width="49%" alt="Boardwalk Nights: the pack heads into the neon loop-the-loop">
+  <img src="img/boardwalk-nights-night.jpg" width="49%" alt="Boardwalk Nights: the pack heads into the neon loop-the-loop at night">
 </p>
 
 - **Course intro.** Before each race the camera flies the course in four moves: a high sweep toward the far landmark, a low glide along the track's signature stretch (over Harbor's pier ramp toward the crab, under the yeti's ledge as it throws, beside Boardwalk's loop), a pass along the cheering grandstand, and a crane down onto your kart that lands exactly on the race camera as the countdown begins. A title card names the track, the cup and the race. 5.9 seconds (2.5 in Time Trial and the Daily); any button skips it.
 - **Finish celebration.** Over the line the camera swings round in slow motion while your racer reacts to the place: a leap with a full turn and fist pumps for 1st, a hop and a big wave for 2nd, two happy hops for 3rd, and for the back of the field a sag and a head shake that ends chin up.
 - **Podium ceremony.** After a Grand Prix or a Knockout final, the top three stand on stepped blocks in their own karts, our own gold cup with a red balloon on its lid pops up behind the winner, and confetti and fireworks go up over the stands.
-- **A living world.** Far vistas in three depth layers with a landmark ahead of every start line (Harbor's is a smoking volcano island); gulls, songbirds, a V of geese, pterosaurs, eagles, fireworks and airships lit at night; over a hundred critter spectators per track (otters and gull-folk in sun hats, penguins and snow hares in beanies, raccoons with glow sticks) who turn to watch the pack and cheer as it passes.
-- **Karts with weight.** They lean out of turns (harder out of drifts, the inside wheels lifting), pitch under the gas, brakes and boosts, squash and spring over hops and landings, and shiver on the grid; the driver leans, looks and nods, and the front wheels steer.
-- **Speed you can feel.** Each boost punches the view wider by its tier (5, 7.5 or 10 degrees for blue, orange and purple), with flames and sparks in the tier's color.
+- **A living world.** Far vistas in three depth layers with a landmark ahead of every start line (Harbor's is a smoking volcano island); gulls, songbirds, a V of geese, pterosaurs, eagles, fireworks and airships lit at night; over a hundred critter spectators per track (otters and gull-folk in sun hats, penguins and snow hares in beanies, raccoons with glow sticks) who turn to watch the pack and cheer as it passes; rival karts stay solid right beside you, as Mario Kart World's do, fading only for an instant if one cuts straight into the lens.
+- **Karts with weight.** They lean out of turns (harder out of drifts, the inside wheels lifting), pitch under the gas, brakes and boosts, squash and spring over hops and landings, and shiver on the grid; each wheel follows the road on its own spring, and the driver leans, looks around at a rival or the camera, nods and steers the wheel in their hands.
+- **Speed you can feel.** Each boost punches the view wider by its tier (5, 7.5 or 10 degrees for blue, orange and purple), lights a boost flame from the kart's pipes in the tier's color, and a mini-turbo burns a spark at each rear tire.
 
 ### Sound
 
@@ -142,7 +150,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 - The pictures never touch the sim: the course intro, the celebration and the podium leave input logs, results and leaderboard replays unchanged, and tests hold them to it.
 
 ### A leaderboard you can trust
-- A Time Trial or Daily run posts its input log (4 bytes a tick, run-length encoded). A Supabase Edge Function replays it with the real game code and stores the replay's own time; a forged time is refused.
+- A Time Trial or Daily run posts its input log (4 bytes a tick, run-length encoded). A Supabase Edge Function replays it with the real game code and stores the replay's own time and the kart raced in; a forged time is refused. Every row on the board names the kart too: "Pip in the Snack Truck."
 - Hardened over three red-team passes, checked live:
   - a strict Content-Security-Policy (scripts from the site only, no inline code or eval, the network only to the site and the leaderboard) and no referrer;
   - the score function answers only the game's own pages (an origin allowlist) and caps and times out uploads;
@@ -155,7 +163,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 - No shader hitches: every shader compiles in a warm-up hidden behind the intro's title card, before the countdown.
 - 69 to 86 draw calls mid-race with 8 karts (measured on all six tracks), one shadow map; a test holds every track's draw and triangle budget.
 - An Auto quality governor steps resolution, then shadows and effects, down on a machine that falls under 55 fps, at a calm moment and without flip-flopping.
-- Loading the live site, cold cache on fast 4G (25 Sept 2026): first paint in 0.5 s, the title in 0.94 to 0.98 s. A race loads behind its course intro, which flies over the track and can be skipped. The code is 446 KB gzipped.
+- Loading the live site, cold cache on fast 4G (25 Sept 2026): first paint in 0.5 s, the title in 0.94 to 0.98 s. A race loads behind its course intro, which flies over the track and can be skipped. The code is 514 KB gzipped.
 
 ### Accessibility and reach
 - Reduce motion (follows the system, or on or off): the intro holds still shots, the finish drops its slow motion and swoops, and the camera moves less.
@@ -166,7 +174,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 - Every word a player reads is US English and rated G, and a test pins every number in How to Play to the code.
 
 ### Tests
-- 1,466 automated tests in 159 files, all headless: kart physics, AI gates on every track, whole races, the leaderboard replay, the drift payoff, the frame and allocation budgets, and jsdom accessibility checks.
+- 1,785 automated tests in 186 files, all headless: kart physics, AI gates on every track, whole races, the leaderboard replay, the drift payoff, the frame and allocation budgets, and jsdom accessibility checks.
 - `npm run verify` (type check, tests, build, 1.5 MB bundle gate) runs in CI on every push before GitHub Pages publishes the site.
 
 ## How it was built
@@ -182,7 +190,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 | Second-opinion code reviews | Codex |
 | Racer concept art and portraits, 12 painted skies | GPT Image 2.5 via Higgsfield |
 | Item art and ground textures | AI images via Higgsfield |
-| 8 racer models; 25 landmark and scenery models | Image-to-3D via Higgsfield (Tripo H3.1 for the racers) |
+| 8 racer models, rebuilt as rigged drivers from parts; 31 landmark, scenery and creature models | Image-to-3D via Higgsfield (Meshy v7 auto-rig for the drivers, Tripo H3.1 for kart bodies, wheels, landmarks and scenery) |
 | Tracks, the Classic and Buggy bodies, spectators, vistas, sky life and effects | Modeled in code |
 | 7 songs and 102 sound effects | ElevenLabs (Eleven Music, Sound Effects) |
 | Listening checks | CLAP, AST and Qwen2.5-Omni (local), Gemini Pro |
@@ -202,7 +210,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 
 ## Which prize fits
 
-- **Best Game:** the full package: five modes plus Mirror, a replay-verified global leaderboard, 1,466 tests and three red-team passes.
+- **Best Game:** the full package: five modes plus Mirror, a replay-verified global leaderboard, 1,785 tests and three red-team passes.
 - **Most Creative:** the Final Lap Shift, the claw rescue, the neon loop, and items of our own (Strike Ball, Grapple Anchor, Pogo Spring).
 - **Eye Candy:** the AI-made 3D cast, painted skies, course intros, far vistas, crowds and sky life, and night neon on Boardwalk Nights.
 - **One More Go:** drifting that pays, Time Trial ghosts and medals, and a new Daily Challenge every day.
@@ -229,7 +237,7 @@ What's in it:
 - Plays on keyboard, gamepad and phone (turn it sideways)
 
 How AI built it:
-- **Claude Code** (Opus) designed and wrote the whole game: physics, AI rivals, items, tracks, UI, the leaderboard server and 1,466 tests. It also ran teams of AI agents that hunted bugs, red-teamed the security and checked every screen in silent headless Chrome
+- **Claude Code** (Opus) designed and wrote the whole game: physics, AI rivals, items, tracks, UI, the leaderboard server and 1,785 tests. It also ran teams of AI agents that hunted bugs, red-teamed the security and checked every screen in silent headless Chrome
 - **Higgsfield:** the racer and scenery 3D models (AI images turned into 3D), the painted skies and the item art
 - **ElevenLabs:** 7 songs and 102 sound effects, checked by AI listening models
 - **Supabase:** the leaderboard
