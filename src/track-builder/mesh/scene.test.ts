@@ -160,6 +160,20 @@ describe('decor and barriers', () => {
     }
   });
 
+  it('a prop with a model file\'s own material dissolves near the lens, as a code-built one does (a Meadow oak filled the view, 26 Sept 2026)', async () => {
+    const { MeshStandardMaterial } = await import('three');
+    const own = new MeshStandardMaterial();
+    const withModels = buildTrackScene(track, { materials: new Proxy({}, { get: () => own }) as Record<string, Material> });
+    const decor = [...withModels.instancers.values()].filter((m) => m.name.startsWith('decor:'));
+    expect(decor.length).toBeGreaterThan(0);
+    for (const m of decor) expect(m.material).toBe(own);
+    expect(own.customProgramCacheKey()).toContain('|near2.60');
+    const shader = { vertexShader: '#include <project_vertex>', fragmentShader: '#include <clipping_planes_fragment>' } as never as { vertexShader: string; fragmentShader: string };
+    own.onBeforeCompile(shader as never, {} as never);
+    expect(shader.fragmentShader).toContain('discard');
+    withModels.dispose();
+  });
+
   it('decor is deterministic: two builds give byte-identical matrices (SOP test 13)', () => {
     const other = buildTrackScene(buildTrack(HARBOUR_LOOP));
     expect(other.decor.length).toBe(scene.decor.length);

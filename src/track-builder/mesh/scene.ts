@@ -800,7 +800,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       if (p.count > 0) toMerge.push({ item: { geometry: geo, matrices: p.matrices, count: p.count }, far: entry.band === 'far' || entry.band === 'verge' });
       continue;
     }
-    const m = instancer(`decor:${entry.asset}`, geo, palette.decor, p.matrices, undefined, assets.materials?.[entry.asset]);
+    // a model file's own material dissolves near the lens too, as the code-built props always did
+    // (26 Sept 2026: a Meadow oak's trunk filled a quarter of the chase camera's view)
+    const own = assets.materials?.[entry.asset];
+    if (own) fadeNearCamera(own);
+    const m = instancer(`decor:${entry.asset}`, geo, palette.decor, p.matrices, undefined, own);
     // an instancer is never culled per instance, so every copy is drawn into the shadow map each
     // frame: only the roadside band is near enough for its shadows to be seen
     m.castShadow = entry.band === 'roadside';
