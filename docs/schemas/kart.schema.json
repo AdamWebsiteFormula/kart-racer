@@ -337,7 +337,7 @@
           "powerFrom": { "type": "number", "description": "rb below this cuts power (top-speed cap); above it only skill moves", "default": 0.85 },
           "skillGain": { "type": "number", "description": "skill += (rb − 1) × gain", "default": 1.25 },
           "shortcutRb": { "type": "number", "description": "rubber band at or above which a narrow shortcut is taken as a catch-up", "default": 1.15 },
-          "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.065 }
+          "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.075 }
         } },
         "items": { "type": "object", "properties": {
           "forwardRange": { "type": "number", "default": 45 }, "forwardCone": { "type": "number", "description": "rad", "default": 0.2 },
@@ -354,27 +354,30 @@
         "autopilot": { "type": "object", "description": "a finished kart keeps rolling out of the way", "properties": {
           "skill": { "type": "number", "default": 0.5 }, "power": { "type": "number", "default": 0.6 }
         } },
-        "profiles": { "type": "object", "description": "Difficulty comes from the speed class: 50 easy, 100 normal, 150 hard (ai-driver Decisions 2026-09-21).", "properties": {
+        "profiles": { "type": "object", "description": "Difficulty comes from the speed class: 50 easy, 100 normal, 150 hard (ai-driver Decisions 2026-09-21). 26 Sept 2026 (Adam: \"The races seem pretty easy\"): Normal races at the player's own top speed (power 0.98 to 1, skill 0.65 to 0.7) and Hard at its sharpest (skill 0.95 to 1), and a Hard racer ahead of the player is held back in sharpness only, never in power (rbMin 0.6 to 0.85, at or above rubber.powerFrom); Easy is as it was (ai-driver Decisions 2026-09-26, game/difficulty.e2e.test.ts).", "properties": {
           "easy": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.35 }, "power": { "type": "number", "default": 0.94 }, "noise": { "type": "number", "default": 0.09 },
             "reactionMin": { "type": "number", "default": 0.8 }, "reactionMax": { "type": "number", "default": 1.6 },
             "driftThreshold": { "type": "number", "default": 0.45 }, "brakeAbove": { "type": "number", "default": 1.0 },
             "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 1.6 },
-            "shortcutSkill": { "type": "number", "default": 1.1 }, "trickChance": { "type": "number", "default": 0.2 }
+            "shortcutSkill": { "type": "number", "default": 1.1 }, "trickChance": { "type": "number", "default": 0.2 },
+            "rbMin": { "type": "number", "default": 0.6 }
           } },
           "normal": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
-            "skill": { "type": "number", "default": 0.65 }, "power": { "type": "number", "default": 0.98 }, "noise": { "type": "number", "default": 0.045 },
+            "skill": { "type": "number", "default": 0.7 }, "power": { "type": "number", "default": 1.0 }, "noise": { "type": "number", "default": 0.045 },
             "reactionMin": { "type": "number", "default": 0.4 }, "reactionMax": { "type": "number", "default": 0.9 },
             "driftThreshold": { "type": "number", "default": 0.35 }, "brakeAbove": { "type": "number", "default": 2.0 },
             "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 0.8 },
-            "shortcutSkill": { "type": "number", "default": 0.6 }, "trickChance": { "type": "number", "default": 0.5 }
+            "shortcutSkill": { "type": "number", "default": 0.6 }, "trickChance": { "type": "number", "default": 0.5 },
+            "rbMin": { "type": "number", "default": 0.6 }
           } },
           "hard": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.95 }, "power": { "type": "number", "default": 1.0 }, "noise": { "type": "number", "default": 0.015 },
             "reactionMin": { "type": "number", "default": 0.15 }, "reactionMax": { "type": "number", "default": 0.4 },
             "driftThreshold": { "type": "number", "default": 0.3 }, "brakeAbove": { "type": "number", "default": 3.0 },
             "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 0.25 },
-            "shortcutSkill": { "type": "number", "default": 0.3 }, "trickChance": { "type": "number", "default": 0.95 }
+            "shortcutSkill": { "type": "number", "default": 0.3 }, "trickChance": { "type": "number", "default": 0.95 },
+            "rbMin": { "type": "number", "default": 0.85 }
           } }
         } }
       }
@@ -397,8 +400,8 @@
       "properties": { "lateralBias": { "type": "number", "minimum": -1, "maximum": 1 }, "aggression": { "type": "number", "minimum": 0, "maximum": 1 }, "driftUse": { "type": "number", "minimum": 0, "maximum": 1 } }
     },
     "aiProfile": {
-      "type": "object", "required": ["skill", "power", "noise", "reactionMin", "reactionMax", "driftThreshold", "brakeAbove", "startPressMean", "startPressSpread", "shortcutSkill", "trickChance"],
-      "description": "skill 0..1 drives line, drift tier and reactions; power ≤ 1 is the top-speed cap as a fraction of the player-legal speed; noise is steer noise amplitude; brakeAbove is m/s over the corner speed before the brake comes on; reaction is seconds before an item is used; startPress is seconds before go the throttle goes down, mean ± spread."
+      "type": "object", "required": ["skill", "power", "noise", "reactionMin", "reactionMax", "driftThreshold", "brakeAbove", "startPressMean", "startPressSpread", "shortcutSkill", "trickChance", "rbMin"],
+      "description": "skill 0..1 drives line, drift tier and reactions; power ≤ 1 is the top-speed cap as a fraction of the player-legal speed; noise is steer noise amplitude; brakeAbove is m/s over the corner speed before the brake comes on; reaction is seconds before an item is used; startPress is seconds before go the throttle goes down, mean ± spread; rbMin is how far the rubber band may hold back a racer ahead of the player (rubber.min at the most)."
     },
     "unlockable": {
       "type": "object", "required": ["id", "name", "asset", "unlock"],

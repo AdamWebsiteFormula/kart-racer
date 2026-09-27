@@ -5,7 +5,9 @@
 //    scripted grip driver, a drift through every bend, chained through the long ones) beats the grip
 //    driver by at least 3 s, and reaches purple on every track. Measured 24 Sept 2026: Boardwalk 6.3 s,
 //    Canyon 3.8, Frostbite 7.5, Harbour 3.9, Meadow 5.6, Skyline 7.7 (before the rework: 0.4-3.6 s, and
-//    the drifts ran onto the inside edge at tier 1 on the gentle bends).
+//    the drifts ran onto the inside edge at tier 1 on the gentle bends). 26 Sept 2026, once a hop took the
+//    road's climb and a drift begun downhill stopped dying in a 0.6 s hop: Boardwalk 6.3, Canyon 8.5,
+//    Frostbite 11.4, Harbour 4.1, Meadow 5.5, Skyline 17.1.
 // 2. The Hard AI (pip, juniper, gus: the exact solo race the leaderboard scores, soloConfig, the real sim
 //    tick, items and all) is at least 2 s a race faster with its drifts than with driftUse 0, on every
 //    track (their mean). Measured 24 Sept 2026: Boardwalk 4.0, Canyon 4.1, Frostbite 7.0, Harbour 4.1,
