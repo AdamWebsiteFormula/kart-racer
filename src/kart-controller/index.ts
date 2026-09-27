@@ -8,7 +8,7 @@ export {
 } from './karts.ts';
 export { BOOST_PRIORITY, boostLive, clearBoost, requestBoost } from './boost.ts';
 export { targetSpeed, type SpeedTargets } from './speed.ts';
-export { cancelDrift, tierFor } from './drift.ts';
+export { canTrick, cancelDrift, tierFor } from './drift.ts';
 export { collisionMass } from './collide.ts';
 export { isRiding, isTowed, radiusOf } from './powers.ts';
 export { inWake } from './slipstream.ts';

@@ -4,6 +4,7 @@ import { startLoop } from './loop.ts';
 import { requestBoost } from './boost.ts';
 import { bounceOff } from './collide.ts';
 import type { KartConstants } from './constants.ts';
+import { queueTrick } from './drift.ts';
 import { radiusOf } from './powers.ts';
 import { forwardOf, rightOf, type KartEvent, type KartState, type TrackJump, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
 import * as dmath from '../sim-math/dmath.ts';
@@ -131,13 +132,36 @@ function groundNormalInto(out: Vec3, track: TrackQuery, t: number, branch: numbe
   out[0] = x / len; out[1] = y / len; out[2] = z / len;
 }
 
+/**
+ * A take-off at (x0, y0, z0) on t0 moving at (vx, vz): sets the line the flight leaves along (from
+ * where it left the ground, climbing as the ground under it climbed over the tick before, ramps and
+ * bumps included) and returns the road's own climb there (m/s), for a hop to take. Two ground queries,
+ * at take-off only.
+ */
+function takeOffLine(
+  s: KartState, track: TrackQuery, c: KartConstants, x0: number, y0: number, z0: number, vx: number, vz: number,
+  t0: number, branch0: number, dt: number,
+): number {
+  const here: Vec3 = [x0, y0, z0];
+  const at = track.sample(t0, lateralOffset(track, t0, here, branch0).lateral, branch0);
+  const back: Vec3 = [x0 - vx * dt, y0, z0 - vz * dt];
+  const near = track.nearest(back, { t: t0, branch: branch0 }, c.tSearchWindow);
+  const lat = lateralOffset(track, near.t, back, near.branch).lateral;
+  const b = track.sample(near.t, lat, near.branch);
+  const ok = !b.overCliff && !at.overCliff;
+  s.airborne.lineY = y0;
+  s.airborne.lineRate = ok ? (y0 - b.groundY - jumpLift(track, near.t, near.branch, lat, b.halfWidth, b.open ?? 0)) / dt : 0;
+  s.airborne.realAir = false;
+  return ok ? (at.groundY - b.groundY) / dt : 0;
+}
+
 export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt: number, events: KartEvent[]): GroundResult {
   // 9. integrate horizontally
   const f = forwardOf(s.heading);
   const r = rightOf(s.heading);
   const vx = f[0] * s.speed + r[0] * s.lateralVelocity;
   const vz = f[2] * s.speed + r[2] * s.lateralVelocity;
-  const x0 = s.position[0], z0 = s.position[2], branch0 = s.branch;
+  const x0 = s.position[0], y0 = s.position[1], z0 = s.position[2], branch0 = s.branch;
   s.position[0] += vx * dt;
   s.position[2] += vz * dt;
 
@@ -186,24 +210,37 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   const sample = track.sample(s.t, lateral, s.branch);
   const wasGrounded = s.grounded;
 
-  // ramps: leaving one sets the launch velocity. A kart mid-hop at the lip takes it too (it used to
-  // sail off with the hop's 3 m/s and no trick), and a drift press in the last trickBufferSeconds
-  // before the launch is the trick.
+  // the kart's own hop (stepDrift, this tick) takes the road's climb, as the SOP's step 6 always said:
+  // a hop up, down or along a hill is the same 0.25 s hop as on the flat, measured from the road it
+  // left. Before, a hop down Skyline's descent flew 0.6 s and 1.3 m (the grounded kart keeps no
+  // climb) and lost its drift (hopLandWindow); only a crest or a ledge now gives a hop more air.
+  // A ramp's or a bump's own rise is not taken: their launches are the jumps they were built to be.
+  let lined = false;
+  if (!s.grounded && s.airborne.seconds === 0 && s.drift.phase === 'hopping' && s.drift.hopSeconds === 0) {
+    const climb = takeOffLine(s, track, c, x0, y0, z0, vx, vz, prevT, branch0, dt);
+    s.verticalVelocity += climb;
+    s.airborne.climb = climb;
+    lined = true;
+  }
+
+  // ramps and trick bumps: leaving one sets the launch velocity. A kart mid-hop at a ramp's lip or a
+  // bump's crest takes it too (it used to sail off with the hop's 3 m/s and no trick), and that hop, or
+  // a drift press in the last trickBufferSeconds before the launch, is the trick: Mario Kart World
+  // takes a press "just before the edge of a ledge, or a ramp" (game8), and design §6 says of the
+  // bumps "hop off it for a trick boost" (26 Sept 2026: the bumps were left out, and a press a moment
+  // early over the Canyon dunes was a plain hop with no launch and no trick).
   if (s.grounded || s.drift.phase === 'hopping') {
     for (const j of track.jumps) {
-      // (a hop over a trick bump's crest stays a hop: only a ramp's lip catches a hopping kart)
-      if (!s.grounded && j.shape === 'hump') continue;
       if ((j.branch ?? 0) === s.branch && crossed(prevT, s.t, j.t) && Math.abs(lateral) <= sample.halfWidth) {
+        const hopping = s.drift.phase === 'hopping';
         s.verticalVelocity = Math.max(s.verticalVelocity, j.launch);
         s.grounded = false;
         s.airborne.fromJumpId = j.id;
         s.airborne.seconds = 0;
+        s.airborne.climb = 0;
+        lined = false;
         events.push({ type: 'launched', jumpId: j.id });
-        // (a ramp's only: a hop just before a trick bump is a drift's hop, and a trick there throws the kart off the bend)
-        if (s.trickBuffer > 0 && j.shape !== 'hump' && !s.airborne.trickQueued) {
-          s.airborne.trickQueued = true;
-          events.push({ type: 'trick' });
-        }
+        if (s.trickBuffer > 0 || hopping) queueTrick(s, events);
         s.trickBuffer = 0;
         break;
       }
@@ -233,7 +270,9 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
   else if (s.status.falling && !sample.overCliff && Math.abs(sample.groundY - s.status.fallFromY) < c.groundCatch && y >= sample.groundY - c.groundCatch) s.status.falling = false;
   const lift = s.status.falling ? 0 : jumpLift(track, s.t, s.branch, lateral, sample.halfWidth, sample.open ?? 0);
   const groundY = s.status.falling ? -Infinity : sample.groundY + lift;
-  const canSnap = s.verticalVelocity <= c.groundLaunchVy;
+  // (a hop's rise is judged against the road's climb it took off with: down a hill it is falling and
+  // still rising off the road)
+  const canSnap = s.verticalVelocity - (s.grounded ? 0 : s.airborne.climb) <= c.groundLaunchVy;
   // Below the road: a slope rising under a grounded kart, or a landing that crossed
   // the surface this tick, snaps up. An airborne kart within groundCatch of the surface
   // landed on it (a hop across a banked road moves the surface under the kart); any
@@ -266,9 +305,23 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
       s.airborne.fromJumpId = undefined;
       s.airborne.trickQueued = false;
       s.airborne.seconds = 0;
+      s.airborne.realAir = false;
+      s.airborne.climb = 0;
     }
   } else {
+    if (s.airborne.seconds === 0 && !lined) {
+      // any other take-off this tick (a launch, a vent or a Pogo Spring last tick, rolling off an edge)
+      takeOffLine(s, track, c, x0, y0, z0, vx, vz, prevT, branch0, dt);
+      s.airborne.climb = 0;
+    }
     s.airborne.seconds += dt;
+    // real air: the ground has fallen trickDrop below that line (a crest, a ledge, a drop). A hop up,
+    // down or along a steady slope never leaves its own line, so it is never real air
+    if (!s.airborne.realAir && Number.isFinite(groundY)
+      && s.airborne.lineY + s.airborne.lineRate * s.airborne.seconds - groundY >= c.trickDrop) {
+      s.airborne.realAir = true;
+      if (s.trickBuffer > 0) queueTrick(s, events);
+    }
   }
 
   // a loop-the-loop's run-in: a kart on the ground anywhere in it is caught, a landing in it too

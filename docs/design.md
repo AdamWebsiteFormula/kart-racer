@@ -126,6 +126,8 @@ Hop 0.25 s → drift (lands loose, tightens over 0.35 s, slides outward first, l
 
 Drifting is the core skill, as in Mario Kart World (Adam, 24 Sept 2026: MKW-level drift reward): blue comes in almost every real corner, orange in the medium and long ones, purple on the long sweepers and hairpins, and a long sweeper chains mini-turbos. A near-perfect drifter beats a driver who never drifts by 4 to 8 s over 3 laps at 150cc on every track, and the Hard AI drifts every bend (2.4 to 7 s a race faster than without its drifts).
 
+Tricks off any real air (Adam, 26 Sept 2026: "when you go over a jump, or you hit something that makes you go a little bit airborne, and you hit the space bar to try to get a boost, it should allow you to do a bit of a boost"). As in Mario Kart World, the drift button (Space, Shift, pad A) pressed in the air is a trick whenever the course threw the kart up: a ramp, a trick bump, a vent, a Pogo Spring, a crest or a ledge the ground falls 0.2 m away from; a press up to 0.22 s before a lip or crest counts, and a hop still in the air there always does. Never your own hop: a hop takes the road's climb, so it is the same 0.25 s hop on the flat or any steady slope, and pressing again in it does nothing. Every trick lands into the same +30 % for 0.7 s. The AI tricks in the same air.
+
 Surfaces cap top speed rather than cutting grip: dirt 0.7, mud 0.6, ice 0.9 plus real sliding. A live boost or being airborne ignores the cap, so hopping a mud patch is a real line.
 
 ## 8. Items (13; roles from plan §5, skinned to the world; Adam, 23 Sept 2026: "works like Mario Kart World")
