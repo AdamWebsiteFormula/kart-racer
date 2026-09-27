@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { PerspectiveCamera, ShaderChunk, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
+import { PerspectiveCamera, ShaderChunk, Vector3, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { ROAD_LOOKS, trackAssets } from './index.ts';
-import { DEFAULT_LOOK, setLook } from './look.ts';
-import { coastMaterial, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, WATER_CLOCK, waterMaterial } from './surfaces.ts';
+import { DEFAULT_LOOK, PBR, setLook, worldEnvironment } from './look.ts';
+import { coastMaterial, glintDirection, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, SEA_LOOK, WATER_CLOCK, waterMaterial } from './surfaces.ts';
+import { rippleTexture } from './waterRipples.ts';
 import { gerstnerRide, SEA_TIDE, tideScale, WAVE_FADE } from './waterWaves.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
@@ -309,5 +310,57 @@ describe('the sea\'s swell, review round 2 (26 Sept 2026): a per-fragment normal
     still.dispose();
     WATER_CLOCK.value = 0;
     scene.dispose();
+  });
+});
+
+describe('waves you can see from the chase camera (Adam, 26 Sept 2026: "does not look like it has waves")', () => {
+  it('the ripple layers, the sky in every facet (Fresnel, capped) and the glint all shade the one normal, in both the see-through and the Low tier path', () => {
+    const fs = waterMaterial('harbour').fragmentShader;
+    expect(fs).toContain('vec3 rip = lkRipples(vWorld.xz, time, viewDist)');
+    expect(fs).toContain('normalize(gNormal + vec3(-rip.x, 0.0, -rip.y))');
+    expect(fs).toContain('lkSky(reflect(-viewDir, nrm)');
+    expect(fs).toContain(`* ${SEA_LOOK.reflectMax.toFixed(2)}`);
+    expect(SEA_LOOK.reflectMax).toBeLessThan(0.8); // the far sea keeps its blue, not the pale horizon
+    // the shading sits outside the depth branch: the Low tier (no scene depth) gets the waves too
+    expect(fs.indexOf('lkRipples(vWorld.xz')).toBeLessThan(fs.indexOf('if (haveDepth) {\n    // what the surface reflects'));
+    // no "--" anywhere (a negative number spliced after a minus does not compile)
+    expect(fs).not.toMatch(/--/);
+    expect(waterMaterial('harbour').vertexShader).not.toMatch(/--/);
+  });
+
+  it('reads the shared ripple map and the painted sky\'s map with three\'s own cubeUV sizes for it', () => {
+    const m = waterMaterial('harbour');
+    expect(m.uniforms.uRipple.value).toBe(rippleTexture());
+    expect(m.defines.ENVMAP_TYPE_CUBE_UV).toBe('');
+    expect(Number(m.defines.CUBEUV_TEXEL_HEIGHT)).toBeCloseTo(1 / (4 * PBR.envSize), 9);
+    expect(Number(m.defines.CUBEUV_MAX_MIP)).toBe(Math.log2(4 * PBR.envSize) - 2);
+    expect(m.fragmentShader).toContain('#include <cube_uv_reflection_fragment>');
+    // ends as three's own materials do: fog, then tone mapping and colour space (the Low tier draws straight to the screen)
+    expect(m.fragmentShader.indexOf('#include <fog_fragment>')).toBeLessThan(m.fragmentShader.indexOf('#include <colorspace_fragment>'));
+  });
+
+  it('the depth hook binds the sky map when there is one of the size its defines expect, else leaves the sea its own gradient', () => {
+    const m = waterMaterial('harbour');
+    const fakeMesh: { onBeforeRender?: (r: WebGLRenderer, s: unknown, c: unknown) => void } = {};
+    (m.userData.attachDepth as (mesh: typeof fakeMesh) => void)(fakeMesh);
+    m.uniforms.uHasEnv.value = 1;
+    fakeMesh.onBeforeRender!({ getRenderTarget: () => null } as unknown as WebGLRenderer, {}, {});
+    expect(worldEnvironment()).toBeNull(); // no renderer made one in a test
+    expect(m.uniforms.uHasEnv.value).toBe(0);
+    expect(m.uniforms.uHasDepth.value).toBe(0);
+  });
+
+  it('the glint comes from the sun\'s own bearing, never higher than SEA_LOOK.glintElevation, so it runs down the middle distance', () => {
+    const sun = new Vector3(0.4, 0.8, 0.3).normalize(), g = glintDirection(sun, new Vector3());
+    expect(g.length()).toBeCloseTo(1, 9);
+    expect(Math.atan2(g.z, g.x)).toBeCloseTo(Math.atan2(sun.z, sun.x), 9);
+    expect(Math.asin(g.y)).toBeCloseTo(SEA_LOOK.glintElevation, 9);
+    // a low sun keeps its own height
+    const low = new Vector3(1, 0.2, 0).normalize();
+    expect(glintDirection(low, new Vector3()).distanceTo(low)).toBeLessThan(1e-9);
+    // the material's own glintDir follows every call's sun (a mirrored race flips its x)
+    const m = waterMaterial('harbour', [-0.4, 0.8, 0.3]);
+    expect((m.uniforms.glintDir.value as Vector3).x).toBeLessThan(0);
+    waterMaterial('harbour', [0.4, 0.8, 0.3]);
   });
 });

@@ -66,6 +66,9 @@ const c = await openChrome({ width: 1600, height: 900, dpr: 1 });
 let total = 0;
 try {
   await c.goto(url);
+  // High, not Auto: on a busy machine Auto can go Low on the title screen before the pin below, and Low
+  // draws with no post chain, so there would be nothing to scan (26 Sept 2026: 0 frames scanned)
+  await c.eval(`(async () => { const s = kart.ui.save.settings; s.quality = 'high'; kart.ui.host.settingsChanged({ ...s }); await new Promise((r) => setTimeout(r, 500)); })()`);
   await c.eval('(() => { const g = kart.governor; g.sample = () => false; g.newRace = () => false; })()');
   let installed = false;
   for (const t of tracks) {
