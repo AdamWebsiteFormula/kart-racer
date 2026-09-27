@@ -101,6 +101,20 @@ export function face(parent: HTMLElement, racerId: string): HTMLElement {
   return e;
 }
 
+/**
+ * A place ("1st") as the end screens draw it: the number big and the suffix small, slanted, each struck from its
+ * data-ch in gold, silver or bronze for the podium and white behind (ui.css .rk, as the race HUD's place numeral).
+ * Plain inline spans, so the words stay one, "1st", for assistive tech.
+ */
+export function rankCell(parent: HTMLElement, rank: string): HTMLElement {
+  const e = h('span', 'rk', parent);
+  const m = /^(\d+)(\D+)$/.exec(rank);
+  if (!m) { e.textContent = rank; return e; }
+  h('span', '', e, m[1]).dataset.ch = m[1];
+  h('small', '', e, m[2]).dataset.ch = m[2];
+  return e;
+}
+
 /** How a racer moved in the standings with this race: an arrow up or down, or a dash, and the words for assistive tech; `by` null draws an empty cell. */
 function moveCell(e: HTMLElement, by: number | null): void {
   const m = h('span', by === null ? 'mv' : `mv ${by > 0 ? 'up' : by < 0 ? 'down' : 'same'}`, e);
@@ -122,7 +136,7 @@ function total(e: HTMLElement, from: number, to: number, count: boolean): void {
 
 /** A standings row's cells: the place, how they moved (none after the first race), the face, the name, the points just won and the total. */
 function standing(e: HTMLElement, r: GpRow, moves: boolean, count: boolean, arrow = true): void {
-  h('span', 'rk', e, r.rank);
+  rankCell(e, r.rank);
   if (moves) moveCell(e, arrow ? r.moved : null);
   face(e, r.racerId);
   h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
@@ -785,6 +799,11 @@ export function scrollToShow(scrollTop: number, viewH: number, top: number, heig
   return down > scrollTop ? Math.min(up, down) : null;
 }
 
+/** The headline ribbon's color on the end screens (ui.css .res-head[data-tone]): the sun for a win, teal for the
+ *  podium, a medal or a safe Knockout place, sky blue for the rest, coral for knocked out or out of time. */
+export type ResultTone = 'gold' | 'good' | 'plain' | 'out';
+const placeTone = (rank: string): ResultTone => (rank === '1st' ? 'gold' : rank === '2nd' || rank === '3rd' ? 'good' : 'plain');
+
 /** `atMs`: when the first star pops in (each next one 180 ms on) */
 function starSvg(on: boolean, i: number, atMs = 600): string {
   return `<svg class="star${on ? ' on' : ''}" style="--delay:${atMs + i * 180}ms" viewBox="-2 -2 28 28" aria-hidden="true"><path d="${SHAPE_PATHS.star}"/></svg>`;
@@ -798,21 +817,23 @@ export class ResultsView implements ScreenView {
     this.root.setAttribute('aria-label', 'Results');
   }
 
-  /** The panel: everything but the buttons scrolls inside it, so it never runs off the screen. */
+  /** The list: everything but the buttons scrolls inside it, so it never runs off the screen. No card behind it (27 Sept
+   *  2026): the rows are glass bars over the scene, as Mario Kart World's, the headline on a ribbon (ui.css). */
   /** `label`: the screen's name for assistive tech (the results, the standings, the cut); `n`: how many rows
    *  (more than four sit in two columns on a phone on its side, ui.css, so all eight fit); `lagMs`: the
    *  results over the finish wait this long for FINISH! to leave (UI.finishLagMs): the stage (ui.css) and
-   *  everything that comes in with it */
-  private frame(headline: string, sub: string, label = 'Results', n = 0, lagMs = 0): { box: HTMLElement; head: HTMLElement; body: HTMLElement; rows: HTMLElement } {
+   *  everything that comes in with it; `tone`: the headline ribbon's color, the finish's (ResultTone) */
+  private frame(headline: string, sub: string, label = 'Results', n = 0, lagMs = 0, tone: ResultTone = 'plain'): { box: HTMLElement; head: HTMLElement; body: HTMLElement; rows: HTMLElement } {
     clear(this.root);
     this.buttons.clear();
     this.root.setAttribute('aria-label', label);
     const st = stage(this.root);
     if (lagMs) st.style.setProperty('--lag', `${lagMs}ms`);
-    const box = h('div', 'panel box enter', st);
+    const box = h('div', 'box enter', st);
     if (lagMs) delay(box, lagMs);
     const body = h('div', 'scroll', box);
     const head = h('div', 'res-head', body);
+    head.dataset.tone = tone;
     const words = h('div', 'res-words', head);
     h('h2', '', words, headline);
     h('div', 'sub', words, sub);
@@ -879,7 +900,7 @@ export class ResultsView implements ScreenView {
     for (const r of vm.rows) {
       const e = h('div', `board-row${r.me ? ' me' : ''}`, b.list);
       e.style.setProperty('--accent', r.accent);
-      h('span', 'rk', e, r.rank);
+      rankCell(e, r.rank);
       face(e, r.racerId);
       h('span', 'nm', e, r.name);
       // the kart's picture before "Pip in the Snack Truck" (kartSvg hides it from assistive tech: the words name it)
@@ -931,7 +952,9 @@ export class ResultsView implements ScreenView {
   /** `end`: the buttons (a plain label: the one Continue); `lagMs`: coming in over the race's finish, the wait for FINISH! to leave (UI.finishLagMs) */
   renderResults(vm: ResultsVM, end: string | EndMenuVM, board?: { name: string; suggested?: boolean }, lagMs = 0): void {
     this.board = null;
-    const { box, head, body, rows } = this.frame(vm.headline, vm.sub, 'Results', vm.rows.length, lagMs);
+    const me = vm.rows.find((r) => r.player);
+    const tone: ResultTone = !me ? 'plain' : me.dnf ? 'out' : vm.rows.length === 1 ? 'good' : placeTone(me.rank);
+    const { box, head, body, rows } = this.frame(vm.headline, vm.sub, 'Results', vm.rows.length, lagMs, tone);
     // a Time Trial's medal: its badge by the headline (which names it)
     if (vm.medal && vm.medal.won !== 'none') {
       const m = h('div', 'res-medal');
@@ -949,7 +972,7 @@ export class ResultsView implements ScreenView {
       const e = h('div', `row${r.player ? ' me' : ''}${r.dnf ? ' dnf' : ''} r${i + 1}`, rows);
       delay(e, lagMs + r.delayMs);
       e.style.setProperty('--accent', r.accent);
-      h('span', 'rk', e, r.rank);
+      rankCell(e, r.rank);
       face(e, r.racerId);
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
       h('span', 'tm', e, r.time);
@@ -975,7 +998,8 @@ export class ResultsView implements ScreenView {
    */
   renderGp(vm: GpVM, next: string, play = true): void {
     this.board = null;
-    const { box, head, rows } = this.frame(vm.headline, vm.sub, 'Grand Prix standings', vm.rows.length);
+    const me = vm.rows.find((r) => r.player);
+    const { box, head, rows } = this.frame(vm.headline, vm.sub, 'Grand Prix standings', vm.rows.length, 0, me ? placeTone(me.rank) : 'plain');
     // no arrows after the first race: there were no standings before it
     const moves = vm.rows.some((r) => r.moved !== null);
     rows.classList.add('standings');
@@ -1021,7 +1045,9 @@ export class ResultsView implements ScreenView {
    */
   renderCut(vm: CutVM, next: string): void {
     this.board = null;
-    const { box, rows } = this.frame(vm.headline, vm.sub, 'Knockout results', vm.rows.length);
+    const won = vm.rows.some((r) => r.player && r.winner);
+    const tone: ResultTone = vm.playerOut ? 'out' : won ? 'gold' : vm.rows.some((r) => r.player) ? 'good' : 'plain';
+    const { box, rows } = this.frame(vm.headline, vm.sub, 'Knockout results', vm.rows.length, 0, tone);
     rows.classList.add('cut');
     const drawAt = (vm.rows[vm.rows.length - 1]?.delayMs ?? 0) + UI.cutLineLagMs;
     vm.rows.forEach((r, i) => {
@@ -1030,10 +1056,10 @@ export class ResultsView implements ScreenView {
       delay(e, r.delayMs);
       if (above) e.style.setProperty('--cut-at', `${drawAt}ms`);
       e.style.setProperty('--accent', r.accent);
-      h('span', 'rk', e, r.rank);
+      rankCell(e, r.rank);
       face(e, r.racerId);
       h('span', 'nm', e, r.name + (r.player ? ' (you)' : ''));
-      h('span', 'tm', e, r.out ? 'OUT' : r.winner ? 'WINNER' : 'THROUGH');
+      h('span', `tm ${r.out ? 'ko-out' : r.winner ? 'ko-win' : 'ko-go'}`, e, r.out ? 'OUT' : r.winner ? 'WINNER' : 'THROUGH');
       h('span', 'gp', e, '');
       asRow(e);
     });

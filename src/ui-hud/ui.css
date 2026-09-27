@@ -232,8 +232,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 @keyframes wobble { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @keyframes bar-fill { from { transform: scaleX(0); } }
-@keyframes slide-in { from { opacity: 0; transform: translateX(-60px); } }
-@keyframes banner-in { 0% { opacity: 0; transform: scale(2.2); } 55% { opacity: 1; transform: scale(0.92); } 100% { transform: scale(1); } }
+@keyframes slide-in { from { opacity: 0; transform: translateX(72px) skewX(-6deg); } }
 /* (the place numeral's: it flashes bright as its new color comes in) */
 @keyframes flourish { 0% { transform: scale(1); filter: brightness(1.7); } 40% { transform: scale(1.28) rotate(-4deg); filter: brightness(1.15); } 100% { transform: scale(1); filter: none; } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
@@ -317,7 +316,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .slot .charges { position: absolute; top: -6px; right: -8px; font: 400 22px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; }
 .slot .tag { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font: 700 10px/1 var(--body); letter-spacing: 0.12em; color: var(--paper); text-shadow: 0 1px 0 var(--ink); }
 
-.hud .tc { position: absolute; top: calc(18px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hud .tc { position: absolute; z-index: 2; top: calc(18px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .timer { font: 400 30px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; background: rgba(27, 27, 47, 0.35); padding: 8px 18px; border-radius: 999px; }
 /* a solo run (Time Trial, Daily): no place to show ("1st" of one); each finished lap's time sits under
    the timer, the fastest in green (sweep, 24 Sept 2026) */
@@ -404,13 +403,46 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .assist-dock .assist[data-state='working'] { opacity: 1; transform: scale(1.18); filter: drop-shadow(0 0 5px rgb(255 210 63 / 0.95)); }
 .assist-dock .assist svg { display: block; width: 100%; height: 100%; }
 
-.banner { position: absolute; top: 24%; left: 0; right: 0; text-align: center; pointer-events: none; }
-.banner .big { display: inline-block; font-size: clamp(72px, 12vw, 160px); line-height: 1; }
+/* ---------- the race's big words: game banners (render/banner.ts; 27 Sept 2026, the fresh-eyes review's item 9:
+   "flat text"; Adam: "it all just looks really cheap") ----------
+   Each letter is struck in three layers from its data-ch, as the place numeral is: the ink outline under it (::before,
+   with a soft shadow, so it reads over snow, sky and a night track), the deep side dropped under the face (the letter
+   itself and its stacked shadows), and the face (::after: a bright top, a hard horizon and a deep foot, cut to the
+   glyph). Slanted as the menus' words are. The letters drop in one after another and land with a squash and a stretch
+   (the count and GO! slam in from big); the words going squash and stretch away as a ghost (.banner.ghost, under the
+   banner) while the next come in. Our own letters and colors (Lilita One in the house sun, grass and coral), never
+   Mario Kart World's numerals or banner art. Reduced motion: they simply appear, all at once, and go. */
+.banner { position: absolute; z-index: 1; top: 24%; left: 0; right: 0; text-align: center; pointer-events: none; }
+.banner .big {
+  --face: linear-gradient(180deg, #fffbe8 14%, #ffe76a 42%, #ffc21c 43%, #ffa00e 66%, #f27a00 84%);
+  --side: #a44300;
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+  white-space: nowrap;
+  font: 400 clamp(72px, 12vw, 160px)/1 var(--display);
+  letter-spacing: 0.035em;
+}
+/* a struck letter (render/banner.ts letters: the banners here, the podium's headline in podium.css); its container
+   gives the face and the side (--face, --side) */
+.chs { position: relative; display: inline-block; }
+.ch {
+  position: relative;
+  display: inline-block;
+  color: var(--side, #a44300);
+  text-shadow: 0 0.02em 0 var(--side, #a44300), 0 0.04em 0 var(--side, #a44300), 0 0.06em 0 var(--side, #a44300), 0 0.075em 0 var(--side, #a44300);
+  transform: skewX(-9deg);
+  transform-origin: 50% 82%;
+}
+/* (the alt text '' keeps screen readers to the words said once: .big's .sr-only, the podium headline's label) */
+.ch::before, .ch::after { content: attr(data-ch); content: attr(data-ch) / ''; position: absolute; left: 0; top: 0; }
+.ch::before { z-index: -1; color: var(--ink); -webkit-text-stroke: 0.1em var(--ink); text-shadow: 0 0.04em 0 var(--ink), 0 0.085em 0 var(--ink), 0 0.13em 0.16em rgb(10 12 36 / 0.5); }
+.ch::after { color: transparent; background: var(--face); -webkit-background-clip: text; background-clip: text; text-shadow: none; }
 .banner .small { display: block; margin-top: 8px; font: 400 clamp(26px, 3.5vw, 44px)/1 var(--display); color: var(--sun); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
 /* the finish: the place beside FINISH! on a pill (the timer's), so it reads over any sky or crowd; the
    celebration takes the two up under the timer, clear of the kart (podium.css). Under FINISH! it sat on the
    racer's hat in the finish camera, small and bare (25 Sept 2026) */
-.banner[data-kind='finish'] .small { display: inline-block; vertical-align: 0.6em; margin: 0 0 0 0.3em; padding: 0.12em 0.42em 0.18em; border-radius: 999px; background: rgb(27 27 47 / 0.6); font-size: clamp(34px, 4.4vw, 62px); }
+.banner[data-kind='finish'] .small { position: relative; z-index: 1; display: inline-block; vertical-align: 0.6em; margin: 0 0 0 0.62em; padding: 0.12em 0.42em 0.18em; border-radius: 999px; background: rgb(27 27 47 / 0.6); font-size: clamp(34px, 4.4vw, 62px); }
 .banner[data-kind='finish'] .small:empty { display: none; }
 .banner.show[data-kind='finish'] .small { animation: pop-in var(--t-slow) var(--pop) 200ms backwards; }
 /* the prompt's words stay in the banner for assistive tech (read out with FINISH!); the eyes get the pill */
@@ -426,21 +458,176 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .banner .medal-won .mw-icon { width: 84px; margin: -18px 0 -12px; }
 .banner .medal-won .mw-text { font: 400 clamp(32px, 3.6vw, 50px)/1 var(--display); color: var(--ink); }
 .banner .skip.on { display: block; }
-.banner.show .big { animation: banner-in 520ms var(--pop) both; }
-.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { color: var(--sun); }
 /* the count and GO! sit lower and bigger than the other banners: at 24% the numeral sat on the start
-   gantry's own lights, half its size (sweep, 24 Sept 2026) */
+   gantry's own lights, half its size (sweep, 24 Sept 2026); under the start lamps now (.lamps), bigger still */
 .banner[data-kind='countdown'], .banner[data-kind='go'] { top: 30%; }
-.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, 13vw, 200px); }
-.banner[data-kind='go'] .big { color: var(--grass); }
-.banner[data-kind='wrongWay'] .big { color: var(--danger); font-size: clamp(48px, 7vw, 96px); animation: pulse 0.6s ease-in-out infinite; }
-.banner[data-kind='finalLap'] .big { color: var(--coral); }
-.banner[data-kind='shift'] .big { color: var(--sun); font-size: clamp(40px, 6vw, 80px); }
-.banner[data-kind='finish'] .big { color: var(--sun); }
-.banner[data-kind='strike'] .big { color: var(--coral); font-size: clamp(64px, 10vw, 136px); }
-.banner[data-kind='strike'].show .big { animation: banner-in 420ms var(--pop) both, strike-shake 0.5s 0.1s ease-in-out; }
+.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, min(15vw, 28vh), 236px); letter-spacing: 0.05em; }
+/* each kind's colors: the count, FINISH! and the shift's label in the sun, GO! in the grass, FINAL LAP and STRIKE! in coral */
+.banner[data-kind='go'] .big { --face: linear-gradient(180deg, #f5ffe6 14%, #c8f77c 42%, #7fd63f 43%, #4db52e 66%, #2c9432 84%); --side: #15612a; }
+.banner[data-kind='finalLap'] .big, .banner[data-kind='strike'] .big { --face: linear-gradient(180deg, #fff4ef 14%, #ffc4b5 42%, #ff7b67 43%, #f5534f 66%, #d8344a 84%); --side: #871b35; }
+.banner[data-kind='wrongWay'] .big { --face: linear-gradient(180deg, #ffffff 14%, #ffbaba 42%, #ff4d4d 43%, #e52d2d 66%, #b81f2c 84%); --side: #6c1020; font-size: clamp(48px, 7vw, 96px); animation: pulse 0.6s ease-in-out infinite; }
+.banner[data-kind='shift'] .big { font-size: clamp(40px, 6vw, 80px); }
+.banner[data-kind='strike'] .big { font-size: clamp(64px, 10vw, 136px); }
+.banner[data-kind='strike'].show .big { animation: strike-shake 0.5s 0.32s ease-in-out; }
 @keyframes strike-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg) scale(1.06); } 60% { transform: rotate(4deg); } }
+/* FINISH! over a checkered sash of our own start line's squares, swept in behind the letters */
+.banner[data-kind='finish'] .chs { isolation: isolate; }
+.banner[data-kind='finish'] .chs::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: -0.3em;
+  right: -0.34em;
+  top: 0.36em;
+  height: 0.42em;
+  background: repeating-conic-gradient(var(--ink) 0 25%, #fff 0 50%) 0 0 / 0.21em 0.21em;
+  border: 0.035em solid var(--ink);
+  border-radius: 0.06em;
+  box-shadow: 0 0.045em 0 var(--ink), 0 0.1em 0.16em rgb(10 12 36 / 0.35);
+  transform: skewX(-18deg);
+  transform-origin: 0 50%;
+  animation: sash-in 460ms var(--out) 160ms backwards;
+}
+@keyframes sash-in { from { transform: skewX(-18deg) scaleX(0); } }
+/* coming in: each letter drops, lands squashed, springs up stretched and settles, one after another; the count and
+   GO! slam in from big. (Their own style is where they end: the fill is backwards, nothing held after it.) */
+.banner.show .ch { animation: ch-drop 640ms backwards; animation-delay: calc(var(--i) * 45ms); }
+.banner[data-kind='countdown'].show .ch, .banner[data-kind='go'].show .ch { animation-name: ch-slam; animation-duration: 560ms; animation-delay: calc(var(--i) * 60ms); }
+@keyframes ch-drop {
+  0% { opacity: 0; transform: translateY(-0.75em) skewX(-9deg) scale(0.74, 1.42); animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.55); }
+  34% { opacity: 1; transform: translateY(0.05em) skewX(-9deg) scale(1.3, 0.7); animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }
+  58% { transform: translateY(-0.06em) skewX(-9deg) scale(0.9, 1.13); animation-timing-function: ease-in-out; }
+  80% { transform: skewX(-9deg) scale(1.04, 0.97); animation-timing-function: ease-out; }
+  100% { transform: skewX(-9deg); }
+}
+@keyframes ch-slam {
+  0% { opacity: 0; transform: skewX(-9deg) scale(2.6); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.5); }
+  32% { opacity: 1; transform: skewX(-9deg) scale(1.26, 0.76); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  56% { transform: skewX(-9deg) scale(0.9, 1.13); animation-timing-function: ease-in-out; }
+  78% { transform: skewX(-9deg) scale(1.04, 0.97); animation-timing-function: ease-out; }
+  100% { transform: skewX(-9deg); }
+}
+/* going: the words squash, then stretch up and away (the ghost holds the words the banner just let go) */
+.banner.ghost { z-index: 0; }
+.banner.ghost .ch { opacity: 0; }
+.banner.ghost.out .ch { animation: ch-out 340ms both; animation-delay: calc(var(--i) * 24ms); }
+@keyframes ch-out {
+  0% { opacity: 1; transform: skewX(-9deg); animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1); }
+  30% { opacity: 1; transform: skewX(-9deg) scale(1.22, 0.76); animation-timing-function: cubic-bezier(0.45, 0, 1, 1); }
+  100% { opacity: 0; transform: translateY(-0.42em) skewX(-9deg) scale(0.5, 1.8); }
+}
+:root[data-reduced-motion='on'] .ch, :root[data-reduced-motion='on'] .chs::before { animation-delay: 0ms !important; }
+/* a line under the words (the shift's label under FINAL LAP) comes up once they have landed */
+.banner.show:not([data-kind='finish']) .small { animation: pop-in var(--t-slow) var(--pop) 420ms backwards; }
 
+/* ---------- the start lamps, held near the camera (hudModel startLamps; 27 Sept 2026: the gantry's were a small box far
+   off from the back row) ----------
+   Our own light board, lowered into view on two cables as the countdown starts: a rounded housing in the house navy
+   with an ink outline and a gloss, three big lenses in bright bezels under little hoods. A lamp lights red on each beat
+   with the count (the same tick as the gantry's own lamps and the numeral: the start boost's cues are the sim's), all
+   three flash green on GO, and the board is hauled up and away. Not Mario Kart World's lamp: no one holds ours.
+   Motion: transforms, opacity and the lenses' glow; reduced motion: it simply shows, lights and goes. */
+.lamps {
+  --lamp: clamp(46px, 5.2vw, 84px);
+  position: absolute;
+  top: calc(84px + var(--safe-t));
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  gap: calc(var(--lamp) * 0.22);
+  padding: calc(var(--lamp) * 0.2) calc(var(--lamp) * 0.26) calc(var(--lamp) * 0.22);
+  border-radius: calc(var(--lamp) * 0.44);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.2) 0%, rgb(255 255 255 / 0.05) 46%, transparent 48%),
+    linear-gradient(180deg, #3b4486 0%, #252b62 50%, #161a42 100%);
+  box-shadow: 0 0 0 4px var(--ink), inset 0 2px 0 rgb(255 255 255 / 0.4), inset 0 -5px 0 rgb(0 0 0 / 0.3), 0 7px 0 4px var(--ink), 0 20px 30px rgb(8 10 30 / 0.35);
+  transform: translateX(-50%);
+  transform-origin: 50% -130px;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* the two cables it hangs from, up past the top of the screen */
+.lamps::before, .lamps::after {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 4px);
+  width: 6px;
+  height: 260px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #0d0f2a, #555c8e 45%, #0d0f2a);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+.lamps::before { left: 20%; }
+.lamps::after { right: 20%; }
+.lamp {
+  position: relative;
+  width: var(--lamp);
+  height: var(--lamp);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, #5a2630 0%, #3a1520 58%, #230b14 100%);
+  box-shadow: 0 0 0 calc(var(--lamp) * 0.075) #d5dbf0, 0 0 0 calc(var(--lamp) * 0.075 + 3px) var(--ink), inset 0 calc(var(--lamp) * 0.08) calc(var(--lamp) * 0.14) rgb(0 0 0 / 0.55);
+  transition: background 90ms linear, box-shadow 90ms linear;
+}
+/* the lens's gloss */
+.lamp::after {
+  content: '';
+  position: absolute;
+  left: 17%;
+  top: 12%;
+  width: 46%;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 45%, rgb(255 255 255 / 0.8), rgb(255 255 255 / 0) 70%);
+  transform: rotate(-22deg);
+}
+/* the hood over each lens */
+.lamp::before {
+  content: '';
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: -15%;
+  height: 21%;
+  border-radius: 999px 999px 6px 6px;
+  background: linear-gradient(180deg, #4a5296, #1b1f4c);
+  box-shadow: 0 0 0 3px var(--ink);
+  z-index: 1;
+}
+/* lit: red, one more each beat; all green on GO. A lens flares as it lights */
+.lamps[data-lit='1'] .lamp:nth-child(-n + 1), .lamps[data-lit='2'] .lamp:nth-child(-n + 2), .lamps[data-lit='3'] .lamp {
+  background: radial-gradient(circle at 50% 42%, #fff6ee 0 9%, #ffb39c 22%, #ff4b37 50%, #d3141f 84%, #9c0c1a 100%);
+  box-shadow: 0 0 0 calc(var(--lamp) * 0.075) #ffe1d6, 0 0 0 calc(var(--lamp) * 0.075 + 3px) var(--ink), 0 0 calc(var(--lamp) * 0.5) calc(var(--lamp) * 0.16) rgb(255 64 40 / 0.72);
+}
+.lamps[data-lit='go'] .lamp {
+  background: radial-gradient(circle at 50% 42%, #f2fff0 0 9%, #b8ffb4 22%, #3fe36c 50%, #11a846 84%, #0a7836 100%);
+  box-shadow: 0 0 0 calc(var(--lamp) * 0.075) #e2ffe0, 0 0 0 calc(var(--lamp) * 0.075 + 3px) var(--ink), 0 0 calc(var(--lamp) * 0.6) calc(var(--lamp) * 0.22) rgb(60 255 120 / 0.75);
+}
+.lamps[data-lit='1'] .lamp:nth-child(1), .lamps[data-lit='2'] .lamp:nth-child(2), .lamps[data-lit='3'] .lamp:nth-child(3), .lamps[data-lit='go'] .lamp { animation: lamp-on 360ms var(--pop); }
+@keyframes lamp-on { 0% { transform: scale(0.84); filter: brightness(2.3); } 45% { transform: scale(1.14); filter: brightness(1.35); } }
+/* lowered in on its cables with a swing as the count starts, swaying a little while it counts; a jolt on GO; hauled up after */
+.lamps.on { visibility: visible; animation: lamps-drop 640ms backwards, lamps-sway 1.8s ease-in-out 640ms infinite alternate; }
+.lamps.on[data-lit='go'] { animation: lamps-go 420ms var(--pop); }
+.lamps.leaving { visibility: visible; animation: lamps-up 440ms cubic-bezier(0.5, 0, 0.9, 0.4) both; }
+@keyframes lamps-drop {
+  0% { transform: translate(-50%, -260%) rotate(-7deg); animation-timing-function: cubic-bezier(0.4, 0, 0.9, 0.5); }
+  52% { transform: translate(-50%, 7%) rotate(4deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+  76% { transform: translate(-50%, -2%) rotate(-2deg); animation-timing-function: ease-in-out; }
+  100% { transform: translateX(-50%) rotate(-1deg); }
+}
+@keyframes lamps-sway { from { transform: translateX(-50%) rotate(-1deg); } to { transform: translateX(-50%) rotate(1deg); } }
+@keyframes lamps-go { 0% { transform: translateX(-50%) scale(1); } 35% { transform: translate(-50%, -4%) scale(1.1); } 100% { transform: translateX(-50%) scale(1); } }
+@keyframes lamps-up {
+  0% { visibility: visible; transform: translateX(-50%); }
+  25% { visibility: visible; transform: translate(-50%, 6%) scale(1.02); }
+  100% { visibility: visible; transform: translate(-50%, -300%) rotate(5deg); }
+}
+/* a phone on its side: the board smaller and just under the timer (which sits over its cables), the count lower */
+@media (max-height: 500px) {
+  .lamps { --lamp: 34px; top: calc(72px + var(--safe-t)); box-shadow: 0 0 0 3px var(--ink), inset 0 2px 0 rgb(255 255 255 / 0.4), inset 0 -4px 0 rgb(0 0 0 / 0.3), 0 5px 0 3px var(--ink), 0 12px 20px rgb(8 10 30 / 0.35); }
+  .banner[data-kind='countdown'], .banner[data-kind='go'] { top: 40%; }
+  /* (hung from the timer's pill, so no cable crosses its digits) */
+  .lamps::before, .lamps::after { height: 12px; }
+}
 .flash { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(255, 59, 59, 0.55)); opacity: 0; transition: opacity 90ms; }
 .flash.on { opacity: 1; }
 .keys-hint { position: absolute; bottom: calc(64px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(12px); padding: 8px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.62); font: 600 14px/1 var(--body); color: var(--paper); white-space: nowrap; opacity: 0; transition: opacity var(--t-med) ease, transform var(--t-med) var(--pop); pointer-events: none; }
@@ -592,15 +779,52 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .howto .letters b { display: inline-block; min-width: 1.5em; padding: 0 3px; border: 2px solid var(--ink); border-radius: 6px; background: var(--paper); color: var(--ink); text-align: center; line-height: 1.3; }
 .howto ul { margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.45; }
 
-/* ---------- results ---------- */
+/* ---------- results, standings and the Knockout cut: the setup's glass (27 Sept 2026) ----------
+   The fresh-eyes review's item 8 ("every race ends on a paper form") and Adam ("it all just looks really cheap"): no
+   cream card. As Mario Kart World lists a race's places (stills ngiIINHSiJc 4:42 and 15:04: dark see-through bars
+   over the live scene, the place numbers slanted, a face and a name on each, the player's bar in gold), in the rebuilt
+   menus' own glass (menus.css, select.css): each row a bar of deep glass with a fine light edge and a gloss, the place
+   struck in gold, silver and bronze for the podium and white behind, the player's bar in the sun with a sheen across
+   it; the headline on the menus' ribbon in the finish's own color; the buttons panes of glass with the one focus ring.
+   The list sits beside the racer on a wide screen, as before; its rows come in from the right, one after another. */
 .results .stage { align-items: center; }
-/* the panel fits the screen: the scroll part takes what is left after the button row, so
+/* the list fits the screen: the scroll part takes what is left after the button row, so
    Back to menu (and the name box, by focus or by scrolling) are always reachable */
-.results .box { width: min(760px, 94vw); max-width: 100%; max-height: 100%; display: flex; flex-direction: column; overflow: hidden; }
-.results .scroll { padding: 24px 28px 4px; overflow: hidden auto; overscroll-behavior: contain; }
+.results .box { width: min(760px, 94vw); max-width: 100%; max-height: 100%; display: flex; flex-direction: column; overflow: hidden; color: #fff; }
+.results .scroll { padding: 20px 28px 4px; overflow: hidden auto; overscroll-behavior: contain; }
 .results .scroll :is(.btn, .name-input) { scroll-margin: 16px; }
-.results h2 { margin: 0; font: 400 52px/1 var(--display); color: var(--ink); }
-.results .sub { font: 600 17px/1.2 var(--body); opacity: 0.7; margin: 6px 0 16px; }
+/* the headline on a ribbon (menus.css .ribbon), in the finish's color (render/screens.ts: data-tone) */
+.res-head { --ribbon: var(--sky); }
+.res-head[data-tone='gold'] { --ribbon: #ffc629; }
+.res-head[data-tone='good'] { --ribbon: var(--teal); }
+.res-head[data-tone='out'] { --ribbon: var(--coral); }
+.results h2 {
+  position: relative;
+  isolation: isolate;
+  margin: 0 0 0 26px;
+  padding: 0 8px;
+  font: 400 50px/1.1 var(--display);
+  letter-spacing: 0.01em;
+  color: #fff;
+  -webkit-text-stroke: 4px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 5px 0 var(--ink);
+}
+.results h2::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: -26px;
+  right: -26px;
+  top: 34%;
+  bottom: 3%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon) 58%, #fff) 0 44%, var(--ribbon) 44% 100%);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 5px 0 var(--ink), inset 0 -4px 0 rgb(0 0 0 / 0.14);
+  transform: skewX(-12deg);
+}
+.res-words .sub { margin: 10px 0 14px 2px; font: 600 17px/1.2 var(--body); color: rgb(255 255 255 / 0.92); text-shadow: 0 2px 0 var(--ink), 0 0 10px rgb(14 16 38 / 0.8); }
 .rows { display: flex; flex-direction: column; gap: 8px; }
 .row {
   display: grid;
@@ -609,38 +833,71 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   align-items: center;
   gap: 12px;
   padding: 9px 14px;
-  border: 3px solid var(--ink);
-  border-radius: var(--radius-sm);
-  background: #fff;
+  /* (a clear border keeps each row the size it was: the phone layouts were measured with one) */
+  border: 3px solid transparent;
+  border-radius: 17px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.15) 0%, rgb(255 255 255 / 0.04) 46%, transparent 48%) padding-box,
+    linear-gradient(90deg, rgb(30 36 88 / 0.9), rgb(20 24 62 / 0.8)) padding-box;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.3), inset 0 1.5px 0 rgb(255 255 255 / 0.45), 0 6px 16px rgb(8 10 30 / 0.28);
+  color: #fff;
   font: 600 18px/1 var(--body);
   animation: slide-in var(--t-med) var(--out) backwards;
   animation-delay: var(--delay, 0ms);
 }
-.row .rk { font: 400 26px/1 var(--display); }
+/* the place, slanted and struck: gold, silver and bronze for the podium (the race HUD's place numeral), white behind */
+/* (render/screens.ts rankCell: the number and the suffix, each struck in three layers from its data-ch, as the race HUD's
+   place numeral is: the ink outline under it, its deep side, and the face cut to the glyph; a stroke on the face itself
+   ate the thin suffix away) */
+.row .rk { justify-self: start; font: 400 34px/1 var(--display); white-space: nowrap; transform: skewX(-8deg); }
+.rk {
+  --tier: linear-gradient(180deg, #ffffff 40%, #e6ebf8 41%, #ccd3ea 90%);
+  --tier-side: #545c8c;
+  color: #fff;
+}
+.rk small { font-size: 0.56em; margin-left: 0.05em; vertical-align: 0.62em; }
+.rk > * { position: relative; z-index: 0; color: var(--tier-side); text-shadow: 0 0.035em 0 var(--tier-side), 0 0.07em 0 var(--tier-side); }
+.rk > *::before, .rk > *::after { content: attr(data-ch); content: attr(data-ch) / ''; position: absolute; left: 0; top: 0; }
+.rk > *::before { z-index: -1; color: var(--ink); -webkit-text-stroke: 0.14em var(--ink); text-shadow: 0 0.05em 0 var(--ink), 0 0.1em 0 var(--ink); }
+.rk > *::after { color: transparent; background: var(--tier); -webkit-background-clip: text; background-clip: text; text-shadow: none; }
+.row.r1 .rk, .podium-place.p1 .rk { --tier: linear-gradient(180deg, #fffdf0 12%, #fff0a6 40%, #ffcc00 41%, #ffb300 68%, #f28c00 92%); --tier-side: #a85200; }
+.row.r2 .rk, .podium-place.p2 .rk { --tier: linear-gradient(180deg, #ffffff 12%, #eef8ff 40%, #c2dcf2 41%, #a3c3e0 68%, #82a6c9 92%); --tier-side: #466891; }
+.row.r3 .rk, .podium-place.p3 .rk { --tier: linear-gradient(180deg, #fff0e8 12%, #ffc9b2 40%, #f0916f 41%, #de7458 68%, #c35843 92%); --tier-side: #7c3024; }
+.row .nm { min-width: 0; font: 400 22px/1.15 var(--display); letter-spacing: 0.01em; -webkit-text-stroke: 2.5px var(--ink); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink); }
 /* a racer's face (render/screens.ts face()): the portrait cropped to the head (data/faces.ts), ringed in the
    racer's color, an ink line either side so a pale one (Sprocket's cream) still rings it. Mario Kart World
    names every racer in a list by their face; a colored dot said little */
 .face-ic { display: block; width: var(--face, 36px); height: var(--face, 36px); border-radius: 50%; border: 3px solid var(--accent, var(--paper)); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 1.5px rgb(27 27 47 / 0.5); background: #e6e6e6 var(--portrait) var(--crop, 50% 22% / 170%) no-repeat; }
-.row .tm { font-variant-numeric: tabular-nums; }
-.row .gp { font-variant-numeric: tabular-nums; opacity: 0.6; font-size: 15px; min-width: 64px; text-align: right; }
-.row.me { background: var(--sun); transform: scale(1.02); }
+.row .tm { font: 700 19px/1 var(--body); font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 rgb(14 16 38 / 0.7); }
+.row .gp { font-variant-numeric: tabular-nums; color: rgb(255 255 255 / 0.72); font-size: 15px; min-width: 64px; text-align: right; }
+/* the player's bar: the sun, inked, glowing, a sheen crossing it once it is in */
+.row.me {
+  border-color: var(--ink);
+  background:
+    linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.6) 50%, transparent 80%) -160% 0 / 40% 100% no-repeat padding-box,
+    linear-gradient(180deg, rgb(255 255 255 / 0.42) 0%, rgb(255 255 255 / 0.12) 46%, transparent 48%) padding-box,
+    linear-gradient(90deg, #ffd84a, #f7b52a) padding-box;
+  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / 0.6), 0 0 26px 4px rgb(255 200 50 / 0.45), 0 8px 18px rgb(8 10 30 / 0.35);
+  transform: scale(1.02);
+  animation: slide-in var(--t-med) var(--out) backwards, me-sheen 900ms ease-in-out backwards;
+  animation-delay: var(--delay, 0ms), calc(var(--delay, 0ms) + 420ms);
+}
+@keyframes me-sheen { from { background-position: -160% 0, 0 0, 0 0; } to { background-position: 260% 0, 0 0, 0 0; } }
+.row.me :is(.tm, .gp) { color: var(--ink); text-shadow: none; }
 .row.dnf { opacity: 0.55; }
 .row.out { opacity: 0.55; }
 .row.out .nm { text-decoration: line-through 3px var(--danger); }
-.row.r1 .rk { color: var(--gold); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
-.row.r2 .rk { color: var(--silver); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
-.row.r3 .rk { color: var(--bronze); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
 /* a solo run's results (Time Trial, Daily): one row and no place to show ("1st" of one), as in the HUD */
 .rows .row:only-child { grid-template-columns: var(--face) 1fr auto auto; }
 .rows .row:only-child .rk { display: none; }
 .laps { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; font: 600 15px/1 var(--body); }
-.laps span { padding: 7px 10px; border: 2px solid var(--ink); border-radius: 999px; }
-.laps span.best { background: var(--grass); }
+.laps span { padding: 7px 12px; border-radius: 999px; color: #fff; background: rgb(14 16 38 / 0.68); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.32); }
+.laps span.best { color: var(--ink); background: linear-gradient(180deg, #c3f29a, var(--grass)); box-shadow: inset 0 0 0 2px var(--ink); }
 .stars { display: flex; gap: 10px; justify-content: center; margin: 12px 0 4px; }
 /* a finished Grand Prix: the player's stars at the end of the headline's row */
 .res-head .stars { margin: 0 0 0 auto; flex: none; }
-.stars .star { width: 54px; height: 54px; }
-.stars .star path { fill: #e9e2d0; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
+.stars .star { width: 54px; height: 54px; filter: drop-shadow(0 3px 0 var(--ink)); }
+.stars .star path { fill: rgb(255 255 255 / 0.22); stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
 .stars .star.on path { fill: var(--gold); }
 .stars .star.on { animation: pop-in 500ms var(--pop) backwards; animation-delay: var(--delay, 0ms); }
 /* the buttons under the table (screens/results.ts endMenu), as Mario Kart World ends a race: the main row first
@@ -649,18 +906,37 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
    racer, Menu). UiRoot's focus grid is these rows; a phone on its side sets them in one line, and so does the grid */
 .results .actions { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 14px 28px 22px; }
 .results .act-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 14px; }
-.results .act-row:not(.main) .btn { padding: 10px 22px; box-shadow: 0 5px 0 var(--ink); }
+/* every button on the end screens and the podium: a pane of the setup's deep glass (the class row's pills, menus.css),
+   white words, and the one focus everywhere (a white and sun ring, a glow, a lift) with its words in gold */
+:is(.results, .podium) .btn {
+  color: #fff;
+  border: 0;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.18) 0%, rgb(255 255 255 / 0.05) 48%, transparent 50%),
+    linear-gradient(180deg, rgb(34 40 94 / 0.92), rgb(16 18 46 / 0.94));
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.42), 0 8px 18px rgb(8 10 30 / 0.34);
+}
+:is(.results, .podium) .btn .label { -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+:is(.results, .podium) .btn.focused, :is(.results, .podium) .btn:focus-visible {
+  color: var(--sun);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.24) 0%, rgb(255 255 255 / 0.07) 48%, transparent 50%),
+    linear-gradient(180deg, rgb(44 52 116 / 0.96), rgb(24 28 68 / 0.96));
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: inset 0 0 0 3px #fff, 0 0 0 4px var(--sun), 0 0 0 7px var(--ink), 0 0 30px 8px rgb(255 210 63 / 0.5);
+}
+:is(.results, .podium) .btn:active { transform: translateY(1px) scale(0.99); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.36); }
+.results .act-row:not(.main) .btn { padding: 10px 22px; }
 .results .act-row:not(.main) .btn .label { font-size: 22px; }
-.results .act-row:not(.main) .btn.focused { box-shadow: 0 8px 0 var(--ink), 0 0 0 5px var(--paper), 0 0 0 9px var(--ink); }
 .results .actions .btn.has-sub { flex-direction: column; align-items: center; gap: 3px; padding-top: 9px; padding-bottom: 10px; }
-.results .actions .btn .sub { font: 600 14px/1 var(--body); opacity: 0.7; white-space: nowrap; }
+.results .actions .btn .sub { font: 600 14px/1 var(--body); opacity: 0.82; white-space: nowrap; }
 /* the results beside the racer (Mario Kart World: the list comes in on the right and the racer stays in view on
    the left, still reacting to the place; 26 Sept 2026): over a finish celebration (UiRoot.celebrate sets .beside)
-   a wide window sets the panel at its right edge and dims only behind it; the finish camera frames the kart in the
+   a wide window sets the list at its right edge and dims only behind it; the finish camera frames the kart in the
    room to its left (UiRoot.besideRoom, game/celebrate.ts besideAt). The query is UI.besideQuery */
 @media (min-width: 1180px) {
   .results.beside .stage { align-items: flex-end; }
-  .results.beside .dim { background: linear-gradient(90deg, rgba(27, 27, 47, 0) 32%, rgba(27, 27, 47, 0.5) 100%); }
+  .results.beside .dim { background: linear-gradient(90deg, rgba(27, 27, 47, 0) 32%, rgba(14, 16, 38, 0.6) 100%); }
 }
 /* a Time Trial against the best it raced: "−1.37" on green by "New best!", "+0.85" on red on a slower run */
 .res-words { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; }
@@ -668,7 +944,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .res-delta { padding: 3px 13px 6px; border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 4px 0 var(--ink); color: var(--paper); font: 400 34px/1 var(--display); font-variant-numeric: tabular-nums; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-slow) var(--pop) calc(300ms + var(--delay, 0ms)) backwards; }
 .res-delta.ahead { background: var(--grass); }
 .res-delta.behind { background: var(--danger); }
-.gained { color: #0a8f5a; font-weight: 700; }
+.gained { color: #7cf29c; font-weight: 700; }
+.row.me .gained { color: #0b6b3e; }
+/* the Knockout's word on each row: through in teal, out in coral, the winner in the sun */
+.rows.cut .tm { font: 400 19px/1 var(--display); letter-spacing: 0.06em; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink); }
+.rows.cut .tm.ko-go { color: #8ff3e6; }
+.rows.cut .tm.ko-out { color: #ffa296; }
+.rows.cut .tm.ko-win { color: var(--sun); }
+.rows.cut .row.me .tm { color: #fff; }
 
 /* ---------- the Knockout cut (ResultsView.renderCut) ----------
    A dashed coral line labeled CUT across the list, under the last racer who goes through and over the first
@@ -712,13 +995,23 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .standings .gained { opacity: 1; font-size: 17px; }
 .standings.moves .row { grid-template-columns: 56px 18px var(--face) 1fr auto auto; }
 .standings .row { position: relative; }
-.standings .was { position: absolute; inset: -3px; display: grid; grid-template-columns: inherit; align-items: center; gap: inherit; padding: inherit; border: inherit; border-radius: inherit; background: #fff; opacity: 0; }
-.standings .was.me { background: var(--sun); }
+.standings .was {
+  position: absolute; inset: -3px; display: grid; grid-template-columns: inherit; align-items: center; gap: inherit; padding: inherit; border: inherit; border-color: transparent; border-radius: inherit;
+  /* (opaque: the row it covers must not show through until it turns over) */
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.15) 0%, rgb(255 255 255 / 0.04) 46%, transparent 48%) padding-box, linear-gradient(90deg, #232a64, #191d4c) padding-box;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.3);
+  opacity: 0;
+}
+.standings .was.me { border-color: var(--ink); background: linear-gradient(180deg, rgb(255 255 255 / 0.42) 0%, rgb(255 255 255 / 0.12) 46%, transparent 48%) padding-box, linear-gradient(90deg, #ffd84a, #f7b52a) padding-box; }
+.standings .was.me :is(.tm, .gp) { color: var(--ink); text-shadow: none; }
 .standings .mv { display: flex; justify-content: center; }
 .standings .mv i { display: block; }
-.standings .mv.up i { border: 0 solid transparent; border-width: 0 7px 10px; border-bottom-color: #0a8f5a; }
-.standings .mv.down i { border: 0 solid transparent; border-width: 10px 7px 0; border-top-color: #2b6fd6; }
-.standings .mv.same i { width: 12px; height: 4px; border-radius: 2px; background: rgb(27 27 47 / 0.4); }
+.standings .mv.up i { border: 0 solid transparent; border-width: 0 7px 10px; border-bottom-color: #7cf29c; filter: drop-shadow(0 1.5px 0 var(--ink)); }
+.standings .mv.down i { border: 0 solid transparent; border-width: 10px 7px 0; border-top-color: #8cc4ff; filter: drop-shadow(0 1.5px 0 var(--ink)); }
+.standings .mv.same i { width: 12px; height: 4px; border-radius: 2px; background: rgb(255 255 255 / 0.5); }
+.standings .row.me .mv.up i { border-bottom-color: #0a7a4c; filter: none; }
+.standings .row.me .mv.down i { border-top-color: #2b6fd6; filter: none; }
+.standings .row.me .mv.same i { background: rgb(27 27 47 / 0.45); }
 .standings.play .n.count { animation: count-up var(--t-count) ease-out var(--count-at) backwards; }
 .standings.play .gained { transform-origin: 100% 50%; animation: gain-pop 460ms var(--pop) var(--count-at); }
 .standings.play .row.flip { animation: row-flip var(--t-flip) linear var(--flip-at) backwards, slide-in var(--t-med) var(--out) var(--delay, 0ms) backwards; }
@@ -758,17 +1051,17 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .results .res-medal { flex: none; width: 76px; margin: -6px 0 4px -4px; filter: drop-shadow(0 4px 0 rgb(27 27 47 / 0.35)); animation: medal-in 700ms var(--pop) calc(200ms + var(--lag, 0ms)) backwards; }
 /* a Time Trial's medal times under the run: each in color where the run reached it */
 .medal-ladder { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-.rung { display: inline-flex; align-items: center; gap: 7px; padding: 4px 14px 4px 6px; border: 2px solid var(--ink); border-radius: 999px; background: #fff; font: 600 15px/1 var(--body); }
+.rung { display: inline-flex; align-items: center; gap: 7px; padding: 4px 14px 4px 6px; border-radius: 999px; color: #fff; background: rgb(14 16 38 / 0.68); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.32); font: 600 15px/1 var(--body); }
 .rung b { font: 400 17px/1 var(--display); }
 .rung .rung-ic { width: 24px; }
 .rung .rung-t { font-variant-numeric: tabular-nums; }
-.rung.won { background: var(--sun); box-shadow: 0 3px 0 var(--ink); }
+.rung.won { color: var(--ink); background: linear-gradient(180deg, #ffe9a0 0%, var(--sun) 50%, #f4b42a 100%); box-shadow: inset 0 0 0 2px var(--ink), 0 3px 0 var(--ink); }
 .rung.miss { opacity: 0.55; }
 .rung.miss .rung-ic { filter: grayscale(1); }
 
 /* ---------- leaderboard panel (Time Trial and Daily results) ---------- */
-.board { margin-top: 16px; padding-top: 14px; border-top: 3px dashed rgba(27, 27, 47, 0.18); }
-.board h3 { margin: 0; font: 400 28px/1 var(--display); color: var(--coral); }
+.board { margin-top: 16px; padding-top: 14px; border-top: 2px dashed rgb(255 255 255 / 0.24); }
+.board h3 { margin: 0; font: 400 28px/1 var(--display); color: var(--sun); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
 .board-sub { font: 600 14px/1.3 var(--body); opacity: 0.7; margin: 4px 0 10px; }
 .board-list { display: flex; flex-direction: column; gap: 5px; min-height: 40px; margin-top: 8px; }
 .board-empty { font: 600 15px/1.4 var(--body); opacity: 0.7; padding: 8px 2px; }
@@ -778,15 +1071,17 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .board-row {
   --face: 28px;
   display: grid; grid-template-columns: 48px var(--face) 1fr auto auto; align-items: center; gap: 10px;
-  padding: 5px 12px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; font: 600 15px/1 var(--body);
+  padding: 5px 12px; border: 2px solid transparent; border-radius: 12px; color: #fff; font: 600 15px/1 var(--body);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.13) 0%, rgb(255 255 255 / 0.03) 46%, transparent 48%) padding-box, linear-gradient(90deg, rgb(30 36 88 / 0.88), rgb(20 24 62 / 0.78)) padding-box;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.28);
 }
-.board-row .rk { font: 400 20px/1 var(--display); }
+.board-row .rk { font: 400 20px/1 var(--display); white-space: nowrap; transform: skewX(-8deg); }
 .board-row .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
 .board-row .rc { display: inline-flex; align-items: center; gap: 6px; }
 .board-row .rt { font-size: 13px; opacity: 0.6; }
 .board-row .kt .kart-svg { display: block; width: 36px; height: auto; }
 .board-row .tm { font-variant-numeric: tabular-nums; }
-.board-row.me { background: var(--sun); }
+.board-row.me { color: var(--ink); border-color: var(--ink); background: linear-gradient(180deg, rgb(255 255 255 / 0.4) 0%, rgb(255 255 255 / 0.1) 46%, transparent 48%) padding-box, linear-gradient(90deg, #ffd84a, #f7b52a) padding-box; }
 .board-form { display: flex; gap: 12px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
 .name-input {
   flex: 1 1 200px; min-width: 0; font: 600 20px/1 var(--body); color: var(--ink); background: #fff;
@@ -794,12 +1089,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   user-select: text;
   -webkit-user-select: text;
 }
-.name-input.focused, .name-input:focus-visible { box-shadow: 0 4px 0 var(--ink), 0 0 0 5px var(--sun); }
+.name-input.focused, .name-input:focus-visible { box-shadow: 0 4px 0 var(--ink), 0 0 0 4px var(--sun), 0 0 0 7px var(--ink), 0 0 24px 6px rgb(255 210 63 / 0.45); }
 .board-form .btn { padding: 12px 22px; }
 .board-form .btn .label { font-size: 22px; }
 .board-status { margin-top: 8px; font: 600 14px/1.35 var(--body); opacity: 0.8; min-height: 1.35em; }
-.board-status[data-kind='error'] { color: #c62828; opacity: 1; }
-.board-status[data-kind='ok'] { color: #0a8f5a; opacity: 1; }
+.board-status[data-kind='error'] { color: #ff9a90; opacity: 1; }
+.board-status[data-kind='ok'] { color: #7cf29c; opacity: 1; }
 
 @media (max-width: 900px) {
   .place .n { font-size: 96px; }
@@ -820,6 +1115,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .scroll { padding: 18px 22px 4px; }
   .results .actions { padding: 12px 22px 18px; }
   .results h2 { font-size: 42px; }
+  .row .nm { font-size: 21px; }
   .rows { gap: 6px; }
   .row { padding: 6px 12px; }
 }
@@ -852,7 +1148,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .box { width: min(860px, 94vw); }
   .results .actions { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px; }
   .results .act-row { display: contents; }
-  .results .actions .btn, .results .act-row:not(.main) .btn { padding: 7px 16px; box-shadow: 0 5px 0 var(--ink); }
+  .results .actions .btn, .results .act-row:not(.main) .btn { padding: 7px 16px; }
   .results .actions .btn .label, .results .act-row:not(.main) .btn .label { font-size: 19px; }
   .results .actions .btn .sub { display: none; }
 }
@@ -863,8 +1159,10 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .stage { padding-left: calc(12px + var(--safe-l)); padding-right: calc(12px + var(--safe-r)); }
   .results .scroll { padding-left: 14px; padding-right: 14px; }
   .row { --face: 28px; grid-template-columns: 34px var(--face) minmax(0, 1fr) auto auto; gap: 8px; padding: 5px 10px; font-size: 15px; }
-  .row .rk { font-size: 20px; }
-  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .rk { font-size: 22px; }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; -webkit-text-stroke-width: 2px; }
+  .results h2 { font-size: 36px; margin-left: 20px; -webkit-text-stroke-width: 3px; text-shadow: 0 4px 0 var(--ink); }
+  .results h2::before { left: -18px; right: -18px; }
   .rows:not(.standings) .row .gp { display: none; }
   .standings .gained { min-width: 0; font-size: 14px; }
   .rows .row:only-child { grid-template-columns: var(--face) minmax(0, 1fr) auto auto; }
@@ -878,7 +1176,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .act-row { gap: 8px 6px; }
   .results .actions .btn { padding: 8px 16px; }
   .results .actions .btn .label { font-size: 20px; }
-  .results .act-row:not(.main) .btn { padding: 6px 10px; border-width: 3px; box-shadow: 0 4px 0 var(--ink); }
+  .results .act-row:not(.main) .btn { padding: 6px 10px; }
   .results .act-row:not(.main) .btn .label { font-size: 15px; }
 }
 /* a laptop window (1280x720, 1536x730, 1366x657): the racer screen fits without a scroll (the title's own: menus.css).
@@ -917,15 +1215,19 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .box { width: min(840px, 100%); }
   .results .scroll { padding: 8px 18px 2px; }
   .res-head { gap: 10px; margin-bottom: 8px; }
-  .res-words { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 12px; }
-  .results h2 { font-size: 30px; }
-  .results .sub { margin: 0; }
+  .res-words { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 30px; }
+  .results h2 { font-size: 30px; margin-left: 16px; padding: 0 6px; -webkit-text-stroke-width: 3px; text-shadow: 0 3px 0 var(--ink); }
+  .results h2::before { left: -14px; right: -14px; border-width: 2px; box-shadow: 0 3px 0 var(--ink), inset 0 -3px 0 rgb(0 0 0 / 0.14); }
+  .res-words .sub { margin: 0; }
   .res-words .sub { flex-basis: auto; }
   .res-delta { padding: 2px 9px 4px; font-size: 22px; -webkit-text-stroke-width: 2px; box-shadow: 0 3px 0 var(--ink); }
   .results .res-medal { width: 42px; margin: -4px 0 -2px; }
   .rows.many { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--half, 4), auto); grid-auto-flow: column; gap: 5px 10px; }
   .row { --face: 26px; grid-template-columns: 34px var(--face) minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 10px; font-size: 15px; }
-  .row .rk { font-size: 19px; }
+  .row .rk { font-size: 21px; }
+  .row .nm { font-size: 16px; -webkit-text-stroke-width: 2px; text-shadow: 0 1.5px 0 var(--ink); }
+  .row .tm { font-size: 15px; }
+  .rows.cut .tm { font-size: 14px; -webkit-text-stroke-width: 2px; }
   .row .face-ic, .board-row .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
   .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row .gp { font-size: 13px; min-width: 44px; }
@@ -944,7 +1246,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .medal-ladder { margin-top: 6px; gap: 6px; }
   /* the end buttons in their one line (UI.endOneLineQuery), smaller still */
   .results .actions { gap: 6px 8px; padding: 8px 14px 12px; }
-  .results .actions .btn, .results .act-row:not(.main) .btn { padding: 6px 14px; border-width: 3px; box-shadow: 0 4px 0 var(--ink); }
+  .results .actions .btn, .results .act-row:not(.main) .btn { padding: 6px 14px; }
   .results .actions .btn .label, .results .act-row:not(.main) .btn .label { font-size: 18px; }
   /* the cut line in the gap of the two columns (no band there: it would open a gap in the other column too) */
   .rows.many.cut .row.cut-above { margin-bottom: 0; }

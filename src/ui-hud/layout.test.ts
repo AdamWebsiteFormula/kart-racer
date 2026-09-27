@@ -346,6 +346,73 @@ describe('the end buttons, the lap pop and the Knockout goal (25 Sept 2026)', ()
   });
 });
 
+describe('the race\'s big moments and the end screens at the menus\' quality (27 Sept 2026)', () => {
+  /** the keyframes `name` animates only these properties (a timing function per step is no property) */
+  const moves = (name: string, allowed: readonly string[]) => {
+    for (const r of rules()) {
+      if (!(r instanceof CSSKeyframesRule) || r.name !== name) continue;
+      for (const k of r.cssRules) {
+        const st = (k as CSSKeyframeRule).style;
+        for (let i = 0; i < st.length; i++) if (st[i] !== 'animation-timing-function') expect(allowed, `${name} ${st[i]}`).toContain(st[i]);
+      }
+      return;
+    }
+    throw new Error(`no keyframes ${name}`);
+  };
+
+  it('the banners are struck letters: an ink outline and a face cut to each glyph from its data-ch, over its deep side', () => {
+    expect(value('.ch::before', 'content')).toMatch(/attr\(data-ch\)/);
+    expect(value('.ch::after', 'background')).toBe('var(--face)');
+    expect(value('.ch', 'transform')).toBe('skewX(-9deg)');
+    expect(value('.banner .big', '--face')).toMatch(/linear-gradient/);
+    for (const kind of ['go', 'finalLap', 'wrongWay']) expect(value(`.banner[data-kind='${kind}'] .big`, '--face'), kind).toMatch(/linear-gradient/);
+    // the count and GO! bigger than the rest, under the start lamps, and still below the gantry's own (24 Sept)
+    expect(value(".banner[data-kind='countdown']", 'top')).toBe('30%');
+    expect(value(".banner[data-kind='countdown'] .big", 'font-size')).toMatch(/236px/);
+  });
+
+  it('they drop in one after another and land with a squash and a stretch; the words going squash and stretch away; transforms and opacity only', () => {
+    expect(value('.banner.show .ch', 'animation')).toMatch(/^ch-drop .*backwards/);
+    expect(value('.banner.show .ch', 'animation-delay')).toContain('var(--i)');
+    expect(value(".banner[data-kind='countdown'].show .ch", 'animation-name')).toBe('ch-slam');
+    expect(value('.banner.ghost.out .ch', 'animation')).toMatch(/^ch-out /);
+    for (const k of ['ch-drop', 'ch-slam', 'ch-out', 'sash-in']) moves(k, ['opacity', 'transform']);
+    // the words going sit under the ones coming, and show only while they leave (a screen's exit cannot bring them back)
+    expect([value('.banner', 'z-index'), value('.banner.ghost', 'z-index'), value('.banner.ghost .ch', 'opacity')]).toEqual(['1', '0', '0']);
+    // reduced motion: no stagger either, all at once
+    expect(value(":root[data-reduced-motion='on'] .ch", 'animation-delay')).toBe('0ms');
+    // FINISH! lands before it rises out of the way of the celebration (podium.css)
+    expect(value(".banner[data-kind='finish'] .chs::before", 'background')).toMatch(/repeating-conic-gradient/);
+  });
+
+  it('the start lamps: held near the camera under the timer, hidden until the count, lit red then green, hauled away after', () => {
+    expect(value('.lamps', 'visibility')).toBe('hidden');
+    expect(value('.lamps.on', 'visibility')).toBe('visible');
+    expect(value('.lamps', 'top')).toContain('var(--safe-t)');
+    expect(css).toMatch(/\.lamps\[data-lit='2'\] \.lamp:nth-child\(-n \+ 2\)/);
+    expect(value(".lamps[data-lit='go'] .lamp", 'background')).toMatch(/radial-gradient/);
+    expect(value('.lamps.leaving', 'animation')).toMatch(/^lamps-up /);
+    moves('lamps-drop', ['transform']);
+    moves('lamps-sway', ['transform']);
+    moves('lamps-up', ['transform', 'visibility']);
+    moves('lamp-on', ['transform', 'filter']);
+  });
+
+  it('the end screens: no paper card, glass rows, the player\'s in the sun and inked, the buttons glass with the one focus ring', () => {
+    expect(value('.results .box', 'background')).toBe('');
+    expect(value('.row', 'background')).toMatch(/linear-gradient/);
+    expect(value('.row', 'background')).not.toMatch(/rgb\(255, 255, 255\)|var\(--paper\)/);
+    expect(value('.row', 'border')).toBe('3px solid transparent');
+    expect(value('.row.me', 'border-color')).toBe('var(--ink)');
+    expect(value('.row.me', 'animation')).toMatch(/^slide-in .*backwards, me-sheen /);
+    expect(css).toMatch(/:is\(\.results, \.podium\) \.btn\.focused, :is\(\.results, \.podium\) \.btn:focus-visible \{[^}]*var\(--sun\)/);
+    // the headline on the menus' ribbon, in the finish's color
+    for (const tone of ['gold', 'good', 'out']) expect(value(`.res-head[data-tone='${tone}']`, '--ribbon'), tone).not.toBe('');
+    // the standings' old holder is opaque: the row under it must not show through before it turns over
+    expect(value('.standings .was', 'background')).toMatch(/rgb\(35, 42, 100\)/);
+  });
+});
+
 describe('the Racer and Kart screens (select.css; design §12, 26 Sept 2026: as Mario Kart World\'s select screens)', () => {
   let kcss = '';
   beforeAll(async () => {

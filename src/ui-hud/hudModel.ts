@@ -2,7 +2,7 @@
 // small memory; state drives the steady readouts. Pure: the caller passes the clock.
 import type { KartState } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
-import { KNOCKOUT_CUT_LINES } from '../race-manager/constants.ts';
+import { KNOCKOUT_CUT_LINES, RACE } from '../race-manager/constants.ts';
 import { STEP_TICKS } from '../race-manager/countdown.ts';
 import { ticksToMs } from '../race-manager/race.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
@@ -137,6 +137,22 @@ export interface HudVM {
   steeringAssist: 'off' | 'on' | 'working';
   /** Auto-accelerate: the controls strip says the gas is automatic */
   autoGas: boolean;
+  /** the start lamps near the camera (startLamps): red lamps lit, 1 to 3, through the count; -1 all green for the beat after GO; 0 away */
+  lamps: number;
+}
+
+/**
+ * The start lamps held near the camera (render/hud.ts, ui.css `.lamps`; 27 Sept 2026: the gantry's are small and far
+ * off from the grid's back row): one more red lamp each beat of the countdown, all green for the beat after GO, then
+ * 0, the board away. From race time exactly as the gantry's own lamps (track-builder mesh/gantry.ts startLampsLit),
+ * so both light on the same tick, with the count: the start boost's cues are the sim's, untouched.
+ */
+export function startLamps(time: number): number {
+  const beat = RACE.countdownStepSeconds, steps = RACE.countdownSteps;
+  if (time > 0) return time <= beat ? -1 : 0;
+  const into = time + steps * beat; // seconds into the countdown
+  if (!(into > 0)) return 0;
+  return Math.min(steps, Math.ceil(into / beat - 1e-6));
 }
 
 export interface LapSplit { lap: number; time: string; best: boolean }
@@ -252,5 +268,6 @@ export function hudModel(
     medal: won === 'none' ? null : won,
     steeringAssist: !assist?.steering ? 'off' : assist.working ? 'working' : 'on',
     autoGas: assist?.autoAccelerate ?? false,
+    lamps: startLamps(state.time),
   };
 }
