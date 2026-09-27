@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { KART_ANIM, KartAnim, newPose, stepSpring, type AnimPose, type Spring } from './anim.ts';
 import { makeConstants } from './constants.ts';
+import { EngineRev } from './rev.ts';
 import { SIM_DT } from './step.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type KartState } from './types.ts';
 
@@ -209,17 +210,74 @@ describe('KartAnim: pitch', () => {
     expect(highest).toBeLessThanOrEqual(T.pitchMax * 1.5);
   });
 
-  it('revving on the grid squats the rear and shivers the kart; idling only shivers it a hair', () => {
-    const rev = new KartAnim(c, 3), s = cruising(0);
-    let pitch = 0, shiver = 0;
-    for (let i = 0; i < 240; i++) { drive(rev, s, { ...NEUTRAL_INPUT, throttle: 1 }, 1); pitch = Math.min(pitch, rev.curr.pitch); shiver = Math.max(shiver, Math.abs(rev.curr.squash)); }
-    expect(pitch).toBeLessThan(-0.015);
-    expect(shiver).toBeGreaterThan(0.005);
-    const idle = new KartAnim(c, 3), t = cruising(0);
-    let calm = 0;
-    for (let i = 0; i < 240; i++) { drive(idle, t, NEUTRAL_INPUT, 1); calm = Math.max(calm, Math.abs(idle.curr.squash)); }
-    expect(calm).toBeLessThan(T.idleSquash * 1.5);
-    expect(calm).toBeGreaterThan(0);
+  /** Ticks an engine rev and the animation on a kart standing still for `seconds`; the most of each pose field (by size) and the last pose. */
+  function grid(a: KartAnim, rev: EngineRev, s: KartState, input: InputState, seconds: number, reduced = false) {
+    const pose = newPose(), most = { pitch: 0, heave: 0, roll: 0, nod: 0 };
+    for (let i = 0; i < Math.round(seconds / dt); i++) {
+      rev.tick(s, input, dt);
+      a.tick(s, input, dt, rev);
+      a.pose(0.5, reduced, pose);
+      most.pitch = Math.min(most.pitch, pose.pitch); most.heave = Math.max(most.heave, Math.abs(pose.heave));
+      most.roll = Math.max(most.roll, Math.abs(pose.roll)); most.nod = Math.max(most.nod, Math.abs(pose.nod));
+    }
+    return { most, pose };
+  }
+
+  it('the engine rumbles the kart on the grid: a fine shiver at idle; revved, it squats back and shivers harder, the head bobbing; let go, it settles', () => {
+    const idle = grid(new KartAnim(c, 3), new EngineRev(c), cruising(0), NEUTRAL_INPUT, 2);
+    expect(idle.most.heave).toBeGreaterThan(T.shakeIdle * 0.6);
+    expect(idle.most.heave).toBeLessThan(T.shakeIdle * 1.1);
+    expect(idle.most.pitch).toBeGreaterThan(-0.01);
+
+    const a = new KartAnim(c, 3), rev = new EngineRev(c), s = cruising(0);
+    const revved = grid(a, rev, s, { ...NEUTRAL_INPUT, throttle: 1 }, 2);
+    expect(revved.most.pitch).toBeLessThan(-0.04); // the rear squats: the nose up about 2.5 degrees and more
+    expect(revved.most.heave).toBeGreaterThan(T.shakeIdle + T.shakeRev); // the body shivers a centimeter and more at the limiter
+    expect(revved.most.heave).toBeLessThan(0.05); // (with the press's blip squatting it on its springs)
+    expect(revved.most.nod).toBeGreaterThan(0.02); // the driver's head bobs
+    // let go: after a couple of seconds only the idle shiver is left
+    const after = grid(a, rev, s, NEUTRAL_INPUT, 2.5);
+    expect(Math.abs(after.pose.pitch)).toBeLessThan(0.006);
+    expect(Math.abs(after.pose.heave)).toBeLessThan(T.shakeIdle * 1.2);
+  });
+
+  it('a blip rocks the kart back and the head with it; a pop jolts it', () => {
+    const a = new KartAnim(c, 1), rev = new EngineRev(c), s = cruising(0);
+    grid(a, rev, s, NEUTRAL_INPUT, 1);
+    const tap = grid(a, rev, s, { ...NEUTRAL_INPUT, throttle: 1 }, 0.12);
+    const rock = grid(a, rev, s, NEUTRAL_INPUT, 0.4);
+    expect(Math.min(tap.most.pitch, rock.most.pitch)).toBeLessThan(-0.025);
+    // a touch of gas under the press threshold (no blip) only leans it back its small squat
+    const b = new KartAnim(c, 1), calm = new EngineRev(c), t = cruising(0);
+    grid(b, calm, t, NEUTRAL_INPUT, 1);
+    const slow = grid(b, calm, t, { ...NEUTRAL_INPUT, throttle: 0.2 }, 0.5);
+    expect(slow.most.pitch).toBeGreaterThan(-0.02);
+    // let off from the limiter: it pops, and the nose dips at once (the pop's jolt), before the squat has let go
+    grid(b, calm, t, { ...NEUTRAL_INPUT, throttle: 1 }, 1);
+    const v0 = b.curr.pitch - b.prev.pitch;
+    grid(b, calm, t, NEUTRAL_INPUT, 3 * dt);
+    expect(calm.pops).toBeGreaterThan(0);
+    expect(b.curr.pitch - b.prev.pitch - v0).toBeGreaterThan(0.5 * T.popKick * dt);
+  });
+
+  it('under reduced motion the engine never shivers the kart; its squat stays, scaled down', () => {
+    const a = new KartAnim(c, 3), rev = new EngineRev(c);
+    const r = grid(a, rev, cruising(0), { ...NEUTRAL_INPUT, throttle: 1 }, 2, true);
+    expect(r.most.roll).toBeLessThan(1e-6);
+    expect(r.most.heave).toBeLessThan(0.006); // only the press's blip, on the springs, scaled down
+    expect(r.most.pitch).toBeLessThan(-0.012);
+    expect(r.most.pitch).toBeGreaterThan(-0.04);
+  });
+
+  it('with no engine rev (a bare animation) the kart still shivers a hair at a standstill, never on the road', () => {
+    const a = new KartAnim(c, 3), s = cruising(0), pose = newPose();
+    let most = 0;
+    for (let i = 0; i < 120; i++) { a.tick(s, NEUTRAL_INPUT, dt); most = Math.max(most, Math.abs(a.pose(1, false, pose).heave)); }
+    expect(most).toBeGreaterThan(T.shakeIdle * 0.6);
+    const b = new KartAnim(c, 3), t = cruising(20);
+    let road = 0;
+    drive(b, t, NEUTRAL_INPUT, 60, 0, () => { road = Math.max(road, Math.abs(b.pose(1, false, pose).heave)); });
+    expect(road).toBe(0);
   });
 });
 

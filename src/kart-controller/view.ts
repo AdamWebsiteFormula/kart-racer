@@ -10,6 +10,7 @@ import { Group, MathUtils, type Mesh, type Object3D } from 'three';
 import { KartAnim, newPose } from './anim.ts';
 import type { KartConstants } from './constants.ts';
 import { DriverAnim, newDriverPose, type DriverContext, type KartRig, type WheelGround } from './driverAnim.ts';
+import { EngineRev } from './rev.ts';
 import { NEUTRAL_INPUT, type InputState, type KartState, type TrackQuery, type TrackSample } from './types.ts';
 
 interface Pose { x: number; y: number; z: number; heading: number; angle: number }
@@ -48,6 +49,8 @@ export class KartView {
   chassis: Object3D;
   /** the kart's secondary animation (springs), stepped per sim tick */
   readonly anim: KartAnim;
+  /** the engine's own rev (rev.ts), stepped per sim tick before the animation: its rumble, and what the sound and the pipes read */
+  readonly rev: EngineRev;
   private prev: Pose;
   private curr: Pose;
   /** screen-only heading lag left over from a snap (a wall's impact turn), easing to 0 */
@@ -76,6 +79,7 @@ export class KartView {
     this.chassis = mesh;
     this.root.add(mesh);
     this.prev = this.curr = KartView.pose(s);
+    this.rev = new EngineRev(c);
     this.anim = new KartAnim(c, seed);
     this.driver = new DriverAnim(seed);
     this.rigs = findRigs(mesh);
@@ -114,8 +118,12 @@ export class KartView {
     return { x: s.position[0], y: s.position[1], z: s.position[2], heading: s.heading, angle: s.status.loopAngle };
   }
 
-  /** Call once per sim tick, after stepKart, with the input the kart drove on this tick. */
-  onTick(s: KartState, dt: number, input: Readonly<InputState> = NEUTRAL_INPUT): void {
+  /**
+   * Call once per sim tick, after stepKart, with the input the kart drove on this tick. `toGoTicks`:
+   * on the grid, the ticks from the tick just stepped to the go (0 on the go tick; NaN or negative
+   * after it, or with no race), so the engine can read the start (rev.ts).
+   */
+  onTick(s: KartState, dt: number, input: Readonly<InputState> = NEUTRAL_INPUT, toGoTicks = Number.NaN): void {
     this.prev = this.curr;
     this.curr = KartView.pose(s);
     // a big one-tick turn (a wall's impact) plays out over a few frames: the interpolation spans
@@ -131,7 +139,8 @@ export class KartView {
       this.prev = { ...this.prev, heading: this.prev.heading + excess };
       this.snapYaw -= excess;
     }
-    this.anim.tick(s, input, dt);
+    this.rev.tick(s, input, dt, toGoTicks);
+    this.anim.tick(s, input, dt, this.rev);
     if (this.rig) { this.driver.tick(s, input, dt, this.anim, this.look); this.idled = false; }
   }
 

@@ -1,16 +1,17 @@
 // GameAudio: the one object the game talks to. Owns the bus, the song, the engines and the SFX.
+import type { RevView } from '../kart-controller/rev.ts';
 import type { InputState, KartState } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
 import { AudioBus, type Volumes } from './bus.ts';
 import { AUDIO } from './constants.ts';
 import { direct, hornFor, resetDirector, type Listener } from './director.ts';
-import { boostRev, classVoice, engineHz, offroadAmount, racerPitch, rpmFor, sparkLayer, wheelSound } from './engine.ts';
+import { boostRev, classVoice, engineDrive, engineHz, engineRpm, limiterFlutter, offroadAmount, racerPitch, sparkLayer, wheelSound } from './engine.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
 import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
-import { noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
+import { ENGINE_POP, noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
 import type { Cue, MusicCue, SfxId, SongId } from './types.ts';
 import { mergeCues, rouletteGap, Voices } from './voices.ts';
 
@@ -293,6 +294,10 @@ export class GameAudio {
   private readonly extras = new Map<string, { s: Sample; gain: number; rate: number }>();
   private readonly near: KartState[] = [];
   private readonly nearD: number[] = [];
+  /** each near racer's index in the karts (their revs) */
+  private readonly nearI: number[] = [];
+  /** the pops heard from each engine's rev so far, and when the last one played (context time) */
+  private readonly popsHeard = new WeakMap<RevView, { n: number; at: number }>();
 
   // ---------------------------------------------------------------- engines
   private voice(ctx: AudioContext, panned: boolean): EngineVoice {
@@ -359,13 +364,17 @@ export class GameAudio {
   }
 
   /**
-   * Once per rendered frame while a race runs. The player's engine follows its own speed; the
-   * three nearest others get a quiet panned hum. `topSpeed` is the player's kart top speed.
+   * Once per rendered frame while a race runs. The player's engine follows its own speed and, off the
+   * road, its own rev (the gas on the grid revs it); the three nearest others get a quiet panned hum,
+   * revving on the grid too. `topSpeed` is the player's kart top speed. `revs` (kart-controller rev.ts,
+   * one per kart, in `others`' order; none: the engines follow the speed alone) are the engines' own
+   * revs, and their pops are heard: the player's, and the near rivals' quieter.
    */
-  engines(player: KartState | undefined, throttle: number, topSpeed: number, others: readonly KartState[], l: Listener, on: boolean): void {
+  engines(player: KartState | undefined, throttle: number, topSpeed: number, others: readonly KartState[], l: Listener, on: boolean, revs?: readonly (RevView | undefined)[]): void {
     const ctx = this.bus.ctx;
     if (!ctx || !this.bus.running) return;
-    if (this.recordedEngines(ctx, player, throttle, topSpeed, others, l, on)) return;
+    if (on && player && revs) this.hearPops(ctx, player, others, l, revs);
+    if (this.recordedEngines(ctx, player, throttle, topSpeed, others, l, on, revs)) return;
     const t = ctx.currentTime;
     // nothing is built outside a race (the menus, the attract loop before a race)
     if (!this.player && (!on || !player)) return;
@@ -380,12 +389,13 @@ export class GameAudio {
       return;
     }
     const boosting = player.boost.remaining > 0;
-    const rpm = rpmFor(player.speed, topSpeed, boosting);
+    const pRev = revs?.[others.indexOf(player)];
+    const rpm = engineRpm(player.speed, topSpeed, boosting, pRev), drive = engineDrive(throttle, pRev);
     const hz = engineHz(rpm);
     pv.o1.frequency.setTargetAtTime(hz, t, 0.03);
     pv.o2.frequency.setTargetAtTime(hz * 2, t, 0.03);
-    pv.lp.frequency.setTargetAtTime(400 + rpm * 0.35 + throttle * 600 + (boosting ? 900 : 0), t, 0.05);
-    pv.gain.gain.setTargetAtTime(0.05 + 0.07 * throttle + (boosting ? 0.04 : 0), t, 0.05);
+    pv.lp.frequency.setTargetAtTime(400 + rpm * 0.35 + drive * 600 + (boosting ? 900 : 0), t, 0.05);
+    pv.gain.gain.setTargetAtTime(0.05 + 0.07 * drive + (boosting ? 0.04 : 0), t, 0.05);
     const slip = Math.min(1, Math.abs(player.lateralVelocity) / 6) * (player.grounded ? 1 : 0);
     pv.scrub.gain.setTargetAtTime(player.drift.active ? 0.04 + 0.08 * slip : 0.06 * Math.max(0, slip - 0.4), t, 0.05);
     pv.rumble?.gain.setTargetAtTime(AUDIO.offroad.synth * offroadAmount(player, topSpeed), t, 0.05);
@@ -394,29 +404,33 @@ export class GameAudio {
     this.ai.forEach((v, i) => {
       const k = near[i], d = this.nearD[i];
       if (!k || d > AUDIO.farMetres) { v.gain.gain.setTargetAtTime(0, t, 0.1); return; }
-      const r = rpmFor(k.speed, topSpeed);
+      const kRev = revs?.[this.nearI[i]];
+      const r = engineRpm(k.speed, topSpeed, false, kRev);
       v.o1.frequency.setTargetAtTime(engineHz(r) * 1.02 * racerPitch(k.racerId), t, 0.05);
       v.lp.frequency.setTargetAtTime(300 + r * 0.2, t, 0.05);
-      const g = 0.035 * Math.max(0, 1 - d / AUDIO.farMetres);
+      const g = 0.035 * Math.max(0, 1 - d / AUDIO.farMetres) * rivalSwell(kRev);
       v.gain.gain.setTargetAtTime(g, t, 0.1);
       v.pan?.pan.setTargetAtTime(panOf(k, l, d), t, 0.1);
     });
   }
 
-  /** The three racers nearest the ear, into reused slots (no per-frame arrays), nearest first. */
+  /** The three racers nearest the ear, into reused slots (no per-frame arrays), nearest first; their indices in `others` in nearI. */
   private nearest(player: KartState, others: readonly KartState[], l: Listener): KartState[] {
     const near = this.near;
     near.length = 0;
-    for (const k of others) {
+    for (let j = 0; j < others.length; j++) {
+      const k = others[j];
       if (k === player || k.isGhost) continue;
       const d = Math.hypot(k.position[0] - l.position[0], k.position[2] - l.position[2]);
       let i = near.length;
       if (i < AUDIO.aiEngines) near.push(k); else if (d >= this.nearD[i - 1]) continue; else i = AUDIO.aiEngines - 1;
       this.nearD[i] = d;
+      this.nearI[i] = j;
       near[i] = k;
       // bubble it into place by distance
       while (i > 0 && this.nearD[i - 1] > this.nearD[i]) {
         const td = this.nearD[i - 1]; this.nearD[i - 1] = this.nearD[i]; this.nearD[i] = td;
+        const ti = this.nearI[i - 1]; this.nearI[i - 1] = this.nearI[i]; this.nearI[i] = ti;
         const tk = near[i - 1]; near[i - 1] = near[i]; near[i] = tk;
         i--;
       }
@@ -425,10 +439,48 @@ export class GameAudio {
   }
 
   /**
+   * The engines' pops since last frame (kart-controller rev.ts: a let-off after a high rev, a start held
+   * too early): the player's at full level, the three nearest rivals' quieter, panned and fading with
+   * distance. An engine seen for the first time replays nothing from before.
+   */
+  private hearPops(ctx: AudioContext, player: KartState, others: readonly KartState[], l: Listener, revs: readonly (RevView | undefined)[]): void {
+    const P = AUDIO.engineRev;
+    this.popsOf(ctx, revs[others.indexOf(player)], P.pop, 0);
+    const near = this.nearest(player, others, l);
+    for (let i = 0; i < near.length; i++) {
+      const d = this.nearD[i];
+      if (d > AUDIO.farMetres) continue;
+      this.popsOf(ctx, revs[this.nearI[i]], P.rivalPop * (1 - d / AUDIO.farMetres), panOf(near[i], l, d));
+    }
+  }
+
+  /** Play `rev`'s newest pop, if it has one not heard yet (at most `popsPerSecond` a kart). */
+  private popsOf(ctx: AudioContext, rev: RevView | undefined, gain: number, pan: number): void {
+    if (!rev) return;
+    let h = this.popsHeard.get(rev);
+    if (!h) { h = { n: rev.pops, at: -Infinity }; this.popsHeard.set(rev, h); return; }
+    if (rev.pops === h.n) return;
+    h.n = rev.pops;
+    const t = ctx.currentTime;
+    if (t - h.at < 1 / AUDIO.engineRev.popsPerSecond) return;
+    h.at = t;
+    this.pop(ctx, rev.popSize, gain, pan);
+  }
+
+  /** One pop of `size` 0..1 at `gain` and `pan`: the puff, and the thump under it when big (a backfire). Pitch varies ±8 %. */
+  private pop(ctx: AudioContext, size: number, gain: number, pan: number): void {
+    const at = ctx.currentTime + 0.005, dest = this.bus.sfx!;
+    this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
+    const rate = 1 + ((this.jitter / 0xffffffff) * 2 - 1) * 0.08;
+    playPatch(ctx, dest, ENGINE_POP.puff, at, gain * size, pan, rate);
+    if (size >= AUDIO.engineRev.thumpFrom) playPatch(ctx, dest, ENGINE_POP.thump, at, gain * size, pan, rate);
+  }
+
+  /**
    * The recorded engine once its loops are decoded: three loops crossfaded by rpm and the drift
    * screech for the player, the mid loop panned for the nearest rivals. False: use the synth.
    */
-  private recordedEngines(ctx: AudioContext, player: KartState | undefined, throttle: number, topSpeed: number, others: readonly KartState[], l: Listener, on: boolean): boolean {
+  private recordedEngines(ctx: AudioContext, player: KartState | undefined, throttle: number, topSpeed: number, others: readonly KartState[], l: Listener, on: boolean, revs?: readonly (RevView | undefined)[]): boolean {
     const idle = this.bank.get('engine-idle'), mid = this.bank.get('engine-mid'), high = this.bank.get('engine-high');
     if (!idle || !mid || !high) return false;
     const t = ctx.currentTime, L = AUDIO.engineLoop;
@@ -460,9 +512,10 @@ export class GameAudio {
     const rev = boosting ? boostRev(t - this.boostAt) : 0;
     const slip = Math.min(1, Math.abs(player.lateralVelocity) / 6) * (player.grounded ? 1 : 0);
     const screech = player.drift.active ? 0.35 + 0.65 * slip : 0.5 * Math.max(0, slip - 0.4);
-    // the kart's class sets the engine's voice: light high and bright, heavy low and dark
-    const cv = classVoice(player.racerId), R = AUDIO.boostRev;
-    this.loopPlayer.set(t, rpmFor(player.speed, topSpeed, boosting), L.base + L.throttle * throttle + (boosting ? L.boost : 0) + R.gain * rev, screech * L.screech, 0, 0, cv.pitch * (1 + R.pitch * rev), cv.bright);
+    // the kart's class sets the engine's voice: light high and bright, heavy low and dark; off the road
+    // (the grid, a standstill) the engine's own rev sets its rpm and loudness (engineRpm, engineDrive)
+    const cv = classVoice(player.racerId), R = AUDIO.boostRev, pRev = revs?.[others.indexOf(player)];
+    this.loopPlayer.set(t, engineRpm(player.speed, topSpeed, boosting, pRev), L.base + L.throttle * engineDrive(throttle, pRev) + (boosting ? L.boost : 0) + R.gain * rev, screech * L.screech, 0, 0, cv.pitch * (1 + R.pitch * rev), cv.bright, limiterFlutter(pRev));
     // under the wheels: this course's own surfaces (sand, snow, grass, ice, planks, the rail), and the drift sparks by tier
     const extras = this.extras;
     extras.clear();
@@ -479,11 +532,17 @@ export class GameAudio {
     this.loopAi.forEach((v, i) => {
       const k = near[i], d = this.nearD[i];
       if (!k || d > AUDIO.farMetres) { v.set(t, AUDIO.idleRpm, 0); return; }
-      const c = classVoice(k.racerId);
-      v.set(t, rpmFor(k.speed, topSpeed), L.other * Math.max(0, 1 - d / AUDIO.farMetres), 0, panOf(k, l, d), 0, racerPitch(k.racerId) * c.pitch, c.bright);
+      const c = classVoice(k.racerId), kRev = revs?.[this.nearI[i]];
+      // a rival revving on the grid climbs and swells too (its own rev, its own start timing)
+      v.set(t, engineRpm(k.speed, topSpeed, false, kRev), L.other * Math.max(0, 1 - d / AUDIO.farMetres) * rivalSwell(kRev), 0, panOf(k, l, d), 0, racerPitch(k.racerId) * c.pitch, c.bright);
     });
     return true;
   }
+}
+
+/** A rival's engine level on top of its hum: up to 1 + `engineRev.rivalLift` while it revs off the road (1 with no rev, or driving). */
+export function rivalSwell(rev: Pick<RevView, 'rev' | 'load'> | undefined): number {
+  return rev ? 1 + AUDIO.engineRev.rivalLift * rev.rev * (1 - rev.load) : 1;
 }
 
 /** Screen-right pan of a racer from the ear (see director.spatial). */

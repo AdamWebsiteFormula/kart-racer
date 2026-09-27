@@ -5,7 +5,10 @@ import { createGrandPrix, createKnockout, nextRace } from '../race-manager/serie
 import type { RaceEvent, RacerConfig } from '../race-manager/types.ts';
 import { AUDIO } from './constants.ts';
 import { direct, distanceGain, finishLine, hornFor, resetDirector, type Listener } from './director.ts';
-import { boostRev, classVoice, engineClass, engineHz, gearFor, offroadAmount, OFFROAD_BY_TRACK, rpmFor, sparkLayer, wheelSound } from './engine.ts';
+import { boostRev, classVoice, engineClass, engineDrive, engineHz, engineRpm, gearFor, limiterFlutter, offroadAmount, OFFROAD_BY_TRACK, rpmFor, sparkLayer, wheelSound } from './engine.ts';
+import { rivalSwell } from './audio.ts';
+import { ENGINE_POP } from './sfx.ts';
+import { ENGINE_REV } from '../kart-controller/rev.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
 import { DRUMS, SONGS, keyPcs, line, songForTrack } from './music/patterns.ts';
 import { Sequencer } from './music/sequencer.ts';
@@ -128,6 +131,46 @@ describe('engine', () => {
     expect(rpmFor(-5, 25)).toBeLessThan(AUDIO.redlineRpm * 0.5);
     expect(rpmFor(24, 25, true)).toBeGreaterThan(rpmFor(24, 25));
     expect(engineHz(AUDIO.idleRpm)).toBe(AUDIO.engineIdleHz);
+  });
+
+  it('off the road the engine follows its own rev: the gas on the grid takes it to the limiter; the road takes over as the kart gets going (26 Sept 2026)', () => {
+    const rev = (r: number, load: number) => ({ rev: r, load, limiting: r >= 1 ? 1 : 0 });
+    // no rev: the speed alone, as before
+    expect(engineRpm(0, 25, false)).toBe(rpmFor(0, 25));
+    expect(engineDrive(0.7)).toBe(0.7);
+    // on the grid the gas's rev is the rpm and the loudness, not the speed (0 here)
+    expect(engineRpm(0, 25, false, rev(0, 0))).toBe(AUDIO.idleRpm);
+    expect(engineRpm(0, 25, false, rev(1, 0))).toBe(AUDIO.engineRev.limiterRpm);
+    expect(engineRpm(0, 25, false, rev(0.5, 0))).toBeCloseTo((AUDIO.idleRpm + AUDIO.engineRev.limiterRpm) / 2, 6);
+    expect(engineDrive(1, rev(0.1, 0))).toBeCloseTo(0.1, 6); // the key just down: not loud until it revs
+    expect(engineDrive(0, rev(0.9, 0))).toBeCloseTo(0.9, 6); // let go: loud as it falls
+    // on the road the speed and the gas, whatever the free rev
+    expect(engineRpm(20, 25, false, rev(1, 1))).toBe(rpmFor(20, 25));
+    expect(engineDrive(0.3, rev(1, 1))).toBe(0.3);
+    // half way through the clutch it sits between the two
+    const mid = engineRpm(3, 25, false, rev(1, 0.5));
+    expect(mid).toBeCloseTo((AUDIO.engineRev.limiterRpm + rpmFor(3, 25)) / 2, 6);
+    // the limiter under the gearbox's redline: a boost still climbs past it; the flutter at the rev's own limiter rate, off the road only
+    expect(AUDIO.engineRev.limiterRpm).toBeLessThan(AUDIO.redlineRpm);
+    expect(AUDIO.engineRev.flutterHz).toBe(ENGINE_REV.limitHz);
+    expect(limiterFlutter(rev(1, 0))).toBe(1);
+    expect(limiterFlutter(rev(1, 1))).toBe(0);
+    expect(limiterFlutter(undefined)).toBe(0);
+    // a rival revving on the grid swells; driving, or with no rev, it does not
+    expect(rivalSwell(undefined)).toBe(1);
+    expect(rivalSwell(rev(1, 0))).toBeCloseTo(1 + AUDIO.engineRev.rivalLift, 6);
+    expect(rivalSwell(rev(1, 1))).toBe(1);
+  });
+
+  it('the engine pop is soft and short: a low thump under a dark puff, no bright crack', () => {
+    const { thump, puff } = ENGINE_POP;
+    expect(thump.wave).toBe('sine');
+    expect(thump.f0).toBeLessThan(150);
+    expect(thump.f1!).toBeLessThan(thump.f0);
+    expect(puff.wave).toBe('noise');
+    expect(puff.filter!.type).toBe('lowpass');
+    expect(puff.filter!.f0).toBeLessThanOrEqual(1200);
+    for (const p of [thump, puff]) expect(p.attack + p.decay + (p.hold ?? 0)).toBeLessThan(0.25);
   });
 });
 

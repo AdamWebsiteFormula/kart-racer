@@ -13,8 +13,9 @@ import { Mesh, Vector3, type Object3D } from 'three';
 import { BODY_EXHAUST, EXHAUST, type Exhaust } from '../art-pipeline/index.ts';
 import { BODY_WHEELS, MODEL_WHEELS, type WheelRig } from '../art-pipeline/rig.ts';
 import { BASE } from '../kart-controller/constants.ts';
+import type { RevView } from '../kart-controller/rev.ts';
 import type { BoostSource } from '../kart-controller/types.ts';
-import { jetGeometry, jetMaterial, type JetUniforms } from './jet.ts';
+import { jetGeometry, jetMaterial, WHITE_HEART, type JetUniforms } from './jet.ts';
 
 type Rgb = readonly [number, number, number];
 const rgb = (r: number, g: number, b: number): Rgb => Object.freeze([r, g, b] as const);
@@ -45,7 +46,95 @@ export const PALETTE = Object.freeze({
   ] as FlamePalette[]),
   /** a pad, an item, a trick or the start: warm orange-gold, Mario Kart World's blue nozzle and violet fringe */
   other: Object.freeze({ mouth: NOZZLE, fringe: VIOLET, core: rgb(2.3, 2.0, 1.15), inner: rgb(1.6, 1.05, 0.06), body: rgb(1.45, 0.38, 0.02), edge: rgb(0.75, 0.09, 0.01) }) as FlamePalette,
+  /** the pipes' own fire off the boost (revving on the grid, a blip, a pop): yellow-orange tongues, the mouth glowing its heat (mouth and fringe follow heatColor) */
+  rev: Object.freeze({ mouth: rgb(2.0, 0.85, 0.15), fringe: rgb(1.3, 0.3, 0.03), core: rgb(2.2, 1.85, 0.9), inner: rgb(1.6, 0.95, 0.05), body: rgb(1.45, 0.42, 0.02), edge: rgb(0.8, 0.12, 0.01) }) as FlamePalette,
 });
+
+/**
+ * The pipes' own fire, off the boost (kart-controller rev.ts; Adam, 26 Sept 2026: "I don't see any fire or
+ * anything coming out of the back of the pipes ... when the countdown is coming ... and you give it some
+ * gas"). Mario Kart World on the grid (YouTube KkZV6Lp5Z5o 1:16.5-1:19, muted stills): the pipe's mouth
+ * glows as the engine revs, dull red, then orange, then gold; small yellow-orange tongues burn at high revs;
+ * at the go a rocket start bursts into a big fire (the boost flames, `FLAME.popBy.start`); mariowiki
+ * (Rocket Start): "the flames coming out of the vehicle's exhaust pipes determine the strength of the
+ * Rocket Start", so a start timed for the boost burns bigger, steadier tongues (`ready`), and one held too
+ * early sputters (`early`: it will cough at the go, a backfire and smoke). A blip spits a flame, a pop (a
+ * let-off after a high rev) a bigger one with a flash and a puff of fire, a hard launch a burst. Lengths
+ * and widths in meters before the exhaust's size (FLAME.sizeShare).
+ */
+export const REV_FIRE = Object.freeze({
+  /** a full tongue's length and radius; its radius from `widShare` of that when short */
+  len: 0.34,
+  wid: 0.12,
+  widShare: 0.55,
+  /** tongues grow from this rev, full at the limiter (and only off the road) */
+  tongueFrom: 0.7,
+  /** a start timed for the boost: tongues this much bigger; one held too early: they cough out `earlyGap` of the time, `earlyHz` a second */
+  ready: 1.35,
+  earlyGap: 0.5,
+  earlyHz: 13,
+  /** each pipe's tongue wanders this share of its length (none under reduced motion) */
+  flicker: 0.28,
+  /** a spit: up in `spitUp` s, gone over `spitDecay` s; a blip's, a pop's and a hard launch's size (× a full tongue); a launch's decay */
+  spitUp: 0.025,
+  spitDecay: 0.14,
+  blip: 0.8,
+  pop: 1.25,
+  launch: 1.4,
+  launchDecay: 0.3,
+  /** a pop's flash (the ignition's bolts) and puff of fire (its billows), times the pop's size; how long each lasts (s) */
+  popFlash: 0.7,
+  popPuff: 0.45,
+  flashSeconds: 0.06,
+  puffSeconds: 0.26,
+  /** reduced motion: spits, flashes and puffs this much, the tongues held still */
+  reduced: 0.5,
+  /** heat under this shows no glow */
+  glowFrom: 0.06,
+});
+
+/** The pipes' fire at an instant (revFire): the mouth's glow 0..1, the flame's length share of a full tongue, a pop's flash and puff of fire. */
+export interface RevFire { heat: number; len: number; flash: number; puff: number }
+
+const smooth01 = (a: number, b: number, x: number) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+/** a spit `age` s old of `size`: up over REV_FIRE.spitUp, then gone over `decay` */
+function spit(age: number, size: number, decay: number): number {
+  if (!(age >= 0) || size <= 0) return 0;
+  return age < REV_FIRE.spitUp ? (size * age) / REV_FIRE.spitUp : size * Math.exp(-(age - REV_FIRE.spitUp) / decay);
+}
+
+/**
+ * The pipes' fire off the boost from the engine's rev (kart-controller rev.ts) now: the heat's glow, the
+ * steady tongues at high revs (bigger for a start timed for the boost, coughing for one held too early),
+ * and the spits of a blip, a pop and a hard launch; a pop's flash and puff. Reduced motion: no coughing,
+ * spits, flashes and puffs half as big. Pure; writes `out`.
+ */
+export function revFire(rev: RevView, reduced: boolean, out: RevFire): RevFire {
+  const R = REV_FIRE, c = rev.clock, k = reduced ? R.reduced : 1;
+  let tongue = smooth01(R.tongueFrom, 1, rev.rev) * (1 - rev.load);
+  if (rev.start === 'ready') tongue *= R.ready;
+  else if (rev.start === 'early' && !reduced && hash01(Math.floor(c * R.earlyHz) + 911) < R.earlyGap) tongue *= 0.2;
+  const blip = spit(c - rev.blipAt, R.blip * rev.blipSize * k, R.spitDecay);
+  const pop = spit(c - rev.popAt, R.pop * rev.popSize * k, R.spitDecay);
+  const launch = rev.launch === 'hard' ? spit(c - rev.launchAt, R.launch * k, R.launchDecay) : 0;
+  out.len = Math.max(tongue, blip, pop, launch);
+  out.heat = rev.heat;
+  const pa = c - rev.popAt;
+  out.flash = pa >= 0 && pa < R.flashSeconds ? R.popFlash * rev.popSize * k * (1 - pa / R.flashSeconds) ** 2 : 0;
+  out.puff = pa >= 0 && pa < R.puffSeconds ? R.popPuff * rev.popSize * k * (1 - pa / R.puffSeconds) ** 2 : 0;
+  return out;
+}
+
+/** The pipe's glow for a heat 0..1 (linear RGB, into `out`): nothing, dull red, orange, gold; brighter as it heats. */
+export function heatColor(heat: number, out: [number, number, number]): [number, number, number] {
+  const h = Math.min(1, Math.max(0, heat)), b = smooth01(REV_FIRE.glowFrom, 0.45, h);
+  // red (0.3) → orange (0.65) → gold (1)
+  const m = smooth01(0.3, 0.65, h), n = smooth01(0.65, 1, h);
+  out[0] = b * (0.95 + 0.85 * m + 0.3 * n);
+  out[1] = b * (0.1 + 0.5 * m + 0.75 * n);
+  out[2] = b * (0.02 + 0.06 * m + 0.25 * n);
+  return out;
+}
 
 export const FLAME = Object.freeze({
   /** jet length and radius (meters, before the exhaust's size) for a mini-turbo's tier 1, 2, 3 */
@@ -59,8 +148,12 @@ export const FLAME = Object.freeze({
   popLen: 0.45, popWid: 0.4, popSeconds: 0.28, flashSeconds: 0.06, ringSeconds: 0.24,
   /** it shoots out of the pipe: from `shootFrom` of its length to all of it over its first `shootSeconds` (the flash reads first) */
   shootSeconds: 0.06, shootFrom: 0.2,
-  /** how big each boost's ignition is (a purple mini-turbo's the biggest, a slipstream's small and ringless) */
-  popBy: Object.freeze({ tier: Object.freeze([0.8, 1, 1.2]), other: 1, slip: 0.4 }),
+  /**
+   * how big each boost's ignition is (a purple mini-turbo's the biggest of the drift's, a slipstream's
+   * small and ringless); a start boost's bigger than any: Mario Kart World's rocket start bursts into a
+   * fire wider than the kart at the go (YouTube KkZV6Lp5Z5o 1:19), so an earned one is plain to see
+   */
+  popBy: Object.freeze({ tier: Object.freeze([0.8, 1, 1.2]), other: 1, slip: 0.4, start: 1.6 }),
   /** reduced motion: a calmer ignition (this share of it) and no shock ring */
   reducedPop: 0.5,
   /** over a boost's last `tailSeconds` the jet shrinks to `tail` of its length and sputters: gaps `sputterHz` a second, more of them as it dies, each down to `cough` of its length (none under reduced motion) */
@@ -153,7 +246,7 @@ export class BoostTier {
 /** How big a boost's ignition is: its tier's (1..3), else by its source. */
 export function popScale(tier: number, source: BoostSource): number {
   const P = FLAME.popBy;
-  return tier > 0 ? P.tier[Math.min(3, tier) - 1] : source === 'slipstream' ? P.slip : P.other;
+  return tier > 0 ? P.tier[Math.min(3, tier) - 1] : source === 'slipstream' ? P.slip : source === 'start' ? P.start : P.other;
 }
 
 /** A boost's ignition `age` seconds after it fired: the jet's swell (1 → 0), the nozzle's white flash (1 → 0), the shock ring's progress (0 → 1; -1: none). */
@@ -265,6 +358,9 @@ export class ExhaustFlames {
   private readonly dims = { len: 0, wid: 0 };
   private readonly ign: Ignition = { pop: 0, flash: 0, ring: -1 };
   private readonly star = { size: 0, rays: 0, gain: 0 };
+  /** the pipes' own fire this frame, and its heat's color (reused) */
+  private readonly fire: RevFire = { heat: 0, len: 0, flash: 0, puff: 0 };
+  private readonly heat: [number, number, number] = [0, 0, 0];
 
   constructor(chassis: Object3D, racerId: string) {
     this.chassis = chassis;
@@ -291,8 +387,12 @@ export class ExhaustFlames {
   /** Above 0, the flames go right against the lens (a rival's: CAM.kartFade); 0, never (your own). A rival's kart fader also shares its opacity with them (uKart). */
   setFade(meters: number): void { if (this.u) this.u.uFade.value = meters; }
 
-  /** `k` the kart's state this frame, `t` a clock in seconds (the race's: still while paused). Reduced motion holds the flames and stars still and calms the pops. */
-  update(k: FlameKart, t: number, reduced = false): void {
+  /**
+   * `k` the kart's state this frame, `t` a clock in seconds (the race's: still while paused), `rev` its
+   * engine's own rev (kart-controller rev.ts; none: no fire off the boost). Reduced motion holds the
+   * flames and stars still and calms the pops.
+   */
+  update(k: FlameKart, t: number, reduced = false, rev?: RevView): void {
     const tier = this.boost.update(k, t);
     const mesh = this.mesh, u = this.u;
     if (!mesh || !u) return;
@@ -302,11 +402,14 @@ export class ExhaustFlames {
     const dt = drifting ? Math.min(3, k.drift.tier) : 0;
     if (dt > this.lastTier && dt > 0) this.flashAt = t;
     this.lastTier = dt;
-    mesh.visible = on || drifting;
+    // off the boost, the pipes' own fire: their heat's glow, tongues, spits and pops
+    const fire = !on && rev ? revFire(rev, reduced, this.fire) : null;
+    const burning = fire !== null && (fire.heat > REV_FIRE.glowFrom || fire.len * REV_FIRE.len > 0.02 || fire.flash > 0 || fire.puff > 0);
+    mesh.visible = on || drifting || burning;
     if (!mesh.visible) return;
     u.uTime.value = t;
     u.uWave.value = reduced ? 0 : 1;
-    u.uOn.value = on ? 1 : 0;
+    u.uOn.value = on || burning ? 1 : 0;
 
     // the stars at the rear tires: a faint glow while the drift charges, then the tier's star
     if (drifting) {
@@ -322,18 +425,24 @@ export class ExhaustFlames {
       u.uStarGain.value = s.gain;
       u.uStarFlash.value = starFlash(t - this.flashAt, reduced);
     } else { u.uStar.value = 0; u.uStarFlash.value = 0; this.starTier = -1; }
-    if (!on) { u.uArc.value = 0; return; }
+    if (!on) {
+      u.uArc.value = 0;
+      if (burning) this.revFlames(fire!, k, t, reduced, u);
+      return;
+    }
 
     const pal = flamePalette(tier);
     if (pal !== this.palette) {
       this.palette = pal;
       u.uMouth.value.setRGB(...pal.mouth); u.uFringe.value.setRGB(...pal.fringe); u.uCore.value.setRGB(...pal.core);
       u.uInner.value.setRGB(...pal.inner); u.uBody.value.setRGB(...pal.body); u.uEdge.value.setRGB(...pal.edge);
+      u.uHeart.value.setRGB(...WHITE_HEART);
     }
     const age = t - this.boost.since, left = k.boost.remaining;
     const ig = ignition(age, popScale(tier, k.boost.source), reduced, this.ign);
     u.uPop.value = ig.pop; u.uFlash.value = ig.flash; u.uRing.value = ig.ring;
-    u.uGain.value = FLAME.gain + FLAME.popGain * ig.pop;
+    // (a start boost's ignition is bigger, never brighter: past 1 the bands would burn toward white)
+    u.uGain.value = FLAME.gain + FLAME.popGain * Math.min(1, ig.pop);
     u.uArc.value = arcLevel(k.boost.source, age, left, reduced);
     const d = flameSize(tier, k.boost.source, age, left, this.size, this.dims, reduced);
     // two out-of-step wobbles per pipe read as fire, and the pipes never flicker together; a dying jet coughs
@@ -342,12 +451,49 @@ export class ExhaustFlames {
     const c0 = sputter(left, t, p, reduced), c1 = sputter(left, t + 0.37, p + 0.5, reduced);
     u.uLen.value.set(d.len * (1 + fl * w0) * c0, d.len * (1 + fl * w1) * c1);
     u.uWid.value.set(d.wid * (1 + fl * 0.4 * w0), d.wid * (1 + fl * 0.4 * w1));
-    // the air past the kart, in the chassis's own frame (it turns under the heading in a drift or a spin)
+    this.air(k, u);
+    u.uGlow.value = 1;
+  }
+
+  /** The air past the kart, in the chassis's own frame (it turns under the heading in a drift or a spin): where the jets bend, and how far. */
+  private air(k: FlameKart, u: JetUniforms): void {
     const vx = k.lateralVelocity ?? 0, vz = k.speed ?? 0, sp = Math.sqrt(vx * vx + vz * vz), wind = u.uWind.value;
     if (sp > 0.5) {
       const yaw = this.chassis.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
       wind.set(-(vx * c - vz * s) / sp, FLAME.windDrop, -(vx * s + vz * c) / sp).normalize();
     } else wind.set(0, FLAME.windDrop, -1).normalize();
     u.uBend.value = FLAME.bend * Math.min(1, sp / FLAME.bendSpeed);
+  }
+
+  /**
+   * The pipes' own fire this frame (revFire's `f`): the rev palette, the mouth's flare and the soft light
+   * round it glowing the heat's color (red to gold), each pipe's tongue flickering out of step, a pop's
+   * flash and puff of fire; no shock ring, no wind arcs.
+   */
+  private revFlames(f: RevFire, k: FlameKart, t: number, reduced: boolean, u: JetUniforms): void {
+    const R = REV_FIRE, pal = PALETTE.rev;
+    if (this.palette !== pal) {
+      this.palette = pal;
+      u.uCore.value.setRGB(...pal.core); u.uInner.value.setRGB(...pal.inner); u.uBody.value.setRGB(...pal.body); u.uEdge.value.setRGB(...pal.edge);
+    }
+    const h = heatColor(f.heat, this.heat), glow = smooth01(R.glowFrom, 0.45, f.heat);
+    // a spit lights the mouth white-hot a moment, whatever the heat
+    const hot = Math.min(1, f.len);
+    u.uHeart.value.setRGB(h[0] + hot * pal.core[0] * 0.5, h[1] + hot * pal.core[1] * 0.5, h[2] + hot * pal.core[2] * 0.5);
+    u.uMouth.value.setRGB(h[0] + hot * pal.mouth[0] * 0.5, h[1] + hot * pal.mouth[1] * 0.5, h[2] + hot * pal.mouth[2] * 0.5);
+    u.uFringe.value.setRGB(pal.fringe[0] * glow, pal.fringe[1] * glow, pal.fringe[2] * glow);
+    u.uPop.value = f.puff;
+    u.uFlash.value = f.flash;
+    u.uRing.value = -1;
+    u.uGain.value = FLAME.gain;
+    u.uGlow.value = Math.max(glow, hot);
+    // each pipe's tongue out of step (two wobbles each), none under reduced motion; short ones thin
+    const size = 1 + (this.size - 1) * FLAME.sizeShare, full = R.len * size, p = this.phase, fl = reduced ? 0 : R.flicker;
+    const w0 = Math.sin(t * 37 + p) * Math.sin(t * 23 + p * 0.5), w1 = Math.sin(t * 41 + 2.1 + p) * Math.sin(t * 29 + 1 + p * 0.5);
+    const l0 = f.len * full * (1 + fl * w0), l1 = f.len * full * (1 + fl * w1);
+    u.uLen.value.set(l0, l1);
+    const wid = (l: number) => R.wid * size * (R.widShare + (1 - R.widShare) * Math.min(1, l / full));
+    u.uWid.value.set(wid(l0), wid(l1));
+    this.air(k, u);
   }
 }

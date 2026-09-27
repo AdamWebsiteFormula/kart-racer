@@ -5,6 +5,7 @@ import { Color, Group, type Material, type Object3D, type Scene } from 'three';
 import { AiDriver } from '../ai-driver/index.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { gestureFor } from '../kart-controller/driverAnim.ts';
+import type { RevView } from '../kart-controller/rev.ts';
 import { SIM_DT } from '../kart-controller/step.ts';
 import { NEUTRAL_INPUT, type InputState, type Vec3 } from '../kart-controller/types.ts';
 import { KartView } from '../kart-controller/view.ts';
@@ -37,6 +38,8 @@ export class RaceSession {
   readonly items: Items;
   readonly ai: AiDriver;
   readonly views: KartView[];
+  /** each kart's engine rev (kart-controller rev.ts; its view's), by kart index: the sound and the pipes' smoke read them */
+  readonly revs: readonly RevView[];
   /** the boost flames on each kart's pipes, by kart index */
   private readonly flames: ExhaustFlames[] = [];
   /** a rival near the lens turns to a see-through ghost (kartFade.ts); yours never does */
@@ -129,6 +132,7 @@ export class RaceSession {
       return v;
     });
     this.roots = this.views.map((v) => v.root);
+    this.revs = this.views.map((v) => v.rev);
     splitShadowDepth(this.group);
     scene.add(this.group);
   }
@@ -194,8 +198,10 @@ export class RaceSession {
       look.self = k;
       look.faceEye = st.phase === 'countdown' && k === this.playerIndex && toGo > FACE_CAMERA_UNTIL;
     }
-    // the views read the tick's karts and inputs (the kart animation, kart-controller anim.ts); they never write them
-    for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT, this.inputs[k]);
+    // the views read the tick's karts and inputs (the kart animation, kart-controller anim.ts); they never write them.
+    // The engines read the start from the ticks between the tick just stepped and the go (rev.ts: the sim's own count)
+    const toGoTicks = st.goTick - (st.tick - 1);
+    for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT, this.inputs[k], toGoTicks);
     this.recorder?.record(st.tick, st.karts[this.playerIndex]);
     if (st.phase === 'finished') this.finishedFor += SIM_DT;
     return ev;
@@ -225,7 +231,7 @@ export class RaceSession {
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt, reduced, this.track);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
-    for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k], st.time, reduced);
+    for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k], st.time, reduced, this.views[k].rev);
     const live = this.live;
     live.pickups = st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates;
     live.coins = st.coinStates;

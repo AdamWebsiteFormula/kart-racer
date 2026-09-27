@@ -5,10 +5,11 @@ import { BODY_WHEELS, MODEL_WHEELS } from '../art-pipeline/rig.ts';
 import { BASE } from '../kart-controller/constants.ts';
 import type { BoostSource } from '../kart-controller/types.ts';
 import {
-  arcLevel, BoostTier, ExhaustFlames, FLAME, flamePalette, flameSize, ignition, PALETTE, popScale, shootOut, sputter, STAR, starFlash, starLook, tierBySeconds,
-  TIER_HOT, TIER_RGB, wheelContact, type FlameKart, type Ignition,
+  arcLevel, BoostTier, ExhaustFlames, FLAME, flamePalette, flameSize, heatColor, ignition, PALETTE, popScale, REV_FIRE, revFire, shootOut, sputter, STAR, starFlash, starLook, tierBySeconds,
+  TIER_HOT, TIER_RGB, wheelContact, type FlameKart, type Ignition, type RevFire,
 } from './flames.ts';
-import { arcPoint, JET, jetGeometry, jetProfile, PART, type JetUniforms } from './jet.ts';
+import { arcPoint, JET, jetGeometry, jetProfile, PART, WHITE_HEART, type JetUniforms } from './jet.ts';
+import type { Launch, RevView, StartRead } from '../kart-controller/rev.ts';
 
 const kart = (source: BoostSource, remaining: number, drifting = false, tier = 0, more: Partial<FlameKart> = {}): FlameKart =>
   ({ drift: { active: drifting, tier }, boost: { source, remaining }, grounded: true, speed: 20, lateralVelocity: 0, isPlayer: true, ...more });
@@ -121,7 +122,8 @@ describe('the jet mesh (one a kart, one draw call: jets, flares, billows, ring, 
   it('its bounds hold the jets at their longest, the shock ring and the tire stars', () => {
     for (const id of RACER_IDS) {
       const e = EXHAUST[id], s = jetGeometry(e).boundingSphere!;
-      const longest = FLAME.tier[2].len * (1 + ((e.size ?? 1) - 1) * FLAME.sizeShare) * (1 + FLAME.popLen * FLAME.popBy.tier[2]);
+      // the longest: a purple mini-turbo's or a start boost's, at the ignition's swell
+      const longest = Math.max(FLAME.tier[2].len * (1 + FLAME.popLen * FLAME.popBy.tier[2]), FLAME.other.len * (1 + FLAME.popLen * FLAME.popBy.start)) * (1 + ((e.size ?? 1) - 1) * FLAME.sizeShare);
       for (const p of e.ports) {
         const d = portDir(e, p);
         expect(s.containsPoint(new Vector3(p[0] + d[0] * longest, p[1] + d[1] * longest, p[2] + d[2] * longest)), id).toBe(true);
@@ -413,5 +415,92 @@ describe('ExhaustFlames: one mesh on the chassis', () => {
     const f = new ExhaustFlames(chassis, 'gus');
     expect((f.mesh as Mesh).geometry).toBe(jetGeometry(chassis.userData.exhaust));
     expect(uniforms(f).uWheel.value.toArray()).toEqual(wheelContact(BODY_WHEELS.buggy.rear, new Vector3()).toArray());
+  });
+});
+
+describe('the pipes off the boost: the engine\'s own rev (26 Sept 2026, kart-controller rev.ts)', () => {
+  /** An engine rev as rev.ts shows it, at its clock 10 s. */
+  const rev = (o: Partial<{ rev: number; load: number; heat: number; start: StartRead; blipAt: number; blipSize: number; popAt: number; popSize: number; pops: number; launch: Launch; launchAt: number }> = {}): RevView => ({
+    rev: 0, load: 0, gas: 0, heat: 0, limiting: 0, cut: 0, clock: 10, blipAt: -Infinity, blipSize: 0, popAt: -Infinity, popSize: 0, pops: 0,
+    launchAt: -Infinity, launch: 'none', start: 'none', ...o,
+  });
+  const fire = (r: RevView, reduced = false): RevFire => revFire(r, reduced, { heat: 0, len: 0, flash: 0, puff: 0 });
+
+  it('the mouth glows with the heat: nothing cold, dull red warm, orange hotter, gold at the limiter, brighter as it heats', () => {
+    const c: [number, number, number] = [0, 0, 0];
+    expect(heatColor(0, c)).toEqual([0, 0, 0]);
+    const warm = [...heatColor(0.3, c)], hotter = [...heatColor(0.65, c)], hot = [...heatColor(1, c)];
+    expect(warm[0]).toBeGreaterThan(warm[1] * 4); // red
+    expect(hotter[1] / hotter[0]).toBeGreaterThan(warm[1] / warm[0]); // toward orange
+    expect(hot[1] / hot[0]).toBeGreaterThan(hotter[1] / hotter[0]); // toward gold
+    expect(Math.max(...hot)).toBeGreaterThan(Math.max(...warm));
+    // the tone map turns anything much past 1.5 white (flames.ts Lessons): the glow stays a color
+    for (const x of hot) expect(x).toBeLessThanOrEqual(2.2);
+  });
+
+  it('tongues burn only near the limiter and off the road; bigger for a start timed for the boost; one held too early coughs', () => {
+    expect(fire(rev({ rev: 0.5 })).len).toBe(0);
+    expect(fire(rev({ rev: 1 })).len).toBeCloseTo(1, 6);
+    expect(fire(rev({ rev: 1, load: 1 })).len).toBe(0);
+    expect(fire(rev({ rev: 1, start: 'ready' })).len).toBeCloseTo(REV_FIRE.ready, 6);
+    // held too early: out part of the time (a stutter, not a steady flame), steady under reduced motion
+    const seen = new Set<number>();
+    for (let t = 10; t < 11; t += 1 / 60) seen.add(+revFire({ ...rev({ rev: 1, start: 'early' }), clock: t }, false, { heat: 0, len: 0, flash: 0, puff: 0 }).len.toFixed(3));
+    expect(seen.size).toBe(2);
+    expect(Math.min(...seen)).toBeLessThan(0.3);
+    expect(fire(rev({ rev: 1, start: 'early' }), true).len).toBeCloseTo(1, 6);
+  });
+
+  it('a blip spits a flame, a pop a bigger one with a flash and a puff of fire, a hard launch a burst; each dies away', () => {
+    const blip = fire(rev({ blipAt: 10 - 0.03, blipSize: 1 }));
+    expect(blip.len).toBeGreaterThan(REV_FIRE.blip * 0.8);
+    expect(blip.flash).toBe(0);
+    expect(fire(rev({ blipAt: 10 - 0.8, blipSize: 1 })).len).toBeLessThan(0.02);
+    const pop = fire(rev({ popAt: 10 - 0.02, popSize: 1, pops: 1 }));
+    expect(pop.len).toBeGreaterThan(blip.len);
+    expect(pop.flash).toBeGreaterThan(0);
+    expect(pop.puff).toBeGreaterThan(0);
+    expect(fire(rev({ popAt: 10 - 0.5, popSize: 1, pops: 1 })).puff).toBe(0);
+    const hard = fire(rev({ launch: 'hard', launchAt: 10 - 0.05 }));
+    expect(hard.len).toBeGreaterThan(REV_FIRE.launch * 0.7);
+    // a start boost's own fire is the boost flame's (bigger still), a soft launch none of its own
+    expect(fire(rev({ launch: 'boost', launchAt: 10 - 0.05 })).len).toBe(0);
+    expect(fire(rev({ launch: 'soft', launchAt: 10 - 0.05 })).len).toBe(0);
+    // reduced motion: calmer
+    expect(fire(rev({ popAt: 10 - 0.02, popSize: 1, pops: 1 }), true).len).toBeLessThan(pop.len * 0.6);
+  });
+
+  it('on a kart: cold at idle nothing draws; revving the mouth glows and tongues burn in the rev palette, no shock ring and no wind arcs; a boost brings its own colors back', () => {
+    const f = new ExhaustFlames(new Group(), 'gus'), u = uniforms(f), still = kart('none', 0, false, 0, { speed: 0 });
+    f.update(still, 1, false, rev());
+    expect(f.mesh!.visible).toBe(false);
+    f.update(still, 1.1, false, rev({ rev: 1, heat: 1, limiting: 1 } as never));
+    expect(f.mesh!.visible).toBe(true);
+    expect(u.uOn.value).toBe(1);
+    expect(u.uRing.value).toBe(-1);
+    expect(u.uArc.value).toBe(0);
+    expect(rgbOf(u.uBody.value)).toEqual(PALETTE.rev.body.map((x) => +x.toFixed(3)));
+    expect(u.uLen.value.x).toBeGreaterThan(REV_FIRE.len * 0.5);
+    expect(u.uHeart.value.g).toBeLessThan(u.uHeart.value.r); // a warm heart, not the boost's white-blue one
+    // warm but under the tongues: the glow alone (a jet under its stub is not drawn)
+    f.update(still, 1.2, false, rev({ rev: 0.4, heat: 0.4 }));
+    expect(f.mesh!.visible).toBe(true);
+    expect(u.uLen.value.x).toBeLessThan(JET.stub);
+    expect(u.uGlow.value).toBeGreaterThan(0);
+    // a boost: its own palette, the white heart, the full glow
+    f.update(kart('start', 1), 1.3, false, rev({ rev: 1, heat: 1 }));
+    expect(rgbOf(u.uBody.value)).toEqual(PALETTE.other.body.map((x) => +x.toFixed(3)));
+    expect(rgbOf(u.uHeart.value)).toEqual(WHITE_HEART.map((x) => +x.toFixed(3)));
+    expect(u.uGlow.value).toBe(1);
+  });
+
+  it('a start boost bursts bigger than any other boost at the go (Mario Kart World\'s rocket start), never brighter', () => {
+    expect(popScale(0, 'start')).toBeGreaterThan(popScale(3, 'drift'));
+    expect(popScale(0, 'start')).toBeGreaterThan(popScale(0, 'item'));
+    const f = new ExhaustFlames(new Group(), 'gus'), u = uniforms(f);
+    f.update(kart('start', 1), 5);
+    expect(u.uPop.value).toBeCloseTo(FLAME.popBy.start, 6);
+    expect(u.uRing.value).toBe(0);
+    expect(u.uGain.value).toBeLessThanOrEqual(FLAME.gain + FLAME.popGain + 1e-9);
   });
 });

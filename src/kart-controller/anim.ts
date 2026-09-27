@@ -7,6 +7,7 @@
 // frame rate and freezes with the hit-stop. It reads the kart state and its input and writes
 // only its own fields: the sim never sees it (game/viewSim.test.ts). KartView (view.ts) puts
 // the pose on the chassis and on the model's morph targets (art-pipeline rig.ts).
+import type { RevView } from './rev.ts';
 import type { InputState, KartState } from './types.ts';
 
 /** A spring's natural frequency (Hz) and damping ratio (1: no overshoot; lower: it bounces back past rest). */
@@ -90,14 +91,34 @@ export const KART_ANIM = Object.freeze({
   halfTrack: 0.6,
   halfBase: 0.6,
 
-  // --- idle life: the engine shivers the kart at a standstill, harder while it revs on the grid
-  idleHz: 9,
-  idleSquash: 0.005,
-  revSquash: 0.014,
-  /** rad the nose lifts (the rear squats) while revving at a standstill */
-  revSquat: 0.025,
-  /** m/s: above this the shiver has faded out */
+  // --- the engine's rumble (rev.ts, the engine's own rev; Adam, 26 Sept 2026: "your kart doesn't seem to
+  // kind of rumble a little bit"). Off the road (the grid, a standstill) the body shivers on its springs,
+  // harder and quicker as the engine revs and pulsing with the limiter's cuts; it squats back on the rev
+  // (the engine's torque: Mario Kart World's rear squats as it revs on the grid); a blip rocks it back
+  // and the driver's head with it, a pop jolts it. It fades as the road takes the engine over. The
+  // shiver goes straight on the pose (a spring would smooth it away), and none of it under reduced motion.
+  /** Hz of the shiver at idle and at the limiter: under half a 30 fps frame rate, so a slow screen never shows it as a wobble */
+  shakeHz: [10, 14] as readonly [number, number],
+  /** m the body shivers on its springs at idle, more at full rev (× the rev squared), more at the limiter (pulsing with its cuts) */
+  shakeIdle: 0.005,
+  shakeRev: 0.011,
+  shakeLimit: 0.008,
+  /** rad of roll and of pitch per m of the shiver (the body wobbles a hair as it bobs) */
+  shakeRoll: 0.9,
+  shakePitch: 0.6,
+  /** rad the driver's head bobs per m of the shiver */
+  shakeNod: 1.5,
+  /** m/s: with no engine rev to read (a bare KartAnim), the idle shiver fades out by this speed */
   idleSpeed: 4,
+  /** rad the nose lifts (the rear squats) at full rev off the road */
+  revSquat: 0.05,
+  /** a blip, times its size: rad/s the nose kicks up, 1/s the rear squats, rad/s the driver's head rocks back */
+  blipKick: 0.8,
+  blipSquash: 1.1,
+  blipNod: 1,
+  /** a pop, times its size: rad/s the nose dips, 1/s the body jolts */
+  popKick: 0.35,
+  popSquash: 0.7,
 
   // --- hit: one full turn in the first `spinShare` of the spin-out, easing to a stop (plan §7.2 item 7)
   spinTurns: 1,
@@ -355,6 +376,12 @@ export class KartAnim {
   private reactAt = 0;
   private readonly rPrev = newPose();
   private readonly rCurr = newPose();
+  /** the engine's shiver on the last two ticks (heave m, roll, pitch, nod rad), its phase, and the rev's last blip and pop seen */
+  private readonly sPrev = { heave: 0, roll: 0, pitch: 0, nod: 0 };
+  private readonly sCurr = { heave: 0, roll: 0, pitch: 0, nod: 0 };
+  private shakePhase = 0;
+  private lastBlip = -Infinity;
+  private lastPop = -Infinity;
 
   constructor(c: AnimKartConsts, seed = 0, tuning: KartAnimTuning = KART_ANIM) {
     this.c = c;
@@ -376,8 +403,12 @@ export class KartAnim {
   /** Seconds the reaction playing's main move lasts (0 with none). */
   get reactionMain(): number { return this.reaction ? REACTION_SECONDS[this.reaction] : 0; }
 
-  /** One sim tick: `s` is the kart after the step, `input` what it drove on. Reads both, writes neither. */
-  tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number): void {
+  /**
+   * One sim tick: `s` is the kart after the step, `input` what it drove on, `rev` its engine's own rev
+   * (rev.ts, ticked already this tick; none: a bare animation, which shivers only at a standstill).
+   * Reads all three, writes none.
+   */
+  tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number, rev?: RevView): void {
     // a tick of no time moves nothing: the rates below divide by dt, and one NaN stays in the springs
     // for good (the podium ticks on the frame's time, 0 while paused or hidden: its three vanished, 25 Sept 2026)
     if (!(dt > 0)) return;
@@ -385,6 +416,8 @@ export class KartAnim {
     const prev = this.prev, curr = this.curr;
     prev.roll = curr.roll; prev.pitch = curr.pitch; prev.yaw = curr.yaw; prev.spin = curr.spin; prev.wobble = curr.wobble;
     prev.squash = curr.squash; prev.lean = curr.lean; prev.look = curr.look; prev.nod = curr.nod; prev.steer = curr.steer;
+    const sp = this.sPrev, sc = this.sCurr;
+    sp.heave = sc.heave; sp.roll = sc.roll; sp.pitch = sc.pitch; sp.nod = sc.nod;
     this.clock += dt;
     // the finish reaction's offsets this tick, on its own layer (a whole turn, done, drops out of both ends: no unwinding)
     const ra = this.rPrev, rb = this.rCurr;
@@ -475,12 +508,22 @@ export class KartAnim {
       this.squash.v += t.hopStretch;
       this.trickDir = -this.trickDir;
     }
+    // the engine: a blip rocks the kart back on its springs and the driver's head with it; a pop jolts it
+    const onGround = grounded && !spinning;
+    if (rev && rev.blipAt > this.lastBlip) {
+      this.lastBlip = rev.blipAt;
+      if (onGround) { const k = rev.blipSize; this.pitch.v -= t.blipKick * k; this.squash.v -= t.blipSquash * k; this.nod.v -= t.blipNod * k; }
+    }
+    if (rev && rev.popAt > this.lastPop) {
+      this.lastPop = rev.popAt;
+      if (onGround) { const k = rev.popSize; this.pitch.v += t.popKick * k; this.squash.v -= t.popSquash * k; }
+    }
 
     // --- targets
     const speed = Math.abs(s.speed);
-    const still = clamp(1 - speed / t.idleSpeed, 0, 1);
-    const shiver = Math.sin(2 * Math.PI * t.idleHz * this.clock + this.phase);
-    const revving = grounded && !spinning ? still * clamp(input.throttle, 0, 1) : 0;
+    // off the road the engine revs the kart: it squats back on the rev (a bare animation: never)
+    const free = rev ? 1 - rev.load : clamp(1 - speed / t.idleSpeed, 0, 1);
+    const revving = onGround && rev ? rev.rev * free : 0;
     let rollT = 0, yawT = 0, lean = 0, look = 0;
     if (grounded && !spinning) {
       rollT = clamp(t.rollPerLatAccel * aLat, -t.rollTurnMax, t.rollTurnMax) + d * t.driftRoll;
@@ -499,12 +542,25 @@ export class KartAnim {
       yawT += t.slowWobble * Math.sin(2 * Math.PI * t.slowHz * this.clock) * Math.min(1, s.status.slowRemaining / 0.5);
     }
     const pitchT = grounded ? clamp(-t.pitchPerAccel * aLong, -t.pitchMax, t.pitchMax) - revving * t.revSquat : 0;
-    const squashT = grounded ? shiver * (still * t.idleSquash + revving * t.revSquash) : 0;
     const nodT = clamp(t.nodPerAccel * -aLong, -t.nodMax, t.nodMax);
+
+    // the shiver: quicker and harder as the engine revs, pulsing with the limiter's cuts; straight on the
+    // pose, none in the air, in a spin, a loop or the claw, nor under a finish reaction's own moves
+    const r = rev ? rev.rev : 0;
+    const amp = onGround && !this.reaction
+      ? free * (t.shakeIdle + t.shakeRev * r * r + (rev ? t.shakeLimit * rev.limiting * (0.5 + 0.5 * rev.cut) : 0))
+      : 0;
+    this.shakePhase += 2 * Math.PI * lerp(t.shakeHz[0], t.shakeHz[1], r) * dt;
+    if (this.shakePhase > 1e4) this.shakePhase -= 2 * Math.PI * Math.floor(this.shakePhase / (2 * Math.PI));
+    const ph = this.shakePhase + this.phase;
+    sc.heave = amp * (0.65 * Math.sin(ph) + 0.35 * Math.sin(0.73 * ph + 2.1));
+    sc.roll = amp * t.shakeRoll * Math.sin(0.57 * ph + 1.3);
+    sc.pitch = amp * t.shakePitch * Math.sin(0.81 * ph + 0.4);
+    sc.nod = amp * t.shakeNod * Math.sin(ph + 0.9);
 
     stepSpring(this.roll, clamp(rollT, -t.rollMax, t.rollMax), t.rollSpring, dt);
     stepSpring(this.pitch, pitchT, t.pitchSpring, dt);
-    stepSpring(this.squash, squashT, t.squashSpring, dt);
+    stepSpring(this.squash, 0, t.squashSpring, dt);
     stepSpring(this.yaw, yawT, t.yawSpring, dt);
     stepSpring(this.lean, clamp(lean, -t.leanMax, t.leanMax), t.leanSpring, dt);
     stepSpring(this.look, clamp(look, -t.lookMax, t.lookMax), t.lookSpring, dt);
@@ -555,19 +611,21 @@ export class KartAnim {
    * its turn in the air left out.
    */
   pose(alpha: number, reduced: boolean, out: AnimPose): AnimPose {
-    const a = this.prev, b = this.curr, t = this.t, ra = this.rPrev, rb = this.rCurr;
+    const a = this.prev, b = this.curr, t = this.t, ra = this.rPrev, rb = this.rCurr, sa = this.sPrev, sb = this.sCurr;
     const k = reduced ? t.reducedScale : 1;
-    out.roll = (lerp(a.roll, b.roll, alpha) + lerp(ra.roll, rb.roll, alpha)) * k;
-    out.pitch = (lerp(a.pitch, b.pitch, alpha) + lerp(ra.pitch, rb.pitch, alpha)) * k;
+    // the engine's shiver: none at all under reduced motion (its squat and rocks stay, scaled like the rest)
+    const sk = reduced ? 0 : 1;
+    out.roll = (lerp(a.roll, b.roll, alpha) + lerp(ra.roll, rb.roll, alpha)) * k + lerp(sa.roll, sb.roll, alpha) * sk;
+    out.pitch = (lerp(a.pitch, b.pitch, alpha) + lerp(ra.pitch, rb.pitch, alpha)) * k + lerp(sa.pitch, sb.pitch, alpha) * sk;
     out.spin = reduced ? 0 : lerp(a.spin, b.spin, alpha) + lerp(ra.spin, rb.spin, alpha);
     out.wobble = reduced ? lerp(a.wobble, b.wobble, alpha) : 0;
     out.yaw = lerp(a.yaw, b.yaw, alpha) + lerp(ra.yaw, rb.yaw, alpha) * k;
     const squash = (lerp(a.squash, b.squash, alpha) + lerp(ra.squash, rb.squash, alpha)) * k;
     out.squash = squash * t.squashShare;
-    out.heave = squash * t.heavePerSquash;
+    out.heave = squash * t.heavePerSquash + lerp(sa.heave, sb.heave, alpha) * sk;
     out.lean = (lerp(a.lean, b.lean, alpha) + lerp(ra.lean, rb.lean, alpha)) * k;
     out.look = (lerp(a.look, b.look, alpha) + lerp(ra.look, rb.look, alpha)) * k;
-    out.nod = (lerp(a.nod, b.nod, alpha) + lerp(ra.nod, rb.nod, alpha)) * k;
+    out.nod = (lerp(a.nod, b.nod, alpha) + lerp(ra.nod, rb.nod, alpha)) * k + lerp(sa.nod, sb.nod, alpha) * sk;
     out.hop = lerp(ra.hop, rb.hop, alpha) * k;
     out.steer = lerp(a.steer, b.steer, alpha);
     out.lift = t.halfTrack * Math.abs(Math.sin(out.roll)) + t.halfBase * Math.abs(Math.sin(out.pitch));
