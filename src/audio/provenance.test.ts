@@ -9,6 +9,7 @@ import BUILT from '../../scripts/sfx/built.json';
 import { fileFor, MOMENT, REPLACED, SFX } from '../../scripts/elevenlabs/catalog.ts';
 import { RECIPES } from '../../scripts/sfx/recipes.ts';
 import type { Layer } from '../../scripts/sfx/types.ts';
+import { blast, bodyW, boom, chirp, EL, note, NOTES, TAKES, thump } from '../../scripts/sfx/parts.ts';
 
 const built = BUILT as Record<string, { recipe: string; sha256: string; seconds: number }>;
 const manifest = MANIFEST as { sfx: Record<string, { url: string; loop?: boolean }> };
@@ -76,6 +77,20 @@ describe('sound provenance: one maker per sound', () => {
       expect(r.why.length, r.id).toBeGreaterThan(20);
       expect(MOMENT[r.id]?.length, r.id).toBeGreaterThan(20);
       expect(r.brief, r.id).not.toMatch(/\b(crowds?|cheer(s|ing)?|chant\w*|shout\w*|sing(s|ing|ers?)?|sung|choir|vocal\w*|people|person|announcer|laugh\w*|scream\w*)\b/i);
+    }
+  });
+
+  it('the building blocks for new recipes (parts.ts) draw only on the approved packs and the pinned takes', () => {
+    for (const [name, [src, st]] of Object.entries(NOTES)) {
+      expect(src.pack, name).toMatch(PACK);
+      expect(Math.abs(st), name).toBeLessThanOrEqual(12.5);
+      expect(note(name, 0, 0.2, 0).src, name).toEqual(src);
+    }
+    expect(EL('boost2')).toEqual({ git: TAKES, path: 'public/audio/sfx/boost2.mp3' });
+    expect(TAKES).toMatch(GIT);
+    for (const l of [blast(-3, 0, 0.5), bodyW('boost3', 0.1, 0.7, 0), chirp(-3, 0), thump(-6), boom(-4)]) {
+      if ('pack' in l.src) expect(l.src.pack).toMatch(PACK);
+      else if ('git' in l.src) expect(l.src.git).toBe(TAKES);
     }
   });
 
