@@ -9,7 +9,7 @@
 // (0k8peno6iPU 0:55 grass and sand, huts, boards) and Peach Beach (RaWZdSiAQdo 0:40 sea walls and
 // planters). Ours, in each biome's own palette: hedgerows, banks and post-and-rail fences with oaks and hay
 // on the farm; dunes, ranch fences, rock outcrops and cacti in the desert; snowbanks, snow fences and pines
-// on the mountain; a sea wall, beach huts, planters and a picket fence by the harbor. Every model is
+// on the mountain; dunes with rope lines, beach huts, a sea wall and flower boxes by the harbor. Every model is
 // code-built, vertex-coloured and a few dozen triangles (they are merged into the track's dressing: no new
 // draw), and G-rated; no Nintendo look-alikes.
 import { Color } from 'three';
@@ -145,13 +145,6 @@ export const EDGE_MODELS: Record<string, { build: Build }> = {
         const [z0, y0] = sag[k], [z1, y1] = sag[k + 1], dz = z1 - z0, dy = y1 - y0;
         m.cyl(0.035, 0.035, Math.hypot(dz, dy) + 0.04, '#efe0b0', [0, (y0 + y1) / 2, (z0 + z1) / 2], [Math.atan2(dz, dy), 0, 0], 4, false);
       }
-    },
-  },
-  // a white picket fence, 4 m along Z
-  'edge-picket': {
-    build: (m) => {
-      for (let k = 0; k < 6; k++) m.box([0.06, 0.95, 0.1], WHITE, [0, 0.47, -1.7 + k * 0.68], undefined, false);
-      for (const y of [0.3, 0.72]) m.box([0.05, 0.08, 4.0], WHITE, [0.05, y, 0], undefined, false);
     },
   },
   // a seaside palm for the clusters (the prop file's palm has its own material: this one merges)
