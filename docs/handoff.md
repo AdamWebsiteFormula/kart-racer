@@ -2,6 +2,29 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
+## State at 27 Sept 2026, 14:25 EDT (read this first; the sections below are older)
+
+**Live** (main f7b9933, Deploy green, live bundle checked; submit-score v20 with core-84787ebc941ca90b, probed): Adam's 26 Sept list ("the game feels very cheap") is done, all research-backed (sources in each SOP's 26-27 Sept Decisions):
+- Menus rebuilt in Mario Kart World's shape: title bands, Mode/Racer/Kart/Cup/Track on a drawn stage, glass tiles, a big 3D hero, real 3D kart pictures (scripts/headless/kart-icons.mjs), stats hidden behind Y and named for the pair ("Momo in the Timber Wagon"), no class words, the cc row under the cups and tracks, dark-glass dialogs.
+- The engine revs with the gas on the grid (src/kart-controller/rev.ts shared by sound, rumble and fire), the kart rumbles, the pipes glow and spit fire; a too-early start smokes.
+- A trick off any real air (ramps, bumps, vents, crests, ledges; press up to 0.22 s early), the hop takes the road's climb; harder AI per class (100cc a real race, 150cc tough, 50cc friendly; gate 19 in game/difficulty.e2e.test.ts). CLIENT_VERSION 7.
+- Happy 1st-3rd, disappointed 4th down (MKW), results beside the racer on wide screens; `kart.finishAs(rank)` in dev.
+- Gears instead of coins (Adam: coins are "too much of a copy of Mario Kart"): the sim keeps its coin names.
+- Visible sea waves (art-pipeline waterRipples.ts), rain splashes, a wet road and tire spray in Windmill Run's storm.
+- 11 sounds rebuilt from free CC0 packs (scripts/sfx recipes + build.py, provenance test): the three boosts, boost pad, spin, koSafe, menu move, sparks, gear pickup, slam, yetiThrow.
+- Track names (Adam: "Meadow" too close to Mario Kart): Lighthouse Loop, Windmill Run, Mesa Rush; ids unchanged.
+- The Settings Voices row hides until public/audio/voice.json exists.
+
+**Not done / waiting on Adam:**
+- **Voice lines:** the 27 Sept runs of `rascal-voice-lines-finish` ran out of the Gemini TTS daily limit (about 36 lines missing: Gus 23, Momo 9, Nova 12; 16 Otto takes unjudged; Gus's lines come out too long). The task was one-time: it needs rescheduling (asked Adam: "Yes: schedule the voice job again for 28 Sept") and a shorter direction for Gus.
+- **Better sounds** (engine, bump, wall, hit, hop, land, trick): the free sources did not beat the shipped ones. Adam is deciding on paid packs (docs/research/reports/Pro game sound effect sources.md; my pick ~$175: Shapeforms Complete Collection, Silverplatter Go Karts, Cascadia Racing Sound Pack). The free Sonniss GDC 2026 bundle is approved but the direct server refuses curl (403) and the Google Drive mirror was over quota twice: Adam may click its 5 links (files then in ~/Downloads).
+- **Stats by rider:** they change by class (light/medium/heavy); two racers of one class show the same bars. Not raised with Adam yet.
+
+**Running at 14:25:** a polish builder (start draw calls under 100, stall smoke, sad finishes readable on every racer, Classic/Buggy pictures, title-to-Mode fade) and a fresh-eyes review against MKW footage (report: docs/research/mkw-gap-review-2026-09-27.md on its branch).
+
+**How this round was run (reuse it):** one builder per job in its own worktree, then one integrator merges them in a worktree branch, runs the gate, rebuilds the score core and checks the hash, runs silent races; main fast-forwards to it after Adam's sentence; push with the AdamWebsiteFormula credential helper (below); watch the Deploy run; check the live bundle; redeploy submit-score (`node scripts/fn-deploy-entry.mjs` → the Supabase connector) and probe with a v(old) post (400) and a never-finishing v(new) log (422).
+**Lessons:** headless checks from parallel builders collided on Chrome's debugging port (one check drove another's race); cdp.mjs now lets Chrome pick its own port. The permission classifier once refused an integrator's `git diff` of one file; the main session resolved that merge only after Adam's explicit OK.
+
 ## State at 26 Sept 2026, 12:45 EDT (read this first; the sections below are older)
 
 **Black flashes: fixed and LIVE** (863bc70, 4fec4c7, bf9e01c; Deploy green, the live bundle has the guard). The live game blacked out whole frames 1-5 times per 25 s lap on five of six tracks (a940204, 25 Sept, to 26 Sept 12:10). Cause: `smoothed()` (glb.ts) leaves zero-length normals on millimetre faces of 17 prop models; three's vertex shader normalizes them to NaN, and bloom spreads one NaN pixel over the frame. Fix: `repairZeroNormals`, plus a NaN guard in bloom's threshold shader. Measured in real races: 32 NaN and 14 black frames before, 0 and 0 in about 6,500 frames after. Tool: `node scripts/headless/nan-scan.mjs <url>` (silent).
