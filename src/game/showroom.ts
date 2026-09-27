@@ -3,7 +3,7 @@
 // drawn by the game's one renderer straight into the main canvas under the menu (main.ts drawStage), so
 // it costs no second WebGL context and no copy. As Mario Kart World's own select screens (stills from
 // its character and vehicle select, youtube.com/watch?v=PI0dNuQNq5k and B9sACzOphLc): the world blurred
-// out of focus behind (ours a still of Harbor Loop from its course intro, blurred once:
+// out of focus behind (ours a still of Lighthouse Loop from its course intro, blurred once:
 // public/art/menus/stage.webp), no pedestal and no box, and the racer large on the right beside the
 // grid, turning slowly (on the Kart screen seated in the kart under the focus). The kart wears its own
 // copies of the materials (never the near-camera fade the rivals' shared ones carry) and gives them back

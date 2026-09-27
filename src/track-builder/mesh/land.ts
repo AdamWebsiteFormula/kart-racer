@@ -1,4 +1,4 @@
-// The land around a track: on a sea track (Harbor Loop, Boardwalk Nights) the coast, and on a land
+// The land around a track: on a sea track (Lighthouse Loop, Boardwalk Nights) the coast, and on a land
 // track the hills, mesas and mountainsides under every raised road. It follows the road out past
 // the roadside decor band and then falls to the sea or the ground plane, so houses, palms, stalls,
 // lamps, cacti and pines stand on solid ground and no road floats in the air. One heightfield over the track's box: every vertex

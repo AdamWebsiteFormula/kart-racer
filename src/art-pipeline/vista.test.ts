@@ -260,7 +260,7 @@ describe('Boardwalk fireworks (WCAG 2.3.1)', () => {
   });
 });
 
-it('Meadow Run has no hot-air balloons, Harbor Loop no frozen gulls, Skyline Circuit no parked airships', () => {
+it('Windmill Run has no hot-air balloons, Lighthouse Loop no frozen gulls, Skyline Circuit no parked airships', () => {
   const decor = (id: string) => TRACKS.find((d) => d.id === id)!.environment!.decor!.map((e) => e.asset);
   expect(decor('harbour-loop')).not.toContain('gull');
   expect(decor('skyline-circuit')).not.toContain('airship');

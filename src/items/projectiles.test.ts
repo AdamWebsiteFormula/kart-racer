@@ -12,7 +12,7 @@ import { signedOffset } from '../track-builder/branches.ts';
 import meadowJson from '../track-builder/tracks/meadow-run.json';
 import type { TrackDefinition } from '../track-builder/types.ts';
 
-/** The oval with the land past its curb drivable (the off-road tracks), and Meadow Run (a 12 degree banked hairpin at t 0.99). */
+/** The oval with the land past its curb drivable (the off-road tracks), and Windmill Run (a 12 degree banked hairpin at t 0.99). */
 const OVAL_OFFROAD: TrackDefinition = { ...JSON.parse(JSON.stringify(OVAL)), offroad: true };
 const MEADOW = JSON.parse(JSON.stringify(meadowJson)) as TrackDefinition;
 
@@ -425,7 +425,7 @@ describe('a shortcut the Final Lap Shift closes', () => {
     }
   });
 
-  it('Canyon Rush, Skyline Circuit: a kart still in the mine or on the rail is on the new road with everyone else: shots hit it, the Anchor hooks it (seam review: they passed through it)', () => {
+  it('Mesa Rush, Skyline Circuit: a kart still in the mine or on the rail is on the new road with everyone else: shots hit it, the Anchor hooks it (seam review: they passed through it)', () => {
     for (const id of ['canyon', 'skyline'] as const) {
       for (const item of ['beachBall', 'homingKite', 'grappleAnchor']) {
         const h = closeUnder(id, 3, 0.55);

@@ -7,7 +7,7 @@ import { RaceManager } from './race.ts';
 import { lookAheadDriver } from './__tests__/drivers.ts';
 import { HARBOUR_LOOP } from './__tests__/fixtures.ts';
 
-/** A solo Time Trial on Harbour Loop, recorded the way the game session does it. */
+/** A solo Time Trial on Lighthouse Loop, recorded the way the game session does it. */
 function recordRun() {
   const track = buildTrack(HARBOUR_LOOP);
   const rm = new RaceManager(track, { mode: 'timeTrial', trackId: track.id, speedClass: 150, seed: 0, racers: [{ racerId: 'pip', archetype: 'light', isPlayer: true }] });

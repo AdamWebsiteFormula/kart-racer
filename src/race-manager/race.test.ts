@@ -38,7 +38,7 @@ const speeds = [19, 17.8, 16.6, 15.4, 14.2, 13, 11.8, 10.6];
 const field = (n: number) => speeds.slice(0, n).map((v, i) => lookAheadDriver(v, laneFor(i)));
 
 describe('RaceManager', () => {
-  it('SOP gate: 8 karts on Harbour Loop finish in speed order with correct laps and lap times', () => {
+  it('SOP gate: 8 karts on Lighthouse Loop finish in speed order with correct laps and lap times', () => {
     const track = buildTrack(HARBOUR_LOOP);
     const rm = new RaceManager(track, config(track, racers(8, 7)));
     const log = run(rm, field(8));

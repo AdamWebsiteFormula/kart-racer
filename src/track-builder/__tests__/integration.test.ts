@@ -1,4 +1,4 @@
-// SOP test 15: the kart controller drives a scripted lap on Harbour Loop.
+// SOP test 15: the kart controller drives a scripted lap on Lighthouse Loop.
 import { describe, expect, it } from 'vitest';
 import { makeConstants } from '../../kart-controller/constants.ts';
 import { SIM_DT, stepKart } from '../../kart-controller/step.ts';
@@ -45,7 +45,7 @@ function driveLap(track: Track) {
   return { s, ticks, events, crossed };
 }
 
-describe('integration on Harbour Loop', () => {
+describe('integration on Lighthouse Loop', () => {
   const track = buildTrack(HARBOUR_LOOP);
 
   it('a full-throttle scripted lap crosses the line inside the lapTimeWarn band with no wall on the start straight', () => {

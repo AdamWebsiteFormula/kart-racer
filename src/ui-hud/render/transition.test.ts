@@ -96,7 +96,7 @@ describe('screen transitions', () => {
     const gp = createGrandPrix({ id: 'sunrise', trackIds: ['harbour-loop', 'harbour-loop', 'harbour-loop'] }, IDS.map((id) => ({ racerId: id, archetype: 'medium' as const, isPlayer: id === 'pip' })), 150, 1);
     const before = structuredClone(gp);
     applyResults(gp, results(IDS));
-    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
+    ui.raceOver({ results: results(IDS), trackName: 'Lighthouse Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
     vi.advanceTimersByTime(UI.wipeMs + 50);
     t.now += 1000;
     ui.dispatch({ type: 'continue' });
@@ -121,7 +121,7 @@ describe('screen transitions', () => {
     const gp = createGrandPrix({ id: 'sunrise', trackIds: ['harbour-loop', 'harbour-loop', 'harbour-loop'] }, IDS.map((id) => ({ racerId: id, archetype: 'medium' as const, isPlayer: id === 'pip' })), 150, 1);
     const before = structuredClone(gp);
     applyResults(gp, results(IDS));
-    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
+    ui.raceOver({ results: results(IDS), trackName: 'Lighthouse Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
     expect(moving()).toEqual(['hud out fwd', 'results in fwd']);
     const res = view('results');
     expect(res.querySelector<HTMLElement>(':scope > .stage')!.style.getPropertyValue('--lag')).toBe(`${UI.finishLagMs}ms`);
@@ -150,7 +150,7 @@ describe('screen transitions', () => {
     expect(ui.changingScreen).toBe(false);
     // the results over a race's finish too: no wait for FINISH!, which is simply gone
     for (const a of [{ type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }] as const) ui.dispatch(a);
-    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false });
+    ui.raceOver({ results: results(IDS), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false });
     expect([ui.app.screen, moving(), ui.changingScreen]).toEqual(['results', [], false]);
     expect(view('results').querySelector<HTMLElement>(':scope > .stage')!.style.getPropertyValue('--lag')).toBe('');
     ui.dispose();
@@ -215,9 +215,9 @@ describe('input while the screen changes: dropped, never queued', () => {
     const { ui, h, t } = make();
     for (const a of [{ type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
     t.now += 1000;
-    key('Enter'); // Harbor Loop
+    key('Enter'); // Lighthouse Loop
     expect(ui.app.screen).toBe('racing');
-    ui.introCard({ cup: 'Sunrise Cup', cupId: 'sunrise', name: 'Harbor Loop', sub: 'Quick Race · 100cc', racer: null, skip: { keys: 'k', pad: 'p' }, bg: '#000000', accent: '#ffffff' });
+    ui.introCard({ cup: 'Sunrise Cup', cupId: 'sunrise', name: 'Lighthouse Loop', sub: 'Quick Race · 100cc', racer: null, skip: { keys: 'k', pad: 'p' }, bg: '#000000', accent: '#ffffff' });
     t.now += 60;
     key('Enter');
     dispatchEvent(new Event('pointerdown'));

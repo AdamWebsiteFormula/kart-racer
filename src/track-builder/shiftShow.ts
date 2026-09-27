@@ -13,11 +13,11 @@ import type { ShiftKind } from './types.ts';
 export const SHOW = Object.freeze({
   /** everyone: the camera widens a little and shakes once as the world changes (none with reduced motion) */
   pulse: Object.freeze({ fov: 5, back: 0.35, trauma: 0.3, in: 0.12, out: 0.9 }),
-  /** Harbor Loop: the sea comes up over the beach road (the tide rolls in from the bay side), the pier ramp lights up */
+  /** Lighthouse Loop: the sea comes up over the beach road (the tide rolls in from the bay side), the pier ramp lights up */
   flood: Object.freeze({ rise: [0.2, 2.4] as const, sea: 0.7, over: 0.22, beacon: 1.2 }),
-  /** Meadow Run: storm clouds sweep over, rain, lightning strikes the oak at the shortcut and it falls across it */
+  /** Windmill Run: storm clouds sweep over, rain, lightning strikes the oak at the shortcut and it falls across it */
   storm: Object.freeze({ clouds: [0, 2.4] as const, rain: [0.3, 2.2] as const, strike: 0.7, fall: [0.9, 2.05] as const }),
-  /** Canyon Rush: the rope bridge breaks in the middle, its planks falling away plank by plank; the mine's lanterns flicker on */
+  /** Mesa Rush: the rope bridge breaks in the middle, its planks falling away plank by plank; the mine's lanterns flicker on */
   collapse: Object.freeze({ snap: 0.45, gap: 0.032, lamps: [0.35, 1.9] as const }),
   /** Frostbite Pass: the fog closes in, the snow thickens, the lake freezes out from the crossing */
   blizzard: Object.freeze({ fog: [0, 3.2] as const, snow: [0, 2.4] as const, freeze: [0.25, 2.5] as const, flurries: 0.3 }),
@@ -43,7 +43,7 @@ export function ease(since: number, from: number, to: number): number {
   return k * k * (3 - 2 * k);
 }
 
-// ---------------------------------------------------------------- lightning (Meadow Run's storm)
+// ---------------------------------------------------------------- lightning (Windmill Run's storm)
 
 /**
  * The storm's strikes: the first on the oak at the shortcut, then one far off every 5 to 8.5 s for

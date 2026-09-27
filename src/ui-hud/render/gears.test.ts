@@ -119,7 +119,7 @@ describe('nothing a player reads says coin', () => {
       mode: 'quick', trackId: 'harbour-loop', speedClass: 150, seed: 1, goTick: 360,
       ranks: ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'].map((id, i) => ({ racerId: id, rank: i + 1, finishTick: 12000 + i * 60, timeMs: 97000 + i * 500, lapTimesMs: [33000, 32000, 32000], dnf: false, projectedMs: -1 })),
     };
-    ui.raceOver({ results, trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false });
+    ui.raceOver({ results, trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false });
     seen.push(read());
     expect(seen.length).toBeGreaterThan(8);
     for (const words of seen) expect(words).not.toMatch(/\bcoins?\b/i);

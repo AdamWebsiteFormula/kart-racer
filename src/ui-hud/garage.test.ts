@@ -262,11 +262,11 @@ describe('garage on the racer screen (jsdom)', () => {
     ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     const medalTimesMs = { gold: 126000, silver: 136000, bronze: 154000 };
     const run = (timeMs: number): RaceResults => ({ mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360, ranks: [{ racerId: 'pip', rank: 1, finishTick: 12000, timeMs, lapTimesMs: [timeMs], dnf: false, projectedMs: -1 }] });
-    ui.raceOver({ results: run(130000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'AQQA', look: { paint: 'pip-alt', body: 'buggy' } });
+    ui.raceOver({ results: run(130000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'AQQA', look: { paint: 'pip-alt', body: 'buggy' } });
     expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ ghost: 'AQQA', paint: 'pip-alt', body: 'buggy' });
-    ui.raceOver({ results: run(140000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'BBBB', look: { body: 'classic' } });
+    ui.raceOver({ results: run(140000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'BBBB', look: { body: 'classic' } });
     expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ ghost: 'AQQA', paint: 'pip-alt', body: 'buggy' });
-    ui.raceOver({ results: run(120000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'CCCC', look: {} });
+    ui.raceOver({ results: run(120000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'CCCC', look: {} });
     expect(ui.save.timeTrial['harbour-loop'].paint).toBeUndefined();
     expect(ui.save.timeTrial['harbour-loop'].body).toBeUndefined();
     ui.dispose();

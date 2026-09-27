@@ -86,7 +86,7 @@ describe('curbs on the inside of tight corners, from the curvature', () => {
     expect(agree).toBeGreaterThan(40);
   });
 
-  it("Harbor Loop: turn one's inside is curbed; its long straights are not; curbs are a small share of the lap", () => {
+  it("Lighthouse Loop: turn one's inside is curbed; its long straights are not; curbs are a small share of the lap", () => {
     const main = buildTrack(HARBOUR_LOOP).branches.main.lut, c = insideCurbs(main);
     // turn one, a ~20 m radius left at t 0.2 to 0.25 (its inside is the turn's own side)
     for (let t = 0.215; t <= 0.24; t += 0.005) {

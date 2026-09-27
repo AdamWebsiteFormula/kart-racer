@@ -1,4 +1,4 @@
-// The mine on Canyon Rush (tunnel.ts, mesh/tunnel.ts): the shortcut runs through a mesa, not under
+// The mine on Mesa Rush (tunnel.ts, mesh/tunnel.ts): the shortcut runs through a mesa, not under
 // the canyon floor (review, 23 Sept 2026: the road ran under the ground sheet, the sky showed
 // through, and a kart could drive out of it sideways into the rock).
 import { describe, expect, it } from 'vitest';
@@ -14,7 +14,7 @@ import type { TrackDefinition } from './types.ts';
 const c = makeConstants('medium', 150);
 const canyon = () => buildTrack(cloneDef(canyonJson as TrackDefinition));
 
-describe('the mine tunnel (Canyon Rush)', () => {
+describe('the mine tunnel (Mesa Rush)', () => {
   it('is laid on the mine shortcut, its road above the canyon floor all the way', () => {
     const track = canyon();
     expect(track.tunnels).toHaveLength(1);

@@ -20,7 +20,7 @@ describe('buildTrack', () => {
     expect(JSON.stringify(a.spawnGrid)).toBe(JSON.stringify(b.spawnGrid));
   });
 
-  it('Harbour Loop: lap about 50 s, 12 checkpoints, 8 spawn slots, 1 shortcut, lighthouse', () => {
+  it('Lighthouse Loop: lap about 50 s, 12 checkpoints, 8 spawn slots, 1 shortcut, lighthouse', () => {
     const t = buildTrack(HARBOUR_LOOP);
     expect(t.id).toBe('harbour-loop');
     expect(t.length / 20).toBeGreaterThan(45);

@@ -1,4 +1,4 @@
-// The Mario Kart World density pass (24 Sept 2026): Frostbite Pass and Canyon Rush layered near, mid
+// The Mario Kart World density pass (24 Sept 2026): Frostbite Pass and Mesa Rush layered near, mid
 // and far, most of it baked into the track's merged dressing (track-builder mesh/merge.ts). Real art
 // (trackAssets), so footprints, rows and spans are the game's own.
 import { describe, expect, it } from 'vitest';

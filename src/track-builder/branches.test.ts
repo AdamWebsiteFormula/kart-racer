@@ -158,7 +158,7 @@ describe('handing a kart between roads (bug hunt, 24 Sept 2026)', () => {
     expect(canyon.nearest(offEnd(0, 2), { t: mine.entryT, branch: mine.index }, T_SEARCH_WINDOW).branch).toBe(mine.index);
   });
 
-  it("Canyon Rush: driving out of the mine, straight or wide onto the sand, rides no flat extension of the mine's end", () => {
+  it("Mesa Rush: driving out of the mine, straight or wide onto the sand, rides no flat extension of the mine's end", () => {
     const c = makeConstants('medium', 150);
     const L = mine.lut, end = L.n - 1;
     for (const [u, turn] of [[0.95, 0], [0.98, 0.3]] as const) {
@@ -186,7 +186,7 @@ describe('handing a kart between roads (bug hunt, 24 Sept 2026)', () => {
     }
   });
 
-  it("Canyon Rush: off the mine onto the main road beside its entry, the ground is read under the kart, not at the edge of the mine's window", () => {
+  it("Mesa Rush: off the mine onto the main road beside its entry, the ground is read under the kart, not at the edge of the mine's window", () => {
     // on the sand left of the main road, turned back toward the mine entry: it is taken by the mine,
     // then handed to the main road; that hand-over read the ground 12.5 m away, 1.2 m higher
     const c = makeConstants('light', 150);

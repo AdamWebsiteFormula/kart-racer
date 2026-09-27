@@ -11,7 +11,7 @@ describe('grass by the road', () => {
   const track = buildTrack(HARBOUR_LOOP);
   const g = placeGrass(track.branches, HARBOUR_LOOP.id, undefined, track.jumps);
 
-  it('lines both curbs of Harbor Loop in the thousands, a few with flowers', () => {
+  it('lines both curbs of Lighthouse Loop in the thousands, a few with flowers', () => {
     expect(g.count).toBeGreaterThan(4000);
     expect(g.count).toBeLessThan(9000); // 13 triangles each: about 100 k at most
     expect(g.matrices.length).toBe(g.count * 16);

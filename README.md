@@ -5,7 +5,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 **Play now: https://adamwebsiteformula.github.io/kart-racer/**
 Keyboard, gamepad or a phone turned sideways; tested in Chrome, Firefox and Safari. Sound on.
 
-![Harbor Loop: the pack races along the seaside road, the volcano island ahead](docs/img/harbour-loop-pack.jpg)
+![Lighthouse Loop: the pack races along the seaside road, the volcano island ahead](docs/img/harbour-loop-pack.jpg)
 
 Inspired by the feel of Mario Kart World. Every racer, track, item and sound is our own.
 
@@ -57,7 +57,7 @@ Time Trial and the Daily post to a global leaderboard.
 
 ![Skyline Circuit: racing above the clouds, boost flames lit](docs/img/skyline-circuit-scenic.jpg)
 
-![The six tracks: Harbor Loop, Meadow Run and Canyon Rush (Sunrise Cup); Frostbite Pass, Boardwalk Nights and Skyline Circuit (Summit Cup)](docs/img/six-tracks.jpg)
+![The six tracks: Lighthouse Loop, Windmill Run and Mesa Rush (Sunrise Cup); Frostbite Pass, Boardwalk Nights and Skyline Circuit (Summit Cup)](docs/img/six-tracks.jpg)
 
 ![The cast: concept art for the eight racers](docs/media/cast.jpg)
 

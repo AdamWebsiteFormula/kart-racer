@@ -101,7 +101,7 @@ describe('the Final Lap Shift show in a race', () => {
 });
 
 describe('the show never touches the race', () => {
-  it('an eight-kart race on Canyon Rush (its route change swapped in from the twin built at load), drawn every tick through its show, is the bare sim\'s race', () => {
+  it('an eight-kart race on Mesa Rush (its route change swapped in from the twin built at load), drawn every tick through its show, is the bare sim\'s race', () => {
     const def = DEF('canyon-rush'), config = eight(def);
     // the bare sim: what the leaderboard server runs (game/simtick.ts), no scene, no stage
     const track = buildTrack(def), manager = new RaceManager(track, config), items = new Items(track, manager);
@@ -125,7 +125,7 @@ describe('the show never touches the race', () => {
     s.dispose();
   }, 240_000);
 
-  it('a Time Trial on Meadow Run at the keys, drawn through the storm, replays on the leaderboard to the same time', () => {
+  it('a Time Trial on Windmill Run at the keys, drawn through the storm, replays on the leaderboard to the same time', () => {
     const def = DEF('meadow-run'), config = soloConfig('timeTrial', def.id, 'pip', 0);
     const s = new RaceSession(new Scene(), def, config);
     // a player's hands: full throttle, steering for the centre line 14 m ahead

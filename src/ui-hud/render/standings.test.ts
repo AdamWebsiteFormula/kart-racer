@@ -41,7 +41,7 @@ afterEach(() => { document.body.innerHTML = ''; });
 describe('faces in every results-type row', () => {
   it('the race results: each racer\'s portrait cropped to the head, ringed in their color, hidden from assistive tech (the name is beside it)', () => {
     const v = view();
-    v.renderResults(resultsModel(results(ORDER), 'pip', 'Harbor Loop'), 'Standings');
+    v.renderResults(resultsModel(results(ORDER), 'pip', 'Lighthouse Loop'), 'Standings');
     const faces = own(v, '.face-ic');
     expect(faces).toHaveLength(8);
     faces.forEach((f, i) => {
@@ -65,8 +65,8 @@ describe('faces in every results-type row', () => {
     v.renderCut(knockoutCutModel(results(ORDER), ko, 'pip'), 'Next race');
     expect(own(v, '.face-ic').map((f) => f.style.getPropertyValue('--portrait').match(/racers\/(\w+)\.webp/)?.[1])).toEqual(ORDER);
 
-    v.renderResults(resultsModel({ ...results(['pip']), mode: 'timeTrial' }, 'pip', 'Harbor Loop'), 'Back to menu', { name: 'Ada' });
-    v.updateBoard(boardModel('timeTrial', 'Harbor Loop', null, [{ id: 'a', name: 'Ada', racerId: 'nova', kartId: 'pod', timeMs: 90000 }, { id: 'b', name: 'Bo', racerId: 'gus', kartId: 'snacktruck', timeMs: 91000 }], { state: 'idle' }));
+    v.renderResults(resultsModel({ ...results(['pip']), mode: 'timeTrial' }, 'pip', 'Lighthouse Loop'), 'Back to menu', { name: 'Ada' });
+    v.updateBoard(boardModel('timeTrial', 'Lighthouse Loop', null, [{ id: 'a', name: 'Ada', racerId: 'nova', kartId: 'pod', timeMs: 90000 }, { id: 'b', name: 'Bo', racerId: 'gus', kartId: 'snacktruck', timeMs: 91000 }], { state: 'idle' }));
     const board = [...v.root.querySelectorAll<HTMLElement>('.board-row')];
     expect(board.map((r) => r.querySelector<HTMLElement>('.face-ic')?.style.getPropertyValue('--crop'))).toEqual([faceCrop('nova'), faceCrop('gus')]);
     expect(board.map((r) => [...r.children].map(words))).toEqual([['cell', null, 'cell', 'cell', 'cell'], ['cell', null, 'cell', 'cell', 'cell']]);

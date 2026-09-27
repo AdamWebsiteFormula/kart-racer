@@ -105,7 +105,7 @@ describe('waveGridGeometry: the near-camera grid the swell actually shows on', (
     const side = Math.round(Math.sqrt(pos.count));
     expect(side * side).toBe(pos.count);
     expect(g.index!.count / 3).toBe((side - 1) * (side - 1) * 2);
-    expect(g.index!.count / 3).toBeLessThan(5000); // Harbour Loop's own margin under the 400k ceiling (frameBudget.test.ts) is a few thousand
+    expect(g.index!.count / 3).toBeLessThan(5000); // Lighthouse Loop's own margin under the 400k ceiling (frameBudget.test.ts) is a few thousand
     let minX = Infinity, maxX = -Infinity;
     const xs = new Set<number>();
     for (let i = 0; i < pos.count; i++) {
@@ -154,7 +154,7 @@ describe('attachWaveFollow: the grid stays under the camera, snapped to whole (f
   });
 });
 
-describe('SEA_TIDE / tideScale: Harbour Loop\'s flood tide, shared with track-builder through TrackAssets.tide (review, 26 Sept 2026, finding 2)', () => {
+describe('SEA_TIDE / tideScale: Lighthouse Loop\'s flood tide, shared with track-builder through TrackAssets.tide (review, 26 Sept 2026, finding 2)', () => {
   it('is 0/1 (no tide) by default', () => {
     expect(SEA_TIDE.rise.value).toBe(0);
     expect(SEA_TIDE.scale.value).toBe(1);
@@ -179,10 +179,10 @@ describe('SEA_TIDE / tideScale: Harbour Loop\'s flood tide, shared with track-bu
     SEA_TIDE.rise.value = 0;
   });
 
-  it('Harbour Loop\'s own numbers: at its full 0.7 m tide, the tallest crest still clears its lowest road point over the sea (1.53 m over the flat sea) by comfortably over the review\'s own 0.3 m ask', () => {
+  it('Lighthouse Loop\'s own numbers: at its full 0.7 m tide, the tallest crest still clears its lowest road point over the sea (1.53 m over the flat sea) by comfortably over the review\'s own 0.3 m ask', () => {
     const fullTide = 0.7;
     const crestAtFullTide = WAVE_MAX_HEIGHT * tideScale(fullTide);
-    const lowestRoadOverFlatSea = 1.53; // measured (buildTrack + lut.minY), Harbour Loop, branch 0
+    const lowestRoadOverFlatSea = 1.53; // measured (buildTrack + lut.minY), Lighthouse Loop, branch 0
     const clearance = lowestRoadOverFlatSea - fullTide - crestAtFullTide;
     expect(clearance).toBeGreaterThan(0.3);
   });

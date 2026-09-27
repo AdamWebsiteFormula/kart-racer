@@ -48,7 +48,7 @@ function quick(h = host()) {
   const ui = new UiRoot(document.body, h, null);
   ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' });
   ui.dispatch({ type: 'setSpeedClass', speedClass: 150 }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
-  ui.raceOver({ results: run('quick', 'harbour-loop', [95000, 96000, 97000, 98000]), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false });
+  ui.raceOver({ results: run('quick', 'harbour-loop', [95000, 96000, 97000, 98000]), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false });
   return { ui, h };
 }
 
@@ -56,7 +56,7 @@ describe('a Quick Race\'s results', () => {
   it('offer Next track (the next track named on it, focused), Race again, then Change track, Change racer and Menu', () => {
     const { ui } = quick();
     expect(actions()).toEqual([['next', 'again'], ['track', 'racer', 'menu']]);
-    expect(document.querySelector('#ui [data-id="next"]')?.textContent).toBe('Next trackMeadow Run');
+    expect(document.querySelector('#ui [data-id="next"]')?.textContent).toBe('Next trackWindmill Run');
     expect(focused()).toBe('next');
     ui.dispose();
   });
@@ -136,7 +136,7 @@ describe('a Time Trial\'s results', () => {
   }
   const medalTimesMs = { gold: 126000, silver: 136000, bronze: 154000 };
   const over = (ms: number, laps: number[], ghost = 'AQQA') => ({
-    results: run('timeTrial', 'meadow-run', [ms], laps), trackName: 'Meadow Run', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost,
+    results: run('timeTrial', 'meadow-run', [ms], laps), trackName: 'Windmill Run', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost,
   });
 
   it('Retry (focused), Change track, Change racer, Menu; Retry races the same track again with no intro, against the best just set', () => {
@@ -163,7 +163,7 @@ describe('a Time Trial\'s results', () => {
     expect(panel.querySelector('h2')?.textContent).toBe('New best! Gold medal!');
     const d = panel.querySelector('.res-delta')!;
     expect([d.textContent, d.className, d.getAttribute('aria-label')]).toEqual(['−1.37', 'res-delta ahead', '1.37 seconds ahead of your best']);
-    expect(panel.querySelector('.sub')?.textContent).toBe('Meadow Run · Old best 1:58.37');
+    expect(panel.querySelector('.sub')?.textContent).toBe('Windmill Run · Old best 1:58.37');
     expect(ui.save.timeTrial['meadow-run']).toMatchObject({ bestMs: 117000, ghost: 'AQQA', splitsMs: [40000, 79000, 117000] });
     // a slower run: behind in red, and the best (its lines and ghost) kept
     pastGuard(ui);
@@ -171,7 +171,7 @@ describe('a Time Trial\'s results', () => {
     ui.raceOver(over(117850, [40100, 39100, 38650], 'AQQB'));
     const slow = document.querySelector('#ui .results.on .res-delta')!;
     expect([slow.textContent, slow.className]).toEqual(['+0.85', 'res-delta behind']);
-    expect(document.querySelector('#ui .results.on .sub')?.textContent).toBe('Meadow Run · Your best 1:57.00');
+    expect(document.querySelector('#ui .results.on .sub')?.textContent).toBe('Windmill Run · Your best 1:57.00');
     expect(ui.save.timeTrial['meadow-run']).toMatchObject({ bestMs: 117000, ghost: 'AQQA', splitsMs: [40000, 79000, 117000] });
     ui.dispose();
   });
@@ -248,7 +248,7 @@ describe('the Daily\'s results', () => {
     const h = host();
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'daily' }); ui.dispatch({ type: 'pickRacer', racerId: 'nova' });
-    ui.raceOver({ results: { ...run('daily', 'meadow-run', [117000]), seed: 20260925 }, trackName: 'Meadow Run', playerId: 'pip', seriesHasNext: false });
+    ui.raceOver({ results: { ...run('daily', 'meadow-run', [117000]), seed: 20260925 }, trackName: 'Windmill Run', playerId: 'pip', seriesHasNext: false });
     expect(actions()).toEqual([['again', 'menu']]);
     expect(document.querySelector('#ui [data-id="again"]')?.textContent).toBe('Race again');
     expect(focused()).toBe('again');
@@ -265,7 +265,7 @@ describe('a series keeps its own flow', () => {
     const h = host();
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'grandPrix' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickCup', cupId: 'sunrise' });
-    ui.raceOver({ results: run('grandPrix', 'harbour-loop', [95000, 96000]), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: true });
+    ui.raceOver({ results: run('grandPrix', 'harbour-loop', [95000, 96000]), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: true });
     expect(actions()).toEqual([['continue']]);
     expect(document.querySelector('#ui [data-id="continue"]')?.textContent).toBe('Standings');
     ui.dispose();

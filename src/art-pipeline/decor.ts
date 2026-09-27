@@ -11,7 +11,7 @@ type Build = (m: ModelBuilder) => void;
 const WOOD = '#a0703c', WOOD_DARK = '#7a5230', WHITE = '#fffaf0', CORAL = '#ff6f61', SUN = '#ffd23f', TEAL = '#2ec4b6', INK = '#1b1b2f';
 
 const MODELS: Record<string, { build: Build }> = {
-  // Frostbite Pass and Canyon Rush at Mario Kart World density: fences, lamps, signs, villages, set-pieces, relief (dressing.ts)
+  // Frostbite Pass and Mesa Rush at Mario Kart World density: fences, lamps, signs, villages, set-pieces, relief (dressing.ts)
   ...DRESSING_MODELS,
   // ---- decor (placeholder: 2 × 4 × 2 box on the ground)
   palm: {
@@ -77,7 +77,7 @@ const MODELS: Record<string, { build: Build }> = {
       m.cone(0.28, 0.14, CORAL, [0, 0.87, 0], undefined, 6, false);
     },
   },
-  // ---- Harbor Loop's seaside clutter along the course limit (the roadside band, past where karts drive)
+  // ---- Lighthouse Loop's seaside clutter along the course limit (the roadside band, past where karts drive)
   crate: {
     build: (m) => {
       m.box([1.1, 1.0, 1.1], '#c08a4f', [0, 0.5, 0]);
@@ -131,7 +131,7 @@ const MODELS: Record<string, { build: Build }> = {
   },
   // the speed pickup (the track's `coins`) is a teal gear with a steel hub, not a coin (gear.ts; Adam, 26 Sept 2026)
   coin: { build: (m) => buildGear(m) },
-  // ================================================================ Meadow Run
+  // ================================================================ Windmill Run
   windmill: {
     build: (m) => {
       m.cyl(2.2, 3.4, 14, '#f3ead8', [0, 7, 0], undefined, 12);                 // tower
@@ -194,7 +194,7 @@ const MODELS: Record<string, { build: Build }> = {
       for (const x of [-0.35, 0.35]) m.cyl(1.02, 1.02, 0.08, '#a0703c', [x, 0, 0], [0, 0, Math.PI / 2], 12, false);
     },
   },
-  // ---- verge ground cover (Meadow Run, Harbor Loop): hundreds of them on the drivable grass between the
+  // ---- verge ground cover (Windmill Run, Lighthouse Loop): hundreds of them on the drivable grass between the
   // curb and the course limit, which karts drive through, so they are small, low and a few dozen triangles
   flowers: {
     build: (m) => {
@@ -227,7 +227,7 @@ const MODELS: Record<string, { build: Build }> = {
       for (const [x, y, z] of [[0.3, 0.6, 0.32], [-0.26, 0.56, 0.24], [0.08, 0.6, -0.44]] as const) m.box([0.09, 0.09, 0.09], '#ff5d73', [x, y, z], [0.6, 0.6, 0], false);
     },
   },
-  // ================================================================ Canyon Rush
+  // ================================================================ Mesa Rush
   arch: {
     build: (m) => {
       for (const x of [-7, 7]) {
@@ -256,7 +256,7 @@ const MODELS: Record<string, { build: Build }> = {
       m.rock(0.8, '#d9734f', [1.1, 0.5, 0.4], [0.9, 0.1, 0.4], [1, 0.7, 1]);
     },
   },
-  // ---- Canyon Rush's verge: dry desert scrub and scattered red stones on the drivable sand
+  // ---- Mesa Rush's verge: dry desert scrub and scattered red stones on the drivable sand
   scrub: {
     build: (m) => {
       // a sagebrush: dusty olive puffs on dry twigs

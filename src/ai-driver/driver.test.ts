@@ -212,7 +212,7 @@ describe('AiDriver gates', () => {
   });
 
   it('9: drift tiers by difficulty on the hairpins; driftUse 0 never hops; no re-hop inside the abort cooldown', () => {
-    // Harbour Loop's bends are gentler than the controller's minimum drift yaw, so no drift
+    // Lighthouse Loop's bends are gentler than the controller's minimum drift yaw, so no drift
     // there can reach tier 1 for anyone (Lessons 2026-09-21); the tiers are gated on hairpins.
     const tiers = (cc: 50 | 100 | 150) => {
       const track = buildTrack(HAIRPIN);
@@ -239,7 +239,7 @@ describe('AiDriver gates', () => {
         if (next) expect(next.tick - end.tick).toBeGreaterThanOrEqual(Math.round(AI.drift.abortCooldown * SIM_HZ) - 1);
       }
     }
-    // Harbour Loop turn 1 was tightened to ~15 m so the first drift can pay there (Decisions 2026-09-21):
+    // Lighthouse Loop turn 1 was tightened to ~15 m so the first drift can pay there (Decisions 2026-09-21):
     // Hard banks a tier on Harbour too
     const harbour = buildTrack(HARBOUR_LOOP);
     const hh = runRace(harbour, config(harbour, racers(8), 150));
@@ -300,7 +300,7 @@ describe('AiDriver gates', () => {
       expect(onBranch, `easy solo seed ${seed}`).toBe(0);
     }
 
-    // Harbour Loop: the tide closes the beach (branch 1); nobody enters it after the shift
+    // Lighthouse Loop: the tide closes the beach (branch 1); nobody enters it after the shift
     const track = buildTrack(HARBOUR_LOOP);
     const beach = track.branches.byId('beach')!.index;
     let shiftTick = -1;

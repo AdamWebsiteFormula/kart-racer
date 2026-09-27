@@ -89,7 +89,7 @@ export const SMOKE = Object.freeze({
 });
 
 /**
- * Spray off the rear tires on a wet road (Meadow Run's Final Lap Shift storm; Adam, 26 Sept 2026: the
+ * Spray off the rear tires on a wet road (Windmill Run's Final Lap Shift storm; Adam, 26 Sept 2026: the
  * rain "does not splash"): Mario Kart World's rain throws a faint white mist behind the rear tires, a
  * thin trail about a kart long (art-pipeline SOP, 26 Sept 2026, two watches agree). A puff from each
  * rear tire in turn, `rate` a second at full wetness and `fullSpeed` m/s (none under `minSpeed`), thrown

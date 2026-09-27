@@ -445,7 +445,7 @@ var e = {
 	}
 }, t = {
 	id: "canyon-rush",
-	name: "Canyon Rush",
+	name: "Mesa Rush",
 	biome: "canyon",
 	cup: "sunrise",
 	orderInCup: 3,
@@ -2053,7 +2053,7 @@ var e = {
 	}
 }, r = {
 	id: "harbour-loop",
-	name: "Harbor Loop",
+	name: "Lighthouse Loop",
 	biome: "harbour",
 	cup: "sunrise",
 	orderInCup: 1,
@@ -2567,7 +2567,7 @@ var e = {
 	}
 }, i = {
 	id: "meadow-run",
-	name: "Meadow Run",
+	name: "Windmill Run",
 	biome: "meadow",
 	cup: "sunrise",
 	orderInCup: 2,

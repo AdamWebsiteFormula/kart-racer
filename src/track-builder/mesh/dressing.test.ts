@@ -1,6 +1,6 @@
 // The land beside an off-road track's road, dressed (detail review 5, 24 Sept 2026): ground cover on
 // the drivable verge, props favouring the outside of corners, mud with a ragged edge and no lines, hay
-// humps on Meadow Run, and a tree line where Meadow's lawn meets its hills.
+// humps on Windmill Run, and a tree line where Meadow's lawn meets its hills.
 import { describe, expect, it } from 'vitest';
 import type { DataTexture, Mesh } from 'three';
 import { BUILDER } from '../constants.ts';
@@ -97,7 +97,7 @@ describe('the verge: ground cover on the drivable land (visual only)', () => {
   });
 });
 
-describe('mud on the road (Meadow Run)', () => {
+describe('mud on the road (Windmill Run)', () => {
   const track = buildTrack(meadowJson as unknown as TrackDefinition), lut = track.branches.main.lut, palette = paletteFor(track.def);
   const MUD = SURFACES.indexOf('mud');
 
@@ -138,7 +138,7 @@ describe('mud on the road (Meadow Run)', () => {
   });
 });
 
-describe('Meadow Run: hay humps and the horizon', () => {
+describe('Windmill Run: hay humps and the horizon', () => {
   it('its trick bumps are straw with a red twine crest, not brown slabs', () => {
     const scene = buildTrackScene(buildTrack(meadowJson as unknown as TrackDefinition));
     const humps = scene.group.getObjectByName('humps') as Mesh;

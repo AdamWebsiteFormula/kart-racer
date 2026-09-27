@@ -217,7 +217,7 @@ describe('the sea (waterMaterial, waterDepth.ts): see-through, drawn first among
     expect(Math.sign(dirB)).not.toBe(Math.sign(dirA));
   });
 
-  it("Harbour Loop's real scene: the water plane draws renderOrder -2 (right after every opaque thing, before every other see-through thing) and its onBeforeRender is really wired to the depth capture, not the default no-op", () => {
+  it("Lighthouse Loop's real scene: the water plane draws renderOrder -2 (right after every opaque thing, before every other see-through thing) and its onBeforeRender is really wired to the depth capture, not the default no-op", () => {
     const def = TRACKS.find((d) => d.id === 'harbour-loop')!;
     const scene = buildTrackScene(buildTrack(def), trackAssets(def.biome));
     const ground = scene.group.getObjectByName('ground-water') as Mesh;

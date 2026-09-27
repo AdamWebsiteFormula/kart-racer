@@ -10,7 +10,7 @@ function bad(mutate: (d: TrackDefinition) => void): string[] {
 }
 
 describe('validate', () => {
-  it('Harbour Loop passes with no warnings', () => {
+  it('Lighthouse Loop passes with no warnings', () => {
     const v = validateTrack(HARBOUR_LOOP);
     expect(v.errors).toEqual([]);
     expect(v.warnings).toEqual([]);

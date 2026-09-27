@@ -1,4 +1,4 @@
-// Tunnels (a shortcut's `tunnel` stretch: Canyon Rush's mine). Laid once on the shortcut from its
+// Tunnels (a shortcut's `tunnel` stretch: Mesa Rush's mine). Laid once on the shortcut from its
 // def: its road line as world points, and the mesa over it (the land stands tunnelHill above the
 // road, rising over tunnelRamp from each portal). Any road that runs along that line (the shortcut,
 // and the main line once a route change takes the same road) is covered there: rock walls at the

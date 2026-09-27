@@ -38,7 +38,7 @@ describe('draw-call budget (SOP test 14)', () => {
   const track = buildTrack(HARBOUR_LOOP);
   const scene = buildTrackScene(track);
 
-  it('Harbour Loop scene has ≤ 40 Mesh + InstancedMesh objects, each with one material', () => {
+  it('Lighthouse Loop scene has ≤ 40 Mesh + InstancedMesh objects, each with one material', () => {
     const list = meshes(scene);
     expect(list.length).toBe(scene.drawables());
     expect(list.length).toBeLessThanOrEqual(BUILDER.trackDrawCallBudget);

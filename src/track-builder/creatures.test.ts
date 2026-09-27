@@ -134,7 +134,7 @@ describe('course creatures', () => {
     expect(Math.abs(push[0] * s.tangent[0] + push[2] * s.tangent[2])).toBeLessThan(1e-6);
   });
 
-  it('Canyon Rush: the Rumblesaur stomps on the canyon floor, off the road the final lap replaces, and its ring rolls across the whole road every lap', () => {
+  it('Mesa Rush: the Rumblesaur stomps on the canyon floor, off the road the final lap replaces, and its ring rolls across the whole road every lap', () => {
     // bug hunt 2 (24 Sept 2026): authored at t 0.58, inside the collapse's route override (0.32-0.665);
     // on the final lap it moved 69 m into the mesa over the mine and its ring spun karts in the bore
     const def = withCreature(canyonJson as TrackDefinition);

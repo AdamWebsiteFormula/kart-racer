@@ -1,4 +1,4 @@
-// The driving assists (game/assist.ts), one tick at a time on the real Harbor Loop: Auto-accelerate's
+// The driving assists (game/assist.ts), one tick at a time on the real Lighthouse Loop: Auto-accelerate's
 // gas, and where Steering assist does and does not turn the wheel. The whole-race gates (a lap driven
 // straight, the replay of its log) are in assist.e2e.test.ts.
 import { describe, expect, it } from 'vitest';
@@ -18,7 +18,7 @@ const c = makeConstants('medium', 150);
 const STEER: AssistSettings = { autoAccelerate: false, steeringAssist: true };
 const OFF: AssistSettings = { autoAccelerate: false, steeringAssist: false };
 
-/** A kart on Harbor Loop's main road at t, `lat` metres right of centre, `turn` rad off the road's heading (+ = toward its right), at `speed`. */
+/** A kart on Lighthouse Loop's main road at t, `lat` metres right of centre, `turn` rad off the road's heading (+ = toward its right), at `speed`. */
 function kartAt(t: number, lat: number, turn = 0, speed = 25): KartState {
   const s = harbor.sample(t, lat, 0);
   const k = createKartState({ racerId: 'juniper', isPlayer: true, position: [...s.position], heading: headingOf(harbor.sample(t, 0, 0).tangent) + turn, t });
@@ -35,7 +35,7 @@ function settle(a: DriveAssist, raw: InputState, k: KartState, set = STEER, phas
   return out;
 }
 
-/** Harbor Loop's start straight, and a stretch of its left edge that is open (the drop the claw fetches you from). */
+/** Lighthouse Loop's start straight, and a stretch of its left edge that is open (the drop the claw fetches you from). */
 const START = harbor.startT;
 const DROP_T = 0.53;
 

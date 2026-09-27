@@ -1,5 +1,5 @@
 // Mario Kart World density (24 Sept 2026): the props, set-pieces and ground relief that layer Frostbite
-// Pass and Canyon Rush near, mid and far. Code-built toon models, vertex-coloured, a few hundred
+// Pass and Mesa Rush near, mid and far. Code-built toon models, vertex-coloured, a few hundred
 // triangles each, so most are baked into the track's merged dressing (track-builder mesh/merge.ts).
 // Origins on the ground. Row pieces (fences, lamp posts, corner signs, the ski lift, cliff walls, rails)
 // run along local Z with local -X facing the road; spans (bunting, the rock arch) stand across the road
@@ -250,7 +250,7 @@ export const DRESSING_MODELS: Record<string, { build: Build }> = {
   },
   'frost-sign': { build: (m) => chevronSign(m, PINK, '#ffffff', DARK_WOOD, true) },
 
-  // ================================================================ Canyon Rush
+  // ================================================================ Mesa Rush
   saguaro: {
     build: (m) => {
       m.cyl(0.45, 0.52, 5.4, CACTUS, [0, 2.7, 0], undefined, 8, false);
@@ -498,7 +498,7 @@ export const DRESSING_MODELS: Record<string, { build: Build }> = {
     },
   },
 
-  // ================================================================ lighter pass: Meadow Run and Harbor Loop
+  // ================================================================ lighter pass: Windmill Run and Lighthouse Loop
   'meadow-bunting': {
     build: (m) => {
       spanPoles(m, 9.2, FENCE_WOOD, '#e8384f');

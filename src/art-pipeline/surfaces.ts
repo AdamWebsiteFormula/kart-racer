@@ -37,7 +37,7 @@ export const ROAD_WET = { value: 0 };
  * per fragment from world xz... instead of interpolating vertex normals"). `fade` (1 near the camera, 0
  * by WAVE_FADE.far) zeroes it near the grid's own far edge, so it meets the flat plane with no seam,
  * and reduces the flat plane's own few, huge vertices (too sparse to show a swell at all) to exactly
- * their old, flat selves; `uTideFade` (Harbour Loop's flood tide, art-pipeline waterWaves.ts SEA_TIDE)
+ * their old, flat selves; `uTideFade` (Lighthouse Loop's flood tide, art-pipeline waterWaves.ts SEA_TIDE)
  * shrinks it further once the tide is in, 1 everywhere else.
  */
 const WATER_VERT = `

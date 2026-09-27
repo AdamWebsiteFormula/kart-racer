@@ -117,7 +117,7 @@ describe('the podium screen', () => {
     const gp = createGrandPrix({ id: 'sunrise', trackIds: ['harbour-loop', 'meadow-run'] }, racers, 150, 1);
     const before = structuredClone(gp);
     applyResults(gp, results(IDS));
-    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
+    ui.raceOver({ results: results(IDS), trackName: 'Lighthouse Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
     const scr = document.querySelector('#ui .results.on') as HTMLElement;
     expect(scr.classList.contains('beside')).toBe(true);
     // jsdom lays nothing out: the panel stands 55% of the way across a 1600 px window
@@ -149,7 +149,7 @@ describe('the podium screen', () => {
     const gp = createGrandPrix({ id: 'sunrise', trackIds: ['harbour-loop'] }, racers, 150, 1);
     const before = structuredClone(gp);
     applyResults(gp, results(['momo', 'pip', ...IDS.slice(2)]));
-    ui.raceOver({ results: results(['momo', 'pip', ...IDS.slice(2)]), trackName: 'Harbor Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: false, podium: podiumOf(gp) });
+    ui.raceOver({ results: results(['momo', 'pip', ...IDS.slice(2)]), trackName: 'Lighthouse Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: false, podium: podiumOf(gp) });
     const press = () => (document.querySelector('#ui .screen.on [data-id="continue"]') as HTMLElement).click();
     now += UI.endScreenGuardMs + 1; press();
     expect(ui.app.screen).toBe('gpTable');

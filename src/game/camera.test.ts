@@ -116,7 +116,7 @@ describe('clampAboveSea: no camera reads under the sea\'s actual surface, whatev
         expect(pos[1]).toBeGreaterThanOrEqual(track.groundPlaneY + tide + WAVE_MAX_HEIGHT * tideScale(tide) + 0.05);
       }
     }
-    expect(waterTracks).toBeGreaterThanOrEqual(2); // Harbour Loop and Boardwalk Nights, at least
+    expect(waterTracks).toBeGreaterThanOrEqual(2); // Lighthouse Loop and Boardwalk Nights, at least
     SEA_TIDE.rise.value = 0;
   });
 

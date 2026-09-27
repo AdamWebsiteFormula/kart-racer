@@ -116,7 +116,7 @@ describe('menus', () => {
 
 describe('results screens', () => {
   it('SOP test 9: ranks in order, dnf greyed and timeless, gaps to the winner, stagger rising by one step', () => {
-    const vm = resultsModel(results(['gus', 'pip', 'momo'], ['momo']), 'pip', 'Harbour Loop');
+    const vm = resultsModel(results(['gus', 'pip', 'momo'], ['momo']), 'pip', 'Lighthouse Loop');
     expect(vm.rows.map((r) => r.name)).toEqual(['Big Gus', 'Pip', 'Momo']);
     expect(vm.rows[1]).toMatchObject({ time: '0:50.50', gap: '+0.50', player: true });
     expect(vm.rows[2]).toMatchObject({ time: 'DNF', gap: '', dnf: true });
@@ -127,9 +127,9 @@ describe('results screens', () => {
 
   it('a solo run (the Daily Challenge) is not a win: the headline gives the time', () => {
     const solo = { ...results(['pip']), mode: 'daily' as const };
-    expect(resultsModel(solo, 'pip', 'Meadow Run').headline).toBe('Finished! 0:50.00');
-    expect(resultsModel(results(['pip', 'gus']), 'pip', 'Meadow Run').headline).toBe('You win!');
-    expect(resultsModel(results(['pip'], ['pip']), 'pip', 'Meadow Run').headline).toBe('Out of time');
+    expect(resultsModel(solo, 'pip', 'Windmill Run').headline).toBe('Finished! 0:50.00');
+    expect(resultsModel(results(['pip', 'gus']), 'pip', 'Windmill Run').headline).toBe('You win!');
+    expect(resultsModel(results(['pip'], ['pip']), 'pip', 'Windmill Run').headline).toBe('Out of time');
   });
 
   it('SOP test 10: the Grand Prix table has points, gains, and stars once the cup is done', () => {
@@ -261,7 +261,7 @@ describe('racer faces (25 Sept 2026)', () => {
 });
 
 describe('attract race', () => {
-  it('the title races around Harbor Loop whatever track files sort first (design §12, bug hunt 2)', () => {
+  it('the title races around Lighthouse Loop whatever track files sort first (design §12, bug hunt 2)', () => {
     // the same glob main.ts reads: Boardwalk Nights sorts first and used to take over the title
     const files = import.meta.glob('../../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, { id: string }>;
     const ids = Object.values(files).map((d) => d.id);
@@ -316,7 +316,7 @@ describe('results: rivals cut off at the grace', () => {
     const res = results(['pip', 'momo', 'nova'], ['momo', 'nova']);
     res.ranks[1].projectedMs = 52000;
     res.ranks[2].projectedMs = 53000;
-    const vm = resultsModel(res, 'nova', 'Harbor Loop');
+    const vm = resultsModel(res, 'nova', 'Lighthouse Loop');
     expect(vm.rows[1].time).toBe('0:52.00');
     expect(vm.rows[1].gap).not.toBe('');
     expect(vm.rows[2].time).toBe('DNF');
@@ -331,14 +331,14 @@ describe('leaderboard panel model (audit 24 Sept 2026)', () => {
     expect(nextDailyAt(noonUtc, 'America/New_York')).toBe('8:00 PM');
     expect(nextDailyAt(noonUtc, 'America/Los_Angeles')).toBe('5:00 PM');
     expect(nextDailyAt(noonUtc, 'UTC')).toBe('12:00 AM');
-    const vm = boardModel('daily', 'Harbor Loop', 20260925, [], { state: 'idle' }, '8:00 PM');
-    expect(vm.sub).toBe('Daily Challenge · Sep 25 · Harbor Loop');
+    const vm = boardModel('daily', 'Lighthouse Loop', 20260925, [], { state: 'idle' }, '8:00 PM');
+    expect(vm.sub).toBe('Daily Challenge · Sep 25 · Lighthouse Loop');
     expect(vm.note).toBe('Next challenge at 8:00 PM your time (midnight UTC)');
-    expect(boardModel('timeTrial', 'Harbor Loop', null, [], { state: 'idle' }, '8:00 PM').note).toBe('');
+    expect(boardModel('timeTrial', 'Lighthouse Loop', null, [], { state: 'idle' }, '8:00 PM').note).toBe('');
   });
 
   it('a board row names the kart next to the racer (design §5, K6): "Pip in the Snack Truck"', () => {
-    const rows = boardModel('timeTrial', 'Harbor Loop', null, [
+    const rows = boardModel('timeTrial', 'Lighthouse Loop', null, [
       { id: 'a', name: 'Ada', racerId: 'pip', kartId: 'snacktruck', timeMs: 90000 },
       { id: 'b', name: 'Bo', racerId: 'gus', kartId: 'snacktruck', timeMs: 91000 }, // his own: still named
       { id: 'c', name: 'Cy', racerId: 'nova', kartId: 'not-a-kart', timeMs: 92000 }, // an old score, no kart known
@@ -352,12 +352,12 @@ describe('leaderboard panel model (audit 24 Sept 2026)', () => {
   });
 
   it('Post is live whatever the board read did; Try again shows only when the read failed', () => {
-    const off = boardModel('timeTrial', 'Harbor Loop', null, 'offline', { state: 'idle' });
+    const off = boardModel('timeTrial', 'Lighthouse Loop', null, 'offline', { state: 'idle' });
     expect([off.buttonDisabled, off.retry]).toEqual([false, true]);
-    const loading = boardModel('timeTrial', 'Harbor Loop', null, 'loading', { state: 'idle' });
+    const loading = boardModel('timeTrial', 'Lighthouse Loop', null, 'loading', { state: 'idle' });
     expect([loading.buttonDisabled, loading.retry]).toEqual([false, false]);
-    expect(boardModel('timeTrial', 'Harbor Loop', null, 'offline', { state: 'posting' }).buttonDisabled).toBe(true);
-    expect(boardModel('timeTrial', 'Harbor Loop', null, [], { state: 'posted', id: 'x', rank: 3 }).buttonDisabled).toBe(true);
+    expect(boardModel('timeTrial', 'Lighthouse Loop', null, 'offline', { state: 'posting' }).buttonDisabled).toBe(true);
+    expect(boardModel('timeTrial', 'Lighthouse Loop', null, [], { state: 'posted', id: 'x', rank: 3 }).buttonDisabled).toBe(true);
   });
 });
 
@@ -389,10 +389,10 @@ describe('Time Trial medals (sweep 24 Sept 2026)', () => {
       mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
       ranks: [{ racerId: 'pip', rank: 1, finishTick: 14000, timeMs, lapTimesMs: [timeMs], dnf, projectedMs: -1 }],
     });
-    expect(resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, times).medal?.won).toBe('gold');
-    expect(resultsModel(run(140000), 'pip', 'Harbor Loop', UI.staggerResultsMs, times).medal?.won).toBe('bronze');
-    expect(resultsModel(run(-1, true), 'pip', 'Harbor Loop', UI.staggerResultsMs, times).medal).toBeUndefined();
-    expect(resultsModel(run(117500), 'pip', 'Harbor Loop').medal).toBeUndefined();
+    expect(resultsModel(run(117500), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, times).medal?.won).toBe('gold');
+    expect(resultsModel(run(140000), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, times).medal?.won).toBe('bronze');
+    expect(resultsModel(run(-1, true), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, times).medal).toBeUndefined();
+    expect(resultsModel(run(117500), 'pip', 'Lighthouse Loop').medal).toBeUndefined();
   });
 
   it('the results say how the run did against the best it raced: "−1.37" ahead with the old best under it, "+0.85" behind (25 Sept 2026)', () => {
@@ -400,17 +400,17 @@ describe('Time Trial medals (sweep 24 Sept 2026)', () => {
       mode: 'timeTrial', trackId: 'harbour-loop', speedClass: 150, seed: 0, goTick: 360,
       ranks: [{ racerId: 'pip', rank: 1, finishTick: 14000, timeMs, lapTimesMs: [timeMs], dnf, projectedMs: -1 }],
     });
-    const ahead = resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 118870);
+    const ahead = resultsModel(run(117500), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, times, 118870);
     expect(ahead.delta).toEqual({ text: '−1.37', ahead: true, words: '1.37 seconds ahead of your best' });
-    expect(ahead.sub).toBe('Harbor Loop · Old best 1:58.87');
-    const behind = resultsModel(run(119720), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 118870);
+    expect(ahead.sub).toBe('Lighthouse Loop · Old best 1:58.87');
+    const behind = resultsModel(run(119720), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, times, 118870);
     expect(behind.delta).toEqual({ text: '+0.85', ahead: false, words: '0.85 seconds behind your best' });
-    expect(behind.sub).toBe('Harbor Loop · Your best 1:58.87');
+    expect(behind.sub).toBe('Lighthouse Loop · Your best 1:58.87');
     // a first run has no best to beat; a DNF says nothing of one; neither does a race with no medal times (not a Time Trial)
-    const first = resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 0);
-    expect([first.sub, first.delta]).toEqual(['Harbor Loop', undefined]);
-    expect(resultsModel(run(-1, true), 'pip', 'Harbor Loop', UI.staggerResultsMs, times, 118870).delta).toBeUndefined();
-    expect(resultsModel(run(117500), 'pip', 'Harbor Loop', UI.staggerResultsMs, undefined, 118870).delta).toBeUndefined();
+    const first = resultsModel(run(117500), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, times, 0);
+    expect([first.sub, first.delta]).toEqual(['Lighthouse Loop', undefined]);
+    expect(resultsModel(run(-1, true), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, times, 118870).delta).toBeUndefined();
+    expect(resultsModel(run(117500), 'pip', 'Lighthouse Loop', UI.staggerResultsMs, undefined, 118870).delta).toBeUndefined();
   });
 
   it('a new best keeps its time at each lap line from the start, the last its own time (laps are rounded one by one)', () => {
@@ -439,9 +439,9 @@ describe('the end buttons (25 Sept 2026: Mario Kart World\'s end-of-race menu)',
   const flow = { seriesHasNext: false };
 
   it('a Quick Race: Next track (the track it goes to under it) and Race again, then Change track, Change racer and Menu', () => {
-    const vm = endMenu('results', 'quick', flow, 'Meadow Run');
+    const vm = endMenu('results', 'quick', flow, 'Windmill Run');
     expect(ids(vm)).toEqual([['next', 'again'], ['track', 'racer', 'menu']]);
-    expect(vm.rows[0][0]).toEqual({ id: 'next', label: 'Next track', sub: 'Meadow Run' });
+    expect(vm.rows[0][0]).toEqual({ id: 'next', label: 'Next track', sub: 'Windmill Run' });
     expect(vm.rows.flat().map((b) => b.label)).toEqual(['Next track', 'Race again', 'Change track', 'Change racer', 'Menu']);
   });
 

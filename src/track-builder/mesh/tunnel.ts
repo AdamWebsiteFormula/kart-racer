@@ -1,4 +1,4 @@
-// The mine on Canyon Rush (a shortcut's `tunnel`: track-builder/tunnel.ts). A rock bore portal to
+// The mine on Mesa Rush (a shortcut's `tunnel`: track-builder/tunnel.ts). A rock bore portal to
 // portal (walls at the curb, an arched roof), timber frames every tunnelFrameSpacing metres, lanterns
 // on alternate walls, and a heavy timber portal with a header board at each end. The mesa over it is
 // the land (terrain.ts). One mesh, vertex colours, one draw call; the lanterns light themselves: dim

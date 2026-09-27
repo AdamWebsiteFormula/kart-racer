@@ -1,5 +1,5 @@
 // The chase camera's corridor is clear of scenery (review, 24 Sept 2026: a white slab filled a third
-// of the screen on Canyon Rush). Headless: the lens is swept over every drivable metre of every road
+// of the screen on Mesa Rush). Headless: the lens is swept over every drivable metre of every road
 // on every track (off-road land out to the course limit too, where the camera follows a kart), at the
 // chase height and at the lowest the camera sinks to, and no decor or merged dressing volume may
 // hold it. Spans cross high over the road (art-pipeline dressing.test.ts); ground cover is under the lens.

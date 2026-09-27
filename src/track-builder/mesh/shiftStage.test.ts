@@ -65,7 +65,7 @@ describe('the Final Lap Shift stage on every track', () => {
     scene.dispose();
   });
 
-  it('Harbor Loop: the tide floods the beach road (kept drawn under it), the sea comes up, the pier ramp\'s beacon lights', () => {
+  it('Lighthouse Loop: the tide floods the beach road (kept drawn under it), the sea comes up, the pier ramp\'s beacon lights', () => {
     const { track, scene, stage } = build(DEF('harbour-loop'));
     const sea = scene.group.getObjectByName('ground-water')!, y0 = sea.position.y;
     const flood = named(stage.group, 'shift-flood')!, beacon = named(stage.group, 'shift-beacon')!;
@@ -86,7 +86,7 @@ describe('the Final Lap Shift stage on every track', () => {
     scene.dispose();
   });
 
-  it('Meadow Run: lightning flashes and strikes the oak by the cut; it falls across the cut and stays; the cloud and rain roll in', () => {
+  it('Windmill Run: lightning flashes and strikes the oak by the cut; it falls across the cut and stays; the cloud and rain roll in', () => {
     const { track, scene, stage } = build(DEF('meadow-run'));
     const pivot = stage.group.getObjectByName('shift-oak-pivot')!;
     expect(pivot).toBeDefined();
@@ -111,7 +111,7 @@ describe('the Final Lap Shift stage on every track', () => {
     scene.dispose();
   });
 
-  it('Meadow Run: the rain splashes where it lands, on the road as drawn round the camera\'s kart, and wets the road as hard as it rains', () => {
+  it('Windmill Run: the rain splashes where it lands, on the road as drawn round the camera\'s kart, and wets the road as hard as it rains', () => {
     const { track, scene, stage } = build(DEF('meadow-run'));
     const splashes = named(stage.group, 'shift-splashes')!;
     expect(splashes).toBeDefined();
@@ -142,7 +142,7 @@ describe('the Final Lap Shift stage on every track', () => {
     scene.dispose();
   });
 
-  it('Canyon Rush: a rope bridge stands over the chasm (the road leaves it the span); at the shift its planks fall away from the middle out; the mine lights', () => {
+  it('Mesa Rush: a rope bridge stands over the chasm (the road leaves it the span); at the shift its planks fall away from the middle out; the mine lights', () => {
     const { track, scene, stage } = build(DEF('canyon-rush'));
     const bridge = named(stage.group, 'shift-bridge')!;
     expect(stage.roadGap).not.toBeNull();

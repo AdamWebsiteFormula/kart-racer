@@ -12,14 +12,14 @@ import { HARBOUR_WITH_PIER as HARBOUR_LOOP, cloneDef } from './__tests__/fixture
 import type { ControlPoint, TrackChanged, TrackDefinition } from './types.ts';
 
 const c = makeConstants('medium', 150);
-/** Canyon Rush or Skyline Circuit on its final lap: the route override has made the shortcut the main road. */
+/** Mesa Rush or Skyline Circuit on its final lap: the route override has made the shortcut the main road. */
 function shifted(json: unknown) {
   const track = buildTrack(cloneDef(json as TrackDefinition));
   track.applyFinalLapShift([]);
   return track;
 }
 
-/** Harbour Loop with a bridge that collapses: the shift reroutes t 0.45–0.55 over a longer detour. */
+/** Lighthouse Loop with a bridge that collapses: the shift reroutes t 0.45–0.55 over a longer detour. */
 function collapseDef(): TrackDefinition {
   const d = cloneDef(HARBOUR_LOOP);
   // the harbor's open pier edge (0.47-0.6) would straddle this made-up detour; the validator forbids that
@@ -129,7 +129,7 @@ describe('applyFinalLapShift', () => {
     expect(events).toHaveLength(1);
   });
 
-  it('Harbour Loop: the tide closes the beach and nothing else moves', () => {
+  it('Lighthouse Loop: the tide closes the beach and nothing else moves', () => {
     const track = buildTrack(HARBOUR_LOOP);
     const before = track.length;
     const e = track.applyFinalLapShift()!;
@@ -146,7 +146,7 @@ describe('applyFinalLapShift', () => {
 // mesa, the land and any kart still on the closed shortcut all sit on the weld. The new road ran up
 // to 3.4 m under them.
 describe('the final-lap road takes the surface of the roads it runs along', () => {
-  it('Canyon Rush: the mine on the new main road is covered portal to portal, at the height of the drawn bore', () => {
+  it('Mesa Rush: the mine on the new main road is covered portal to portal, at the height of the drawn bore', () => {
     const track = shifted(canyonJson);
     const main = track.branches.main.lut, tl = track.tunnels[0], last = tl.x.length - 1, mine = tl.lut;
     let toEntry = Infinity, toExit = Infinity, worst = 0;
@@ -166,7 +166,7 @@ describe('the final-lap road takes the surface of the roads it runs along', () =
     expect(worst).toBeLessThan(0.05);
   });
 
-  it('Canyon Rush: the new main road meets the land at every curb a kart can reach, both ends of the mine included', () => {
+  it('Mesa Rush: the new main road meets the land at every curb a kart can reach, both ends of the mine included', () => {
     const track = shifted(canyonJson);
     const main = track.branches.main.lut;
     let worst = 0, where = '';
@@ -184,7 +184,7 @@ describe('the final-lap road takes the surface of the roads it runs along', () =
     expect(Math.abs(worst), where).toBeLessThan(1);
   });
 
-  it('Canyon Rush: a kart hugging either wall out of the mine on the final lap stays on the ground it sees', () => {
+  it('Mesa Rush: a kart hugging either wall out of the mine on the final lap stays on the ground it sees', () => {
     for (const side of [-1, 1]) for (const speed of [14, 20]) for (const back of [25, 40]) {
       const track = shifted(canyonJson);
       const main = track.branches.main.lut;
@@ -233,7 +233,7 @@ describe('the final-lap road takes the surface of the roads it runs along', () =
     }
   });
 
-  it('Canyon Rush, Skyline Circuit: a kart still on the closed shortcut the new main road runs along is on the main road, where it is (seam review: shots on the new road passed through it)', () => {
+  it('Mesa Rush, Skyline Circuit: a kart still on the closed shortcut the new main road runs along is on the main road, where it is (seam review: shots on the new road passed through it)', () => {
     for (const json of [canyonJson, skylineJson]) {
       const track = buildTrack(cloneDef(json as TrackDefinition));
       const sc = track.branches.list[1];

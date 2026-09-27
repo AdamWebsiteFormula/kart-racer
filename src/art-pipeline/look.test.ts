@@ -177,7 +177,7 @@ describe('applyLook', () => {
     expect(std.customProgramCacheKey()).toBe(key);
   });
 
-  it('Harbor Loop in the PBR look: not one toon material left, hidden meshes too, and the same draws as the toon look', () => {
+  it('Lighthouse Loop in the PBR look: not one toon material left, hidden meshes too, and the same draws as the toon look', () => {
     const toon = buildTrackScene(buildTrack(HARBOUR), trackAssets(HARBOUR.biome));
     const draws = toon.drawables();
     toon.dispose();

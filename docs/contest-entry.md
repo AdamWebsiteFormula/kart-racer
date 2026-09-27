@@ -8,7 +8,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 - **Code:** https://github.com/AdamWebsiteFormula/kart-racer
 - Keyboard, gamepad or touch (a phone turned sideways); tested in Chrome, Firefox and Safari. Sound on, or add `?mute` to the address for a silent game.
 
-![Harbor Loop: the pack races along the seaside road, the volcano island ahead](img/harbour-loop-pack.jpg)
+![Lighthouse Loop: the pack races along the seaside road, the volcano island ahead](img/harbour-loop-pack.jpg)
 
 ## At a glance
 
@@ -58,15 +58,15 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 
 ## The world
 
-![The six tracks: Harbor Loop, Meadow Run and Canyon Rush (Sunrise Cup); Frostbite Pass, Boardwalk Nights and Skyline Circuit (Summit Cup)](img/six-tracks.jpg)
+![The six tracks: Lighthouse Loop, Windmill Run and Mesa Rush (Sunrise Cup); Frostbite Pass, Boardwalk Nights and Skyline Circuit (Summit Cup)](img/six-tracks.jpg)
 
 ### Tracks
 
 | Track | Cup | World | Thrills | Final Lap Shift |
 |---|---|---|---|---|
-| Harbor Loop | Sunrise | Seaside town | Pier ramp, beach shortcut, barrels rolling off the pier | The tide comes in and closes the beach shortcut |
-| Meadow Run | Sunrise | Rolling farmland | Hairpin, long slipstream straight, haystack ramp, hay-hump trick bumps, runaway hay bales | A storm rolls in: the sky darkens, grip drops and the hedgerow shortcut closes |
-| Canyon Rush | Sunrise | Red-rock desert | Geysers that throw you into the air, a mine shortcut through a mesa, dune bumps, mine carts, cliff edges with no walls | The rope bridge falls; the only way on is through the lantern-lit mine |
+| Lighthouse Loop | Sunrise | Seaside town | Pier ramp, beach shortcut, barrels rolling off the pier | The tide comes in and closes the beach shortcut |
+| Windmill Run | Sunrise | Rolling farmland | Hairpin, long slipstream straight, haystack ramp, hay-hump trick bumps, runaway hay bales | A storm rolls in: the sky darkens, grip drops and the hedgerow shortcut closes |
+| Mesa Rush | Sunrise | Red-rock desert | Geysers that throw you into the air, a mine shortcut through a mesa, dune bumps, mine carts, cliff edges with no walls | The rope bridge falls; the only way on is through the lantern-lit mine |
 | Frostbite Pass | Summit | Snowy mountain village | Ski jump, mogul bumps, steam vents, ice | A blizzard closes in and the frozen lake opens as a shortcut |
 | Boardwalk Nights | Summit | Night carnival | Neon loop-the-loop, bumper cars, teacups, an arcade-alley shortcut | Fireworks finale: a ramp opens at the Ferris wheel |
 | Skyline Circuit | Summit | Cloud islands | A climb to 94 m, an island-hop jump, airship wake gusts, open edges | Sunset to starlight: the narrow sky rail becomes the only road |
@@ -125,7 +125,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 ### Race day
 
 <p>
-  <img src="img/harbor-start.jpg" width="49%" alt="Harbor Loop: GO! as the pack leaves the grid, a smoking volcano island ahead">
+  <img src="img/harbor-start.jpg" width="49%" alt="Lighthouse Loop: GO! as the pack leaves the grid, a smoking volcano island ahead">
   <img src="img/boardwalk-nights-night.jpg" width="49%" alt="Boardwalk Nights: the pack heads into the neon loop-the-loop at night">
 </p>
 
@@ -159,7 +159,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
   - a name filter shared by the game and the server that reads leetspeak, spacing and stretched letters, while ordinary names that happen to contain a flagged word still pass.
 
 ### Performance
-- Measured in silent headless Chrome on an M4 Pro's GPU: full three-lap races with vsync on held 16.7 ms frames with none over 20 ms on Harbor Loop, Canyon Rush and Boardwalk Nights at 1920×1080, and also at 2560×1440 at pixel ratio 2 and with the CPU slowed 4×. The course intro flies at 16.7 ms a frame.
+- Measured in silent headless Chrome on an M4 Pro's GPU: full three-lap races with vsync on held 16.7 ms frames with none over 20 ms on Lighthouse Loop, Mesa Rush and Boardwalk Nights at 1920×1080, and also at 2560×1440 at pixel ratio 2 and with the CPU slowed 4×. The course intro flies at 16.7 ms a frame.
 - No shader hitches: every shader compiles in a warm-up hidden behind the intro's title card, before the countdown.
 - 69 to 86 draw calls mid-race with 8 karts (measured on all six tracks), one shadow map; a test holds every track's draw and triangle budget.
 - An Auto quality governor steps resolution, then shadows and effects, down on a machine that falls under 55 fps, at a calm moment and without flip-flopping.
@@ -200,7 +200,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 
 ## A five-minute tour
 
-- **Canyon Rush** (Quick Race, Sunrise Cup): watch the intro, ride a geyser early in the lap, and on the last lap take the mine. To see the claw, drive off an unwalled edge about halfway round the lap.
+- **Mesa Rush** (Quick Race, Sunrise Cup): watch the intro, ride a geyser early in the lap, and on the last lap take the mine. To see the claw, drive off an unwalled edge about halfway round the lap.
 - **Boardwalk Nights** (Summit Cup): the neon loop-the-loop; fireworks and the Ferris-wheel ramp on the last lap.
 - **Drift** a long bend until the sparks go purple and feel the camera punch.
 - **From the back of the pack**, look for a Strike Ball: the back draws the big items.
@@ -218,7 +218,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 ## Honest notes
 
 - The frame times were measured on an M4 Pro. On a mid-range laptop, the Auto governor trades resolution or effects to hold 60 fps; that estimate comes from measured ratios, not from a run on such a laptop.
-- The Final Lap Shift's new scenery is built during the race's warm-up and only swapped in on its tick; what is left on that tick is the sim's own route change: on Canyon Rush about 5.5 ms of script on the M4 Pro and about 20 ms with the CPU slowed 4× (it was about 75 ms).
+- The Final Lap Shift's new scenery is built during the race's warm-up and only swapped in on its tick; what is left on that tick is the sim's own route change: on Mesa Rush about 5.5 ms of script on the M4 Pro and about 20 ms with the CPU slowed 4× (it was about 75 ms).
 - The leaderboard checks physics, not people: a bot that drives well would pass. Any row can be hidden with one line of SQL.
 
 ## Skool post (paste as is)
@@ -251,12 +251,12 @@ Start on the title screen (a race runs behind the logo). Keep the game full scre
 | Time | Show on screen | Say |
 |---|---|---|
 | 0–5 s | The title screen | "This is Rascal Rally, a kart racer I built with AI, and you can play it in your browser right now." |
-| 5–12 s | A Quick Race on **Canyon Rush**: the course intro sweeps down onto your kart | "Every race opens with a fly-through of the course." |
+| 5–12 s | A Quick Race on **Mesa Rush**: the course intro sweeps down onto your kart | "Every race opens with a fly-through of the course." |
 | 12–20 s | Drift a long bend until the sparks go purple, then boost | "Eight racers, six tracks, and drifting that pays: hold a turn for blue, orange, then purple sparks." |
 | 20–28 s | Ride a geyser for a trick, then drift a long bend until the sparks go purple | "Geysers throw you up for a trick boost. Drifting that pays: hold a turn for blue, orange, then purple sparks." |
 | 28–38 s | Items: pop a balloon, fire a Wind-Up Mouse, then (from the back) a Strike Ball | "Thirteen original items, held two at a time, like the giant bowling ball that knocks everyone flying." |
 | 38–44 s | **Boardwalk Nights**: the neon loop-the-loop | "There's a neon loop-the-loop at the night carnival." |
-| 44–50 s | Canyon Rush, the last lap: the **Final Lap Shift** banner, then the mine | "And on the last lap, every track changes. Here the bridge goes down, so it's through the mine." |
+| 44–50 s | Mesa Rush, the last lap: the **Final Lap Shift** banner, then the mine | "And on the last lap, every track changes. Here the bridge goes down, so it's through the mine." |
 | 50–56 s | Over the line: the slow-motion finish, then the results and the leaderboard | "Grand Prix, Knockout, Time Trial and a Daily Challenge on a global leaderboard." |
 | 56–60 s | Back on the track | "Claude Code wrote it, Higgsfield made the 3D art, ElevenLabs made the music. Link's below. Beat my time!" |
 

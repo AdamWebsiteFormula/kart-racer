@@ -65,7 +65,7 @@ export interface TrackAssets {
   vista?: (ctx: VistaContext) => VistaParts | null;
   /** a lake painted on the snow that freezes at the Final Lap Shift (art-pipeline surfaces.ts; Frostbite): the stage sets it */
   lake?: LakeHook;
-  /** Harbour Loop's flood tide (art-pipeline waterWaves.ts SEA_TIDE): shiftStage.ts's seaRise writes the current rise into it every frame; never disposed by a scene. */
+  /** Lighthouse Loop's flood tide (art-pipeline waterWaves.ts SEA_TIDE): shiftStage.ts's seaRise writes the current rise into it every frame; never disposed by a scene. */
   tide?: SeaTideHook;
   /** the sea's ripples (art-pipeline waterRipples.ts): the stage's own water (Harbor's flood) shades with them; shared, never disposed by a scene */
   ripples?: RippleHook;

@@ -51,7 +51,7 @@ describe('the course intro title card', () => {
     expect(v.root.getAttribute('data-phase')).toBe('off');
     v.show(card());
     expect(v.root.getAttribute('data-phase')).toBe('hold');
-    expect(v.root.querySelector('.name')!.textContent).toBe('Harbor Loop');
+    expect(v.root.querySelector('.name')!.textContent).toBe('Lighthouse Loop');
     expect(v.root.querySelector('.cup-chip')!.textContent).toBe('Sunrise Cup');
     expect(v.root.querySelector('.sub')!.textContent).toBe('Quick Race · 150cc');
     expect(v.root.querySelector('.who')!.textContent).toBe('Pip');

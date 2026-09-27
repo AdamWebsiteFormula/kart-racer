@@ -759,7 +759,7 @@ function freeStaging(g: Group): void {
   freeSkeletons(g);
 }
 
-/** How much brighter the lights go at a full lightning flash (Meadow Run's storm): sky, ambient, sun. */
+/** How much brighter the lights go at a full lightning flash (Windmill Run's storm): sky, ambient, sun. */
 const SHIFT_FLASH = Object.freeze({ sky: 1.8, ambient: 2.4, sun: 0.5 });
 
 /**

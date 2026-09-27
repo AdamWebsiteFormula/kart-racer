@@ -579,7 +579,7 @@ describe('leaderboard panel', () => {
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     inRace?.(ui);
-    ui.raceOver({ results, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'timeTrial', dailySeed: null, draft } });
+    ui.raceOver({ results, trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'timeTrial', dailySeed: null, draft } });
     return { ui, posts, fetches: () => fetches };
   }
 
@@ -768,9 +768,9 @@ describe('leaderboard panel', () => {
     const h = { ...host(), leaderboard: { fetchBoard: async () => [] as never, post: async () => ({ ok: false, error: '' }) as never } };
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'daily' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
-    ui.raceOver({ results: { ...(results as object), mode: 'daily', seed: 20260925 } as never, trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'daily', dailySeed: 20260925, draft: { ...draft, mode: 'daily', dailySeed: 20260925 } } });
+    ui.raceOver({ results: { ...(results as object), mode: 'daily', seed: 20260925 } as never, trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'daily', dailySeed: 20260925, draft: { ...draft, mode: 'daily', dailySeed: 20260925 } } });
     await flush();
-    expect(document.querySelector('#ui .board-sub')?.textContent).toBe('Daily Challenge · Sep 25 · Harbor Loop');
+    expect(document.querySelector('#ui .board-sub')?.textContent).toBe('Daily Challenge · Sep 25 · Lighthouse Loop');
     expect(document.querySelector('#ui .board-note')?.textContent).toMatch(/^Next challenge at \d{1,2}:\d{2} (AM|PM) your time \(midnight UTC\)$/);
     ui.dispose();
   });
@@ -779,7 +779,7 @@ describe('leaderboard panel', () => {
     document.body.innerHTML = '';
     const ui = new UiRoot(document.body, { ...host(), leaderboard: { fetchBoard: async () => [], post: async () => ({ ok: false, error: '' }) } }, null);
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
-    ui.raceOver({ results, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false });
+    ui.raceOver({ results, trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false });
     expect(document.querySelector('#ui .board')).toBeNull();
     ui.dispose();
   });
@@ -800,7 +800,7 @@ describe('Time Trial medals', () => {
     expect(ui.app.screen).toBe('trackSelect');
     expect(document.querySelector('#ui [data-id="harbour-loop"] .sub')?.textContent).toBe('Best 2:29.00 · Bronze');
     ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
-    ui.raceOver({ results: run(152000), trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
+    ui.raceOver({ results: run(152000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
     expect(document.querySelector('#ui .results h2')?.textContent).toBe('Bronze medal!');
     expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ bestMs: 149000, medal: 'bronze' });
     ui.dispose();
@@ -815,7 +815,7 @@ describe('Time Trial medals', () => {
     expect(card.querySelector('.medal-badge svg')?.getAttribute('data-medal')).toBe('gold');
     expect(card.querySelector('.sub')?.textContent).toBe('Best 2:05.00 · Gold'); // in words too, never color alone
     ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
-    ui.raceOver({ results: run(130000), trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
+    ui.raceOver({ results: run(130000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
     const panel = document.querySelector('#ui .results.on')!;
     expect(panel.querySelector('h2')?.textContent).toBe('Silver medal!');
     expect(panel.querySelector('.res-head .res-medal svg')?.getAttribute('data-medal')).toBe('silver');
@@ -826,7 +826,7 @@ describe('Time Trial medals', () => {
     // no medal: no badge by the headline, and the ladder shows what it takes
     ui.dispatch({ type: 'continue' });
     ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
-    ui.raceOver({ results: run(170000), trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
+    ui.raceOver({ results: run(170000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs });
     expect(document.querySelector('#ui .results.on .res-medal')).toBeNull();
     expect(document.querySelectorAll('#ui .results.on .medal-ladder .rung.miss')).toHaveLength(3);
     ui.dispose();
@@ -863,19 +863,19 @@ describe('results on a phone on its side (sweep 24 Sept 2026)', () => {
   it('more than four rows are marked to sit in two columns there, four to a column (the stylesheet sets them, all eight in sight)', () => {
     document.body.innerHTML = '';
     const v = new ResultsView(document.body);
-    v.renderResults(resultsModel(field(IDS, 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    v.renderResults(resultsModel(field(IDS, 'pip') as never, 'pip', 'Lighthouse Loop'), 'Standings');
     const rows = v.root.querySelector<HTMLElement>('.rows')!;
     expect([rows.classList.contains('many'), rows.style.getPropertyValue('--half')]).toEqual([true, '4']);
-    v.renderResults(resultsModel(field(IDS.slice(0, 4), 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    v.renderResults(resultsModel(field(IDS.slice(0, 4), 'pip') as never, 'pip', 'Lighthouse Loop'), 'Standings');
     expect(v.root.querySelector('.rows')!.classList.contains('many')).toBe(false);
-    v.renderResults(resultsModel(field(IDS.slice(0, 6), 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    v.renderResults(resultsModel(field(IDS.slice(0, 6), 'pip') as never, 'pip', 'Lighthouse Loop'), 'Standings');
     expect(v.root.querySelector<HTMLElement>('.rows')!.style.getPropertyValue('--half')).toBe('3');
   });
 
   it('the player\'s own row is scrolled into sight inside the panel; only the panel scrolls, and a row in sight stays put', () => {
     document.body.innerHTML = '';
     const v = new ResultsView(document.body);
-    v.renderResults(resultsModel(field(IDS, 'pip') as never, 'pip', 'Harbor Loop'), 'Standings');
+    v.renderResults(resultsModel(field(IDS, 'pip') as never, 'pip', 'Lighthouse Loop'), 'Standings');
     const sc = v.root.querySelector<HTMLElement>('.scroll')!;
     const me = v.root.querySelector<HTMLElement>('.row.me')!;
     Object.defineProperty(sc, 'clientHeight', { value: 200 });
@@ -931,7 +931,7 @@ describe('gamepad', () => {
 
   it('Start pauses and stays paused while held, even when the race was picked with A', () => {
     const { ui, h } = setup();
-    for (let i = 0; i < 4; i++) press(ui, A); // Race! → Quick Race → Pip → Harbour Loop
+    for (let i = 0; i < 4; i++) press(ui, A); // Race! → Quick Race → Pip → Lighthouse Loop
     expect(ui.app.screen).toBe('racing');
     set(START, true);
     for (let f = 0; f < 6; f++) { frame(ui); expect(ui.paused, `held frame ${f}`).toBe(true); }
@@ -955,7 +955,7 @@ describe('gamepad', () => {
     const { ui, h } = setup();
     ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
     set(A, true); pad.axes[0] = -1; frame(ui); frame(ui); // drifting left over the line
-    ui.raceOver({ results: oneRow, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false });
+    ui.raceOver({ results: oneRow, trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false });
     for (let f = 0; f < 5; f++) frame(ui);
     pad.axes[0] = 0; // the stick lets go first, A is still down
     for (let f = 0; f < 5; f++) frame(ui);
@@ -973,7 +973,7 @@ describe('gamepad', () => {
   it('the stick held from the race (steering on a diagonal) leaves the pause on Resume; centered and pushed again, it moves (seam review)', () => {
     const { ui, h } = setup();
     const focused = () => document.querySelector<HTMLElement>('#ui .pause.on .focused')?.dataset.id;
-    for (let i = 0; i < 4; i++) press(ui, A); // Race! → Quick Race → Pip → Harbour Loop
+    for (let i = 0; i < 4; i++) press(ui, A); // Race! → Quick Race → Pip → Lighthouse Loop
     expect(ui.app.screen).toBe('racing');
     pad.axes[0] = -0.8; pad.axes[1] = -0.6; // up past the dead zone as well as left
     for (let f = 0; f < 60; f++) frame(ui);
@@ -1022,7 +1022,7 @@ describe('tall panels (a laptop or a phone on its side)', () => {
     const h = { ...host(), leaderboard: { fetchBoard: async () => rows as never, post: async () => ({ ok: false, error: '' }) as never } };
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' }); ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'timeTrial' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
-    ui.raceOver({ results: tt, trackName: 'Harbour Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'timeTrial', dailySeed: null, draft } });
+    ui.raceOver({ results: tt, trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, board: { mode: 'timeTrial', dailySeed: null, draft } });
     await flush();
     return ui;
   }

@@ -62,7 +62,7 @@ export const CLEAR = 1.6;
  * anywhere the coast dips toward the water within this many metres (SEA_RING), over the fan of angles
  * below either side of the road's own outward line (SEA_FAN, radians), so nobody stands at that lip
  * looking out over open water with the beach's edge out of frame (bug hunt, 25 Sept 2026: a village
- * pair on Harbour Loop's start straight read as floating over the harbour on the GP results backdrop;
+ * pair on Lighthouse Loop's start straight read as floating over the harbour on the GP results backdrop;
  * their own point was dry, but the coast fell away within 9 m of them, outward, unseen by the
  * single-point check; a full circle round the point instead false-failed the whole beach, only
  * COAST.flat m wide end to end, so the fan looks only the one way the water can actually be).
@@ -191,7 +191,7 @@ interface Species {
 const INK = '#1b1b2f';
 
 export const SPECIES: Readonly<Record<string, Species>> = Object.freeze({
-  // ---- Harbor Loop: otters, gull-folk, crabs in sun hats
+  // ---- Lighthouse Loop: otters, gull-folk, crabs in sun hats
   otter: {
     body: [1, 1.02, 1, 0], head: [1, 0.95, 1, -0.02], ear: [0.42, 0.95, 0, 0.55], ear2: [0.1, 1.08, 1, 0], snout: [0.9, 1.3, 1.1, 0], eye: [1, 0, 1, 1], limb: [1, 0, 1, 1],
     colours: { body: '#8b5a3c', light: '#f3dcb8', snout: '#f3dcb8', nose: '#2a1d1a', feet: '#6b4430', ear: '#7a4c33', earIn: '#d9a38a', arm: '#7d5036' }, size: 1,
@@ -204,7 +204,7 @@ export const SPECIES: Readonly<Record<string, Species>> = Object.freeze({
     body: [1.45, 0.62, 1.05, 0], head: [0.8, 0.6, 0.8, -0.3], ear: [1.8, 0.35, 0, 0.12], ear2: [0.55, 1.2, 0.9, 0.05], snout: [0, 1, 1, 0], eye: [1.6, 0.5, 1.35, 0], limb: [1.55, 0, 0.9, 0.8],
     colours: { body: '#f25a3a', light: '#ff8a6a', snout: '#f25a3a', nose: '#f25a3a', feet: '#d94a2c', ear: '#f25a3a', earIn: '#f25a3a', arm: '#ff6b4a' }, size: 0.95,
   },
-  // ---- Meadow Run: sheep, rabbits, farm mice
+  // ---- Windmill Run: sheep, rabbits, farm mice
   sheep: {
     body: [1.12, 0.98, 1.08, 0], head: [0.9, 0.9, 0.95, -0.04], ear: [0.8, 0.85, 0.2, 1.35], ear2: [0.15, 1.1, 1, 0], snout: [0.7, 1.1, 1, 0], eye: [1, 0, 0.9, 0.8], limb: [0.85, 0, 1, 0],
     colours: { body: '#fbf7ee', head: '#f1dcc0', light: '#fbf7ee', snout: '#f1dcc0', nose: '#3a2a2a', feet: '#3a2f2a', ear: '#3f3531', earIn: '#d9a38a', arm: '#3f3531' }, size: 1,
@@ -217,7 +217,7 @@ export const SPECIES: Readonly<Record<string, Species>> = Object.freeze({
     body: [0.9, 0.9, 0.9, 0], head: [1, 0.95, 1, 0], ear: [0.9, 1.6, 0, 0.55], ear2: [0, 1.2, 0.8, 0], snout: [1.1, 0.8, 0.8, 0.5], eye: [0.95, 0.01, 1, 0.9], limb: [0.85, 0, 1, 1],
     colours: { body: '#9c8f86', light: '#efe4d6', snout: '#efe4d6', nose: '#ff8fa3', feet: '#ffb3c1', earIn: '#ffb3c1', arm: '#8d8078' }, size: 0.88,
   },
-  // ---- Canyon Rush: jackrabbits, lizards, prairie dogs
+  // ---- Mesa Rush: jackrabbits, lizards, prairie dogs
   jackrabbit: {
     body: [0.9, 1.05, 0.9, 0], head: [0.9, 0.95, 0.95, 0], ear: [2.6, 0.95, 0.45, 0.28], ear2: [-0.1, 0.8, 1, 0], snout: [0.7, 1, 0.95, 0.1], eye: [1, 0, 1, 0.8], limb: [0.9, 0, 1.1, 1],
     colours: { body: '#c9a27a', light: '#f5e6cf', snout: '#f5e6cf', nose: '#6b4a3a', feet: '#f5e6cf', earIn: '#f0a3a3', arm: '#b8906a' }, size: 0.95,

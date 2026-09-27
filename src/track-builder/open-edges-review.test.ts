@@ -14,7 +14,7 @@ import type { TrackDefinition, Vec3 } from './types.ts';
 
 const c = makeConstants('medium', 150);
 const canyon = () => JSON.parse(JSON.stringify(canyonJson)) as TrackDefinition;
-/** Canyon Rush with its wall at the road's edge (no off-road band): the open-edge shoulder on its own. */
+/** Mesa Rush with its wall at the road's edge (no off-road band): the open-edge shoulder on its own. */
 const walledCanyon = () => { const d = canyon(); d.offroad = false; return d; };
 const dist = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
@@ -32,7 +32,7 @@ function kartAt(track: Track, t: number, lateral: number, speed: number): KartSt
   return s;
 }
 
-describe('open edges through a route-changing Final Lap Shift (Canyon Rush collapse)', () => {
+describe('open edges through a route-changing Final Lap Shift (Mesa Rush collapse)', () => {
   it('the edges on the collapsed bridge go with it: nothing in the mine tunnel is open and a kart cannot fall off it', () => {
     const def = canyon();
     const track = buildTrack(def);
@@ -98,7 +98,7 @@ describe('open edges through a route-changing Final Lap Shift (Canyon Rush colla
 });
 
 describe('the open shoulder falls away like the drawn one', () => {
-  // Canyon Rush before the shift: left open at 0.46-0.6, right walled here (right opens at 0.51)
+  // Mesa Rush before the shift: left open at 0.46-0.6, right walled here (right opens at 0.51)
   const T = 0.48;
   const track = buildTrack(walledCanyon());
   const flat = (() => { const d = walledCanyon(); d.openEdges = []; return buildTrack(d); })(); // same road, all walled
@@ -160,7 +160,7 @@ describe('a kart far outside a wall line is eased back, not teleported', () => {
   });
 
   it('driving off the end of an open shoulder into the barrier: no big jump, back on the road, no fall', () => {
-    // Canyon Rush before the shift: the left edge closes at t 0.6; start 2 m out on its shoulder
+    // Mesa Rush before the shift: the left edge closes at t 0.6; start 2 m out on its shoulder
     const track = buildTrack(canyon());
     const t0 = 0.585;
     const hw = track.sample(t0, 0).halfWidth;

@@ -219,7 +219,7 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the crowd', (_id, def)
     scene.dispose();
   });
 
-  it('never reads as floating: the coast still holds a stretch out past every ground critter, roughly the way it faces away from the road (bug hunt, 25 Sept 2026: a Harbour Loop village pair stood on dry land that fell to the sea a few metres on, out of the single-point check)', () => {
+  it('never reads as floating: the coast still holds a stretch out past every ground critter, roughly the way it faces away from the road (bug hunt, 25 Sept 2026: a Lighthouse Loop village pair stood on dry land that fell to the sea a few metres on, out of the single-point check)', () => {
     const track = buildTrack(def), scene = buildTrackScene(track, trackAssets(def.biome));
     const { crowd } = crowdOf(scene.group);
     const water = def.environment?.ground?.kind === 'water' ? def.environment.ground.y ?? 0 : null;

@@ -1,5 +1,5 @@
 // The driving assists over whole races, as main.ts runs them: on the sampled input, before the shared
-// sim tick (game/simtick.ts) quantizes and logs it. A player who never steers finishes Harbor Loop with
+// sim tick (game/simtick.ts) quantizes and logs it. A player who never steers finishes Lighthouse Loop with
 // Steering assist on, the claw never fetching them and hardly off the road; and the race's own log,
 // replayed with no assist at all (as the leaderboard server does, backend-leaderboard/verify.ts), is
 // the same race bit for bit. Auto-accelerate leaves the countdown, and so the start boost, to the player.
@@ -89,7 +89,7 @@ const straight = () => ({ ...NEUTRAL_INPUT, throttle: 1 });
 const STEER: AssistSettings = { autoAccelerate: false, steeringAssist: true };
 
 describe('Steering assist over a race', () => {
-  it('Harbor Loop driven dead straight: every lap without the claw and hardly off the road, where without it the kart lives on the sand', () => {
+  it('Lighthouse Loop driven dead straight: every lap without the claw and hardly off the road, where without it the kart lives on the sand', () => {
     const on = drive('harbour-loop', STEER, straight);
     expect(on.finished).toBe(true);
     expect(on.claws).toBe(0);

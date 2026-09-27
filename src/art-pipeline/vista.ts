@@ -615,7 +615,7 @@ function blimp(band: Paint): BufferGeometry {
   });
 }
 
-// ================================================================ Harbor Loop: a sea horizon with islands
+// ================================================================ Lighthouse Loop: a sea horizon with islands
 
 function harbour(v: Vista): void {
   // the landmark ahead of the start: a dormant volcano island with a beach, a skirt of palms and a wisp of smoke
@@ -745,7 +745,7 @@ function harbour(v: Vista): void {
   }
 }
 
-// ================================================================ Meadow Run: hills and a valley
+// ================================================================ Windmill Run: hills and a valley
 
 function meadow(v: Vista): void {
   // the landmark ahead of the start: one giant lone tree on a knoll, a round door in its root
@@ -886,7 +886,7 @@ function meadow(v: Vista): void {
   });
 }
 
-// ================================================================ Canyon Rush: buttes, a gorge and a volcano
+// ================================================================ Mesa Rush: buttes, a gorge and a volcano
 
 const CLAY = '#c65a3a', CREAM = '#ebb98c', RUST = '#a8462c', RED = '#d9774f';
 

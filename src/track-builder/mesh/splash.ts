@@ -1,5 +1,5 @@
 // Rain splashes (Adam, 26 Sept 2026: "the rain, when it falls, it does not splash when it hits the
-// ground"). Meadow Run's Final Lap Shift storm (shiftStage.ts) has falling streaks; where the drops land
+// ground"). Windmill Run's Final Lap Shift storm (shiftStage.ts) has falling streaks; where the drops land
 // on the road and the grass nothing happened. Mario Kart World's rain, watched twice (art-pipeline SOP,
 // 26 Sept 2026): small white splashes popping on the surface near the camera, dozens at a time, each
 // gone in a fraction of a second, with a small ring that spreads and fades, and fine spray behind the

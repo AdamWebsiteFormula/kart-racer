@@ -215,9 +215,9 @@ describe('the setup as Mario Kart World sets its own (design §12, 26 Sept 2026)
     const ui = new UiRoot(document.body, { ...host(), builtTracks: new Set(['harbour-loop', 'meadow-run', 'canyon-rush', 'frostbite-pass', 'boardwalk-nights', 'skyline-circuit']) }, null);
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'grandPrix' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
     const shown = () => [...document.querySelectorAll<HTMLElement>('#ui .cup-screen.on .cup-preview:not([hidden])')].map((p) => [p.dataset.cup, p.querySelector('.ribbon')!.textContent, [...p.querySelectorAll('.shot-name')].map((n) => n.textContent)]);
-    expect(shown()).toEqual([['sunrise', 'Sunrise Cup', ['Harbor Loop', 'Meadow Run', 'Canyon Rush']]]);
+    expect(shown()).toEqual([['sunrise', 'Sunrise Cup', ['Lighthouse Loop', 'Windmill Run', 'Mesa Rush']]]);
     expect(q('.cup-show')!.getAttribute('aria-hidden')).toBe('true');
-    expect(q('[data-id="sunrise"]')!.textContent).toContain('Harbor Loop, Meadow Run, Canyon Rush');
+    expect(q('[data-id="sunrise"]')!.textContent).toContain('Lighthouse Loop, Windmill Run, Mesa Rush');
     key('ArrowRight');
     expect(shown()).toEqual([['summit', 'Summit Cup', ['Frostbite Pass', 'Boardwalk Nights', 'Skyline Circuit']]]);
     key('ArrowDown');
@@ -237,7 +237,7 @@ describe('the setup as Mario Kart World sets its own (design §12, 26 Sept 2026)
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
     const rows = [...document.querySelectorAll<HTMLElement>('#ui .track-screen.on .track-group')];
     expect(rows.map((r) => [r.getAttribute('aria-label'), [...r.querySelectorAll('.track-card .label')].map((l) => l.textContent)])).toEqual([
-      ['Sunrise Cup', ['Harbor Loop', 'Meadow Run', 'Canyon Rush']], ['Summit Cup', ['Frostbite Pass', 'Boardwalk Nights', 'Skyline Circuit']],
+      ['Sunrise Cup', ['Lighthouse Loop', 'Windmill Run', 'Mesa Rush']], ['Summit Cup', ['Frostbite Pass', 'Boardwalk Nights', 'Skyline Circuit']],
     ]);
     expect((document.activeElement as HTMLElement).dataset.id).toBe('harbour-loop');
     key('ArrowDown');

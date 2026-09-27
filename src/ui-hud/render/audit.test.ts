@@ -93,7 +93,7 @@ describe('Knockout: a player cut early keeps a placing', () => {
     const order = ['momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'pip', 'gus']; // pip 7th: cut at 6
     const res = results(order, 'knockout');
     applyResults(ko, res);
-    ui.raceOver({ results: res, trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, ko: { after: ko } });
+    ui.raceOver({ results: res, trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, ko: { after: ko } });
     expect(ui.save.knockout.coastline).toEqual({ finished: false, won: false, bestPlacing: 7 });
     ui.dispose();
   });
@@ -166,7 +166,7 @@ describe('end screens ignore confirms for a moment (a double click skipped the G
     let now = 1000;
     ui.clock = () => now;
     walk(ui, 'grandPrix');
-    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: true });
+    ui.raceOver({ results: results(IDS), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: true });
     const cont = () => (document.querySelector('#ui .results.on [data-id="continue"]') as HTMLElement).click();
     cont(); // the click that lands as the results open
     expect(ui.app.screen).toBe('results');
@@ -189,11 +189,11 @@ describe('Time Trial ghost in the save', () => {
     walk(ui, 'timeTrial');
     const medalTimesMs = { gold: 126000, silver: 136000, bronze: 154000 };
     const run = (timeMs: number) => ({ ...results(['pip'], 'timeTrial'), ranks: [{ ...results(['pip']).ranks[0], timeMs }] });
-    ui.raceOver({ results: run(130000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'AQQA' });
+    ui.raceOver({ results: run(130000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'AQQA' });
     expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ bestMs: 130000, racerId: 'pip', ghost: 'AQQA' });
-    ui.raceOver({ results: run(140000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'BBBB' });
+    ui.raceOver({ results: run(140000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'BBBB' });
     expect(ui.save.timeTrial['harbour-loop'].ghost).toBe('AQQA');
-    ui.raceOver({ results: run(120000), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'CCCC' });
+    ui.raceOver({ results: run(120000), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: false, medalTimesMs, ghost: 'CCCC' });
     expect(ui.save.timeTrial['harbour-loop']).toMatchObject({ bestMs: 120000, ghost: 'CCCC', medal: 'gold' });
     ui.dispose();
   });
@@ -211,7 +211,7 @@ describe('unlocks in the UI (design §10)', () => {
     ui.feed([ultra('pip'), { type: 'finish', racerId: 'pip', rank: 1, tick: 9000, dnf: false }], [], 'pip');
     ui.feed([ultra('pip')], [{ type: 'hit', racerId: 'nova', byRacerId: 'pip', itemId: 'beachBall', spun: true, coinsLost: 0 }], 'pip');
     expect([ui.save.stats.ultraTurbos, ui.save.stats.itemsHit]).toEqual([10, 1]);
-    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', seriesHasNext: true });
+    ui.raceOver({ results: results(IDS), trackName: 'Lighthouse Loop', playerId: 'pip', seriesHasNext: true });
     const toast = document.querySelector('#ui .toast')!;
     expect(toast.textContent).toBe("Unlocked: Sprocket's Mint paint!");
     expect(toast.classList.contains('on')).toBe(true);

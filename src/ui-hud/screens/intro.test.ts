@@ -6,7 +6,7 @@ import { introCard } from './intro.ts';
 describe('the course intro title card', () => {
   it('names the track as the menus do (US English), under its cup, with the mode and class', () => {
     const vm = introCard({ trackId: 'harbour-loop', mode: 'quick', speedClass: 150, racerId: 'pip' });
-    expect(vm.name).toBe('Harbor Loop');
+    expect(vm.name).toBe('Lighthouse Loop');
     expect(vm.cup).toBe('Sunrise Cup');
     expect(vm.sub).toBe('Quick Race · 150cc');
     expect(vm.racer).toEqual({ id: 'pip', name: 'Pip', accent: '#2EC4B6' });

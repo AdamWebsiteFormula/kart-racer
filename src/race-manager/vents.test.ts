@@ -1,4 +1,4 @@
-// Launch vents (design.md "Track thrills"): geysers on Canyon Rush, steam vents on Frostbite Pass.
+// Launch vents (design.md "Track thrills"): geysers on Mesa Rush, steam vents on Frostbite Pass.
 // A vent idles, glows for ventWarnSeconds, then erupts for ventEruptSeconds at the end of every
 // period; erupting, it throws a kart up (hit 'launch') like a ramp, so a trick up there is a boost.
 // It is never a hit, the AI does not dodge it, and it fires a `vent` race event per state change.

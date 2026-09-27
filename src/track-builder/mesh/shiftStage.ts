@@ -1,11 +1,11 @@
 // The Final Lap Shift's stage (design §2, §6): each track's set piece, built with the scene and shown
 // from the shift's own tick (shiftShow.ts has the beats). The sim changed the road on that tick
 // (shift.ts); this makes the change readable from the chase camera in 2 to 3 seconds:
-// - Harbor Loop: the tide rolls in off the bay over the beach road (foam at its front and edges, a wet
+// - Lighthouse Loop: the tide rolls in off the bay over the beach road (foam at its front and edges, a wet
 //   sheen), the sea comes up round the course, and a beacon lights the pier ramp, the one jump left;
-// - Meadow Run: storm cloud rolls over, rain, lightning strikes the big oak by the hedgerow cut and it
+// - Windmill Run: storm cloud rolls over, rain, lightning strikes the big oak by the hedgerow cut and it
 //   falls across the cut's mouth, where it stays (the cut is closed);
-// - Canyon Rush: the rope bridge breaks in the middle and its planks fall away plank by plank into the
+// - Mesa Rush: the rope bridge breaks in the middle and its planks fall away plank by plank into the
 //   chasm (dust rising from the floor), and the mine's lanterns flicker on from its mouth inward;
 // - Frostbite Pass: the fog closes in, the snow thickens, and the lake freezes out from the crossing;
 // - Boardwalk Nights: two bursts of fireworks over the road, two Ferris-wheel spokes swing down onto the
@@ -45,7 +45,7 @@ export interface LakeHook {
 }
 
 /**
- * Harbour Loop's flood tide (art-pipeline waterWaves.ts SEA_TIDE): how far the sea has actually risen
+ * Lighthouse Loop's flood tide (art-pipeline waterWaves.ts SEA_TIDE): how far the sea has actually risen
  * this frame (metres, 0 outside a flood shift), read by the wave grid (and a floating boat's own bob)
  * so they ride the true, tide-raised sea instead of the flat sea's own build-time height — and by the
  * chase, finish, intro and title cameras' sea floor (game/camera.ts seaLevel), so none of them can read
@@ -58,7 +58,7 @@ export interface SeaTideHook {
 }
 /**
  * The sea's ripples (art-pipeline waterRipples.ts: one tiling slope-and-height map and the GLSL that
- * reads it, `lkRipples`), for any other water the stage draws: Harbour Loop's flood over the beach road
+ * reads it, `lkRipples`), for any other water the stage draws: Lighthouse Loop's flood over the beach road
  * shades with the same moving ripples as the sea beside it (Adam, 26 Sept 2026: the water "does not look
  * like it has waves"). Handed over through TrackAssets, so track-builder never imports art-pipeline.
  */
@@ -346,7 +346,7 @@ export function buildShiftStage(ctx: StageContext): ShiftStage | null {
   return stage;
 }
 
-// ================================================================ Harbor Loop: the tide comes in
+// ================================================================ Lighthouse Loop: the tide comes in
 
 /** The flooded shortcut: water over the road and its sides, rolling in from the bay side. */
 function flood(ctx: StageContext): Piece | null {
@@ -515,7 +515,7 @@ function rampBeacon(ctx: StageContext): Piece | null {
   };
 }
 
-// ================================================================ Meadow Run: the storm rolls in
+// ================================================================ Windmill Run: the storm rolls in
 
 /** Where the cut's oak stands, which way it falls, and how tall it is. */
 interface OakSpot { base: Vec3; fall: Vec3; height: number }
@@ -713,7 +713,7 @@ function storm(ctx: StageContext): Piece {
   };
 }
 
-// ================================================================ Canyon Rush: the rope bridge collapses
+// ================================================================ Mesa Rush: the rope bridge collapses
 
 /** The stretch of main road open on both sides inside the route the shift replaces: [first, last] sample. */
 function bridgeSpan(track: Track): [number, number] | null {

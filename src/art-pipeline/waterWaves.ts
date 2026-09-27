@@ -54,7 +54,7 @@ export const WAVE_MAX_HEIGHT = WAVES.reduce((s, w) => s + w.amplitude, 0);
 
 /** Below this the swell's own scale (`tideScale`) never drops, however far the tide still has to rise: a floor, not a target — real amplitude tuning later stays safe against it too. */
 const TIDE_MIN_SCALE = 0.4;
-/** How much of `tideScale`'s "1 minus" comes off per metre of tide: tuned against Harbour Loop's own numbers (review, 26 Sept 2026, finding 2) — its flood rises SHOW.flood.sea (shiftShow.ts) 0.7 m, and its lowest road point over the sea sits 1.53 m over the flat sea (buildTrack + lut.minY) — so at full tide the crest must clear 1.53 - 0.7 = 0.83 m by at least the ask's 0.3 m, i.e. the crest itself must be under 0.53 m: WAVE_MAX_HEIGHT (about 1.05 m) * tideScale(0.7) = 1.05 * max(0.4, 1 - 0.7*0.85) = 1.05 * 0.405 ≈ 0.43 m, clearing by about 0.40 m — checked in waterWaves.test.ts against Harbour's own measured numbers, not just asserted here. */
+/** How much of `tideScale`'s "1 minus" comes off per metre of tide: tuned against Lighthouse Loop's own numbers (review, 26 Sept 2026, finding 2) — its flood rises SHOW.flood.sea (shiftShow.ts) 0.7 m, and its lowest road point over the sea sits 1.53 m over the flat sea (buildTrack + lut.minY) — so at full tide the crest must clear 1.53 - 0.7 = 0.83 m by at least the ask's 0.3 m, i.e. the crest itself must be under 0.53 m: WAVE_MAX_HEIGHT (about 1.05 m) * tideScale(0.7) = 1.05 * max(0.4, 1 - 0.7*0.85) = 1.05 * 0.405 ≈ 0.43 m, clearing by about 0.40 m — checked in waterWaves.test.ts against Harbour's own measured numbers, not just asserted here. */
 const TIDE_FADE_PER_METRE = 0.85;
 /**
  * How much of the swell survives at `tideMetres` of a track's own flood tide: 1 with none, shrinking to
@@ -68,7 +68,7 @@ export function tideScale(tideMetres: number): number {
 }
 
 /**
- * Harbour Loop's flood tide, shared with track-builder through `TrackAssets.tide` (the same pattern as
+ * Lighthouse Loop's flood tide, shared with track-builder through `TrackAssets.tide` (the same pattern as
  * `WATER_CLOCK`: shiftStage.ts's own `seaRise` piece writes `rise.value` every frame it plays, track-
  * builder never importing this module to do it). `scale` is never written directly: its `value` is
  * `tideScale(rise.value)`, read fresh by whoever asks (the water shader's own uniform, a floating
@@ -247,7 +247,7 @@ export function waveGridGeometry(): BufferGeometry {
  * Cell-snapped so the grid moves in whole (finest) cells only (no per-vertex "swimming" as the camera
  * drifts within one), always centred close under the camera; its own height follows `SEA_TIDE.rise`
  * every frame too (review, 26 Sept 2026, finding 2: "make the wave grid... follow the sea's actual
- * height" — Harbour Loop's flood tide raises the flat sea plane, shiftStage.ts seaRise, but this near-
+ * height" — Lighthouse Loop's flood tide raises the flat sea plane, shiftStage.ts seaRise, but this near-
  * camera grid is a separate mesh with no shift code of its own; reading the very same shared number
  * keeps the two one sea, never a seam between a risen far plane and a stale near one). `waterY` is its
  * still-water rest height (`SEA_TIDE.rise.value` is 0 on every track with no flood, and for most of a

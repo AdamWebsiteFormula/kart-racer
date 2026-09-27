@@ -122,7 +122,7 @@ describe('every ramp and trick bump takes a trick: pressed in the air, or a mome
 describe('every vent takes a trick: pressed in the air after the throw', () => {
   const vents = Object.values(FILES).flatMap((def) => (def.hazards ?? []).filter((h) => h.type === 'vent').map((v) => ({ def, v })));
 
-  it('the vents are there (Canyon Rush geysers, Frostbite Pass steam)', () => {
+  it('the vents are there (Mesa Rush geysers, Frostbite Pass steam)', () => {
     expect(vents.map(({ v }) => v.id).sort()).toEqual(['geyser-1', 'geyser-2', 'steam-1', 'steam-2']);
   });
 

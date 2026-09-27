@@ -47,7 +47,7 @@ export function figureEight(points = 24, a = 160): ControlPoint[] {
 /** Flat oval with a constant 10° bank everywhere. */
 export const BANKED: ControlPoint[] = SQUARE.map((p) => ({ ...p, bank: 10 }));
 
-/** Harbour Loop as shipped. */
+/** Lighthouse Loop as shipped. */
 import harbourLoopJson from '../tracks/harbour-loop.json';
 import type { HazardDef, TrackDefinition } from '../types.ts';
 export const HARBOUR_LOOP = harbourLoopJson as TrackDefinition;
@@ -82,7 +82,7 @@ export function withCreature(def: TrackDefinition): TrackDefinition {
 }
 
 /**
- * Harbour Loop plus the pier jetty it shipped with until 21 Sept 2026, kept here as the
+ * Lighthouse Loop plus the pier jetty it shipped with until 21 Sept 2026, kept here as the
  * two-branch example for branch, feature and shift tests. The real track dropped it:
  * a jetty beside a 16 m road cannot be faster than the road (design §6).
  */
@@ -102,7 +102,7 @@ export const HARBOUR_WITH_PIER: TrackDefinition = (() => {
   return d;
 })();
 
-/** Harbor Loop with a wall at the road's edge (no off-road band): for the barrier-post tests. */
+/** Lighthouse Loop with a wall at the road's edge (no off-road band): for the barrier-post tests. */
 export const HARBOUR_WALLED: TrackDefinition = { ...cloneDef(HARBOUR_LOOP), offroad: false };
 /** The walled harbor dressed as a pier (Boardwalk's biome): a solid low edge along its road. */
 export const HARBOUR_WALLED_PIER: TrackDefinition = { ...cloneDef(HARBOUR_WALLED), biome: 'boardwalk' };

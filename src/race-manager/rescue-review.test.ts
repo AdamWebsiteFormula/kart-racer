@@ -205,7 +205,7 @@ describe('claw rescue: the flag and the Final Lap Shift', () => {
   });
 
   it('a route-changing Final Lap Shift re-aims a claw already in the air at the moved checkpoint', () => {
-    // Canyon Rush: THE BRIDGE IS DOWN replaces the road from 0.32 to 0.665
+    // Mesa Rush: THE BRIDGE IS DOWN replaces the road from 0.32 to 0.665
     const track = buildTrack(cloneDef(canyonJson as TrackDefinition));
     const rm = new RaceManager(track, config(track, [
       { racerId: 'a', archetype: 'medium', isPlayer: false },
@@ -249,7 +249,7 @@ describe('claw rescue: the flag and the Final Lap Shift', () => {
     expect(distXZ(s.position, cp.position)).toBeLessThan(cp.halfWidth);
   });
 
-  it('a kart on the road a Final Lap Shift replaces, left off the new road, is fetched by the claw (Canyon Rush, Skyline Circuit)', () => {
+  it('a kart on the road a Final Lap Shift replaces, left off the new road, is fetched by the claw (Mesa Rush, Skyline Circuit)', () => {
     // bug hunt, 24 Sept 2026: a slow kart on the old road was left 80-115 m off the new one, in the
     // sky or the rock, with no claw; it fell onto nothing and was dragged in by the wall easing
     for (const [json, t] of [[canyonJson, 0.47], [canyonJson, 0.59], [skylineJson, 0.609]] as const) {
@@ -288,7 +288,7 @@ describe('claw rescue: the flag and the Final Lap Shift', () => {
     }
   });
 
-  it('the claw never sets a kart down in the covered mine, nor carries it through the mesa: it sets it down before the portal, and the kart drives in (Canyon Rush)', () => {
+  it('the claw never sets a kart down in the covered mine, nor carries it through the mesa: it sets it down before the portal, and the kart drives in (Mesa Rush)', () => {
     // seam review, 24 Sept 2026: two of Canyon's final-lap checkpoints are in the mine, and a kart the
     // shift stranded on the old bridge was lowered onto them through the mesa and the bore's roof
     const land: LandPoint = { top: 0, edge: 0, next: 0, open: false, cover: NaN, lip: NaN, pieces: 0 };
@@ -416,7 +416,7 @@ describe('claw rescue: falling off an open edge', () => {
     expect(r2.events.some((e) => e.type === 'landed')).toBe(false);
     expect(r2.events.some((e) => e.type === 'respawn')).toBe(true);
 
-    // 3. Canyon Rush: off the cliff road, found over the mine tunnel far below. Not the road it
+    // 3. Mesa Rush: off the cliff road, found over the mine tunnel far below. Not the road it
     // went off, so it does not land there: it falls on and the claw is called.
     const canyon = buildTrack(cloneDef(canyonJson as TrackDefinition));
     const tunnel = canyon.branches.byId('mine-tunnel')!;

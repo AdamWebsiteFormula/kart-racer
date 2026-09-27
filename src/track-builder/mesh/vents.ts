@@ -1,4 +1,4 @@
-// Launch vents (design.md Track thrills): a geyser on Canyon Rush, a steam vent on Frostbite Pass.
+// Launch vents (design.md Track thrills): a geyser on Mesa Rush, a steam vent on Frostbite Pass.
 // Drawn from the same cycle the sim runs (hazards.ts ventPhase): a rim of rock or ice round a pool,
 // a glow that swells and bubbles while it warns, and a column of spray or steam while it erupts.
 // Three instanced meshes whatever the number of vents; race time only, so a replay looks the same.
