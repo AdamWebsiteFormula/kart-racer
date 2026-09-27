@@ -5,10 +5,11 @@
 // (a few hundred vertices at most, for the seconds they move) on the CPU into preallocated arrays.
 import {
   AdditiveBlending, BufferAttribute, BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Mesh, MeshBasicMaterial,
-  NormalBlending, ShaderMaterial, UniformsLib, UniformsUtils,
+  NormalBlending, ShaderMaterial, UniformsLib, UniformsUtils, Vector3,
 } from 'three';
 import type { Vec3 } from '../types.ts';
 import type { Rgb } from './palette.ts';
+import type { RippleHook } from './shiftStage.ts';
 
 /** The fog as an additive glow wants it: fade to nothing, not to the fog colour. */
 const GLOW_FOG = `
@@ -403,6 +404,10 @@ uniform vec3 uSparkle;
 varying vec4 vFlood;
 varying vec3 vWorld;
 #include <fog_pars_fragment>
+#ifdef LK_RIPPLES
+uniform vec3 uGlintDir;
+LK_RIPPLE_GLSL
+#endif
 float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n2(vec2 p) {
   vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
@@ -420,11 +425,29 @@ void main() {
   vec2 p = vWorld.xz * 0.08;
   float n = n2(p + vec2(uClock * 0.05, uClock * 0.03)) * 0.6 + n2(p * 2.3 - vec2(uClock * 0.04, -uClock * 0.06)) * 0.4;
   vec3 c = mix(uDeep, uShallow, smoothstep(0.3, 0.8, n));
+#ifdef LK_RIPPLES
+  // the sea's own ripples (waterRipples.ts): crests lighter, the sky's horizon in the facets (Fresnel,
+  // capped), the sun's glint on the ripple tops, as on the sea beside it
+  {
+    vec3 toEye = cameraPosition - vWorld, V = normalize(toEye);
+    vec3 rip = lkRipples(vWorld.xz, uClock, length(toEye.xz));
+    vec3 N = normalize(vec3(-rip.x, 1.0, -rip.y));
+    float F = (0.02 + 0.98 * pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 5.0)) * 0.6;
+    c *= 0.86 + 0.3 * max(rip.z, 0.0);
+  #ifdef USE_FOG
+    c = mix(c, fogColor, F);
+  #else
+    c = mix(c, uSparkle, F);
+  #endif
+    c += uSparkle * min(pow(max(dot(N, normalize(uGlintDir + V)), 0.0), 300.0) * 2.5, 2.5);
+  }
+#else
   // the wet sheen: bright lines where two ripple fields cross
   vec2 q = vWorld.xz * 0.3;
   float d = abs(n2(q + vec2(uClock * 0.4, 0.0)) - n2(q * 1.07 - vec2(0.0, uClock * 0.35)));
   float line = 1.0 - smoothstep(0.0, max(0.012, fwidth(d) * 1.4), d);
   c = mix(c, uSparkle, line * 0.7);
+#endif
   // foam: along the advancing edge, and lapping at the water's sides and ends
   float edge = smoothstep(0.0, 1.8, min(inner, ends));
   float lap = 0.5 + 0.5 * sin(vFlood.z * 0.7 + uClock * 2.2 + n * 4.0);
@@ -441,12 +464,21 @@ void main() {
 
 export interface FloodUniforms { uFront: { value: number }; uClock: { value: number }; uRise: { value: number }; uLength: { value: number } }
 
-/** The tide over a flooded road: see-through water with a wet sheen, foam at its edges and its advancing front. */
-export function floodMaterial(u: FloodUniforms, deep = '#1b7fc0', shallow = '#46c2e6', sparkle = '#f2fdff'): ShaderMaterial {
+/**
+ * The tide over a flooded road: see-through water, foam at its edges and its advancing front, and with
+ * `ripples` (the sea's own: art-pipeline waterRipples.ts, through the stage's context) the sea's moving
+ * ripples, sky and glint (from `glintDir`), else its old wet sheen of crossing lines.
+ */
+export function floodMaterial(u: FloodUniforms, deep = '#1b7fc0', shallow = '#46c2e6', sparkle = '#f2fdff', ripples?: RippleHook, glintDir: readonly [number, number, number] = [0, 1, 0]): ShaderMaterial {
   return new ShaderMaterial({
-    vertexShader: FLOOD_VERT, fragmentShader: FLOOD_FRAG, fog: true, transparent: true, depthWrite: false,
+    vertexShader: FLOOD_VERT, fragmentShader: ripples ? FLOOD_FRAG.replace('LK_RIPPLE_GLSL', ripples.glsl) : FLOOD_FRAG.replace('LK_RIPPLE_GLSL', ''),
+    fog: true, transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
-    uniforms: { ...UniformsUtils.clone(UniformsLib.fog), ...u, uDeep: { value: new Color(deep) }, uShallow: { value: new Color(shallow) }, uSparkle: { value: new Color(sparkle) } },
+    defines: ripples ? { LK_RIPPLES: '' } : {},
+    uniforms: {
+      ...UniformsUtils.clone(UniformsLib.fog), ...u, uDeep: { value: new Color(deep) }, uShallow: { value: new Color(shallow) }, uSparkle: { value: new Color(sparkle) },
+      ...(ripples ? { uRipple: { value: ripples.map }, uGlintDir: { value: new Vector3(...glintDir) } } : {}),
+    },
   });
 }
 

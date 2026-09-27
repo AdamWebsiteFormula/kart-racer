@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { PerspectiveCamera, ShaderChunk, Vector3, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
+import { PerspectiveCamera, ShaderChunk, Vector3, type Material, type Mesh, type MeshStandardMaterial, type MeshToonMaterial, type ShaderMaterial, type WebGLProgramParametersWithUniforms, type WebGLRenderer } from 'three';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
@@ -366,6 +366,24 @@ describe('waves you can see from the chase camera (Adam, 26 Sept 2026: "does not
     expect(worldEnvironment()).toBeNull(); // no renderer made one in a test
     expect(m.uniforms.uHasEnv.value).toBe(0);
     expect(m.uniforms.uHasDepth.value).toBe(0);
+  });
+
+  it('Harbor\'s flood over the beach road (its Final Lap Shift) shades with the sea\'s own ripples, handed over as a hook (track-builder never imports art-pipeline)', () => {
+    const def = TRACKS.find((d) => d.id === 'harbour-loop')!;
+    const assets = trackAssets(def.biome);
+    expect(assets.ripples?.map).toBe(rippleTexture());
+    const scene = buildTrackScene(buildTrack(def), assets);
+    const flood = scene.stage!.group.getObjectByName('shift-flood') as Mesh;
+    const m = flood.material as ShaderMaterial;
+    expect(m.defines.LK_RIPPLES).toBe('');
+    expect(m.fragmentShader).toContain('vec3 lkRipples(vec2 p, float t, float dist)');
+    expect(m.fragmentShader).toContain('lkRipples(vWorld.xz, uClock');
+    expect(m.fragmentShader).not.toContain('LK_RIPPLE_GLSL');
+    expect(m.uniforms.uRipple.value).toBe(rippleTexture());
+    // its glint from the sun's bearing, no higher than the sea's
+    expect(Math.asin((m.uniforms.uGlintDir.value as Vector3).y)).toBeLessThanOrEqual(SEA_LOOK.glintElevation + 1e-6);
+    expect(m.fragmentShader).not.toMatch(/--/);
+    scene.dispose();
   });
 
   it('the glint comes from the sun\'s own bearing, never higher than SEA_LOOK.glintElevation, so it runs down the middle distance', () => {

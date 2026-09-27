@@ -56,6 +56,14 @@ export interface SeaTideHook {
   rise: { value: number };
   scale: { value: number };
 }
+/**
+ * The sea's ripples (art-pipeline waterRipples.ts: one tiling slope-and-height map and the GLSL that
+ * reads it, `lkRipples`), for any other water the stage draws: Harbour Loop's flood over the beach road
+ * shades with the same moving ripples as the sea beside it (Adam, 26 Sept 2026: the water "does not look
+ * like it has waves"). Handed over through TrackAssets, so track-builder never imports art-pipeline.
+ */
+export interface RippleHook { map: Texture; glsl: string }
+
 /** Points along the lake's middle at most (the shader's array). */
 export const LAKE_POINTS = 12;
 
@@ -82,6 +90,7 @@ export interface StageContext {
   roadMaterial: Material;
   lake?: LakeHook;
   tide?: SeaTideHook;
+  ripples?: RippleHook;
 }
 
 /** A sound the game plays under the shift's sting: at a world point (fading with distance) or everywhere. */
@@ -416,7 +425,9 @@ function flood(ctx: StageContext): Piece | null {
   g.setIndex(idx);
   g.computeBoundingSphere();
   const u: FloodUniforms = { uFront: { value: -10 }, uClock: { value: 0 }, uRise: { value: 0 }, uLength: { value: (rows[r1].i - rows[r0].i) * ds } };
-  const mat = floodMaterial(u);
+  // the sea's own ripples, and its glint from the sun's bearing, no higher than the sea's (26°)
+  const sun = ctx.track.def.environment?.sunDirection ?? [0.4, 0.8, 0.3], flat = Math.hypot(sun[0], sun[2]) || 1, up = Math.min(Math.atan2(sun[1], flat), 0.45);
+  const mat = floodMaterial(u, undefined, undefined, undefined, ctx.ripples, [(sun[0] / flat) * Math.cos(up), Math.sin(up), (sun[2] / flat) * Math.cos(up)]);
   mat.side = DoubleSide; // seen from either side of its winding
   const mesh = own(new Mesh(g, mat));
   mesh.name = 'shift-flood';
