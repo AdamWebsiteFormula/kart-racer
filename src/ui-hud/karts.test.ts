@@ -7,7 +7,7 @@ import { CAST } from './data/cast.ts';
 import { SKINS } from './data/cosmetics.ts';
 import { byLine, isKart, kartCard, kartColors, kartFor, KARTS, ownKart } from './data/karts.ts';
 import { COMBO_BOUNDS, comboStats, KART_STEP, STAT_KEYS } from './data/kartStats.ts';
-import { kartMenu, kartMove, KART_COLUMNS } from './screens/karts.ts';
+import { kartMenu, kartMove, KART_COLUMNS, KART_COLUMNS_COMPACT } from './screens/karts.ts';
 import { comboBar, MAX_CHEVRONS, panelWords, statLevel, statPanel } from './screens/stats.ts';
 import { defaultSave } from './store.ts';
 import { garageModel, lookFor } from './garage.ts';
@@ -138,11 +138,13 @@ describe('the garage and the look with karts picked (design §12: the Body row g
 });
 
 describe('the Kart screen (view model)', () => {
-  it('ten cards in 5 × 2, the racer\'s kart marked, the twins locked with how to earn them until they are', () => {
+  it('ten tiles three across (MKW\'s vehicle grid; five across on a small screen), the racer\'s kart marked, the twins locked with how to earn them until they are', () => {
     const save = defaultSave();
     const vm = kartMenu(save, 'gus', 'snacktruck', (k) => comboStats('gus', k));
     expect(vm.cards.map((c) => c.id)).toEqual(ids);
-    expect(vm.focus.rows).toEqual([ids.slice(0, KART_COLUMNS), ids.slice(KART_COLUMNS)]);
+    expect(KART_COLUMNS).toBe(3);
+    expect(vm.focus.rows).toEqual([ids.slice(0, 3), ids.slice(3, 6), ids.slice(6, 9), ids.slice(9)]);
+    expect(kartMenu(save, 'gus', 'snacktruck', (k) => comboStats('gus', k), KART_COLUMNS_COMPACT).focus.rows).toEqual([ids.slice(0, 5), ids.slice(5)]);
     expect(vm.focus.disabled).toBeUndefined(); // a locked card still takes the focus: it previews
     expect(vm.cards.filter((c) => c.chosen).map((c) => c.id)).toEqual(['snacktruck']);
     expect(vm.cards.filter((c) => c.locked).map((c) => [c.id, c.hint])).toEqual([['classic', 'Finish a Grand Prix'], ['buggy', 'Race a Knockout to the end']]);
@@ -155,15 +157,21 @@ describe('the Kart screen (view model)', () => {
   });
 
   it('the arrows run through all ten and wrap: left and right in reading order across the rows, up and down between them', () => {
+    // three across: scooter scrap pod / wagon skimmer windup / stomper snacktruck classic / buggy
     const f = kartMenu(defaultSave(), 'pip', 'scooter', (k) => comboStats('pip', k)).focus;
     const walk = (from: string, ...dirs: ('left' | 'right' | 'up' | 'down')[]) => dirs.reduce((at, d) => kartMove(f, at, d), from);
-    expect(walk('skimmer', 'right')).toBe('windup'); // the end of the first row runs on to the second
+    expect(walk('pod', 'right')).toBe('wagon'); // the end of the first row runs on to the second
     expect(walk('buggy', 'right')).toBe('scooter'); // the tenth wraps to the first
     expect(walk('scooter', 'left')).toBe('buggy');
-    expect(walk('windup', 'left')).toBe('skimmer');
-    expect(walk('pod', 'down')).toBe('snacktruck');
-    expect(walk('snacktruck', 'down')).toBe('pod'); // down past the last row wraps to the top
-    expect(walk('pod', 'up')).toBe('snacktruck');
+    expect(walk('wagon', 'left')).toBe('pod');
+    expect(walk('scrap', 'down')).toBe('skimmer');
+    expect(walk('classic', 'down')).toBe('buggy'); // the last row has one: the nearest column
+    expect(walk('buggy', 'down')).toBe('scooter'); // down past the last row wraps to the top
+    expect(walk('pod', 'up')).toBe('buggy');
+    // five across (a small screen): the rows of five
+    const c = kartMenu(defaultSave(), 'pip', 'scooter', (k) => comboStats('pip', k), KART_COLUMNS_COMPACT).focus;
+    expect(kartMove(c, 'pod', 'down')).toBe('snacktruck');
+    expect(kartMove(c, 'skimmer', 'right')).toBe('windup');
     // right ten times comes back round
     expect(walk('wagon', ...Array.from({ length: 10 }, () => 'right' as const))).toBe('wagon');
     const seen = new Set<string>();

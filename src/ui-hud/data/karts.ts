@@ -72,6 +72,20 @@ export function kartColors(k: KartCard, racerId: string, paintId?: string): read
   return [c?.accent ?? '#FFFFFF', c?.secondary ?? '#1B1B2F'];
 }
 
+/**
+ * The kart's picture on its tile (public/art/karts/<name>.webp, rendered from our own 3D kart models by
+ * scripts/headless/kart-icons.mjs): a signature kart in its owner's colors (in the racer's own paint when it
+ * is their own kart, as the paint repaints the kart with the racer), a twin in the racer's colors or their
+ * paint's, as the race draws them (kartColors). Pure.
+ */
+export function kartArt(kartId: string, racerId: string, paintId?: string): string {
+  const k = kartCard(kartId);
+  if (!k) return kartId;
+  const paint = paintId && skinCard(paintId)?.racerId === racerId ? paintId : undefined;
+  if (!k.owner) return `${k.id}-${paint ?? racerId}`;
+  return k.owner === racerId && paint ? `${k.id}-${paint}` : k.id;
+}
+
 /** The two twins' unlocks as the Unlocks list names them once karts are picked (UI.kartPick): karts, not bodies. */
 export const KART_UNLOCK_WORDS: Readonly<Record<'classic' | 'buggy', { name: string; use: string }>> = Object.freeze({
   classic: { name: 'Classic kart', use: 'Pick any racer, then the Classic kart.' },

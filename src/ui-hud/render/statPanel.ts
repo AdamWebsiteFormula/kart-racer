@@ -21,12 +21,13 @@ export class StatPanel {
   private readonly rows: Row[] = [];
   private readonly who: TextField;
 
-  /** `cls`: the panel's place and entrance (`kart-stats enter` on the Kart screen, `roster-stats enter` by the racer screen's turntable) */
+  /** `cls`: the panel's place (`select-stats` on the Racer and Kart screens, over the hero, shown by the Stats button) */
   constructor(parent: HTMLElement, cls = '') {
     this.root = h('div', `stat-panel${cls ? ` ${cls}` : ''}`, parent);
     this.root.setAttribute('role', 'group');
     this.root.setAttribute('aria-label', 'Stats');
-    this.who = new TextField(h('span', 'sr-only', this.root));
+    // whose combo it is, both names (Adam, 26 Sept 2026: the stats "should change a little bit depending on which rider is riding it")
+    this.who = new TextField(h('div', 'sp-title', this.root));
     STAT_KEYS.forEach((key, i) => {
       const row = h('div', 'sp-row', this.root);
       row.dataset.stat = key;

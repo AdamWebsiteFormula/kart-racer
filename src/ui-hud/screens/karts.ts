@@ -1,7 +1,7 @@
-// The Kart screen (design §5, §12; docs/plans/kart-combos.md §5). Pure view models: the ten kart cards and
+// The Kart screen (design §5, §12; docs/plans/kart-combos.md §5). Pure view models: the ten kart tiles and
 // their focus grid, and how the focus runs through them. The stats panel beside them is screens/stats.ts.
 import { castCard, nameOf } from '../data/cast.ts';
-import { byLine, kartColors, kartLocked, KARTS } from '../data/karts.ts';
+import { byLine, kartArt, kartColors, kartLocked, KARTS } from '../data/karts.ts';
 import type { StatLine } from '../data/kartStats.ts';
 import type { Save } from '../store.ts';
 import type { FocusModel, NavAction } from '../types.ts';
@@ -13,42 +13,51 @@ export const KART_SCREEN_TITLE = 'Pick your kart';
 export const LOCKED_IN = 'Locked in!';
 
 /**
- * A kart card: `by` whose kart it is ("Gus's kart") or what a twin is ("Same stats as the Wind-Up Racer");
- * `colors` its picture's two colors (the owner's; a twin the racer's own or their paint's); `locked` a twin
- * not yet earned, which takes the focus to preview but cannot be chosen, `hint` how to earn it; `chosen` the
- * kart the racer is in now; `words` its stats against that one's, for its label.
+ * A kart tile: `by` whose kart it is ("Gus's kart") or what a twin is ("Same stats as the Wind-Up Racer");
+ * `colors` its two colors (the owner's; a twin the racer's own or their paint's), `art` its picture's name
+ * (data/karts.ts kartArt: the kart rendered from its 3D model in those colors); `locked` a twin not yet
+ * earned, which takes the focus to preview but cannot be chosen, `hint` how to earn it; `chosen` the kart
+ * the racer is in now; `words` its stats against that one's, for its label (the tile itself shows only
+ * the picture, as Mario Kart World's vehicle tiles do).
  */
-export interface KartCardVM { id: string; name: string; by: string; line: string; owner: string | null; colors: readonly [string, string]; locked: boolean; hint?: string; chosen: boolean; words: string }
+export interface KartCardVM { id: string; name: string; by: string; line: string; owner: string | null; colors: readonly [string, string]; art: string; locked: boolean; hint?: string; chosen: boolean; words: string }
 export interface KartMenuVM { title: string; racerId: string; racerName: string; cards: KartCardVM[]; focus: FocusModel }
 
-/** The cards' columns: 10 karts in 5 × 2, the way the grid sits (MKW sets its parts in a grid too). */
-export const KART_COLUMNS = 5;
+/**
+ * The tiles' columns: three, as Mario Kart World sets its vehicles (three across, four down: stills from its
+ * vehicle select, youtube.com/watch?v=PI0dNuQNq5k); five across where the screen is short or narrow (a phone
+ * on its side, a small window: UI.selectCompactQuery), two rows of five.
+ */
+export const KART_COLUMNS = 3;
+export const KART_COLUMNS_COMPACT = 5;
 
 /**
  * The Kart screen for this racer (their paint dresses a twin), the kart they are in now marked chosen.
  * `stats(kartId)`: the racer's combined line in that kart (data/kartStats.ts comboStats, bound to the racer).
+ * `columns`: the grid's columns as the screen sets them (KART_COLUMNS, or KART_COLUMNS_COMPACT).
  */
-export function kartMenu(save: Save, racerId: string, currentKart: string, stats: (kartId: string) => StatLine): KartMenuVM {
+export function kartMenu(save: Save, racerId: string, currentKart: string, stats: (kartId: string) => StatLine, columns = KART_COLUMNS): KartMenuVM {
   const paint = save.settings.skinByRacer[racerId];
   const now = stats(currentKart);
   const cards = KARTS.map((k): KartCardVM => {
     const locked = kartLocked(k, save.unlocked.bodies);
     const hint = locked ? UNLOCKS.find((u) => u.id === k.unlock)?.how : undefined;
     return {
-      id: k.id, name: k.name, by: byLine(k), line: k.line, owner: k.owner, colors: kartColors(k, racerId, paint),
+      id: k.id, name: k.name, by: byLine(k), line: k.line, owner: k.owner, colors: kartColors(k, racerId, paint), art: kartArt(k.id, racerId, paint),
       locked, ...(hint ? { hint } : {}), chosen: k.id === currentKart, words: panelWords(statPanel(now, stats(k.id))),
     };
   });
   const ids = cards.map((c) => c.id);
   const rows: string[][] = [];
-  for (let i = 0; i < ids.length; i += KART_COLUMNS) rows.push(ids.slice(i, i + KART_COLUMNS));
+  for (let i = 0; i < ids.length; i += columns) rows.push(ids.slice(i, i + columns));
   return { title: KART_SCREEN_TITLE, racerId, racerName: castCard(racerId)?.name ?? nameOf(racerId), cards, focus: { rows } };
 }
 
 /**
  * How the focus runs on the Kart screen: left and right through all ten in reading order, wrapping from
- * the last card of a row to the first of the next (and from the tenth to the first); up and down to the
- * other row, same column, wrapping. Every card takes the focus, locked or not (a locked one previews).
+ * the last tile of a row to the first of the next (and from the tenth to the first); up and down to the
+ * row above or below, same column (the nearest one in a shorter row), wrapping. Every tile takes the
+ * focus, locked or not (a locked one previews).
  */
 export function kartMove(focus: FocusModel, cur: string, dir: NavAction): string {
   const all = focus.rows.flat();

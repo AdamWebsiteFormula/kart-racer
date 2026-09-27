@@ -80,4 +80,12 @@ export const UI = Object.freeze({
   statGhostMs: 120,
   /** a kart chosen: its "Locked in!" pulse plays this long before the next screen comes (none with reduced motion) */
   lockInMs: 220,
+  /** the pad button (standard mapping: the top face button, Xbox Y) that shows the stats on the Racer and Kart screens, as the Y key does (input.ts isStatsKey) */
+  padStatsButton: 3,
+  /**
+   * The Racer and Kart screens with no room for the hero beside the tiles (a narrow window, a tablet, a phone; select.css
+   * says the same): the hero goes, the name and the stats sit under the tiles, and the Kart screen sets its tiles five
+   * across (screens/karts.ts KART_COLUMNS_COMPACT), so its focus grid does too.
+   */
+  selectCompactQuery: '(max-width: 1099px), (max-height: 619px)',
 });

@@ -1,6 +1,5 @@
 // View models for the menu screens: title, mode, roster, cup, pause, settings. Each returns the
 // entries to draw and the focus grid that navigates them.
-import { ARCHETYPES } from '../../kart-controller/constants.ts';
 import type { SpeedClass } from '../../kart-controller/types.ts';
 import type { RaceMode } from '../../race-manager/types.ts';
 import { GAME_TITLE } from '../constants.ts';
@@ -61,14 +60,20 @@ export function statBar(stat: number): number {
   return Math.min(1, Math.max(0.1, (3 + stat / 0.06) / 5));
 }
 
-/** `words`: with karts picked, the card's own four bars for a screen reader ("Speed 2 of 10. Accel 8 of 10. …") */
-export interface RacerCardVM { id: string; name: string; archetype: string; species: string; personality: string; kart: string; accent: string; secondary: string; stats: { label: string; value: number }[]; words?: string }
 /**
- * `garage`: the paint and body choices for the racer being dressed (garage.ts); a row in the grid only when it has any.
- * `panel`: with karts picked (UI.kartPick), the stats panel by the turntable: the racer on show in the kart they would
- * race in, as a ghost over the combo chosen now (screens/karts.ts statPanel); `kartName`: that kart, for the caption.
+ * A racer tile: only the racer's face shows (Mario Kart World's roster tiles are the racers alone: no class, no
+ * words, no bars; Adam, 26 Sept 2026: "it shouldn't even appear unless you press a button"); the rest is for its
+ * label. `words`: the racer's own four stats (in their own kart: their class) for a screen reader ("Speed 2 of
+ * 10. Accel 8 of 10. …"), on the stats panel's scale.
  */
-export interface RosterVM { cards: RacerCardVM[]; classes: Entry[]; focus: FocusModel; garage?: GarageVM; panel?: StatPanelVM; kartName?: string }
+export interface RacerCardVM { id: string; name: string; archetype: string; species: string; personality: string; kart: string; accent: string; secondary: string; stats: { label: string; value: number }[]; words: string }
+/**
+ * `garage`: the paint (and, with karts not picked, body) choices for the racer being dressed (garage.ts); a row in
+ * the grid only when it has any. `panel`: the stats (shown by the Stats button): the racer on show in the kart
+ * they would race in, as a ghost over the combo chosen now (screens/stats.ts statPanel); `kartName`: that kart,
+ * for the name's line.
+ */
+export interface RosterVM { cards: RacerCardVM[]; focus: FocusModel; garage?: GarageVM; panel?: StatPanelVM; kartName?: string }
 
 export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: string }[] = Object.freeze([
   { cc: 50, label: '50cc', sub: 'Easy' },
@@ -77,37 +82,42 @@ export const SPEED_CLASSES: readonly { cc: SpeedClass; label: string; sub: strin
 ]);
 
 /**
- * Time Trial and Daily always run at 150cc (the leaderboard replays them so: soloConfig), so they have no class row.
- * `extras.garage`: the paint and body choices, a row under the cards when it has any; `extras.mirror`: the
- * Mirror switch's state, beside the classes, when Mirror is unlocked and the mode takes it (garage.ts mirrorAllowed).
- * `oneRow`: a short screen (a phone on its side, UI.shortScreenQuery) sets the eight cards in one row, and so does the grid.
+ * The speed class row, where Mario Kart World asks for it: after the cup (its 50cc, 100cc and 150cc badges take
+ * the cup emblems' place on the cup screen: stills from youtube.com/watch?v=_9JZhslBy3E; "the next menu after
+ * selecting a cup also shows your best ranking for each individual engine class", gamefaqs.gamespot.com/boards/
+ * 507486-mario-kart-world/80993143), so ours sits under the cups (Grand Prix, Knockout) and under the tracks
+ * (Quick Race), and the Racer screen is the racers alone. Time Trial and Daily always run at 150cc (the
+ * leaderboard replays them so: soloConfig): no row. `mirror`: the Mirror switch's state, at the row's end, when
+ * Mirror is unlocked and the mode takes it (garage.ts mirrorAllowed); absent, no switch.
  */
-export function rosterMenu(selectedCc: SpeedClass, mode: RaceMode | null = null, extras: { garage?: GarageVM; mirror?: boolean; panel?: StatPanelVM; kartName?: string } = {}, oneRow = false): RosterVM {
-  // with karts picked, each card's own four bars (the racer in their own kart: their class) on the stats panel's
-  // scale, the fair band of every racer-and-kart pair, so a card and the panel read alike (design §12)
-  const kartPick = extras.panel !== undefined;
+export function speedRow(mode: RaceMode | null, selectedCc: SpeedClass, mirror?: boolean): Entry[] {
+  if (mode === 'timeTrial' || mode === 'daily') return [];
+  const row: Entry[] = SPEED_CLASSES.map((s) => ({ id: `cc${s.cc}`, label: s.label, sub: s.sub, badge: s.cc === selectedCc ? '●' : undefined }));
+  if (mirror !== undefined) row.push({ id: 'mirror', label: 'Mirror', sub: mirror ? 'On' : 'Off', badge: mirror ? '●' : undefined });
+  return row;
+}
+
+/**
+ * The Racer screen: the eight racers' tiles, four by two. `extras.garage`: the paint and body choices, a row
+ * under the tiles when it has any; `extras.panel` and `kartName`: the stats and the kart the racer on show
+ * would race in. `oneRow`: a short screen (a phone on its side, UI.shortScreenQuery) sets the eight in one
+ * row, and so does the grid.
+ */
+export function rosterMenu(extras: { garage?: GarageVM; panel?: StatPanelVM; kartName?: string } = {}, oneRow = false): RosterVM {
   const cards = CAST.map((c): RacerCardVM => {
-    const a = ARCHETYPES[c.archetype];
-    const own = kartPick ? statPanel(comboStats(c.id, ownKart(c.id))) : undefined;
+    const own = statPanel(comboStats(c.id, ownKart(c.id)));
     return {
       id: c.id, name: c.name, archetype: c.archetype[0].toUpperCase() + c.archetype.slice(1), species: c.species,
       personality: c.personality, kart: c.kart, accent: c.accent, secondary: c.secondary,
-      stats: own ? own.rows.map((r) => ({ label: r.label, value: r.value })) : [
-        { label: 'Speed', value: statBar(a.speed) }, { label: 'Accel', value: statBar(a.accel) },
-        { label: 'Handling', value: statBar(a.handling) }, { label: 'Weight', value: statBar(a.weight) },
-      ],
-      ...(own ? { words: panelWords(own) } : {}),
+      stats: own.rows.map((r) => ({ label: r.label, value: r.value })), words: panelWords(own),
     };
   });
-  const solo = mode === 'timeTrial' || mode === 'daily';
-  const classes: Entry[] = solo ? [] : SPEED_CLASSES.map((s) => ({ id: `cc${s.cc}`, label: s.label, sub: s.sub, badge: s.cc === selectedCc ? '●' : undefined }));
-  if (!solo && extras.mirror !== undefined) classes.push({ id: 'mirror', label: 'Mirror', sub: extras.mirror ? 'On' : 'Off', badge: extras.mirror ? '●' : undefined });
   const ids = cards.map((c) => c.id);
   const rows = oneRow ? [ids] : [ids.slice(0, 4), ids.slice(4, 8)];
   const garage = extras.garage;
   if (garage?.choices.length) rows.push(garage.choices.map((c) => c.id));
   return {
-    cards, classes, focus: { rows: classes.length ? [...rows, classes.map((c) => c.id)] : rows }, ...(garage ? { garage } : {}),
+    cards, focus: { rows }, ...(garage ? { garage } : {}),
     ...(extras.panel ? { panel: extras.panel } : {}), ...(extras.kartName ? { kartName: extras.kartName } : {}),
   };
 }
@@ -146,9 +156,11 @@ export function rosterMove(focus: FocusModel, cur: string, dir: NavAction, dress
 }
 
 export interface CupEntry extends Entry { tracks: { id: string; name: string; bg: string; accent: string; built: boolean }[]; plays: string[] }
-export interface CupVM { title: string; cups: CupEntry[]; focus: FocusModel }
+/** `classes`: the speed class row under the cups (speedRow), the stars on each cup for the class chosen there */
+export interface CupVM { title: string; cups: CupEntry[]; classes: Entry[]; focus: FocusModel }
 
-export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<string>, save: Save, cc: SpeedClass): CupVM {
+/** `mirror`: the Mirror switch's state for the class row, when the mode takes it (absent: no switch) */
+export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<string>, save: Save, cc: SpeedClass, mirror?: boolean): CupVM {
   const list: readonly CupCard[] = mode === 'grandPrix' ? CUPS : KNOCKOUT_SETS;
   const cups = list.map((c) => {
     const plays = playableTracks(c.trackIds, built);
@@ -162,12 +174,14 @@ export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<strin
       plays,
     };
   });
-  return { title: mode === 'grandPrix' ? 'Pick a cup' : 'Pick a Knockout', cups, focus: grid([cups]) };
+  const classes = speedRow(mode, cc, mirror);
+  return { title: mode === 'grandPrix' ? 'Pick a cup' : 'Pick a Knockout', cups, classes, focus: grid(classes.length ? [cups, classes] : [cups]) };
 }
 
 /** `medal`: a Time Trial card's best medal (its badge in the corner); absent for none */
 export interface TrackEntry extends Entry { biome: string; bg: string; accent: string; medal?: MedalWon }
-export interface TrackVM { title: string; tracks: TrackEntry[]; focus: FocusModel }
+/** `classes`: the speed class row under the tracks (Quick Race; speedRow), none for a Time Trial */
+export interface TrackVM { title: string; tracks: TrackEntry[]; classes: Entry[]; focus: FocusModel }
 
 /** A track's Time Trial medal times (its track file's `medalTimesMs`). */
 export interface MedalTimes { gold: number; silver: number; bronze: number }
@@ -191,8 +205,10 @@ export function medalLadder(ms: number, m: MedalTimes): MedalLadderVM {
 /**
  * Every built track in cup order, three to a row; a Time Trial card shows your best time and its
  * medal, graded against the track's medal times now (a medal saved under older times goes stale).
+ * `speed`: the class chosen (and the Mirror switch's state, where the mode takes it) for the class row
+ * under the tracks (speedRow: Quick Race only); absent, no row.
  */
-export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save, medalTimes: ReadonlyMap<string, MedalTimes>): TrackVM {
+export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save, medalTimes: ReadonlyMap<string, MedalTimes>, speed?: { cc: SpeedClass; mirror?: boolean }): TrackVM {
   const tracks: TrackEntry[] = TRACKS.filter((t) => built.has(t.id)).map((t) => {
     const best = mode === 'timeTrial' ? save.timeTrial[t.id] : undefined;
     const times = medalTimes.get(t.id);
@@ -203,9 +219,11 @@ export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save
       ...(m !== 'none' ? { medal: m } : {}),
     };
   });
-  const rows: TrackEntry[][] = [];
+  const rows: Entry[][] = [];
   for (let i = 0; i < tracks.length; i += 3) rows.push(tracks.slice(i, i + 3));
-  return { title: mode === 'timeTrial' ? 'Time Trial: pick a track' : 'Pick a track', tracks, focus: grid(rows) };
+  const classes = speed ? speedRow(mode, speed.cc, speed.mirror) : [];
+  if (classes.length) rows.push(classes);
+  return { title: mode === 'timeTrial' ? 'Time Trial: pick a track' : 'Pick a track', tracks, classes, focus: grid(rows) };
 }
 
 /** `canRestart`: false in a Grand Prix or Knockout, where a restart would redo a finished race for its points or its win (audit 24 Sept 2026) */

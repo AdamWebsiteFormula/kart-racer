@@ -9,7 +9,8 @@ import { FACE_ZOOM, faceCrop } from '../data/faces.ts';
 import { firstFocus, move, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { CREDITS_MADE, parseCredits } from './credits.ts';
-import { cupMenu, medalFor, medalLadder, MODES, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, statBar, titleMenu, trackMenu } from './menus.ts';
+import { cupMenu, medalFor, medalLadder, MODES, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, speedRow, statBar, titleMenu, trackMenu } from './menus.ts';
+import { garageModel } from '../garage.ts';
 import { boardDown, boardModel, cumulativeSplits, END_LABELS, endFocus, endMenu, gpModel, knockoutCutModel, nextDailyAt, resultsModel, seedDate } from './results.ts';
 
 const racers: RacerConfig[] = CAST.map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 }));
@@ -29,8 +30,10 @@ describe('menus', () => {
     const save = defaultSave();
     const built = new Set(['harbour-loop']);
     const models = [
-      titleMenu().focus, titleMenu(true).focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu(100).focus, rosterMenu(100, 'timeTrial').focus,
-      cupMenu('grandPrix', built, save, 100).focus, cupMenu('knockout', built, save, 100).focus,
+      titleMenu().focus, titleMenu(true).focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu().focus, rosterMenu({}, true).focus,
+      rosterMenu({ garage: garageModel(save, 'pip') }).focus,
+      cupMenu('grandPrix', built, save, 100).focus, cupMenu('grandPrix', built, save, 100, false).focus, cupMenu('knockout', built, save, 100).focus,
+      trackMenu('quick', built, save, new Map(), { cc: 100, mirror: true }).focus, trackMenu('timeTrial', built, save, new Map(), { cc: 150 }).focus,
       pauseMenu().focus, pauseMenu(true).focus, settingsMenu(save.settings).focus,
     ];
     for (const m of models) {
@@ -40,17 +43,35 @@ describe('menus', () => {
     }
   });
 
+  it('the class row sits where Mario Kart World asks for it: under the cups and the tracks, the class chosen marked, Mirror at its end where the mode takes it; none in a Time Trial or the Daily', () => {
+    const save = defaultSave();
+    const built = new Set(['harbour-loop', 'meadow-run', 'canyon-rush']);
+    expect(speedRow('quick', 150).find((c) => c.id === 'cc150')!.badge).toBe('●');
+    expect(speedRow('quick', 150).filter((c) => c.badge).length).toBe(1);
+    expect(speedRow('daily', 150)).toEqual([]);
+    const cup = cupMenu('grandPrix', built, save, 50, true);
+    expect(cup.focus.rows.at(-1)).toEqual(['cc50', 'cc100', 'cc150', 'mirror']);
+    expect(cup.classes.find((c) => c.id === 'mirror')).toMatchObject({ sub: 'On', badge: '●' });
+    expect(cupMenu('knockout', built, save, 100).focus.rows.at(-1)).toEqual(['cc50', 'cc100', 'cc150']);
+    const quick = trackMenu('quick', built, save, new Map(), { cc: 100 });
+    expect(quick.focus.rows).toEqual([['harbour-loop', 'meadow-run', 'canyon-rush'], ['cc50', 'cc100', 'cc150']]);
+    expect(trackMenu('timeTrial', built, save, new Map(), { cc: 150 }).focus.rows).toEqual([['harbour-loop', 'meadow-run', 'canyon-rush']]);
+    expect(trackMenu('quick', built, save, new Map()).classes).toEqual([]); // (no speed given: no row)
+  });
+
   it('modes: unavailable ones are disabled and badged', () => {
     const vm = modeMenu(new Set(['quick']));
     expect(vm.entries.filter((e) => !e.disabled).map((e) => e.id)).toEqual(['quick']);
     expect(vm.entries[1].badge).toBe('Soon');
   });
 
-  it('roster: eight cards, two rows of four plus the class row; stat bars order the archetypes', () => {
-    const vm = rosterMenu(150);
+  it('roster: eight tiles, two rows of four (the class row is on the cup and track screens now); their stats order the classes', () => {
+    const vm = rosterMenu();
     expect(vm.cards.length).toBe(8);
-    expect(vm.focus.rows.map((r) => r.length)).toEqual([4, 4, 3]);
-    expect(vm.classes.find((c) => c.id === 'cc150')!.badge).toBe('●');
+    expect(vm.focus.rows.map((r) => r.length)).toEqual([4, 4]);
+    expect('classes' in vm).toBe(false);
+    // each tile's label carries the racer's own four stats (the tile shows only the face)
+    expect(vm.cards[0].words).toMatch(/^Speed \d+ of 10\. Accel \d+ of 10\. Handling \d+ of 10\. Weight \d+ of 10$/);
     expect(statBar(0)).toBeCloseTo(0.6);
     const pip = vm.cards[0].stats, gus = vm.cards[7].stats;
     const v = (s: typeof pip, l: string) => s.find((x) => x.label === l)!.value;
@@ -444,7 +465,7 @@ describe('the end buttons (25 Sept 2026: Mario Kart World\'s end-of-race menu)',
 });
 
 describe('racer screen focus (sweep 24 Sept 2026)', () => {
-  // two rows of four cards, then Paint and Body, then the class row
+  // two rows of four cards, then Paint and Body, then another row under them (the rule holds for any rows under the tiles)
   const grid = { rows: [['pip', 'momo', 'nova', 'juniper'], ['otto', 'sprocket', 'boulder', 'gus'], ['paint', 'body'], ['cc50', 'cc100', 'cc150']] };
   const at = (cur: string, dir: 'up' | 'down' | 'left' | 'right', dressed = 'pip') => rosterMove(grid, cur, dir, dressed) ?? move(grid, cur, dir);
 
@@ -475,12 +496,12 @@ describe('racer screen focus (sweep 24 Sept 2026)', () => {
   });
 
   it('on a phone on its side the cards are one row, and so is the grid: up from a card wraps to the bottom row, never onto another card', () => {
-    const one = rosterMenu(100, 'quick', {}, true).focus;
-    expect(one.rows.map((r) => r.length)).toEqual([8, 3]);
-    expect(rosterMove(one, 'pip', 'down', 'pip')).toBe('cc50');
-    expect(rosterMove(one, 'pip', 'up', 'pip')).toBeNull(); // the plain grid: round to the class row
-    expect(move(one, 'pip', 'up')).toBe('cc50');
-    expect(rosterMove(one, 'cc150', 'up', 'otto')).toBe('otto');
+    const one = rosterMenu({ garage: garageModel(defaultSave(), 'pip') }, true).focus;
+    expect(one.rows.map((r) => r.length)).toEqual([8, 2]);
+    expect(rosterMove(one, 'pip', 'down', 'pip')).toBe('paint');
+    expect(rosterMove(one, 'pip', 'up', 'pip')).toBeNull(); // the plain grid: round to the row under the tiles
+    expect(move(one, 'pip', 'up')).toBe('paint');
+    expect(rosterMove(one, 'body', 'up', 'otto')).toBe('otto');
     expect(rosterMove(one, 'juniper', 'right', 'pip')).toBe('otto');
     // every entry still reachable by arrows alone (SOP test 2)
     const reach = (m: typeof one, from: string) => {
@@ -491,7 +512,7 @@ describe('racer screen focus (sweep 24 Sept 2026)', () => {
       }
       return seen;
     };
-    expect(reach(one, 'pip').size).toBe(11);
+    expect(reach(one, 'pip').size).toBe(10);
     expect(reach(grid, 'pip').size).toBe(13);
   });
 });

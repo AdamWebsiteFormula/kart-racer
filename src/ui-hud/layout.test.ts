@@ -45,14 +45,10 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.stage', 'overscroll-behavior')).toBe('contain');
   });
 
-  it('the roster sets all eight racers in one row, class, portrait and name only, so Paint, Body and the 50/100/150cc row fit (852x344 needed a 147 px scroll)', () => {
-    expect(value('.roster', 'grid-template-columns', '(max-width: 900px)')).toBe('repeat(2, minmax(0, 1fr))');
-    expect(value('.roster', 'grid-template-columns', PHONE)).toBe('repeat(8, minmax(0, 1fr))');
+  it('the Paint and Body rows stay side by side on one row, and every stage keeps a small margin inside the notch (select.css sets the racers in one row: its own tests)', () => {
     expect(value('.garage', 'flex-wrap', PHONE)).toBe('nowrap');
     // the sides keep a small margin inside the notch's inset, not 48 px on top of it
     expect(value('.stage', 'padding', PHONE)).toContain('calc(20px + var(--safe-l))');
-    expect(value('.card .stats', 'display', PHONE)).toBe('none');
-    expect(value('.card .who', 'display', PHONE)).toBe('none');
   });
 
   it('the title sizes its name by the height too, sets the four buttons two by two, and never spills off the top', () => {
@@ -168,13 +164,11 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(value('#ui .screen[inert]:not(.x-out) > .stage', 'opacity')).toBe('0');
   });
 
-  it('a laptop window (1280x720, 1366x657) fits the title and the racer screen down to the class row', () => {
+  it('a laptop window (1280x720, 1366x657) fits the title, and the Paint row drops its hints', () => {
     const LAPTOP = '(max-height: 800px)';
     expect(value('.logo .l1', 'font-size', LAPTOP)).toMatch(/vh/);
     expect(value('.logo .l2', 'font-size', LAPTOP)).toMatch(/vh/);
-    expect(value('.card .who', 'display', LAPTOP)).toBe('none');
     expect(value('.pick-hint', 'display', LAPTOP)).toBe('none');
-    expect(value('.card .face.has-portrait', 'width', LAPTOP)).toBe('60px');
   });
 
   it('on a phone on its side the odd last button (Credits, or Quit without Restart) sits centred under the others', () => {
@@ -354,37 +348,65 @@ describe('the end buttons, the lap pop and the Knockout goal (25 Sept 2026)', ()
   });
 });
 
-describe('the Kart screen and the stats panel (karts.css, K5)', () => {
+describe('the Racer and Kart screens (select.css; design §12, 26 Sept 2026: as Mario Kart World\'s select screens)', () => {
   let kcss = '';
   beforeAll(async () => {
     const fs = (await import('node:fs' as string)) as { readFileSync(p: string, enc: 'utf8'): string };
-    kcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'karts.css')), 'utf8');
+    kcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'select.css')), 'utf8');
   });
-  /** `selector`'s `prop` in karts.css, top level or in the @media `media` */
+  /** `selector`'s `prop` in select.css, top level or in the @media `media` */
   const kvalue = (selector: string, prop: string, media?: string) => {
     const saved = css;
     css = kcss;
     try { return value(selector, prop, media); } finally { css = saved; }
   };
-  const NARROW = '(max-width: 1100px), (max-height: 620px)';
+  const COMPACT = UI.selectCompactQuery;
+  const LAPTOP = '(max-height: 800px)';
 
-  it('ten cards in 5 × 2 beside the hero and the panel; below 1100 px (or 620 tall) the hero goes and the panel is a strip over the cards', () => {
-    expect(kvalue('.kart-grid', 'grid-template-columns')).toBe('repeat(5, minmax(0, 1fr))');
-    expect(kvalue('.kart-body', 'grid-template-areas')).toBe("'grid hero' 'grid panel'");
-    expect(kvalue('.kart-hero', 'display', NARROW)).toBe('none');
-    expect(kvalue('.kart-body', 'grid-template-areas', NARROW)).toBe("'panel' 'grid'");
-    expect(kvalue('.stat-panel', 'grid-template-columns', NARROW)).toBe('repeat(4, minmax(0, 1fr))');
-    // the racer screen's panel too: under the turntable, a strip over the cards where the turntable has no room
-    expect(kvalue('.roster-body:has(> .roster-stats)', 'grid-template-areas')).toBe("'main hero' 'main panel'");
-    expect(kvalue('.roster-body:has(> .roster-stats)', 'grid-template-areas', NARROW)).toBe("'panel' 'main'");
-    // the hero's breakpoint is the racer screen's (ui.css): both screens change layout together
-    expect(value('.hero', 'display', NARROW)).toBe('none');
+  it('the tiles on the left (racers four across, karts three), the hero\'s room on the right; a small screen: the hero goes, the karts five across, the stats a strip under the tiles', () => {
+    expect(kvalue('.select-body', 'grid-template-columns')).toBe('minmax(0, 1.24fr) minmax(0, 1fr)');
+    expect(kvalue('.roster.select-grid', 'grid-template-columns')).toBe('repeat(4, minmax(0, 1fr))');
+    expect(kvalue('.kart-grid.select-grid', 'grid-template-columns')).toBe('repeat(3, minmax(0, 1fr))');
+    expect(kvalue('.kart-grid.cols-5', 'grid-template-columns')).toBe('repeat(5, minmax(0, 1fr))');
+    // sized by the room's height too, so the rows always fit it
+    expect(kvalue('.roster.select-grid', 'width')).toMatch(/cqh/);
+    expect(kvalue('.select-body', 'container-type')).toBe('size');
+    expect(kvalue('.hero-box', 'flex')).toBe('1 1 auto');
+    expect(kvalue('.select-body', 'grid-template-columns', COMPACT)).toBe('minmax(0, 1fr)');
+    expect(kvalue('.hero-box', 'display', COMPACT)).toBe('none');
+    expect(kvalue('.select-side .stat-panel', 'grid-template-columns', COMPACT)).toBe('repeat(4, minmax(0, 1fr))');
+    expect(kvalue('.select-side .stat-panel', 'position', COMPACT)).toBe('static');
+    expect(kvalue('.kart-who', 'display', COMPACT)).toBe('inline-flex');
   });
 
-  it('a phone on its side: each card its picture and name, sized by the screen\'s height, and the strip thin', () => {
-    for (const sel of ['.kc-by', '.kc-line', '.kc-hint']) expect(kvalue(sel, 'display', PHONE), sel).toBe('none');
-    expect(kvalue('.kc-art .kart-svg', 'max-height', PHONE)).toMatch(/vh$/);
-    expect(kvalue('.sp-track', 'height', PHONE)).toBe('10px');
+  it('nothing on a tile but its picture; the stats hidden until asked for, then over the hero, which steps back to make room', () => {
+    expect(kvalue('.stat-panel[hidden]', 'display')).toBe('none');
+    expect(kvalue('.select-side .stat-panel', 'position')).toBe('absolute');
+    expect(kvalue('.select-side.stats-on .hero-box', 'transform')).toMatch(/scale/);
+    expect(kvalue('.hero-box', 'transition')).toBe('transform var(--t-med) var(--out)');
+    expect(kvalue('.racer-tile', 'aspect-ratio')).toBe('4 / 5');
+    expect(kvalue('.tile-art', 'object-fit')).toBe('cover');
+    expect(kvalue('.kc-art img.art', 'object-fit')).toBe('contain');
+    // the drawing under the picture only until the picture loads
+    expect(kvalue('.kc-art:has(> img.art) > .kart-svg', 'display')).toBe('none');
+    // a locked twin: a dark shape
+    expect(kvalue('.kart-tile.locked .kc-art img.art', 'filter')).toMatch(/brightness\(0\)/);
+  });
+
+  it('focus: a white and sun ring, a glow and a lift (less in a laptop window, where the ring must clear the heading); a sheen sweeps the glass once', () => {
+    expect(kvalue('.tile.focused', 'transform')).toBe('translateY(-6px) scale(1.06)');
+    expect(kvalue('.tile.focused', 'box-shadow')).toMatch(/var\(--sun\)/);
+    expect(kvalue('.tile.focused', 'transform', LAPTOP)).toBe('translateY(-3px) scale(1.05)');
+    expect(kvalue('.tile.focused::before', 'animation')).toMatch(/^tile-sheen /);
+  });
+
+  it('a phone on its side: the racers in one row, the karts two rows of five, the name beside its line, the strip thin; the prompts stay on a touch screen, as buttons', () => {
+    expect(kvalue('.roster.select-grid', 'grid-template-columns', PHONE)).toBe('repeat(8, minmax(0, 1fr))');
+    expect(kvalue('.roster.select-grid', 'grid-template-columns', '(max-width: 720px) and (min-height: 501px)')).toBe('repeat(2, minmax(0, 1fr))');
+    expect(kvalue('.nameplate', 'flex-direction', PHONE)).toBe('row');
+    expect(kvalue('.sp-track', 'height', PHONE)).toBe('8px');
+    expect(kvalue('.select-stage .prompts', 'display', '(pointer: coarse)')).toBe('flex');
+    expect(kvalue('.prompts .prompt:not(.prompt-btn)', 'display', '(pointer: coarse)')).toBe('none');
   });
 
   it('the bars move by scaleX alone, on the UI\'s timings, and at once with reduced motion (no stagger either)', () => {
@@ -395,10 +417,12 @@ describe('the Kart screen and the stats panel (karts.css, K5)', () => {
     expect(kvalue(':root', '--t-ghost')).toBe(`${UI.statGhostMs}ms`);
     expect(kvalue(':root', '--t-lock-in')).toBe(`${UI.lockInMs}ms`);
     expect(kvalue(":root[data-reduced-motion='on'] .sp-track > i", 'transition-delay')).toBe('0ms');
-    // a gain's light extension and a loss's hatching show only with a ghost
+    // a gain's light extension and a loss's hatching show only with a ghost; the bar in five segments
     expect(kvalue('.sp-gain', 'opacity')).toBe('0');
     expect(kvalue(".sp-row[data-ghost='gain'] .sp-gain", 'opacity')).toBe('1');
     expect(kvalue('.sp-loss', 'background')).toMatch(/repeating-linear-gradient/);
+    // (jsdom's parser drops a gradient with a calc in it: read the rule's text)
+    expect(kcss).toMatch(/\.sp-track::after \{[^}]*repeating-linear-gradient\(90deg, transparent 0 calc\(20% - 3px\)/);
   });
 
   it('its animations move only transforms and opacity', () => {
@@ -415,6 +439,6 @@ describe('the Kart screen and the stats panel (karts.css, K5)', () => {
         for (let i = 0; i < style.length; i++) expect(['opacity', 'transform'], `${r.name} ${style[i]}`).toContain(style[i]);
       }
     }
-    expect(names.sort()).toEqual(['hero-bob', 'hero-flash', 'hero-in', 'kart-idle', 'lock-pulse', 'refuse-shake']);
+    expect(names.sort()).toEqual(['lock-pulse', 'np-flash', 'np-swap', 'refuse-shake', 'stats-in', 'tile-sheen']);
   });
 });

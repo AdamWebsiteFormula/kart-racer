@@ -40,7 +40,17 @@ export function isFullscreenKey(e: { code: string; key: string; ctrlKey?: boolea
   return e.code === 'KeyF' || (!e.code && (e.key === 'f' || e.key === 'F'));
 }
 
-/** Standard mapping: 0 = A (confirm), 1 = B (back), 9 = Start (back = pause in a race), 12–15 = d-pad. */
+/**
+ * Is this Y, the Stats key on the Racer and Kart screens (Mario Kart World shows its vehicle stats on Y, "Details";
+ * ours on Y on the keys and a pad alike, UI.padStatsButton)? By code, or by key when the code is empty; never with
+ * Ctrl, Cmd or Alt. Y drives nothing (kart-controller DEFAULT_KEYS).
+ */
+export function isStatsKey(e: { code: string; key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  return e.code === 'KeyY' || (!e.code && (e.key === 'y' || e.key === 'Y'));
+}
+
+/** Standard mapping: 0 = A (confirm), 1 = B (back), 3 = Y (the stats on the Racer and Kart screens), 9 = Start (back = pause in a race), 12–15 = d-pad. */
 export function navFromPad(buttons: readonly boolean[], axes: readonly number[]): NavAction | null {
   if (buttons[12] || (axes[1] ?? 0) < -UI.stickDeadZone) return 'up';
   if (buttons[13] || (axes[1] ?? 0) > UI.stickDeadZone) return 'down';

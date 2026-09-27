@@ -15,7 +15,7 @@ import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { UI } from './constants.ts';
 import { modeSvg } from './icons.ts';
 import { fullscreenState, toggleFullscreen } from './fullscreen.ts';
-import { isFullscreenKey, isPauseKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
+import { isFullscreenKey, isPauseKey, isStatsKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
 import { IntroCardView } from './render/intro.ts';
@@ -38,7 +38,7 @@ import { garageModel, lookFor, mirrorAllowed, setChoice, stepChoice, type Choice
 import { isKart, kartCard, kartFor, kartLocked, kartName } from './data/karts.ts';
 import { comboStats } from './data/kartStats.ts';
 import { skinCard } from './data/cosmetics.ts';
-import { kartMenu, kartMove, type KartMenuVM } from './screens/karts.ts';
+import { KART_COLUMNS, KART_COLUMNS_COMPACT, kartMenu, kartMove, type KartMenuVM } from './screens/karts.ts';
 import { statPanel } from './screens/stats.ts';
 import { KartView } from './render/karts.ts';
 
@@ -173,6 +173,10 @@ export class UiRoot {
   private pointerKind = '';
   /** the Kart screen as last drawn (its cards' names, colors and locks, for the hero) */
   private kartVm: KartMenuVM | null = null;
+  /** the stats show on the Racer and Kart screens (the Stats button: Y, a pad's Y, a tap); hidden until asked for, kept for the session */
+  private statsOn = false;
+  /** the pad's Y last poll (its press toggles the stats) */
+  private padStatsWas = false;
   /**
    * The screen change under way (UI.wipeMs): the views going (kept on show while they leave), the view
    * coming, a view's old face when it is drawn again as the next screen (results → standings), and when
@@ -216,6 +220,9 @@ export class UiRoot {
   private readonly onShort = () => this.setGrids();
   /** a short window (a laptop, a phone on its side): the end buttons sit in one line (UI.endOneLineQuery) */
   private readonly oneLine: MediaQueryList | undefined;
+  /** a small window (a phone, a tablet, a narrow window): the Kart screen sets its tiles five across (UI.selectCompactQuery) */
+  private readonly compact: MediaQueryList | undefined;
+  private readonly onCompact = () => { if (this.active?.key === 'kartSelect') this.show(true); };
 
   /** on-screen thumbs for phones and tablets (shown only there, only while racing) */
   readonly touch: TouchControls;
@@ -250,6 +257,8 @@ export class UiRoot {
     this.short?.addEventListener?.('change', this.onShort);
     this.oneLine = globalThis.matchMedia?.(UI.endOneLineQuery);
     this.oneLine?.addEventListener?.('change', this.onShort);
+    this.compact = globalThis.matchMedia?.(UI.selectCompactQuery);
+    this.compact?.addEventListener?.('change', this.onCompact);
     // the item roulette flicks through every painted item: main.ts fetches them all into the cache,
     // in turn with the other background files, once the title is up (performance/loadQueue.ts)
     const r = this.root;
@@ -291,6 +300,7 @@ export class UiRoot {
     this.upright?.removeEventListener?.('change', this.onUpright);
     this.short?.removeEventListener?.('change', this.onShort);
     this.oneLine?.removeEventListener?.('change', this.onShort);
+    this.compact?.removeEventListener?.('change', this.onCompact);
     this.root.remove();
   }
 
@@ -572,6 +582,10 @@ export class UiRoot {
       else if (this.padSpent[i]) buttons[i] = false;
     }
     if (!stickOut) this.padStickSpent = false;
+    // Y: the stats on the Racer and Kart screens, on a fresh press (as MKW's vehicle select shows its "Details" on Y)
+    const y = buttons[UI.padStatsButton] ?? false;
+    if (y && !this.padStatsWas && !wiping && !this.lockIn) this.toggleStats();
+    this.padStatsWas = y;
     const a = repeat(this.padRepeat, navFromPad(buttons, this.padStickSpent ? NO_AXES : pad.axes), nowMs);
     if (!a || wiping || this.lockIn) return;
     // A pressed twice: the second press would pick the new screen's first entry unseen, as a key or a click would
@@ -615,6 +629,12 @@ export class UiRoot {
       if (e.key === 'Enter') { e.preventDefault(); this.host.uiSound?.('confirm'); void this.postRun(); }
       else if (e.key === 'Escape') { e.preventDefault(); this.setFocus('post'); }
       else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); this.nav(e.key === 'ArrowUp' ? 'up' : 'down'); }
+      return;
+    }
+    // Y shows or hides the stats on the Racer and Kart screens (the Stats prompt names it)
+    if (!racing && !e.repeat && isStatsKey(e) && !this.app.overlays.length && (this.app.screen === 'rosterSelect' || this.app.screen === 'kartSelect')) {
+      e.preventDefault();
+      this.toggleStats();
       return;
     }
     // P pauses, so on the pause dialog it resumes too, like Escape
@@ -795,21 +815,26 @@ export class UiRoot {
     }
     // the menus' own Back button (a tap or a click): the way Escape goes
     if (id === 'back') { this.back(); return; }
+    // the Racer and Kart screens' Stats prompt (a tap or a click): the way Y goes
+    if (id === 'stats') { this.toggleStats(); return; }
     switch (s.screen) {
       case 'title':
         this.dispatch(id === 'settings' ? { type: 'openSettings' } : id === 'credits' ? { type: 'openCredits' } : id === 'howTo' ? { type: 'openHowTo' } : id === 'unlocks' ? { type: 'openUnlocks' } : { type: 'start' });
         break;
       case 'modeSelect': this.dispatch({ type: 'pickMode', mode: id as RaceMode }); break;
       case 'rosterSelect': {
-        const cc = SPEED_CLASSES.find((c) => `cc${c.cc}` === id);
-        if (cc) { this.dispatch({ type: 'setSpeedClass', speedClass: cc.cc }); this.show(true); }
-        else if (id === 'mirror') { this.dispatch({ type: 'toggleMirror' }); this.show(true); }
-        else if (id === 'paint' || id === 'body') this.changeLook(id, 1);
+        if (id === 'paint' || id === 'body') this.changeLook(id, 1);
         else this.dispatch({ type: 'pickRacer', racerId: id });
         break;
       }
-      case 'cupSelect': this.dispatch({ type: 'pickCup', cupId: id }); break;
-      case 'trackSelect': this.dispatch({ type: 'pickTrack', trackId: id }); break;
+      // the class row under the cups and the tracks (screens/menus.ts speedRow): a class or the Mirror switch, else the cup or track
+      case 'cupSelect': case 'trackSelect': {
+        const cc = SPEED_CLASSES.find((c) => `cc${c.cc}` === id);
+        if (cc) { this.dispatch({ type: 'setSpeedClass', speedClass: cc.cc }); this.show(true); }
+        else if (id === 'mirror') { this.dispatch({ type: 'toggleMirror' }); this.show(true); }
+        else this.dispatch(s.screen === 'cupSelect' ? { type: 'pickCup', cupId: id } : { type: 'pickTrack', trackId: id });
+        break;
+      }
       case 'results': case 'gpTable': case 'knockoutCut': case 'podium': {
         if (id === 'post') { void this.postRun(); break; }
         if (id === 'retry') { this.refreshBoard(); break; }
@@ -848,7 +873,7 @@ export class UiRoot {
     this.previewing = id;
     const racer = vm.racerId, paint = this.save.settings.skinByRacer[racer];
     this.views.karts.preview({
-      kartId: id, name: c.name, colors: c.colors, locked: c.locked, ...(c.hint ? { hint: c.hint } : {}), racerId: racer, racerName: vm.racerName,
+      kartId: id, name: c.name, colors: c.colors, locked: c.locked, ...(c.hint ? { hint: c.hint } : {}), ...(c.owner ? {} : { twin: c.by }), racerId: racer, racerName: vm.racerName,
       ...(paint ? { paintName: skinCard(paint)?.name } : {}),
       panel: statPanel(comboStats(racer, kartFor(racer, this.app.kartId)), comboStats(racer, id)),
     });
@@ -871,8 +896,7 @@ export class UiRoot {
   /** The garage for the racer being dressed, drawn again; its row in the focus grid follows its choices. */
   private redrawGarage(): void {
     if (this.active?.key !== 'rosterSelect') return;
-    const s = this.app;
-    const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras(), this.short?.matches ?? false);
+    const vm = rosterMenu(this.rosterExtras(), this.short?.matches ?? false);
     if (!vm.garage) return;
     this.views.roster.renderGarage(vm.garage, vm.kartName);
     this.views.roster.markDressed(vm.garage.racerId);
@@ -891,31 +915,44 @@ export class UiRoot {
     const s = this.app;
     const racer = this.dressing || s.racerId, kart = this.kartOf(racer);
     const chosen = this.kartOf(s.racerId);
+    // (the stats always: with karts not picked, each racer in their own kart, which is their class)
     return {
-      garage: garageModel(this.save, racer, kart), mirror: mirrorAllowed(this.save, s.mode) ? s.mirrored : undefined,
-      ...(kart ? { panel: statPanel(comboStats(s.racerId, chosen), comboStats(racer, kart)), kartName: kartName(kart) } : {}),
+      garage: garageModel(this.save, racer, kart), panel: statPanel(comboStats(s.racerId, chosen), comboStats(racer, kart)),
+      ...(kart ? { kartName: kartName(kart) } : {}),
     };
   }
 
   /**
-   * The turntable: the canvas to draw the dressed kart in, turning, and who and how; null when there is none. The racer
-   * screen's shows the racer on show (in their paint and body; with karts picked, in the kart they would race in); the
-   * Kart screen's (the plan's K6: main.ts draws it on 'kartSelect' too once the art can seat any racer in any kart) the
-   * racer in the kart under the focus. `kartId`: with karts picked, that kart (its shared body, Classic or Buggy, is
-   * in `look` already); absent, the racer's own kart.
+   * The hero: the box on the screen the game draws the racer in (main.ts drawStage, game/showroom.ts), turning, and
+   * who and how; null when there is none. The racer screen's shows the racer on show (in their paint and body; with
+   * karts picked, in the kart they would race in); the Kart screen's the racer in the kart under the focus.
+   * `kartId`: with karts picked, that kart (its shared body, Classic or Buggy, is in `look` already); absent, the
+   * racer's own kart.
    */
-  turntable(): { canvas: HTMLCanvasElement; racerId: string; look: KartLookIds; kartId?: string } | null {
+  turntable(): { box: HTMLElement; racerId: string; look: KartLookIds; kartId?: string } | null {
     const key = this.active?.key;
     if (key === 'kartSelect') {
-      const canvas = this.views.karts.turntable;
-      if (!canvas?.isConnected) return null;
+      const box = this.views.karts.turntable;
+      if (!box?.isConnected) return null;
       const racerId = this.app.racerId, kartId = this.previewing || kartFor(racerId, this.app.kartId);
-      return { canvas, racerId, look: lookFor(this.save, racerId, kartId), kartId };
+      return { box, racerId, look: lookFor(this.save, racerId, kartId), kartId };
     }
-    const canvas = this.views.roster.turntable;
-    if (key !== 'rosterSelect' || !canvas?.isConnected) return null;
+    const box = this.views.roster.turntable;
+    if (key !== 'rosterSelect' || !box?.isConnected) return null;
     const racerId = this.dressing || this.app.racerId, kartId = this.kartOf(racerId);
-    return { canvas, racerId, look: lookFor(this.save, racerId, kartId), ...(kartId ? { kartId } : {}) };
+    return { box, racerId, look: lookFor(this.save, racerId, kartId), ...(kartId ? { kartId } : {}) };
+  }
+
+  /** Whether the stats show on the Racer and Kart screens (the Stats button; hidden until asked for, as MKW's "Details"). */
+  get statsShown(): boolean { return this.statsOn; }
+
+  /** Show or hide the stats on the Racer and Kart screens (Y on the keys or a pad, or a tap on the Stats prompt). Kept for the session. */
+  toggleStats(): void {
+    const key = this.active?.key;
+    if (key !== 'rosterSelect' && key !== 'kartSelect') return;
+    this.statsOn = !this.statsOn;
+    this.views.roster.setStats(this.statsOn);
+    this.views.karts.setStats(this.statsOn);
   }
 
   /** Every unlock at once (the dev console's kart.unlockAll(), for trying the rewards). Saved; the screen on top is drawn again. */
@@ -1081,17 +1118,17 @@ export class UiRoot {
       }
       case 'rosterSelect': {
         if (entering) this.dressing = s.racerId;
-        // a phone on its side sets the eight cards in one row, and so does the grid
-        const vm = rosterMenu(s.speedClass, s.mode, this.rosterExtras(), short);
+        // a phone on its side sets the eight tiles in one row, and so does the grid
+        const vm = rosterMenu(this.rosterExtras(), short);
         v.roster.render(vm);
         v.roster.markDressed(this.dressing);
         this.models.set(key, vm.focus);
         break;
       }
       case 'kartSelect': {
-        // the racer's kart now marked; every card's bars against it (its label says them)
+        // the racer's kart now marked; every tile's bars against it (its label says them); three across, or five where the screen is small
         const racer = s.racerId;
-        const vm = kartMenu(this.save, racer, kartFor(racer, s.kartId), (k) => comboStats(racer, k));
+        const vm = kartMenu(this.save, racer, kartFor(racer, s.kartId), (k) => comboStats(racer, k), this.compact?.matches ? KART_COLUMNS_COMPACT : KART_COLUMNS);
         this.kartVm = vm;
         v.karts.render(vm);
         this.previewing = ''; // the focus puts one on show (drawn again, the hero writes only what changed)
@@ -1099,12 +1136,19 @@ export class UiRoot {
         break;
       }
       case 'cupSelect': {
-        const vm = cupMenu(s.mode === 'knockout' ? 'knockout' : 'grandPrix', built, this.save, s.speedClass);
+        // the class row under the cups (with the Mirror switch where the mode takes it once unlocked)
+        const vm = cupMenu(s.mode === 'knockout' ? 'knockout' : 'grandPrix', built, this.save, s.speedClass, mirrorAllowed(this.save, s.mode) ? s.mirrored : undefined);
         v.cups.render(vm);
         this.models.set(key, vm.focus);
         break;
       }
-      case 'trackSelect': { const vm = trackMenu(s.mode ?? 'quick', built, this.save, this.host.medalTimes); v.tracks.render(vm); this.models.set(key, vm.focus); break; }
+      case 'trackSelect': {
+        const mode = s.mode ?? 'quick';
+        const vm = trackMenu(mode, built, this.save, this.host.medalTimes, { cc: s.speedClass, ...(mirrorAllowed(this.save, mode) ? { mirror: s.mirrored } : {}) });
+        v.tracks.render(vm);
+        this.models.set(key, vm.focus);
+        break;
+      }
       case 'pause': { const vm = pauseMenu(short, this.canRestart); v.pause.render(vm); this.models.set(key, vm.focus); break; }
       case 'settings': { const vm = settingsMenu(this.save.settings, fullscreenState()); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
@@ -1127,7 +1171,7 @@ export class UiRoot {
     const short = this.short?.matches ?? false;
     if (this.models.has('title')) this.models.set('title', titleMenu(short).focus);
     if (this.models.has('pause')) this.models.set('pause', pauseMenu(short, this.canRestart).focus);
-    if (this.models.has('rosterSelect')) this.models.set('rosterSelect', rosterMenu(this.app.speedClass, this.app.mode, this.rosterExtras(), short).focus);
+    if (this.models.has('rosterSelect')) this.models.set('rosterSelect', rosterMenu(this.rosterExtras(), short).focus);
     // the end buttons: one row in a short window, row by row elsewhere
     for (const k of ['results', 'gpTable', 'knockoutCut'] as const) if (this.models.has(k) && this.app.screen === k) this.models.set(k, this.resultsGrid());
   }
