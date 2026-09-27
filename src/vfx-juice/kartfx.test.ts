@@ -1,7 +1,8 @@
 import { PerspectiveCamera, Scene } from 'three';
 import { describe, expect, it } from 'vitest';
-import { BASE } from '../kart-controller/constants.ts';
-import { createKartState, type KartState } from '../kart-controller/types.ts';
+import { BASE, makeConstants } from '../kart-controller/constants.ts';
+import { EngineRev } from '../kart-controller/rev.ts';
+import { createKartState, NEUTRAL_INPUT, type KartState } from '../kart-controller/types.ts';
 import { TIER_RGB } from './flames.ts';
 import { EMBER, MARK, PUFF, SMOKE, SPARK, streaksPerKart } from './kartfx.ts';
 import { Vfx } from './vfx.ts';
@@ -229,5 +230,59 @@ describe('tyre marks', () => {
     expect(perWheel).toBeGreaterThan(20 / (MARK.spacing + 1 / 3) - 2);
     expect(ink[0]).toBe(0); // the first mark starts from nothing
     expect(ink[(quads - 1) * 4 + 2]).toBe(1); // and is full once the drift has run MARK.rampIn
+  });
+});
+
+describe('the pipes on the grid (26 Sept 2026: the engine\'s own rev, kart-controller rev.ts)', () => {
+  const c = makeConstants('heavy', 150);
+  /** A standing kart and its engine rev, run `secs` at 60 fps (the rev on the 120 Hz tick) with the gas `gas(tick)`; `toGo(tick)` the grid's count. The soft pool's most. */
+  function stand(vfx: Vfx, k: KartState, rev: EngineRev, secs: number, gas: (tick: number) => number, from = 0, toGo = (_t: number) => Number.NaN): number {
+    let most = 0, tick = from;
+    for (let i = 0; i < Math.round(secs * 60); i++) {
+      for (let j = 0; j < 2; j++, tick++) rev.tick(k, { ...NEUTRAL_INPUT, throttle: gas(tick) }, 1 / 120, toGo(tick));
+      vfx.frame(1 / 60, 1 / 60, tick / 120, [k], k, [0, 3, -6], false, [rev]);
+      most = Math.max(most, vfx.soft.count);
+    }
+    return most;
+  }
+  const colors = (vfx: Vfx) => live(vfx.soft).map((p) => p.c);
+
+  it('revving burns and does not smoke (the breath stays an idle one); a blip throws a couple of puffs; a let-off pop a few dark ones', () => {
+    const idle = new Vfx(new Scene(), new PerspectiveCamera());
+    const n0 = stand(idle, driver('gus', 0, 0, 0, true), new EngineRev(c), 2, () => 0);
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera()), k = driver('gus', 0, 0, 0, true), rev = new EngineRev(c);
+    stand(vfx, k, rev, 1, () => 0);
+    stand(vfx, k, rev, 1, () => 1);
+    const n1 = stand(vfx, k, rev, 1, () => 1); // held at the limiter, the press's blip long gone
+    expect(n1).toBeLessThanOrEqual(n0 + 1);
+    for (const col of colors(vfx)) expect(col[0]).toBeCloseTo(PUFF.color[0], 4); // the idle breath's gray-blue, no smoke
+    // a let-off from the limiter: a pop's dark puffs at once
+    const before = vfx.soft.count;
+    stand(vfx, k, rev, 1 / 60, () => 0);
+    expect(rev.pops).toBe(1);
+    expect(vfx.soft.count).toBeGreaterThanOrEqual(before + PUFF.popPuffs - 1);
+    // a blip (a tap from idle) throws its puffs at once
+    stand(vfx, k, rev, 2, () => 0);
+    const calm = vfx.soft.count;
+    stand(vfx, k, rev, 1 / 60, () => 1);
+    expect(vfx.soft.count).toBeGreaterThanOrEqual(calm + PUFF.blipPuffs);
+  });
+
+  it('a start held too early smokes gray on the grid, then stalls at the go in a burst of dark smoke with the rear tires scrubbing', () => {
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera()), k = driver('gus', 0, 0, 0, true), rev = new EngineRev(c);
+    const GO = 360, toGo = (t: number) => GO - t;
+    stand(vfx, k, rev, GO / 120, () => 1, 0, toGo);
+    expect(rev.start).toBe('early');
+    expect(colors(vfx).some((col) => Math.abs(col[0] - PUFF.popColor[0]) < 1e-4)).toBe(true); // gray smoke among the puffs
+    const before = vfx.soft.count;
+    k.speed = 0.4; // the go: it moves off
+    stand(vfx, k, rev, 1 / 60, () => 1, GO + 1, toGo);
+    expect(rev.launch).toBe('early');
+    expect(vfx.soft.count).toBeGreaterThanOrEqual(before + PUFF.stallSmoke + PUFF.stallTires - 2);
+    // a start timed for the boost: no gray smoke, no stall
+    const ok = new Vfx(new Scene(), new PerspectiveCamera()), q = driver('gus', 0, 0, 0, true), r2 = new EngineRev(c);
+    stand(ok, q, r2, GO / 120, (t) => (t >= GO - 240 ? 1 : 0), 0, toGo);
+    expect(r2.start).toBe('ready');
+    expect(colors(ok).some((col) => Math.abs(col[0] - PUFF.popColor[0]) < 1e-4 || Math.abs(col[0] - PUFF.stallColor[0]) < 1e-4)).toBe(false);
   });
 });

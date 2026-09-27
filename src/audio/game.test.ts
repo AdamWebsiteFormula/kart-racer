@@ -1,5 +1,6 @@
 // GameAudio on a fake audio clock: what the music does at the finish line and under the pause menu.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { RevView } from '../kart-controller/rev.ts';
 import { createKartState, NEUTRAL_INPUT } from '../kart-controller/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
 import { GameAudio } from './audio.ts';
@@ -450,6 +451,61 @@ describe('the engines', () => {
     const loops = ctx.sources.filter((x) => x.buffer === LOOP.buffer);
     expect(loops.length).toBe(3 + 3);
     expect(new Set(loops.map((x) => x.offset!.toFixed(3))).size).toBe(loops.length);
+  });
+
+  /** An engine rev as kart-controller rev.ts shows it (the fields the sound reads). */
+  const revAt = (rev: number, pops = 0, popSize = 1): RevView => ({
+    rev, load: 0, gas: rev, heat: rev, limiting: rev >= 1 ? 1 : 0, cut: 0, clock: 1, blipAt: -Infinity, blipSize: 0,
+    popAt: pops ? 1 : -Infinity, popSize, pops, launchAt: -Infinity, launch: 'none', start: 'none',
+  });
+
+  it('the gas on the grid revs the recorded engine and a near rival\'s: their loops climb with the rev (26 Sept 2026)', () => {
+    const { audio, ctx, record } = rig();
+    record();
+    const grid = createKartState({ racerId: 'p' }), rival = createKartState({ racerId: 'momo' });
+    rival.position = [3, 0, 0];
+    const rate = (x: { playbackRate?: Param }) => x.playbackRate!.value;
+    audio.engines(grid, 0, 25, [grid, rival], L, true, [revAt(0), revAt(0)]);
+    const loops = ctx.sources.filter((x) => x.buffer === LOOP.buffer) as unknown as { playbackRate: Param }[];
+    const mine = loops.slice(0, 3), theirs = loops[3];
+    const idle = mine.map(rate), theirIdle = rate(theirs);
+    audio.engines(grid, 1, 25, [grid, rival], L, true, [revAt(1), revAt(1)]);
+    mine.forEach((l, i) => expect(rate(l), `band ${i}`).toBeGreaterThan(idle[i]));
+    expect(rate(theirs)).toBeGreaterThan(theirIdle * 2);
+    // with no revs (a caller that has none) the speed alone sets it: back to idle on the grid
+    audio.engines(grid, 1, 25, [grid, rival], L, true);
+    expect(rate(mine[0])).toBeCloseTo(idle[0], 6);
+  });
+
+  it('each engine pop plays once: a backfire as a thump and a puff, a crackle as a crack and a puff; one seen late replays nothing', () => {
+    const { audio, ctx, record } = rig();
+    record();
+    const grid = createKartState({ racerId: 'p' });
+    const count = () => ctx.sources.length;
+    // one engine's rev, as the game holds it for the whole race (its pops count up)
+    const r = revAt(0.9, 3) as { -readonly [K in keyof RevView]: RevView[K] };
+    const pop = (pops: number, size: number) => { r.pops = pops; r.popSize = size; ctx.currentTime += 0.5; audio.engines(grid, 0, 25, [grid], L, true, [r]); };
+    audio.engines(grid, 0, 25, [grid], L, true, [r]); // first sight: the three before it are not replayed
+    let n = count();
+    audio.engines(grid, 0, 25, [grid], L, true, [r]);
+    expect(count()).toBe(n);
+    pop(4, 1);
+    expect(ctx.sources.slice(n).map((x) => x.kind).sort()).toEqual(['buffer', 'osc']);
+    n = count();
+    pop(5, 0.3);
+    expect(ctx.sources.slice(n).map((x) => x.kind)).toEqual(['buffer', 'buffer']);
+    // two in one breath: only the first plays (at most popsPerSecond)
+    n = count();
+    pop(6, 1);
+    r.pops = 7;
+    audio.engines(grid, 0, 25, [grid], L, true, [r]);
+    expect(count() - n).toBe(2);
+    // paused or out of the race: none
+    n = count();
+    r.pops = 8;
+    ctx.currentTime += 0.5;
+    audio.engines(grid, 0, 25, [grid], L, false, [r]);
+    expect(count()).toBe(n);
   });
 });
 

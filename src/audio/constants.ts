@@ -59,6 +59,17 @@ export const AUDIO = Object.freeze({
   }),
   /** a boost's engine rev: it falls away over `tau` s; the loops climb by up to `pitch` and swell by up to `gain` */
   boostRev: Object.freeze({ tau: 0.35, pitch: 0.12, gain: 0.1 }),
+  /**
+   * The engine's own rev (kart-controller rev.ts; engine.ts engineRpm, engineDrive), mapped onto the
+   * engine loops (engine-idle, engine-mid, engine-high: samples.ts ENGINE_BANDS; any new recordings
+   * fit here): the free rev's top, the limiter (rpm; under the gearbox's redline, so a boost still
+   * climbs past it). At the limiter the player's engine flutters (samples.ts LoopEngine): a sawtooth at
+   * `flutterHz` (rev.ts ENGINE_REV.limitHz) chops its level by up to ±`flutterChop` and its pitch by
+   * ±`flutterRate`. A rival revving on the grid swells by up to `rivalLift` of its level. Pops (a
+   * let-off after a high rev, a start held too early): the synth pop's level (sfx.ts ENGINE_POP; a
+   * thump under it from `thumpFrom` of a full pop), a rival's share of it, at most `popsPerSecond` a kart.
+   */
+  engineRev: Object.freeze({ limiterRpm: 7000, flutterHz: 11, flutterChop: 0.25, flutterRate: 0.025, rivalLift: 0.5, pop: 0.35, rivalPop: 0.3, thumpFrom: 0.92, popsPerSecond: 12 }),
   /** the wheel loops under the player (engine.ts wheelSound), at full speed */
   wheels: Object.freeze({ offroad: 0.35, 'offroad-sand': 0.35, 'offroad-snow': 0.4, 'road-ice': 0.25, 'road-wood': 0.12, 'rail-grind': 0.3 } as Record<string, number>),
   /** the drift sparks' crackle (engine.ts sparkLayer): its level, and its share of that per spark tier */

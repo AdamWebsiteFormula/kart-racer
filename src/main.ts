@@ -908,7 +908,7 @@ function step(now: number): void {
   if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced);
   const pl = cur.player;
   // (no speed lines, lens or FOV kicks over the celebration; the podium's hidden field makes no sparks or dust)
-  vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced);
+  vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced, cur.revs);
   if (!attract && !celebrating && !ceremony) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));
   camera.updateProjectionMatrix();
   const sh = vfx.shake;
@@ -936,7 +936,8 @@ function step(now: number): void {
   listener.heading = Math.atan2(camLook[0] - camPos[0], camLook[2] - camPos[2]);
   const p = cur.player;
   const pi = cur.playerIndex;
-  audio.engines(p, pi >= 0 ? cur.inputs[pi].throttle : 0, topSpeed, cur.state.karts, listener, racing && !ui.paused);
+  // the engines follow their own revs too: the gas on the grid revs them, and they pop (kart-controller rev.ts)
+  audio.engines(p, pi >= 0 ? cur.inputs[pi].throttle : 0, topSpeed, cur.state.karts, listener, racing && !ui.paused, cur.revs);
   if (racing && !ui.paused) audio.input(p, pi >= 0 ? cur.inputs[pi] : undefined);
   if (p && !attract) {
     // the assists on, for the controls strip's words and Steering assist's badge (lit while it works)

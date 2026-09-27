@@ -2,6 +2,7 @@
 // boost flames, off-road dust, tyre marks) and bursts from the director's effects each tick
 // (balloon pops, coin glints, hit stars, confetti), and owns the shake, kicks and time scale.
 import type { Camera, Scene } from 'three';
+import type { RevView } from '../kart-controller/rev.ts';
 import type { KartState } from '../kart-controller/types.ts';
 import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, type Effects } from './juice.ts';
 import { KartFx } from './kartfx.ts';
@@ -242,12 +243,13 @@ export class Vfx {
 
   /**
    * Once per rendered frame. `simDt` is the sim time that passed this frame (0 while paused or
-   * frozen), so emitters stop with the sim; particles keep fading on the real `dt`.
+   * frozen), so emitters stop with the sim; particles keep fading on the real `dt`. `revs`: each
+   * kart's engine rev (kart-controller rev.ts), in `karts`' order, for the pipes' smoke.
    */
-  frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean): void {
+  frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean, revs?: readonly (RevView | undefined)[]): void {
     this.lastPlayer = player;
     // (an index loop, not for-of: an iterator is garbage every frame)
-    if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced);
+    if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced, revs?.[i]);
     this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt);
     this.skids.setTime(t);
     this.trauma.update(dt);

@@ -11,6 +11,8 @@ export const setTag = (t: string | number) => { CURRENT_TAG = t; };
 type Ev = { type: 'set' | 'linear' | 'exp' | 'target'; time: number; value: number; tc?: number };
 
 export class Param {
+  /** nodes connected into this param: their first channel adds to its value (a-rate in fill, k-rate in block), as Web Audio's modulation does */
+  readonly mods: Node[] = [];
   private evs: Ev[] = [];
   private v: number;
   /** held state after committed events */
@@ -54,13 +56,29 @@ export class Param {
   private clamp(x: number) { return Math.min(this.maxV, Math.max(this.minV, x)); }
   /** fill `out` with per-sample values from t0 */
   fill(out: Float32Array, t0: number, dt: number): boolean {
+    // the modulators first: a gain node among them fills the same shared scratch `out` may be
+    let mods: Float32Array[] | null = null;
+    if (this.mods.length) {
+      const q = Math.round((t0 * this.ctx.sampleRate) / QUANTUM);
+      for (const m of this.mods) { const b = m.pull(q); if (b) (mods ??= []).push(b[0]); }
+    }
+    let varying = true;
     // fast path: nothing pending and no target in flight
-    if (this.evs.length === 0 && !this.tgt) { const v = this.baseV; out.fill(v); this.last = v; return false; }
-    for (let i = 0; i < out.length; i++) out[i] = this.at(t0 + i * dt);
+    if (this.evs.length === 0 && !this.tgt) { out.fill(this.baseV); varying = false; }
+    else for (let i = 0; i < out.length; i++) out[i] = this.at(t0 + i * dt);
+    if (mods) { for (const s of mods) for (let i = 0; i < out.length; i++) out[i] += s[i]; varying = true; }
     this.last = out[out.length - 1];
-    return true;
+    return varying;
   }
-  block(t0: number): number { const v = this.at(t0); this.last = v; return v; }
+  block(t0: number): number {
+    let v = this.at(t0);
+    if (this.mods.length) {
+      const q = Math.round((t0 * this.ctx.sampleRate) / QUANTUM);
+      for (const m of this.mods) { const b = m.pull(q); if (b) v += b[0][0]; }
+    }
+    this.last = v;
+    return v;
+  }
 }
 
 export type Buf = Float32Array[]; // 1 or 2 channels of QUANTUM frames
@@ -71,11 +89,17 @@ export abstract class Node {
   tag: string | number = CURRENT_TAG;
   private cacheQ = -1; private cache: Buf | null = null;
   constructor(readonly ctx: OfflineCtx) {}
+  /** the params this node modulates */
+  private paramOuts: Param[] = [];
   connect<T extends Node | Param>(n: T): T {
-    if (n instanceof Node) { n.inputs.push(this); this.outs.push(n); }
+    if (n instanceof Node) { n.inputs.push(this); this.outs.push(n); } else { n.mods.push(this); this.paramOuts.push(n); }
     return n;
   }
-  disconnect() { for (const o of this.outs) o.inputs = o.inputs.filter((x) => x !== this); this.outs = []; }
+  disconnect() {
+    for (const o of this.outs) o.inputs = o.inputs.filter((x) => x !== this);
+    for (const p of this.paramOuts) { const i = p.mods.indexOf(this); if (i >= 0) p.mods.splice(i, 1); }
+    this.outs = []; this.paramOuts = [];
+  }
   /** finished: can never sound again (a stopped source, or a node whose inputs all finished) */
   finished(): boolean { return this.inputs.length > 0 && this.inputs.every((i) => i.finished()); }
   pull(q: number): Buf | null {

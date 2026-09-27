@@ -62,7 +62,12 @@ export const JET = Object.freeze({
   arcSegments: 16, arcWidth: 0.05,
   /** a streak runs the length of an arc this many times a second */
   arcRate: 1.7,
+  /** m: a jet shorter than this is not drawn (its flare and glow still are: the pipes' heat on the grid) */
+  stub: 0.02,
 });
+
+/** The nozzle flare's white-hot heart on a boost (linear RGB). */
+export const WHITE_HEART: readonly [number, number, number] = Object.freeze([1.9, 2.0, 2.2] as [number, number, number]);
 
 /** The mesh's parts (aInfo.z): the shader draws each its own way. */
 export const PART = Object.freeze({ jet: 0, flare: 1, ring: 2, puff: 3, star: 4, wind: 5, glow: 6 } as const);
@@ -220,7 +225,8 @@ void main() {
     vB = (modelViewMatrix * vec4(position + c2, 1.0)).xyz;
     // the noise rides the skin and runs out along the jet: tongues licking away from the nozzle
     vNoise = aSide * ${f3(JET.tongues)} + aAxis * (s * 2.4 - uTime * 5.5 * uWave);
-    off = uOn < 0.5;
+    // a jet shorter than its stub draws nothing (the pipes' glow on the grid shows alone)
+    off = uOn < 0.5 || len < ${f3(JET.stub)};
   } else if (kind < 1.5) {
     // the nozzle flare, just out of the pipe; the ignition's flash swells it
     mv = modelViewMatrix * vec4(position + aAxis * (0.03 + 0.08 * uFlash), 1.0);
@@ -275,10 +281,10 @@ void main() {
 }`;
 
 const JET_FRAG = `
-uniform vec3 uMouth; uniform vec3 uFringe; uniform vec3 uCore; uniform vec3 uInner; uniform vec3 uBody; uniform vec3 uEdge;
+uniform vec3 uMouth; uniform vec3 uFringe; uniform vec3 uCore; uniform vec3 uInner; uniform vec3 uBody; uniform vec3 uEdge; uniform vec3 uHeart;
 uniform float uGain; uniform float uTime; uniform float uWave; uniform float uPop; uniform float uFlash; uniform float uRing;
 uniform vec3 uStarCol; uniform vec3 uStarHot; uniform float uStarGain; uniform float uStarRays; uniform float uStarFlash;
-uniform float uFade; uniform float uKart; uniform float uSeed; uniform float uArc;
+uniform float uFade; uniform float uKart; uniform float uSeed; uniform float uArc; uniform float uGlow;
 varying vec3 vView; varying vec2 vUv; varying vec3 vNoise; varying vec3 vA; varying vec3 vM; varying vec3 vB;
 varying float vS; varying float vWid; varying float vKind; varying float vSeed;
 float jetHash(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
@@ -340,12 +346,13 @@ void main() {
     cover = a * mix(0.95, 0.55, smoothstep(${f3(B.core)} - w, ${f3(B.core)} + w, h));
   } else if (vKind < 1.5) {
     // the nozzle flare: a small white heart inside a saturated blue ring at the pipe's mouth, a faint
-    // violet glow round it (a whole bright disc read as a reversing light from the chase camera)
+    // violet glow round it (a whole bright disc read as a reversing light from the chase camera); on the
+    // grid the same heart, ring and halo glow the pipe's heat, red to gold (uHeart, uMouth, uFringe)
     float r = length(vUv);
     float heart = 1.0 - smoothstep(0.06, 0.28, r);
     float rimLine = smoothstep(0.26, 0.4, r) * (1.0 - smoothstep(0.46, 0.64, r));
     float halo = pow(max(0.0, 1.0 - r), 2.5);
-    col = (vec3(1.9, 2.0, 2.2) * heart * 0.5 + uMouth * rimLine * 0.7 + uFringe * halo * 0.2) * (0.8 + 0.4 * uPop);
+    col = (uHeart * heart * 0.5 + uMouth * rimLine * 0.7 + uFringe * halo * 0.2) * (0.8 + 0.4 * uPop);
     if (uFlash > 0.0) {
       // the ignition's flash: electricity, not a ball: a small white heart and jagged cyan bolts
       // shooting out of it, a new set every frame (held under reduced motion)
@@ -438,7 +445,7 @@ void main() {
     float r = length(vUv);
     if (r >= 1.0) discard;
     float g = (1.0 - r) * (1.0 - r);
-    col = mix(uBody, uInner, 0.5) * (g * ${f3(JET.glow)} * uGain);
+    col = mix(uBody, uInner, 0.5) * (g * ${f3(JET.glow)} * uGain * uGlow);
   }
   gl_FragColor = vec4(col * fade, cover * fade);
 }`;
@@ -458,6 +465,8 @@ export interface JetUniforms {
   uWind: { value: Vector3 }; uBend: { value: number };
   /** the flame's bands (linear, above 1 blooms): the nozzle's ring, its violet fringe, then core, inner, body and edge */
   uMouth: { value: Color }; uFringe: { value: Color }; uCore: { value: Color }; uInner: { value: Color }; uBody: { value: Color }; uEdge: { value: Color };
+  /** the nozzle flare's heart: white-hot on a boost, the pipe's heat on the grid */
+  uHeart: { value: Color };
   uGain: { value: number };
   /** the wheel stars: half height (m; 0 none), how much of their rays show (0: a charging glow), a tier-up's flash (1 → 0), brightness, colors */
   uStar: { value: number }; uStarRays: { value: number }; uStarFlash: { value: number }; uStarGain: { value: number };
@@ -466,6 +475,8 @@ export interface JetUniforms {
   uWheel: { value: Vector3 };
   /** the wind arcs round a boosting kart: how strongly they show (0: not at all) */
   uArc: { value: number };
+  /** the soft light round the jet: 1 on a boost, the pipe's heat on the grid */
+  uGlow: { value: number };
   /** 0 never fades (your own kart); above 0 (a rival's) the flames go right against the lens */
   uFade: { value: number };
   /** the kart's own opacity (a rival's ghost near the lens, game/kartFade.ts; 1 otherwise) */
@@ -480,8 +491,9 @@ export function jetMaterial(): ShaderMaterial & { uniforms: JetUniforms } {
     uPop: { value: 0 }, uFlash: { value: 0 }, uRing: { value: -1 }, uWind: { value: new Vector3(0, 0, -1) }, uBend: { value: 0 },
     uMouth: { value: new Color(1.5, 2.1, 3) }, uFringe: { value: new Color(1.2, 0.45, 2.2) }, uCore: { value: new Color(3, 2.7, 2.2) },
     uInner: { value: new Color(2.6, 1.7, 0.3) }, uBody: { value: new Color(2.1, 0.55, 0.05) }, uEdge: { value: new Color(1.2, 0.16, 0.02) }, uGain: { value: 1 },
+    uHeart: { value: new Color(...WHITE_HEART) },
     uStar: { value: 0 }, uStarRays: { value: 1 }, uStarFlash: { value: 0 }, uStarGain: { value: 1 },
-    uStarCol: { value: new Color(0.3, 0.9, 2.2) }, uStarHot: { value: new Color(2.2, 2.4, 2.6) }, uWheel: { value: new Vector3(0.6, 0.12, -0.7) }, uArc: { value: 0 },
+    uStarCol: { value: new Color(0.3, 0.9, 2.2) }, uStarHot: { value: new Color(2.2, 2.4, 2.6) }, uWheel: { value: new Vector3(0.6, 0.12, -0.7) }, uArc: { value: 0 }, uGlow: { value: 1 },
     uFade: { value: 0 }, uKart: { value: 1 }, uSeed: { value: 0 },
   };
   return new ShaderMaterial({

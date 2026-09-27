@@ -708,6 +708,12 @@ export class LoopEngine {
   private readonly pan: StereoPannerNode | null = null;
   private readonly screech: { g: GainNode; s: Sample } | null = null;
   private readonly rumble: { g: GainNode; s: Sample } | null = null;
+  /**
+   * The limiter's flutter (the player's engine, unpanned): a sawtooth at `AUDIO.engineRev.flutterHz`
+   * chopping the level (`chop`: each cut drops it, then it climbs back) and wobbling the loops' rate a
+   * little, audio-rate, so it holds at any frame rate. Silent (0 deep) until set() asks for it.
+   */
+  private readonly flutter: { osc: OscillatorNode; chopDepth: GainNode; rateDepth: GainNode[] } | null = null;
 
   constructor(ctx: BaseAudioContext, dest: AudioNode, loops: readonly (Sample | undefined)[], drift: Sample | undefined, panned: boolean, offroad?: Sample, seed = 0) {
     this.ctx = ctx;
@@ -719,7 +725,8 @@ export class LoopEngine {
     this.lp.type = 'lowpass';
     this.lp.Q.value = 0.7;
     this.lp.frequency.value = engineCutoff(AUDIO.idleRpm);
-    this.out.connect(this.lp);
+    let chop: GainNode | null = null;
+    if (!panned) { chop = ctx.createGain(); this.out.connect(chop).connect(this.lp); } else this.out.connect(this.lp);
     if (panned && 'createStereoPanner' in ctx) {
       this.pan = ctx.createStereoPanner();
       this.lp.connect(this.pan).connect(dest);
@@ -733,6 +740,17 @@ export class LoopEngine {
       g.connect(this.out);
       this.bands.push({ src: loop(s, g), g, s, band });
     });
+    if (chop) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = AUDIO.engineRev.flutterHz;
+      const chopDepth = ctx.createGain();
+      chopDepth.gain.value = 0;
+      osc.connect(chopDepth).connect(chop.gain);
+      const rateDepth = this.bands.map((b) => { const d = ctx.createGain(); d.gain.value = 0; osc.connect(d).connect(b.src.playbackRate); return d; });
+      osc.start();
+      this.flutter = { osc, chopDepth, rateDepth };
+    }
     const layer = (s: Sample) => {
       const g = ctx.createGain();
       g.gain.value = 0;
@@ -785,14 +803,18 @@ export class LoopEngine {
   /**
    * Follow the rpm; `level` is the engine's loudness, `screech` the drift screech's, `rumble` the
    * off-road's, `pan` −1..1, `pitch` this racer's own pitch offset (racerPitch, class, boost rev),
-   * `bright` the class's low-pass factor.
+   * `bright` the class's low-pass factor, `limit` 0..1 how hard the rev limiter works (its flutter:
+   * the player's engine only).
    */
-  set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0, pitch = 1, bright = 1): void {
-    const w = bandWeights(rpm);
-    for (const b of this.bands) {
-      b.src.playbackRate.setTargetAtTime(bandRate(rpm, b.band) * pitch, t, 0.03);
+  set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0, pitch = 1, bright = 1, limit = 0): void {
+    const w = bandWeights(rpm), f = this.flutter, E = AUDIO.engineRev;
+    for (let i = 0; i < this.bands.length; i++) {
+      const b = this.bands[i], rate = bandRate(rpm, b.band) * pitch;
+      b.src.playbackRate.setTargetAtTime(rate, t, 0.03);
       b.g.gain.setTargetAtTime((this.bands.length === 1 ? 1 : w[b.band]) * b.s.gain, t, 0.05);
+      f?.rateDepth[i].gain.setTargetAtTime(limit * E.flutterRate * rate, t, 0.04);
     }
+    f?.chopDepth.gain.setTargetAtTime(limit * E.flutterChop, t, 0.04);
     this.lp.frequency.setTargetAtTime(engineCutoff(rpm) * bright, t, 0.05);
     this.out.gain.setTargetAtTime(level, t, 0.05);
     this.pan?.pan.setTargetAtTime(pan, t, 0.1);

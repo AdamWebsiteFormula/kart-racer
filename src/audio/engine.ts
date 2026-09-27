@@ -1,4 +1,5 @@
 // Engine sound maths: speed → rpm through a fake gearbox, rpm → pitch. Pure.
+import type { RevView } from '../kart-controller/rev.ts';
 import type { KartState } from '../kart-controller/types.ts';
 import { AUDIO } from './constants.ts';
 
@@ -23,6 +24,33 @@ export function rpmFor(speed: number, topSpeed: number, boosting = false): numbe
   const floor = g === 0 ? idleRpm : redlineRpm * shiftDrop;
   const rpm = floor + (redlineRpm - floor) * inGear;
   return Math.min(redlineRpm * (boosting ? 1.08 : 1), boosting ? rpm * 1.08 : rpm);
+}
+
+/**
+ * The engine's rpm with its own rev (kart-controller rev.ts; Adam, 26 Sept 2026: "when you give it gas,
+ * I don't hear the engine revving"): off the road the gas sets it (the free rev, idle to
+ * `AUDIO.engineRev.limiterRpm`, the limiter's bounce in it), and as the kart gets going the road's rpm
+ * through the gearbox takes over by the clutch's `load`. With no rev (a caller that has none), the road's alone.
+ */
+export function engineRpm(speed: number, topSpeed: number, boosting: boolean, rev?: Pick<RevView, 'rev' | 'load'>): number {
+  const road = rpmFor(speed, topSpeed, boosting);
+  if (!rev) return road;
+  const free = AUDIO.idleRpm + (AUDIO.engineRev.limiterRpm - AUDIO.idleRpm) * rev.rev;
+  return free * (1 - rev.load) + road * rev.load;
+}
+
+/**
+ * How hard the engine is driven, 0..1, for its loudness: on the road the gas (as always), off it the
+ * free rev (loud while it revs and as it falls, not only while the key is down). With no rev, the gas.
+ */
+export function engineDrive(throttle: number, rev?: Pick<RevView, 'rev' | 'load'>): number {
+  if (!rev) return throttle;
+  return rev.rev * (1 - rev.load) + throttle * rev.load;
+}
+
+/** How hard the rev limiter works off the road, 0..1 (the player's engine flutters by it: samples.ts LoopEngine). */
+export function limiterFlutter(rev?: Pick<RevView, 'limiting' | 'load'>): number {
+  return rev ? rev.limiting * (1 - rev.load) : 0;
 }
 
 /** Oscillator base frequency for an rpm (linear, idle → engineIdleHz). */

@@ -135,6 +135,20 @@ export const PATCHES: Readonly<Record<SfxId, Patch>> = Object.freeze({
   'yelp:gus': P({ wave: 'sawtooth', f0: 160, f1: 110, glide: 0.25, attack: 0.02, decay: 0.3, gain: 0.35, vibrato: [30, 8], filter: { type: 'lowpass', f0: 700 } }),
 });
 
+/**
+ * The engine's pops (audio.ts, from kart-controller rev.ts: a let-off after a high rev, a start held
+ * too early), made on the synth voice with no recording: a backfire is a low thump gliding down under
+ * a short, dark puff of noise; a smaller pop and each crackle after one, a quick crisp crack over the
+ * puff, so it is heard over the revving engine. Soft and boomy on purpose, a cartoon exhaust's pop,
+ * never a bang: of five backfire recipes the local ear (CLAP) heard this one most as an exhaust popping
+ * and least as a balloon, and none as a gunshot (docs/sops/audio.md Decisions, 26 Sept 2026).
+ */
+export const ENGINE_POP = Object.freeze({
+  thump: P({ wave: 'sine', f0: 95, f1: 38, glide: 0.09, attack: 0.001, decay: 0.18, gain: 0.6 }),
+  puff: P({ wave: 'noise', f0: 1, attack: 0.002, decay: 0.14, gain: 0.45, filter: { type: 'lowpass', f0: 900, f1: 180, q: 1.2 } }),
+  crack: P({ wave: 'noise', f0: 1, attack: 0.0005, decay: 0.035, gain: 1.2, filter: { type: 'bandpass', f0: 1800, f1: 900, q: 0.9 } }),
+});
+
 let noiseBuf: AudioBuffer | null = null;
 /** One second of white noise, made once and shared. Seeded LCG so no Math.random. */
 export function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {

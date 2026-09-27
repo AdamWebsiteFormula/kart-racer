@@ -119,6 +119,8 @@ export class Showroom {
     ownKartMaterials(root);
     const state = createKartState({ racerId });
     const view = root.userData.rig ? new KartView(makeConstants('medium', 150), root, state) : null;
+    // the hero close-up stands calm: the engine's rumble is the race's (kart-controller rev.ts)
+    if (view) view.engine = false;
     const target = view ? view.root : root;
     this.stand.add(target);
     this.kart = { key, root, view, state, frame: this.frameOf(target) };
