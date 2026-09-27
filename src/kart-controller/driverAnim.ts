@@ -324,12 +324,14 @@ export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, 
 // ---------------------------------------------------------------- the disappointed reactions (4th and below)
 /**
  * Their aims (the torso's frame, the right arm's; the caller mirrors the left), tuned on stills from the
- * finish camera: a hand to the forehead (the head dropped into it), a fist raised over the wheel to tap
- * it, and a polite clap in front of the chest. (Arms dropped into the lap were tried: the hood hides them.)
+ * finish camera: a hand to the forehead (the head dropped into it), a fist up by the face and pulled down
+ * ("darn!"), and a polite clap in front of the chest. (Arms dropped into the lap were tried: the hood hides
+ * them; a fist tapped on the wheel was too small to read.)
  */
 const SAD_AIM = Object.freeze({
-  palm: [-0.35, 0.2, 0.91] as const, palmFore: [0.72, 0.68, 0.12] as const,
-  tapUp: [-0.35, -0.15, 0.92] as const, tapUpFore: [-0.05, 0.75, 0.66] as const,
+  palm: [-0.75, 0.5, 0.43] as const, palmFore: [0.85, 0.38, 0.37] as const,
+  darnUp: [-0.4, 0.3, 0.87] as const, darnUpFore: [-0.1, 0.9, 0.42] as const,
+  darnDown: [-0.3, -0.25, 0.92] as const, darnDownFore: [0.3, -0.1, 0.95] as const,
   clap: [-0.3, -0.42, 0.86] as const, clapOpen: [0.2, 0.45, 0.87] as const, clapShut: [0.82, 0.3, 0.48] as const,
 });
 /** claps a second (the palms meet this often) */
@@ -343,8 +345,8 @@ function clapArm(a: ArmPose, u: number): void {
 }
 
 /**
- * The arms of a disappointed reaction `t` s in (anim.ts SAD_BEATS): sigh taps the wheel once with a
- * fist; deflated puts a hand to the forehead through the head shake, the other keeping the wheel (Mario
+ * The arms of a disappointed reaction `t` s in (anim.ts SAD_BEATS): sigh brings a fist up and pulls it
+ * down ("darn!"); deflated puts a hand to the forehead through the head shake, the other keeping the wheel (Mario
  * Kart World's losers); both with the hand nearer the camera (`near`: 1 the right, −1 the left). Dejected
  * keeps both hands on the wheel as it slumps over it (the elbows fold as the shoulders come forward).
  * Each takes the wheel again as the chin comes up, then claps politely. Every change goes through the wheel, so the
@@ -356,13 +358,16 @@ export function sadArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, near:
   if (t >= B.clap[0] && t < B.clap[1]) { clapArm(R, t - B.clap[0]); clapArm(L, t - B.clap[0]); return; }
   // the one-handed moves use the hand nearer the camera (DriverAnim latches it as the move starts), so they read
   const A = near > 0 ? R : L;
-  if (kind === 'sigh' && t >= sadHandFrom(kind) && t < B.tap - 0.04) { set(A.upper, SAD_AIM.tapUp); set(A.fore, SAD_AIM.tapUpFore); A.wheel = 0; }
+  if (kind === 'sigh' && t >= sadHandFrom(kind) && t < B.tap + 0.3) {
+    const k = sstep(B.tap - 0.06, B.tap + 0.06, t); // "darn!": the fist pulled down as the head drops
+    mix(A.upper, SAD_AIM.darnUp, SAD_AIM.darnDown, k); mix(A.fore, SAD_AIM.darnUpFore, SAD_AIM.darnDownFore, k); A.wheel = 0;
+  }
   if (kind === 'deflated' && t >= sadHandFrom(kind) && t < B.up[0] + 0.1) { set(A.upper, SAD_AIM.palm); set(A.fore, SAD_AIM.palmFore); A.wheel = 0; }
 }
 
 /** When a disappointed reaction's one-handed move starts (s): sigh's fist, deflated's hand to the forehead (Infinity: none). */
 export function sadHandFrom(kind: Reaction): number {
-  return kind === 'sigh' ? SAD_BEATS.sigh.tap - 0.24 : kind === 'deflated' ? SAD_BEATS.deflated.sag[0] + 0.25 : Infinity;
+  return kind === 'sigh' ? SAD_BEATS.sigh.tap - 0.4 : kind === 'deflated' ? SAD_BEATS.deflated.sag[0] + 0.25 : Infinity;
 }
 
 /** The rigged driver's body in a disappointed reaction: the spine's slump (rad, + forward), the shoulders (DriverPose.shrug: − down) and how much the eyes seek the camera (0..1). */
@@ -381,12 +386,13 @@ export function sadBody(kind: Reaction, t: number, out: SadBody): SadBody {
   const sag = sstep(B.sag[0], B.sag[1], t) * (1 - sstep(B.up[0], B.up[1], t));
   const tail = sstep(REACTION_SECONDS[kind] - 0.5, REACTION_SECONDS[kind] + 0.4, t);
   if (kind === 'sigh') {
-    const aw = hold(t, 0.3, 0.65, B.tap + 0.15, B.tap + 0.4);
-    const breathIn = hold(t, B.sag[0] - 0.25, B.sag[0] - 0.05, B.sag[0], B.sag[0] + 0.2);
-    out.spine = 0.06 * aw - 0.05 * breathIn + 0.16 * sag;
-    out.shoulders = -0.3 * aw + 0.6 * breathIn - 0.45 * sag;
+    // the fist's "darn!" folds the body a little; then the sigh: the shoulders up, then down and low
+    const aw = hold(t, 0.25, 0.6, B.sag[0], B.sag[0] + 0.3), darn = hump(t, B.tap - 0.03, B.tap + 0.3);
+    const breathIn = hold(t, B.sag[0] - 0.2, B.sag[0], B.sag[0] + 0.05, B.sag[0] + 0.25);
+    out.spine = 0.06 * aw + 0.12 * darn + 0.18 * sag;
+    out.shoulders = -0.3 * aw + 0.6 * breathIn - 0.5 * sag;
   } else if (kind === 'deflated') {
-    out.spine = 0.28 * sag;
+    out.spine = 0.25 * sag;
     out.shoulders = -0.6 * sag;
   } else {
     out.spine = 0.5 * sag;

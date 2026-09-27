@@ -241,21 +241,27 @@ describe('DriverAnim: body and arms', () => {
     expect(Math.abs(p.headYaw + r.anim.curr.look)).toBeLessThan(0.3); // the camera is dead ahead
   });
 
-  it('4th and below: sigh taps the wheel with a fist; deflated puts a hand to the forehead (the hand nearer the camera); dejected slumps over the wheel; all clap', () => {
+  it('4th and below: sigh pulls a fist down ("darn!"); deflated puts a hand to the forehead (the hand nearer the camera); dejected slumps over the wheel; all clap', () => {
     const arms = (k: Reaction, t: number, near: 1 | -1 = 1) => { const R = newDriverPose().armR, L = newDriverPose().armL; reactionArms(k, t, R, L, 4, near); return { R, L }; };
-    // sigh: the fist up over the wheel just before the tap, back on the wheel as it lands
-    const up = arms('sigh', SAD_BEATS.sigh.tap - 0.12);
+    // sigh: the fist up by the face, then pulled down, then back on the wheel
+    const S = SAD_BEATS.sigh;
+    const up = arms('sigh', S.tap - 0.2);
     expect(up.R.wheel).toBe(0);
-    expect(up.R.fore[1]).toBeGreaterThan(0.6); // the forearm up: the fist above the grip
+    expect(up.R.fore[1]).toBeGreaterThan(0.8); // the forearm up: the fist by the face
     expect(up.L.wheel).toBe(1);
-    expect(arms('sigh', SAD_BEATS.sigh.tap).R.wheel).toBe(1);
+    const down = arms('sigh', S.tap + 0.15);
+    expect(down.R.wheel).toBe(0);
+    expect(down.R.fore[1]).toBeLessThan(0); // pulled down
+    expect(arms('sigh', S.tap + 0.35).R.wheel).toBe(1);
     // the camera on the left's side: the left hand does it
-    expect(arms('sigh', SAD_BEATS.sigh.tap - 0.12, -1).L.wheel).toBe(0);
-    expect(arms('sigh', SAD_BEATS.sigh.tap - 0.12, -1).R.wheel).toBe(1);
+    expect(arms('sigh', S.tap - 0.2, -1).L.wheel).toBe(0);
+    expect(arms('sigh', S.tap - 0.2, -1).R.wheel).toBe(1);
     // deflated: a hand up to the head through the shake, the other keeps the wheel
     const palm = arms('deflated', 1.6, -1);
     expect(palm.L.wheel).toBe(0);
-    expect(palm.L.fore[1]).toBeGreaterThan(0.5);
+    expect(palm.L.upper[1]).toBeGreaterThan(0.4); // the elbow out and up
+    expect(palm.L.fore[0]).toBeGreaterThan(0.6); // the forearm in, toward the forehead (the right arm's frame; the caller mirrors)
+    expect(palm.L.fore[1]).toBeGreaterThan(0.25);
     expect(palm.R.wheel).toBe(1);
     expect(arms('deflated', 1.6).R.wheel).toBe(0);
     // dejected: both hands keep the wheel as the body slumps over it (the elbows fold: the IK)

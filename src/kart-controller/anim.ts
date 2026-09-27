@@ -320,10 +320,10 @@ export function reactionPose(kind: Reaction, t: number, out: AnimPose): AnimPose
  * sliding in beside them; docs/sops/kart-controller.md Decisions, 26 Sept 2026), pulled earlier to
  * fit our finish: the camera is round in front ~0.95 s in (its swing runs under the slow-mo) and the
  * results come beside the racer at ~3.6 s. `sag`: the slump goes down; `shake`: the head shake; `up`:
- * the chin comes back up; `clap`: the polite clap; `tap` (sigh only): the fist lands on the wheel.
+ * the chin comes back up; `clap`: the polite clap; `tap` (sigh only): the fist is pulled down ("darn!").
  */
 export const SAD_BEATS = Object.freeze({
-  sigh: Object.freeze({ tap: 1.05, sag: [1.55, 2.0] as const, shake: [1.95, 2.95] as const, up: [2.9, 3.35] as const, clap: [3.4, 4.1] as const }),
+  sigh: Object.freeze({ tap: 1.15, sag: [1.45, 1.85] as const, shake: [1.85, 2.95] as const, up: [2.9, 3.35] as const, clap: [3.4, 4.1] as const }),
   deflated: Object.freeze({ tap: -1, sag: [0.3, 0.9] as const, shake: [1.0, 2.6] as const, up: [2.6, 3.1] as const, clap: [3.2, 4.4] as const }),
   dejected: Object.freeze({ tap: -1, sag: [0.3, 1.2] as const, shake: [1.4, 3.1] as const, up: [3.1, 3.7] as const, clap: [3.8, 4.8] as const }),
 });
@@ -342,16 +342,15 @@ function sadReactionPose(kind: 'sigh' | 'deflated' | 'dejected', t: number, out:
   const sag = sstep(B.sag[0], B.sag[1], t) * (1 - sstep(B.up[0], B.up[1], t));
   switch (kind) {
     case 'sigh': {
-      // so close: an "aw" (the head and shoulders drop a little), the fist taps the wheel once the camera
-      // is round (a jolt, the head bobs), a breath in, the big sigh out (the head drops), a small head
-      // shake, then chin up
-      const aw = hold(t, 0.3, 0.65, B.tap + 0.15, B.tap + 0.4);
+      // so close: an "aw" (the head drops a little) as a fist comes up, then "darn!", the fist pulled down
+      // once the camera is round (the head drops with it, the body jolts: driverAnim.ts sadArms), the
+      // sigh (the shoulders), the head low with a small head shake, then chin up
+      const aw = hold(t, 0.25, 0.6, B.sag[0], B.sag[0] + 0.3);
       const tap = hump(t, B.tap - 0.03, B.tap + 0.2);
-      const breathIn = hold(t, B.sag[0] - 0.25, B.sag[0] - 0.05, B.sag[0], B.sag[0] + 0.2);
-      out.squash = -0.03 * aw - 0.05 * tap + 0.035 * breathIn - 0.065 * sag;
-      out.nod = 0.15 * aw + 0.13 * tap - 0.07 * breathIn + 0.28 * sag;
+      out.squash = -0.03 * aw - 0.05 * tap - 0.07 * sag;
+      out.nod = 0.18 * aw + 0.12 * tap + 0.3 * sag;
       out.pitch = 0.025 * tap + 0.02 * sag;
-      out.look = 0.2 * wave(t, B.shake[0], B.shake[1], 1.3);
+      out.look = 0.24 * wave(t, B.shake[0], B.shake[1], 1.3);
       out.lean = -0.04 * sag;
       break;
     }
@@ -359,7 +358,7 @@ function sadReactionPose(kind: 'sigh' | 'deflated' | 'dejected', t: number, out:
       // the slump, the head down (a hand to the forehead: driverAnim.ts), a slow head shake twice, then
       // a breath and chin up
       out.squash = -0.085 * sag + 0.03 * hump(t, B.up[0] + 0.1, B.up[1] + 0.15);
-      out.nod = 0.38 * sag;
+      out.nod = 0.37 * sag;
       out.pitch = 0.03 * sag;
       out.look = 0.24 * wave(t, B.shake[0], B.shake[1], 1.25);
       out.lean = -0.06 * sag;

@@ -14,8 +14,9 @@ export const CELEBRATE = Object.freeze({
   seconds: 4.2,
   /** seconds the swing from behind round to the front takes (the finish slow-mo runs under its first second) */
   swing: 1.5,
-  /** where the swing ends: this far off the kart's nose (rad), this far out and up (m), looking at this height over the kart */
-  angle: 0.55, distance: 4.4, height: 1.35, lookHeight: 0.85,
+  /** where the swing ends: this far off the kart's nose (rad), this far out and up (m), looking at this height over the kart
+   *  (26 Sept 2026: a little closer and higher, 4.4 → 4 m and 1.35 → 1.6 m, so a dropped head and a slump read over a high hood) */
+  angle: 0.55, distance: 4, height: 1.6, lookHeight: 0.95,
   /** rad/s it keeps circling after the swing, across the front and on round (under the results too) */
   orbit: 0.2,
   /** vertical field of view once round (degrees): tighter than the chase's, a close-up */
@@ -33,6 +34,8 @@ export const CELEBRATE = Object.freeze({
   besideRate: 2.5,
   besideAngle: -0.45,
   besideSpring: 0.55,
+  /** degrees the view widens per unit the kart moves across (normalized screen x): a laptop window's narrower room still holds the whole kart */
+  besideZoom: 10,
 });
 
 /** How the player placed, for their reaction. */
@@ -202,8 +205,9 @@ export class FinishCam {
     this.look[1] = this.y + lerp(this.look0[2], C.lookHeight, e);
     this.look[2] = root.z + fz * lf + sz * ls;
     this.fov = lerp(this.fov0, C.fov, e);
-    // beside the results: aim to the camera's right of the kart, so the kart sits at frameX across the view
+    // beside the results: a little wider, and aimed to the camera's right of the kart, so the kart sits at frameX across the view
     if (this.frameX < -1e-4) {
+      this.fov += C.besideZoom * -this.frameX;
       const dx = this.look[0] - p[0], dz = this.look[2] - p[2], d = Math.hypot(dx, dz);
       if (d > 1e-3) {
         const k = -this.frameX * d * Math.tan((this.fov * Math.PI) / 360) * aspect;

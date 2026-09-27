@@ -95,10 +95,10 @@ describe('finish reactions: one of its own per placing', () => {
     expect(max(b.nod)).toBeLessThan(max(c.nod));
     expect(min(a.squash)).toBeGreaterThan(min(b.squash));
     expect(min(b.squash)).toBeGreaterThan(min(c.squash));
-    // sigh's own beats: the jolt of the fist on the wheel, and the breath in before the sigh (the head up a little)
+    // sigh's own beat: "darn!", the head drops with the fist pulled down, before the sigh
     const S = SAD_BEATS.sigh;
-    expect(max(a.nod.slice(Math.round(S.tap / dt), Math.round((S.tap + 0.2) / dt)))).toBeGreaterThan(0.1);
-    expect(min(a.nod.slice(Math.round((S.sag[0] - 0.2) / dt), Math.round(S.sag[0] / dt)))).toBeLessThan(0);
+    expect(max(a.nod.slice(Math.round(S.tap / dt), Math.round((S.tap + 0.2) / dt)))).toBeGreaterThan(0.25);
+    expect(max(a.nod.slice(Math.round(0.6 / dt), Math.round((S.tap - 0.05) / dt)))).toBeGreaterThan(0.15); // the "aw" before it
   });
 
   it('G-rated: each ends chin up for a polite clap (Mario Kart World\'s losers), then a quiet glum idle, head a little low, never hanging', () => {
