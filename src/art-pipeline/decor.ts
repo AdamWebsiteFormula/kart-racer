@@ -4,6 +4,7 @@
 import type { BufferGeometry } from 'three';
 import { ModelBuilder } from './model.ts';
 import { DRESSING_MODELS } from './dressing.ts';
+import { EDGE_MODELS } from './edges.ts';
 import { buildGear } from './gear.ts';
 
 type Build = (m: ModelBuilder) => void;
@@ -13,6 +14,8 @@ const WOOD = '#a0703c', WOOD_DARK = '#7a5230', WHITE = '#fffaf0', CORAL = '#ff6f
 const MODELS: Record<string, { build: Build }> = {
   // Frostbite Pass and Mesa Rush at Mario Kart World density: fences, lamps, signs, villages, set-pieces, relief (dressing.ts)
   ...DRESSING_MODELS,
+  // what stands on each land track's edge past the course limit, and the cover inside it (edges.ts; track-builder mesh/edge.ts)
+  ...EDGE_MODELS,
   // ---- decor (placeholder: 2 × 4 × 2 box on the ground)
   palm: {
     build: (m) => {
@@ -345,7 +348,8 @@ const MODELS: Record<string, { build: Build }> = {
   },
   snowball: {
     build: (m) => {
-      m.ball([1.2, 1.2, 1.2], '#fbfdff', [0, 0, 0], undefined, 12);
+      // eight sides (was twelve: 80 triangles less on each of Frostbite's 80, for its edge, 27 Sept 2026); its reach, set by the lump below, is unchanged
+      m.ball([1.2, 1.2, 1.2], '#fbfdff', [0, 0, 0], undefined, 8);
       m.ball([0.4, 0.3, 0.4], '#e3eef7', [0.7, 0.6, 0.3], undefined, 7, false);
       m.ball([0.35, 0.3, 0.35], '#e3eef7', [-0.5, -0.4, 0.8], undefined, 7, false);
     },

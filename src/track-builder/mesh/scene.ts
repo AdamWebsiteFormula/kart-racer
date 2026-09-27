@@ -29,6 +29,8 @@ import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
 import { placeGrass } from './verge.ts';
+import { placeEdge, type EdgeKit, type EdgePlacement } from './edge.ts';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -82,6 +84,13 @@ export interface TrackAssets {
    * worked out, so everything else stands where it did)
    */
   grass?: { geometry: BufferGeometry; material: Material; replaces: readonly string[] };
+  /**
+   * what lines an off-road track's edge just past the course limit, and the cover inside it (art-pipeline
+   * edges.ts; laid by edge.ts after every other prop and the crowd, so they stand where they stood): its bank
+   * joins the land's own mesh, everything else the merged dressing; it takes the place of the verge entries
+   * named in its `replaces`
+   */
+  edge?: EdgeKit;
 }
 
 /** What a far vista is laid out from: the track's middle and reach, its start, its ground and sun. */
@@ -135,6 +144,8 @@ export interface TrackScene {
   decor: DecorPlacement[];
   /** the merged dressing (merge.ts): one static mesh per slice of the track, near ones casting shadows */
   dressing: Mesh[];
+  /** the course's edge (edge.ts) as laid, when the track has one: its runs and pieces, for the checks */
+  edge?: EdgePlacement;
   /** the far vista's landmark ahead of the start line, when the track has a vista */
   farLandmark?: [number, number, number];
   /** the far vista's parts (its sky life's controls), when the track has one */
@@ -215,6 +226,8 @@ const LAND: Readonly<Partial<Record<string, { slope: number; strata: boolean }>>
 });
 /** A land track gets hills only where its road rises this far above the ground plane. */
 const LAND_MIN_RISE = 2.5;
+/** Metres of footprint from which any prop is one the course's banks go round (edge.ts), whatever the kit says. */
+const EDGE_WIDE = 5;
 
 function toColor(c: Rgb): Color { return new Color(c[0], c[1], c[2]); }
 
@@ -803,6 +816,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     decor.push(p);
     // the PBR look's grass by the road (below) takes the place of this ground cover
     if (entry.band === 'verge' && assets.grass?.replaces.includes(entry.asset)) continue;
+    // and the edge's cover (edge.ts) takes the place of this
+    if (entry.band === 'verge' && def.offroad && assets.edge?.replaces?.includes(entry.asset)) continue;
     // a code-built prop marked `merge` joins the merged dressing: no instancer of its own
     if (entry.merge && geo.hasAttribute('color') && !assets.materials?.[entry.asset]) {
       // the roadside band and spans cast shadows, as the roadside instancers do; far scenery and ground cover do not
@@ -839,8 +854,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     }
   }
 
-  const dressing = buildDressing(toMerge, branches.main.lut);
-  for (const m of dressing) group.add(m);
+  // (the merged dressing is built once the course's edge has joined it, below)
 
   // the PBR look's grass by the road (verge.ts, art-pipeline grass.ts): one instancer of tufts along the
   // curbs, no shadow of its own; each tuft's flowers and seed ride in `aTuft`
@@ -1324,6 +1338,84 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   };
   const pre = twin ? prebuildShift(twin) : null;
 
+  // The course's edge (edge.ts, art-pipeline edges.ts): laid last, round every prop, the crowd, the
+  // landmark, the start gantry and the Final Lap Shift's set piece, so each of them stands where it stood.
+  let edge: EdgePlacement | undefined;
+  if (assets.edge && def.offroad && groundAt) {
+    const avoid: [number, number, number][] = [];
+    for (const m of vistaParts?.world ?? []) {
+      const layout = (m.userData.crowd as { layout?: { spectators: { at: readonly number[] }[]; solids: { at: readonly number[]; yaw: number; half: readonly number[] }[] } } | undefined)?.layout;
+      if (!layout) continue;
+      // every critter and the stands and rope lines they watch from, with room in front to see them
+      for (const c of layout.spectators) avoid.push([c.at[0], c.at[2], 1.6]);
+      for (const st of layout.solids) {
+        const ax = Math.sin(st.yaw), az = Math.cos(st.yaw), along = st.half[1], r = st.half[0] + 1.8;
+        // a solid's half-sizes run across the road (its local Z, the way it faces) and along it (local X)
+        for (let q = -along; q <= along + 1e-6; q += 1.5) avoid.push([st.at[0] + az * q, st.at[2] - ax * q, r]);
+      }
+    }
+    // the far vista's perched birds sit on what stands there
+    for (const f of (vistaParts?.life?.fliers ?? []) as readonly { kind?: string; home?: readonly number[] }[]) if (f.kind === 'perch' && f.home) avoid.push([f.home[0], f.home[2], 2.5]);
+    if (landmarkMesh) {
+      const g = landmarkMesh.geometry;
+      if (!g.boundingBox) g.computeBoundingBox();
+      const b = g.boundingBox!, r = (Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2) * landmarkMesh.scale.x + 2;
+      avoid.push([landmarkMesh.position.x, landmarkMesh.position.z, r]);
+    }
+    // Frostbite's lake, painted on the snow past the limits (its ragged shore reaches 4.5 m past each circle)
+    const lake = assets.lake;
+    if (lake) for (let k = 0; k < lake.count.value; k++) { const r = lake.path.value[k * 4 + 2]; if (r > 0) avoid.push([lake.path.value[k * 4], lake.path.value[k * 4 + 1], r + 6]); }
+    // the props a bank goes round: buildings on a footing (the kit names them) and anything very wide (a span's
+    // legs, a cliff); a smaller prop where a bank is laid (a tree, a post, a fence) is lifted onto it below
+    const solid = new Occupancy(), solidNames = new Set(assets.edge.solid ?? []);
+    for (const p of decor) {
+      if (p.band === 'verge' || p.band === 'sky') continue;
+      for (let i = 0; i < p.count; i++) {
+        const m = p.matrices, o = i * 16, r = p.footprint * Math.hypot(m[o], m[o + 1], m[o + 2]);
+        if (solidNames.has(p.asset) || r >= EDGE_WIDE) solid.add(m[o + 12], m[o + 14], r);
+      }
+    }
+    edge = placeEdge({
+      branches, kit: assets.edge, seed: def.id, groundAt, waterY: groundKind === 'water' ? groundY : undefined,
+      occupied, solid, avoid, jumps: track.jumps, startT: track.startT,
+      geometry: (k) => { const g = assets.geometries?.[k]; return g && g.hasAttribute('color') && !assets.materials?.[k] ? g : null; },
+    });
+    // the bank is land: it joins the land's own mesh and material (one draw, as before)
+    if (edge.bank && coastMesh) {
+      const merged = mergeGeometries([coastMesh.geometry, edge.bank], false);
+      edge.bank.dispose();
+      if (merged) {
+        merged.computeBoundingSphere();
+        merged.computeBoundingBox();
+        coastMesh.geometry.dispose();
+        coastMesh.geometry = merged;
+        OWNED.add(merged);
+      }
+    }
+    // every prop a bank now runs under stands on it: lifted by the bank's height there (less a little, so it
+    // stays planted), in its placement (the merged dressing is built from it below) and its instancer
+    for (const p of decor) {
+      if (p.band === 'verge' || p.band === 'sky' || p.layout === 'span') continue;
+      const im = instancers.get(`decor:${p.asset}`), arr = im ? (im.instanceMatrix.array as Float32Array) : null;
+      // (and the Low tier's own copy of its placed matrices, which it draws its thinned copies from)
+      const full = im ? pools.find((q) => q.mesh === im)?.full : undefined;
+      let moved = false;
+      for (let i = 0; i < p.count; i++) {
+        const o = i * 16, dy = edge.bankAt(p.matrices[o + 12], p.matrices[o + 14]) - 0.04;
+        if (dy < 0.02) continue;
+        p.matrices[o + 13] += dy;
+        if (arr && o + 13 < arr.length) arr[o + 13] += dy;
+        if (full && o + 13 < full.length) full[o + 13] += dy;
+        moved = true;
+      }
+      if (moved && im) { im.instanceMatrix.needsUpdate = true; im.boundingSphere = null; }
+    }
+    // everything else joins the merged dressing near the road (it casts shadows, as the roadside props do)
+    for (const item of edge.items) toMerge.push({ item, far: false });
+  }
+  const dressing = buildDressing(toMerge, branches.main.lut);
+  for (const m of dressing) group.add(m);
+
   // baked soft shading (mesh/bake.ts, Adam 25 Sept 2026 "shading and shadows need to be for more
   // things than just the karts"): contact AO and a soft sun shadow, multiplied into the vertex colours
   // every toon and PBR material already reads, once now that every static mesh is at its final
@@ -1382,7 +1474,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
   };
   const scene: TrackScene = {
-    group, palette, chunks, decor, dressing, farLandmark, vista: vistaParts, instancers,
+    group, palette, chunks, decor, dressing, edge, farLandmark, vista: vistaParts, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,
