@@ -1054,6 +1054,8 @@ if (import.meta.env.DEV) {
     ceremony: (ids: string[] = ['pip', 'momo', 'nova']) => { buildPodium(ids); startPodium(); },
     /** dev: the podium, when there is one */
     get podium() { return podium; },
+    /** dev: the Racer and Kart screens' stage (game/showroom.ts) and how much of it shows (0 to 1) */
+    showroom, get stage() { return stageAlpha; },
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
     /**
      * dev: the sound files coming down as the game asks for them on the first key press, for checks

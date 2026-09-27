@@ -93,14 +93,16 @@ export function popScale(t: number): number {
 }
 
 /** the contact shadow's half extents across and along the kart (every kart is fitted to the same footprint, glb.ts KART_FIT 2.1 × 1.7 m) and its darkness */
-export const SHADOW = Object.freeze({ halfWidth: 1.55, halfLength: 1.85, opacity: 0.5 });
+export const SHADOW = Object.freeze({ halfWidth: 1.4, halfLength: 1.65, opacity: 0.64 });
 const SHADOW_VERT = /* glsl */ `varying vec2 vUv;
 void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-// (dark out past the kart's own footprint, which hides the middle: the soft edge is what shows)
+// a dark core out to about the wheels (the kart hides its middle: what shows is the contact under the tyres),
+// then a soft halo round it
 const SHADOW_FRAG = /* glsl */ `varying vec2 vUv;
 void main() {
   float d = length(vUv - 0.5) * 2.0;
-  gl_FragColor = vec4(0.04, 0.05, 0.12, ${SHADOW.opacity.toFixed(2)} * (1.0 - smoothstep(0.42, 1.0, d)));
+  float a = ${SHADOW.opacity.toFixed(2)} * (1.0 - smoothstep(0.5, 0.8, d)) + 0.2 * (1.0 - smoothstep(0.8, 1.0, d));
+  gl_FragColor = vec4(0.03, 0.04, 0.1, a);
 }`;
 
 // the backdrop: the blurred world, cover-fitted to the screen, drifting very slowly, a little darker at the
