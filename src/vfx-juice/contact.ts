@@ -45,7 +45,7 @@ export const CONTACT = Object.freeze({
     /** the flash where it meets the wall */
     burst: 1.15, burstLife: 0.12,
     /** sparks at the hit (full size), then a scrape's sparks a second while it slides on (full size), for scrapeLife s (full size) */
-    sparks: 26, scrapeRate: 170, scrapeLife: 0.4,
+    sparks: 32, scrapeRate: 220, scrapeLife: 0.4,
     /** a scrape stops once the kart is this far past its side from the wall (it bounced off) */
     leave: 0.45,
     /**
