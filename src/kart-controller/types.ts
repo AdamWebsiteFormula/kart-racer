@@ -12,7 +12,7 @@ export interface InputState {
   steer: number; // -1..1, positive = right
   throttle: number; // 0..1
   brake: number; // 0..1
-  drift: boolean; // hop/drift button held; pressed while airborne from a jump = trick
+  drift: boolean; // hop/drift button held; pressed in real air (off a jump, a vent, a crest, a ledge) = trick
   item: boolean;
   lookBack: boolean;
   horn: boolean;
@@ -62,6 +62,16 @@ export interface KartState {
     fromJumpId?: string;
     trickQueued: boolean;
     seconds: number;
+    /**
+     * The flight is real air though no jump launched it: the ground fell `trickDrop` below the line the
+     * kart took off along (a crest, a ledge, a drop). A trick press counts in it (drift.ts canTrick).
+     */
+    realAir: boolean;
+    /** the line it took off along: the ground height it left (m) and how fast that ground was rising (m/s), ramps and bumps included */
+    lineY: number;
+    lineRate: number;
+    /** the road's climb (m/s) a hop took off with (ground.ts): its rise is judged against it, 0 for any other flight */
+    climb: number;
   };
   boost: { source: BoostSource; remaining: number; multiplier: number };
   /** two slots (design §8): held is used first; next moves up when held runs out */
@@ -139,7 +149,7 @@ export function createKartState(init: KartInit): KartState {
     distanceAlong: 0,
     slipstreamSeconds: 0,
     drift: { active: false, phase: 'idle', direction: 0, charge: 0, tier: 0, hopSeconds: 0, yawK: 0, chargeMultiplier: 1, chargeMultiplierRemaining: 0 },
-    airborne: { trickQueued: false, seconds: 0 },
+    airborne: { trickQueued: false, seconds: 0, realAir: false, lineY: 0, lineRate: 0, climb: 0 },
     boost: { source: 'none', remaining: 0, multiplier: 1 },
     item: { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 },
     status: {
@@ -229,7 +239,7 @@ export type KartEvent =
   | { type: 'driftEnd'; tier: number }
   | { type: 'boostStart'; source: BoostSource; multiplier: number; seconds: number }
   | { type: 'landed'; fromJumpId?: string; trick: boolean }
-  /** a trick done in the air off a jump (its boost fires on landing) */
+  /** a trick done in real air: off a jump, a vent, a crest or a ledge (its boost fires on landing) */
   | { type: 'trick' }
   | { type: 'launched'; jumpId: string }
   | { type: 'wall' }

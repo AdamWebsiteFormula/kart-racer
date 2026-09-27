@@ -33,7 +33,7 @@ export interface KartBase {
   rideSpeedMultiplier: number; rideLookahead: number; rideMassBonus: number; rideRadius: number;
   pilotTurnRate: number; pilotAccel: number; towSpeedMultiplier: number; towSideOffset: number; towFollowRoad: number;
   springLaunch: number; slamSpeed: number; fallCatchDepth: number; loopSpeedFactor: number; wallEndOvershoot: number; wallEndPushRate: number;
-  accelLaunch: number; accelTaper: number; contactHeight: number; trickBufferSeconds: number; driftLateSteer: number;
+  accelLaunch: number; accelTaper: number; contactHeight: number; trickBufferSeconds: number; trickDrop: number; driftLateSteer: number;
   airGrip: number; steerLowSpeed: number; lipZone: number;
   speedClasses: Record<'50' | '100' | '150', number>;
 }

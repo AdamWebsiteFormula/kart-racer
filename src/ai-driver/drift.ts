@@ -10,7 +10,7 @@
 // and on a bend gentler than a half-stick drift the full charge swings the kart inward: it
 // alternates. reachableTier() plans the tier from that before the hop.
 import type { KartConstants } from '../kart-controller/constants.ts';
-import { tierFor } from '../kart-controller/drift.ts';
+import { canTrick, tierFor } from '../kart-controller/drift.ts';
 import { driftSpeedScale, driftStickFor } from '../kart-controller/steer.ts';
 import type { InputState, KartState } from '../kart-controller/types.ts';
 import { AI, targetTierFor } from './constants.ts';
@@ -312,11 +312,12 @@ function release(m: AiMemory, cooldown: number, out: InputState, why: DriftEndRe
 }
 
 /**
- * Off a jump: roll once, then press the button on a tick where it makes an edge. Not over bumps on a
- * bend (`line`): each trick's boost carries it faster into the next bump, and airborne it cannot turn.
+ * In real air (off a jump, a vent, a crest: canTrick): roll once, then press the button on a tick where
+ * it makes an edge. Not over bumps on a bend (`line`): each trick's boost carries it faster into the
+ * next bump, and airborne it cannot turn.
  */
 export function stepTrick(s: KartState, m: AiMemory, profile: AiProfile, out: InputState, line?: LineInfo): void {
-  if (s.grounded || s.airborne.fromJumpId === undefined) {
+  if (!canTrick(s)) {
     m.trickRolled = false;
     m.trickDone = false;
     return;

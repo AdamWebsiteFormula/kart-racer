@@ -8,7 +8,7 @@
   "properties": {
     "base": {
       "type": "object",
-      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "driftYawLag", "airSteer", "gripDrift", "bumpSeparateRate", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "wallDeflectRate", "groundCatch", "startBoostCentreSeconds", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier", "shieldMassBonus", "rideSpeedMultiplier", "rideLookahead", "rideMassBonus", "rideRadius", "pilotTurnRate", "pilotAccel", "towSpeedMultiplier", "towSideOffset", "towFollowRoad", "springLaunch", "slamSpeed", "fallCatchDepth", "loopSpeedFactor", "wallEndOvershoot", "wallEndPushRate", "accelLaunch", "accelTaper", "contactHeight", "trickBufferSeconds", "driftLateSteer", "airGrip", "steerLowSpeed", "lipZone"],
+      "required": ["topSpeed", "accel", "brake", "steerRate", "driftSteerMin", "driftSteerMax", "driftYawLag", "airSteer", "gripDrift", "bumpSeparateRate", "hopSeconds", "chargeFull", "chargeNeutral", "driftTiers", "boostMultiplier", "boostSeconds", "trickMultiplier", "trickSeconds", "padMultiplier", "padSeconds", "itemSpeedMultiplier", "itemSpeedSeconds", "slipstreamSeconds", "slipstreamMultiplier", "slipstreamBoostSeconds", "coinBonusEach", "coinCap", "gripRoad", "gripOffroad", "gripMud", "gripIce", "startBoostWindowSeconds", "startBoostMultiplier", "startBoostSeconds", "bumpForce", "hitSpinSeconds", "hitCoinsLost", "speedClasses", "surfaceSpeed", "gravity", "hopVelocity", "coastDecel", "overSpeedDecel", "reverseFraction", "steerFalloff", "driftMinSpeed", "driftKeepSpeed", "driftAirCancelSeconds", "kartRadius", "groundStick", "groundLaunchVy", "wallRestitution", "wallScrub", "wallDeflect", "wallDeflectRate", "groundCatch", "startBoostCentreSeconds", "slipstreamLength", "slipstreamHalfWidth", "tSearchWindow", "driftVisualSlip", "dashMassBonus", "coinShield", "wallCooldownSeconds", "bumpCooldownSeconds", "hardWallFraction", "slipstreamSameWayDot", "hopLandWindow", "maxBoostMultiplier", "shieldMassBonus", "rideSpeedMultiplier", "rideLookahead", "rideMassBonus", "rideRadius", "pilotTurnRate", "pilotAccel", "towSpeedMultiplier", "towSideOffset", "towFollowRoad", "springLaunch", "slamSpeed", "fallCatchDepth", "loopSpeedFactor", "wallEndOvershoot", "wallEndPushRate", "accelLaunch", "accelTaper", "contactHeight", "trickBufferSeconds", "trickDrop", "driftLateSteer", "airGrip", "steerLowSpeed", "lipZone"],
       "properties": {
         "topSpeed": { "type": "number", "description": "m/s", "default": 25 },
         "accel": { "type": "number", "default": 12 },
@@ -90,7 +90,8 @@
         "slipstreamSameWayDot": { "type": "number", "description": "Min dot of both forward vectors to count as drafting", "default": 0.7 },
         "hopLandWindow": { "type": "number", "description": "Multiple of hopSeconds inside which landing with stick held locks a drift", "default": 2 },
         "driftLateSteer": { "type": "number", "description": "Grounded, not drifting, drift button held, fast enough and |steer| at least this: the drift starts now, no hop (a late drift, or one straight off a landing, as in Mario Kart 8 Deluxe and World).", "default": 0.3 },
-        "trickBufferSeconds": { "type": "number", "description": "A drift press this long before a ramp launch still counts as the trick (and a hop at the lip still takes the launch).", "default": 0.15 },
+        "trickBufferSeconds": { "type": "number", "description": "A drift press this long before a ramp's lip or a trick bump's crest still counts as the trick at the launch, even when the hop it made came down on the ramp's or the bump's rise (a hop still in the air there always does, and takes the launch); also this long before a flight turns into real air (trickDrop). Mario Kart Wii buffers the trick input 13 frames (0.22 s) before leaving trickable road (wiki.mkwtas.com/wiki/Trick); 0.15 until 26 Sept 2026, when a press as the kart climbed a trick bump's 4 m face was lost.", "default": 0.22 },
+        "trickDrop": { "type": "number", "description": "metres. A flight the course did not launch (the kart's own hop, or rolling off an edge) is real air, and a drift press in it a trick, once the ground under the kart has fallen this far below the line it took off along (a crest, a ledge, a drop). A steady slope never falls below its own line, so a hop up, down or along a hill is never one; 0.2 m is the flat hop's own apex (hopVelocity^2 / 2 gravity), and a flight that drops it lasts 0.3 s or more (26 Sept 2026, Adam: 'it should allow you to do a bit of a boost').", "default": 0.2 },
         "airGrip": { "type": "number", "description": "Multiple of the surface grip on lateral velocity while airborne (the hop included).", "default": 0.5 },
         "steerLowSpeed": { "type": "number", "description": "Fraction of top speed below which the grip turn fades to nothing (no pivoting on the spot).", "default": 0.15 },
         "lipZone": { "type": "number", "description": "metres around a ramp lip inside which the lip-from-behind wall is checked", "default": 8 },
@@ -336,7 +337,7 @@
           "powerFrom": { "type": "number", "description": "rb below this cuts power (top-speed cap); above it only skill moves", "default": 0.85 },
           "skillGain": { "type": "number", "description": "skill += (rb − 1) × gain", "default": 1.25 },
           "shortcutRb": { "type": "number", "description": "rubber band at or above which a narrow shortcut is taken as a catch-up", "default": 1.15 },
-          "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.065 }
+          "fieldPaceSpread": { "type": "number", "description": "seeded per-race pace governor spread across the AI field, fraction of legal top speed", "default": 0.075 }
         } },
         "items": { "type": "object", "properties": {
           "forwardRange": { "type": "number", "default": 45 }, "forwardCone": { "type": "number", "description": "rad", "default": 0.2 },
@@ -353,27 +354,30 @@
         "autopilot": { "type": "object", "description": "a finished kart keeps rolling out of the way", "properties": {
           "skill": { "type": "number", "default": 0.5 }, "power": { "type": "number", "default": 0.6 }
         } },
-        "profiles": { "type": "object", "description": "Difficulty comes from the speed class: 50 easy, 100 normal, 150 hard (ai-driver Decisions 2026-09-21).", "properties": {
+        "profiles": { "type": "object", "description": "Difficulty comes from the speed class: 50 easy, 100 normal, 150 hard (ai-driver Decisions 2026-09-21). 26 Sept 2026 (Adam: \"The races seem pretty easy\"): Normal races at the player's own top speed (power 0.98 to 1, skill 0.65 to 0.7) and Hard at its sharpest (skill 0.95 to 1), and a Hard racer ahead of the player is held back in sharpness only, never in power (rbMin 0.6 to 0.85, at or above rubber.powerFrom); Easy is as it was (ai-driver Decisions 2026-09-26, game/difficulty.e2e.test.ts).", "properties": {
           "easy": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.35 }, "power": { "type": "number", "default": 0.94 }, "noise": { "type": "number", "default": 0.09 },
             "reactionMin": { "type": "number", "default": 0.8 }, "reactionMax": { "type": "number", "default": 1.6 },
             "driftThreshold": { "type": "number", "default": 0.45 }, "brakeAbove": { "type": "number", "default": 1.0 },
             "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 1.6 },
-            "shortcutSkill": { "type": "number", "default": 1.1 }, "trickChance": { "type": "number", "default": 0.2 }
+            "shortcutSkill": { "type": "number", "default": 1.1 }, "trickChance": { "type": "number", "default": 0.2 },
+            "rbMin": { "type": "number", "default": 0.6 }
           } },
           "normal": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
-            "skill": { "type": "number", "default": 0.65 }, "power": { "type": "number", "default": 0.98 }, "noise": { "type": "number", "default": 0.045 },
+            "skill": { "type": "number", "default": 0.7 }, "power": { "type": "number", "default": 1.0 }, "noise": { "type": "number", "default": 0.045 },
             "reactionMin": { "type": "number", "default": 0.4 }, "reactionMax": { "type": "number", "default": 0.9 },
             "driftThreshold": { "type": "number", "default": 0.35 }, "brakeAbove": { "type": "number", "default": 2.0 },
             "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 0.8 },
-            "shortcutSkill": { "type": "number", "default": 0.6 }, "trickChance": { "type": "number", "default": 0.5 }
+            "shortcutSkill": { "type": "number", "default": 0.6 }, "trickChance": { "type": "number", "default": 0.5 },
+            "rbMin": { "type": "number", "default": 0.6 }
           } },
           "hard": { "$ref": "#/$defs/aiProfile", "type": "object", "properties": {
             "skill": { "type": "number", "default": 0.95 }, "power": { "type": "number", "default": 1.0 }, "noise": { "type": "number", "default": 0.015 },
             "reactionMin": { "type": "number", "default": 0.15 }, "reactionMax": { "type": "number", "default": 0.4 },
             "driftThreshold": { "type": "number", "default": 0.3 }, "brakeAbove": { "type": "number", "default": 3.0 },
             "startPressMean": { "type": "number", "default": 2.0 }, "startPressSpread": { "type": "number", "default": 0.25 },
-            "shortcutSkill": { "type": "number", "default": 0.3 }, "trickChance": { "type": "number", "default": 0.95 }
+            "shortcutSkill": { "type": "number", "default": 0.3 }, "trickChance": { "type": "number", "default": 0.95 },
+            "rbMin": { "type": "number", "default": 0.85 }
           } }
         } }
       }
@@ -396,8 +400,8 @@
       "properties": { "lateralBias": { "type": "number", "minimum": -1, "maximum": 1 }, "aggression": { "type": "number", "minimum": 0, "maximum": 1 }, "driftUse": { "type": "number", "minimum": 0, "maximum": 1 } }
     },
     "aiProfile": {
-      "type": "object", "required": ["skill", "power", "noise", "reactionMin", "reactionMax", "driftThreshold", "brakeAbove", "startPressMean", "startPressSpread", "shortcutSkill", "trickChance"],
-      "description": "skill 0..1 drives line, drift tier and reactions; power ≤ 1 is the top-speed cap as a fraction of the player-legal speed; noise is steer noise amplitude; brakeAbove is m/s over the corner speed before the brake comes on; reaction is seconds before an item is used; startPress is seconds before go the throttle goes down, mean ± spread."
+      "type": "object", "required": ["skill", "power", "noise", "reactionMin", "reactionMax", "driftThreshold", "brakeAbove", "startPressMean", "startPressSpread", "shortcutSkill", "trickChance", "rbMin"],
+      "description": "skill 0..1 drives line, drift tier and reactions; power ≤ 1 is the top-speed cap as a fraction of the player-legal speed; noise is steer noise amplitude; brakeAbove is m/s over the corner speed before the brake comes on; reaction is seconds before an item is used; startPress is seconds before go the throttle goes down, mean ± spread; rbMin is how far the rubber band may hold back a racer ahead of the player (rubber.min at the most)."
     },
     "unlockable": {
       "type": "object", "required": ["id", "name", "asset", "unlock"],

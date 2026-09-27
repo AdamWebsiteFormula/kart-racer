@@ -11,6 +11,24 @@ export function tierFor(charge: number, tiers: readonly number[], max = Infinity
   return Math.min(tier, max);
 }
 
+/**
+ * Real air, where a drift press is a trick (Adam, 26 Sept 2026: "when you go over a jump, or you hit
+ * something that makes you go a little bit airborne ... it should allow you to do a bit of a boost").
+ * As in Mario Kart World: anything the course throws you off (a ramp, a trick bump, a vent, a crest, a
+ * ledge, a Pogo Spring), never a hop on flat ground or along a steady slope (ground.ts realAir).
+ */
+export function canTrick(s: KartState): boolean {
+  return !s.grounded && (s.airborne.fromJumpId !== undefined || s.airborne.realAir);
+}
+
+/** Queue the trick for this flight (its boost fires on landing) and announce it once, for its sound. */
+export function queueTrick(s: KartState, events: KartEvent[]): void {
+  if (s.airborne.trickQueued) return;
+  s.airborne.trickQueued = true;
+  s.trickBuffer = 0;
+  events.push({ type: 'trick' });
+}
+
 export function cancelDrift(s: KartState): void {
   s.drift.active = false;
   s.drift.phase = 'idle';
@@ -49,13 +67,13 @@ export function stepDrift(
   s.prevDrift = input.drift;
   const d = s.drift;
 
-  // trick: drift button while airborne from a jump
+  // trick: the drift button in real air (canTrick)
   // (the 'trick' event marks the moment it is done, for its sound; the boost still waits for the landing)
-  if (pressed && !s.grounded && s.airborne.fromJumpId !== undefined && !s.airborne.trickQueued) {
-    s.airborne.trickQueued = true;
-    events.push({ type: 'trick' });
+  if (pressed && canTrick(s)) {
+    queueTrick(s, events);
   } else if (pressed) {
-    // a press just before a ramp's lip still counts as the trick at the launch (ground.ts)
+    // a press just before a ramp's lip or a bump's crest still counts as the trick at the launch, and one
+    // just before a flight turns into real air (a hop at a crest) counts when it does (ground.ts)
     s.trickBuffer = c.trickBufferSeconds;
   }
 

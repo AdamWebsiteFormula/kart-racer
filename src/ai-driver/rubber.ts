@@ -5,13 +5,18 @@ import { AI } from './constants.ts';
 import type { AiProfile } from './types.ts';
 import * as dmath from '../sim-math/dmath.ts';
 
-/** gap = player.distanceAlong − kart.distanceAlong (metres); positive = AI behind. */
-export function rubberBand(gap: number): number {
+/**
+ * gap = player.distanceAlong − kart.distanceAlong (metres); positive = AI behind. `min` is how far a
+ * racer ahead of the player may be held back (the class's rbMin), never below AI.rubber.min: at 150cc
+ * it stays at or above powerFrom, so a leader there loses sharpness, never top speed (26 Sept 2026).
+ */
+export function rubberBand(gap: number, min: number = AI.rubber.min): number {
   const r = AI.rubber;
   const a = Math.abs(gap);
   if (a <= r.deadZone) return 1;
   const x = dmath.tanh((a - r.deadZone) / r.scale);
-  return gap > 0 ? 1 + (r.max - 1) * x : 1 - (1 - r.min) * x;
+  const floor = min > r.min ? min : r.min;
+  return gap > 0 ? 1 + (r.max - 1) * x : 1 - (1 - floor) * x;
 }
 
 export function skillFor(profile: AiProfile, rb: number): number {

@@ -156,7 +156,7 @@ export class AiDriver {
 
     // 2. rubber band
     const gap = player && !finished ? player.distanceAlong - s.distanceAlong : 0;
-    m.rb = rubberBand(gap);
+    m.rb = rubberBand(gap, profile.rbMin);
     m.skill = skillFor(profile, m.rb);
     m.powerCap = powerCapFor(profile, m.rb);
 

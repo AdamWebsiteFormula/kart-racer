@@ -19,6 +19,8 @@ export interface AiProfile {
   startPressSpread: number;
   shortcutSkill: number;
   trickChance: number;
+  /** the lowest rubber band a racer ahead of the player is held to (never below AI.rubber.min) */
+  rbMin: number;
 }
 
 /** kart.schema.json $defs.aiPersonality */

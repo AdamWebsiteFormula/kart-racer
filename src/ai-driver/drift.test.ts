@@ -215,4 +215,21 @@ describe('drift decision', () => {
     stepTrick(s, m, { ...PROFILES.hard, trickChance: 0 }, out);
     expect(out.drift).toBe(false);
   });
+
+  it('trick: real air off a crest or a ledge counts like a jump (26 Sept 2026); its own flat hop never does', () => {
+    const s = kartAt(track, 0.2, 0, 22);
+    const m = memory(PROFILES.hard);
+    const out = { ...NEUTRAL_INPUT };
+    const sure = { ...PROFILES.hard, trickChance: 1 };
+    // a hop, not (yet) real air: nothing
+    s.grounded = false; s.prevDrift = false;
+    stepTrick(s, m, sure, out);
+    expect(out.drift).toBe(false);
+    expect(m.trickRolled).toBe(false);
+    // the ground fell away under it: real air, and the press comes
+    s.airborne.realAir = true;
+    stepTrick(s, m, sure, out);
+    expect(out.drift).toBe(true);
+    expect(m.trickRolled).toBe(true);
+  });
 });
