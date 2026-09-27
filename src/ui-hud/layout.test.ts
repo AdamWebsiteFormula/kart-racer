@@ -74,6 +74,16 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.pause .list', 'display')).toBe('');
   });
 
+  it('the dialogs are the setup\'s glass, not cream cards (design §12, 26 Sept 2026): white words, the focus the one ring, the rows\' old ink drop gone', () => {
+    expect(value('.overlay .box', 'color')).toBe('rgb(255, 255, 255)');
+    expect(value('.overlay .box', 'border-radius')).toBe('26px');
+    expect(value('.overlay .btn.focused', 'box-shadow')).toMatch(/var\(--sun\)/);
+    expect(value('.overlay .btn.focused', 'color')).toBe('var(--sun)');
+    expect(value('.setting', 'box-shadow')).toBe('');
+    // the earned unlock stays in the sun, its words in ink
+    expect([value('.unlock.on', 'background'), value('.unlock.on', 'color')]).toEqual(['var(--sun)', 'var(--ink)']);
+  });
+
   it('Settings drawn again after a change does not pop in again (seam review)', () => {
     expect(value('.overlay .box', 'animation')).toMatch(/pop-in/);
     expect(value('.overlay .box.redraw', 'animation')).toBe('none');
