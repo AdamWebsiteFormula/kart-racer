@@ -172,7 +172,8 @@ export class EngineRev implements RevView {
       const k = clamp((this.x - R.popAbove) / (1 - R.popAbove), 0, 1);
       this.popNow(0.6 + 0.4 * k, k > 0.8 ? R.crackles : k > 0.5 ? 1 : 0);
     }
-    if (down) this.crackleLeft = 0; // back on the gas: the crackle stops
+    // back on the gas, the crackle stops (a press, not the gas held: a start held too early coughs with it down)
+    if (down && !this.wasDown) this.crackleLeft = 0;
     if (this.crackleLeft > 0 && this.clock >= this.crackleNext) {
       this.crackleLeft--;
       this.popNow(R.crackleSize * (0.7 + 0.6 * hash01(this.pops * 7 + 3)), -1);

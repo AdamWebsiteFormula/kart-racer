@@ -186,6 +186,12 @@ describe('EngineRev: the start', () => {
     expect(early.rev.rev).toBeLessThan(early.before - R.cough * 0.8);
     expect(early.rev.pops).toBe(1);
     expect(early.rev.popSize).toBe(1);
+    // it crackles on with the gas still down, then climbs back
+    const s = still();
+    s.speed = 2;
+    for (let i = 0; i < 90; i++) early.rev.tick(s, GAS, dt, -1 - i);
+    expect(early.rev.pops).toBe(1 + R.coughCrackles);
+    expect(early.rev.rev).toBeGreaterThan(0.9);
     const late = go(GO_TICK - 60, false);
     expect(late.rev.launch).toBe('hard');
     const soft = go(GO_TICK + 10, false);
