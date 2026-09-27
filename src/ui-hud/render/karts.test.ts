@@ -239,6 +239,92 @@ describe('choosing a kart', () => {
   });
 });
 
+describe('the stats behind a button (Adam, 26 Sept 2026: "it shouldn\'t even appear unless you press a button"; MKW\'s "Details" on Y)', () => {
+  const shown = () => q('.stat-panel')?.hidden === false;
+  const statsBtn = () => q('.prompts [data-id="stats"]')!;
+
+  it('hidden on both screens until Y; Y shows them and they stay shown on the Kart screen; Y again hides them; the prompt says which', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    expect(shown()).toBe(false);
+    expect(statsBtn().getAttribute('aria-pressed')).toBe('false');
+    expect(statsBtn().textContent).toBe('YStats');
+    key('KeyY');
+    expect(shown()).toBe(true);
+    expect(ui.statsShown).toBe(true);
+    expect(statsBtn().getAttribute('aria-pressed')).toBe('true');
+    expect(q('.select-side')!.classList.contains('stats-on')).toBe(true);
+    key('Enter'); // Pip → the Kart screen: still shown, now Pip in the kart under the focus
+    expect(ui.app.screen).toBe('kartSelect');
+    expect(shown()).toBe(true);
+    expect(q('.sp-title')!.textContent).toBe('Pip in the Parcel Scooter');
+    key('ArrowRight');
+    expect(q('.sp-title')!.textContent).toBe('Pip in the Scrap Buggy');
+    key('KeyY');
+    expect(shown()).toBe(false);
+    expect(statsBtn().getAttribute('aria-pressed')).toBe('false');
+    // Y is nothing elsewhere: the track screen has no stats, and the key changes nothing there
+    key('Enter');
+    expect(ui.app.screen).toBe('trackSelect');
+    key('KeyY');
+    expect(ui.statsShown).toBe(false);
+    ui.dispose();
+  });
+
+  it('a click or a tap on the Stats prompt shows and hides them, the focus kept on the tiles for the keys', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'gus' }] as const) ui.dispatch(a);
+    statsBtn().click();
+    expect(shown()).toBe(true);
+    expect(focused()).toBe('snacktruck'); // the keys carry on from the tile they were on
+    key('ArrowLeft');
+    expect(focused()).toBe('stomper');
+    statsBtn().click();
+    expect(shown()).toBe(false);
+    // Back is a button of the prompt bar too: the way Escape goes
+    q('.prompts [data-id="back"]')!.click();
+    expect(ui.app.screen).toBe('rosterSelect');
+    ui.dispose();
+  });
+
+  it('a pad\'s Y (the top face button) shows them on a fresh press, not while held; the prompts name the pad\'s buttons', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    const later = ui.clock() + UI.wipeMs + 1;
+    ui.clock = () => later;
+    const pad = { connected: true, buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0, 0, 0] };
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
+    let t = 0;
+    ui.poll((t += 16));
+    pad.buttons[UI.padStatsButton].pressed = true;
+    ui.poll((t += 16));
+    expect(shown()).toBe(true);
+    ui.poll((t += 16)); // still held: no second toggle
+    ui.poll((t += 16));
+    expect(shown()).toBe(true);
+    expect(document.documentElement.dataset.input).toBe('pad');
+    pad.buttons[UI.padStatsButton].pressed = false;
+    ui.poll((t += 16));
+    pad.buttons[UI.padStatsButton].pressed = true;
+    ui.poll((t += 16));
+    expect(shown()).toBe(false);
+    delete (navigator as { getGamepads?: unknown }).getGamepads;
+    ui.dispose();
+  });
+
+  it('a screen reader still gets every stat with the panel hidden: each tile\'s label carries them', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    expect(shown()).toBe(false);
+    for (const b of document.querySelectorAll('#ui .roster-screen.on .racer-tile')) expect(b.getAttribute('aria-label')).toMatch(/Speed \d+ of 10\. Accel \d+ of 10\. Handling \d+ of 10\. Weight \d+ of 10\.$/);
+    ui.dispatch({ type: 'pickRacer', racerId: 'momo' });
+    for (const b of document.querySelectorAll('#ui .kart-screen.on .kart-tile')) expect(b.getAttribute('aria-label')).toMatch(/Speed \d+ of 10(, (up|down) \d+)?\. Accel/);
+    // the pictures are for the eyes: no alt words to read twice
+    expect([...document.querySelectorAll('#ui .kart-screen.on img')].every((i) => i.getAttribute('alt') === '')).toBe(true);
+    ui.dispose();
+  });
+});
+
 describe('the Racer screen with karts picked (design §12)', () => {
   it('the stats wait behind the Stats button (the racer on show in the kart they would race in), and no Body row (Classic and Buggy are karts now); off, the stats still there', () => {
     const on = root(host());

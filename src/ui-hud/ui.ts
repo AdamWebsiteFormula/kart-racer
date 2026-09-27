@@ -685,6 +685,11 @@ export class UiRoot {
     if (b.getAttribute('aria-disabled') === 'true' && !kartCardHit) return;
     // a finger moving over the kart cards is no hover: a slow tap would put its card on show, and then choose it on release
     if (!click && kartCardHit && (e as PointerEvent).pointerType === 'touch') return;
+    // the Stats prompt shows or hides the stats and leaves the focus where it was (on the tile the keys were on)
+    if (id === 'stats') {
+      if (click && !this.tooSoon(e)) { this.host.uiSound?.('move'); this.toggleStats(); }
+      return;
+    }
     if (!click && this.focusBy.get(this.active.key) !== id) this.host.uiSound?.('move');
     // a touch screen has no hover: a first tap on a kart previews it, a second tap on the same one chooses it
     if (click && kartCardHit && this.pointerKind === 'touch' && this.previewing !== id) {
