@@ -2,21 +2,36 @@
 // selector"): each kart alone, rendered from our own 3D kart models the race draws (the body and wheels of a
 // racer built from parts, rigged.ts kartOnly; Classic and Buggy code-built, bodies.ts), three-quarters from
 // the front and its left, nose to the left, on a clear background — as Mario Kart World's vehicle select
-// shows each vehicle rendered on its tile. A dev tool, never imported by the game: scripts/headless/
-// kart-icons.mjs runs it in the dev server's page (where the model files load as they do in a race) and
-// writes public/art/karts/<name>.webp. Its own renderer (alpha, kept buffer): a still, once.
+// shows each vehicle rendered on its tile. Every kart in the racers' own PBR material (rigged.ts
+// riggedMaterial: the same roughness, rim and lights), Classic and Buggy with their vertex colors in place of
+// the atlas (27 Sept 2026: in the flat toon material they read as cartoons beside the model renders). A dev
+// tool, never imported by the game: scripts/headless/kart-icons.mjs runs it in the dev server's page (where
+// the model files load as they do in a race) and writes public/art/karts/<name>.webp. Its own renderer
+// (alpha, kept buffer): a still, once.
 import {
   ACESFilmicToneMapping, AmbientLight, Box3, DirectionalLight, HemisphereLight, Mesh, PerspectiveCamera, PMREMGenerator, Scene,
   SRGBColorSpace, Vector3, WebGLRenderer, type Material, type Object3D,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { PAINTS, RACER_MODELS, racerGeometry, vertexToon } from '../art-pipeline/index.ts';
+import { PAINTS, RACER_MODELS, racerGeometry } from '../art-pipeline/index.ts';
+import { riggedMaterial } from '../art-pipeline/rigged.ts';
 import { KARTS } from '../kart-controller/karts.ts';
 
 /** the picture's size (px) and the shot: yaw from dead ahead toward the kart's left, the look-down angle, the lens */
 export const ICON = Object.freeze({ w: 640, h: 400, yaw: (58 * Math.PI) / 180, pitch: (17 * Math.PI) / 180, fov: 24, margin: 0.04 });
 
 const RACERS = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];
+
+/** The twins' bodies in the racers' own PBR material, their vertex colors in place of the atlas (one for every twin picture). */
+let twinMaterial: Material | null = null;
+function twinBody(): Material {
+  if (!twinMaterial) {
+    const m = riggedMaterial(null);
+    m.vertexColors = true;
+    twinMaterial = m;
+  }
+  return twinMaterial;
+}
 
 /** Every picture the Kart screen shows, by file name (ui-hud data/karts.ts kartArt): the karts in their owners' colors, the owners' paints, and the twins in each racer's colors and each paint. */
 export function iconJobs(): { name: string; build: () => Object3D | null }[] {
@@ -29,7 +44,7 @@ export function iconJobs(): { name: string; build: () => Object3D | null }[] {
   };
   const twin = (body: 'classic' | 'buggy', racer: string, paint?: string) => () => {
     const g = racerGeometry(racer, { body, ...(paint ? { paint } : {}) }, false);
-    return g ? new Mesh(g.body, vertexToon()) : null;
+    return g ? new Mesh(g.body, twinBody()) : null;
   };
   for (const k of KARTS) {
     if (k.owner) {
@@ -114,6 +129,8 @@ export async function renderKartIcons(): Promise<Record<string, string | null>> 
     scene.remove(obj);
   }
   pmrem.dispose();
+  twinMaterial?.dispose();
+  twinMaterial = null;
   renderer.dispose();
   return out;
 }
