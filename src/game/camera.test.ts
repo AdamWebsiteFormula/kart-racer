@@ -6,6 +6,7 @@ import { BASE } from '../kart-controller/constants.ts';
 import type { Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
+import { SHOW } from '../track-builder/shiftShow.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import canyonJson from '../track-builder/tracks/canyon-rush.json';
@@ -128,10 +129,10 @@ describe('clampAboveSea: no camera reads under the sea\'s actual surface, whatev
   });
 });
 
-describe('chase framing (plan §4.7): your kart big in the lower third at every speed', () => {
+describe('chase framing: your kart as big as Mario Kart World\'s, at every speed (CAM\'s measurements)', () => {
   const W = 1280, H = 720;
   const cam = new PerspectiveCamera(60, W / H, 0.3, 1400);
-  /** Frame a kart at the origin heading +z from its ideal chase pose (`back` metres farther back); its box on screen (0..1, y down). */
+  /** Frame a kart at the origin heading +z from its ideal chase pose (`back` metres farther back); its box on screen (0..1, y down) and the horizon's height. */
   const frame = (speed: number, fov: number, back = 0) => {
     const pose = idealPose([0, 0, 0], 0, speed, false);
     pose.position[2] -= back;
@@ -143,7 +144,11 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
       const sx = (p.x + 1) / 2, sy = (1 - p.y) / 2;
       x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
     }
-    return { width: x1 - x0, cy: (y0 + y1) / 2, bottom: y1 };
+    // the horizon: a point far off straight ahead, level with the lens
+    const d = new Vector3();
+    cam.getWorldDirection(d); d.y = 0; d.normalize();
+    const hz = cam.position.clone().addScaledVector(d, 5000).project(cam);
+    return { width: x1 - x0, cy: (y0 + y1) / 2, bottom: y1, horizon: (1 - hz.y) / 2 };
   };
 
   // the strongest boost there is: a full-strength hold (+40%), the biggest punch, and a boost's surge (the
@@ -152,33 +157,38 @@ describe('chase framing (plan §4.7): your kart big in the lower third at every 
   const held = fovFor(CAM.topSpeed) + JUICE.holdFov;
   const boostSurge = surgeOffset(CAM.topSpeed + 7.5 / CAM.surgeLag, CAM.topSpeed);
 
-  it('standstill, top speed, and top speed through a boost: wide, below the middle, all on screen', () => {
-    const cases = [
-      frame(0, fovFor(0)),
-      frame(CAM.topSpeed, fovFor(CAM.topSpeed)),
-      // a boost's hold, once its punch has passed
-      frame(CAM.topSpeed, kickedFov(held, 0), JUICE.holdBack),
-    ];
-    for (const c of cases) {
-      expect(c.width).toBeGreaterThan(1 / 9);
+  it('at a standstill: the kart big in the lower third, its wheels at MKW\'s 83% down, the horizon a third down', () => {
+    const rest = frame(0, fovFor(0));
+    // the KART_FIT box (1.7 m wide) is wider than any kart model: the Timber Wagon itself reads about 15%, as Luigi's does (chase-look.mjs)
+    expect(rest.width).toBeGreaterThan(0.2);
+    expect(rest.cy).toBeGreaterThan(0.58);
+    expect(rest.bottom).toBeGreaterThan(0.8);
+    expect(rest.bottom).toBeLessThan(0.9);
+    expect(rest.horizon).toBeGreaterThan(0.28); // MKW: 30-33%; ours was 43% (the view looked almost level)
+    expect(rest.horizon).toBeLessThan(0.36);
+  });
+
+  it('speed barely shrinks it (MKW: about 5%); a boost\'s hold a tenth more; the strongest punch\'s peak about a fifth, as MKW\'s boosts do (15-24%)', () => {
+    const rest = frame(0, fovFor(0)), top = frame(CAM.topSpeed, fovFor(CAM.topSpeed));
+    const hold = frame(CAM.topSpeed, kickedFov(held, 0), JUICE.holdBack);
+    const peak = frame(CAM.topSpeed, kickedFov(held, P.fov), JUICE.holdBack + P.back + boostSurge);
+    const mini = frame(CAM.topSpeed, kickedFov(fovFor(CAM.topSpeed) + JUICE.holdFov * 0.75, JUICE.punch.mini.fov), JUICE.holdBack * 0.75 + JUICE.punch.mini.back);
+    expect(top.width / rest.width).toBeGreaterThan(0.88); // it was 0.8: 60° to 68° and 0.5 m farther back
+    expect(hold.width / top.width).toBeGreaterThan(0.85);
+    expect(peak.width / top.width).toBeGreaterThan(0.7);
+    expect(peak.width / top.width).toBeLessThan(0.85); // a pull-back you can see
+    expect(mini.width / top.width).toBeLessThan(0.95); // even the weakest mini-turbo
+    for (const c of [top, hold, peak, mini]) {
       expect(c.cy).toBeGreaterThan(0.55);
       expect(c.bottom).toBeLessThan(0.92);
     }
-    // at a standstill the kart box reads about a seventh of the screen wide (the old 6.3 m at 66°: under a tenth)
-    expect(cases[0].width).toBeGreaterThan(0.13);
-    // the punch's peak (a tenth of a second): wider and farther back, and still about a tenth of the screen wide
-    const peak = frame(CAM.topSpeed, kickedFov(held, P.fov), JUICE.holdBack + P.back + boostSurge);
-    expect(peak.width).toBeGreaterThan(0.09);
-    expect(peak.width).toBeLessThan(cases[1].width * 0.9); // a pull-back you can see
-    expect(peak.cy).toBeGreaterThan(0.55);
   });
 
-  it('the boost punch never widens the view past fovMax; a hit still narrows it', () => {
-    expect(kickedFov(held, P.fov)).toBe(CAM.fovMax);
+  it('the boost punch never widens the view past fovMax, not even with the Final Lap Shift\'s pulse on top; a hit still narrows it', () => {
+    expect(kickedFov(held, P.fov)).toBe(held + P.fov); // the strongest punch is not cut short
+    expect(kickedFov(held, P.fov + SHOW.pulse.fov)).toBe(CAM.fovMax);
     expect(kickedFov(fovFor(0), P.fov)).toBe(fovFor(0) + P.fov);
     expect(kickedFov(fovFor(CAM.topSpeed), JUICE.fovHit)).toBeLessThan(fovFor(CAM.topSpeed));
-    // the weakest mini-turbo at top speed is still clearly wider (not swallowed by the cap)
-    expect(kickedFov(fovFor(CAM.topSpeed) + JUICE.holdFov * 0.75, JUICE.punch.mini.fov) - fovFor(CAM.topSpeed)).toBeGreaterThan(5);
   });
 
   it('at top speed the camera rides with the kart: no trail of v/lag metres behind the ideal spot', () => {

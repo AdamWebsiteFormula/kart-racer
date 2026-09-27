@@ -50,9 +50,13 @@ describe('camera kick', () => {
     expect(peak('super').fov).toBeLessThan(peak('ultra').fov);
     expect(peak('ultra').level).toBe(1); // the strongest there is
     expect(peak('mini').level).toBeGreaterThan(0.3);
-    // a clear punch: at least 4 degrees and 25 cm for the weakest mini-turbo
-    expect(peak('mini').fov).toBeGreaterThanOrEqual(4);
-    expect(peak('mini').back).toBeGreaterThanOrEqual(0.25);
+    // a punch you can see that never throws your kart away (Mario Kart World's shrinks it by about a sixth:
+    // camera.test.ts and camera.e2e.test.ts measure the kart on screen): the weakest mini-turbo at least a
+    // degree and 15 cm, the strongest punch at most 3 degrees and 40 cm on the narrow chase view
+    expect(peak('mini').fov).toBeGreaterThanOrEqual(1);
+    expect(peak('mini').back).toBeGreaterThanOrEqual(0.15);
+    expect(peak('ultra').fov).toBeLessThanOrEqual(3);
+    expect(peak('ultra').back).toBeLessThanOrEqual(0.4);
     // and a short, low shake with it: under 5 cm of lens travel
     for (const kind of order) expect(JUICE.punch[kind].trauma ** 2 * JUICE.shakeMaxMove, kind).toBeLessThan(0.05);
   });

@@ -25,25 +25,30 @@ export const JUICE = Object.freeze({
    * Each boost's punch as it fires (plan §7.2; the critiques of 24 Sept 2026: "no FOV punch, no shake"):
    * the view widens and the camera falls back over fovBoostIn, then eases home over fovBoostOut, with a
    * short, low shake (shake = trauma², so 0.3 moves the lens 3 cm and rolls it 0.05°). A purple
-   * mini-turbo or an item hits harder than a blue one or a slipstream. The peak keeps your kart about a
-   * tenth of the screen wide at top speed (camera.test.ts).
+   * mini-turbo or an item hits harder than a blue one or a slipstream. Sized to Mario Kart World's
+   * (27 Sept 2026, measured on ngiIINHSiJc: Luigi's cap 84 px wide drifting at 2:19.2-2:20.0, 70 px
+   * 0.4-0.8 s into the orange mini-turbo at 2:20.6-2:21.0, 68-72 px through the mushroom at 2:22.4-2:23.2;
+   * the rocket start 129 → 110 px between the pipes at 2:13.5): your kart shrinks by about a sixth,
+   * a fifth at the strongest peak, never the third the old 10° punches on a 68° view took
+   * (camera.test.ts, camera.e2e.test.ts). The speed lines and the lens streaks carry the rest.
    */
   punch: Object.freeze<Record<PunchKind, Punch>>({
-    mini: { fov: 5, back: 0.3, trauma: 0.24 },
-    super: { fov: 7.5, back: 0.45, trauma: 0.3 },
-    ultra: { fov: 10, back: 0.6, trauma: 0.36 },
-    trick: { fov: 6.5, back: 0.4, trauma: 0.28 },
-    pad: { fov: 8.5, back: 0.55, trauma: 0.32 },
-    item: { fov: 9.5, back: 0.6, trauma: 0.34 },
-    start: { fov: 8, back: 0.5, trauma: 0.32 },
-    slipstream: { fov: 3.5, back: 0.2, trauma: 0.14 },
+    mini: { fov: 1.2, back: 0.15, trauma: 0.24 },
+    super: { fov: 1.8, back: 0.25, trauma: 0.3 },
+    ultra: { fov: 2.5, back: 0.35, trauma: 0.36 },
+    trick: { fov: 1.6, back: 0.2, trauma: 0.28 },
+    pad: { fov: 2.1, back: 0.3, trauma: 0.32 },
+    item: { fov: 2.4, back: 0.35, trauma: 0.34 },
+    start: { fov: 2, back: 0.3, trauma: 0.32 },
+    slipstream: { fov: 0.9, back: 0.1, trauma: 0.14 },
   }),
   fovBoostIn: 0.1, fovBoostOut: 0.65,
   /** while a boost runs: this many degrees wider and metres further back at full strength (+40%), eased in and out (1/s) */
-  holdFov: 4, holdBack: 0.3, holdIn: 5, holdOut: 2.5,
+  holdFov: 1.5, holdBack: 0.35, holdIn: 5, holdOut: 2.5,
   /** a boost's hold fades out over its last this-many seconds */
   holdFade: 0.35,
-  fovHit: -5, fovHitSeconds: 0.25,
+  /** a hit narrows the view this many degrees for fovHitSeconds (a jolt in: about 4% on the 52° view) */
+  fovHit: -2, fovHitSeconds: 0.25,
   /** reduced motion keeps this share of every widening, narrowing and pull-back (and has no shake or roll) */
   reducedKick: 0.4,
   driftRoll: (3 * Math.PI) / 180,
