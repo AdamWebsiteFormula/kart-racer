@@ -50,7 +50,6 @@ export const SFX: readonly SfxSpec[] = [
   // Fourteen takes over four prompts; the judge's pick scored 10/10 on the brief, 9/10 on the moment
   { id: 'shift', seconds: 4.5, influence: 0.55, prompt: 'Cinematic cartoon transformation sound, four and a half seconds long: a deep low rumble that grows louder and rises steadily through the first two seconds into a huge sweeping whoosh, then a magical sparkling chime shimmer that twinkles and rings out until the very end. Grand, exciting and family-friendly. No music, no voice.' },
   // the Knockout cut: through to the next round, or out
-  { id: 'koSafe', seconds: 2, prompt: 'A short bright arcade success sting for making it through to the next round of a cartoon race: a quick rising three-note synth-brass call ending on a sparkly chord. Cheerful. No voice.' },
   { id: 'koOut', seconds: 2.2, prompt: 'A short gentle arcade sting for being knocked out of a cartoon race: a slow descending four-note muted trombone phrase, a little sad but friendly and funny, soft ending. No voice.' },
   { id: 'finishLow', seconds: 2.2, prompt: 'A short friendly nice-try jingle for finishing a cartoon race in a lower place: soft marimba and muted trumpet, cheerful but modest, gentle ending. No voice.' },
   // pickups and items
@@ -59,11 +58,6 @@ export const SFX: readonly SfxSpec[] = [
   // boostTrick also ask for a pop or a swoosh with a chime) but picks it as the balloon over a firecracker, a gunshot,
   // a door slam and a splat
   { id: 'balloon', seconds: 0.7, influence: 0.6, prompt: `A cartoon item balloon popping as a kart drives through it: a bright, bouncy rubber pop, followed at once by a quick sparkly twinkle of magic chimes. Fun and rewarding, never harsh. ${CARTOON}` },
-  // remade 24 Sept 2026 (the ears heard a click and a hammer on metal): the chime is the point
-  // 26 Sept 2026: the shipped take is three bell notes, C6 -> C7 -> G7 (measured 1049, 2094, 3138 Hz), not the
-  // famous two-note B -> E (a perfect fourth) square-wave coin; the Pro judge, asked neutrally, hears a generic
-  // chime (1/10). The prompt now asks for what shipped, never "two notes going up", so a remake cannot drift there
-  { id: 'coin', seconds: 0.5, influence: 0.6, prompt: 'A classic arcade coin pickup: a quick, bright run of three rising bell tones, like a tiny glockenspiel. Clean and short. No voice.' },
   // remade 24 Sept 2026: the first was a 5 ms click, so spiky that at a level you could hear it
   // over the music it pushed the output past −1 dB true peak; a tick with a note has body
   { id: 'rouletteTick', seconds: 0.5, influence: 0.6, prompt: 'One single short bright wooden tock with a clear pitched note, like a prize wheel peg knocking once: a tiny marimba-like tick. Dry, no echo, no music, no voice.' },
@@ -92,7 +86,6 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'strikeRoll', seconds: 2, prompt: `A giant heavy bowling ball starting to roll fast down a wooden lane: a deep rumbling thunder that builds and speeds up. ${CARTOON}` },
   { id: 'strike', seconds: 1.8, prompt: `A bowling strike: a heavy ball crashing into wooden pins, a loud clattering scatter of pins, then a short sparkly celebration chime. ${CARTOON}` },
   { id: 'boing', seconds: 1, prompt: `A big cartoon spring launching something high into the air: one long exaggerated wobbly boing. ${CARTOON}` },
-  { id: 'slam', seconds: 1.1, prompt: `A heavy cartoon ground pound: a quick falling whoosh, then a deep booming thud with a short rumble. ${CARTOON}` },
   // remade 24 Sept 2026 (the ears heard a door slam and an explosion): the chain leads
   { id: 'anchor', seconds: 1.1, influence: 0.6, prompt: `A metal chain rattling fast as it is thrown out, links clinking and jangling, then one heavy metal clank as the anchor hooks on. ${CARTOON}` },
   { id: 'slingshot', seconds: 0.8, prompt: `A stretchy rubber slingshot release: a twangy snap and a fast whoosh past. ${CARTOON}` },
@@ -106,7 +99,6 @@ export const SFX: readonly SfxSpec[] = [
   // the course creatures (design §6)
   { id: 'roar', seconds: 2.2, prompt: `A huge friendly cartoon dinosaur made of rock roaring: a deep booming rocky roar with a playful rumbling growl at the end. ${CARTOON}` },
   { id: 'stomp', seconds: 1.8, prompt: `A giant dinosaur foot stomping the ground: one massive deep boom, rocks rattling and a rolling rumble fading away. ${CARTOON}` },
-  { id: 'yetiThrow', seconds: 1.2, prompt: `A big furry cartoon yeti heaving a giant snowball: a playful effort grunt and a heavy whoosh. ${CARTOON}` },
   { id: 'snowThud', seconds: 1, prompt: `A giant snowball landing on a road: a heavy soft thump and crunchy snow spraying. ${CARTOON}` },
   { id: 'krakenRise', seconds: 1.8, prompt: `A giant friendly sea creature rising out of the water: deep bubbling, sloshing water and a low rumble. ${CARTOON}` },
   { id: 'krakenSlam', seconds: 1.5, prompt: `A giant tentacle slamming down on wooden boardwalk planks: a huge wet slap, wood creaking and a big splash. ${CARTOON}` },
@@ -128,7 +120,6 @@ export const SFX: readonly SfxSpec[] = [
   // your own item landed on a rival, however far ahead (the attacker's payoff)
   { id: 'hitConfirm', seconds: 0.7, prompt: 'A satisfying cartoon score sound when your thrown toy hits a rival far away: a punchy rubbery thwack and a bright two-note chime going up. Short. No music, no voice.' },
   // boosts: the drift tiers grow
-  { id: 'boostPad', seconds: 0.9, prompt: 'A go-kart driving over a glowing speed boost pad: an electric zap and a fast rising whoosh. Arcade style. No music, no voice.' },
   // the trick itself, the moment the button is pressed in the air
   { id: 'trick', seconds: 0.7, prompt: `A go-kart doing a quick mid-air flip trick: a fast spinning air whoosh swish with a tiny sparkle. ${CARTOON}` },
   { id: 'boostTrick', seconds: 0.8, prompt: `A stylish mid-air trick: quick sparkling swoosh with a twinkle chime. ${CARTOON}` },
@@ -153,6 +144,8 @@ export const SFX: readonly SfxSpec[] = [
   // small car touches down. Quick and bright, no engine, no music, no voice."), 0.6 s. Judge 2/3 -> 8/8 (compare),
   // 10/10, 9/9, 10/10 alone. This prompt stays as the judge's brief
   { id: 'land', seconds: 0.6, prompt: 'A go-kart landing on asphalt after a small jump: a solid rubbery thump with a tyre chirp. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
+  { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
   { id: 'bump', seconds: 0.5, prompt: `Two go-karts bumping into each other: one rubbery bonk. ${CARTOON}` },
   { id: 'wrongWay', seconds: 1.2, prompt: 'A warning alert: two-tone buzzer beeps repeating twice. Arcade game alarm, friendly not scary. No voice.' },
   { id: 'gainPlace', seconds: 0.5, influence: 0.5, prompt: 'A quick positive upward blip: two rising bright notes, arcade game, very short. No voice.' },
@@ -200,7 +193,6 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'road-wood', seconds: 3, loop: true, prompt: 'The continuous sound of a small go-kart rolling fast over wooden boardwalk planks: a steady hollow wooden rumble with quick even plank clatters. No engine, no other sounds.' },
   { id: 'rail-grind', seconds: 3, loop: true, prompt: 'The continuous sound of a small cartoon kart grinding fast along a metal rail: a bright steady metallic scraping grind with crackling sparks. Even, no engine, no music, no voice.' },
   // the drift sparks under the wheels, pitched and louder with each spark tier (blue, orange, purple)
-  { id: 'sparks', seconds: 3, loop: true, prompt: 'The continuous crackle of bright electric sparks spraying from spinning go-kart wheels: a steady sizzling, fizzing electric crackle. Even, no engine, no music, no voice.' },
 ];
 
 /**
@@ -216,9 +208,17 @@ export const REPLACED: readonly SfxSpec[] = [
   // remade 26 Sept 2026 (audition pack sfx-2, whoosh-led retake, judge 3/4 -> 9/8; local ear CLAP 0.96 against the brief)
   { id: 'boost3', seconds: 1.6, influence: 0.65, prompt: 'The biggest speed boost in a modern arcade racing game: a powerful rushing whoosh of wind and flame that swells in over a quarter second and surges upward in pitch, a deep, warm rumble underneath, then a glittering shimmer of electric sparks trailing off at the end. Smooth, soft onset, thrilling and polished. No music, no voice.' },
   { id: 'uiMove', seconds: 0.5, influence: 0.6, prompt: 'A very short soft menu cursor tick: one light plastic click, arcade game menu. No echo, no voice.' },
+  { id: 'boostPad', seconds: 0.9, prompt: 'A go-kart driving over a glowing speed boost pad: an electric zap and a fast rising whoosh. Arcade style. No music, no voice.' },
   { id: 'spin', seconds: 1.3, prompt: `A go-kart spinning out: a descending slide whistle over a short tyre squeal. ${CARTOON}` },
-  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
-  { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
+  { id: 'koSafe', seconds: 2, prompt: 'A short bright arcade success sting for making it through to the next round of a cartoon race: a quick rising three-note synth-brass call ending on a sparkly chord. Cheerful. No voice.' },
+  { id: 'sparks', seconds: 3, loop: true, prompt: 'The continuous crackle of bright electric sparks spraying from spinning go-kart wheels: a steady sizzling, fizzing electric crackle. Even, no engine, no music, no voice.' },
+  // remade 24 Sept 2026 (the ears heard a click and a hammer on metal): the chime is the point
+  // 26 Sept 2026: the shipped take is three bell notes, C6 -> C7 -> G7 (measured 1049, 2094, 3138 Hz), not the
+  // famous two-note B -> E (a perfect fourth) square-wave coin; the Pro judge, asked neutrally, hears a generic
+  // chime (1/10). The prompt now asks for what shipped, never "two notes going up", so a remake cannot drift there
+  { id: 'coin', seconds: 0.5, influence: 0.6, prompt: 'A classic arcade coin pickup: a quick, bright run of three rising bell tones, like a tiny glockenspiel. Clean and short. No voice.' },
+  { id: 'slam', seconds: 1.1, prompt: `A heavy cartoon ground pound: a quick falling whoosh, then a deep booming thud with a short rumble. ${CARTOON}` },
+  { id: 'yetiThrow', seconds: 1.2, prompt: `A big furry cartoon yeti heaving a giant snowball: a playful effort grunt and a heavy whoosh. ${CARTOON}` },
 ];
 
 const SONG_TAIL = 'Constant driving energy from the first second, no intro, no fade-out, so it loops. Instrumental, no vocals.';
@@ -277,7 +277,8 @@ export const MOMENT: Readonly<Record<string, string>> = Object.freeze({
   koOut: 'Knockout mode: the player is knocked out; a gentle, friendly "aw, next time" sting over the cut screen, never harsh.',
   finishLow: 'The player finishes outside the winning places: a friendly nice-try jingle, playing alone after the race music fades.',
   balloon: 'The player drives through an item balloon to get an item (pickups are balloons, not boxes): very frequent, several times a lap; rivals’ pops are quieter.',
-  coin: 'The player picks up a coin on the road (coins add a little top speed): frequent.',
+  // the collectible is a gear now (Adam, 26 Sept 2026: coins were "too much of a copy of Mario Kart"); the id stays `coin`
+  coin: 'The player picks up a gear on the road (a chunky cartoon cog that tunes up the kart: gears add a little top speed): frequent. It must not sound like a coin.',
   rouletteTick: 'The item roulette after a pickup: one tick per slot, quick at first and slowing over 1.5 s before the item is revealed; each tick cuts the one before.',
   itemReady: "The item roulette stops: the player's new item is revealed and ready to use.",
   throw: 'The player throws a Beach Ball (a bouncy projectile) forward or backward.',

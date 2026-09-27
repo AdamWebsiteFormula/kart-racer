@@ -32,6 +32,7 @@ if ids and not todo:
     sys.exit(f'no recipe for: {sorted(set(ids) - {r["id"] for r in todo})}')
 
 file_for = lambda i: i.replace(':', '-') + '.mp3'
+LEAD = 0.1  # seconds of silence before every one-shot (see build)
 
 
 def build(r):
@@ -43,6 +44,10 @@ def build(r):
         x = dsp.loopify(x, rec['loop'], rec.get('xfade', 0.06))
     else:
         x = dsp.end_trim(x)
+        # 100 ms of silence in front (the game cuts it at the onset, so nothing plays later): samples.ts peakRms reads
+        # the first hops of a file as whole windows, so a sound that hits at once was levelled on its loudest 10 ms and
+        # played 3-7 dB under the common level; with a lead its loudest 100 ms is measured as 100 ms
+        x = np.pad(x, ((0, 0), (int(LEAD * dsp.SR), 0)))
     pk = np.abs(x).max()
     x = x * (10 ** (-1.5 / 20) / pk)  # -1.5 dBFS sample peak (room for the MP3's overshoot): the game levels every file at decode anyway
     fname = f"{rec['name']}.mp3" if rec.get('name') else file_for(rec['id'])  # a candidate's own file name
@@ -55,7 +60,7 @@ def build(r):
     sha = hashlib.sha256(open(path, 'rb').read()).hexdigest()
     print(f"{fname[:-4]:18s} {y.shape[-1] / dsp.SR:5.2f} s  loudest100ms {20 * math.log10(max(lv, 1e-9)):6.1f} dB(K)  peak {20 * math.log10(pkd):5.1f}  "
           f"held by ceiling {held:5.1f} dB  {os.path.getsize(path) // 1024} KB", flush=True)
-    return rec['id'], {'recipe': r['json'], 'sha256': sha, 'seconds': round(y.shape[-1] / dsp.SR, 3)}
+    return rec['id'], {'recipe': r['json'], 'sha256': sha, 'seconds': round(y.shape[-1] / dsp.SR - (0 if rec.get('loop') else LEAD), 3)}  # the sound itself, without the lead
 
 
 results = dict(build(r) for r in todo)

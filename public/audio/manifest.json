@@ -18,9 +18,6 @@
   "shift": {
    "url": "audio/sfx/shift.mp3"
   },
-  "koSafe": {
-   "url": "audio/sfx/koSafe.mp3"
-  },
   "koOut": {
    "url": "audio/sfx/koOut.mp3"
   },
@@ -29,9 +26,6 @@
   },
   "balloon": {
    "url": "audio/sfx/balloon.mp3"
-  },
-  "coin": {
-   "url": "audio/sfx/coin.mp3"
   },
   "rouletteTick": {
    "url": "audio/sfx/rouletteTick.mp3"
@@ -81,9 +75,6 @@
   "boing": {
    "url": "audio/sfx/boing.mp3"
   },
-  "slam": {
-   "url": "audio/sfx/slam.mp3"
-  },
   "anchor": {
    "url": "audio/sfx/anchor.mp3"
   },
@@ -107,9 +98,6 @@
   },
   "stomp": {
    "url": "audio/sfx/stomp.mp3"
-  },
-  "yetiThrow": {
-   "url": "audio/sfx/yetiThrow.mp3"
   },
   "snowThud": {
    "url": "audio/sfx/snowThud.mp3"
@@ -156,9 +144,6 @@
   "hitConfirm": {
    "url": "audio/sfx/hitConfirm.mp3"
   },
-  "boostPad": {
-   "url": "audio/sfx/boostPad.mp3"
-  },
   "trick": {
    "url": "audio/sfx/trick.mp3"
   },
@@ -185,6 +170,9 @@
   },
   "land": {
    "url": "audio/sfx/land.mp3"
+  },
+  "wall": {
+   "url": "audio/sfx/wall.mp3"
   },
   "bump": {
    "url": "audio/sfx/bump.mp3"
@@ -295,10 +283,6 @@
    "url": "audio/sfx/rail-grind.mp3",
    "loop": true
   },
-  "sparks": {
-   "url": "audio/sfx/sparks.mp3",
-   "loop": true
-  },
   "boost1": {
    "url": "audio/sfx/boost1.mp3"
   },
@@ -311,11 +295,27 @@
   "uiMove": {
    "url": "audio/sfx/uiMove.mp3"
   },
+  "boostPad": {
+   "url": "audio/sfx/boostPad.mp3"
+  },
   "spin": {
    "url": "audio/sfx/spin.mp3"
   },
-  "wall": {
-   "url": "audio/sfx/wall.mp3"
+  "koSafe": {
+   "url": "audio/sfx/koSafe.mp3"
+  },
+  "sparks": {
+   "url": "audio/sfx/sparks.mp3",
+   "loop": true
+  },
+  "coin": {
+   "url": "audio/sfx/coin.mp3"
+  },
+  "slam": {
+   "url": "audio/sfx/slam.mp3"
+  },
+  "yetiThrow": {
+   "url": "audio/sfx/yetiThrow.mp3"
   }
  },
  "music": {
