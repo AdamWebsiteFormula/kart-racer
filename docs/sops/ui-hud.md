@@ -229,6 +229,7 @@ _(append dated one-liners as they are made)_
 - 2026-09-26 (two Gemini Flash critiques against the MKW stills; only the repeated notes acted on): the cup tiles and class pills slanted like the bands (the words upright on them), and a soft vignette over the stage on the setup screens. Not taken (said once): a 3D extrusion on the logo, keycap prompts, shaded emblems.
 - 2026-09-26 (the dialogs): Settings, How to Play, Unlocks, Credits and the pause are deep glass (the stats panel's), white words, each button a pane of lighter glass, the focus the one ring with its words in gold; an unlock earned stays in the sun, a locked one's padlock on a paper disc (its ink shackle was lost on the glass).
 - 2026-09-26 (frame times, real GPU, headless Chrome at 1920x1080): title 60 fps with the race behind (71 to 85 draw calls); Mode 3 draw calls, Cup and Track 1, on the stage; Settings 60 fps; no frame over 20 ms, idle or with the focus moving every 200 ms.
+- 2026-09-27: the Settings Voices row shows only once the racers' voice lines are in the build: main.ts asks for public/audio/voice.json at boot (a HEAD, no audio, fine under ?mute) and tells the UI (`setVoicesAvailable`); no list, no row. The voice lines were not finished when the fixes of 26-27 Sept shipped (the TTS daily limit ran out), and a slider that moves nothing would confuse a player (handoff, 26 Sept).
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_

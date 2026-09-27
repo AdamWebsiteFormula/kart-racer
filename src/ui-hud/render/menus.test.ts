@@ -99,6 +99,7 @@ describe('Settings says what the focused row does', () => {
 
   it('its line follows the keys, the pointer and a pad; it says what the value on show does; a value change keeps it still', () => {
     const ui = new UiRoot(document.body, host(), null);
+    ui.setVoicesAvailable(true); // this build has voice lines (the Voices row is there)
     ui.dispatch({ type: 'boot' });
     ui.dispatch({ type: 'openSettings' });
     // the driving aids lead (game/assist.ts), then the sound
@@ -154,6 +155,7 @@ describe('Settings says what the focused row does', () => {
 
   it('the pause menu\'s Settings has it too', () => {
     const ui = new UiRoot(document.body, host(), null);
+    ui.setVoicesAvailable(true); // this build has voice lines (the Voices row is there)
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }, { type: 'pause' }, { type: 'openSettings' }] as const) ui.dispatch(a);
     expect(ui.app.overlays).toEqual(['pause', 'settings']);
     expect(help().textContent).toBe(SETTING_HELP.autoAccelerate);

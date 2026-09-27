@@ -353,6 +353,7 @@ describe('UiRoot', () => {
     document.body.innerHTML = '';
     const h = host();
     const ui = new UiRoot(document.body, h, null);
+    ui.setVoicesAvailable(true); // this build has voice lines (the Voices row is there)
     ui.dispatch({ type: 'boot' });
     ui.dispatch({ type: 'openSettings' });
     // the driving aids first: a press turns Auto-accelerate on, saved and told to the host (main.ts reads it every tick)

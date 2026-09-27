@@ -517,6 +517,10 @@ export class UiRoot {
    * the banner up and small, the item slots, map, assist badge and hints away. The results, standings and cut
    * that follow sit beside the racer, who goes on reacting (ui.css `.results.beside`, besideRoom).
    */
+  /** Whether the racers' voice lines are in this build (main.ts asks for public/audio/voice.json at boot): the Settings Voices row shows only then. */
+  private voices = false;
+  setVoicesAvailable(on: boolean): void { this.voices = on; }
+
   celebrate(on: boolean): void {
     this.views.hud.root.classList.toggle('celebrate', on);
     this.views.results.root.classList.toggle('beside', on);
@@ -1195,7 +1199,7 @@ export class UiRoot {
         break;
       }
       case 'pause': { const vm = pauseMenu(short, this.canRestart); v.pause.render(vm); this.models.set(key, vm.focus); break; }
-      case 'settings': { const vm = settingsMenu(this.save.settings, fullscreenState()); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
+      case 'settings': { const vm = settingsMenu(this.save.settings, fullscreenState(), this.voices); v.settings.render(vm.rows, !entering); this.models.set(key, vm.focus); break; }
       case 'credits': { v.credits.render(parseCredits(this.host.creditsMarkdown)); this.models.set(key, { rows: [['back']] }); break; }
       case 'unlocks': { v.unlocks.render(unlockRows(this.save, this.kartPick)); this.models.set(key, { rows: [['back']] }); break; }
       case 'howTo': { v.howTo.render(ITEM_DEFINITIONS, this.save.settings.autoAccelerate); this.models.set(key, { rows: [['back']] }); break; }

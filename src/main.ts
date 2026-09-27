@@ -480,6 +480,8 @@ const ui = new UiRoot(document.body, host, browserBackend(), { kartPick: UI.kart
 // countdown their gas waits for a finger, so a touch on the 2 is a rocket start
 input.setVirtual(() => ui.touch.state(session?.state.phase === 'countdown'));
 settings = ui.save.settings;
+// the Settings Voices row only once the racers' voice lines are in the build (no list: no row)
+void fetch(`${import.meta.env.BASE_URL}audio/voice.json`, { method: 'HEAD' }).then((r) => ui.setVoicesAvailable(r.ok), () => undefined);
 audio.setVolumes({ master: settings.masterVolume, music: settings.musicVolume, sfx: settings.sfxVolume, voice: settings.voiceVolume });
 applyRender();
 // The title first (load-speed sweep, docs/sops/performance.md): its menu paints before the attract

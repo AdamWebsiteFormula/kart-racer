@@ -119,6 +119,17 @@ describe('save store', () => {
     expect(Object.keys(defaultSave().settings)).not.toContain('fullscreen');
   });
 
+  it('the Voices row shows only once the racers\' voice lines are in the build (a slider that moves nothing would confuse a player)', () => {
+    const s = defaultSave().settings;
+    expect(settingsMenu(s, null, false).rows.some((r) => r.id === 'voiceVolume')).toBe(false);
+    const rows = settingsMenu(s, null, true).rows;
+    expect(rows.find((r) => r.id === 'voiceVolume')).toMatchObject({ label: 'Voices' });
+    // right after Sound effects, as before
+    expect(rows.map((r) => r.id).indexOf('voiceVolume')).toBe(rows.map((r) => r.id).indexOf('sfxVolume') + 1);
+    // the focus walks only the rows that are there
+    expect(settingsMenu(s, null, false).focus.rows.flat()).not.toContain('voiceVolume');
+  });
+
   it('SOP test 13: reduced motion follows the OS on auto and the toggle otherwise', () => {
     const s = defaultSave().settings;
     expect(reducedMotion(s, true)).toBe(true);

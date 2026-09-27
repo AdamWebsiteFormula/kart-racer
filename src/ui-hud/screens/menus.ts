@@ -291,8 +291,10 @@ const onOff = (on: boolean) => (on ? 'On' : 'Off');
 /**
  * `fullscreen`: whether the page is fullscreen now (fullscreen.ts fullscreenState: the browser holds it,
  * never the save), or null where the browser has none (iPhone Safari), and then there is no row for it.
+ * `voices`: whether the racers' voice lines are in the build (public/audio/voice.json); until they are, no
+ * Voices row (a slider that moves nothing would confuse a player; Adam, 27 Sept 2026).
  */
-export function settingsMenu(s: Settings, fullscreen: boolean | null = null): { title: string; rows: SettingRow[]; focus: FocusModel } {
+export function settingsMenu(s: Settings, fullscreen: boolean | null = null, voices = true): { title: string; rows: SettingRow[]; focus: FocusModel } {
   const H = SETTING_HELP;
   const rows: SettingRow[] = [
     { id: 'autoAccelerate', label: 'Auto-accelerate', value: onOff(s.autoAccelerate), help: H.autoAccelerate },
@@ -301,7 +303,7 @@ export function settingsMenu(s: Settings, fullscreen: boolean | null = null): { 
     { id: 'masterVolume', label: 'Master volume', value: pct(s.masterVolume), fraction: s.masterVolume, help: H.masterVolume },
     { id: 'musicVolume', label: 'Music', value: pct(s.musicVolume), fraction: s.musicVolume, help: H.musicVolume },
     { id: 'sfxVolume', label: 'Sound effects', value: pct(s.sfxVolume), fraction: s.sfxVolume, help: H.sfxVolume },
-    { id: 'voiceVolume', label: 'Voices', value: pct(s.voiceVolume), fraction: s.voiceVolume, help: H.voiceVolume },
+    ...(voices ? [{ id: 'voiceVolume' as const, label: 'Voices', value: pct(s.voiceVolume), fraction: s.voiceVolume, help: H.voiceVolume }] : []),
     { id: 'quality', label: 'Graphics', value: s.quality === 'auto' ? 'Auto' : s.quality === 'high' ? 'High' : 'Low', help: H.quality[s.quality] },
     { id: 'resolutionScale', label: 'Resolution', value: pct(s.resolutionScale), fraction: (s.resolutionScale - 0.5) / 0.5, help: H.resolutionScale },
     ...(fullscreen === null ? [] : [{ id: 'fullscreen' as const, label: 'Fullscreen', value: onOff(fullscreen), help: H.fullscreen }]),
