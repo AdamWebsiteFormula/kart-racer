@@ -12,7 +12,7 @@
 // like anim.ts and interpolated per frame, so it slows with the finish slow-motion and freezes with the
 // hit-stop. It reads the kart state, its input and the others' positions and writes none of them
 // (game/viewSim.test.ts). Every tuning number is in DRIVER_ANIM. No allocation after construction.
-import { stepSpring, type AnimPose, type KartAnim, type Reaction, type SpringTune } from './anim.ts';
+import { glumSigh, REACTION_SECONDS, sad, SAD_BEATS, stepSpring, type AnimPose, type KartAnim, type Reaction, type SpringTune } from './anim.ts';
 import type { InputState, KartState, TrackQuery, Vec3 } from './types.ts';
 
 /**
@@ -280,10 +280,10 @@ function waveArm(a: ArmPose, t: number, hz: number): void {
  * The arms for a finish reaction `t` s in (anim.ts reactions: game/celebrate.ts picks them; the podium
  * plays them again), the right arm's aims for both (the caller mirrors the left): fist pumps then a
  * wave for the champion, both arms up then a big wave for 2nd, both fists up then a pump for 3rd, a
- * brow wipe and a fist pump for relief, palms up for the shrug, hands on the wheel for the deflated
- * (the head does the talking). After the main move (`main` s) the joyful ones keep waving. Pure.
+ * brow wipe and a fist pump for relief, palms up for the shrug; the disappointed ones' in sadArms.
+ * After the main move (`main` s) the joyful ones keep waving. Pure.
  */
-export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, main: number): void {
+export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, main: number, near: 1 | -1 = 1): void {
   const tail = t > main;
   onWheel(R); onWheel(L);
   switch (kind) {
@@ -313,10 +313,101 @@ export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, 
         set(L.upper, AIM.shrug); set(L.fore, AIM.shrugFore); L.wheel = 0;
       }
       break;
+    case 'sigh':
     case 'deflated':
+    case 'dejected':
+      sadArms(kind, t, R, L, near);
       break;
   }
 }
+
+// ---------------------------------------------------------------- the disappointed reactions (4th and below)
+/**
+ * Their aims (the torso's frame, the right arm's; the caller mirrors the left), tuned on stills from the
+ * finish camera: a hand to the forehead (the head dropped into it), a fist up by the face and pulled down
+ * ("darn!"), and a polite clap in front of the chest. (Arms dropped into the lap were tried: the hood hides
+ * them; a fist tapped on the wheel was too small to read.)
+ */
+const SAD_AIM = Object.freeze({
+  palm: [-0.75, 0.5, 0.43] as const, palmFore: [0.85, 0.38, 0.37] as const,
+  darnUp: [-0.4, 0.3, 0.87] as const, darnUpFore: [-0.1, 0.9, 0.42] as const,
+  darnDown: [-0.3, -0.25, 0.92] as const, darnDownFore: [0.3, -0.1, 0.95] as const,
+  clap: [-0.3, -0.42, 0.86] as const, clapOpen: [0.2, 0.45, 0.87] as const, clapShut: [0.82, 0.3, 0.48] as const,
+});
+/** claps a second (the palms meet this often) */
+export const CLAP_HZ = 2.2;
+
+/** A polite clap `u` s in: the forearms swing in until the palms meet, and out, CLAP_HZ times a second. */
+function clapArm(a: ArmPose, u: number): void {
+  set(a.upper, SAD_AIM.clap);
+  mix(a.fore, SAD_AIM.clapOpen, SAD_AIM.clapShut, 0.5 - 0.5 * Math.cos(TAU * CLAP_HZ * u));
+  a.wheel = 0;
+}
+
+/**
+ * The arms of a disappointed reaction `t` s in (anim.ts SAD_BEATS): sigh brings a fist up and pulls it
+ * down ("darn!"); deflated puts a hand to the forehead through the head shake, the other keeping the wheel (Mario
+ * Kart World's losers); both with the hand nearer the camera (`near`: 1 the right, −1 the left). Dejected
+ * keeps both hands on the wheel as it slumps over it (the elbows fold as the shoulders come forward).
+ * Each takes the wheel again as the chin comes up, then claps politely. Every change goes through the wheel, so the
+ * blend (easeArm) carries it and nothing snaps. The right arm's aims for both; the caller mirrors the left. Pure.
+ */
+export function sadArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, near: 1 | -1 = 1): void {
+  if (!sad(kind)) return;
+  const B = SAD_BEATS[kind as 'sigh' | 'deflated' | 'dejected'];
+  if (t >= B.clap[0] && t < B.clap[1]) { clapArm(R, t - B.clap[0]); clapArm(L, t - B.clap[0]); return; }
+  // the one-handed moves use the hand nearer the camera (DriverAnim latches it as the move starts), so they read
+  const A = near > 0 ? R : L;
+  if (kind === 'sigh' && t >= sadHandFrom(kind) && t < B.tap + 0.3) {
+    const k = sstep(B.tap - 0.06, B.tap + 0.06, t); // "darn!": the fist pulled down as the head drops
+    mix(A.upper, SAD_AIM.darnUp, SAD_AIM.darnDown, k); mix(A.fore, SAD_AIM.darnUpFore, SAD_AIM.darnDownFore, k); A.wheel = 0;
+  }
+  if (kind === 'deflated' && t >= sadHandFrom(kind) && t < B.up[0] + 0.1) { set(A.upper, SAD_AIM.palm); set(A.fore, SAD_AIM.palmFore); A.wheel = 0; }
+}
+
+/** When a disappointed reaction's one-handed move starts (s): sigh's fist, deflated's hand to the forehead (Infinity: none). */
+export function sadHandFrom(kind: Reaction): number {
+  return kind === 'sigh' ? SAD_BEATS.sigh.tap - 0.4 : kind === 'deflated' ? SAD_BEATS.deflated.sag[0] + 0.25 : Infinity;
+}
+
+/** The rigged driver's body in a disappointed reaction: the spine's slump (rad, + forward), the shoulders (DriverPose.shrug: − down) and how much the eyes seek the camera (0..1). */
+export interface SadBody { spine: number; shoulders: number; eye: number }
+
+/**
+ * The body of a disappointed reaction `t` s in, into `out` (anim.ts SAD_BEATS; the head's drop and
+ * shake are anim.ts's): the slump and the shoulders sagging with it (sigh first takes a breath in),
+ * easing up as the chin comes up, then settling a little low for the glum idle. The eyes stay off the
+ * camera, down at the wheel, until the chin comes up for the clap; after that mostly on it. Pure.
+ */
+export function sadBody(kind: Reaction, t: number, out: SadBody): SadBody {
+  out.spine = 0; out.shoulders = 0; out.eye = 1;
+  if (!sad(kind)) return out;
+  const B = SAD_BEATS[kind as 'sigh' | 'deflated' | 'dejected'];
+  const sag = sstep(B.sag[0], B.sag[1], t) * (1 - sstep(B.up[0], B.up[1], t));
+  const tail = sstep(REACTION_SECONDS[kind] - 0.5, REACTION_SECONDS[kind] + 0.4, t);
+  if (kind === 'sigh') {
+    // the fist's "darn!" folds the body a little; then the sigh: the shoulders up, then down and low
+    const aw = hold(t, 0.25, 0.6, B.sag[0], B.sag[0] + 0.3), darn = hump(t, B.tap - 0.03, B.tap + 0.3);
+    const breathIn = hold(t, B.sag[0] - 0.2, B.sag[0], B.sag[0] + 0.05, B.sag[0] + 0.25);
+    out.spine = 0.06 * aw + 0.12 * darn + 0.21 * sag;
+    out.shoulders = -0.3 * aw + 0.6 * breathIn - 0.6 * sag;
+  } else if (kind === 'deflated') {
+    out.spine = 0.27 * sag;
+    out.shoulders = -0.65 * sag;
+  } else {
+    out.spine = 0.5 * sag;
+    out.shoulders = -0.75 * sag + 0.35 * hump(t, B.up[0], B.up[1] + 0.2);
+  }
+  // the glum idle: a little slumped, the shoulders low, lifting and dropping with its sigh (anim.ts GLUM), the
+  // eyes only half on the camera, so the head stays low
+  const sigh = glumSigh(t);
+  out.spine += 0.08 * tail;
+  out.shoulders += (-0.3 + 0.45 * hump(sigh, 0, 0.7) - 0.15 * hump(sigh, 0.6, 1.5)) * tail;
+  out.eye = sstep(B.up[0], B.up[1], t) * (1 - 0.45 * tail);
+  return out;
+}
+/** up over [a, b], held, down over [c, d] */
+const hold = (x: number, a: number, b: number, c: number, d: number): number => sstep(a, b, x) * (1 - sstep(c, d, x));
 
 /** Mirror a right-arm aim onto the left arm (x flips). */
 function mirror(a: ArmPose): void { a.upper[0] = -a.upper[0]; a.fore[0] = -a.fore[0]; }
@@ -362,6 +453,9 @@ export class DriverAnim {
   private readonly aimR = arm();
   private readonly aimL = arm();
   private readonly b: Bearing = { yaw: 0, pitch: 0, dist: 0 };
+  private readonly sadPose: SadBody = { spine: 0, shoulders: 0, eye: 1 };
+  /** which hand does a disappointed reaction's one-handed move: 1 the right, −1 the left (the one nearer the camera) */
+  private sadNear: 1 | -1 = 1;
 
   constructor(seed = 0, tuning: DriverAnimTuning = DRIVER_ANIM) {
     this.t = tuning;
@@ -396,6 +490,8 @@ export class DriverAnim {
     curr.spin = this.spinAngle;
 
     const reaction = anim.reacting, rt = anim.reactionTime;
+    // a disappointed finish (4th and below): the slump, the shoulders and where the eyes go; null otherwise
+    const down = reaction !== null && sad(reaction) ? sadBody(reaction, rt, this.sadPose) : null;
     const spinning = s.status.spinRemaining > 0;
     if (this.wasSpinning && !spinning) this.spinEnded = now;
     this.wasSpinning = spinning;
@@ -414,6 +510,9 @@ export class DriverAnim {
       if (b.dist <= t.eyeRange || reaction !== null || ctx.karts === null) {
         want = this.overShoulder(b.yaw);
         wantPitch = clamp(b.pitch, -t.pitchMax, t.pitchMax);
+        if (down) { want *= down.eye; wantPitch *= down.eye; } // (down at the wheel, not at the camera)
+        // the hand nearer the camera does a one-handed move: latched as it starts (the +X side is the left's)
+        if (down && rt < sadHandFrom(reaction!)) this.sadNear = b.yaw > 0 ? -1 : 1;
       }
     }
     if (Number.isNaN(want) && input.lookBack && !reaction) {
@@ -469,7 +568,7 @@ export class DriverAnim {
 
     // --- the spine: forward on the gas, back on a boost, folding over on a landing
     const boostK = s.boost.remaining > 0 && s.boost.multiplier > 1 ? (s.boost.multiplier - 1) / 0.3 : 0;
-    const spineT = grounded && !spinning && !reaction ? clamp(input.throttle, 0, 1) * t.throttleLean - boostK * t.boostLean : 0;
+    const spineT = down ? down.spine : grounded && !spinning && !reaction ? clamp(input.throttle, 0, 1) * t.throttleLean - boostK * t.boostLean : 0;
     if (grounded && !this.wasGrounded) this.spine.v += t.landFold * Math.min(12, Math.max(0, -this.airVy));
     if (!grounded) this.airVy = s.verticalVelocity;
     this.wasGrounded = grounded;
@@ -488,10 +587,10 @@ export class DriverAnim {
     const sinceSpin = now - this.spinEnded;
     const ga = now - this.gestureAt;
     if (reaction) {
-      reactionArms(reaction, rt, R, L, anim.reactionMain);
+      reactionArms(reaction, rt, R, L, anim.reactionMain, this.sadNear);
       mirror(L);
       if (reaction === 'shrug') curr.shrug = hump(rt, 0.02, 0.95);
-      if (reaction === 'deflated') curr.shrug = -0.4 * sstep(0, 0.8, rt) * (1 - sstep(2.0, 2.6, rt));
+      if (down) curr.shrug = down.shoulders;
     } else if (spinning || sinceSpin < t.recover) {
       // a hit: both arms up, flailing, the head wobbling; eased back onto the wheel once the spin is done
       const k = spinning ? 1 : 1 - sinceSpin / t.recover;

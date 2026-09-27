@@ -233,14 +233,23 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
  * files. Joyful for the podium places and a Knockout's safe ones (champion: a crouch, a leap with a
  * full turn in the air, fist pumps and hops; cheer: a hop with a twist, then a big wave; bounce: two
  * happy hops, a nodded yes and a wiggle; relief: a phew, a perk-up, one fist pump and a look back at
- * the ones behind), friendly for the rest (shrug: shoulders up, a head tilt and a nod; deflated: a
- * sag with the head down, a slow head shake, then chin up and a nod: next time). G-rated, never
- * mocking. Render only: the sim never sees it.
+ * the ones behind); a friendly shrug for a Time Trial run with no medal. Disappointed for 4th and
+ * below (Adam, 26 Sept 2026: "When you lose a race, the character should look disappointed, like he
+ * lost"), more so toward the back, each ending as Mario Kart World's losers do, chin up and a polite
+ * clap for the winner, then a quiet, glum idle (sadReactionPose): sigh (so close: a fist tapped on
+ * the wheel, a big sigh, a small head shake), deflated (a slump, a hand to the forehead, a slow head
+ * shake), dejected (the back: the arms drop off the wheel, the deepest slump, the head hanging, a long
+ * slow head shake). G-rated, never mocking: no tears, no anger at anyone. Render only: the sim never
+ * sees it.
  */
-export type Reaction = 'champion' | 'cheer' | 'bounce' | 'relief' | 'shrug' | 'deflated';
-export const REACTIONS: readonly Reaction[] = Object.freeze(['champion', 'cheer', 'bounce', 'relief', 'shrug', 'deflated']);
+export type Reaction = 'champion' | 'cheer' | 'bounce' | 'relief' | 'shrug' | 'sigh' | 'deflated' | 'dejected';
+export const REACTIONS: readonly Reaction[] = Object.freeze(['champion', 'cheer', 'bounce', 'relief', 'shrug', 'sigh', 'deflated', 'dejected']);
 /** Seconds each reaction's main move lasts; after it a gentle idle in the same mood carries on. */
-export const REACTION_SECONDS: Readonly<Record<Reaction, number>> = Object.freeze({ champion: 3.2, cheer: 3, bounce: 2.6, relief: 2.9, shrug: 2.2, deflated: 3.2 });
+export const REACTION_SECONDS: Readonly<Record<Reaction, number>> = Object.freeze({
+  champion: 3.2, cheer: 3, bounce: 2.6, relief: 2.9, shrug: 2.2, sigh: 4.5, deflated: 4.9, dejected: 5.2,
+});
+/** The disappointed ones (4th and below): no confetti, no look at the camera until the chin comes up. */
+export const sad = (r: Reaction | null): boolean => r === 'sigh' || r === 'deflated' || r === 'dejected';
 
 const TAU = Math.PI * 2;
 const sstep = (a: number, b: number, x: number): number => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
@@ -315,22 +324,96 @@ export function reactionPose(kind: Reaction, t: number, out: AnimPose): AnimPose
       out.lean += 0.04 * Math.sin(TAU * 0.6 * t) * tail;
       return out;
     }
-    case 'deflated': {
-      // a sag with the head down, a slow head shake, then chin up and a nod: next time
-      const sag = sstep(0, 0.8, t) * (1 - sstep(2.0, 2.6, t));
-      out.squash = -0.1 * sag + 0.04 * hump(t, 2.2, 2.6);
-      out.nod = 0.32 * sag - 0.08 * hold(t, 2.3, 2.5, 2.8, 3.1) + 0.12 * hump(t, 2.75, 3.1);
-      out.pitch = 0.03 * sag;
-      out.lean = -0.06 * sag;
-      out.look = 0.28 * wave(t, 0.9, 2.0, 1.1);
-      return out;
-    }
+    case 'sigh':
+    case 'deflated':
+    case 'dejected':
+      return sadReactionPose(kind, t, out);
   }
   // the joyful ones carry on bobbing and swaying
   out.squash += 0.022 * Math.sin(TAU * 1.7 * t) * tail;
   out.lean += 0.08 * Math.sin(TAU * 0.85 * t) * tail;
   return out;
 }
+
+/**
+ * The beats of the disappointed reactions (s from the line), shared by the chassis and head here and
+ * the rigged driver's spine, shoulders and arms (driverAnim.ts sadArms, sadBody). Timed from Mario Kart
+ * World's losing reactions (every racer: the head drops as the camera comes round, a hand to the
+ * forehead, a slow head shake twice, then chin up and a polite clap for the winner, the results list
+ * sliding in beside them; docs/sops/kart-controller.md Decisions, 26 Sept 2026), pulled earlier to
+ * fit our finish: the camera is round in front ~0.95 s in (its swing runs under the slow-mo) and the
+ * results come beside the racer at ~3.6 s, so the slump holds until just before them (a blind read of
+ * stills called a racer whose chin was already up "neutral") and the clap plays beside them. `sag`: the slump goes down; `shake`: the head shake; `up`:
+ * the chin comes back up; `clap`: the polite clap; `tap` (sigh only): the fist is pulled down ("darn!").
+ */
+export const SAD_BEATS = Object.freeze({
+  sigh: Object.freeze({ tap: 1.15, sag: [1.45, 1.85] as const, shake: [1.85, 3.1] as const, up: [3.2, 3.6] as const, clap: [3.65, 4.35] as const }),
+  deflated: Object.freeze({ tap: -1, sag: [0.3, 0.9] as const, shake: [1.0, 2.9] as const, up: [3.1, 3.5] as const, clap: [3.6, 4.7] as const }),
+  dejected: Object.freeze({ tap: -1, sag: [0.3, 1.2] as const, shake: [1.4, 3.3] as const, up: [3.4, 3.9] as const, clap: [4.0, 5.0] as const }),
+});
+
+/**
+ * The quiet idle a disappointed racer settles into, beside the results (Mario Kart World's losers drive on
+ * frowning there; ours have no face to frown with, so the posture carries it): the head low, slow breaths,
+ * and every `every` s a small head shake, then half a cycle later a sigh (the shoulders lift and drop, the
+ * head dips: driverAnim.ts sadBody).
+ */
+export const GLUM = Object.freeze({ nod: 0.2, sink: -0.015, breathHz: 0.28, breath: 0.01, every: 6.5, shakeHz: 1.2, shake: 0.1, sighAt: 3.2 });
+
+/** The disappointed reactions' chassis and head (reactionPose; the arms, spine and shoulders: driverAnim.ts). Pure. */
+function sadReactionPose(kind: 'sigh' | 'deflated' | 'dejected', t: number, out: AnimPose): AnimPose {
+  const B = SAD_BEATS[kind], main = REACTION_SECONDS[kind];
+  const sag = sstep(B.sag[0], B.sag[1], t) * (1 - sstep(B.up[0], B.up[1], t));
+  switch (kind) {
+    case 'sigh': {
+      // so close: an "aw" (the head drops a little) as a fist comes up, then "darn!", the fist pulled down
+      // once the camera is round (the head drops with it, the body jolts: driverAnim.ts sadArms), the
+      // sigh (the shoulders), the head low with a small head shake, then chin up
+      const aw = hold(t, 0.25, 0.6, B.sag[0], B.sag[0] + 0.3);
+      const tap = hump(t, B.tap - 0.03, B.tap + 0.2);
+      out.squash = -0.03 * aw - 0.05 * tap - 0.07 * sag;
+      out.nod = 0.18 * aw + 0.12 * tap + 0.42 * sag;
+      out.pitch = 0.025 * tap + 0.02 * sag;
+      out.look = 0.24 * wave(t, B.shake[0], B.shake[1], 1.3);
+      out.lean = -0.04 * sag;
+      break;
+    }
+    case 'deflated': {
+      // the slump, the head down (a hand to the forehead: driverAnim.ts), a slow head shake twice, then
+      // a breath and chin up
+      out.squash = -0.085 * sag + 0.03 * hump(t, B.up[0] + 0.1, B.up[1] + 0.15);
+      out.nod = 0.46 * sag;
+      out.pitch = 0.03 * sag;
+      out.look = 0.24 * wave(t, B.shake[0], B.shake[1], 1.25);
+      out.lean = -0.06 * sag;
+      out.roll = -0.02 * sag;
+      break;
+    }
+    case 'dejected': {
+      // the back: slumped right over the wheel (driverAnim.ts: the spine), the head hanging, a long slow
+      // head shake, then a big breath in as the chin comes up
+      const breath = hump(t, B.up[0], B.up[1] + 0.2);
+      out.squash = -0.11 * sag + 0.045 * breath;
+      out.nod = 0.5 * sag - 0.05 * breath;
+      out.pitch = 0.04 * sag;
+      out.look = 0.26 * wave(t, B.shake[0], B.shake[1], 1.1);
+      out.lean = -0.08 * sag;
+      out.roll = -0.025 * sag;
+      break;
+    }
+  }
+  // a small nod as the polite clap starts ("well done"), then the glum idle
+  out.nod += 0.06 * hump(t, B.clap[0], B.clap[0] + 0.5);
+  const tail = sstep(main - 0.5, main + 0.4, t), g = GLUM, c = t % g.every, sigh = glumSigh(t);
+  out.squash += (g.sink + g.breath * Math.sin(TAU * g.breathHz * t) + 0.02 * hump(sigh, 0, 0.7) - 0.015 * hump(sigh, 0.6, 1.5)) * tail;
+  out.nod += (g.nod + 0.02 * Math.sin(TAU * g.breathHz * t) + 0.06 * hump(sigh, 0.6, 1.5)) * tail;
+  out.look += g.shake * Math.sin(TAU * g.shakeHz * c) * hump(c, 0, 1.25) * tail;
+  out.lean += 0.02 * Math.sin(TAU * 0.17 * t) * tail;
+  return out;
+}
+
+/** Seconds into the glum idle's sigh this cycle (GLUM.sighAt into each GLUM.every s); the lift is its first 0.7 s, the drop to 1.5 s. */
+export const glumSigh = (t: number): number => (t + GLUM.every - GLUM.sighAt) % GLUM.every;
 
 /** What the animation needs from the kart's constants (both render-only reads). */
 export interface AnimKartConsts { hitSpinSeconds: number; driftVisualSlip: number }

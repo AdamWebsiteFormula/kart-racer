@@ -328,6 +328,14 @@ describe('the finish celebration keeps clear of the kart (podium.css, 25 Sept 20
     // a Time Trial's medal sits beside FINISH! there, not under it on the racer's goggles
     expect(pvalue('#ui .hud.celebrate .banner .medal-won.on', 'display', PHONE)).toBe('inline-flex');
   });
+
+  it('the results beside the racer (Mario Kart World, 26 Sept 2026): a wide window sets the panel at the right edge and dims only behind it', () => {
+    expect(value('.results.beside .stage', 'align-items', UI.besideQuery)).toBe('flex-end');
+    expect(value('.results.beside .dim', 'background', UI.besideQuery)).toMatch(/^linear-gradient\(90deg, rgba\(27, 27, 47, 0\) 32%/);
+    // narrower windows (a tablet, a phone) keep the panel in the middle, dimmed all round, as before
+    expect(value('.results .stage', 'align-items')).toBe('center');
+    expect(value('.results.beside .stage', 'align-items')).toBe('');
+  });
 });
 
 describe('the end buttons, the lap pop and the Knockout goal (25 Sept 2026)', () => {

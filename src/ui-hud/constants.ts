@@ -52,6 +52,11 @@ export const UI = Object.freeze({
   /** finish → results: FINISH! and its lines leave first (UI.wipeOutMs); the results come in this much later
    *  than a screen coming usually does, once they have gone (ui.css: the results stage's `--lag`) */
   finishLagMs: 100,
+  /** the results beside the racer (Mario Kart World: the list on the right, the racer reacting on the left;
+   *  ui.css `.results.beside`, 26 Sept 2026): a window this wide sets the panel at its right edge, and the
+   *  finish camera frames the kart in the room left of it when that is at least `besideMinRoom` of the width */
+  besideQuery: '(min-width: 1180px)',
+  besideMinRoom: 0.3,
   reducedMotionMs: 1,
   /** the rolling item slot changes name this often; wall time drives it (cosmetic only) */
   rouletteFlickerMs: 90,

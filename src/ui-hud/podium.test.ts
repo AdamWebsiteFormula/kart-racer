@@ -107,6 +107,39 @@ describe('the podium screen', () => {
     };
   }
 
+  it('over a finish celebration the results, standings and cut sit beside the racer (Mario Kart World): besideRoom is the room left of the panel', () => {
+    const ui = new UiRoot(document.body, host(), null);
+    let now = 1000;
+    ui.clock = () => now;
+    for (const a of into('grandPrix')) ui.dispatch(a);
+    expect(ui.besideRoom(), 'no results up').toBe(0);
+    ui.celebrate(true);
+    const gp = createGrandPrix({ id: 'sunrise', trackIds: ['harbour-loop', 'meadow-run'] }, racers, 150, 1);
+    const before = structuredClone(gp);
+    applyResults(gp, results(IDS));
+    ui.raceOver({ results: results(IDS), trackName: 'Harbor Loop', playerId: 'pip', gp: { before, after: gp }, seriesHasNext: true });
+    const scr = document.querySelector('#ui .results.on') as HTMLElement;
+    expect(scr.classList.contains('beside')).toBe(true);
+    // jsdom lays nothing out: the panel stands 55% of the way across a 1600 px window
+    const at = (x: number) => Object.defineProperty(scr.querySelector('.stage > .box')!, 'offsetLeft', { value: x, configurable: true });
+    Object.defineProperty(ui.root, 'clientWidth', { value: 1600, configurable: true });
+    at(880);
+    expect(ui.besideRoom()).toBeCloseTo(0.55, 3);
+    // the standings are the same screen drawn again: still beside
+    now += UI.endScreenGuardMs + 1;
+    (document.querySelector('#ui .screen.on [data-id="continue"]') as HTMLElement).click();
+    expect(ui.app.screen).toBe('gpTable');
+    at(880);
+    expect(ui.besideRoom()).toBeCloseTo(0.55, 3);
+    // a panel in the middle of a narrow window leaves too little room: the kart stays in the middle
+    at(300);
+    expect(ui.besideRoom()).toBe(0);
+    ui.celebrate(false);
+    expect(scr.classList.contains('beside')).toBe(false);
+    expect(ui.besideRoom()).toBe(0);
+    ui.dispose();
+  });
+
   it('after the standings: the headline and places over the scene, Continue focused, a double press guarded, Escape no skip, then the menu', () => {
     const h = host();
     const ui = new UiRoot(document.body, h, null);
