@@ -4,7 +4,7 @@ import { BASE, makeConstants } from '../kart-controller/constants.ts';
 import { EngineRev } from '../kart-controller/rev.ts';
 import { createKartState, NEUTRAL_INPUT, type KartState } from '../kart-controller/types.ts';
 import { TIER_RGB } from './flames.ts';
-import { EMBER, MARK, PUFF, SMOKE, SPARK, SPRAY, streaksPerKart } from './kartfx.ts';
+import { EMBER, MARK, PUFF, SMOKE, SPARK, SPRAY, STALL, streaksPerKart } from './kartfx.ts';
 import { Vfx } from './vfx.ts';
 
 const RACERS = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];
@@ -28,6 +28,12 @@ function run(vfx: Vfx, karts: KartState[], secs: number, player?: KartState): vo
     const cam = [0, 3, (player ?? karts[0]).position[2] - 6];
     vfx.frame(dt, dt, i * dt, karts, player, cam, false);
   }
+}
+
+/** Every live particle's size in a pool (metres, as it grows). */
+function sizes(pool: Vfx['glow']): number[] {
+  const a = pool.mesh.geometry.getAttribute('aSize').array as Float32Array;
+  return Array.from(a.subarray(0, pool.count));
 }
 
 /** Every live particle of a pool: [x, y, z] and its colour. */
@@ -325,21 +331,42 @@ describe('the pipes on the grid (26 Sept 2026: the engine\'s own rev, kart-contr
     expect(vfx.soft.count).toBeGreaterThanOrEqual(calm + PUFF.blipPuffs);
   });
 
-  it('a start held too early smokes gray on the grid, then stalls at the go in a burst of dark smoke with the rear tires scrubbing', () => {
+  it('a start held too early: soot on the grid, then at the go an engine that stalls (Mario Kart World): a backfire\'s flecks and a small burst of charcoal puffs that rise, then a thin trail riding with the kart; never white, never big, gone within a second', () => {
     const vfx = new Vfx(new Scene(), new PerspectiveCamera()), k = driver('gus', 0, 0, 0, true), rev = new EngineRev(c);
     const GO = 360, toGo = (t: number) => GO - t;
+    const charcoal = (col: number[]) => Math.abs(col[0] - STALL.color[0]) < 1e-4;
     stand(vfx, k, rev, GO / 120, () => 1, 0, toGo);
     expect(rev.start).toBe('early');
-    expect(colors(vfx).some((col) => Math.abs(col[0] - PUFF.popColor[0]) < 1e-4)).toBe(true); // gray smoke among the puffs
-    const before = vfx.soft.count;
+    expect(colors(vfx).some(charcoal)).toBe(true); // soot rising among the idle breath
+    const before = live(vfx.soft).filter((p) => charcoal(p.c)).length, flecks = vfx.kartFx.sparks.count;
     k.speed = 0.4; // the go: it moves off
     stand(vfx, k, rev, 1 / 60, () => 1, GO + 1, toGo);
     expect(rev.launch).toBe('early');
-    expect(vfx.soft.count).toBeGreaterThanOrEqual(before + PUFF.stallSmoke + PUFF.stallTires - 2);
-    // a start timed for the boost: no gray smoke, no stall
+    expect(live(vfx.soft).filter((p) => charcoal(p.c)).length).toBeGreaterThanOrEqual(before + STALL.puffs - 1);
+    expect(vfx.kartFx.sparks.count).toBeGreaterThanOrEqual(flecks + STALL.flecks - 1);
+    // driving off (no time lost, design §7): the engine chokes, a thin trail that keeps up with the kart
+    let tick = GO + 3, most = 0, far = 0;
+    for (let i = 0; i < 36; i++) {
+      k.speed = Math.min(12, k.speed + 15 / 60);
+      k.position[2] += k.speed / 60;
+      for (let j = 0; j < 2; j++, tick++) rev.tick(k, { ...NEUTRAL_INPUT, throttle: 1 }, 1 / 120, toGo(tick));
+      vfx.frame(1 / 60, 1 / 60, tick / 120, [k], k, [0, 3, k.position[2] - 6], false, [rev]);
+      // never white (no tire smoke, no pale cloud), never big
+      for (const p of live(vfx.soft)) expect(p.c[0], 'no white smoke').toBeLessThanOrEqual(PUFF.color[0] + 1e-6);
+      const sz = sizes(vfx.soft), all = live(vfx.soft);
+      for (let n = 0; n < all.length; n++) if (charcoal(all[n].c)) most = Math.max(most, sz[n]);
+      // the newest puffs ride with the kart: the choke's are never left far behind it
+      for (const p of live(vfx.soft).slice(-3)) if (charcoal(p.c)) far = Math.max(far, k.position[2] - p.p[2]);
+    }
+    expect(most).toBeLessThan(0.5);
+    expect(far).toBeLessThan(2.2);
+    // and gone within a second of the go (the idle breath's gray-blue aside, which stops as it drives)
+    for (let i = 0; i < 30; i++) { k.position[2] += k.speed / 60; for (let j = 0; j < 2; j++, tick++) rev.tick(k, { ...NEUTRAL_INPUT, throttle: 1 }, 1 / 120, toGo(tick)); vfx.frame(1 / 60, 1 / 60, tick / 120, [k], k, [0, 3, k.position[2] - 6], false, [rev]); }
+    expect(colors(vfx).some(charcoal)).toBe(false);
+    // a start timed for the boost: no soot, no stall
     const ok = new Vfx(new Scene(), new PerspectiveCamera()), q = driver('gus', 0, 0, 0, true), r2 = new EngineRev(c);
     stand(ok, q, r2, GO / 120, (t) => (t >= GO - 240 ? 1 : 0), 0, toGo);
     expect(r2.start).toBe('ready');
-    expect(colors(ok).some((col) => Math.abs(col[0] - PUFF.popColor[0]) < 1e-4 || Math.abs(col[0] - PUFF.stallColor[0]) < 1e-4)).toBe(false);
+    expect(colors(ok).some(charcoal)).toBe(false);
   });
 });
