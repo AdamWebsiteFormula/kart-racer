@@ -25,7 +25,7 @@ import {
   BootView, CreditsView, CupView, HowToView, ListView, OverlayMenuView, ResultsView, RosterView, SettingsView, TitleView, TrackView, UnlocksView, type ScreenView,
 } from './render/screens.ts';
 import { parseCredits } from './screens/credits.ts';
-import { adjustSetting, cupMenu, medalFor, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
+import { adjustSetting, cupMenu, listStep, medalFor, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, SPEED_CLASSES, titleMenu, trackMenu, type Medal, type MedalTimes, type SettingId } from './screens/menus.ts';
 import { boardDown, boardModel, cumulativeSplits, endFocus, endMenu, gpModel, knockoutCutModel, nextDailyAt, resultsModel, type BoardLoad, type BoardPost, type EndMenuVM } from './screens/results.ts';
 import { podiumModel } from './screens/podium.ts';
 import { PodiumView } from './render/podium.ts';
@@ -758,6 +758,11 @@ export class UiRoot {
       this.changeLook(cur, a === 'left' ? -1 : 1);
       return;
     }
+    // the Mode screen's bands: left and right step through them as up and down do (screens/menus.ts listStep)
+    if (key === 'modeSelect' && model && cur) {
+      const step = listStep(model, cur, a);
+      if (step) { if (step !== cur) { this.host.uiSound?.('move'); this.setFocus(step); } return; }
+    }
     // the rows under the racer cards (Paint, Body, the class) are the racer on show's: down from any card
     // goes straight to them and up comes back to that card, so no other card is passed (and put on
     // show) on the way; left and right run through the eight cards (screens/menus.ts rosterMove)
@@ -936,6 +941,13 @@ export class UiRoot {
    */
   turntable(): { box: HTMLElement; racerId: string; look: KartLookIds; kartId?: string } | null {
     const key = this.active?.key;
+    // the Mode screen's: the racer last chosen, in the kart they race in, as MKW's mode menu shows its racers beside the list
+    if (key === 'modeSelect') {
+      const box = this.views.modes.turntable;
+      if (!box?.isConnected) return null;
+      const racerId = this.app.racerId, kartId = this.kartOf(racerId);
+      return { box, racerId, look: lookFor(this.save, racerId, kartId), ...(kartId ? { kartId } : {}) };
+    }
     if (key === 'kartSelect') {
       const box = this.views.karts.turntable;
       if (!box?.isConnected) return null;
@@ -1112,7 +1124,7 @@ export class UiRoot {
     const s = this.app, v = this.views, built = this.host.builtTracks;
     const short = this.short?.matches ?? false;
     switch (key) {
-      case 'title': { const vm = titleMenu(short); v.title.render(vm); this.models.set(key, vm.focus); break; }
+      case 'title': { const vm = titleMenu(); v.title.render(vm); this.models.set(key, vm.focus); break; }
       case 'modeSelect': {
         const vm = modeMenu(this.host.availableModes);
         // our own icons (icons.ts); the Daily's calendar is on the Daily's own day (UTC, as its track and board)
@@ -1174,7 +1186,6 @@ export class UiRoot {
   /** The screen height crossed the short-screen line (a window resized): the title and pause grids follow the buttons. */
   private setGrids(): void {
     const short = this.short?.matches ?? false;
-    if (this.models.has('title')) this.models.set('title', titleMenu(short).focus);
     if (this.models.has('pause')) this.models.set('pause', pauseMenu(short, this.canRestart).focus);
     if (this.models.has('rosterSelect')) this.models.set('rosterSelect', rosterMenu(this.rosterExtras(), short).focus);
     // the end buttons: one row in a short window, row by row elsewhere

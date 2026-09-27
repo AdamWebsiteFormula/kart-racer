@@ -442,7 +442,7 @@ describe('touch', () => {
 });
 
 describe('a short screen (a phone on its side)', () => {
-  it('the title and the pause move two by two on keys, the way their buttons sit there; a taller window goes back to one column (seam review)', () => {
+  it('the pause moves two by two on keys, the way its buttons sit there, and a taller window goes back to one column (seam review); the title\'s bands are one column on every screen (design §12, 26 Sept 2026)', () => {
     const mm = globalThis.matchMedia;
     let short = true;
     const changed: (() => void)[] = [];
@@ -458,10 +458,10 @@ describe('a short screen (a phone on its side)', () => {
       const ui = new UiRoot(document.body, host(), null);
       ui.dispatch({ type: 'boot' });
       const walk = (keys: string[]) => keys.map((k) => { key(k); return focused(); });
-      // Race! How to Play / Unlocks Settings / Credits: Right went nowhere, Down went to the button beside it
-      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'])).toEqual(['howTo', 'settings', 'unlocks', 'start']);
-      resize(false); // one column again, the focus where it was
-      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown'])).toEqual(['start', 'howTo', 'unlocks']);
+      // the title's bands, one under another down the left on a phone too (the logo on one line over them)
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown', 'ArrowUp'])).toEqual(['start', 'howTo', 'unlocks', 'howTo']);
+      resize(false);
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown'])).toEqual(['howTo', 'unlocks', 'settings']);
       resize(true);
       ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
       key('Escape');

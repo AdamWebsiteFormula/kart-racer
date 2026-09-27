@@ -167,6 +167,43 @@ export function modeSvg(mode: string, dailySeed: number): string {
   return body ? `<svg class="mode-svg" data-mode="${mode}" viewBox="0 0 48 48" width="48" height="48" aria-hidden="true" focusable="false">${body}</svg>` : '';
 }
 
+// ---- the title menu's emblems (26 Sept 2026): each band wears one at its head, as MKW's main menu's bands do ----
+/** the gear's sky (the house --sky) */
+const SKY_GEAR = '#56b4e9';
+/** How to Play: a game pad, its D-pad and two buttons (what the page explains). */
+const PAD = `<path d="M14 14.5h20c6.4 0 9.9 4.5 10.7 11.2l1.3 9.9c.6 4.3-2.3 7.2-5.5 7.2-2.5 0-4.3-1.5-5.6-3.9l-2.4-4.1H15.5l-2.4 4.1c-1.3 2.4-3.1 3.9-5.6 3.9-3.2 0-6.1-2.9-5.5-7.2l1.3-9.9c.8-6.7 4.3-11.2 10.7-11.2Z" fill="${TEAL}" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round"/>`
+  + `<path d="M13.6 19.4h4.4v3.4h3.4v4.4H18v3.4h-4.4v-3.4h-3.4v-4.4h3.4Z" fill="${PAPER}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`
+  + `<circle cx="31.6" cy="27.4" r="3" fill="${CORAL}" stroke="${INK}" stroke-width="2"/><circle cx="37.2" cy="22.4" r="3" fill="${SUN}" stroke="${INK}" stroke-width="2"/>`
+  + '<path d="M8.6 21.4a8 8 0 0 1 4.8-4.2" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="2.2" stroke-linecap="round"/>';
+/** Unlocks: a gift, a coral box under a sun ribbon and bow (the rewards the page lists). */
+const GIFT = `<g stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">`
+  + `<path d="M24 16c-2.8-6.6-11.6-9.4-12.6-4.4-.7 3.6 5.6 4.6 12.6 4.4Z" fill="${SUN}" stroke-width="2.4"/><path d="M24 16c2.8-6.6 11.6-9.4 12.6-4.4.7 3.6-5.6 4.6-12.6 4.4Z" fill="${SUN}" stroke-width="2.4"/>`
+  + `<rect x="8" y="23" width="32" height="20.5" rx="3" fill="${CORAL}" stroke-width="2.8"/>`
+  + `<rect x="5.5" y="15.6" width="37" height="8.6" rx="3" fill="${CORAL}" stroke-width="2.8"/>`
+  + `<path d="M21 15.8v27.6M27 15.8v27.6" stroke-width="2.2"/>`
+  + '</g>'
+  + `<rect x="21.9" y="17" width="4.2" height="25.3" fill="${SUN}"/>`
+  + '<path d="M10.6 19.2h7.4" stroke="#fff" stroke-opacity="0.75" stroke-width="2" stroke-linecap="round"/>';
+/** Settings: a sky gear on a paper hub. */
+const GEAR = (() => {
+  const pts: string[] = [];
+  const at = (deg: number, r: number) => { const a = (deg * Math.PI) / 180; return `${n1(24 + r * Math.sin(a))} ${n1(24 - r * Math.cos(a))}`; };
+  for (let k = 0; k < 8; k++) { const a = k * 45; pts.push(at(a - 9, 20.6), at(a + 9, 20.6), at(a + 14, 15.4), at(a + 31, 15.4)); }
+  return `<path d="M${pts.join('L')}Z" fill="${SKY_GEAR}" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round"/>`
+    + `<circle cx="24" cy="24" r="7.2" fill="${PAPER}" stroke="${INK}" stroke-width="2.6"/>`
+    + '<path d="M13.2 18.4a12 12 0 0 1 5-5.2" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="2.2" stroke-linecap="round"/>';
+})();
+/** Credits: a coral heart (the people who made it). */
+const HEART = `<path d="M24 41.6C12.2 33.2 5.6 26.6 5.6 18.8 5.6 12.6 10.2 8.2 15.8 8.2c3.6 0 6.4 1.8 8.2 4.6 1.8-2.8 4.6-4.6 8.2-4.6 5.6 0 10.2 4.4 10.2 10.6 0 7.8-6.6 14.4-18.4 22.8Z" fill="${CORAL}" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round"/>`
+  + '<path d="M10.8 17.2a6 6 0 0 1 4.4-4.4" fill="none" stroke="#fff" stroke-opacity="0.85" stroke-width="2.4" stroke-linecap="round"/>';
+const MENU_EMBLEMS: Readonly<Record<string, string>> = Object.freeze({ start: FLAG, howTo: PAD, unlocks: GIFT, settings: GEAR, credits: HEART });
+
+/** A title menu entry's emblem (screens/menus.ts titleMenu ids), or '' for none. Sized by its box (menus.css .band .icon). */
+export function menuSvg(id: string): string {
+  const body = MENU_EMBLEMS[id];
+  return body ? `<svg class="menu-svg" data-menu="${id}" viewBox="0 0 48 48" width="48" height="48" aria-hidden="true" focusable="false">${body}</svg>` : '';
+}
+
 // ---- cup emblems (25 Sept 2026): each Grand Prix cup and Knockout set wears its own, as MKW's cups do ----
 const SKY = '#56b4e9';
 /** a paler sky: a peak further off */

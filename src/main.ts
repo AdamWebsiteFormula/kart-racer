@@ -954,7 +954,7 @@ function step(now: number): void {
   cur.trackScene.cull(camera, !renderer.shadowMap.enabled, (scene.fog as Fog | null)?.far);
   // the creature, the hazards, the balloons and the coins the lens meets fade as clean ghosts; in the finish camera's close-up the pickups from farther out (scene.ts lens)
   cur.trackScene.lens(camera, !attract && celebrating && !ceremony);
-  // the Racer and Kart screens draw their own stage (the blurred world and the big hero) over the whole
+  // the setup screens draw their own stage (the blurred world and the big hero) over the whole
   // canvas: while it covers it, the race behind is not drawn at all; while it fades in or out, over the race
   const stage = stageStep(frameDt, reduced);
   if (stage < 1) post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
@@ -963,16 +963,19 @@ function step(now: number): void {
   if (warmed) { last = performance.now(); governor.reset(last / 1000); }
 }
 
-// ---- the select screens' stage (design §12): the Racer and Kart screens' blurred world and big 3D hero ----
+// ---- the setup screens' stage (design §12): the blurred world behind the Mode, Racer, Kart, Cup and Track screens, and the big 3D hero ----
 const showroom = new Showroom(scene.environment);
 new TextureLoader().load(`${import.meta.env.BASE_URL}art/menus/stage.webp`, (t) => showroom.setBackdrop(t), undefined, () => { /* no picture: its plain colour stands */ });
 /** how much of the stage shows (0 none, 1 all), eased in and out with the screen change (UI.wipeMs) */
 let stageAlpha = 0;
 
-/** The stage's share this frame: toward all of it on the Racer and Kart screens, toward none elsewhere (at once with reduced motion). */
+/** The screens drawn on the stage: the whole setup after the title (design §12, 26 Sept 2026), as MKW's own menus sit on theirs; the title keeps the attract race. */
+const STAGE_SCREENS: ReadonlySet<string> = new Set(['modeSelect', 'rosterSelect', 'kartSelect', 'cupSelect', 'trackSelect']);
+
+/** The stage's share this frame: toward all of it on the setup screens (the Mode, Racer, Kart, Cup and Track screens), toward none elsewhere (at once with reduced motion). */
 function stageStep(dt: number, reduced: boolean): number {
   const was = stageAlpha;
-  stageAlpha = stageFade(stageAlpha, ui.app.screen === 'rosterSelect' || ui.app.screen === 'kartSelect', dt, UI.wipeMs / 1000, reduced);
+  stageAlpha = stageFade(stageAlpha, STAGE_SCREENS.has(ui.app.screen), dt, UI.wipeMs / 1000, reduced);
   // gone: its kart's own material copies go too (the next time, the racer on show says hello again)
   if (was > 0 && stageAlpha === 0) showroom.empty();
   return stageAlpha;

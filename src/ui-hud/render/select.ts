@@ -17,8 +17,11 @@ export const STATS_PROMPT = 'Stats';
  * The prompt bar along the bottom: what moves and picks (the keys, or a pad's buttons once one is pressed),
  * and Stats and Back as buttons of their own, so a mouse or a thumb can press them too (not in the focus
  * grid: the keys have Y and Escape). Returns the Stats button (aria-pressed says whether the stats show).
+ * `stats`: false on a screen with no stats to show (the Mode, Cup and Track screens): Move, Pick and Back.
  */
-export function promptBar(parent: HTMLElement, buttons: Map<string, HTMLElement>): HTMLElement {
+export function promptBar(parent: HTMLElement, buttons: Map<string, HTMLElement>, stats: false): null;
+export function promptBar(parent: HTMLElement, buttons: Map<string, HTMLElement>, stats?: true): HTMLElement;
+export function promptBar(parent: HTMLElement, buttons: Map<string, HTMLElement>, withStats = true): HTMLElement | null {
   const bar = h('div', 'prompts hint', parent);
   const say = (keys: string, pad: string, words: string) => {
     const e = h('span', 'prompt', bar);
@@ -28,11 +31,14 @@ export function promptBar(parent: HTMLElement, buttons: Map<string, HTMLElement>
   };
   say('↑↓←→', 'D-pad', 'Move');
   say('Enter', 'A', 'Pick');
-  const stats = button(bar, 'stats', 'prompt prompt-btn');
-  stats.setAttribute('aria-pressed', 'false');
-  h('kbd', '', stats, 'Y');
-  h('span', '', stats, STATS_PROMPT);
-  buttons.set('stats', stats);
+  let stats: HTMLElement | null = null;
+  if (withStats) {
+    stats = button(bar, 'stats', 'prompt prompt-btn');
+    stats.setAttribute('aria-pressed', 'false');
+    h('kbd', '', stats, 'Y');
+    h('span', '', stats, STATS_PROMPT);
+    buttons.set('stats', stats);
+  }
   const back = button(bar, 'back', 'prompt prompt-btn back-btn');
   h('kbd', 'only-keys', back, 'Esc');
   h('kbd', 'only-pad', back, 'B');

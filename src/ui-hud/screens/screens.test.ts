@@ -9,7 +9,7 @@ import { FACE_ZOOM, faceCrop } from '../data/faces.ts';
 import { firstFocus, move, reachable } from '../focus.ts';
 import { defaultSave } from '../store.ts';
 import { CREDITS_MADE, parseCredits } from './credits.ts';
-import { cupMenu, medalFor, medalLadder, MODES, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, speedRow, statBar, titleMenu, trackMenu } from './menus.ts';
+import { cupMenu, listStep, medalFor, medalLadder, MODES, modeMenu, pauseMenu, rosterMenu, rosterMove, settingsMenu, speedRow, statBar, titleMenu, trackMenu } from './menus.ts';
 import { garageModel } from '../garage.ts';
 import { boardDown, boardModel, cumulativeSplits, END_LABELS, endFocus, endMenu, gpModel, knockoutCutModel, nextDailyAt, resultsModel, seedDate } from './results.ts';
 
@@ -30,7 +30,7 @@ describe('menus', () => {
     const save = defaultSave();
     const built = new Set(['harbour-loop']);
     const models = [
-      titleMenu().focus, titleMenu(true).focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu().focus, rosterMenu({}, true).focus,
+      titleMenu().focus, modeMenu(new Set(['quick', 'grandPrix', 'knockout'])).focus, rosterMenu().focus, rosterMenu({}, true).focus,
       rosterMenu({ garage: garageModel(save, 'pip') }).focus,
       cupMenu('grandPrix', built, save, 100).focus, cupMenu('grandPrix', built, save, 100, false).focus, cupMenu('knockout', built, save, 100).focus,
       trackMenu('quick', built, save, new Map(), { cc: 100, mirror: true }).focus, trackMenu('timeTrial', built, save, new Map(), { cc: 150 }).focus,
@@ -57,6 +57,31 @@ describe('menus', () => {
     expect(quick.focus.rows).toEqual([['harbour-loop', 'meadow-run', 'canyon-rush'], ['cc50', 'cc100', 'cc150']]);
     expect(trackMenu('timeTrial', built, save, new Map(), { cc: 150 }).focus.rows).toEqual([['harbour-loop', 'meadow-run', 'canyon-rush']]);
     expect(trackMenu('quick', built, save, new Map()).classes).toEqual([]); // (no speed given: no row)
+  });
+
+  it('the title and the modes are one band under another (design §12, 26 Sept 2026: MKW\'s main and mode menus); left and right step through the modes too, past any not open', () => {
+    expect(titleMenu().focus.rows).toEqual([['start'], ['howTo'], ['unlocks'], ['settings'], ['credits']]);
+    const all = modeMenu(new Set(['quick', 'grandPrix', 'knockout', 'timeTrial', 'daily'])).focus;
+    expect(all.rows.map((r) => r.length)).toEqual([1, 1, 1, 1, 1]);
+    expect([listStep(all, 'quick', 'right'), listStep(all, 'quick', 'left'), listStep(all, 'daily', 'right')]).toEqual(['grandPrix', 'daily', 'quick']);
+    expect(listStep(all, 'quick', 'down')).toBeNull(); // (up and down: the plain grid's move)
+    const some = modeMenu(new Set(['quick', 'timeTrial'])).focus;
+    expect([listStep(some, 'quick', 'right'), listStep(some, 'timeTrial', 'right')]).toEqual(['timeTrial', 'quick']);
+    // a grid of more than one column is not a list
+    expect(listStep({ rows: [['a', 'b']] }, 'a', 'right')).toBeNull();
+  });
+
+  it('the Track screen sets the tracks by cup, a row each under its name, so the arrows move the way they sit', () => {
+    const save = defaultSave();
+    const six = trackMenu('quick', new Set(TRACKS.map((t) => t.id)), save, new Map(), { cc: 100 });
+    expect(six.groups.map((g) => [g.name, g.tracks.map((t) => t.id)])).toEqual([
+      ['Sunrise Cup', ['harbour-loop', 'meadow-run', 'canyon-rush']], ['Summit Cup', ['frostbite-pass', 'boardwalk-nights', 'skyline-circuit']],
+    ]);
+    expect(six.focus.rows).toEqual([...six.groups.map((g) => g.tracks.map((t) => t.id)), ['cc50', 'cc100', 'cc150']]);
+    // one built in each cup: a row each, as they sit
+    const two = trackMenu('timeTrial', new Set(['harbour-loop', 'frostbite-pass']), save, new Map());
+    expect(two.focus.rows).toEqual([['harbour-loop'], ['frostbite-pass']]);
+    expect(two.tracks.map((t) => t.id)).toEqual(['harbour-loop', 'frostbite-pass']);
   });
 
   it('modes: unavailable ones are disabled and badged', () => {

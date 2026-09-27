@@ -30,7 +30,11 @@ const column = (entries: Entry[], twoByTwo: boolean): FocusModel => {
   return grid(rows);
 };
 
-export function titleMenu(twoByTwo = false): MenuVM {
+/**
+ * The title's menu: one band under another down the left, as Mario Kart World's main menu sets its own (design §12,
+ * 26 Sept 2026); on a phone on its side too, the logo beside them (menus.css), so the focus runs up and down everywhere.
+ */
+export function titleMenu(): MenuVM {
   const entries: Entry[] = [
     { id: 'start', label: 'Race!' },
     { id: 'howTo', label: 'How to Play' },
@@ -38,7 +42,7 @@ export function titleMenu(twoByTwo = false): MenuVM {
     { id: 'settings', label: 'Settings' },
     { id: 'credits', label: 'Credits' },
   ];
-  return { title: GAME_TITLE.join(' '), entries, focus: column(entries, twoByTwo) };
+  return { title: GAME_TITLE.join(' '), entries, focus: column(entries, false) };
 }
 
 export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = Object.freeze([
@@ -51,8 +55,19 @@ export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = 
 
 export function modeMenu(available: ReadonlySet<RaceMode>): MenuVM {
   const entries = MODES.map((m) => ({ id: m.mode, label: m.label, sub: m.sub, disabled: !available.has(m.mode), badge: available.has(m.mode) ? undefined : 'Soon' }));
-  // three across, matching the .modes grid, so the arrows move the way the cards sit
-  return { title: 'Pick a mode', entries, focus: grid([entries.slice(0, 3), entries.slice(3)]) };
+  // one band under another down the left, as Mario Kart World's mode menu (design §12, 26 Sept 2026): up and down
+  // move, and left and right step through them too (listStep)
+  return { title: 'Pick a mode', entries, focus: column(entries, false) };
+}
+
+/**
+ * Left and right on a one-column list (the Mode screen's bands): a step back or on through it, as up and down go,
+ * wrapping and past any not open yet, so a pad's stick or the arrows either way run through the modes. Null for
+ * up and down (the plain grid's move) and for a list that is not one column.
+ */
+export function listStep(focus: FocusModel, cur: string, dir: NavAction): string | null {
+  if ((dir !== 'left' && dir !== 'right') || focus.rows.some((r) => r.length !== 1)) return null;
+  return move(focus, cur, dir === 'right' ? 'down' : 'up');
 }
 
 /** A stat multiplier as a 0.1–1 bar: medium sits at 0.6, each 6 % is one fifth. */
@@ -180,8 +195,10 @@ export function cupMenu(mode: 'grandPrix' | 'knockout', built: ReadonlySet<strin
 
 /** `medal`: a Time Trial card's best medal (its badge in the corner); absent for none */
 export interface TrackEntry extends Entry { biome: string; bg: string; accent: string; medal?: MedalWon }
-/** `classes`: the speed class row under the tracks (Quick Race; speedRow), none for a Time Trial */
-export interface TrackVM { title: string; tracks: TrackEntry[]; classes: Entry[]; focus: FocusModel }
+/** A row of tracks under its cup's name (the Track screen sets them by cup, as MKW heads each cup's courses with its name). */
+export interface TrackGroup { id: string; name: string; tracks: TrackEntry[] }
+/** `classes`: the speed class row under the tracks (Quick Race; speedRow), none for a Time Trial. `groups`: the tracks by cup, a row each */
+export interface TrackVM { title: string; tracks: TrackEntry[]; groups: TrackGroup[]; classes: Entry[]; focus: FocusModel }
 
 /** A track's Time Trial medal times (its track file's `medalTimesMs`). */
 export interface MedalTimes { gold: number; silver: number; bronze: number }
@@ -203,10 +220,10 @@ export function medalLadder(ms: number, m: MedalTimes): MedalLadderVM {
 }
 
 /**
- * Every built track in cup order, three to a row; a Time Trial card shows your best time and its
- * medal, graded against the track's medal times now (a medal saved under older times goes stale).
- * `speed`: the class chosen (and the Mirror switch's state, where the mode takes it) for the class row
- * under the tracks (speedRow: Quick Race only); absent, no row.
+ * Every built track in cup order, a row for each cup under its name (a track in no cup: a last row of its own); a
+ * Time Trial card shows your best time and its medal, graded against the track's medal times now (a medal saved
+ * under older times goes stale). `speed`: the class chosen (and the Mirror switch's state, where the mode takes
+ * it) for the class row under the tracks (speedRow: Quick Race only); absent, no row.
  */
 export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save, medalTimes: ReadonlyMap<string, MedalTimes>, speed?: { cc: SpeedClass; mirror?: boolean }): TrackVM {
   const tracks: TrackEntry[] = TRACKS.filter((t) => built.has(t.id)).map((t) => {
@@ -219,11 +236,15 @@ export function trackMenu(mode: RaceMode, built: ReadonlySet<string>, save: Save
       ...(m !== 'none' ? { medal: m } : {}),
     };
   });
-  const rows: Entry[][] = [];
-  for (let i = 0; i < tracks.length; i += 3) rows.push(tracks.slice(i, i + 3));
+  const byId = new Map(tracks.map((t) => [t.id, t]));
+  const groups: TrackGroup[] = CUPS.map((c) => ({ id: c.id, name: c.name, tracks: c.trackIds.flatMap((id) => byId.get(id) ?? []) }));
+  const loose = tracks.filter((t) => !CUPS.some((c) => c.trackIds.includes(t.id)));
+  if (loose.length) groups.push({ id: 'more', name: '', tracks: loose });
+  const shown = groups.filter((g) => g.tracks.length);
+  const rows: Entry[][] = shown.map((g) => g.tracks);
   const classes = speed ? speedRow(mode, speed.cc, speed.mirror) : [];
   if (classes.length) rows.push(classes);
-  return { title: mode === 'timeTrial' ? 'Time Trial: pick a track' : 'Pick a track', tracks, classes, focus: grid(rows) };
+  return { title: mode === 'timeTrial' ? 'Time Trial: pick a track' : 'Pick a track', tracks, groups: shown, classes, focus: grid(rows) };
 }
 
 /** `canRestart`: false in a Grand Prix or Knockout, where a restart would redo a finished race for its points or its win (audit 24 Sept 2026) */

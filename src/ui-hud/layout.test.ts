@@ -51,15 +51,6 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.stage', 'padding', PHONE)).toContain('calc(20px + var(--safe-l))');
   });
 
-  it('the title sizes its name by the height too, sets the four buttons two by two, and never spills off the top', () => {
-    expect(value('.logo .l1', 'font-size', PHONE)).toMatch(/vh/);
-    expect(value('.logo .l2', 'font-size', PHONE)).toMatch(/vh/);
-    expect(value('.title .menu', 'grid-template-columns', PHONE)).toBe('1fr 1fr');
-    expect(value('.title .stage', 'justify-content', PHONE)).toBe('safe center');
-    // on any screen a title taller than the window starts at the top (sweep: at 1366x657 plain centre cut the logo's top off)
-    expect(value('.title .stage', 'justify-content')).toBe('safe center');
-  });
-
   it('the rotate prompt takes the taps, so none goes through to the buttons hidden under it', () => {
     expect(value('#ui', 'pointer-events')).toBe('none');
     expect(value('.rotate-hint', 'pointer-events')).toBe('auto');
@@ -69,11 +60,6 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
   it('the touch controls, shown, take a touch anywhere (a thumb on the screen is the gas before the green light)', () => {
     expect(value('.touch', 'pointer-events')).toBe('none');
     expect(value('.touch.on', 'pointer-events')).toBe('auto');
-  });
-
-  it('cups sit side by side and track cards fit the stage', () => {
-    expect(value('.cups', 'grid-template-columns', PHONE)).toBe('repeat(auto-fit, minmax(260px, 1fr))');
-    expect(value('.track-cards', 'width', PHONE)).toBe('100%');
   });
 
   it('the pause fits without a scroll, its six buttons two by two, under the query the focus grids use (seam review)', () => {
@@ -99,16 +85,10 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     // over Done on a bigger screen
     expect(value('.settings .box.dialog > .foot', 'flex-direction')).toBe('column');
   });
-
-  it('the mode icons shrink with the cards (sweep 25 Sept 2026)', () => {
-    expect(value('.modes .btn .icon', 'width')).toBe('44px');
-    expect(value('.modes .btn .icon', 'width', PHONE)).toBe('30px');
-  });
 });
 
 describe('menu icons and the Settings help line (sweep 25 Sept 2026)', () => {
   it('icons are sized by their box, never by their attributes', () => {
-    expect(value('.modes .btn .icon svg', 'width')).toBe('100%');
     expect(value('.unlock .mark svg', 'width')).toBe('100%');
     expect(value('.opt .lock svg', 'width')).toBe('100%');
     expect(value('.arrow-svg', 'width')).toMatch(/em$/);
@@ -164,15 +144,12 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(value('#ui .screen[inert]:not(.x-out) > .stage', 'opacity')).toBe('0');
   });
 
-  it('a laptop window (1280x720, 1366x657) fits the title, and the Paint row drops its hints', () => {
+  it('a laptop window (1280x720, 1366x657): the Paint row drops its hints (the title fits: menus.css, its own tests)', () => {
     const LAPTOP = '(max-height: 800px)';
-    expect(value('.logo .l1', 'font-size', LAPTOP)).toMatch(/vh/);
-    expect(value('.logo .l2', 'font-size', LAPTOP)).toMatch(/vh/);
     expect(value('.pick-hint', 'display', LAPTOP)).toBe('none');
   });
 
-  it('on a phone on its side the odd last button (Credits, or Quit without Restart) sits centred under the others', () => {
-    expect(value('.title .menu .btn:last-child:nth-child(odd)', 'grid-column', PHONE)).toBe('1 / -1');
+  it('on a phone on its side the odd last button of the pause (Quit without Restart) sits centred under the others', () => {
     expect(value('.pause .list .btn:last-child:nth-child(odd)', 'grid-column', PHONE)).toBe('1 / -1');
   });
 
@@ -440,5 +417,88 @@ describe('the Racer and Kart screens (select.css; design §12, 26 Sept 2026: as 
       }
     }
     expect(names.sort()).toEqual(['lock-pulse', 'np-flash', 'np-swap', 'refuse-shake', 'stats-in', 'tile-sheen']);
+  });
+});
+
+describe('the title, Mode, Cup and Track screens (menus.css; design §12, 26 Sept 2026: as Mario Kart World\'s own menus)', () => {
+  let mcss = '';
+  beforeAll(async () => {
+    const fs = (await import('node:fs' as string)) as { readFileSync(p: string, enc: 'utf8'): string };
+    mcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'menus.css')), 'utf8');
+  });
+  /** `selector`'s `prop` in menus.css, top level or in the @media `media` */
+  const mvalue = (selector: string, prop: string, media?: string) => {
+    const saved = css;
+    css = mcss;
+    try { return value(selector, prop, media); } finally { css = saved; }
+  };
+  const LAPTOP = '(max-height: 800px)';
+
+  it('the title: the bands one under another down the left, the logo sized by the height too on a laptop and a phone (on one line there), never spilling off the top', () => {
+    expect(mvalue('.title .stage', 'align-items')).toBe('flex-start');
+    // on any screen a title taller than the window starts at the top (sweep: at 1366x657 plain centre cut the logo's top off)
+    expect(mvalue('.title .stage', 'justify-content')).toBe('safe center');
+    expect(mvalue('.title .menu', 'flex-direction')).toBe('column');
+    for (const m of [LAPTOP, PHONE]) {
+      expect(mvalue('.logo .l1', 'font-size', m), m).toMatch(/vh/);
+      expect(mvalue('.logo .l2', 'font-size', m), m).toMatch(/vh/);
+    }
+    expect(mvalue('.logo .l2', 'display', PHONE)).toBe('inline-block');
+    expect(mvalue('.title .menu', '--band-h', PHONE)).toBe('42px');
+    // the prompt shows the keys or the pad's: it never sets its own display over .only-keys and .only-pad
+    expect(mvalue('.title .press', 'display')).toBe('');
+  });
+
+  it('a band: slanted glass, its emblem on a disc sized by the band (the icons by their box, never their attributes), the focus a ring, a glow, a slide and a sheen', () => {
+    expect(mvalue('.band > .glass', 'transform')).toMatch(/^skewX\(-\d+deg\)$/);
+    expect(mvalue('.band > .icon', 'width')).toBe('calc(var(--band-h, 64px) + 8px)');
+    expect(mvalue('.band > .icon svg', 'width')).toBe('70%');
+    expect(mvalue('.cup-tile .emblem svg', 'width')).toBe('100%');
+    expect(mvalue('.band.focused > .glass', 'box-shadow')).toMatch(/var\(--sun\)/);
+    expect(mvalue('.band.focused', 'transform')).toMatch(/translateX/);
+    expect(mvalue('.band.focused > .glass::after', 'animation')).toMatch(/^band-sheen /);
+    // each mode's own line is for assistive tech; the eyes read the focused one's at the foot
+    expect([mvalue('.band > .sub', 'position'), mvalue('.band > .sub', 'width')]).toEqual(['absolute', '1px']);
+    expect(mvalue('.modes.bands', '--band-h', PHONE)).toBe('42px');
+  });
+
+  it('the Mode screen keeps its hero beside the bands on a phone on its side; a narrow window gives the bands the width', () => {
+    expect(mvalue('.menu-side .hero-box', 'display')).toBe('block');
+    expect(mvalue('.menu-side .hero-box', 'display', '(max-width: 720px) and (min-height: 501px)')).toBe('none');
+  });
+
+  it('the pictures: big, sized to the room (its height too), a wider cut on a phone on its side with the names on them', () => {
+    expect(mvalue('.cup-show', 'container-type')).toBe('size');
+    expect(mvalue('.track-groups', 'container-type')).toBe('size');
+    expect(mvalue('.cup-preview .shots', 'grid-template-columns')).toBe('repeat(3, minmax(0, 1fr))');
+    expect(mvalue('.track-cards', 'grid-template-columns')).toBe('repeat(3, minmax(0, 1fr))');
+    expect(mvalue('.frame', 'aspect-ratio')).toBe('16 / 9');
+    expect(mvalue('.frame', 'aspect-ratio', PHONE)).toBe('2 / 1');
+    expect(mvalue('.track-card .words', 'position', PHONE)).toBe('absolute');
+    expect(mvalue('.cup-preview[hidden]', 'display')).toBe('none');
+    expect(mvalue('.track-card.focused > .frame', 'box-shadow')).toMatch(/var\(--sun\)/);
+  });
+
+  it('the class row: glass pills, the class chosen in the sun, the focus the ring', () => {
+    expect(mvalue('.classes', 'display')).toBe('flex');
+    expect(mvalue('.classes .pill[aria-pressed=\'true\']', 'color')).toBe('var(--ink)');
+    expect(mvalue('.classes .pill.focused', 'box-shadow')).toMatch(/var\(--sun\)/);
+  });
+
+  it('its animations move only transforms and opacity', () => {
+    document.head.innerHTML = '';
+    const st = document.createElement('style');
+    st.textContent = mcss;
+    document.head.appendChild(st);
+    const names: string[] = [];
+    for (const r of st.sheet!.cssRules) {
+      if (!(r instanceof CSSKeyframesRule)) continue;
+      names.push(r.name);
+      for (const k of r.cssRules) {
+        const style = (k as CSSKeyframeRule).style;
+        for (let i = 0; i < style.length; i++) expect(['opacity', 'transform'], `${r.name} ${style[i]}`).toContain(style[i]);
+      }
+    }
+    expect(names.sort()).toEqual(['band-sheen', 'medal-stick', 'say-in', 'shot-in']);
   });
 });
