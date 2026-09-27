@@ -61,7 +61,8 @@ export const cutDb = (id: string): number => (PUNCH.has(id) ? -12 : TIGHT.has(id
 export const FANFARE_SECONDS = 2.1;
 /** the stings' lengths (catalog `finish`, `finishLow`, `koOut`, `koSafe`, plus a breath): the results song waits for their last chord */
 // finish raised 3.6 -> 4.1 on 26 Sept 2026: the remade finish-fanfare (audition pack, judge 10/9) runs 4.0 s, up from 3.5 s
-export const STING_SECONDS = Object.freeze({ finish: 4.1, finishLow: 2.3, koOut: 2.3, koSafe: 2.1 });
+// koSafe raised 2.1 -> 2.3 on 27 Sept 2026: the mallet sting that replaced it (scripts/sfx/recipes.ts) rings 2.2 s
+export const STING_SECONDS = Object.freeze({ finish: 4.1, finishLow: 2.3, koOut: 2.3, koSafe: 2.3 });
 
 // ---------------------------------------------------------------- analysis (pure)
 
@@ -231,7 +232,8 @@ const MIX_DB: Readonly<Record<string, number>> = Object.freeze({
   // the race
   count: -1, go: 1, lap: -1, finalLap: 1, finish: 1, finishLow: 0, shift: 1, koOut: 0, koSafe: 0,
   // menus, pickups and place
-  uiMove: -8, uiConfirm: -5, uiBack: -6, rouletteTick: -3, itemReady: -2, coin: 0, balloon: -1,
+  // coin (the gear pickup, 27 Sept 2026): its ratchet clicks are spiky, so 3 dB down keeps the mix's true peak where it was
+  uiMove: -8, uiConfirm: -5, uiBack: -6, rouletteTick: -3, itemReady: -2, coin: -3, balloon: -1,
   gainPlace: -2, losePlace: -3, wrongWay: -2, respawn: -3, denied: -6,
   // items
   throw: -3, kite: -3, drop: -1, shieldUp: -3, shieldPop: -2, shieldEnd: -3, airHorn: 0, fog: -3, bounce: -5, pop: -5,
