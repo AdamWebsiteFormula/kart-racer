@@ -428,7 +428,7 @@ const KART_ART: Readonly<Record<string, (a: string, b: string) => string>> = Obj
 
 /**
  * A kart side on and facing right (data/karts.ts ids), in its two colors `a` and `b`, on its shadow; '' for an
- * unknown id. Sized by its box (karts.css), never by its attributes.
+ * unknown id. Sized by its box (select.css), never by its attributes.
  */
 export function kartSvg(kartId: string, a: string, b: string): string {
   const art = KART_ART[kartId];

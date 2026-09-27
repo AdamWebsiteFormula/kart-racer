@@ -35,7 +35,7 @@ export const STILL_YAW = 0.7;
  * (as in Blender's View Selected or Unity's Frame Selected). The sphere is looser than the kart itself, so
  * the fill runs past 1.
  */
-export const FRAME_FILL = 1.25;
+export const FRAME_FILL = 1.36;
 /** The camera's original look-down angle above its target (its tuned position, 2.5 high and 8.2 back, looking at 0.7 up): kept fixed so only distance changes with a kart's size. */
 const CAMERA_ELEVATION = Math.atan2(2.5 - 0.7, 8.2);
 /** Distance floor and ceiling: never so close the near plane crowds a tiny kart, nor so far a huge one outgrows the far plane. */
@@ -92,6 +92,17 @@ export function popScale(t: number): number {
   return POP_FROM + (1 - POP_FROM) * (1 + (c + 1) * u * u * u + c * u * u);
 }
 
+/** the contact shadow's half extents across and along the kart (every kart is fitted to the same footprint, glb.ts KART_FIT 2.1 × 1.7 m) and its darkness */
+export const SHADOW = Object.freeze({ halfWidth: 1.55, halfLength: 1.85, opacity: 0.5 });
+const SHADOW_VERT = /* glsl */ `varying vec2 vUv;
+void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+// (dark out past the kart's own footprint, which hides the middle: the soft edge is what shows)
+const SHADOW_FRAG = /* glsl */ `varying vec2 vUv;
+void main() {
+  float d = length(vUv - 0.5) * 2.0;
+  gl_FragColor = vec4(0.04, 0.05, 0.12, ${SHADOW.opacity.toFixed(2)} * (1.0 - smoothstep(0.42, 1.0, d)));
+}`;
+
 // the backdrop: the blurred world, cover-fitted to the screen, drifting very slowly, a little darker at the
 // edges and along the bottom (the prompt bar); drawn first with no depth, over the race while it fades in
 const BACKDROP_VERT = /* glsl */ `varying vec2 vUv;
@@ -105,9 +116,9 @@ uniform float ready;
 varying vec2 vUv;
 void main() {
   vec2 uv = (vUv - 0.5) * cover + 0.5 + drift;
-  vec3 c = mix(base, texture2D(map, uv).rgb, ready);
+  vec3 c = mix(base, texture2D(map, uv).rgb, ready) * 0.93;
   float edge = smoothstep(1.2, 0.3, length((vUv - vec2(0.56, 0.58)) * vec2(1.0, 1.25)));
-  c *= mix(0.7, 1.0, edge) * mix(0.8, 1.0, smoothstep(0.0, 0.22, vUv.y));
+  c *= mix(0.68, 1.0, edge) * mix(0.72, 1.0, smoothstep(0.0, 0.24, vUv.y)) * mix(0.84, 1.0, smoothstep(1.0, 0.8, vUv.y));
   gl_FragColor = vec4(c, opacity);
   #include <colorspace_fragment>
 }`;
@@ -123,17 +134,29 @@ export class Showroom {
   private fit: { dist: number; offX: number; offY: number; y: number } | null = null;
   private readonly stand = new Group();
   private readonly backdrop: { scene: Scene; mesh: Mesh<PlaneGeometry, ShaderMaterial> };
+  /** the contact shadow under the kart */
+  private readonly shadow: Mesh<PlaneGeometry, ShaderMaterial>;
   /** the backdrop picture's width over height, once in */
   private backdropAspect = 16 / 9;
 
   constructor(environment: Texture | null = null) {
     this.scene.environment = environment; // the model-file racers' PBR metal needs a reflection
     this.scene.environmentIntensity = 0.8;
-    const key = new DirectionalLight(0xfff2de, 2.7);
+    // a warm key, and a strong cool rim from behind so the hero's edge stands off the bright world behind it
+    const key = new DirectionalLight(0xffecd0, 2.9);
     key.position.set(3, 7, 5);
-    const rim = new DirectionalLight(0xcfe0ff, 1.4);
-    rim.position.set(-4, 3, -5);
-    this.scene.add(key, rim, new HemisphereLight(0xeef6ff, 0x6a6a58, 1.25), new AmbientLight(0xdfeaff, 0.35));
+    const rim = new DirectionalLight(0xd8e6ff, 2.3);
+    rim.position.set(-5, 4, -4);
+    this.scene.add(key, rim, new HemisphereLight(0xeef6ff, 0x6a6a58, 1.2), new AmbientLight(0xdfeaff, 0.3));
+    // a soft contact shadow on the ground under the kart (the ground itself unseen), so the hero stands, not floats;
+    // it stays on the ground when the kart hops
+    const shadow = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({ vertexShader: SHADOW_VERT, fragmentShader: SHADOW_FRAG, transparent: true, depthWrite: false, toneMapped: false }));
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.01;
+    shadow.scale.set(SHADOW.halfWidth, SHADOW.halfLength, 1);
+    shadow.renderOrder = -1;
+    this.shadow = shadow;
+    this.stand.add(shadow);
     this.scene.add(this.stand);
     const material = new ShaderMaterial({
       vertexShader: BACKDROP_VERT, fragmentShader: BACKDROP_FRAG, transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
@@ -260,10 +283,18 @@ export class Showroom {
     renderer.autoClear = auto;
   }
 
-  /** Compile its programs now (a kart in each kind of material on the stand, and the backdrop), so the racer screen never waits on a shader. Never swaps a kart already on show. */
+  /**
+   * Compile its programs now (a kart in each kind of material on the stand, and the backdrop), so the racer screen
+   * never waits on a shader. Never swaps a kart already on show; the one it put there goes again once compiled,
+   * unless the stage has shown it meanwhile (so the first racer on show still says hello).
+   */
   precompile(renderer: WebGLRenderer, racerId: string, look: KartLook): Promise<unknown> {
-    if (!this.kart) this.show(racerId, look);
-    return Promise.all([renderer.compileAsync(this.scene, this.camera), renderer.compileAsync(this.backdrop.scene, this.camera)]);
+    const mine = !this.kart;
+    if (mine) this.show(racerId, look);
+    const warm = mine ? this.kart : null;
+    if (warm) warm.at = -2; // (update() marks it shown: at ≥ 0)
+    return Promise.all([renderer.compileAsync(this.scene, this.camera), renderer.compileAsync(this.backdrop.scene, this.camera)])
+      .finally(() => { if (warm && this.kart === warm && warm.at === -2) this.clearKart(); });
   }
 
   /** Nothing on the stand (the stage has gone: its kart's copies are freed, and the next racer on show says hello again). */
@@ -284,5 +315,7 @@ export class Showroom {
     this.clearKart();
     this.backdrop.mesh.geometry.dispose();
     this.backdrop.mesh.material.dispose();
+    this.shadow.geometry.dispose();
+    this.shadow.material.dispose();
   }
 }

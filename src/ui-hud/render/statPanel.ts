@@ -1,7 +1,7 @@
 // The stats panel (design §5, §12), one piece on the Racer and Kart screens: four bars, each a solid bar for
 // the combo chosen now and a ghost for the one under the focus: a light extension for a gain, a hatched cut-back
 // for a loss (the solid bar gives way to it), and a chevron a step, up to three. Built once; a render writes only
-// what changed (karts.css moves the bars by scaleX alone, 240 ms on the house ease, 40 ms apart, the ghost fading
+// what changed (select.css moves the bars by scaleX alone, 240 ms on the house ease, 40 ms apart, the ghost fading
 // in over 120 ms; at once with reduced motion). The words are for screen readers: "Speed 7 of 10, up 2".
 import type { StatPanelVM } from '../screens/stats.ts';
 import { STAT_KEYS } from '../data/kartStats.ts';
