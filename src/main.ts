@@ -99,11 +99,13 @@ const lightTo = { sun: new Color(), sky: new Color(), ambient: new Color(), eart
 /** the sky's light as eased so far, before the mine takes its share */
 const lightNow = { sun: new Color(), sky: new Color(), ambient: new Color(), earth: new Color(), sunI: 0, skyI: 0, ambientI: 0 };
 /**
- * In a tunnel (Canyon's mine) the day gives way to the lanterns: its light this much dimmer and this
- * warm, by how deep the camera is in the bore (ChaseCam.tunnel, eased over the portal). The sun is
- * shadowed in there anyway; the bright mouth ahead stays bright.
+ * In a tunnel (Canyon's mine) the day gives way to the lanterns: the sky's light a little dimmer, the fill
+ * a warm lantern light over the road and the karts (27 Sept 2026: the bore read as a black void on laps 1
+ * and 2), by how deep the camera is in the bore (ChaseCam.tunnel, eased over the portal). The sun is
+ * shadowed in there anyway; the bright mouth ahead stays bright; the bore's own pools are its mesh's
+ * (track-builder mesh/tunnel.ts BORE_LIGHT).
  */
-const MINE = Object.freeze({ sun: 0.85, sky: 0.6, ambient: 0.62, warm: new Color(0xffa860), tint: 0.4 });
+const MINE = Object.freeze({ sun: 0.85, sky: 0.9, ambient: 1.9, warm: new Color(0xffb070), tint: 0.6 });
 let lightFor: SkyLight | null = null;
 function applyLight(l: SkyLight, bounce: Color | null, dt: number, snap: boolean, tunnel: number): void {
   if (l !== lightFor) {

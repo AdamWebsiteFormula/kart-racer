@@ -24,7 +24,7 @@ import { bakeTrackShading, type BakeReceiver } from './bake.ts';
 import { buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours, selfLit, sunlessBackFaces } from './glow.ts';
 import { buildStartGantry, setStartLamps } from './gantry.ts';
-import { buildTunnels } from './tunnel.ts';
+import { BORE_LIGHT, FINAL_ROAD, buildTunnels, lightBoreRoad, type Lantern } from './tunnel.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
@@ -1300,6 +1300,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       for (const c of chunks) {
         if (c.branch !== 0 || (!shift.routeOverrides?.length && !chunkTouched(c, tm, surfaces))) continue;
         const g = buildRibbon(tm.lut, c.u0, c.u1, palette, ribbonOptions(tm));
+        // the final lap's road through the mine: under its lanterns, lit by then (tunnel.ts)
+        if (tunnels) lightBoreRoad(g, tunnels.userData.lanterns as Lantern[], track.tunnels, FINAL_ROAD.level, FINAL_ROAD.shade);
         OWNED.add(g);
         chunkGeos.set(c.index, g);
         // on show for the warm-up's one draw of everything only (that uploads it)
@@ -1341,6 +1343,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   if (landmarkMesh && !landmarkMesh.userData.sharedMaterial) bakeReceivers.push({ mesh: landmarkMesh });
   const decorOccluders = Array.from(instancers.values()).filter((m) => m.name.startsWith('decor:'));
   group.userData.bakeStats = bakeTrackShading(group, { receivers: bakeReceivers, decor: decorOccluders, sun: env.sunDirection ?? [0.4, 0.8, 0.3] });
+  // the road through a mine, under its lanterns burning low (tunnel.ts; after the bake, which would darken their light)
+  if (tunnels) for (const c of chunks) lightBoreRoad(c.mesh.geometry, tunnels.userData.lanterns as Lantern[], track.tunnels, BORE_LIGHT.ember);
 
   /** whether the Low tier's thinning is on (cull), and the view its last run was for */
   let lowOn = false, sinceCull = 0, lastFov = 0, lastFar = 0;
