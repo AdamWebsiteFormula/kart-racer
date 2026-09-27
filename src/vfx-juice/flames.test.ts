@@ -494,12 +494,19 @@ describe('the pipes off the boost: the engine\'s own rev (26 Sept 2026, kart-con
     expect(u.uGlow.value).toBe(1);
   });
 
-  it('a start boost bursts bigger than any other boost at the go (Mario Kart World\'s rocket start), never brighter', () => {
+  it('a start boost bursts further than any other boost at the go (Mario Kart World\'s rocket start), never wider, whiter or brighter than a purple mini-turbo', () => {
     expect(popScale(0, 'start')).toBeGreaterThan(popScale(3, 'drift'));
     expect(popScale(0, 'start')).toBeGreaterThan(popScale(0, 'item'));
+    const at = (tier: number, source: BoostSource, age: number) => ({ ...flameSize(tier, source, age, 2, 1, { len: 0, wid: 0 }) });
+    // at the ignition's peak its jet reaches further than a purple mini-turbo's; it swells no wider than one
+    expect(at(0, 'start', FLAME.shootSeconds).len).toBeGreaterThan(at(3, 'drift', FLAME.shootSeconds).len);
+    const swell = at(0, 'start', 0).wid / at(0, 'start', FLAME.popSeconds).wid;
+    expect(swell).toBeCloseTo(1 + FLAME.popWid * FLAME.popBy.tier[2], 6);
+    const o: Ignition = { pop: 0, flash: 0, ring: -1 };
+    expect(ignition(0, popScale(0, 'start'), false, o).flash).toBeCloseTo(FLAME.popBy.tier[2], 6);
     const f = new ExhaustFlames(new Group(), 'gus'), u = uniforms(f);
     f.update(kart('start', 1), 5);
-    expect(u.uPop.value).toBeCloseTo(FLAME.popBy.start, 6);
+    expect(u.uPop.value).toBeLessThanOrEqual(FLAME.popBy.tier[2] + 1e-9);
     expect(u.uRing.value).toBe(0);
     expect(u.uGain.value).toBeLessThanOrEqual(FLAME.gain + FLAME.popGain + 1e-9);
   });

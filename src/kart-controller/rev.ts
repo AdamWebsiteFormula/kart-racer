@@ -39,7 +39,7 @@ export const ENGINE_REV = Object.freeze({
   popAbove: 0.7,
   crackles: 2,
   crackleGap: 0.11,
-  crackleSize: 0.45,
+  crackleSize: 0.7,
   /** seconds: the pipes' heat follows the rev, warming this fast and cooling this slow */
   heatUp: 0.3,
   heatDown: 1.1,
@@ -167,7 +167,11 @@ export class EngineRev implements RevView {
 
     // a press from low revs is a blip; letting off from high revs pops, and it crackles after
     if (down && !this.wasDown && free && this.x < R.blipBelow) { this.blipAt = this.clock; this.blipSize = 1 - 0.5 * (this.x / R.blipBelow); }
-    if (!down && this.wasDown && free && this.x > R.popAbove) this.popNow(0.6 + 0.4 * clamp((this.x - R.popAbove) / (1 - R.popAbove), 0, 1), R.crackles);
+    if (!down && this.wasDown && free && this.x > R.popAbove) {
+      // the higher it revved, the bigger the pop; only a let-off from near the limiter crackles on after it
+      const k = clamp((this.x - R.popAbove) / (1 - R.popAbove), 0, 1);
+      this.popNow(0.6 + 0.4 * k, k > 0.8 ? R.crackles : k > 0.5 ? 1 : 0);
+    }
     if (down) this.crackleLeft = 0; // back on the gas: the crackle stops
     if (this.crackleLeft > 0 && this.clock >= this.crackleNext) {
       this.crackleLeft--;

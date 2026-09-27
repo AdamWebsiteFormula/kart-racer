@@ -48,8 +48,9 @@ export const SPARK = Object.freeze({
 export const EMBER = Object.freeze({
   /** flakes a second off a boosting kart's pipes: bits of the flame breaking off its point */
   rate: 24,
-  /** flakes thrown at a boost's ignition */
+  /** flakes thrown at a boost's ignition; a start boost's this many times as many */
   burst: 10,
+  startBurst: 2.5,
   life: [0.14, 0.3] as Range,
   width: 0.05,
   /** share of its kart's velocity a flake keeps, and its own speed out of the pipe (m/s) */
@@ -60,11 +61,12 @@ export const EMBER = Object.freeze({
 
 /**
  * The pipes' breath: a small gray-blue puff at idle, and quicker, darker ones on a hard launch from a
- * standstill. Subtle: never a cloud. Revving off the road (kart-controller rev.ts) they come quicker,
- * bigger and darker with the revs; a blip throws a couple, a pop a few dark ones; a start held too early
- * over-revs and smokes gray on the grid, and at the go stalls in a burst of dark smoke with the tires
- * scrubbing (Mario Kart World: an over-revved start "backfires and stalls", mariowiki Rocket Start; our
- * start costs no time, design §7, so only the look and the sound say so).
+ * standstill. Subtle: never a cloud. Off the road the engine's own rev (kart-controller rev.ts) adds the
+ * rest in Mario Kart World's language (YouTube KkZV6Lp5Z5o, KCuVvGgJ5-4, TcPA3HMHSh0; mariowiki Rocket
+ * Start): revving burns (the flames, flames.ts) and does not smoke; a blip throws a puff or two with its
+ * spit of fire, a pop a few dark ones; smoke means trouble: a start held too early over-revs and smokes
+ * gray on the grid, and at the go it "backfires and stalls" in a burst of dark smoke with the rear tires
+ * scrubbing (our start costs no time, design §7, so only the look and the sound say so).
  */
 export const PUFF = Object.freeze({
   color: Object.freeze([0.44, 0.49, 0.6] as const),
@@ -74,12 +76,10 @@ export const PUFF = Object.freeze({
   launchSpeed: 9, launchAccel: 4, launchRate: 12, launchAlpha: 0.62,
   /** how much a puff grows over its life, and how fast it leaves the pipe (m/s) */
   grow: 2.4, speed: 0.9,
-  /** revving: puffs a second more at full rev, this much bigger, this color (darker), this much faster out of the pipe */
-  revRate: 9, revSize: 1.5, revColor: Object.freeze([0.33, 0.35, 0.4] as const), revSpeed: 1.2,
-  /** a blip's puffs; a pop's (times its size), dark */
-  blipPuffs: 2, popPuffs: 3, popColor: Object.freeze([0.26, 0.26, 0.29] as const),
-  /** held too early on the grid: gray smoke puffs a second; the stall at the go: dark smoke from the pipes and tire smoke, this many each */
-  earlyRate: 7, stallSmoke: 10, stallTires: 8, stallColor: Object.freeze([0.2, 0.2, 0.22] as const),
+  /** a blip's puffs (a little darker than the breath); a pop's (times its size), dark */
+  blipPuffs: 2, blipColor: Object.freeze([0.33, 0.35, 0.4] as const), popPuffs: 3, popColor: Object.freeze([0.26, 0.26, 0.29] as const),
+  /** held too early on the grid: gray smoke puffs a second, this much bigger; the stall at the go: dark smoke from the pipes and tire smoke, this many each */
+  earlyRate: 7, earlySize: 1.5, stallSmoke: 10, stallTires: 8, stallColor: Object.freeze([0.2, 0.2, 0.22] as const),
 });
 
 /** A drift's tire smoke: faint white puffs where the rear tires scrub the road (a rival's fewer, reduced motion's half). */
@@ -245,7 +245,8 @@ export class KartFx {
       let burst = 0, steady = 0;
       if (m.boost.since !== m.lastSince) {
         m.lastSince = m.boost.since;
-        burst = Math.round(EMBER.burst * share);
+        // a start boost bursts with more (Mario Kart World's rocket start throws a spray of sparks with its fire)
+        burst = Math.round(EMBER.burst * share * (k.boost.source === 'start' ? EMBER.startBurst : 1));
         if (btier > 0 && heldTier > 0) {
           const col = TIER_RGB[btier - 1], hot = TIER_HOT[btier - 1], r = Math.round(SPARK.release * share);
           for (let i = 0; i < r * 2; i++) this.speck(m, i % 2 ? 1 : -1, sbx, sbz, s, c, py, vx, vy, vz, out, rnd() < 0.4 ? hot : col, SPARK.back, SPARK.out, SPARK.up, SPARK.life, SPARK.stretch);
@@ -271,21 +272,20 @@ export class KartFx {
     } else m.emberAcc = 0;
 
     // the pipes' breath: a puff at idle, quicker ones on a hard launch; small, gray-blue, soon gone;
-    // revving off the road quicker, bigger and darker with the revs, and gray smoke while a start is held too early
+    // and gray smoke, quicker and bigger, while a start is held too early (the engine over-revving)
     const accel = dt > 0 ? (k.speed - m.lastSpeed) / dt : 0;
     m.lastSpeed = k.speed;
     const idle = k.grounded && Math.abs(k.speed) < PUFF.idleSpeed, launch = k.grounded && k.speed < PUFF.launchSpeed && accel >= PUFF.launchAccel;
-    const revving = rev && k.grounded ? rev.rev * (1 - rev.load) : 0, early = rev?.start === 'early';
+    const early = rev?.start === 'early' && k.grounded;
     const ex = m.exhaust;
     const pipes = ex && ex.ports.length && k.boost.remaining <= 0 ? ex : undefined;
-    if ((idle || launch || revving > 0.05) && pipes) {
-      const rate = launch ? PUFF.launchRate : PUFF.idleRate + PUFF.revRate * revving + (early ? PUFF.earlyRate : 0);
+    if ((idle || launch) && pipes) {
+      const rate = launch ? PUFF.launchRate : PUFF.idleRate + (early ? PUFF.earlyRate : 0);
       m.puffAcc += dt * rate * (mine ? 1 : SPARK.rival);
       while (m.puffAcc >= 1) {
         m.puffAcc -= 1;
-        const r = launch ? 0 : revving;
-        this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * (launch ? 1.6 : 1 + (PUFF.revSpeed - 1) * r), launch ? PUFF.color : early ? PUFF.popColor : r > 0.05 ? PUFF.revColor : PUFF.color,
-          launch ? 0.85 : 1, PUFF.size * (1 + (PUFF.revSize - 1) * r), launch ? PUFF.launchAlpha : PUFF.alpha);
+        this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * (launch ? 1.6 : early ? 1.4 : 1), launch ? PUFF.color : early ? PUFF.popColor : PUFF.color,
+          launch ? 0.85 : 1, PUFF.size * (early && !launch ? PUFF.earlySize : 1), launch ? PUFF.launchAlpha : PUFF.alpha);
       }
     } else m.puffAcc = 0;
     // the engine's moments: a blip's puffs, a pop's dark ones, a start held too early stalling in smoke at the go
@@ -294,7 +294,7 @@ export class KartFx {
       const n = mine ? 1 : SPARK.rival;
       if (rev.blipAt > m.lastBlip) {
         m.lastBlip = rev.blipAt;
-        if (pipes) for (let i = Math.round(PUFF.blipPuffs * n); i > 0; i--) this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * 1.8, PUFF.revColor, 1, PUFF.size * 1.4, PUFF.alpha);
+        if (pipes) for (let i = Math.round(PUFF.blipPuffs * n); i > 0; i--) this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * 1.8, PUFF.blipColor, 1, PUFF.size * 1.4, PUFF.alpha);
       }
       if (rev.pops !== m.lastPops) {
         m.lastPops = rev.pops;

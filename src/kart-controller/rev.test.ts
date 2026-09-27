@@ -93,7 +93,7 @@ describe('EngineRev: the gas revs the engine', () => {
     let n = 1;
     run(rev, s, NEUTRAL_INPUT, 1, () => { if (rev.pops > n) { n = rev.pops; sizes.push(rev.popSize); } });
     expect(sizes.length).toBe(R.crackles);
-    for (const z of sizes) { expect(z).toBeLessThan(0.7); expect(z).toBeGreaterThan(0.2); }
+    for (const z of sizes) { expect(z).toBeLessThan(R.crackleSize * 1.31); expect(z).toBeGreaterThan(R.crackleSize * 0.69); expect(z).toBeLessThan(1); }
     // a let-off whose crackle is cut short by the gas
     run(rev, s, GAS, 0.8);
     rev.tick(s, NEUTRAL_INPUT, dt);

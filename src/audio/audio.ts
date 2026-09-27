@@ -467,13 +467,13 @@ export class GameAudio {
     this.pop(ctx, rev.popSize, gain, pan);
   }
 
-  /** One pop of `size` 0..1 at `gain` and `pan`: the puff, and the thump under it when big (a backfire). Pitch varies ±8 %. */
+  /** One pop of `size` 0..1 at `gain` and `pan`: the puff, with a thump under it when big (a backfire), else a crisp crack (a small pop, a crackle). Pitch varies ±8 %. */
   private pop(ctx: AudioContext, size: number, gain: number, pan: number): void {
     const at = ctx.currentTime + 0.005, dest = this.bus.sfx!;
     this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
     const rate = 1 + ((this.jitter / 0xffffffff) * 2 - 1) * 0.08;
     playPatch(ctx, dest, ENGINE_POP.puff, at, gain * size, pan, rate);
-    if (size >= AUDIO.engineRev.thumpFrom) playPatch(ctx, dest, ENGINE_POP.thump, at, gain * size, pan, rate);
+    playPatch(ctx, dest, size >= AUDIO.engineRev.thumpFrom ? ENGINE_POP.thump : ENGINE_POP.crack, at, gain * size, pan, rate);
   }
 
   /**

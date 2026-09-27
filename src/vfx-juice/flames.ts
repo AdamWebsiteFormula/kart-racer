@@ -64,13 +64,19 @@ export const PALETTE = Object.freeze({
  */
 export const REV_FIRE = Object.freeze({
   /** a full tongue's length and radius; its radius from `widShare` of that when short */
-  len: 0.34,
-  wid: 0.12,
+  len: 0.28,
+  wid: 0.1,
   widShare: 0.55,
+  /** standing (under `curlSpeed` m/s), a tongue curls this far (0..1) toward `curl` (up and a little back, in the kart's frame): hot gas rises */
+  curl: Object.freeze([0, 0.85, -0.5] as const),
+  curlBend: 0.45,
+  curlSpeed: 4,
+  /** how much a flame at the mouth heats the flare past the heat's own color */
+  mouthHot: 0.25,
   /** tongues grow from this rev, full at the limiter (and only off the road) */
   tongueFrom: 0.7,
   /** a start timed for the boost: tongues this much bigger; one held too early: they cough out `earlyGap` of the time, `earlyHz` a second */
-  ready: 1.35,
+  ready: 1.3,
   earlyGap: 0.5,
   earlyHz: 13,
   /** each pipe's tongue wanders this share of its length (none under reduced motion) */
@@ -257,7 +263,8 @@ export function ignition(age: number, scale: number, reduced: boolean, out: Igni
   const k = scale * (reduced ? FLAME.reducedPop : 1);
   const p = age < 0 ? 0 : Math.max(0, 1 - age / FLAME.popSeconds), f = age < 0 ? 0 : Math.max(0, 1 - age / FLAME.flashSeconds);
   out.pop = p * p * k;
-  out.flash = f * f * k;
+  // the flash never outgrows a purple mini-turbo's (a start boost's bigger fire, not a bigger white disc)
+  out.flash = f * f * Math.min(k, FLAME.popBy.tier[2]);
   out.ring = !reduced && scale >= 0.8 && age >= 0 && age < FLAME.ringSeconds ? age / FLAME.ringSeconds : -1;
   return out;
 }
@@ -280,7 +287,8 @@ export function flameSize(tier: number, source: BoostSource, age: number, left: 
   const pop = p * p * popScale(tier, source) * (reduced ? FLAME.reducedPop : 1);
   const tail = left < FLAME.tailSeconds ? FLAME.tail + (1 - FLAME.tail) * Math.max(0, left) / FLAME.tailSeconds : 1;
   out.len = base.len * k * (1 + FLAME.popLen * pop) * tail * shootOut(age);
-  out.wid = base.wid * k * (1 + FLAME.popWid * pop) * (0.6 + 0.4 * tail);
+  // (a start boost's burst reaches further, never wider than a purple mini-turbo's: its nozzle flash grows with the width)
+  out.wid = base.wid * k * (1 + FLAME.popWid * Math.min(pop, FLAME.popBy.tier[2])) * (0.6 + 0.4 * tail);
   return out;
 }
 
@@ -440,8 +448,9 @@ export class ExhaustFlames {
     }
     const age = t - this.boost.since, left = k.boost.remaining;
     const ig = ignition(age, popScale(tier, k.boost.source), reduced, this.ign);
-    u.uPop.value = ig.pop; u.uFlash.value = ig.flash; u.uRing.value = ig.ring;
-    // (a start boost's ignition is bigger, never brighter: past 1 the bands would burn toward white)
+    // the shader's swell (the flare, the billows) as a purple mini-turbo's at most: a start boost's own is its reach
+    u.uPop.value = Math.min(ig.pop, FLAME.popBy.tier[2]); u.uFlash.value = ig.flash; u.uRing.value = ig.ring;
+    // (a start boost's ignition reaches further, never brighter: past 1 the bands would burn toward white)
     u.uGain.value = FLAME.gain + FLAME.popGain * Math.min(1, ig.pop);
     u.uArc.value = arcLevel(k.boost.source, age, left, reduced);
     const d = flameSize(tier, k.boost.source, age, left, this.size, this.dims, reduced);
@@ -477,16 +486,16 @@ export class ExhaustFlames {
       u.uCore.value.setRGB(...pal.core); u.uInner.value.setRGB(...pal.inner); u.uBody.value.setRGB(...pal.body); u.uEdge.value.setRGB(...pal.edge);
     }
     const h = heatColor(f.heat, this.heat), glow = smooth01(R.glowFrom, 0.45, f.heat);
-    // a spit lights the mouth white-hot a moment, whatever the heat
-    const hot = Math.min(1, f.len);
-    u.uHeart.value.setRGB(h[0] + hot * pal.core[0] * 0.5, h[1] + hot * pal.core[1] * 0.5, h[2] + hot * pal.core[2] * 0.5);
-    u.uMouth.value.setRGB(h[0] + hot * pal.mouth[0] * 0.5, h[1] + hot * pal.mouth[1] * 0.5, h[2] + hot * pal.mouth[2] * 0.5);
+    // a flame at the mouth lights it a little hotter, whatever the heat (never white: the heat's own color leads)
+    const hot = Math.min(1, f.len) * R.mouthHot;
+    u.uHeart.value.setRGB(h[0] + hot * pal.core[0], h[1] + hot * pal.core[1], h[2] + hot * pal.core[2]);
+    u.uMouth.value.setRGB(h[0] + hot * pal.mouth[0], h[1] + hot * pal.mouth[1], h[2] + hot * pal.mouth[2]);
     u.uFringe.value.setRGB(pal.fringe[0] * glow, pal.fringe[1] * glow, pal.fringe[2] * glow);
     u.uPop.value = f.puff;
     u.uFlash.value = f.flash;
     u.uRing.value = -1;
     u.uGain.value = FLAME.gain;
-    u.uGlow.value = Math.max(glow, hot);
+    u.uGlow.value = Math.max(glow, Math.min(1, f.len));
     // each pipe's tongue out of step (two wobbles each), none under reduced motion; short ones thin
     const size = 1 + (this.size - 1) * FLAME.sizeShare, full = R.len * size, p = this.phase, fl = reduced ? 0 : R.flicker;
     const w0 = Math.sin(t * 37 + p) * Math.sin(t * 23 + p * 0.5), w1 = Math.sin(t * 41 + 2.1 + p) * Math.sin(t * 29 + 1 + p * 0.5);
@@ -495,5 +504,12 @@ export class ExhaustFlames {
     const wid = (l: number) => R.wid * size * (R.widShare + (1 - R.widShare) * Math.min(1, l / full));
     u.uWid.value.set(wid(l0), wid(l1));
     this.air(k, u);
+    // standing, the hot gas curls up out of the pipe (a straight tongue pointing back at the chase camera is a blob)
+    const still = 1 - Math.min(1, (k.speed ?? 0) / R.curlSpeed);
+    if (still > 0) {
+      const w = u.uWind.value;
+      w.set(w.x * (1 - still), w.y + (R.curl[1] - w.y) * still, w.z + (R.curl[2] - w.z) * still).normalize();
+      u.uBend.value += (R.curlBend - u.uBend.value) * still;
+    }
   }
 }

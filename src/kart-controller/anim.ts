@@ -99,13 +99,17 @@ export const KART_ANIM = Object.freeze({
   // shiver goes straight on the pose (a spring would smooth it away), and none of it under reduced motion.
   /** Hz of the shiver at idle and at the limiter: under half a 30 fps frame rate, so a slow screen never shows it as a wobble */
   shakeHz: [10, 14] as readonly [number, number],
-  /** m the body shivers on its springs at idle, more at full rev (× the rev squared), more at the limiter (pulsing with its cuts) */
-  shakeIdle: 0.005,
-  shakeRev: 0.011,
-  shakeLimit: 0.008,
+  /**
+   * m the body shivers on its springs at idle, more at full rev (× the rev squared), more at the limiter
+   * (pulsing with its cuts): a rumble, not a shake (measured on screen, 26 Sept 2026, the chase camera at
+   * 1080p: idling the kart's body moves ±1 px, at the limiter ±4 px, about 2 px from frame to frame)
+   */
+  shakeIdle: 0.007,
+  shakeRev: 0.008,
+  shakeLimit: 0.005,
   /** rad of roll and of pitch per m of the shiver (the body wobbles a hair as it bobs) */
-  shakeRoll: 0.9,
-  shakePitch: 0.6,
+  shakeRoll: 0.6,
+  shakePitch: 0.4,
   /** rad the driver's head bobs per m of the shiver */
   shakeNod: 1.5,
   /** m/s: with no engine rev to read (a bare KartAnim), the idle shiver fades out by this speed */

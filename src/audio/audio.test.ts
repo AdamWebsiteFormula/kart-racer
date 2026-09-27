@@ -162,15 +162,19 @@ describe('engine', () => {
     expect(rivalSwell(rev(1, 1))).toBe(1);
   });
 
-  it('the engine pop is soft and short: a low thump under a dark puff, no bright crack', () => {
-    const { thump, puff } = ENGINE_POP;
+  it('the engine pop is soft and short: a low thump under a dark puff; a crackle only a quick crack, nothing bright or long', () => {
+    const { thump, puff, crack } = ENGINE_POP;
     expect(thump.wave).toBe('sine');
     expect(thump.f0).toBeLessThan(150);
     expect(thump.f1!).toBeLessThan(thump.f0);
     expect(puff.wave).toBe('noise');
     expect(puff.filter!.type).toBe('lowpass');
     expect(puff.filter!.f0).toBeLessThanOrEqual(1200);
-    for (const p of [thump, puff]) expect(p.attack + p.decay + (p.hold ?? 0)).toBeLessThan(0.25);
+    expect(crack.filter!.f0).toBeLessThanOrEqual(2500);
+    expect(crack.decay).toBeLessThan(0.05);
+    for (const p of [thump, puff, crack]) expect(p.attack + p.decay + (p.hold ?? 0)).toBeLessThan(0.25);
+    // a crackle never thumps: only a pop let off from near the limiter does
+    expect(AUDIO.engineRev.thumpFrom).toBeGreaterThan(ENGINE_REV.crackleSize * 1.3);
   });
 });
 

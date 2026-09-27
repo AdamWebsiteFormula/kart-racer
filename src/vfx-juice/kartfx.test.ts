@@ -247,14 +247,15 @@ describe('the pipes on the grid (26 Sept 2026: the engine\'s own rev, kart-contr
   }
   const colors = (vfx: Vfx) => live(vfx.soft).map((p) => p.c);
 
-  it('revving the pipes breathe quicker, bigger and darker than at idle; a blip throws a couple more; a let-off pop a few dark ones', () => {
+  it('revving burns and does not smoke (the breath stays an idle one); a blip throws a couple of puffs; a let-off pop a few dark ones', () => {
     const idle = new Vfx(new Scene(), new PerspectiveCamera());
     const n0 = stand(idle, driver('gus', 0, 0, 0, true), new EngineRev(c), 2, () => 0);
     const vfx = new Vfx(new Scene(), new PerspectiveCamera()), k = driver('gus', 0, 0, 0, true), rev = new EngineRev(c);
     stand(vfx, k, rev, 1, () => 0);
-    const n1 = stand(vfx, k, rev, 2, () => 1);
-    expect(n1).toBeGreaterThan(n0 * 2.5);
-    for (const col of colors(vfx)) expect(col[0]).toBeLessThan(PUFF.color[0]); // darker than the idle breath
+    stand(vfx, k, rev, 1, () => 1);
+    const n1 = stand(vfx, k, rev, 1, () => 1); // held at the limiter, the press's blip long gone
+    expect(n1).toBeLessThanOrEqual(n0 + 1);
+    for (const col of colors(vfx)) expect(col[0]).toBeCloseTo(PUFF.color[0], 4); // the idle breath's gray-blue, no smoke
     // a let-off from the limiter: a pop's dark puffs at once
     const before = vfx.soft.count;
     stand(vfx, k, rev, 1 / 60, () => 0);

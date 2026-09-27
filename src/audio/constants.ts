@@ -69,7 +69,7 @@ export const AUDIO = Object.freeze({
    * let-off after a high rev, a start held too early): the synth pop's level (sfx.ts ENGINE_POP; a
    * thump under it from `thumpFrom` of a full pop), a rival's share of it, at most `popsPerSecond` a kart.
    */
-  engineRev: Object.freeze({ limiterRpm: 7000, flutterHz: 11, flutterChop: 0.25, flutterRate: 0.025, rivalLift: 0.5, pop: 0.55, rivalPop: 0.45, thumpFrom: 0.5, popsPerSecond: 12 }),
+  engineRev: Object.freeze({ limiterRpm: 7000, flutterHz: 11, flutterChop: 0.25, flutterRate: 0.025, rivalLift: 0.5, pop: 0.35, rivalPop: 0.3, thumpFrom: 0.92, popsPerSecond: 12 }),
   /** the wheel loops under the player (engine.ts wheelSound), at full speed */
   wheels: Object.freeze({ offroad: 0.35, 'offroad-sand': 0.35, 'offroad-snow': 0.4, 'road-ice': 0.25, 'road-wood': 0.12, 'rail-grind': 0.3 } as Record<string, number>),
   /** the drift sparks' crackle (engine.ts sparkLayer): its level, and its share of that per spark tier */

@@ -473,7 +473,7 @@ describe('the engines', () => {
     expect(rate(mine[0])).toBeCloseTo(idle[0], 6);
   });
 
-  it('each engine pop plays once: a backfire as a thump and a puff, a crackle the puff alone; one seen late replays nothing', () => {
+  it('each engine pop plays once: a backfire as a thump and a puff, a crackle as a crack and a puff; one seen late replays nothing', () => {
     const { audio, ctx, record } = rig();
     record();
     const grid = createKartState({ racerId: 'p' });
@@ -489,7 +489,7 @@ describe('the engines', () => {
     expect(ctx.sources.slice(n).map((x) => x.kind).sort()).toEqual(['buffer', 'osc']);
     n = count();
     pop(5, 0.3);
-    expect(ctx.sources.slice(n).map((x) => x.kind)).toEqual(['buffer']);
+    expect(ctx.sources.slice(n).map((x) => x.kind)).toEqual(['buffer', 'buffer']);
     // two in one breath: only the first plays (at most popsPerSecond)
     n = count();
     pop(6, 1);
