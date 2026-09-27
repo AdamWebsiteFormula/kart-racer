@@ -445,7 +445,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* the finish: the place beside FINISH! on a pill (the timer's), so it reads over any sky or crowd; the
    celebration takes the two up under the timer, clear of the kart (podium.css). Under FINISH! it sat on the
    racer's hat in the finish camera, small and bare (25 Sept 2026) */
-.banner[data-kind='finish'] .small { position: relative; z-index: 1; display: inline-block; vertical-align: 0.6em; margin: 0 0 0 0.62em; padding: 0.12em 0.42em 0.18em; border-radius: 999px; background: rgb(27 27 47 / 0.6); font-size: clamp(34px, 4.4vw, 62px); }
+.banner[data-kind='finish'] .small { position: relative; z-index: 1; display: inline-block; vertical-align: 0.6em; margin: 0 0 0 1em; padding: 0.12em 0.42em 0.18em; border-radius: 999px; background: rgb(27 27 47 / 0.6); font-size: clamp(34px, 4.4vw, 62px); }
 .banner[data-kind='finish'] .small:empty { display: none; }
 .banner.show[data-kind='finish'] .small { animation: pop-in var(--t-slow) var(--pop) 200ms backwards; }
 /* the prompt's words stay in the banner for assistive tech (read out with FINISH!); the eyes get the pill */

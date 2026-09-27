@@ -123,8 +123,8 @@
    the kart the camera circles (the prompt for the results waits on its pill below it, ui.css .finish-go); the
    item slots, the map, the assist badge and the hints go; the place and the time stay (a press or a tap still goes
    straight to the results). --banner-scale: FINISH! keeps it as it rises away for the results (ui.css x-rise-out) */
-/* (FINISH! lands big first, then rises: MKW's FINISH comes in over the kart before anything moves aside) */
-#ui .hud.celebrate .banner { --banner-scale: 0.56; top: 12%; transform: scale(var(--banner-scale)); transform-origin: 50% 0; transition: top 700ms var(--out) 650ms, transform 700ms var(--out) 650ms; }
+/* (FINISH! lands big first, every letter down, then rises: MKW's FINISH comes in over the kart before anything moves aside) */
+#ui .hud.celebrate .banner { --banner-scale: 0.56; top: 12%; transform: scale(var(--banner-scale)); transform-origin: 50% 0; transition: top 700ms var(--out) 1s, transform 700ms var(--out) 1s; }
 /* (the Knockout's TOP 6 strip goes too: under the timer it crowded FINISH! on a laptop; the cut screen comes next) */
 #ui .hud.celebrate :is(.tl, .br, .assist-dock, .keys-hint, .ko-strip) { opacity: 0; transition: opacity 500ms ease; }
 #ui:has(.hud.celebrate) .touch { display: none; }
