@@ -324,12 +324,14 @@ export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, 
 // ---------------------------------------------------------------- the disappointed reactions (4th and below)
 /**
  * Their aims (the torso's frame, the right arm's; the caller mirrors the left), tuned on stills from the
- * finish camera: a hand to the forehead (the head dropped into it), a fist up by the face and pulled down
- * ("darn!"), and a polite clap in front of the chest. (Arms dropped into the lap were tried: the hood hides
- * them; a fist tapped on the wheel was too small to read.)
+ * finish camera: a hand over the brow and the eyes, the elbow forward (the head bowed into it: Mario Kart
+ * World's facepalm; 27 Sept 2026: the elbow out and up with the hand at the temple read as a salute in blind
+ * reads of Big Gus and Boulder), a fist up by the face and pulled down ("darn!"), and a polite clap in front of
+ * the chest. (Arms dropped into the lap were tried: the hood hides them; a fist tapped on the wheel was too
+ * small to read.)
  */
 const SAD_AIM = Object.freeze({
-  palm: [-0.75, 0.5, 0.43] as const, palmFore: [0.85, 0.38, 0.37] as const,
+  palm: [-0.35, 0.2, 0.92] as const, palmFore: [0.7, 0.62, -0.35] as const,
   darnUp: [-0.4, 0.3, 0.87] as const, darnUpFore: [-0.1, 0.9, 0.42] as const,
   darnDown: [-0.3, -0.25, 0.92] as const, darnDownFore: [0.3, -0.1, 0.95] as const,
   clap: [-0.3, -0.42, 0.86] as const, clapOpen: [0.2, 0.45, 0.87] as const, clapShut: [0.82, 0.3, 0.48] as const,
