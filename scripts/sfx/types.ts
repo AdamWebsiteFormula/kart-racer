@@ -41,7 +41,7 @@ export type Fx =
   | { op: 'flutter'; depth: number; rate?: number; seed?: number };
 
 /** Code-made sound (dsp.py SYNTHS), seeded so it is the same every build. */
-export type Synth = 'noise' | 'whoosh' | 'tone' | 'fm' | 'crackle' | 'silence' | 'flame' | 'engine';
+export type Synth = 'noise' | 'whoosh' | 'tone' | 'fm' | 'crackle' | 'silence' | 'flame' | 'engine' | 'kart';
 
 export type Source =
   /** a file in the approved packs (~/.cache/rascal-sfx/packs): kenney/* and vsco/* (CC0), cascadia/* (Racing Sound Pack, paid license) */

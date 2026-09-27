@@ -372,7 +372,7 @@ def syn_engine(a):
 
 
 @njit(cache=True)
-def _kart(f0, amp_j, time_j, noise, L, fb, damp, pulse, sr):
+def _kart(f0, amp_j, time_j, noise, L, fb, damp, pulse, sr, excite):
     # each firing sends a short noisy pressure pulse into the exhaust pipe: a delay line with damped, inverted
     # feedback (a pipe open at one end rings at odd multiples of sr / 2L); the pipe's ring stays put while the
     # firing rate follows the rpm, which is what makes an engine sound like one and not a buzzer
@@ -390,6 +390,7 @@ def _kart(f0, amp_j, time_j, noise, L, fb, damp, pulse, sr):
             ph -= 1.0
             exc = 1.0 + amp_j[i]
         e = exc * (0.55 + 0.45 * noise[i])
+        excite[i] = exc
         exc *= dec
         d = buf[idx]
         lp += damp * (d - lp)
@@ -405,7 +406,8 @@ def _kart(f0, amp_j, time_j, noise, L, fb, damp, pulse, sr):
 def syn_kart(a):
     """A small single-cylinder two-stroke kart engine held at one rpm: firing pulses at `hz` [[t, Hz]] (rpm / 60),
     uneven by `jitter` (timing) and `lumpy` (level), ringing an exhaust pipe tuned to `pipe` Hz (`ring` 0..0.95 feedback,
-    `damp` 0..1 brightness of the ring, `pulse` s the pulse's length), driven into `drive`, with `rasp` mechanical noise."""
+    `damp` 0..1 brightness of the ring, `pulse` s the pulse's length), driven into `drive`, with `rasp` mechanical noise and
+    `body` (0..1) a low thump at `bodyHz` under each firing."""
     n = int(a['seconds'] * SR)
     rng = _rng(a)
     f0 = curve(a['hz'], n, log=True)
@@ -414,8 +416,12 @@ def syn_kart(a):
     for c in range(2):
         tj = a.get('jitter', 0.03) * _smooth_random(n, 300, rng)
         aj = a.get('lumpy', 0.2) * np.repeat(rng.standard_normal(n // 64 + 1), 64)[:n]
-        y = _kart(f0, aj, tj, rng.uniform(-1, 1, n), L, -a.get('ring', 0.8), a.get('damp', 0.5), a.get('pulse', 0.0015), SR)
+        ex = np.zeros(n)
+        y = _kart(f0, aj, tj, rng.uniform(-1, 1, n), L, -a.get('ring', 0.8), a.get('damp', 0.5), a.get('pulse', 0.0015), SR, ex)
         y = y / (np.abs(y).max() + 1e-12)
+        if a.get('body', 0):  # the crankcase's thump under each firing: the pulses through a low resonance
+            b = filt(ex, 'bp', a.get('bodyHz', 95), 3.0)
+            y = y + a['body'] * b / (np.abs(b).max() + 1e-12)
         d = a.get('drive', 2.0)
         y = np.tanh(y * d) / math.tanh(d)
         if a.get('rasp', 0):

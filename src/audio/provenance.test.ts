@@ -18,7 +18,7 @@ const sfxIds = new Set(SFX.map((s) => s.id));
 /** The approved sources (house rules, 26 Sept 2026): Kenney's packs and the VSCO-2 CE mallets (CC0), the Cascadia Racing Sound Pack (paid license). */
 const PACK = /^(kenney\/kenney_[a-z-]+\/Audio\/[\w -]+\.(ogg|wav)|vsco\/(Glock|Xylo|Marimba)\/[\w-]+\.wav|cascadia\/[\w ./-]+\.(wav|ogg|mp3|aif|aiff))$/;
 const GIT = /^[0-9a-f]{7,40}$/;
-const SYNTHS = new Set(['noise', 'whoosh', 'tone', 'fm', 'crackle', 'silence', 'flame', 'engine']);
+const SYNTHS = new Set(['noise', 'whoosh', 'tone', 'fm', 'crackle', 'silence', 'flame', 'engine', 'kart']);
 
 describe('sound provenance: one maker per sound', () => {
   it('every sound in the manifest is made by exactly one of the catalog and the recipes', () => {
@@ -63,7 +63,7 @@ describe('sound provenance: one maker per sound', () => {
           expect(src.path, r.id).toMatch(/^public\/audio\/sfx\/[\w-]+\.mp3$/);
         } else {
           expect(SYNTHS.has(src.synth), `${r.id}: ${src.synth}`).toBe(true);
-          const seeded = ['noise', 'whoosh', 'crackle', 'flame', 'engine'].includes(src.synth);
+          const seeded = ['noise', 'whoosh', 'crackle', 'flame', 'engine', 'kart'].includes(src.synth);
           if (seeded) expect(typeof src.args.seed, `${r.id}: ${src.synth} needs a seed`).toBe('number');
         }
       }
