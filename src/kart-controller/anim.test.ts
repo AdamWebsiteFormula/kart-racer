@@ -269,14 +269,15 @@ describe('KartAnim: pitch', () => {
     expect(r.most.pitch).toBeGreaterThan(-0.04);
   });
 
-  it('with no engine rev (a bare animation) the kart still shivers a hair at a standstill, never on the road', () => {
+  it('with no engine (a bare animation: the menu\'s turntable) the kart stands calm, the gas or not; on the road the rumble is gone anyway', () => {
     const a = new KartAnim(c, 3), s = cruising(0), pose = newPose();
     let most = 0;
-    for (let i = 0; i < 120; i++) { a.tick(s, NEUTRAL_INPUT, dt); most = Math.max(most, Math.abs(a.pose(1, false, pose).heave)); }
-    expect(most).toBeGreaterThan(T.shakeIdle * 0.6);
-    const b = new KartAnim(c, 3), t = cruising(20);
+    for (let i = 0; i < 120; i++) { a.tick(s, { ...NEUTRAL_INPUT, throttle: i > 60 ? 1 : 0 }, dt); most = Math.max(most, Math.abs(a.pose(1, false, pose).heave), Math.abs(pose.pitch)); }
+    expect(most).toBe(0);
+    const b = new KartAnim(c, 3), rev = new EngineRev(c), t = cruising(20);
     let road = 0;
-    drive(b, t, NEUTRAL_INPUT, 60, 0, () => { road = Math.max(road, Math.abs(b.pose(1, false, pose).heave)); });
+    drive(b, t, NEUTRAL_INPUT, 60, 0, () => { rev.tick(t, NEUTRAL_INPUT, dt); });
+    for (let i = 0; i < 60; i++) { rev.tick(t, NEUTRAL_INPUT, dt); b.tick(t, NEUTRAL_INPUT, dt, rev); road = Math.max(road, Math.abs(b.pose(1, false, pose).heave)); }
     expect(road).toBe(0);
   });
 });

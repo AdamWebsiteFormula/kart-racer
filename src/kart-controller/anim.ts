@@ -112,8 +112,6 @@ export const KART_ANIM = Object.freeze({
   shakePitch: 0.4,
   /** rad the driver's head bobs per m of the shiver */
   shakeNod: 1.5,
-  /** m/s: with no engine rev to read (a bare KartAnim), the idle shiver fades out by this speed */
-  idleSpeed: 4,
   /** rad the nose lifts (the rear squats) at full rev off the road */
   revSquat: 0.05,
   /** a blip, times its size: rad/s the nose kicks up, 1/s the rear squats, rad/s the driver's head rocks back */
@@ -409,7 +407,7 @@ export class KartAnim {
 
   /**
    * One sim tick: `s` is the kart after the step, `input` what it drove on, `rev` its engine's own rev
-   * (rev.ts, ticked already this tick; none: a bare animation, which shivers only at a standstill).
+   * (rev.ts, ticked already this tick; none: no engine, no rumble, as on the menu's turntable).
    * Reads all three, writes none.
    */
   tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number, rev?: RevView): void {
@@ -524,10 +522,9 @@ export class KartAnim {
     }
 
     // --- targets
-    const speed = Math.abs(s.speed);
-    // off the road the engine revs the kart: it squats back on the rev (a bare animation: never)
-    const free = rev ? 1 - rev.load : clamp(1 - speed / t.idleSpeed, 0, 1);
-    const revving = onGround && rev ? rev.rev * free : 0;
+    // off the road the engine revs the kart: it squats back on the rev (no engine: never)
+    const free = rev ? 1 - rev.load : 0;
+    const revving = onGround ? (rev?.rev ?? 0) * free : 0;
     let rollT = 0, yawT = 0, lean = 0, look = 0;
     if (grounded && !spinning) {
       rollT = clamp(t.rollPerLatAccel * aLat, -t.rollTurnMax, t.rollTurnMax) + d * t.driftRoll;
@@ -551,8 +548,8 @@ export class KartAnim {
     // the shiver: quicker and harder as the engine revs, pulsing with the limiter's cuts; straight on the
     // pose, none in the air, in a spin, a loop or the claw, nor under a finish reaction's own moves
     const r = rev ? rev.rev : 0;
-    const amp = onGround && !this.reaction
-      ? free * (t.shakeIdle + t.shakeRev * r * r + (rev ? t.shakeLimit * rev.limiting * (0.5 + 0.5 * rev.cut) : 0))
+    const amp = onGround && !this.reaction && rev
+      ? free * (t.shakeIdle + t.shakeRev * r * r + t.shakeLimit * rev.limiting * (0.5 + 0.5 * rev.cut))
       : 0;
     this.shakePhase += 2 * Math.PI * lerp(t.shakeHz[0], t.shakeHz[1], r) * dt;
     if (this.shakePhase > 1e4) this.shakePhase -= 2 * Math.PI * Math.floor(this.shakePhase / (2 * Math.PI));

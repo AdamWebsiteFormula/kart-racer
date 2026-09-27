@@ -51,6 +51,8 @@ export class KartView {
   readonly anim: KartAnim;
   /** the engine's own rev (rev.ts), stepped per sim tick before the animation: its rumble, and what the sound and the pipes read */
   readonly rev: EngineRev;
+  /** false: no engine rumbles the kart (the menu's turntable close-up stands calm); the rev still runs */
+  engine = true;
   private prev: Pose;
   private curr: Pose;
   /** screen-only heading lag left over from a snap (a wall's impact turn), easing to 0 */
@@ -140,7 +142,7 @@ export class KartView {
       this.snapYaw -= excess;
     }
     this.rev.tick(s, input, dt, toGoTicks);
-    this.anim.tick(s, input, dt, this.rev);
+    this.anim.tick(s, input, dt, this.engine ? this.rev : undefined);
     if (this.rig) { this.driver.tick(s, input, dt, this.anim, this.look); this.idled = false; }
   }
 
