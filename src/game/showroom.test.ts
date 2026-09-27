@@ -2,8 +2,8 @@
 // changes, turning (or standing still for reduced motion), standing in the box the menu leaves for it on
 // the whole screen, popping in, and giving back its own material copies, never a shared one.
 import { describe, expect, it, vi } from 'vitest';
-import type { Material, Mesh } from 'three';
-import { isShared } from '../art-pipeline/index.ts';
+import { ConstantAlphaFactor, CustomBlending, OneMinusConstantAlphaFactor, type Material, type Mesh, type Scene, type ShaderMaterial, type WebGLRenderer } from 'three';
+import { buildRacerMesh, isShared } from '../art-pipeline/index.ts';
 import { frameDistance, heroFit, MAX_DISTANCE, MIN_DISTANCE, POP_FROM, POP_S, popScale, Showroom, stageFade, STILL_YAW, TURN_RATE } from './showroom.ts';
 
 const kartOf = (s: Showroom) => s.scene.getObjectByName('racer-pip') ?? s.scene.getObjectByName('racer-boulder');
@@ -101,6 +101,44 @@ describe('the showroom', () => {
     expect(stageFade(1, false, 0.12, 0.24)).toBeCloseTo(0.5, 6);
     expect(stageFade(0.5, true, 0, 0.24, true)).toBe(1);
     expect(stageFade(0.5, false, 0, 0.24, true)).toBe(0);
+  });
+
+  it('the hero fades in and out with the stage (27 Sept 2026: it stood solid over the fading race): its nearest surface into depth first, then its own copies at the stage\'s alpha', () => {
+    const s = new Showroom();
+    s.show('pip', { body: 'classic' });
+    const own = mats(kartOf(s)!);
+    expect(own.length).toBeGreaterThan(0);
+    // each own copy blends by a constant alpha (whole: 1, the same as no blending), set as it goes on the stand
+    for (const m of own) { expect(m.blending).toBe(CustomBlending); expect(m.blendSrc).toBe(ConstantAlphaFactor); expect(m.blendDst).toBe(OneMinusConstantAlphaFactor); }
+    const calls: { hero: boolean; colorWrite: boolean[]; blendAlpha: number[]; shadow: boolean }[] = [];
+    const renderer = {
+      autoClear: true,
+      clearDepth: () => undefined,
+      render: (scene: Scene) => {
+        let shadow = false;
+        scene.traverse((o) => { if ((o as Mesh).isMesh && ((o as Mesh).material as ShaderMaterial).uniforms?.fade && o.visible) shadow = true; });
+        calls.push({ hero: scene === s.scene, colorWrite: own.map((m) => m.colorWrite), blendAlpha: own.map((m) => m.blendAlpha), shadow });
+      },
+    } as unknown as WebGLRenderer;
+    s.update(1, false, { w: 1600, h: 900 });
+    s.draw(renderer, 0.4);
+    expect(calls.map((c) => c.hero)).toEqual([false, true, true]); // the backdrop, the depth pass, the kart
+    expect(calls[1].colorWrite.every((w) => !w)).toBe(true);
+    expect(calls[1].shadow).toBe(false);
+    expect(calls[2].colorWrite.every((w) => w)).toBe(true);
+    expect(calls[2].blendAlpha.every((a) => a === 0.4)).toBe(true);
+    expect(calls[2].shadow).toBe(true);
+    expect(own.every((m) => !m.polygonOffset)).toBe(true);
+    expect(renderer.autoClear).toBe(true);
+    // whole: one pass, fully opaque
+    calls.length = 0;
+    s.draw(renderer, 1);
+    expect(calls.map((c) => c.hero)).toEqual([false, true]);
+    expect(calls[1].blendAlpha.every((a) => a === 1)).toBe(true);
+    // and the race's own materials never changed: the shared ones are not the showroom's
+    const race = mats(buildRacerMesh('pip', { body: 'classic' })!);
+    expect(race.some((m) => m.blending === CustomBlending)).toBe(false);
+    s.dispose();
   });
 
   it('frameDistance: the geometry behind the hero shot (a fixed fov, only distance solved)', () => {
