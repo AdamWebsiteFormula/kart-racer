@@ -499,8 +499,33 @@ export class UiRoot {
     this.toastTimer = setTimeout(() => this.toast.classList.remove('on'), 5000);
   }
 
-  /** The player's finish celebration (main.ts, game/celebrate.ts): the race HUD steps aside for it (podium.css): the banner up and small, the item slots, map, assist badge and hints away. */
-  celebrate(on: boolean): void { this.views.hud.root.classList.toggle('celebrate', on); }
+  /**
+   * The player's finish celebration (main.ts, game/celebrate.ts): the race HUD steps aside for it (podium.css):
+   * the banner up and small, the item slots, map, assist badge and hints away. The results, standings and cut
+   * that follow sit beside the racer, who goes on reacting (ui.css `.results.beside`, besideRoom).
+   */
+  celebrate(on: boolean): void {
+    this.views.hud.root.classList.toggle('celebrate', on);
+    this.views.results.root.classList.toggle('beside', on);
+  }
+
+  /**
+   * The share of the window's width left free by the results beside the racer (Mario Kart World: the list on
+   * the right, the racer on the left, still reacting), from the panel's laid-out left edge (transforms left out,
+   * so its slide-in does not move it); 0 when the results are not up, not beside a celebration, or sit in the
+   * middle of a narrow window (UI.besideMinRoom). main.ts frames the finish camera's kart in that room.
+   */
+  besideRoom(): number {
+    const v = this.views.results;
+    if (this.active?.view !== v || !v.root.classList.contains('beside')) return 0;
+    const box = v.root.querySelector<HTMLElement>('.stage > .box');
+    const w = this.root.clientWidth || window.innerWidth;
+    if (!box || !(w > 0)) return 0;
+    let x = 0;
+    for (let e: HTMLElement | null = box; e && e !== this.root; e = e.offsetParent as HTMLElement | null) x += e.offsetLeft;
+    const room = x / w;
+    return room >= UI.besideMinRoom ? Math.min(1, room) : 0;
+  }
 
   /** Once per rendered frame while racing (paused or not). */
   race(f: RaceFrame, nowMs: number): void {

@@ -2,7 +2,7 @@
 // move, plays on the same chassis and morph targets as the driving, turns whole in the air without
 // a frame's jump, is small with reduced motion, and never writes the kart or its input.
 import { describe, expect, it } from 'vitest';
-import { KART_ANIM, KartAnim, newPose, REACTION_SECONDS, reactionPose, REACTIONS, type AnimPose, type Reaction } from './anim.ts';
+import { KART_ANIM, KartAnim, newPose, REACTION_SECONDS, reactionPose, REACTIONS, sad, SAD_BEATS, type AnimPose, type Reaction } from './anim.ts';
 import { makeConstants } from './constants.ts';
 import { SIM_DT } from './step.ts';
 import { createKartState, NEUTRAL_INPUT } from './types.ts';
@@ -72,17 +72,47 @@ describe('finish reactions: one of its own per placing', () => {
     expect(max(r.nod.slice(130))).toBeGreaterThan(0.1);
   });
 
-  it('deflated (the back, a cut, a DNF): a sag with the head down and a slow head shake, then chin up and a nod: G-rated, it ends upright', () => {
-    const r = sample('deflated');
-    expect(min(r.squash)).toBeLessThan(-0.08);
-    expect(max(r.nod)).toBeGreaterThan(0.3);
-    expect(max(r.look)).toBeGreaterThan(0.2);
-    expect(min(r.look)).toBeLessThan(-0.2);
-    expect(max(r.hop)).toBe(0);
-    // chin up before the end, and nothing left of the sag
-    expect(min(r.nod.slice(Math.round(2.3 / dt)))).toBeLessThan(-0.03);
-    const end = reactionPose('deflated', REACTION_SECONDS.deflated + 1, newPose());
-    expect(Math.abs(end.squash) + Math.abs(end.nod) + Math.abs(end.lean)).toBeLessThan(1e-6);
+  it('the disappointed ones (4th and below): the head drops as the camera comes round and shakes slowly; no leap, no turn', () => {
+    for (const k of ['sigh', 'deflated', 'dejected'] as const) {
+      const r = sample(k), B = SAD_BEATS[k];
+      expect(sad(k), k).toBe(true);
+      expect(max(r.hop), k).toBe(0);
+      expect(max(r.spin.map(Math.abs)), k).toBe(0);
+      // down by the time the finish camera is round in front (~0.95 s), held through the shake
+      const shake = r.nod.slice(Math.round(B.shake[0] / dt), Math.round(B.shake[1] / dt));
+      expect(min(shake), k).toBeGreaterThan(0.18);
+      expect(min(r.squash), k).toBeLessThan(-0.05);
+      const look = r.look.slice(Math.round(B.shake[0] / dt), Math.round(B.shake[1] / dt));
+      expect(max(look), k).toBeGreaterThan(0.15);
+      expect(min(look), k).toBeLessThan(-0.15);
+    }
+    expect(REACTIONS.filter(sad)).toEqual(['sigh', 'deflated', 'dejected']);
+  });
+
+  it('graded toward the back: sigh (so close) sags least, dejected (the back) hangs its head lowest and sinks deepest', () => {
+    const [a, b, c] = (['sigh', 'deflated', 'dejected'] as const).map((k) => sample(k));
+    expect(max(a.nod)).toBeLessThan(max(b.nod));
+    expect(max(b.nod)).toBeLessThan(max(c.nod));
+    expect(min(a.squash)).toBeGreaterThan(min(b.squash));
+    expect(min(b.squash)).toBeGreaterThan(min(c.squash));
+    // sigh's own beats: the jolt of the fist on the wheel, and the breath in before the sigh (the head up a little)
+    const S = SAD_BEATS.sigh;
+    expect(max(a.nod.slice(Math.round(S.tap / dt), Math.round((S.tap + 0.2) / dt)))).toBeGreaterThan(0.1);
+    expect(min(a.nod.slice(Math.round((S.sag[0] - 0.2) / dt), Math.round(S.sag[0] / dt)))).toBeLessThan(0);
+  });
+
+  it('G-rated: each ends chin up for a polite clap (Mario Kart World\'s losers), then a quiet glum idle, head a little low, never hanging', () => {
+    for (const k of ['sigh', 'deflated', 'dejected'] as const) {
+      const B = SAD_BEATS[k], p = newPose();
+      // chin up for the clap: the slump is gone
+      expect(reactionPose(k, B.clap[0] + 0.6, p).nod, k).toBeLessThan(0.1);
+      // the glum idle, long after: the head low but not hanging, the body barely sunk, breathing and sighing
+      const idle = sample(k, REACTION_SECONDS[k] + 12).nod.slice(Math.round((REACTION_SECONDS[k] + 1) / dt));
+      expect(min(idle), k).toBeGreaterThan(0.12);
+      expect(max(idle), k).toBeLessThan(0.3);
+      expect(max(idle) - min(idle), k).toBeGreaterThan(0.04); // the sigh
+      expect(Math.abs(reactionPose(k, REACTION_SECONDS[k] + 9, p).squash), k).toBeLessThan(0.03);
+    }
   });
 
   it('no two reactions are alike, and every one keeps to the rig\'s range', () => {

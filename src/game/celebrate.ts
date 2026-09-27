@@ -4,7 +4,7 @@
 // the finish banner (Enter, pad A, a tap) still goes straight to the results. With reduced motion
 // the chase view holds a moment, then one cut to the front shot: no swing, no circling, no slow-mo.
 // Pure maths: main.ts copies the pose onto the camera. Nothing here touches the sim.
-import type { Reaction } from '../kart-controller/anim.ts';
+import { stepSpring, type Reaction } from '../kart-controller/anim.ts';
 import type { KartState, TrackSample, Vec3 } from '../kart-controller/types.ts';
 import type { Track } from '../track-builder/track.ts';
 import { CAM, chaseYaw, clampAboveSea, clampToRoad } from './camera.ts';
@@ -24,6 +24,15 @@ export const CELEBRATE = Object.freeze({
   yawLag: 3,
   /** reduced motion: the chase view holds this long, then one cut to the front shot */
   reducedHold: 0.7,
+  /**
+   * The results beside the racer (Mario Kart World: the list slides in on the right and the racer stays in
+   * view on the left, still reacting; 26 Sept 2026): the camera eases its aim so the kart sits in the room
+   * left of the panel (besideAt), at this rate (1/s), and its circling settles on a front three-quarter view
+   * from the kart's −X side (rad), where its nose points into the frame, toward the list, on this spring (Hz)
+   */
+  besideRate: 2.5,
+  besideAngle: -0.45,
+  besideSpring: 0.55,
 });
 
 /** How the player placed, for their reaction. */
@@ -39,22 +48,39 @@ export interface Placing {
 }
 
 /**
- * The reaction for a placing: joyful and distinct for 1st (champion), 2nd (cheer) and 3rd
- * (bounce), relief for a Knockout round's other safe places; a friendly shrug for the middle of
- * the field (and the Knockout final's 4th), deflated-then-chin-up for the back, a Knockout cut or
- * a DNF. A solo run reacts to its medal (a Daily, to finishing).
+ * The reaction for a placing (Adam, 26 Sept 2026: "When you lose a race, the character should look
+ * disappointed, like he lost. When you win, you know, first, second, or third, he should look happy"):
+ * joyful and distinct for 1st (champion), 2nd (cheer) and 3rd (bounce), relief for a Knockout
+ * round's other safe places; disappointed for 4th and below, a Knockout cut and the Knockout final's
+ * 2nd to 4th (only 1st wins it), more so toward the back (lostReaction). A solo run reacts to its
+ * medal (a Daily, to finishing), as before.
  */
 export function reactionFor(p: Placing): Reaction {
-  if (p.dnf) return 'deflated';
+  if (p.dnf) return 'dejected';
   if (p.field <= 1) {
     if (p.medal === undefined) return 'relief';
     return p.medal === 'gold' ? 'champion' : p.medal === 'silver' ? 'cheer' : p.medal === 'bronze' ? 'bounce' : 'shrug';
   }
   if (p.rank === 1) return 'champion';
+  if (p.knockout?.final) return lostReaction(p.rank, p.field, 2);
   if (p.rank === 2) return 'cheer';
   if (p.rank === 3) return 'bounce';
-  if (p.knockout) return p.knockout.final ? 'shrug' : p.rank <= p.knockout.cutLine ? 'relief' : 'deflated';
-  return p.rank <= Math.ceil(p.field * 0.75) ? 'shrug' : 'deflated';
+  if (p.knockout) return p.rank <= p.knockout.cutLine ? 'relief' : lostReaction(p.rank, p.field, p.knockout.cutLine + 1);
+  return lostReaction(p.rank, p.field, 4);
+}
+
+/**
+ * How disappointed a losing place is, graded from the first losing place (`first`: 4th in a race, the
+ * first place under a Knockout's cut line, 2nd in its final) to the back, as Mario Kart World grades
+ * its places (mariowiki: moderate, then mediocre, then losing reactions down the field): the front
+ * half of the losing places a sigh (so close: 4th and 5th of 8, the final's 2nd), then deflated (6th
+ * and 7th, a cut racer's first place under the line), and the very back dejected (8th, the last of
+ * any field).
+ */
+export function lostReaction(rank: number, field: number, first: number): Reaction {
+  const n = field - first + 1, i = rank - first;
+  if (i >= n - 1) return 'dejected';
+  return i < Math.floor((n - 1) / 2) ? 'sigh' : 'deflated';
 }
 
 /** A joyful reaction: the finish confetti falls for it (a win, a podium place, a safe Knockout place, a medal). */
@@ -88,6 +114,12 @@ export class FinishCam {
   private fov0: number = CAM.fov;
   /** the chase camera's aim at the line, in the kart's frame (forward, across to +X, up) */
   private readonly look0: Vec3 = [CAM.aheadLook, 0, CAM.lookHeight];
+  /** where the kart sits across the frame (normalized screen x: 0 the middle, −1 the left edge), eased toward `frameWant` (besideAt) */
+  private frameX = 0;
+  private frameWant = 0;
+  /** the circling's angle and speed this frame; once the results are beside the kart it settles on CELEBRATE.besideAngle */
+  private readonly orbit = { x: 0, v: 0 };
+  private settling = false;
   private readonly under: TrackSample = { position: [0, 0, 0], tangent: [0, 0, 0], normal: [0, 0, 0], groundY: 0, halfWidth: 0, surface: 'road', gripScale: 1 };
 
   /**
@@ -96,6 +128,8 @@ export class FinishCam {
    */
   start(track: Track, k: KartState, root: { x: number; y: number; z: number }, viewYaw: number, pos: Vec3, look: Vec3, fov: number): void {
     this.time = 0;
+    this.frameX = this.frameWant = 0;
+    this.settling = false;
     this.yaw = viewYaw;
     this.y = root.y;
     const fx = Math.sin(viewYaw), fz = Math.cos(viewYaw), sx = fz, sz = -fx;
@@ -114,6 +148,17 @@ export class FinishCam {
     // the start angle on that side, so the swing passes the kart's flank, never its nose
     if (this.side > 0 && this.a0 < 0) this.a0 += 2 * Math.PI;
     if (this.side < 0 && this.a0 > 0) this.a0 -= 2 * Math.PI;
+    this.orbit.x = this.a0; this.orbit.v = 0;
+  }
+
+  /**
+   * The results are up beside the kart (Mario Kart World): `ndcX` is where across the frame the kart goes,
+   * the middle of the room left of the panel (normalized screen x, −1 the left edge; main.ts from UiRoot's
+   * besideRoom); 0 puts it back in the middle. The first time, the circling starts to settle (CELEBRATE.besideAngle).
+   */
+  besideAt(ndcX: number): void {
+    this.frameWant = Math.max(-0.9, Math.min(0, ndcX));
+    if (this.frameWant < 0) this.settling = true;
   }
 
   /** The kart's angle this frame: 0 ahead, ± to its ±X side (after the swing it circles on). */
@@ -123,15 +168,24 @@ export class FinishCam {
     return lerp(this.a0, end, smoother(time / C.swing)) - this.side * C.orbit * Math.max(0, time - C.swing);
   }
 
-  /** One rendered frame; `dt` real seconds that ran (0 while paused). */
-  update(track: Track, k: KartState, root: { x: number; y: number; z: number }, viewYaw: number, reduced: boolean, dt: number): void {
+  /** One rendered frame; `dt` real seconds that ran (0 while paused); `aspect` the view's width over height (to frame the kart beside the results). */
+  update(track: Track, k: KartState, root: { x: number; y: number; z: number }, viewYaw: number, reduced: boolean, dt: number, aspect = 16 / 9): void {
     const C = CELEBRATE;
     this.time += dt;
     this.yaw = chaseYaw(this.yaw, viewYaw, C.yawLag, dt);
     this.y += (root.y - this.y) * (1 - Math.exp(-CAM.heightLag * dt));
     // how far from the chase pose to the close-up: eased along the swing, or one cut with reduced motion
     const e = reduced ? (this.time < C.reducedHold ? 0 : 1) : smoother(this.time / C.swing);
-    const a = this.angleAt(this.time, reduced);
+    // the circling: the swing and on round; beside the results it settles on a spring from its own speed (no
+    // jolt as it turns), or with reduced motion cuts there
+    const o = this.orbit;
+    if (!this.settling) {
+      const a = this.angleAt(this.time, reduced);
+      if (dt > 0) o.v = (a - o.x) / dt;
+      o.x = a;
+    } else if (reduced) { o.x = C.besideAngle; o.v = 0; } else if (dt > 0) stepSpring(o, C.besideAngle, [C.besideSpring, 1], dt);
+    const a = o.x;
+    this.frameX = reduced ? this.frameWant : this.frameX + (this.frameWant - this.frameX) * (1 - Math.exp(-C.besideRate * dt));
     const d = lerp(this.d0, C.distance, e), h = lerp(this.h0, C.height, e);
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), sx = fz, sz = -fx;
     const ca = Math.cos(a), sa = Math.sin(a);
@@ -148,5 +202,14 @@ export class FinishCam {
     this.look[1] = this.y + lerp(this.look0[2], C.lookHeight, e);
     this.look[2] = root.z + fz * lf + sz * ls;
     this.fov = lerp(this.fov0, C.fov, e);
+    // beside the results: aim to the camera's right of the kart, so the kart sits at frameX across the view
+    if (this.frameX < -1e-4) {
+      const dx = this.look[0] - p[0], dz = this.look[2] - p[2], d = Math.hypot(dx, dz);
+      if (d > 1e-3) {
+        const k = -this.frameX * d * Math.tan((this.fov * Math.PI) / 360) * aspect;
+        this.look[0] += (-dz / d) * k;
+        this.look[2] += (dx / d) * k;
+      }
+    }
   }
 }

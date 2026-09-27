@@ -7,22 +7,35 @@ import { createKartState, type TrackSample, type Vec3 } from '../kart-controller
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { CAM } from './camera.ts';
-import { CELEBRATE, FinishCam, joyful, reactionFor } from './celebrate.ts';
+import { CELEBRATE, FinishCam, joyful, lostReaction, reactionFor } from './celebrate.ts';
 
 const FILES = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
 
 describe('reactionFor: the placing picks the reaction', () => {
-  it('a full field: 1st, 2nd and 3rd each their own joy; the middle shrugs; the back is deflated', () => {
+  it('a full field (Adam, 26 Sept 2026): 1st, 2nd and 3rd each their own joy; 4th and below disappointed, most at the back', () => {
     const got = [1, 2, 3, 4, 5, 6, 7, 8].map((rank) => reactionFor({ rank, field: 8 }));
-    expect(got).toEqual(['champion', 'cheer', 'bounce', 'shrug', 'shrug', 'shrug', 'deflated', 'deflated']);
-    expect(reactionFor({ rank: 1, field: 8, dnf: true })).toBe('deflated');
+    expect(got).toEqual(['champion', 'cheer', 'bounce', 'sigh', 'sigh', 'deflated', 'deflated', 'dejected']);
+    expect(got.map(joyful)).toEqual([true, true, true, false, false, false, false, false]);
+    expect(reactionFor({ rank: 1, field: 8, dnf: true })).toBe('dejected');
   });
 
-  it('a Knockout round: the podium places as ever, the other safe places relieved, the cut deflated; the final\'s 4th shrugs', () => {
+  it('a Knockout round: the podium places as ever, the other safe places relieved, the cut disappointed (the last most); the final: only its winner happy', () => {
     const round = (rank: number, field: number, cutLine: number) => reactionFor({ rank, field, knockout: { cutLine, final: false } });
-    expect([1, 2, 3, 4, 5, 6, 7, 8].map((r) => round(r, 8, 6))).toEqual(['champion', 'cheer', 'bounce', 'relief', 'relief', 'relief', 'deflated', 'deflated']);
-    expect([4, 5, 6].map((r) => round(r, 6, 4))).toEqual(['relief', 'deflated', 'deflated']);
-    expect([1, 2, 3, 4].map((rank) => reactionFor({ rank, field: 4, knockout: { cutLine: 2, final: true } }))).toEqual(['champion', 'cheer', 'bounce', 'shrug']);
+    expect([1, 2, 3, 4, 5, 6, 7, 8].map((r) => round(r, 8, 6))).toEqual(['champion', 'cheer', 'bounce', 'relief', 'relief', 'relief', 'deflated', 'dejected']);
+    expect([4, 5, 6].map((r) => round(r, 6, 4))).toEqual(['relief', 'deflated', 'dejected']);
+    expect([1, 2, 3, 4].map((rank) => reactionFor({ rank, field: 4, knockout: { cutLine: 2, final: true } }))).toEqual(['champion', 'sigh', 'deflated', 'dejected']);
+  });
+
+  it('never happier further back: the losing places grade sigh, then deflated, then dejected at the very back of any field', () => {
+    const grade = (r: string) => ['sigh', 'deflated', 'dejected'].indexOf(r);
+    for (const field of [4, 5, 6, 7, 8, 12]) {
+      for (const first of [2, 4, field]) {
+        if (first > field) continue;
+        const got = Array.from({ length: field - first + 1 }, (_, i) => lostReaction(first + i, field, first));
+        expect(got.every((r, i) => i === 0 || grade(r) >= grade(got[i - 1])), `${field} from ${first}: ${got}`).toBe(true);
+        expect(got[got.length - 1]).toBe('dejected');
+      }
+    }
   });
 
   it('a solo run reacts to its medal (a Daily, to finishing)', () => {
@@ -103,6 +116,49 @@ describe('FinishCam', () => {
       const r = rel(cam, p);
       expect(r.up).toBeGreaterThan(CAM.roadClear - 1e-6);
     }
+  });
+
+  it('beside the results (Mario Kart World): the kart eases into the room left of the panel and the circling settles, nose into the frame', () => {
+    const aspect = 16 / 9;
+    /** where the kart's root falls across the view (normalized screen x, −1 the left edge) */
+    const screenX = (cam: FinishCam, p: ReturnType<typeof at>) => {
+      const fx = cam.look[0] - cam.pos[0], fz = cam.look[2] - cam.pos[2], l = Math.hypot(fx, fz);
+      const rx = -fz / l, rz = fx / l; // the camera's right
+      const kx = p.root.x - cam.pos[0], kz = p.root.z - cam.pos[2];
+      return ((kx * rx + kz * rz) / ((kx * fx + kz * fz) / l)) / (Math.tan((cam.fov * Math.PI) / 360) * aspect);
+    };
+    for (const lat of [3, -3]) {
+      const cam = new FinishCam();
+      const p = at(120, lat);
+      const c = chase(p);
+      cam.start(track, p.k, p.root, p.h, c.pos, c.look, 64);
+      for (let i = 0; i < 4.2 * 60; i++) cam.update(track, p.k, p.root, p.h, false, 1 / 60, aspect);
+      expect(Math.abs(screenX(cam, p)), 'in the middle before the results').toBeLessThan(0.05);
+      // the results come in: the room left of the panel is half the view
+      let jump = 0, prev = rel(cam, p);
+      for (let i = 0; i < 8 * 60; i++) {
+        cam.besideAt(-0.5);
+        cam.update(track, p.k, p.root, p.h, false, 1 / 60, aspect);
+        const r = rel(cam, p);
+        jump = Math.max(jump, Math.hypot(r.ahead - prev.ahead, r.side - prev.side));
+        prev = r;
+      }
+      expect(screenX(cam, p), `lat ${lat}`).toBeCloseTo(-0.5, 1);
+      expect(jump, 'no jolt as the circling turns to settle').toBeLessThan(0.1);
+      // settled on a front three-quarter view from the kart's −X side: its nose points into the frame, toward the list
+      const r = rel(cam, p);
+      expect(r.ahead).toBeGreaterThan(2.5);
+      expect(r.side).toBeLessThan(-1);
+      expect(Math.atan2(r.side, r.ahead)).toBeCloseTo(CELEBRATE.besideAngle, 1);
+    }
+    // reduced motion: one cut there
+    const cam = new FinishCam(), p = at(160, 0), c = chase(p);
+    cam.start(track, p.k, p.root, p.h, c.pos, c.look, 64);
+    for (let i = 0; i < 60; i++) cam.update(track, p.k, p.root, p.h, true, 1 / 60, aspect);
+    cam.besideAt(-0.45);
+    cam.update(track, p.k, p.root, p.h, true, 1 / 60, aspect);
+    expect(screenX(cam, p)).toBeCloseTo(-0.45, 2);
+    expect(Math.atan2(rel(cam, p).side, rel(cam, p).ahead)).toBeCloseTo(CELEBRATE.besideAngle, 3);
   });
 
   it('reduced motion: the chase view holds, then one cut to the front shot, and it stays there (no swing, no circling)', () => {

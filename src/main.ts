@@ -39,7 +39,7 @@ import { lineup } from './game/lineup.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
 import { Showroom } from './game/showroom.ts';
-import { CELEBRATE, FinishCam, joyful, reactionFor } from './game/celebrate.ts';
+import { CELEBRATE, FinishCam, joyful, reactionFor, type Placing } from './game/celebrate.ts';
 import { Podium } from './game/podium.ts';
 import type { Crowd } from './art-pipeline/crowd.ts';
 import type { SfxId } from './audio/types.ts';
@@ -221,6 +221,8 @@ let skipResults = false;
 /** the player's finish celebration (game/celebrate.ts): from their line through the results screens */
 const finishCam = new FinishCam();
 let celebrating = false;
+/** dev only (kart.finishAs): the placing the player's finish celebration reacts to, in place of the race's */
+let devPlacing: Placing | null = null;
 /** the podium ceremony (game/podium.ts): built at a series' last results, shown after the standings or the cut */
 let podium: Podium | null = null;
 /** the player's paint and body, and Mirror mode, for this race and the rest of its series (design §10) */
@@ -299,6 +301,7 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   overSent = false;
   skipResults = false;
   celebrating = false;
+  devPlacing = null;
   ui.celebrate(false);
   podium?.dispose();
   podium = null;
@@ -570,6 +573,7 @@ const NO_KARTS: readonly never[] = [];
 
 /** The player's reaction for a finish in `rank` (game/celebrate.ts): by the race's field, its Knockout cut, a Time Trial medal. */
 function reactionAt(rank: number): Reaction {
+  if (import.meta.env.DEV && devPlacing) return reactionFor(devPlacing);
   const s = session!, cfg = s.config, pi = s.playerIndex;
   const ko = cfg.mode === 'knockout' && cfg.knockout
     ? { cutLine: cfg.knockout.cutLine, final: series?.kind === 'knockout' ? cfg.knockout.segment >= series.trackIds.length - 1 : false }
@@ -591,12 +595,25 @@ function startCelebration(s: RaceSession): void {
   ui.celebrate(true); // the HUD steps aside: FINISH! up and small, the slots, map and hints away
 }
 
-/** The finish camera (game/celebrate.ts) over the chase camera's pose; `dt` 0 while paused (its clock stops too). */
-function celebrationCamera(dt: number, reduced: boolean): void {
+/** Where the kart goes across the frame beside the results (FinishCam.besideAt): the middle of the room the panel leaves on the left (UiRoot.besideRoom), measured again as the screen or the window changes and twice a second. */
+let besideX = 0, besideKey = '', besideAt = -1;
+function besideFrame(nowS: number): number {
+  const key = `${ui.app.screen} ${innerWidth}x${innerHeight}`;
+  if (key !== besideKey || nowS - besideAt > 0.5 || nowS < besideAt) {
+    besideKey = key; besideAt = nowS;
+    const room = ui.besideRoom();
+    besideX = room > 0 ? room - 1 : 0;
+  }
+  return besideX;
+}
+
+/** The finish camera (game/celebrate.ts) over the chase camera's pose; `dt` 0 while paused (its clock stops too). Beside the results (Mario Kart World) it keeps the kart in view left of them. */
+function celebrationCamera(dt: number, reduced: boolean, nowS: number): void {
   const s = session!, i = s.playerIndex;
   if (i < 0) return;
   const root = s.views[i].root;
-  finishCam.update(s.track, s.state.karts[i], root.position, root.rotation.y, reduced, dt);
+  finishCam.besideAt(besideFrame(nowS));
+  finishCam.update(s.track, s.state.karts[i], root.position, root.rotation.y, reduced, dt, camera.aspect);
   for (let k = 0; k < 3; k++) { camPos[k] = finishCam.pos[k]; camLook[k] = finishCam.look[k]; }
   camera.fov = finishCam.fov;
 }
@@ -904,7 +921,7 @@ function step(now: number): void {
   if (attract) tvCamera(frameDt); else if (intro) introCamera(reduced); else chaseCamera(frameDt, nowS, reduced);
   const ceremony = !attract && (podium?.showing ?? false);
   const liveDt = ui.paused || document.hidden ? 0 : frameDt;
-  if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced);
+  if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced, nowS);
   const pl = cur.player;
   // (no speed lines, lens or FOV kicks over the celebration; the podium's hidden field makes no sparks or dust)
   vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced);
@@ -1052,6 +1069,22 @@ if (import.meta.env.DEV) {
     unlockAll: () => ui.grantAllUnlocks(),
     /** dev: the podium ceremony on this race's track with these three (1st to 3rd), for checking it (no overlay) */
     ceremony: (ids: string[] = ['pip', 'momo', 'nova']) => { buildPodium(ids); startPodium(); },
+    /**
+     * dev: the finish celebration now, as if the player had placed `rank` of `field` (8; a Knockout round
+     * or its final with `ko`), for checking the camera and the reaction (game/celebrate.ts): the camera
+     * swings round in the finish slow-mo and the racer reacts; the race goes on (the results need the
+     * player's real finish). Again while celebrating: that reaction from the start. `atLine`: only set the
+     * placing, for the player's real finish to react to (with the autopilot: the whole flow, results too)
+     */
+    finishAs: (rank: number, opts: { field?: number; ko?: { cutLine: number; final: boolean }; atLine?: boolean } = {}) => {
+      const s = session;
+      if (!s || s.playerIndex < 0) return;
+      devPlacing = { rank, field: opts.field ?? 8, ...(opts.ko ? { knockout: opts.ko } : {}) };
+      if (opts.atLine) return;
+      if (celebrating) { s.views[s.playerIndex].anim.react(reactionAt(rank)); return; }
+      startCelebration(s);
+      if (!ui.reducedMotion) vfx.time.slowMo(last / 1000);
+    },
     /** dev: the podium, when there is one */
     get podium() { return podium; },
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
