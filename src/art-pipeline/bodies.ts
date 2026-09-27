@@ -19,11 +19,13 @@ export const SEAT = Object.freeze({ y: 0.6, z: -0.14 });
  * Where each shared body holds a rigged driver (rigged.ts seatDriver, the same frame as the racers'
  * manifest: +X the driver's left): the hip point, the hands on its steering wheel at ten and two (the
  * wheel is built below at SEAT.z + 0.36, 0.12 m round, its face turned 0.9 rad up toward the driver) and
- * the feet down in its nose. Tuned on renders of a rigged driver in each (25 Sept 2026).
+ * the feet down in its nose. Tuned on renders of a rigged driver in each (25 Sept 2026). `shoulders`: the
+ * line a driver's shoulders must reach to show over the seat back, wing and roll bar from the chase
+ * camera; a smaller driver sits on a booster (rigged.ts SeatSpec; game/driverView.test.ts, 27 Sept 2026).
  */
-export const SEATS: Readonly<Record<Exclude<BodyId, 'standard'>, { seat: [number, number, number]; grips: [[number, number, number], [number, number, number]]; feet: [[number, number, number], [number, number, number]] }>> = Object.freeze({
-  classic: { seat: [0, 0.5, SEAT.z - 0.04], grips: [[0.104, 0.877, SEAT.z + 0.397], [-0.104, 0.877, SEAT.z + 0.397]], feet: [[0.13, 0.32, 0.46], [-0.13, 0.32, 0.46]] },
-  buggy: { seat: [0, 0.56, SEAT.z - 0.04], grips: [[0.104, 0.927, SEAT.z + 0.397], [-0.104, 0.927, SEAT.z + 0.397]], feet: [[0.13, 0.44, 0.44], [-0.13, 0.44, 0.44]] },
+export const SEATS: Readonly<Record<Exclude<BodyId, 'standard'>, { seat: [number, number, number]; grips: [[number, number, number], [number, number, number]]; feet: [[number, number, number], [number, number, number]]; shoulders: number }>> = Object.freeze({
+  classic: { seat: [0, 0.5, SEAT.z - 0.04], grips: [[0.104, 0.877, SEAT.z + 0.397], [-0.104, 0.877, SEAT.z + 0.397]], feet: [[0.13, 0.32, 0.46], [-0.13, 0.32, 0.46]], shoulders: 0.78 },
+  buggy: { seat: [0, 0.56, SEAT.z - 0.04], grips: [[0.104, 0.927, SEAT.z + 0.397], [-0.104, 0.927, SEAT.z + 0.397]], feet: [[0.13, 0.44, 0.44], [-0.13, 0.44, 0.44]], shoulders: 0.87 },
 });
 
 /** Each racer's two colours (design §4), which the shared bodies wear. */
@@ -84,13 +86,15 @@ function classic(m: ModelBuilder, a: string, b: string): void {
   m.box([0.14, 0.02, 0.9], b, [0, 0.66, 0.42], [-0.14, 0, 0], false);                 // racing stripe
   m.cyl(0.13, 0.13, 0.02, '#ffffff', [0, 0.6, 0.72], [-0.32, 0, 0], 16, false);       // number disc
   m.torus(0.34, 0.075, b, [0, SEAT.y + 0.06, SEAT.z], [Math.PI / 2, 0, 0]);           // padded cockpit rim
-  m.box([0.5, 0.34, 0.1], PAN, [0, SEAT.y + 0.2, SEAT.z - 0.38], [0.12, 0, 0]);       // seat back
+  // the seat back and the rear wing sit low, so the driver's head and shoulders show over them from the
+  // chase camera (27 Sept 2026: at 0.97 m and 0.98 m they hid every driver's shoulders)
+  m.box([0.5, 0.14, 0.1], PAN, [0, SEAT.y + 0.1, SEAT.z - 0.38], [0.12, 0, 0]);       // seat back
   m.cyl(0.02, 0.02, 0.3, INK, [0, 0.72, SEAT.z + 0.46], [-0.9, 0, 0], 6, false);      // steering column
   m.torus(0.12, 0.022, INK, [0, 0.83, SEAT.z + 0.36], [Math.PI / 2 - 0.9, 0, 0], false); // wheel
   m.box([0.52, 0.2, 0.34], '#5a5a66', [0, 0.46, -0.8]);                               // engine
-  for (const x of [-0.22, 0.22]) m.cyl(0.025, 0.025, 0.48, CHROME, [x, 0.74, -0.94], [0.2, 0, 0], 6, false); // wing struts
-  m.box([1.14, 0.05, 0.3], a, [0, 0.98, -0.95], [0.1, 0, 0]);                          // rear wing
-  for (const x of [-1, 1]) m.box([0.04, 0.22, 0.34], b, [x * 0.58, 0.96, -0.95], undefined, false);
+  for (const x of [-0.22, 0.22]) m.cyl(0.025, 0.025, 0.28, CHROME, [x, 0.64, -0.94], [0.2, 0, 0], 6, false); // wing struts
+  m.box([1.14, 0.05, 0.3], a, [0, 0.78, -0.95], [0.1, 0, 0]);                          // rear wing
+  for (const x of [-1, 1]) m.box([0.04, 0.22, 0.34], b, [x * 0.58, 0.76, -0.95], undefined, false);
   pipes(m, BODY_EXHAUST.classic);
 }
 
@@ -105,10 +109,12 @@ function buggy(m: ModelBuilder, a: string, b: string): void {
     m.box([0.4, 0.06, 0.66], b, [x * 0.68, 0.8, 0.64], [0.14, 0, 0]);                 // front fender
     m.box([0.4, 0.06, 0.66], b, [x * 0.68, 0.8, -0.64], [-0.14, 0, 0]);               // rear fender
     m.ball([0.1, 0.1, 0.06], [1.6, 1.35, 0.55], [x * 0.24, 0.74, 0.92], undefined, 10, false); // headlamp (glows)
-    m.cyl(0.035, 0.035, 0.62, b, [x * 0.38, 0.98, SEAT.z - 0.44], undefined, 6);      // roll bar posts
-    m.cyl(0.03, 0.03, 0.66, b, [x * 0.3, 0.98, -0.76], [0.95, 0, 0], 6, false);       // back braces
+    // a low roll bar at the driver's back: at 1.28 m it crossed every driver's head from the chase
+    // camera, and at shoulder height it hid their shoulders (27 Sept 2026)
+    m.cyl(0.035, 0.035, 0.16, b, [x * 0.38, 0.74, SEAT.z - 0.44], undefined, 6);      // roll bar posts
+    m.cyl(0.03, 0.03, 0.3, b, [x * 0.3, 0.74, -0.71], [1.25, 0, 0], 6, false);        // back braces
   }
-  m.cyl(0.035, 0.035, 0.8, b, [0, 1.28, SEAT.z - 0.44], [0, 0, Math.PI / 2], 6);      // roll bar top
+  m.cyl(0.035, 0.035, 0.8, b, [0, 0.82, SEAT.z - 0.44], [0, 0, Math.PI / 2], 6);      // roll bar top
   m.box([0.7, 0.05, 0.05], INK, [0, 0.72, 0.4], undefined, false);                    // dash
   m.torus(0.34, 0.075, b, [0, SEAT.y + 0.12, SEAT.z], [Math.PI / 2, 0, 0]);           // padded cockpit rim
   m.cyl(0.02, 0.02, 0.3, INK, [0, 0.76, SEAT.z + 0.46], [-0.9, 0, 0], 6, false);

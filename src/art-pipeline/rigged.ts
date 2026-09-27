@@ -37,14 +37,30 @@ export interface ExhaustSpec { ports: V3[]; dir: V3 }
 /**
  * Where a kart holds its driver, in its fitted frame (meters; +X the driver's left): the hip point
  * (`seat`), the hands' targets on the wheel or bars (`grips`, the left hand's first) and the feet's
- * (`feet`, the left's first). Any driver sits in any kart by IK on these (seatDriver).
+ * (`feet`, the left's first). Any driver sits in any kart by IK on these (seatDriver). `shoulders`: the
+ * height a driver's shoulders must reach to show over the kart's back from the chase camera; a smaller
+ * driver sits higher, on a booster (at most BOOSTER m), as a child does in a big car.
  */
-export interface SeatSpec { seat: V3; grips: readonly [V3, V3]; feet: readonly [V3, V3] }
+export interface SeatSpec { seat: V3; grips: readonly [V3, V3]; feet: readonly [V3, V3]; shoulders?: number }
+/** The most a driver's seat rises to bring its shoulders up to a kart's `shoulders` line (m). */
+export const BOOSTER = 0.2;
+/**
+ * A part of a kart's bodywork that hid its driver from the chase camera, lowered (the MKW gap review of
+ * 27 Sept 2026, item 5: "in the Timber Wagon [Juniper] sits behind a seatback"): the body's vertices inside
+ * `box` ([min, max], the body's fitted frame, m) are squashed from its bottom up so its top comes down to
+ * `to` (or stretched up, `to` over its top: a roll cage lifted clear of the heads); past the box's sides in
+ * x and z it eases out over `soft` m (default 0.06), so nothing tears. Nothing above or below the box
+ * moves, so the box holds the whole part it moves.
+ */
+export interface TrimSpec { box: [V3, V3]; to: number; soft?: number }
 export interface PartsSpec {
   /** fitted to `height` (m, standing); `seat` (its feet's origin) is used only when the body has no seat */
   driver: { url: string; height: number; seat: V3; attachments?: Attachment[] };
-  /** turned `yaw` about Y to face +Z, `length` m nose to tail, its lowest point at `y` */
-  body: { url: string; yaw: number; length: number; y: number; seat?: V3; grips?: [V3, V3]; feet?: [V3, V3]; steering?: SteeringSpec; exhaust?: ExhaustSpec };
+  /**
+   * turned `yaw` about Y to face +Z, `length` m nose to tail, its lowest point at `y`; `trim`: the parts
+   * lowered so the driver shows (TrimSpec); `shoulders`: the line a driver's shoulders must reach (SeatSpec)
+   */
+  body: { url: string; yaw: number; length: number; y: number; seat?: V3; grips?: [V3, V3]; feet?: [V3, V3]; steering?: SteeringSpec; exhaust?: ExhaustSpec; trim?: TrimSpec[]; shoulders?: number };
   /** fitted to `radius`, one at each hub (the kart's frame); the ones at −X mirrored so their rims face out */
   wheel: { url: string; radius: number; hubs: V3[] };
 }
@@ -52,6 +68,11 @@ export type PartsManifest = Record<string, PartsSpec>;
 
 const isV3 = (v: unknown): v is V3 => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
 const isPair = (v: unknown): boolean => Array.isArray(v) && v.length === 2 && v.every(isV3);
+const isTrim = (t: unknown): boolean => {
+  const s = t as TrimSpec | null;
+  return !!s && isPair(s.box) && typeof s.to === 'number' && Number.isFinite(s.to) && s.box[0].every((m, i) => m < s.box[1][i]) && s.to > s.box[0][1]
+    && (s.soft === undefined || (typeof s.soft === 'number' && s.soft >= 0));
+};
 /** Whether a manifest entry names all three parts with their fitting (anything else is ignored: that racer keeps its old model). */
 export function isPartsSpec(s: unknown): s is PartsSpec {
   const p = s as PartsSpec | null;
@@ -59,6 +80,8 @@ export function isPartsSpec(s: unknown): s is PartsSpec {
     && typeof p.driver?.url === 'string' && typeof p.driver.height === 'number' && isV3(p.driver.seat)
     && typeof p.body?.url === 'string' && typeof p.body.length === 'number' && typeof p.body.y === 'number'
     && (p.body.seat === undefined || isV3(p.body.seat)) && (p.body.grips === undefined || isPair(p.body.grips)) && (p.body.feet === undefined || isPair(p.body.feet))
+    && (p.body.trim === undefined || (Array.isArray(p.body.trim) && p.body.trim.every(isTrim)))
+    && (p.body.shoulders === undefined || (typeof p.body.shoulders === 'number' && Number.isFinite(p.body.shoulders)))
     && typeof p.wheel?.url === 'string' && typeof p.wheel.radius === 'number' && Array.isArray(p.wheel.hubs) && p.wheel.hubs.length === 4 && p.wheel.hubs.every(isV3);
 }
 
@@ -70,6 +93,7 @@ export function seatOf(spec: PartsSpec, hipsAt: V3): SeatSpec {
     seat,
     grips: b.grips ?? [[0.15, seat[1] + 0.27, seat[2] + 0.4], [-0.15, seat[1] + 0.27, seat[2] + 0.4]],
     feet: b.feet ?? [[0.13, seat[1] - 0.29, seat[2] + 0.23], [-0.13, seat[1] - 0.29, seat[2] + 0.23]],
+    ...(b.shoulders !== undefined ? { shoulders: b.shoulders } : {}),
   };
 }
 
@@ -356,6 +380,46 @@ export function cutSteering(p: Part, st: SteeringSpec, bone: number, dark: ((u: 
   return moved;
 }
 
+/** The TrimSpec's default ease past a box's sides (m). */
+export const TRIM_SOFT = 0.06;
+
+/**
+ * Lower the body's parts that hide its driver (TrimSpec, in place, on the fitted body before it is
+ * merged): each box squashed from its bottom so its top comes to its `to` (stretched when `to` is over
+ * it), eased out past its sides. Normals follow the squash. Returns how many vertices moved.
+ */
+export function trimBody(p: Part, trims: readonly TrimSpec[] | undefined): number {
+  if (!trims?.length) return 0;
+  const moved = new Uint8Array(p.pos.length / 3);
+  for (const t of trims) {
+    const [lo, hi] = t.box, soft = t.soft ?? TRIM_SOFT;
+    const k = (t.to - lo[1]) / (hi[1] - lo[1]);
+    // 1 inside the box's footprint, easing to 0 over `soft` past its sides
+    const side = (v: number, a: number, b: number) => {
+      const out = v < a ? a - v : v > b ? v - b : 0;
+      if (out <= 0) return 1;
+      if (soft <= 0 || out >= soft) return 0;
+      const s = 1 - out / soft;
+      return s * s * (3 - 2 * s);
+    };
+    for (let i = 0; i < p.pos.length / 3; i++) {
+      const x = p.pos[i * 3], y = p.pos[i * 3 + 1], z = p.pos[i * 3 + 2];
+      if (y <= lo[1] || y > hi[1] + 1e-6) continue; // (a part's float32 top on the box's top is in it)
+      const w = side(x, lo[0], hi[0]) * side(z, lo[2], hi[2]);
+      if (w <= 0) continue;
+      p.pos[i * 3 + 1] = y - w * (y - lo[1]) * (1 - k);
+      // a squash by kk in y turns the normals by its inverse: (nx, ny / kk, nz)
+      const kk = 1 - w * (1 - k);
+      const nx = p.nrm[i * 3], ny = p.nrm[i * 3 + 1] / kk, nz = p.nrm[i * 3 + 2], l = Math.hypot(nx, ny, nz) || 1;
+      p.nrm[i * 3] = nx / l; p.nrm[i * 3 + 1] = ny / l; p.nrm[i * 3 + 2] = nz / l;
+      moved[i] = 1;
+    }
+  }
+  let n = 0;
+  for (const m of moved) n += m;
+  return n;
+}
+
 // ---------------------------------------------------------------- seating by IK
 const AXES = Object.freeze({ x: new Vector3(1, 0, 0), y: new Vector3(0, 1, 0), z: new Vector3(0, 0, 1) });
 
@@ -404,15 +468,39 @@ export function twoBoneIk(a: Object3D, b: Object3D, c: Object3D, target: Vector3
  * while a hand cannot reach its grip), each arm to its grip (the wrist a hand's length short of it,
  * elbows out and down) and each leg to its foot rest (knees up and out), then the pose's extra turns.
  * The bones are reset to `rest` first (names → local place and turn), so a driver can be seated again
- * in another kart.
+ * in another kart. A driver whose shoulders come below the kart's `shoulders` line sits higher, on a
+ * booster (`lift`, at most BOOSTER m): hands and feet still on the kart's points.
  */
-export function seatDriver(root: Object3D, seat: SeatSpec, pose: SeatedPose, rest: ReadonlyMap<string, { p: Vector3; q: Quaternion }>): { lean: number; reach: number[] } {
+export function seatDriver(root: Object3D, seat: SeatSpec, pose: SeatedPose, rest: ReadonlyMap<string, { p: Vector3; q: Quaternion }>): { lean: number; reach: number[]; lift: number } {
+  const first = seatAt(root, seat.seat, seat, pose, rest);
+  if (seat.shoulders === undefined) return { ...first, lift: 0 };
+  const lift = Math.min(BOOSTER, seat.shoulders - shoulderHeight(root));
+  if (!(lift > 1e-3)) return { ...first, lift: 0 };
+  return { ...seatAt(root, [seat.seat[0], seat.seat[1] + lift, seat.seat[2]], seat, pose, rest), lift };
+}
+
+/** The driver's shoulder joints' height in the kart's frame (the mean of the upper arms' roots), NaN with none. */
+export function shoulderHeight(root: Object3D): number {
+  root.updateMatrixWorld(true);
+  const inv = new Matrix4().copy(root.matrixWorld).invert();
+  let y = 0, n = 0;
+  for (const name of ['LeftArm', 'RightArm']) {
+    const b = root.getObjectByName(name);
+    if (!b) continue;
+    y += new Vector3().setFromMatrixPosition(b.matrixWorld).applyMatrix4(inv).y;
+    n++;
+  }
+  return n ? y / n : NaN;
+}
+
+/** seatDriver's IK with the Hips at `hipsAt` (the seat, or above it on a booster). */
+function seatAt(root: Object3D, hipsAt: V3, seat: SeatSpec, pose: SeatedPose, rest: ReadonlyMap<string, { p: Vector3; q: Quaternion }>): { lean: number; reach: number[] } {
   const bone = (n: string) => root.getObjectByName(n) ?? null;
   for (const [name, r] of rest) { const b = bone(name); if (b) { b.position.copy(r.p); b.quaternion.copy(r.q); } }
   root.updateMatrixWorld(true);
   const hips = bone('Hips');
   if (!hips) return { lean: 0, reach: [] };
-  hips.position.copy(new Vector3(...seat.seat).applyMatrix4(new Matrix4().copy(hips.parent!.matrixWorld).invert()));
+  hips.position.copy(new Vector3(...hipsAt).applyMatrix4(new Matrix4().copy(hips.parent!.matrixWorld).invert()));
   root.updateMatrixWorld(true);
   const spine = ['Spine02', 'Spine01', 'Spine'].map(bone).filter((b): b is Object3D => !!b);
   const arms = [['LeftArm', 'LeftForeArm', 'LeftHand', 1], ['RightArm', 'RightForeArm', 'RightHand', -1]] as const;
@@ -535,6 +623,8 @@ export function buildRiggedTemplate(racerId: string, spec: PartsSpec, parts: Loa
   const bodyGeo = baked(firstMesh(parts.body)!, fitBody(parts.body, spec.body));
   const bp = partOf(bodyGeo, bones.indexOf(body));
   bodyGeo.dispose();
+  // a seatback, roll bar or hump that hid the driver from the chase camera, lowered (TrimSpec)
+  trimBody(bp, spec.body.trim);
   if (st) cutSteering(bp, st, bones.indexOf(byName.get('steer')!), dark);
   toAtlas(bp.uv, ATLAS.body);
   const wheelMesh = firstMesh(parts.wheel)!;
