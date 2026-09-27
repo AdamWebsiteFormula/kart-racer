@@ -1,9 +1,10 @@
-// Track dressing modelled in code: decor, landmark, barriers, balloons, coins and
+// Track dressing modelled in code: decor, landmark, barriers, balloons, the speed gears (keyed `coin`) and
 // hazards (pads, ramps and bumps: track-builder/mesh/ramps.ts). Every model keeps the size and origin of the placeholder it replaces (scene.ts), so
 // placement code never changes. Keyed exactly as TrackAssets expects.
 import type { BufferGeometry } from 'three';
 import { ModelBuilder } from './model.ts';
 import { DRESSING_MODELS } from './dressing.ts';
+import { buildGear } from './gear.ts';
 
 type Build = (m: ModelBuilder) => void;
 
@@ -128,13 +129,8 @@ const MODELS: Record<string, { build: Build }> = {
       }
     },
   },
-  coin: {
-    build: (m) => {
-      m.cyl(0.5, 0.5, 0.12, '#f2b705', [0, 0, 0], [Math.PI / 2, 0, 0], 16);
-      m.cyl(0.36, 0.36, 0.14, SUN, [0, 0, 0], [Math.PI / 2, 0, 0], 16, false);
-      m.box([0.1, 0.34, 0.16], '#f2b705', [0, 0, 0], undefined, false);        // the mark
-    },
-  },
+  // the speed pickup (the track's `coins`) is a teal gear with a steel hub, not a coin (gear.ts; Adam, 26 Sept 2026)
+  coin: { build: (m) => buildGear(m) },
   // ================================================================ Meadow Run
   windmill: {
     build: (m) => {

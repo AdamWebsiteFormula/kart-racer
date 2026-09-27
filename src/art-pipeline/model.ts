@@ -105,6 +105,10 @@ export class ModelBuilder {
   rock(r: number, colour: Paint, pos: V3, rot?: V3, scale: V3 = [1, 1, 1]): this {
     return this.push(new IcosahedronGeometry(r, 0), colour, pos, rot, scale, true);
   }
+  /** A hand-built part (position and normal, indexed or not; gear.ts's strips), painted and placed like the rest. */
+  part(geo: BufferGeometry, colour: Paint, pos: V3 = [0, 0, 0], rot?: V3, outline = false): this {
+    return this.push(geo, colour, pos, rot, [1, 1, 1], outline);
+  }
   /** A cartoon eye: white ball with a dark pupil, facing +Z. */
   eye(r: number, pos: V3, look: V3 = [0, 0, 1]): this {
     this.ball([r, r, r * 0.8], '#ffffff', pos, [0, 0, 0], 10, false);
