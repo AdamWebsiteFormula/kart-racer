@@ -941,7 +941,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* a Time Trial against the best it raced: "−1.37" on green by "New best!", "+0.85" on red on a slower run */
 .res-words { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; }
 .res-words .sub { flex-basis: 100%; }
-.res-delta { padding: 3px 13px 6px; border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 4px 0 var(--ink); color: var(--paper); font: 400 34px/1 var(--display); font-variant-numeric: tabular-nums; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-slow) var(--pop) calc(300ms + var(--delay, 0ms)) backwards; }
+.res-delta { margin-left: 16px; padding: 3px 13px 6px; border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 4px 0 var(--ink); color: var(--paper); font: 400 34px/1 var(--display); font-variant-numeric: tabular-nums; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-slow) var(--pop) calc(300ms + var(--delay, 0ms)) backwards; }
 .res-delta.ahead { background: var(--grass); }
 .res-delta.behind { background: var(--danger); }
 .gained { color: #7cf29c; font-weight: 700; }
