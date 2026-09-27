@@ -17,7 +17,8 @@ const TRACKS = Object.fromEntries(Object.values(import.meta.glob('../track-build
 const IDS = Object.keys(TRACKS);
 
 /** A "client" run exactly as the game plays it: the shared sim tick, a scripted player, the race's own input log; in `kartId` (absent: the racer's own). */
-function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string) {
+/** `hops`: the drift button tapped every 0.75 s, and again 6 ticks into each flight (hops on every slope, tricks off every jump and crest). */
+function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string, hops = false) {
   const config = soloConfig(mode, trackId, racerId, seed, kartId);
   const track = buildTrack(TRACKS[trackId]);
   const manager = new RaceManager(track, config);
@@ -30,7 +31,8 @@ function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: numb
   while (manager.state.phase !== 'finished' && manager.state.tick < 120 * 400) {
     const i = drive(manager.state.karts[0], track);
     wobble += 0.37; // unrounded analogue values, like a real stick
-    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991 });
+    const tick = manager.state.tick;
+    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991, drift: hops && (tick % 90 === 0 || tick % 90 === 6) });
   }
   return { result: manager.results().ranks[0], log: manager.state.inputLog };
 }
@@ -77,9 +79,11 @@ describe('submission rules', () => {
     void _;
     expect(checkSubmission(noKart, IDS)).toBe('unknown kart'); // the server's 400
     expect(checkSubmission({ ...good, kartId: 'rocket' }, IDS)).toBe('unknown kart');
-    // a v5 game sends no kartId: it hears "please reload" (400), which the board words as "The game was updated"
-    expect(CLIENT_VERSION).toBe('6');
+    // a v5 game sends no kartId: it hears "please reload" (400), which the board words as "The game was updated";
+    // so does a v6 game (26 Sept 2026: its hops and tricks replay differently on the v7 sim)
+    expect(CLIENT_VERSION).toBe('7');
     expect(checkSubmission({ ...noKart, clientVersion: '5' }, IDS)).toBe('please reload the game: new version');
+    expect(checkSubmission({ ...good, clientVersion: '6' }, IDS)).toBe('please reload the game: new version');
     expect(postError(400, 'please reload the game: new version')).toMatch(/Reload the page/);
   });
   it('a solo run carries its kart, and a restarted Daily keeps it', () => {
@@ -295,5 +299,13 @@ describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => 
     expect(inTruck.result.dnf).toBe(false);
     const v = core.verifyRun(core.TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, encodeLog(inTruck.log), inTruck.result.timeMs, 'snacktruck');
     expect(v, 'Momo in the Snack Truck: the bundle is stale, run npm run build:function').toMatchObject({ ok: true, timeMs: inTruck.result.timeMs });
+    // hops and tricks (26 Sept 2026: a hop takes the road's climb, a trick off any real air): the runs above
+    // never press the drift button, so a hop or trick rule changed without a rebuild slipped past them
+    for (const id of ['canyon-rush', 'skyline-circuit'] as const) {
+      const hopper = clientRun(id, 'timeTrial', 'pip', 0, 0, undefined, true);
+      expect(hopper.result.dnf, `${id} hopping`).toBe(false);
+      const h = core.verifyRun(core.TRACKS[id], 'timeTrial', 'pip', 0, encodeLog(hopper.log), hopper.result.timeMs);
+      expect(h, `${id}, hopping: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: hopper.result.timeMs });
+    }
   }, 120_000);
 });

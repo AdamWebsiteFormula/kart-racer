@@ -6,8 +6,12 @@ import { CAST } from '../ui-hud/data/cast.ts';
 
 export type BoardMode = 'timeTrial' | 'daily';
 export const BOARD_MODES: readonly BoardMode[] = ['timeTrial', 'daily'];
-/** 6 (26 Sept 2026): a run names its kart (any racer in any kart), and the server replays it in that kart. */
-export const CLIENT_VERSION = '6';
+/**
+ * 6 (26 Sept 2026): a run names its kart (any racer in any kart), and the server replays it in that kart.
+ * 7 (26 Sept 2026): a hop takes the road's climb and a trick counts off any real air (kart-controller),
+ * so a v6 game's run replays differently: it is told to reload.
+ */
+export const CLIENT_VERSION = '7';
 export const MAX_LOG_BYTES = 256 * 1024;
 export const MIN_TIME_MS = 30_000;
 /** Yesterday's Daily still takes posts this long after midnight UTC (a race started just before). */
