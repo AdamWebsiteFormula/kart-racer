@@ -12,7 +12,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isPbr, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isPbr, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, ROAD_WET, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { Warmup } from './performance/warmup.ts';
@@ -752,6 +752,8 @@ const SHIFT_FLASH = Object.freeze({ sky: 1.8, ambient: 2.4, sun: 0.5 });
  */
 function showShift(s: RaceSession, audible: boolean, reduced: boolean): void {
   const st = s.trackScene.stage;
+  // the storm's wet road: darker and glossy (art-pipeline surfaces.ts ROAD_WET), the tires throw spray (vfx-juice kartfx.ts)
+  vfx.wet = ROAD_WET.value = st ? st.wet : 0;
   if (!st) return;
   const fog = scene.fog as Fog | null;
   if (fog) { fog.near = st.fog.near; fog.far = st.fog.far; }

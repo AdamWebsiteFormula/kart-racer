@@ -74,6 +74,21 @@ export const SMOKE = Object.freeze({
   rate: 10, size: 0.22, life: 0.45, alpha: 0.3, grow: 2.2,
 });
 
+/**
+ * Spray off the rear tires on a wet road (Meadow Run's Final Lap Shift storm; Adam, 26 Sept 2026: the
+ * rain "does not splash"): Mario Kart World's rain throws a faint white mist behind the rear tires, a
+ * thin trail about a kart long (art-pipeline SOP, 26 Sept 2026, two watches agree). A puff from each
+ * rear tire in turn, `rate` a second at full wetness and `fullSpeed` m/s (none under `minSpeed`), thrown
+ * `back` m/s (plus `backPerSpeed` of the kart's speed) behind the tire, out and up, riding with `carry`
+ * of the kart's own velocity so the trail stays short; pale, faint (`alpha`), growing as it thins.
+ */
+export const SPRAY = Object.freeze({
+  color: Object.freeze([0.8, 0.84, 0.9] as const),
+  rate: 80, minSpeed: 6, fullSpeed: 22, reduced: 0.5,
+  back: 1.2, backPerSpeed: 0.08, out: [0.4, 1.1] as const, up: [0.5, 1.2] as const, carry: 0.7,
+  size: 0.1, life: 0.34, alpha: 0.24, grow: 3.2, gravity: 3.5, drag: 1.6,
+});
+
 /** Tire marks: segment width (m), the least a wheel moves before the next is laid (m), and the fade-in at a drift's start (s). */
 export const MARK = Object.freeze({ width: 0.24, spacing: 0.45, rampIn: 0.3 });
 
@@ -96,6 +111,7 @@ interface KartMem {
   l: [number, number, number]; r: [number, number, number];
   skid: boolean; skidFor: number; skidInk: number;
   side: number; sparkAcc: number; emberAcc: number; dustAcc: number; puffAcc: number; puffPipe: number; smokeAcc: number; smokeSide: number;
+  sprayAcc: number; spraySide: number;
   /** the drift's tier as last seen (a rise throws the needles), and the boost's fire time as last seen (a new one throws the flakes) */
   lastTier: number; lastSince: number; lastSpeed: number;
   boost: BoostTier;
@@ -137,6 +153,7 @@ export class KartFx {
       wheelContact(rear, contact);
       m = {
         l: [0, 0, 0], r: [0, 0, 0], skid: false, skidFor: 0, skidInk: 0, side: 1, sparkAcc: 0, emberAcc: 0, dustAcc: 0, puffAcc: 0, puffPipe: 0, smokeAcc: 0, smokeSide: 1,
+        sprayAcc: 0, spraySide: 1,
         lastTier: 0, lastSince: -1, lastSpeed: 0, boost: new BoostTier(), exhaust,
         sx: contact.x, sz: contact.z, mx: rear?.x ?? 0.55, mz: rear?.z ?? -0.6,
       };
@@ -156,9 +173,10 @@ export class KartFx {
 
   /**
    * One kart's emitters for `dt` seconds of sim (0 while paused or frozen: nothing new is thrown).
-   * `t` a clock in seconds; `cam` the camera's place (karts past 70 m throw nothing); `mine` the player's.
+   * `t` a clock in seconds; `cam` the camera's place (karts past 70 m throw nothing); `mine` the player's;
+   * `wet` how wet the road is (0..1: Meadow's storm), for the tires' spray.
    */
-  emit(k: KartState, dt: number, t: number, cam: readonly number[], mine: boolean, reduced = false): void {
+  emit(k: KartState, dt: number, t: number, cam: readonly number[], mine: boolean, reduced = false, wet = 0): void {
     if (k.isGhost) return;
     const dx = k.position[0] - cam[0], dz = k.position[2] - cam[2];
     if (dx * dx + dz * dz > 70 * 70) { const far = this.mem.get(k.racerId); if (far) far.skid = false; return; } // too far to see
@@ -281,6 +299,22 @@ export class KartFx {
           col, 1, 0.38, 0.42, 0, 1.8, 0.9, 0);
       }
     } else m.dustAcc = 0;
+
+    // spray off the rear tires on a wet road, from each tire in turn (none off the grass: its own dust,
+    // none in the air)
+    const speed = Math.abs(k.speed);
+    if (wet > 0.05 && k.grounded && (k.surface === 'road' || k.surface === 'boost') && speed > SPRAY.minSpeed) {
+      m.sprayAcc += dt * SPRAY.rate * wet * (mine ? 1 : SPARK.rival) * (reduced ? SPRAY.reduced : 1) * Math.min(1, speed / SPRAY.fullSpeed);
+      while (m.sprayAcc >= 1) {
+        m.sprayAcc -= 1;
+        m.spraySide = -m.spraySide;
+        const wx = m.spraySide > 0 ? rx : lx, wz = m.spraySide > 0 ? rz : lz;
+        const back = SPRAY.back + speed * SPRAY.backPerSpeed, out = m.spraySide * pick(SPRAY.out);
+        this.put(this.soft, wx + sym() * 0.08, py + 0.1, wz + sym() * 0.08, -s * back + c * out, pick(SPRAY.up), -c * back - s * out,
+          vx * SPRAY.carry, 0, vz * SPRAY.carry, SPRAY.color, 1, SPRAY.size * (0.8 + 0.4 * rnd()), SPRAY.life * (0.8 + 0.4 * rnd()),
+          SPRAY.gravity, SPRAY.drag, SPRAY.grow, 0, SPRAY.alpha);
+      }
+    } else m.sprayAcc = 0;
   }
 
   /** One speck from the rear tire on `side` (-1 left, 1 right): thrown back, out to that side and up, riding with its kart. */

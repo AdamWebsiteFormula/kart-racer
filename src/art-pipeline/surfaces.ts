@@ -17,6 +17,15 @@ import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts'
 export const WATER_CLOCK = { value: 0 };
 
 /**
+ * How wet the road is, 0..1 (the game sets it each frame from the Final Lap Shift's storm, track-builder
+ * shiftStage.ts `wet`; 0 everywhere else). The PBR road (roadDetail) darkens and turns glossy with it: a
+ * wet surface is darker (water fills its pores) and smoother (a film of water over the grain): Sébastien
+ * Lagarde, "Water drop 3b: physically based wet surfaces" (seblagarde.wordpress.com, 2013); Mario Kart
+ * World's rain leaves the road "darkened with a high-gloss" sheen (art-pipeline SOP, 26 Sept 2026).
+ */
+export const ROAD_WET = { value: 0 };
+
+/**
  * Real wave geometry (research brief, 26 Sept 2026: Digital Foundry's MKW tech review — "waves have
  * real geometric undulation... with foam on the crests"), on the near-camera grid only (waterWaves.ts
  * `buildWaveGridMesh`; scene.ts adds it beside the flat far plane this same material also draws): a
@@ -724,14 +733,14 @@ export const ROAD_GRAIN_METRES = 4;
  * Same material, same draw calls. Only a MeshStandardMaterial compiles it (STANDARD).
  */
 export function roadDetail(m: MeshToonMaterial, biome: string): void {
-  const uniforms = { uRoadGrain: { value: roadDetailSource(biome) } };
+  const uniforms = { uRoadGrain: { value: roadDetailSource(biome) }, uRoadWet: ROAD_WET };
   const g = ROAD_GRAIN_METRES.toFixed(2);
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `#ifdef STANDARD\nvarying vec3 vRdW;\n#endif\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef STANDARD\n  vRdW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif')}`;
-    shader.fragmentShader = `#ifdef STANDARD\nuniform sampler2D uRoadGrain;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n#endif\n${shader.fragmentShader}`
+    shader.fragmentShader = `#ifdef STANDARD\nuniform sampler2D uRoadGrain;\nuniform float uRoadWet;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n#endif\n${shader.fragmentShader}`
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 #ifdef STANDARD
   {
@@ -764,6 +773,9 @@ export function roadDetail(m: MeshToonMaterial, biome: string): void {
       rdR = mix(0.9, 0.9, roadCurb);
     }
     roughnessFactor = clamp(rdR, 0.3, 1.0);
+    // the storm's wet road (ROAD_WET): darker, and glossy under its film of water
+    diffuseColor.rgb *= 1.0 - ${WET_ROAD.darken.toFixed(2)} * uRoadWet;
+    roughnessFactor = mix(roughnessFactor, ${WET_ROAD.roughness.toFixed(2)}, uRoadWet);
   }
 #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -776,6 +788,9 @@ export function roadDetail(m: MeshToonMaterial, biome: string): void {
   // a little less of the pale sky's sheen than the props take: the road read washed out
   m.userData.lookEnv = ROAD_ENV;
 }
+
+/** A fully wet road (ROAD_WET 1): how much darker its albedo, and the roughness its water film brings it down to. */
+export const WET_ROAD = Object.freeze({ darken: 0.3, roughness: 0.5 });
 
 /** The road's share of the sky's light in the PBR look (look.ts PBR.env for the rest of the world). */
 export const ROAD_ENV = 0.22;

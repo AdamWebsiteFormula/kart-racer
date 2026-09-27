@@ -4,7 +4,8 @@
 // sampled for black. One NaN pixel is enough to black out a whole frame through bloom's blur (26 Sept
 // 2026: zero-length normals on prop models). For the first bad pixel on a track it names what a ray
 // through it hits; a black output over a dark scene (a tunnel) is counted apart. The scan slows frames, so the Auto governor is pinned (it would turn post off).
-//   node scripts/headless/nan-scan.mjs [url] [--seconds=25] [--tracks=harbour-loop,meadow-run]
+// --shift: first run each race on (stepped by hand) to its Final Lap Shift, then scan the show.
+//   node scripts/headless/nan-scan.mjs [url] [--seconds=25] [--tracks=harbour-loop,meadow-run] [--shift]
 import { openChrome, sleep } from './cdp.mjs';
 
 const args = process.argv.slice(2);
@@ -74,6 +75,10 @@ try {
   for (const t of tracks) {
     await c.eval(`kart.race('${t}', 'pip'); kart.autopilot(true)`);
     await sleep(1500);
+    // (--shift) on to the Final Lap Shift, stepped by hand: the scan below then sees its show
+    if (args.includes('--shift')) await c.eval(`(async () => { const br = () => new Promise((r) => setTimeout(r, 0));
+      for (let n = 0; n < 6000 && !(kart.session.trackScene.stage && kart.session.trackScene.stage.since >= 0.2); n++) {
+        if (kart.ui.paused) kart.ui.dispatch({ type: 'resume' }); kart.step(10); if (n % 4 === 0) await br(); } })()`);
     if (!installed) { await c.eval(INSTALL); installed = true; }
     await c.eval('window.__nan.length = 0; window.__named = false; window.__scan = true');
     await sleep(seconds * 1000);

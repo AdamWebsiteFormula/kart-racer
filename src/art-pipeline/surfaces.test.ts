@@ -5,7 +5,7 @@ import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { ROAD_LOOKS, trackAssets } from './index.ts';
 import { DEFAULT_LOOK, PBR, setLook, worldEnvironment } from './look.ts';
-import { coastMaterial, glintDirection, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, SEA_LOOK, WATER_CLOCK, waterMaterial } from './surfaces.ts';
+import { coastMaterial, glintDirection, GROUND_RELIEF_FAR, groundMaterial, ROAD_RELIEF_FAR, ROAD_WET, SEA_LOOK, WATER_CLOCK, waterMaterial, WET_ROAD } from './surfaces.ts';
 import { rippleTexture } from './waterRipples.ts';
 import { gerstnerRide, SEA_TIDE, tideScale, WAVE_FADE } from './waterWaves.ts';
 
@@ -108,6 +108,24 @@ describe('the PBR look on the road and the land (look.ts, 25 Sept 2026)', () => 
     expect(set).toBeGreaterThan(fs.indexOf('#include <roughnessmap_fragment>'));
     expect(set).toBeLessThan(fs.indexOf('#include <lights_physical_fragment>'));
     expect(fs).toContain('#define LOOK_SUN');
+    scene.dispose();
+  });
+
+  it('the PBR road wets with the storm (ROAD_WET, one shared number the game sets): darker and glossier, nothing while it is dry', () => {
+    setLook('pbr');
+    const scene = buildTrackScene(buildTrack(HARBOUR), trackAssets(HARBOUR.biome));
+    let m: MeshStandardMaterial | undefined;
+    scene.group.traverse((o) => { const x = (o as Mesh).material as Material | undefined; if (!m && x && !Array.isArray(x) && x.customProgramCacheKey().includes('road-lines')) m = x as MeshStandardMaterial; });
+    const shader = { vertexShader: ShaderChunk.meshphysical_vert, fragmentShader: ShaderChunk.meshphysical_frag, uniforms: {} } as unknown as WebGLProgramParametersWithUniforms;
+    m!.onBeforeCompile(shader, {} as WebGLRenderer);
+    expect(shader.uniforms.uRoadWet).toBe(ROAD_WET);
+    expect(ROAD_WET.value).toBe(0);
+    const fs = shader.fragmentShader;
+    expect(fs).toContain(`diffuseColor.rgb *= 1.0 - ${WET_ROAD.darken.toFixed(2)} * uRoadWet;`);
+    expect(fs).toContain(`roughnessFactor = mix(roughnessFactor, ${WET_ROAD.roughness.toFixed(2)}, uRoadWet);`);
+    // after the road's own roughness, so a wet road is glossy whatever its grain says
+    expect(fs.indexOf('uRoadWet);')).toBeGreaterThan(fs.indexOf('roughnessFactor = clamp(rdR'));
+    expect(WET_ROAD.roughness).toBeGreaterThanOrEqual(0.4); // a sheen, not a mirror of the sun (checked on stills)
     scene.dispose();
   });
 

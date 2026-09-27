@@ -111,6 +111,37 @@ describe('the Final Lap Shift stage on every track', () => {
     scene.dispose();
   });
 
+  it('Meadow Run: the rain splashes where it lands, on the road as drawn round the camera\'s kart, and wets the road as hard as it rains', () => {
+    const { track, scene, stage } = build(DEF('meadow-run'));
+    const splashes = named(stage.group, 'shift-splashes')!;
+    expect(splashes).toBeDefined();
+    const L = track.branches.main.lut, s = L.sample(0.3, 0), p = s.position;
+    const focus: Vec3 = [p[0], p[1], p[2]], heading = Math.atan2(s.tangent[0], s.tangent[2]);
+    stage.update(-1, 50, focus, heading, false);
+    expect(splashes.visible).toBe(false);
+    expect(stage.wet).toBe(0);
+    track.applyFinalLapShift();
+    let t = 0;
+    for (; t < SHOW.storm.rain[1] + 1; t += 1 / 60) stage.update(t, 100 + t, focus, heading, false);
+    expect(splashes.visible).toBe(true);
+    expect(stage.wet).toBeCloseTo(1, 6);
+    // every splash alive stands on the road where it is on the road: its banked deck's height there
+    const a = (splashes.geometry.getAttribute('aSplash') as BufferAttribute).array as Float32Array;
+    let onRoad = 0;
+    for (let i = 0; i < a.length / 4; i++) {
+      if (100 + t - a[i * 4 + 3] > 0.6) continue;
+      const x = a[i * 4], y = a[i * 4 + 1], z = a[i * 4 + 2];
+      let j = 0, bd = Infinity;
+      for (let k = 0; k < L.n; k++) { const d = (L.px[k] - x) ** 2 + (L.pz[k] - z) ** 2; if (d < bd) { bd = d; j = k; } }
+      const lat = (x - L.px[j]) * L.rx[j] + (z - L.pz[j]) * L.rz[j];
+      if (Math.abs(lat) > L.hw[j] - 0.3) continue;
+      onRoad++;
+      expect(Math.abs(y - (L.py[j] - lat * Math.tan(L.bank[j]))), `splash ${i}`).toBeLessThan(0.08);
+    }
+    expect(onRoad).toBeGreaterThan(20);
+    scene.dispose();
+  });
+
   it('Canyon Rush: a rope bridge stands over the chasm (the road leaves it the span); at the shift its planks fall away from the middle out; the mine lights', () => {
     const { track, scene, stage } = build(DEF('canyon-rush'));
     const bridge = named(stage.group, 'shift-bridge')!;

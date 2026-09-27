@@ -67,6 +67,8 @@ export class Vfx {
   /** a firework's colour, reused */
   private readonly hot: number[] = [1, 1, 1];
   readonly shake = { x: 0, y: 0, z: 0, roll: 0 };
+  /** how wet the road is, 0..1 (the game sets it from the Final Lap Shift's storm): the tires throw spray */
+  wet = 0;
 
   constructor(scene: Scene, camera: Camera) {
     scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh, this.kartFx.sparks.mesh);
@@ -77,6 +79,7 @@ export class Vfx {
   /** New race: forget trails and particles. */
   reset(): void {
     this.glow.clear(); this.soft.clear(); this.confetti.clear(); this.skids.clear(); this.kartFx.reset();
+    this.wet = 0;
     this.trauma.value = 0;
     this.time.reset(); // a restart mid hit-stop or slow-mo must not start frozen
     this.kick.reset();
@@ -247,7 +250,7 @@ export class Vfx {
   frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean): void {
     this.lastPlayer = player;
     // (an index loop, not for-of: an iterator is garbage every frame)
-    if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced);
+    if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced, this.wet);
     this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt);
     this.skids.setTime(t);
     this.trauma.update(dt);
