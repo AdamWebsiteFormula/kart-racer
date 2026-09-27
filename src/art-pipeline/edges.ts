@@ -269,7 +269,7 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
     styles: [
       {
         name: 'hedgerow', weight: 0.4, bank: true,
-        sweep: { profile: HEDGE, at: 3.8, height: [1.3, 1.9], foot: lin('#3a8a33'), top: lin('#7fcf57'), vary: 0.16, lumps: 0.3, smooth: false },
+        sweep: { profile: HEDGE, at: 3.8, height: [1.3, 1.9], foot: lin('#2c6f2a'), top: lin('#5caf43'), vary: 0.16, lumps: 0.3, smooth: false },
         dots: [{ assets: ['edge-oak', 'edge-oak', 'edge-poplar'], every: [9, 18], at: [5.8, 6.8], scale: [0.85, 1.25] }, { assets: ['edge-wildflowers', 'edge-poppies', 'edge-longgrass'], every: [2.5, 5], at: [0.8, 3.0] }],
       },
       {

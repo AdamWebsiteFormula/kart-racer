@@ -259,9 +259,10 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
   };
   const dry = (g: number) => ctx.waterY === undefined || g > ctx.waterY + DRY;
   /** A piece of radius r may stand at (x, z): clear of every road's drivable land, every prop, the crowd and the edge's own pieces, on dry, level land. */
-  const placeable = (x: number, z: number, r: number): boolean => {
+  /** (`touch`: the share of its reach that may not overlap what stands already: a tree's crown may lean over a hedge) */
+  const placeable = (x: number, z: number, r: number, touch = 0.7): boolean => {
     if (insideRoadEnvelope(branches, x, z, -1, pad + 0.2 + r)) return false;
-    if (ctx.occupied.hits(x, z, r * 0.7) || avoided(x, z, r) || claims.hits(x, z, r * 0.7)) return false;
+    if (ctx.occupied.hits(x, z, r * touch) || avoided(x, z, r) || claims.hits(x, z, r * touch)) return false;
     const g0 = ctx.groundAt(x, z);
     if (!dry(g0)) return false;
     for (let a = 0; a < 4; a++) {
@@ -416,9 +417,10 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
     const bankAt = (i: number, out: number) => (style.bank && kit.bank ? profileAt(kit.bank.profile, out) * H[Math.max(0, Math.min(n - 1, i))] : 0);
     const sw = style.sweep;
     if (sw) {
-      // the hedge or the wall breaks where a prop (lifted onto the bank) stands on its line
-      const mid = sweepMid(sw), open = new Uint8Array(n);
-      for (let i = 0; i < n; i++) { const [x, z] = at(k0 + i, s, sw.at + mid); open[i] = ctx.occupied.hits(x, z, mid + 0.4) || avoided(x, z, mid + 0.4) ? 0 : 1; }
+      // the hedge or the wall breaks where a prop (lifted onto the bank) stands on its line, and keeps off the
+      // bank's own eased ends (riding down one it would slide off the end of the bank like a ramp)
+      const mid = sweepMid(sw), open = new Uint8Array(n), end = style.bank && kit.bank ? Math.ceil(TAPER / ds) : 0;
+      for (let i = 0; i < n; i++) { const [x, z] = at(k0 + i, s, sw.at + mid); open[i] = i < end || i >= n - end || ctx.occupied.hits(x, z, mid + 0.4) || avoided(x, z, mid + 0.4) ? 0 : 1; }
       for (let i = 0; i < n;) {
         if (!open[i]) { i++; continue; }
         let m = 0;
@@ -456,7 +458,8 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
         const g = ctx.geometry(asset);
         if (!g) continue;
         const r = reachOf(g) * sc;
-        if (!placeable(x, z, r)) continue;
+        // a dotted prop on a run stands among the run's own hedge or fence (an oak rising out of a hedgerow)
+        if (!placeable(x, z, r, 0.4)) continue;
         const c = station(k0 + i);
         const yaw = d.face ? Math.atan2(main.tx[c.j], main.tz[c.j]) + (s > 0 ? 0 : Math.PI) + (jitter - 0.5) * 0.3 : jitter * Math.PI * 2;
         put(asset, g, x, ctx.groundAt(x, z) + bankAt(i, o) - 0.06 * sc, z, yaw, sc, r, 'edge');

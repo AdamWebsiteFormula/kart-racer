@@ -577,7 +577,8 @@ export interface RoadLook {
    * older paler patch, each with a tar seam round it; `seal`: tar-sealed cracks wandering along the lane
    * joints, this dark; `dust`/`dustWidth`/`dustAmount`: the biome's dust or dirt blown onto the road's
    * edges; `puddles`: dark damp spots (Windmill Run), or with `puddleTint` (a multiplier) and `puddleGloss`
-   * (the PBR look's roughness there) Frostbite's glassy ice patches; `line`: how much darker
+   * (the PBR look's roughness there: kept rough, or they catch the sun as white blotches) Frostbite's packed,
+   * polished patches (faint: never to be read as the sim's ice); `line`: how much darker
    * the rubbered racing line is (the PBR look), `lineTint` its colour (Frostbite's packed, icy snow).
    */
   tone?: number; reseal?: number; resealTint?: readonly [number, number, number]; resealGloss?: number; seal?: number;
@@ -586,9 +587,9 @@ export interface RoadLook {
 }
 export const ROAD_LOOKS: Readonly<Record<string, RoadLook>> = Object.freeze({
   harbour: { wear: 1, cracks: 0.55, patches: 0.7, sheen: 0.16, shine: 22, tone: 0.07, reseal: 0.5, resealTint: [0.76, 0.77, 0.82], seal: 0.5, dust: '#dccfa8', dustWidth: 1.3, dustAmount: 0.5, line: 0.28 },
-  meadow: { wear: 0.9, cracks: 0.75, patches: 0.5, sheen: 0.13, shine: 18, tone: 0.08, reseal: 0.45, resealTint: [0.74, 0.75, 0.8], seal: 0.55, dust: '#b39c76', dustWidth: 1.6, dustAmount: 0.55, puddles: 1, line: 0.28 },
+  meadow: { wear: 0.9, cracks: 0.75, patches: 0.5, sheen: 0.13, shine: 18, tone: 0.08, reseal: 0.45, resealTint: [0.74, 0.75, 0.8], seal: 0.55, dust: '#b39c76', dustWidth: 1.6, dustAmount: 0.55, puddles: 1, puddleGloss: 0.84, line: 0.28 },
   canyon: { wear: 0.85, cracks: 1, patches: 0.35, sheen: 0.1, shine: 14, sand: '#e8a868', tone: 0.08, reseal: 0.35, resealTint: [0.8, 0.74, 0.7], seal: 0.5, line: 0.3 },
-  frost: { wear: 0.7, cracks: 0.35, patches: 0, sheen: 0.32, shine: 42, frost: 0.55, tone: 0.05, puddles: 0.8, puddleTint: [0.9, 0.94, 1.0], puddleGloss: 0.55, line: 0.22, lineTint: '#9fb4d6' },
+  frost: { wear: 0.7, cracks: 0.35, patches: 0, sheen: 0.32, shine: 42, frost: 0.55, tone: 0.05, puddles: 0.8, puddleTint: [0.88, 0.92, 0.98], puddleGloss: 0.78, line: 0.22, lineTint: '#9fb4d6' },
   skyline: { wear: 0.6, cracks: 0, patches: 0, sheen: 0.32, shine: 30, seams: 1, tone: 0.04, line: 0.16 },
   boardwalk: { wear: 0.45, cracks: 0, patches: 0, sheen: 0.4, shine: 70, wet: 0.75, wetTint: '#8a6cff', spill: '#2fd8ff', tone: 0.05, line: 0.2 },
 });
