@@ -18,6 +18,7 @@ import { buildTrackScene, recolourBackdrop, type Rgb, type TrackScene } from '..
 import { buildTrack, type Track } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { buildRacerMesh, comboOwnerOf, fadeSky, freeSkeletons, isShared, lightOf, paintSky, RACER_MODELS, SKIES, skyTint, trackAssets, type KartLook, type SkyLight } from '../art-pipeline/index.ts';
+import { FlameBatch } from '../vfx-juice/flameBatch.ts';
 import { ExhaustFlames } from '../vfx-juice/flames.ts';
 import { splitShadowDepth } from '../performance/shadowDepth.ts';
 import { GhostView } from './ghostView.ts';
@@ -42,6 +43,8 @@ export class RaceSession {
   readonly revs: readonly RevView[];
   /** the boost flames on each kart's pipes, by kart index */
   private readonly flames: ExhaustFlames[] = [];
+  /** the rivals' flames, all drawn in one call (vfx-juice flameBatch.ts); yours draw on their own mesh */
+  private readonly flameBatch = new FlameBatch();
   /** a rival near the lens turns to a see-through ghost (kartFade.ts); yours never does */
   private readonly fader: KartFader;
   readonly itemsView: ItemsView;
@@ -133,6 +136,8 @@ export class RaceSession {
     });
     this.roots = this.views.map((v) => v.root);
     this.revs = this.views.map((v) => v.rev);
+    this.flameBatch.set(this.rivalFlames());
+    this.group.add(this.flameBatch.mesh);
     splitShadowDepth(this.group);
     scene.add(this.group);
   }
@@ -232,6 +237,7 @@ export class RaceSession {
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt, reduced, this.track);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k], st.time, reduced, this.views[k].rev);
+    this.flameBatch.update();
     const live = this.live;
     live.pickups = st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates;
     live.coins = st.coinStates;
@@ -316,6 +322,7 @@ export class RaceSession {
       out.push(this.config.racers[i].racerId);
     }
     this.staged = [];
+    if (out.length) this.flameBatch.set(this.rivalFlames());
     const g = this.stagedGhost, spec = this.ghostSpec;
     if (g && spec) {
       this.ghost?.dispose();
@@ -328,6 +335,11 @@ export class RaceSession {
     this.stagedGhost = null;
     splitShadowDepth(this.group);
     return out;
+  }
+
+  /** Every kart's flames but the player's (the batch draws them). */
+  private rivalFlames(): ExhaustFlames[] {
+    return this.flames.filter((_, i) => i !== this.playerIndex);
   }
 
   /** Time Trial: this run's ghost path so far ('' when not recording). Complete once the player has finished. */
@@ -350,6 +362,7 @@ export class RaceSession {
     this.rescueView.dispose();
     this.itemsView.dispose();
     this.fader.dispose();
+    this.flameBatch.dispose();
     this.group.traverse((o) => {
       const m = o as unknown as { geometry?: { dispose(): void }; material?: { dispose(): void } | { dispose(): void }[] };
       // shared placeholder geometries live at module scope; only per-session materials go
