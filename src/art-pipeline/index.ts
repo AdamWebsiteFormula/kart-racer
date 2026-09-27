@@ -11,6 +11,7 @@ import { buildVista } from './vista.ts';
 import { withCrowd } from './crowd.ts';
 import { applyLook, isPbr } from './look.ts';
 import { grassMaterial, tuftGeometry } from './grass.ts';
+import { edgeKit } from './edges.ts';
 
 export { bodyColours, buildRacerMesh, comboOwnerOf, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
 export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } from './bodies.ts';
@@ -59,5 +60,7 @@ export function trackAssets(biome?: string): TrackAssets {
   // old verge tufts (grass.ts; the flower clumps stay, for their colour)
   const lawn = biome === 'harbour' || biome === 'meadow';
   const pbr = isPbr() ? { look: applyLook, ...(lawn ? { grass: { geometry: tuftTemplate(), material: grassMaterial(biome), replaces: ['tuft'] } } : {}) } : {};
-  return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces, ...pbr };
+  // what lines each land track's edge past the course limit, and the cover inside it (edges.ts)
+  const edge = edgeKit(biome);
+  return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces, ...pbr, ...(edge ? { edge } : {}) };
 }
