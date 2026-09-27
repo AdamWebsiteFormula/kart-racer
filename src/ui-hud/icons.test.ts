@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { CUPS, KNOCKOUT_SETS } from './data/catalog.ts';
-import { ITEM_ICONS, OKABE_ITO, arrowSvg, cupSvg, iconSvg, itemArt, lockSvg, medalSvg, modeSvg, starIcon, wheelSvg } from './icons.ts';
+import { ITEM_ICONS, OKABE_ITO, arrowSvg, cupSvg, iconSvg, itemArt, lockSvg, medalSvg, menuSvg, modeSvg, starIcon, wheelSvg } from './icons.ts';
 
 describe('item icons', () => {
   it('every item has painted art, an Okabe-Ito fallback shape and its own colourblind glyph', async () => {
@@ -57,6 +57,20 @@ describe('menu icons (sweep 25 Sept 2026: the OS emoji differed on every system,
     });
     expect(new Set(svgs.map((s) => s.replace(/data-mode="\w+"/, ''))).size).toBe(MODES.length);
     expect(modeSvg('mirror', 20260925)).toBe('');
+  });
+
+  it('the title menu\'s emblems (26 Sept 2026): one drawing per band, in the house outline, hidden from assistive tech (the band names it), with no ids', () => {
+    const ids = ['start', 'howTo', 'unlocks', 'settings', 'credits'];
+    const svgs = ids.map((id) => menuSvg(id));
+    ids.forEach((id, i) => {
+      expect(svgs[i]).toMatch(new RegExp(`^<svg class="menu-svg" data-menu="${id}" viewBox="0 0 48 48" [^>]*aria-hidden="true" focusable="false">`));
+      expect(svgs[i]).not.toMatch(/\sid=/);
+      expect(svgs[i]).toContain('#1b1b2f');
+      expect(svgs[i]).not.toMatch(/NaN|undefined/);
+      expect(EMOJI.test(svgs[i]), id).toBe(false);
+    });
+    expect(new Set(svgs.map((s) => s.replace(/data-menu="\w+"/, ''))).size).toBe(ids.length);
+    expect(menuSvg('quit')).toBe('');
   });
 
   it('the Daily\'s calendar shows the day and month of the date it is given (the Daily\'s own, yyyymmdd)', () => {

@@ -28,8 +28,8 @@ function host(): UiHost & { plans: RacePlan[]; sounds: string[] } {
 const key = (code: string) => dispatchEvent(new KeyboardEvent('keydown', { code, key: code }));
 const focused = () => (document.activeElement as HTMLElement | null)?.dataset.id;
 const q = (sel: string) => document.querySelector<HTMLElement>(`#ui .screen.on ${sel}`);
-/** the kart the hero shows */
-const heroKart = () => q('.kart-hero .kh-art svg')?.getAttribute('data-kart');
+/** the kart the hero shows (the game draws it in the hero's box: the box names it) */
+const heroKart = () => q('.hero-box')?.dataset.kart;
 /** a UiRoot with karts picked and, unless `motion`, reduced motion (a kart chosen goes on at once) */
 function root(h: UiHost, motion = false, backend: ConstructorParameters<typeof UiRoot>[2] = null): UiRoot {
   const ui = new UiRoot(document.body, h, backend, { kartPick: true });
@@ -53,7 +53,9 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     // it opens on the kart Momo is in now: her own, the Scrap Buggy, on show in the hero
     expect(focused()).toBe('scrap');
     expect(heroKart()).toBe('scrap');
-    expect(q('.kh-name')!.textContent).toBe('Momo');
+    // the kart's name big under the hero; the racer's with it where the stats name the pair
+    expect(q('.np-name')!.textContent).toBe('Scrap Buggy');
+    expect(q('.sp-title')!.textContent).toBe('Momo in the Scrap Buggy');
     for (let i = 0; i < 6; i++) key('ArrowRight');
     expect(focused()).toBe('snacktruck');
     expect(heroKart()).toBe('snacktruck');
@@ -69,10 +71,10 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
   it('Escape: the track screen back to the Kart screen (on the kart chosen), the Kart screen back to the racer, kept', () => {
     const ui = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'timeTrial' }, { type: 'pickRacer', racerId: 'otto' }] as const) ui.dispatch(a);
-    key('ArrowDown'); // Otto's Wave Skimmer (5th) → the Buggy under it, locked: Enter refuses it
-    expect(focused()).toBe('buggy');
-    key('ArrowLeft'); // Classic, locked too
-    key('ArrowLeft'); // the Snack Truck
+    key('ArrowDown'); // Otto's Wave Skimmer (the middle of the second row) → the Snack Truck under it
+    expect(focused()).toBe('snacktruck');
+    key('ArrowRight'); // Classic, locked: Enter would refuse it
+    key('ArrowLeft'); // back to the Snack Truck
     key('Enter');
     expect(ui.app.screen).toBe('trackSelect');
     key('Escape');
@@ -94,8 +96,8 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     expect(focused()).toBe('scooter');
     key('ArrowLeft');
     expect(focused()).toBe('buggy');
-    key('ArrowUp');
-    expect(focused()).toBe('skimmer');
+    key('ArrowUp'); // three across: the Buggy alone in the last row, under the Stone Stomper
+    expect(focused()).toBe('stomper');
     // the keys never land on Back (Escape is theirs)
     for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) { key(k); expect(focused()).not.toBe('back'); }
     // a pad's D-pad and A, past the screen's opening move (a pad press during it is dropped)
@@ -105,7 +107,7 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
     let t = 0;
     const press = (b: number) => { pad.buttons[b].pressed = true; ui.poll((t += 16)); pad.buttons[b].pressed = false; ui.poll((t += 16)); };
-    key('ArrowLeft'); key('ArrowLeft'); // off the locked Buggy, to the Snack Truck
+    for (const k of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight']) key(k); // from the Timber Wagon along to the Snack Truck
     const at = focused()!;
     expect(at).toBe('snacktruck');
     press(15); // right
@@ -126,8 +128,10 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     key('ArrowLeft'); // Classic
     expect(focused()).toBe('classic');
     expect(heroKart()).toBe('classic');
-    expect(q('.kart-hero .kh-stage')!.classList.contains('locked')).toBe(true);
-    expect(q('.kart-hero .kh-lock')!.textContent).toBe('Finish a Grand Prix');
+    // the name under the hero says how to earn it, behind our padlock
+    expect(q('.nameplate')!.classList.contains('locked')).toBe(true);
+    expect(q('.np-text')!.textContent).toBe('Finish a Grand Prix');
+    expect(q('.nameplate .np-lock svg.lock-svg')).not.toBeNull();
     h.sounds.length = 0;
     key('Enter');
     expect(ui.app.screen).toBe('kartSelect');
@@ -164,7 +168,7 @@ describe('choosing a kart', () => {
     expect([ui.app.screen, ui.app.kartId]).toEqual(['cupSelect', 'snacktruck']);
     // back again: the pulse is over
     ui.dispatch({ type: 'back' });
-    expect(q('.kart-card.locked-in')).toBeNull();
+    expect(q('.kart-tile.locked-in')).toBeNull();
     ui.dispose();
   });
 
@@ -220,12 +224,13 @@ describe('choosing a kart', () => {
     ui.dispose();
   });
 
-  it('the turntable hook: the Kart screen hands the game its canvas with the racer and the kart under the focus (the plan\'s K6)', () => {
+  it('the stage hook: the Kart screen hands the game the hero\'s box with the racer and the kart under the focus (the plan\'s K6; game/showroom.ts)', () => {
     const ui = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'boulder' }] as const) ui.dispatch(a);
     key('ArrowLeft'); // from his own Stone Stomper to the Wind-Up Racer
     const t = ui.turntable()!;
-    expect(t.canvas).toBe(q('.kart-hero canvas.kh-canvas'));
+    expect(t.box).toBe(q('.hero-box'));
+    expect(t.box.getAttribute('aria-hidden')).toBe('true');
     expect([t.racerId, t.kartId]).toEqual(['boulder', 'windup']);
     // the racer screen's: the racer on show in the kart they would race in (their own until one is chosen)
     ui.dispatch({ type: 'back' });
@@ -234,28 +239,120 @@ describe('choosing a kart', () => {
   });
 });
 
+describe('the stats behind a button (Adam, 26 Sept 2026: "it shouldn\'t even appear unless you press a button"; MKW\'s "Details" on Y)', () => {
+  const shown = () => q('.stat-panel')?.hidden === false;
+  const statsBtn = () => q('.prompts [data-id="stats"]')!;
+
+  it('hidden on both screens until Y; Y shows them and they stay shown on the Kart screen; Y again hides them; the prompt says which', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    expect(shown()).toBe(false);
+    expect(statsBtn().getAttribute('aria-pressed')).toBe('false');
+    expect(statsBtn().textContent).toBe('YStats');
+    key('KeyY');
+    expect(shown()).toBe(true);
+    expect(ui.statsShown).toBe(true);
+    expect(statsBtn().getAttribute('aria-pressed')).toBe('true');
+    expect(q('.select-side')!.classList.contains('stats-on')).toBe(true);
+    key('Enter'); // Pip → the Kart screen: still shown, now Pip in the kart under the focus
+    expect(ui.app.screen).toBe('kartSelect');
+    expect(shown()).toBe(true);
+    expect(q('.sp-title')!.textContent).toBe('Pip in the Parcel Scooter');
+    key('ArrowRight');
+    expect(q('.sp-title')!.textContent).toBe('Pip in the Scrap Buggy');
+    key('KeyY');
+    expect(shown()).toBe(false);
+    expect(statsBtn().getAttribute('aria-pressed')).toBe('false');
+    // Y is nothing elsewhere: the track screen has no stats, and the key changes nothing there
+    key('Enter');
+    expect(ui.app.screen).toBe('trackSelect');
+    key('KeyY');
+    expect(ui.statsShown).toBe(false);
+    ui.dispose();
+  });
+
+  it('a click or a tap on the Stats prompt shows and hides them, the focus kept on the tiles for the keys', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'gus' }] as const) ui.dispatch(a);
+    statsBtn().click();
+    expect(shown()).toBe(true);
+    expect(focused()).toBe('snacktruck'); // the keys carry on from the tile they were on
+    key('ArrowLeft');
+    expect(focused()).toBe('stomper');
+    statsBtn().click();
+    expect(shown()).toBe(false);
+    // Back is a button of the prompt bar too: the way Escape goes
+    q('.prompts [data-id="back"]')!.click();
+    expect(ui.app.screen).toBe('rosterSelect');
+    ui.dispose();
+  });
+
+  it('a pad\'s Y (the top face button) shows them on a fresh press, not while held; the prompts name the pad\'s buttons', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    const later = ui.clock() + UI.wipeMs + 1;
+    ui.clock = () => later;
+    const pad = { connected: true, buttons: Array.from({ length: 17 }, () => ({ pressed: false })), axes: [0, 0, 0, 0] };
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
+    let t = 0;
+    ui.poll((t += 16));
+    pad.buttons[UI.padStatsButton].pressed = true;
+    ui.poll((t += 16));
+    expect(shown()).toBe(true);
+    ui.poll((t += 16)); // still held: no second toggle
+    ui.poll((t += 16));
+    expect(shown()).toBe(true);
+    expect(document.documentElement.dataset.input).toBe('pad');
+    pad.buttons[UI.padStatsButton].pressed = false;
+    ui.poll((t += 16));
+    pad.buttons[UI.padStatsButton].pressed = true;
+    ui.poll((t += 16));
+    expect(shown()).toBe(false);
+    delete (navigator as { getGamepads?: unknown }).getGamepads;
+    ui.dispose();
+  });
+
+  it('a screen reader still gets every stat with the panel hidden: each tile\'s label carries them', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    expect(shown()).toBe(false);
+    for (const b of document.querySelectorAll('#ui .roster-screen.on .racer-tile')) expect(b.getAttribute('aria-label')).toMatch(/Speed \d+ of 10\. Accel \d+ of 10\. Handling \d+ of 10\. Weight \d+ of 10\.$/);
+    ui.dispatch({ type: 'pickRacer', racerId: 'momo' });
+    for (const b of document.querySelectorAll('#ui .kart-screen.on .kart-tile')) expect(b.getAttribute('aria-label')).toMatch(/Speed \d+ of 10(, (up|down) \d+)?\. Accel/);
+    // the pictures are for the eyes: no alt words to read twice
+    expect([...document.querySelectorAll('#ui .kart-screen.on img')].every((i) => i.getAttribute('alt') === '')).toBe(true);
+    ui.dispose();
+  });
+});
+
 describe('the Racer screen with karts picked (design §12)', () => {
-  it('shows the stats panel by the turntable and no Body row (Classic and Buggy are karts now); off, as ever', () => {
+  it('the stats wait behind the Stats button (the racer on show in the kart they would race in), and no Body row (Classic and Buggy are karts now); off, the stats still there', () => {
     const on = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) on.dispatch(a);
-    expect(q('.roster-body > .stat-panel')).not.toBeNull();
+    const panel = q('.select-side > .stat-panel')!;
+    expect(panel).not.toBeNull();
+    expect(panel.hidden).toBe(true); // hidden until asked for (Adam, 26 Sept 2026)
     expect(q('[data-id="body"]')).toBeNull();
-    expect([...document.querySelectorAll('#ui .roster-screen.on .hero-look .tag small')].map((e) => e.textContent)).toEqual(['Kart', 'Paint']);
-    expect(q('.hero-look .tag b')!.textContent).toBe('Parcel Scooter');
-    // each card's own four bars on the panel's scale, and their words in the card's label
+    // under the hero: the racer's name big, the kart they would race in under it; no class, words or bars on any tile
+    expect(q('.np-name')!.textContent).toBe('Pip');
+    expect(q('.np-text')!.textContent).toBe('Parcel Scooter');
+    expect(q('.racer-tile .cls, .racer-tile .stats, .racer-tile .who, .racer-tile .quip')).toBeNull();
+    expect(q('[data-id="gus"]')!.textContent).toBe('B'); // (its initial under the picture, hidden from assistive tech)
+    // each tile's own four stats in its label, for a screen reader
     expect(q('[data-id="gus"]')!.getAttribute('aria-label')).toMatch(/Speed \d+ of 10\. Accel \d+ of 10\. Handling \d+ of 10\. Weight \d+ of 10\.$/);
-    // moving to Big Gus: the panel's ghost is Gus in his own kart over Pip in hers
+    // moving to Big Gus: the panel's ghost is Gus in his own kart over Pip in hers, both named
     key('ArrowLeft');
     expect(focused()).toBe('gus');
-    const speed = q('.roster-body > .stat-panel .sp-row[data-stat="speed"]')!;
+    const speed = q('.select-side > .stat-panel .sp-row[data-stat="speed"]')!;
     expect(speed.getAttribute('data-ghost')).toBe('gain');
     expect(speed.querySelector('.sp-chev')!.getAttribute('data-n')).toBe('3');
-    expect(q('.hero-look .tag b')!.textContent).toBe('Snack Truck');
+    expect(q('.sp-title')!.textContent).toBe('Big Gus in the Snack Truck');
+    expect(q('.np-text')!.textContent).toBe('Snack Truck');
     on.dispose();
     document.body.innerHTML = '';
     const off = new UiRoot(document.body, host(), null, { kartPick: false });
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) off.dispatch(a);
-    expect(q('.stat-panel')).toBeNull();
+    expect(q('.stat-panel')?.hidden).toBe(true); // the racer in their own kart (their class), behind the button as ever
     expect(q('[data-id="body"]')).not.toBeNull();
     off.dispatch({ type: 'pickRacer', racerId: 'pip' });
     expect(off.app.screen).toBe('trackSelect');
@@ -289,7 +386,7 @@ describe('the Kart screen renderer (K5)', () => {
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'gus' }] as const) ui.dispatch(a);
     const screen = document.querySelector<HTMLElement>('#ui .kart-screen.on')!;
     expect(screen.getAttribute('aria-label')).toBe('Pick your kart');
-    const cards = [...screen.querySelectorAll<HTMLButtonElement>('.kart-card')];
+    const cards = [...screen.querySelectorAll<HTMLButtonElement>('.kart-tile')];
     expect(cards.length).toBe(10);
     expect(cards.every((c) => c.tagName === 'BUTTON' && c.type === 'button')).toBe(true);
     expect(screen.querySelectorAll('.focused').length).toBe(1);
@@ -302,11 +399,16 @@ describe('the Kart screen renderer (K5)', () => {
     expect(classic.getAttribute('aria-disabled')).toBe('true');
     expect(classic.querySelector('.kc-hint')!.textContent).toBe('Finish a Grand Prix');
     expect(classic.querySelector('.kc-art .kc-lock svg.lock-svg')).not.toBeNull();
-    // each card's picture: its own kart in its colors, hidden from assistive tech (the label says it)
+    // each tile's picture: its own kart rendered from its 3D model in its colors (a twin in the racer's), our drawing
+    // under it until it loads; both hidden from assistive tech (the label says it); no words on a tile but a lock's
+    expect(cards.map((c) => c.querySelector('img.art')!.getAttribute('src'))).toEqual(cards.map((c) => `/art/karts/${c.dataset.id === 'classic' || c.dataset.id === 'buggy' ? `${c.dataset.id}-gus` : c.dataset.id}.webp`));
+    expect(cards.every((c) => c.querySelector('img.art')!.getAttribute('alt') === '')).toBe(true);
     expect(cards.map((c) => c.querySelector('svg.kart-svg')!.getAttribute('data-kart'))).toEqual(cards.map((c) => c.dataset.id));
     expect(cards.every((c) => c.querySelector('svg.kart-svg')!.getAttribute('aria-hidden') === 'true')).toBe(true);
-    // the Back button in the heading's row; no emoji anywhere (the check on the chosen kart is text, as the class row's)
-    expect(screen.querySelector('.stage-head [data-id="back"]')).not.toBeNull();
+    expect(cards.filter((c) => (c.textContent ?? '').replace(/Locked in!|✓/g, '').trim()).map((c) => c.dataset.id)).toEqual(['classic', 'buggy']);
+    // Back and Stats in the prompts along the bottom; no emoji anywhere (the check on the chosen kart is text, as the class row's)
+    expect(screen.querySelector('.prompts [data-id="back"]')).not.toBeNull();
+    expect(screen.querySelector('.prompts [data-id="stats"]')!.getAttribute('aria-pressed')).toBe('false');
     expect(/\p{Extended_Pictographic}/u.test(screen.textContent ?? '')).toBe(false);
     expect(screen.querySelector('.stat-panel')!.getAttribute('role')).toBe('group');
     // the panel's words for a screen reader

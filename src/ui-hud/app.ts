@@ -43,8 +43,9 @@ export function reduce(s: AppState, a: AppAction): AppState {
     case 'start': return s.screen === 'title' ? { ...s, screen: 'modeSelect' } : s;
     case 'pickMode': return s.screen === 'modeSelect' ? { ...s, mode: a.mode, cupId: null, trackId: null, screen: 'rosterSelect' } : s;
     case 'setSpeedClass': return { ...s, speedClass: a.speedClass };
-    // the racer screen's Mirror switch (shown only once unlocked, for Quick Race and Grand Prix: ui.ts)
-    case 'toggleMirror': return s.screen === 'rosterSelect' ? { ...s, mirrored: !s.mirrored } : s;
+    // the Mirror switch at the end of the class row, on the cup and track screens (shown only once unlocked, for
+    // Quick Race and Grand Prix: ui.ts), where Mario Kart World asks for the class (screens/menus.ts speedRow)
+    case 'toggleMirror': return s.screen === 'cupSelect' || s.screen === 'trackSelect' ? { ...s, mirrored: !s.mirrored } : s;
     // with karts picked the Kart screen comes next (the kart kept from before: absent, the racer's own); else straight on
     case 'pickRacer':
       if (s.screen !== 'rosterSelect') return s;

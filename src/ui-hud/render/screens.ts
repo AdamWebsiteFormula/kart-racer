@@ -1,16 +1,20 @@
 // One renderer per screen. Menus rebuild on show (they are small and off the race path);
 // each exposes its focusable buttons by id so UiRoot can move the focus ring.
 import { GAME_TITLE, UI } from '../constants.ts';
-import { arrowSvg, cupSvg, iconFor, iconMarkup, kartSvg, lockSvg, medalSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
+import { arrowSvg, cupSvg, iconFor, iconMarkup, kartSvg, lockSvg, medalSvg, menuSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { AUTO_GAS_NOTE, CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
-import { DONE_HELP, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
+import { DONE_HELP, type CupEntry, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, EndMenuVM, GpRow, GpVM, ResultsVM } from '../screens/results.ts';
 import { faceCrop } from '../data/faces.ts';
 import type { UnlockRow } from '../unlocks.ts';
 import type { GarageVM } from '../garage.ts';
 import type { StatPanelVM } from '../screens/stats.ts';
-import { button, clear, h, Markup } from './dom.ts';
+import { castCard } from '../data/cast.ts';
+import { BODIES, DEFAULT_PAINT_NAME } from '../data/cosmetics.ts';
+import { button, clear, h, Markup, replay } from './dom.ts';
+import { nameplate, promptBar, type Nameplate } from './select.ts';
+import '../menus.css';
 import { StatPanel } from './statPanel.ts';
 
 export interface ScreenView {
@@ -20,31 +24,55 @@ export interface ScreenView {
   focused?(id: string): void;
 }
 
-/** The keys, or a gamepad's buttons once one is pressed (UiRoot sets `data-input`; the stylesheet shows one set) */
-const HINT = '<span class="only-keys"><kbd>↑↓←→</kbd>move</span><span class="only-keys"><kbd>Enter</kbd>pick</span><span class="only-keys"><kbd>Esc</kbd>back</span>'
-  + '<span class="only-pad"><kbd>D-pad</kbd>move</span><span class="only-pad"><kbd>A</kbd>pick</span><span class="only-pad"><kbd>B</kbd>back</span>';
-
 function stage(root: HTMLElement): HTMLElement {
   h('div', 'dim', root);
   return h('div', 'stage', root);
 }
 
-function hint(parent: HTMLElement, html = HINT): void {
-  const e = h('div', 'hint', parent);
-  e.innerHTML = html;
-}
-
-/** The screen's heading, with a Back button at the far end of its row: a mouse or a thumb has no
- *  Escape (UiRoot.confirm sends 'back' the way Escape goes). Not in the focus grid: keys have Escape. */
-function heading(st: HTMLElement, title: string, buttons: Map<string, HTMLElement>): void {
-  const row = h('div', 'stage-head', st);
-  h('h2', 'heading display enter', row, title);
-  const back = button(row, 'back', 'btn back-btn enter');
-  h('span', 'label', back, 'Back');
-  buttons.set('back', back);
-}
-
 const delay = (e: HTMLElement, ms: number) => e.style.setProperty('--delay', `${ms}ms`);
+
+/**
+ * The Mode, Cup and Track screens' frame (design §12, 26 Sept 2026: the whole setup as the Racer and Kart screens):
+ * the game draws the blurred world behind (main.ts drawStage), the heading at the top left, and the prompts
+ * along the foot (render/select.ts promptBar, Back among them) are added last.
+ */
+function menuStage(root: HTMLElement, title: string): HTMLElement {
+  h('div', 'dim', root);
+  const st = h('div', 'stage select-stage menu-stage', root);
+  const head = h('div', 'stage-head', st);
+  h('h2', 'heading display enter', head, title);
+  return st;
+}
+
+/**
+ * A band of the title's and the Mode screen's lists, as Mario Kart World's main and mode menus set theirs: slanted
+ * glass (`.glass`, the sheen crosses it as the focus lands), the emblem on a disc at its head, the name (menus.css).
+ */
+function band(b: HTMLElement, icon: string, label: string): void {
+  h('span', 'glass', b).setAttribute('aria-hidden', 'true');
+  if (icon) {
+    const ic = h('span', 'icon', b);
+    ic.innerHTML = icon;
+    ic.setAttribute('aria-hidden', 'true');
+  }
+  h('span', 'label', b, label);
+}
+
+/** A track's own picture, the course intro's establishing shot (public/art/tracks: scripts/headless/track-cards.mjs), in a
+ *  glass frame; its colors show under it until it loads, or if it never does. A track not built yet: "Soon" on its colors. */
+function trackFrame(parent: HTMLElement, t: { id: string; bg: string; accent: string; built?: boolean }): HTMLElement {
+  const f = h('span', 'frame', parent);
+  f.style.setProperty('--bg', t.bg);
+  f.style.setProperty('--accent', t.accent);
+  if (t.built === false) { h('span', 'soon-tag', f, 'Soon'); return f; }
+  const img = h('img', 'shot-art', f);
+  img.alt = '';
+  img.draggable = false;
+  img.decoding = 'async';
+  img.src = `${import.meta.env.BASE_URL}art/tracks/${t.id}.webp`;
+  img.addEventListener('error', () => img.remove(), { once: true });
+  return f;
+}
 
 /** A row's ◀ or ▶ (a setting, Paint, Body): under a pointer it steps that way (UiRoot.pointer). Drawn:
  *  the triangle characters turn into emoji on some phones. */
@@ -119,6 +147,11 @@ export class BootView implements ScreenView {
   }
 }
 
+/**
+ * The title (design §12, 26 Sept 2026): the attract race runs on behind, as Mario Kart World's title shows its
+ * world; the logo at the top left and the menu under it, one glass band under another down the left, each with
+ * its emblem, as MKW's main menu (stills: youtube.com/watch?v=_9JZhslBy3E, 0:02 to 0:19).
+ */
 export class TitleView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
@@ -131,14 +164,12 @@ export class TitleView implements ScreenView {
     this.buttons.clear();
     const st = stage(this.root);
     const logo = h('h1', 'logo', st);
-    h('span', 'l1 display', logo, GAME_TITLE[0]);
-    h('span', 'l2 display', logo, GAME_TITLE[1]);
-    const menu = h('div', 'menu', st);
+    GAME_TITLE.forEach((w, i) => { h('span', `l${i + 1} display`, logo, w).dataset.text = w; }); // (data-text: the gloss over the letters, menus.css)
+    const menu = h('div', 'menu bands', st);
     vm.entries.forEach((e, i) => {
-      const b = button(menu, e.id);
-      h('span', 'label', b, e.label);
-      b.classList.add('enter');
-      delay(b, 500 + i * 80);
+      const b = button(menu, e.id, 'band enter');
+      band(b, menuSvg(e.id), e.label);
+      delay(b, 420 + i * 70);
       this.buttons.set(e.id, b);
     });
     h('div', 'press only-keys', st, 'Press Enter');
@@ -146,36 +177,56 @@ export class TitleView implements ScreenView {
   }
 }
 
+/**
+ * The Mode screen (design §12, 26 Sept 2026), as Mario Kart World's mode menu (stills: youtube.com/watch?v=_9JZhslBy3E,
+ * 2:53): the modes one glass band under another down the left, each with its emblem; the racer last chosen large on
+ * the right in the kart they race in (the game draws it in `turntable`: game/showroom.ts); and under them a line on
+ * what the mode under the focus is, as MKW's "Go for gold in a four-race cup!". Each band carries its own line for
+ * assistive tech; up and down move, and left and right too (screens/menus.ts listStep).
+ */
 export class ListView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
+  /** the box the game draws the hero in (main.ts drawStage), or null */
+  turntable: HTMLElement | null = null;
+  /** the line on the mode under the focus, and each mode's */
+  private say: HTMLElement | null = null;
+  private subs = new Map<string, string>();
   constructor(parent: HTMLElement, cls: string, label: string) {
-    this.root = h('section', `screen ${cls}`, parent);
+    this.root = h('section', `screen ${cls} select-screen menu-screen`, parent);
     this.root.setAttribute('aria-label', label);
   }
-  /** `icons`: each entry's icon, SVG markup (icons.ts modeSvg); the label beside it names the thing */
+  /** `icons`: each entry's emblem, SVG markup (icons.ts modeSvg); the label beside it names the thing */
   render(vm: MenuVM, icons: Record<string, string> = {}): void {
     clear(this.root);
     this.buttons.clear();
-    const st = stage(this.root);
-    heading(st, vm.title, this.buttons);
-    const grid = h('div', 'modes', st);
+    this.subs.clear();
+    const st = menuStage(this.root, vm.title);
+    const body = h('div', 'menu-body', st);
+    const list = h('div', 'modes bands', body);
     vm.entries.forEach((e, i) => {
-      const b = button(grid, e.id);
-      if (icons[e.id]) {
-        const ic = h('span', 'icon', b);
-        ic.innerHTML = icons[e.id];
-        ic.setAttribute('aria-hidden', 'true');
-      }
-      h('span', 'label', b, e.label);
-      if (e.sub) h('span', 'sub', b, e.sub);
+      const b = button(list, e.id, 'band enter');
+      band(b, icons[e.id] ?? '', e.label);
+      if (e.sub) { h('span', 'sub', b, e.sub); this.subs.set(e.id, e.sub); }
       if (e.badge) h('span', 'badge', b, e.badge);
       if (e.disabled) b.setAttribute('aria-disabled', 'true');
-      b.classList.add('enter');
       delay(b, i * UI.staggerRosterMs * 2);
       this.buttons.set(e.id, b);
     });
-    hint(st);
+    const side = h('div', 'menu-side', body);
+    this.turntable = h('div', 'hero-box', side);
+    this.turntable.setAttribute('aria-hidden', 'true');
+    this.say = h('div', 'mode-say display', side);
+    this.say.setAttribute('aria-hidden', 'true'); // (the band's own line says it)
+    promptBar(st, this.buttons, false);
+  }
+  /** The line follows the focus (keys, a pad, the pointer), a new one sliding in. */
+  focused(id: string): void {
+    const t = this.subs.get(id);
+    if (!this.say || t === undefined || this.say.textContent === t) return;
+    const first = !this.say.textContent;
+    this.say.textContent = t;
+    if (!first) replay(this.say, 'swap');
   }
 }
 
@@ -186,84 +237,106 @@ const BODY_ICONS: Record<string, string> = {
   buggy: '<path d="M6 17h36l-4-6H30l-5-6h-9l-3 6H9z"/><path d="M16 5l4-3h8l3 3"/><circle cx="13" cy="20" r="6"/><circle cx="35" cy="20" r="6"/>',
 };
 
+/** A racer's tile picture: their face, head and shoulders, cut out of their portrait (scripts/art/racer-tiles.py). */
+export const racerTileUrl = (racerId: string): string => `${import.meta.env.BASE_URL}art/racers/tiles/${racerId}.webp`;
+
+/** The class row (screens/menus.ts speedRow) under the cups or the tracks: 50cc, 100cc, 150cc, and Mirror where the mode takes it. */
+function classRow(parent: HTMLElement, entries: readonly { id: string; label: string; sub?: string; badge?: string }[], buttons: Map<string, HTMLElement>): void {
+  if (!entries.length) return; // Time Trial and Daily have no class row
+  const cls = h('div', 'classes enter', parent);
+  cls.setAttribute('role', 'group');
+  cls.setAttribute('aria-label', 'Speed class');
+  for (const e of entries) {
+    const b = button(cls, e.id, 'pill');
+    h('span', 'label', b, e.label);
+    if (e.sub) h('span', 'sub', b, e.sub);
+    if (e.badge) h('span', 'badge', b, e.id === 'mirror' ? 'ON' : '✓').setAttribute('aria-hidden', 'true'); // aria-pressed says it
+    b.setAttribute('aria-pressed', e.badge ? 'true' : 'false');
+    buttons.set(e.id, b);
+  }
+}
+
+/**
+ * The Racer screen (design §12, 26 Sept 2026; Mario Kart World's character select, render/select.ts): the eight
+ * racers' faces on glass tiles, four by two, nothing else on them; the racer on show large on the right in the
+ * kart they would race in (the game draws it in `turntable`, the box left for it: game/showroom.ts), their name
+ * big on a ribbon in their color under it, the kart on a line below, and the paint picker for a racer who has
+ * an alt; the stats only when the Stats button shows them (Y, a pad's Y, or a tap on the prompt).
+ */
 export class RosterView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
   /** the Paint and Body rows (garage.ts), drawn again on their own when a choice or the dressed racer changes */
   private garage: HTMLElement | null = null;
-  /** the hero turntable's caption: who, in which paint and body */
-  private heroCap: HTMLElement | null = null;
-  /** the hero canvas the game copies the dressed kart into, turning on its pedestal (main.ts), or null */
-  turntable: HTMLCanvasElement | null = null;
-  /** with karts picked (UI.kartPick): the stats panel by the turntable (beside it; a strip over the cards on a narrower screen) */
+  /** the racer on show's name on its ribbon, and the kart (and paint) under it */
+  private plate: Nameplate | null = null;
+  private plateOf = '';
+  /** the box the game draws the racer on show in, turning (main.ts drawStage), or null */
+  turntable: HTMLElement | null = null;
+  /** the stats (shown by the Stats button): the racer on show in the kart they would race in */
   private panel: StatPanel | null = null;
+  private side: HTMLElement | null = null;
+  private statsBtn: HTMLElement | null = null;
+  private statsOn = false;
   constructor(parent: HTMLElement) {
-    this.root = h('section', 'screen roster-screen', parent);
+    this.root = h('section', 'screen roster-screen select-screen', parent);
     this.root.setAttribute('aria-label', 'Pick your racer');
   }
   render(vm: RosterVM): void {
     clear(this.root);
     this.buttons.clear();
-    const st = stage(this.root);
-    heading(st, 'Pick your racer', this.buttons);
-    const body = h('div', 'roster-body', st);
-    const main = h('div', 'roster-main', body);
-    const grid = h('div', 'roster', main);
+    this.plateOf = '';
+    h('div', 'dim', this.root);
+    const st = h('div', 'stage select-stage', this.root);
+    const head = h('div', 'stage-head', st);
+    h('h2', 'heading display enter', head, 'Pick your racer');
+    const body = h('div', 'select-body', st);
+    const grid = h('div', `select-grid roster${vm.focus.rows[0]?.length === vm.cards.length ? ' one-row' : ''}`, body);
     vm.cards.forEach((c, i) => {
-      const b = button(grid, c.id, 'card enter');
+      const b = button(grid, c.id, 'tile racer-tile enter');
       delay(b, i * UI.staggerRosterMs);
       b.style.setProperty('--accent', c.accent);
       b.style.setProperty('--secondary', c.secondary);
-      // a pale accent (Sprocket's cream) vanishes on the bar track: use the other colour
-      b.style.setProperty('--bar', luminance(c.accent) > 0.6 ? c.secondary : c.accent);
-      b.setAttribute('aria-label', `${c.name}, ${c.archetype.toLowerCase()} class. ${c.species} with a ${c.kart.toLowerCase()}. ${c.personality}.${c.words ? ` ${c.words}.` : ''}`);
-      h('span', 'cls', b, c.archetype);
-      // the racer's portrait (their concept art, public/art/racers), zoomed to face and shoulders
-      const face = h('div', 'face has-portrait', b, c.name[0]);
-      face.style.setProperty('--portrait', `url("${import.meta.env.BASE_URL}art/racers/${c.id}.webp")`);
-      h('div', 'name', b, c.name);
-      h('div', 'who', b, `${c.species} · ${c.kart}`);
-      h('div', 'quip', b, c.personality);
-      const stats = h('div', 'stats', b);
-      c.stats.forEach((s, k) => {
-        const row = h('div', 'stat', stats);
-        h('span', '', row, s.label);
-        const bar = h('span', 'bar', row);
-        const fill = h('i', '', bar);
-        fill.style.width = `${Math.round(s.value * 100)}%`;
-        delay(fill, 200 + i * UI.staggerRosterMs + k * 60);
-      });
+      // the glass is lit in the racer's color; a pale one (Sprocket's cream) would light nothing: the other one
+      b.style.setProperty('--glow', luminance(c.accent) > 0.6 ? c.secondary : c.accent);
+      b.setAttribute('aria-label', `${c.name}, ${c.archetype.toLowerCase()} class. ${c.species} with a ${c.kart.toLowerCase()}. ${c.personality}. ${c.words}.`);
+      // (the initial stands under the picture until it loads, or if it never does)
+      h('span', 'tile-letter', b, c.name[0]).setAttribute('aria-hidden', 'true');
+      const img = h('img', 'tile-art', b);
+      img.alt = '';
+      img.draggable = false;
+      img.decoding = 'async';
+      img.src = racerTileUrl(c.id);
+      img.addEventListener('error', () => img.remove(), { once: true });
       this.buttons.set(c.id, b);
     });
-    this.garage = h('div', 'garage enter', main);
-    if (vm.classes.length) { // Time Trial and Daily have no class row
-      const cls = h('div', 'classes', main);
-      for (const e of vm.classes) {
-        const b = button(cls, e.id);
-        h('span', 'label', b, e.label);
-        if (e.sub) h('span', 'sub', b, e.sub);
-        if (e.badge) h('span', 'badge', b, e.id === 'mirror' ? 'ON' : '✓').setAttribute('aria-hidden', 'true'); // aria-pressed says it
-        b.setAttribute('aria-pressed', e.badge ? 'true' : 'false');
-        this.buttons.set(e.id, b);
-      }
-    }
-    // the hero: the dressed racer turning on a pedestal under a spotlight (main.ts draws it into the canvas)
-    const hero = h('aside', 'hero enter', body);
-    this.turntable = h('canvas', 'hero-stage', hero);
+    const side = h('div', 'select-side', body);
+    this.side = side;
+    this.panel = vm.panel ? new StatPanel(side, 'select-stats') : null;
+    this.turntable = h('div', 'hero-box', side);
     this.turntable.setAttribute('aria-hidden', 'true');
-    this.heroCap = h('div', 'hero-cap', hero);
-    this.panel = vm.panel ? new StatPanel(body, 'roster-stats enter') : null;
+    this.plate = nameplate(side, 'enter');
+    this.garage = h('div', 'garage enter', side);
     if (vm.garage) this.renderGarage(vm.garage, vm.kartName);
     else this.garage.hidden = true;
     if (vm.panel && vm.garage) this.renderPanel(vm.panel, `${vm.garage.racerName} in the ${vm.kartName ?? ''}`);
-    hint(st);
+    this.statsBtn = promptBar(st, this.buttons);
+    this.setStats(this.statsOn);
   }
 
-  /** The stats panel by the turntable (with karts picked): the racer on show in their kart, over the combo chosen now. */
+  /** The stats, shown or hidden (the Stats button: UiRoot.toggleStats). The hero makes room for them (the stage eases it). */
+  setStats(on: boolean): void {
+    this.statsOn = on;
+    this.side?.classList.toggle('stats-on', on);
+    this.statsBtn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (this.panel) this.panel.root.hidden = !on;
+  }
+
+  /** The stats: the racer on show in the kart they would race in, over the combo chosen now. */
   renderPanel(p: StatPanelVM, who: string): void { this.panel?.render(p, who); }
 
-  /** The garage and the hero's caption alone, drawn again when a choice or the dressed racer changes (the cards stay put).
-   *  `kartName`: with karts picked, the kart the racer on show would race in: the caption names it (there is no Body row). */
+  /** The garage and the name under the hero alone, drawn again when a choice or the dressed racer changes (the tiles stay put).
+   *  `kartName`: with karts picked, the kart the racer on show would race in: the line under the name says it (there is no Body row). */
   renderGarage(g: GarageVM, kartName?: string): void {
     const el = this.garage;
     if (!el) return;
@@ -302,45 +375,66 @@ export class RosterView implements ScreenView {
       }
       this.buttons.set(c.id, b);
     }
-    const cap = this.heroCap;
-    if (cap) {
-      clear(cap);
-      h('div', 'hero-name', cap, g.racerName);
-      const look = h('div', 'hero-look', cap);
-      // a racer with no alt paint shows only the body (with karts picked: the kart, then any paint)
-      const paint = g.choices.some((c) => c.id === 'paint') ? [['Paint', g.paintName]] : [];
-      const tags = kartName ? [['Kart', kartName], ...paint] : [...paint, ['Body', g.bodyName]];
-      for (const [k, v] of tags) {
-        const t = h('span', 'tag', look);
-        h('small', '', t, k);
-        h('b', '', t, v);
-      }
-    }
+    const p = this.plate;
+    if (!p) return;
+    // the name on a ribbon in the racer's color (the course intro's title card's), and under it the kart they
+    // would race in and their paint, as Mario Kart World names the outfit under the racer (MKW: "King Boo", "Pro Racer")
+    const paint = g.choices.some((c) => c.id === 'paint') && g.paintName !== DEFAULT_PAINT_NAME ? g.paintName : '';
+    const body = !kartName && g.bodyName !== BODIES[0].name ? g.bodyName : '';
+    const sub = [kartName ?? body, paint].filter(Boolean).join(' · ');
+    const key = `${g.racerId}|${sub}`;
+    if (key === this.plateOf) return;
+    const swap = this.plateOf.split('|')[0] !== g.racerId;
+    this.plateOf = key;
+    p.root.style.setProperty('--ribbon', castCard(g.racerId)?.accent ?? 'var(--coral)');
+    p.name.textContent = g.racerName;
+    p.sub.textContent = sub;
+    if (swap) replay(p.root, 'swap');
+    if (this.turntable) this.turntable.dataset.racer = g.racerId;
   }
 
-  /** Mark the card the garage dresses (it keeps a ring while the focus is down in the garage). */
+  /** Mark the tile the garage dresses (it keeps a ring while the focus is down in the garage). */
   markDressed(id: string): void {
-    for (const [k, b] of this.buttons) if (b.classList.contains('card')) b.classList.toggle('dressed', k === id);
+    for (const [k, b] of this.buttons) if (b.classList.contains('tile')) b.classList.toggle('dressed', k === id);
   }
 }
 
+/** A cup's own colors: its ribbon and the glow in its tile's glass (menus.css [data-cup]). */
+const cupTag = (e: HTMLElement, id: string) => { e.dataset.cup = id; };
+
+/**
+ * The Cup screen (design §12, 26 Sept 2026), as Mario Kart World's cup select (stills: youtube.com/watch?v=_9JZhslBy3E,
+ * 3:46): the cup under the focus large, its name on a ribbon over its courses' own pictures, big, each named under
+ * it; the cups' emblems on glass tiles below (their stars on them), then the class row, where MKW asks for the
+ * class (screens/menus.ts speedRow), and the prompts. The pictures follow the focus (keys, a pad, the pointer).
+ */
 export class CupView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
+  /** each cup's preview, one on show: the focused cup's (the last one while the focus is on the class row) */
+  private previews = new Map<string, HTMLElement>();
+  private onShow = '';
   constructor(parent: HTMLElement) {
-    this.root = h('section', 'screen cup-screen', parent);
+    this.root = h('section', 'screen cup-screen select-screen menu-screen', parent);
     this.root.setAttribute('aria-label', 'Pick a cup');
   }
   render(vm: CupVM): void {
     clear(this.root);
     this.buttons.clear();
+    this.previews.clear();
+    this.onShow = '';
     this.root.setAttribute('aria-label', vm.title);
-    const st = stage(this.root);
-    heading(st, vm.title, this.buttons);
-    const grid = h('div', 'cups', st);
+    const st = menuStage(this.root, vm.title);
+    const body = h('div', 'cup-body', st);
+    // for the eyes: each cup's own button says its name, its stars and its tracks
+    const show = h('div', 'cup-show', body);
+    show.setAttribute('aria-hidden', 'true');
+    for (const c of vm.cups) this.previews.set(c.id, this.preview(show, c));
+    const grid = h('div', 'cups', body);
     vm.cups.forEach((c, i) => {
-      const b = button(grid, c.id, 'btn cup enter');
-      delay(b, i * 90);
+      const b = button(grid, c.id, 'tile cup-tile cup enter');
+      cupTag(b, c.id);
+      delay(b, 120 + i * 70);
       const row = h('div', 'cup-head', b);
       // its own emblem beside its name (icons.ts cupSvg; its name says it in words)
       const emblem = cupSvg(c.id);
@@ -358,52 +452,87 @@ export class CupView implements ScreenView {
         } else bd.textContent = c.badge;
       }
       if (c.sub) h('span', 'sub', b, c.sub);
-      const tracks = h('div', 'tracks', b);
-      for (const t of c.tracks) {
-        const e = h('div', t.built ? 'trk' : 'trk soon', tracks);
-        e.style.setProperty('--bg', t.bg);
-        e.style.setProperty('--accent', t.accent);
-        if (t.built) e.style.setProperty('--shot', `url("${import.meta.env.BASE_URL}art/tracks/${t.id}.webp")`);
-        h('span', '', e, t.name);
-        if (!t.built) h('span', 'soon-tag', e, 'Soon');
-      }
+      h('span', 'sr-only', b, `: ${c.tracks.map((t) => t.name).join(', ')}`);
       if (c.disabled) b.setAttribute('aria-disabled', 'true');
       this.buttons.set(c.id, b);
     });
-    hint(st);
+    // the speed class under the cups, where Mario Kart World asks for it (screens/menus.ts speedRow)
+    classRow(body, vm.classes, this.buttons);
+    promptBar(st, this.buttons, false);
+    this.focused(vm.cups.find((c) => !c.disabled)?.id ?? vm.cups[0]?.id ?? '');
+  }
+  /** One cup's preview: its name on its ribbon, its three tracks' pictures, each named under it. */
+  private preview(parent: HTMLElement, c: CupEntry): HTMLElement {
+    const p = h('div', 'cup-preview', parent);
+    cupTag(p, c.id);
+    p.hidden = true;
+    h('div', 'ribbon display', p, c.label);
+    const shots = h('div', 'shots', p);
+    c.tracks.forEach((t, i) => {
+      const sh = h('div', t.built ? 'shot' : 'shot soon', shots);
+      sh.style.setProperty('--i', String(i));
+      trackFrame(sh, t);
+      h('span', 'shot-name', sh, t.name);
+    });
+    return p;
+  }
+  /** The focus on a cup: its preview on show (a new one comes in); on the class row, the last one stays. */
+  focused(id: string): void {
+    const next = this.previews.get(id);
+    if (!next || id === this.onShow) return;
+    const was = this.previews.get(this.onShow);
+    if (was) was.hidden = true;
+    next.hidden = false;
+    this.onShow = id;
   }
 }
 
+/**
+ * The Track screen (design §12, 26 Sept 2026): the tracks' own pictures, big, on glass, each named under it, a row
+ * for each cup under the cup's name on its ribbon, as Mario Kart World heads each cup's courses with its name
+ * (stills: youtube.com/watch?v=_9JZhslBy3E, 3:46); a Time Trial's best medal on its picture's corner; the class
+ * row under them for a Quick Race (screens/menus.ts speedRow), and the prompts.
+ */
 export class TrackView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
   constructor(parent: HTMLElement) {
-    this.root = h('section', 'screen track-screen', parent);
+    this.root = h('section', 'screen track-screen select-screen menu-screen', parent);
     this.root.setAttribute('aria-label', 'Pick a track');
   }
   render(vm: TrackVM): void {
     clear(this.root);
     this.buttons.clear();
     this.root.setAttribute('aria-label', vm.title);
-    const st = stage(this.root);
-    heading(st, vm.title, this.buttons);
-    const grid = h('div', 'track-cards', st);
-    vm.tracks.forEach((t, i) => {
-      const b = button(grid, t.id, 'btn track-card enter');
-      delay(b, i * 70);
-      b.style.setProperty('--bg', t.bg);
-      b.style.setProperty('--accent', t.accent);
-      // the start grid on that track, shot in the game (public/art/tracks); the colours show under it until it loads
-      b.style.setProperty('--shot', `url("${import.meta.env.BASE_URL}art/tracks/${t.id}.webp")`);
-      h('span', 'swatch', b);
-      h('span', 'label', b, t.label);
-      h('span', 'biome', b, t.biome);
-      if (t.sub) h('span', 'sub', b, t.sub);
-      // Time Trial: the best run's medal, a badge in the corner (the sub line names it too)
-      if (t.medal) h('span', 'medal-badge', b).innerHTML = medalSvg(t.medal, 44);
-      this.buttons.set(t.id, b);
-    });
-    hint(st);
+    const st = menuStage(this.root, vm.title);
+    const body = h('div', 'track-body', st);
+    const groups = h('div', 'track-groups', body);
+    groups.style.setProperty('--rows', String(Math.max(1, vm.groups.length)));
+    const inner = h('div', 'track-rows', groups);
+    let n = 0;
+    for (const g of vm.groups) {
+      const row = h('div', 'track-group', inner);
+      cupTag(row, g.id);
+      row.setAttribute('role', 'group');
+      row.setAttribute('aria-label', g.name || 'More tracks');
+      if (g.name) h('div', 'ribbon display enter', row, g.name).setAttribute('aria-hidden', 'true');
+      const cards = h('div', 'track-cards', row);
+      for (const t of g.tracks) {
+        const b = button(cards, t.id, 'track-card enter');
+        delay(b, 60 + n++ * 50);
+        const f = trackFrame(b, t);
+        // Time Trial: the best run's medal, a badge on the picture's corner (the sub line names it too)
+        if (t.medal) h('span', 'medal-badge', f).innerHTML = medalSvg(t.medal, 44);
+        const words = h('span', 'words', b);
+        h('span', 'label', words, t.label);
+        h('span', 'biome', words, t.biome);
+        if (t.sub) h('span', 'sub', words, t.sub);
+        this.buttons.set(t.id, b);
+      }
+    }
+    // Quick Race: the speed class under the tracks (screens/menus.ts speedRow; none in a Time Trial)
+    classRow(body, vm.classes, this.buttons);
+    promptBar(st, this.buttons, false);
   }
 }
 

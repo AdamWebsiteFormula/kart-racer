@@ -285,18 +285,42 @@ describe('UiRoot', () => {
     ui.dispose();
   });
 
-  it('Time Trial and Daily show no 50/100/150cc row: they always run at 150cc (bug hunt 2)', () => {
-    for (const [mode, row] of [['quick', true], ['timeTrial', false], ['daily', false]] as const) {
+  it('Time Trial and Daily show no 50/100/150cc row: they always run at 150cc (bug hunt 2); the row sits under the cups and tracks, where MKW asks for the class, and the Racer screen is the racers alone', () => {
+    for (const [mode, screen] of [['quick', 'trackSelect'], ['grandPrix', 'cupSelect'], ['knockout', 'cupSelect'], ['timeTrial', 'trackSelect'], ['daily', 'racing']] as const) {
       document.body.innerHTML = '';
       const ui = new UiRoot(document.body, host(), null);
       ui.dispatch({ type: 'boot' });
       ui.dispatch({ type: 'start' });
       ui.dispatch({ type: 'pickMode', mode });
       expect(ui.app.screen).toBe('rosterSelect');
-      expect(document.querySelector('#ui .roster-screen .classes') !== null, mode).toBe(row);
-      expect(document.querySelector('#ui .roster-screen [data-id="cc50"]') !== null, mode).toBe(row);
+      expect(document.querySelector('#ui .roster-screen .classes, #ui .roster-screen [data-id="cc50"]'), mode).toBeNull();
+      ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
+      expect(ui.app.screen, mode).toBe(screen);
+      const row = mode === 'quick' || mode === 'grandPrix' || mode === 'knockout';
+      expect(document.querySelector('#ui .screen.on .classes') !== null, mode).toBe(row);
+      expect(document.querySelector('#ui .screen.on [data-id="cc50"]') !== null, mode).toBe(row);
       ui.dispose();
     }
+  });
+
+  it('a class picked under the cups goes to the race, and the cups\' stars follow it; keys reach the row by going down', () => {
+    document.body.innerHTML = '';
+    const plans: { mode: string; speedClass: number }[] = [];
+    const ui = new UiRoot(document.body, { ...host(), startRace: (p) => plans.push(p) }, null);
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'grandPrix' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
+    expect((document.activeElement as HTMLElement | null)?.dataset.id).toBe('sunrise');
+    ui.nav('down');
+    expect((document.activeElement as HTMLElement | null)?.dataset.id).toBe('cc50');
+    ui.nav('right'); ui.nav('right');
+    ui.nav('confirm');
+    expect(ui.app.speedClass).toBe(150);
+    expect(document.querySelector('#ui .cup-screen.on [data-id="cc150"]')!.getAttribute('aria-pressed')).toBe('true');
+    ui.nav('up');
+    expect((document.activeElement as HTMLElement | null)?.dataset.id).toBe('sunrise'); // (the Summit Cup's tracks are not built here: skipped)
+    ui.nav('confirm');
+    expect(ui.app.screen).toBe('racing');
+    expect(plans.at(-1)).toMatchObject({ mode: 'grandPrix', speedClass: 150 });
+    ui.dispose();
   });
 
   it('SOP test 16: every screen has a labelled landmark, real buttons, and one focused entry', () => {
@@ -418,7 +442,7 @@ describe('touch', () => {
 });
 
 describe('a short screen (a phone on its side)', () => {
-  it('the title and the pause move two by two on keys, the way their buttons sit there; a taller window goes back to one column (seam review)', () => {
+  it('the pause moves two by two on keys, the way its buttons sit there, and a taller window goes back to one column (seam review); the title\'s bands are one column on every screen (design §12, 26 Sept 2026)', () => {
     const mm = globalThis.matchMedia;
     let short = true;
     const changed: (() => void)[] = [];
@@ -434,10 +458,10 @@ describe('a short screen (a phone on its side)', () => {
       const ui = new UiRoot(document.body, host(), null);
       ui.dispatch({ type: 'boot' });
       const walk = (keys: string[]) => keys.map((k) => { key(k); return focused(); });
-      // Race! How to Play / Unlocks Settings / Credits: Right went nowhere, Down went to the button beside it
-      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'])).toEqual(['howTo', 'settings', 'unlocks', 'start']);
-      resize(false); // one column again, the focus where it was
-      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown'])).toEqual(['start', 'howTo', 'unlocks']);
+      // the title's bands, one under another down the left on a phone too (the logo on one line over them)
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown', 'ArrowUp'])).toEqual(['start', 'howTo', 'unlocks', 'howTo']);
+      resize(false);
+      expect(walk(['ArrowRight', 'ArrowDown', 'ArrowDown'])).toEqual(['howTo', 'unlocks', 'settings']);
       resize(true);
       ui.dispatch({ type: 'start' }); ui.dispatch({ type: 'pickMode', mode: 'quick' }); ui.dispatch({ type: 'pickRacer', racerId: 'pip' }); ui.dispatch({ type: 'pickTrack', trackId: 'harbour-loop' });
       key('Escape');

@@ -173,3 +173,77 @@ describe('Settings says what the focused row does', () => {
     expect(new Set(lines).size).toBe(lines.length);
   });
 });
+
+describe('the setup as Mario Kart World sets its own (design §12, 26 Sept 2026)', () => {
+  it('the title\'s bands each wear their emblem beside the words that name them, and run one under another', () => {
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    const bands = [...document.querySelectorAll<HTMLElement>('#ui .title.on .menu > .band')];
+    expect(bands.map((b) => b.querySelector('.icon > svg.menu-svg')?.getAttribute('data-menu'))).toEqual(['start', 'howTo', 'unlocks', 'settings', 'credits']);
+    for (const b of bands) expect(b.querySelector('.icon')!.getAttribute('aria-hidden'), b.dataset.id).toBe('true');
+    expect(q('.logo')!.textContent).toBe('RascalRally!');
+    key('ArrowDown'); key('ArrowDown');
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('unlocks');
+    ui.dispose();
+  });
+
+  it('the Mode screen: its line follows the focus (keys either way, the pointer), each band keeps its own for assistive tech, and the racer last chosen stands on the stage beside them', () => {
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'start' });
+    const say = () => q('.mode-say')!.textContent;
+    expect(say()).toBe('One track, eight racers');
+    expect(q('.mode-say')!.getAttribute('aria-hidden')).toBe('true');
+    expect(q('[data-id="grandPrix"] .sub')!.textContent).toBe('Three tracks, points and stars');
+    key('ArrowRight');
+    expect([(document.activeElement as HTMLElement).dataset.id, say()]).toEqual(['grandPrix', 'Three tracks, points and stars']);
+    key('ArrowDown');
+    expect(say()).toBe('Eight start. Cuts every race. One wins.');
+    key('ArrowLeft'); key('ArrowLeft');
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('quick');
+    q('[data-id="daily"]')!.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 30, clientY: 400 }));
+    expect(say()).toBe("Today's track, the same for everyone");
+    // the hero: the racer last chosen, in the box the menu leaves on the right
+    const t = ui.turntable()!;
+    expect([t.box, t.racerId]).toEqual([q('.menu-side .hero-box'), ui.app.racerId]);
+    // and the prompts: Move, Pick and Back (no stats here)
+    expect([...document.querySelectorAll('#ui .mode-screen.on .prompts [data-id]')].map((b) => (b as HTMLElement).dataset.id)).toEqual(['back']);
+    ui.dispose();
+  });
+
+  it('the Cup screen: the focused cup large (its ribbon, its tracks\' pictures), following the keys and the pointer; on the class row the last one stays; its button names its tracks', () => {
+    const ui = new UiRoot(document.body, { ...host(), builtTracks: new Set(['harbour-loop', 'meadow-run', 'canyon-rush', 'frostbite-pass', 'boardwalk-nights', 'skyline-circuit']) }, null);
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'grandPrix' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
+    const shown = () => [...document.querySelectorAll<HTMLElement>('#ui .cup-screen.on .cup-preview:not([hidden])')].map((p) => [p.dataset.cup, p.querySelector('.ribbon')!.textContent, [...p.querySelectorAll('.shot-name')].map((n) => n.textContent)]);
+    expect(shown()).toEqual([['sunrise', 'Sunrise Cup', ['Harbor Loop', 'Meadow Run', 'Canyon Rush']]]);
+    expect(q('.cup-show')!.getAttribute('aria-hidden')).toBe('true');
+    expect(q('[data-id="sunrise"]')!.textContent).toContain('Harbor Loop, Meadow Run, Canyon Rush');
+    key('ArrowRight');
+    expect(shown()).toEqual([['summit', 'Summit Cup', ['Frostbite Pass', 'Boardwalk Nights', 'Skyline Circuit']]]);
+    key('ArrowDown');
+    expect((document.activeElement as HTMLElement).dataset.id).toMatch(/^cc/);
+    expect(shown().map((s) => s[0])).toEqual(['summit']);
+    q('[data-id="sunrise"]')!.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 30, clientY: 700 }));
+    expect(shown().map((s) => s[0])).toEqual(['sunrise']);
+    // every picture is the track's own shot, over its colors
+    expect([...document.querySelectorAll<HTMLImageElement>('#ui .cup-screen.on .cup-preview .shot-art')].map((i) => i.getAttribute('src')!.replace(/^.*\//, ''))).toEqual([
+      'harbour-loop.webp', 'meadow-run.webp', 'canyon-rush.webp', 'frostbite-pass.webp', 'boardwalk-nights.webp', 'skyline-circuit.webp',
+    ]);
+    ui.dispose();
+  });
+
+  it('the Track screen: a row for each cup under its name, each picture named under it, the focus moving the way they sit', () => {
+    const ui = new UiRoot(document.body, { ...host(), builtTracks: new Set(['harbour-loop', 'meadow-run', 'canyon-rush', 'frostbite-pass', 'boardwalk-nights', 'skyline-circuit']) }, null);
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
+    const rows = [...document.querySelectorAll<HTMLElement>('#ui .track-screen.on .track-group')];
+    expect(rows.map((r) => [r.getAttribute('aria-label'), [...r.querySelectorAll('.track-card .label')].map((l) => l.textContent)])).toEqual([
+      ['Sunrise Cup', ['Harbor Loop', 'Meadow Run', 'Canyon Rush']], ['Summit Cup', ['Frostbite Pass', 'Boardwalk Nights', 'Skyline Circuit']],
+    ]);
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('harbour-loop');
+    key('ArrowDown');
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('frostbite-pass');
+    key('ArrowDown');
+    expect((document.activeElement as HTMLElement).dataset.id).toBe('cc50');
+    ui.dispose();
+  });
+});

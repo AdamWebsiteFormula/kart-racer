@@ -1,0 +1,408 @@
+/* The title, Mode, Cup and Track screens (design §12; 26 Sept 2026, Adam: "when you are just setting up a game and
+   choosing your character and everything, it all just looks really cheap"). Mario Kart World's own title, main menu,
+   mode menu and cup select (stills: youtube.com/watch?v=_9JZhslBy3E, 0:02 to 3:49), in our own art and in the Racer
+   and Kart screens' language (select.css): the title over the attract race, as MKW's title over its world; after it
+   the blurred world of the stage (game/showroom.ts, main.ts drawStage) instead of cream cards over the race; the
+   lists as slanted glass bands with an emblem at each head, as MKW's menus; the cups' and tracks' own pictures big
+   on glass; ribbon titles; the prompts along the foot; one focus everywhere (a white and sun ring, a glow, a lift,
+   a sheen across the glass). Tokens from ui.css :root. Motion: transforms and opacity only; reduced motion (ui.css)
+   cuts it all to 1 ms.
+   The cascade: this sheet loads before ui.css (main.ts imports it last), so a rule here that ties one there loses:
+   each rule that meets a ui.css rule on the same element is scoped one class deeper (docs/sops/ui-hud.md Lessons). */
+
+/* ---------- the bands: the title's and the Mode screen's lists (MKW's main and mode menus) ---------- */
+.band {
+  appearance: none;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  height: var(--band-h, 64px);
+  margin: 0;
+  padding: 0 30px 0 10px;
+  border: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: transform var(--t-fast) var(--pop);
+}
+/* the glass: slanted as a racing banner, deep on the left and thinning to the right (MKW's bands fade out to the right),
+   a gloss across its top half, a fine light edge */
+.band > .glass {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: 14px;
+  transform: skewX(-14deg);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.2) 0%, rgb(255 255 255 / 0.06) 48%, transparent 50%),
+    linear-gradient(90deg, rgb(24 30 76 / 0.84), rgb(20 24 64 / 0.62) 72%, rgb(20 24 64 / 0.34));
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.4), inset 0 1.5px 0 0 rgb(255 255 255 / 0.58), 0 10px 22px rgb(10 12 36 / 0.3);
+  transition: box-shadow var(--t-fast), background var(--t-fast);
+}
+/* the emblem on a paper disc at the band's head, a little bigger than the band (MKW's emblems overlap their bands) */
+.band > .icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(var(--band-h, 64px) + 8px);
+  height: calc(var(--band-h, 64px) + 8px);
+  margin: -4px 0 -4px -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 28%, #fff 0 34%, #eef2fd 64%, #cfd8f3 100%);
+  box-shadow: 0 0 0 3px var(--ink), 0 5px 0 3px var(--ink), inset 0 -4px 0 rgb(27 27 47 / 0.1);
+  transition: transform var(--t-fast) var(--pop);
+}
+.band > .icon svg { display: block; width: 70%; height: 70%; overflow: visible; }
+.band > .label {
+  min-width: 0;
+  font: 400 var(--band-font, 32px)/1 var(--display);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 4px 0 var(--ink);
+  transform: skewX(-8deg);
+  transition: color var(--t-fast);
+}
+/* each mode's own line, for assistive tech: the eyes read the focused one's at the foot (.mode-say) */
+.band > .sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.band > .badge { margin-left: auto; padding: 5px 11px; border-radius: 999px; background: var(--paper); color: var(--ink); font: 700 14px/1 var(--body); transform: skewX(-8deg); }
+/* focus: the band slides out and lifts, its glass deepens under the white and sun ring, a glow, the name in gold, the
+   emblem pops; and a sheen crosses the glass once (the tiles' own: select.css) */
+.band.focused, .band:focus-visible { z-index: 2; transform: translateX(14px) scale(1.04); }
+.band.focused > .glass, .band:focus-visible > .glass {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.26) 0%, rgb(255 255 255 / 0.08) 48%, transparent 50%),
+    linear-gradient(90deg, rgb(34 42 106 / 0.96), rgb(26 32 84 / 0.86) 72%, rgb(26 32 84 / 0.62));
+  box-shadow: inset 0 0 0 3px #fff, 0 0 0 5px var(--sun), 0 0 0 9px var(--ink), 0 0 36px 10px rgb(255 196 48 / 0.5), 0 16px 24px rgb(10 12 36 / 0.4);
+}
+.band.focused > .label, .band:focus-visible > .label { color: var(--sun); }
+.band.focused > .icon { transform: scale(1.1) rotate(-6deg); }
+.band.focused > .glass::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  transform: translateX(-120%);
+  animation: band-sheen 640ms var(--out) 40ms both;
+  pointer-events: none;
+}
+@keyframes band-sheen { to { transform: translateX(420%); } }
+.band:active { transform: translateX(10px) scale(0.98); }
+.band[aria-disabled='true'] { cursor: not-allowed; }
+.band[aria-disabled='true'] > :not(.badge) { opacity: 0.5; filter: grayscale(0.7); }
+
+/* ---------- the title: the attract race behind (MKW's title shows its world), the logo and the bands down the left ---------- */
+/* only the left is darkened a little, to seat the bands; the race stays bright */
+.title .dim { background: linear-gradient(90deg, rgb(14 16 38 / 0.6) 0%, rgb(14 16 38 / 0.32) 30%, transparent 55%), linear-gradient(180deg, transparent 72%, rgb(14 16 38 / 0.36)); }
+/* `safe`: a title taller than its window starts at the top and scrolls; plain centre cut the logo's top off where
+   nothing could scroll to it (sweep, 24 Sept 2026) */
+.title .stage { align-items: flex-start; justify-content: safe center; gap: 0; }
+.logo { margin: 0 0 clamp(14px, 3vh, 34px) 4px; text-align: left; line-height: 0.86; animation: drop-in 900ms var(--pop) both; }
+.logo .l1, .logo .l2 { position: relative; display: block; }
+.logo .l1 { font-size: clamp(64px, 8.6vw, 138px); color: var(--sun); transform: rotate(-3deg); transform-origin: 0 100%; }
+.logo .l2 { margin: -0.06em 0 0 0.62em; font-size: clamp(56px, 7.6vw, 122px); color: var(--coral); transform: rotate(-1deg); transform-origin: 0 100%; }
+/* the gloss over the letters: a copy of the word, clipped to its letters, light on its top half and a little deeper
+   at its foot, over the word's own fill (its ink outline and drop stay the word's; content's alt text '' keeps it
+   from being read twice) */
+.logo [data-text]::after {
+  content: attr(data-text);
+  content: attr(data-text) / '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: transparent;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.72) 0%, rgb(255 255 255 / 0.18) 44%, transparent 46%, transparent 72%, rgb(140 40 0 / 0.22) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  pointer-events: none;
+}
+.title .menu { display: flex; flex-direction: column; gap: 12px; width: min(470px, 40vw); padding-left: 14px; --band-h: 62px; --band-font: 32px; }
+/* (no display here: .only-keys and .only-pad say which one shows) */
+.title .press { margin: 18px 0 0 24px; padding: 7px 16px 8px; border-radius: 999px; background: rgb(14 16 38 / 0.56); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.34); font: 600 17px/1 var(--body); color: var(--paper); text-shadow: 0 2px 0 var(--ink); animation: pulse 1.6s ease-in-out infinite; }
+
+/* the stage screens: a soft vignette frames the blurred world (two Gemini Flash critiques, 26 Sept 2026), over the foot's shade (select.css) */
+.menu-screen > .dim { background: radial-gradient(ellipse 80% 75% at 58% 46%, transparent 55%, rgb(14 16 38 / 0.34) 100%), linear-gradient(180deg, rgb(20 22 48 / 0.3) 0%, transparent 15%, transparent 80%, rgb(14 16 38 / 0.72) 100%); }
+
+/* ---------- the Mode screen: the bands on the left, the racer last chosen large on the right, the line under it ---------- */
+.menu-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  column-gap: clamp(20px, 3vw, 64px);
+}
+.modes.bands { align-self: center; display: flex; flex-direction: column; gap: clamp(10px, 1.7vh, 20px); width: min(100%, 580px); padding: 10px 0 10px 16px; --band-h: clamp(56px, 8.6vh, 82px); --band-font: clamp(28px, 2.5vw, 42px); }
+.menu-side { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.menu-side .hero-box { display: block; align-self: stretch; flex: 1 1 auto; min-height: 120px; }
+/* what the mode under the focus is, at the foot on the right (MKW's "Go for gold in a four-race cup!") */
+.menu-side .mode-say { max-width: 100%; min-height: 1.1em; padding-right: 10px; font-size: clamp(24px, 2.2vw, 36px); line-height: 1.1; text-align: right; -webkit-text-stroke: 3px var(--ink); text-shadow: 0 4px 0 var(--ink); transform: skewX(-8deg); }
+.select-screen.on .mode-say.swap { animation: say-in 260ms var(--out); }
+@keyframes say-in { from { opacity: 0; transform: translateX(28px) skewX(-8deg); } }
+
+/* ---------- the pictures: a track's own shot in a glass frame (the tiles' glass: select.css) ---------- */
+.frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  isolation: isolate;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  /* the track's colors under the picture until it loads */
+  background: linear-gradient(160deg, var(--bg, #56b4e9) 0 58%, var(--accent, #7bc950) 58%);
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.45), 0 10px 24px rgb(10 12 36 / 0.34);
+  transition: box-shadow var(--t-fast);
+}
+.frame > .shot-art { position: absolute; inset: 0; z-index: 0; display: block; width: 100%; height: 100%; object-fit: cover; transition: transform var(--t-med) var(--out); pointer-events: none; -webkit-user-drag: none; }
+/* the glass over it: a fine light edge brighter along the top, and a soft gloss across the top */
+.frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.5), inset 0 2px 0 0 rgb(255 255 255 / 0.55);
+  background: linear-gradient(164deg, rgb(255 255 255 / 0.26) 0%, rgb(255 255 255 / 0.06) 22%, transparent 40%);
+  pointer-events: none;
+}
+.frame > .soon-tag { position: absolute; inset: 0; display: grid; place-items: center; font: 400 22px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; letter-spacing: 0.04em; }
+.shot.soon .frame { filter: grayscale(0.85) brightness(0.8); }
+
+/* ---------- a ribbon title (a cup's name over its courses: MKW heads them with the cup's name; ours on the intro's ribbon) ---------- */
+.menu-stage .ribbon {
+  position: relative;
+  isolation: isolate;
+  align-self: flex-start;
+  margin: 0 0 0 30px;
+  padding: 0 8px;
+  font-size: clamp(34px, 3vw, 54px);
+  line-height: 1.05;
+  white-space: nowrap;
+  -webkit-text-stroke: 4px var(--ink);
+  text-shadow: 0 5px 0 var(--ink);
+}
+.menu-stage .ribbon::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: -28px;
+  right: -28px;
+  top: 36%;
+  bottom: 4%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon, var(--coral)) 60%, #fff) 0 44%, var(--ribbon, var(--coral)) 44% 100%);
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 5px 0 var(--ink), inset 0 -4px 0 rgb(0 0 0 / 0.14);
+  transform: skewX(-12deg);
+}
+/* each cup's own colors: its ribbon, and the glow in its tile's glass */
+[data-cup='sunrise'] { --ribbon: #ff9a3c; --glow: #ffb347; }
+[data-cup='summit'] { --ribbon: #4aa8e8; --glow: #7cc6f6; }
+[data-cup='coastline'] { --ribbon: #22b8a8; --glow: #43d8c8; }
+[data-cup='peaks'] { --ribbon: #8672f0; --glow: #a998ff; }
+
+/* ---------- the Cup screen: the focused cup large (its ribbon, its courses' pictures), the cups below, the class row ---------- */
+.cup-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: clamp(10px, 1.8vh, 20px); }
+.cup-show { position: relative; flex: 1 1 auto; min-height: 0; container-type: size; }
+.cup-preview { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: clamp(10px, 1.6vh, 18px); }
+.cup-preview[hidden] { display: none; }
+/* three across, as big as the room allows: the pictures (16:9) and their names under them fit its height */
+.cup-preview .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.6vw, 28px); width: min(100%, calc((100cqh - 130px) * 5.33 + 56px)); }
+.shot { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.shot-name { padding-left: 6px; font: 400 clamp(20px, 1.7vw, 28px)/1.05 var(--display); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+/* a cup coming on show: its ribbon pops and its pictures slide in, one after another */
+.select-screen.on .cup-preview:not([hidden]) .ribbon { animation: np-swap 280ms var(--pop); }
+.select-screen.on .cup-preview:not([hidden]) .shot { animation: shot-in 320ms var(--out) backwards; animation-delay: calc(var(--i, 0) * 50ms); }
+@keyframes shot-in { from { opacity: 0; transform: translateX(34px) scale(0.96); } }
+
+/* the cups: glass tiles (select.css .tile), their emblem big, the name and the stars beside it */
+.cups { display: flex; flex-wrap: wrap; gap: clamp(12px, 1.4vw, 22px); padding: 6px 4px; }
+/* slanted as the bands are (two Gemini Flash critiques against MKW's stills, 26 Sept 2026: "skew the plates"), the words
+   upright on it */
+.cup-tile { width: auto; min-width: clamp(250px, 21vw, 340px); padding: 10px 24px 10px 14px; text-align: left; transform: skewX(-8deg); }
+.cup-tile > * { transform: skewX(8deg); }
+.cup-tile.focused, .cup-tile:focus-visible { transform: translateY(-6px) scale(1.06) skewX(-8deg); }
+.cup-tile .cup-head { position: relative; z-index: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 12px; row-gap: 4px; }
+.cup-tile .emblem { grid-row: 1 / span 2; display: block; width: 64px; height: 64px; }
+.cup-tile .emblem svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.3)); transition: transform var(--t-fast) var(--pop); }
+.cup-tile.focused .emblem svg { transform: scale(1.12) rotate(-6deg); }
+.cup-tile .label { align-self: end; justify-self: start; max-width: 100%; font: 400 clamp(22px, 1.7vw, 28px)/1.05 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.cup-tile .cup-head:not(:has(.badge)) .label { grid-row: 1 / span 2; align-self: center; }
+.cup-tile .badge { align-self: start; justify-self: start; font: 700 14px/1 var(--body); color: var(--ink); background: var(--paper); border-radius: 999px; padding: 4px 10px; }
+.cup-tile .badge.star-badge { display: flex; gap: 1px; padding: 0; background: none; }
+.cup-tile .star-badge .star-svg { display: block; width: 26px; height: 26px; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.3)); }
+.cup-tile .sub { position: relative; z-index: 1; display: block; margin-top: 4px; font: 600 13px/1.2 var(--body); opacity: 0.85; }
+.cup-tile[aria-disabled='true'] { cursor: not-allowed; }
+.cup-tile[aria-disabled='true'] .cup-head { opacity: 0.55; filter: grayscale(0.7); }
+
+/* ---------- the Track screen: the pictures by cup, each cup's row under its name on its ribbon ---------- */
+.track-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: clamp(10px, 1.8vh, 20px); }
+.track-groups { flex: 1 1 auto; min-height: 0; container-type: size; }
+/* as big as the room allows: each row's pictures (16:9), their names and the ribbon over them fit the room's height */
+.track-rows { display: flex; flex-direction: column; justify-content: center; gap: clamp(8px, 2vh, 24px); height: 100%; width: min(100%, calc((100cqh / var(--rows, 2) - 104px) * 5.33 + 48px)); }
+.track-group { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+.track-group .ribbon { font-size: clamp(24px, 2vw, 34px); -webkit-text-stroke-width: 3px; text-shadow: 0 4px 0 var(--ink); margin-left: 24px; }
+.track-group .ribbon::before { left: -22px; right: -22px; box-shadow: 0 4px 0 var(--ink), inset 0 -3px 0 rgb(0 0 0 / 0.14); }
+.track-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.6vw, 24px); }
+.track-card {
+  appearance: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: transform var(--t-fast) var(--pop);
+}
+.track-card .words { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-width: 0; padding-left: 6px; }
+.track-card .label { font: 400 clamp(20px, 1.7vw, 28px)/1.05 var(--display); white-space: nowrap; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); transition: color var(--t-fast); }
+.track-card .biome { font: 600 14px/1 var(--body); color: rgb(255 255 255 / 0.88); text-shadow: 0 1px 0 var(--ink), 0 0 4px rgb(14 16 38 / 0.8); }
+.track-card .sub { font: 700 13px/1 var(--body); color: var(--paper); background: rgb(14 16 38 / 0.72); border-radius: 999px; padding: 4px 10px; }
+/* a Time Trial's best medal on the picture's corner */
+.frame > .medal-badge { position: absolute; top: 8px; right: 10px; z-index: 3; width: 44px; transform: rotate(8deg); filter: drop-shadow(0 3px 0 rgb(27 27 47 / 0.55)); }
+.frame > .medal-badge svg { display: block; width: 100%; height: auto; }
+.screen.on .track-card .medal-badge { animation: medal-stick 520ms var(--pop) backwards; animation-delay: calc(var(--delay, 0ms) + 260ms); }
+@keyframes medal-stick { from { opacity: 0; transform: rotate(-30deg) scale(0.3); } }
+
+/* focus on a picture: the frame lifts under the white and sun ring and a glow, the picture comes a little closer, a
+   sheen crosses it, and the name turns gold (the tiles' focus: select.css) */
+.track-card.focused, .track-card:focus-visible { z-index: 2; transform: translateY(-5px); }
+.track-card.focused > .frame, .track-card:focus-visible > .frame { box-shadow: inset 0 0 0 3px #fff, 0 0 0 5px var(--sun), 0 0 0 9px var(--ink), 0 0 38px 12px rgb(255 196 48 / 0.55), 0 18px 26px rgb(10 12 36 / 0.42); }
+.track-card.focused .shot-art { transform: scale(1.07); }
+.track-card.focused .label { color: var(--sun); }
+.track-card.focused > .frame::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  z-index: 3;
+  width: 36%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.42), transparent);
+  transform: translateX(-130%) skewX(-16deg);
+  animation: tile-sheen 700ms var(--out) 40ms both;
+  pointer-events: none;
+}
+.track-card:active { transform: translateY(-1px) scale(0.98); }
+
+/* ---------- the class row: glass pills, the class chosen in the sun with a check, Mirror's switch at its end ---------- */
+.classes { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px; }
+.classes .pill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 9px 18px 9px 22px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  background: linear-gradient(180deg, rgb(30 34 74 / 0.84), rgb(16 18 44 / 0.88));
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.42), 0 8px 18px rgb(8 10 30 / 0.3);
+  transition: transform var(--t-fast) var(--pop), box-shadow var(--t-fast), background var(--t-fast);
+}
+.classes .pill .label { font: 400 24px/1 var(--display); letter-spacing: 0.01em; -webkit-text-stroke: 2.5px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.classes .pill .sub { font: 600 15px/1 var(--body); opacity: 0.88; }
+.classes .pill .badge { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: var(--sun); font: 800 12px/1 var(--body); }
+.classes .pill[aria-pressed='true'] { color: var(--ink); background: linear-gradient(180deg, #ffe9a0 0%, var(--sun) 50%, #f4b42a 100%); box-shadow: inset 0 0 0 2px var(--ink), inset 0 2px 0 3px rgb(255 255 255 / 0.5), 0 8px 18px rgb(8 10 30 / 0.3); }
+.classes .pill[aria-pressed='true'] .label { color: #fff; }
+.classes .pill.focused, .classes .pill:focus-visible { transform: translateY(-3px) scale(1.06) skewX(-10deg); box-shadow: inset 0 0 0 3px #fff, 0 0 0 4px var(--sun), 0 0 0 7px var(--ink), 0 0 28px 8px rgb(255 210 63 / 0.5); }
+.classes .pill:active { transform: translateY(1px) scale(0.98) skewX(-10deg); }
+/* slanted as the bands are, the words upright on it */
+.classes .pill { transform: skewX(-10deg); }
+.classes .pill > * { transform: skewX(10deg); }
+
+/* ---------- a laptop window (1280x720, 1366x657): a little tighter ---------- */
+@media (max-height: 800px) {
+  .logo .l1 { font-size: min(8.6vw, 14vh); }
+  .logo .l2 { font-size: min(7.6vw, 12.4vh); }
+  .title .menu { gap: 10px; --band-h: min(58px, 7.6vh); --band-font: 28px; }
+  .title .press { margin-top: 12px; }
+  .cup-tile { padding: 8px 16px 8px 10px; }
+  .cup-tile .emblem { width: 54px; height: 54px; }
+  .classes .pill { padding: 7px 16px 7px 18px; }
+  .classes .pill .label { font-size: 21px; }
+  .classes .pill .sub { font-size: 14px; }
+}
+
+/* ---------- a narrow window (a tablet, a small window): the Mode screen's hero goes, the bands take the width ---------- */
+@media (max-width: 720px) and (min-height: 501px) {
+  .menu-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .menu-side .hero-box { display: none; }
+  .menu-side { align-items: center; }
+  .modes.bands { justify-self: center; }
+  .title .menu { width: min(470px, 86vw); }
+}
+
+/* ---------- a phone on its side (852x393, 740x360): one screen, no scroll. The title's logo on one line over the
+   bands; the Mode screen's bands and hero side by side; the pictures a wider cut, their names on them ---------- */
+@media (max-height: 500px) {
+  .logo { margin-bottom: 14px; }
+  .logo .l1, .logo .l2 { display: inline-block; }
+  .logo .l1 { font-size: min(7vw, 13vh); }
+  .logo .l2 { margin: 0 0 0 0.3em; font-size: min(6.4vw, 12vh); }
+  .title .menu { gap: 6px; width: min(360px, 46vw); padding-left: 10px; --band-h: 42px; --band-font: 22px; }
+  .title .press { margin: 8px 0 0 16px; padding: 5px 12px 6px; font-size: 14px; }
+  .band { gap: 12px; padding-right: 20px; }
+  .band > .glass { border-radius: 10px; }
+  .band > .icon { box-shadow: 0 0 0 2px var(--ink), 0 3px 0 2px var(--ink); }
+  .band > .label { -webkit-text-stroke-width: 2.5px; text-shadow: 0 3px 0 var(--ink); }
+  .band.focused, .band:focus-visible { transform: translateX(8px) scale(1.03); }
+  .band.focused > .glass, .band:focus-visible > .glass { box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 16px 4px rgb(255 196 48 / 0.5); }
+  .modes.bands { gap: 6px; padding: 4px 0 4px 10px; --band-h: 42px; --band-font: 22px; }
+  .menu-side .mode-say { font-size: 18px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 3px 0 var(--ink); }
+  .menu-stage .ribbon { font-size: 24px; -webkit-text-stroke-width: 3px; text-shadow: 0 3px 0 var(--ink); margin-left: 18px; }
+  .menu-stage .ribbon::before { left: -16px; right: -16px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
+  .cup-preview { gap: 6px; }
+  .cup-preview .shots { gap: 10px; width: min(100%, calc((100cqh - 40px) * 6 + 20px)); }
+  .frame { aspect-ratio: 2 / 1; border-radius: 12px; }
+  .shot { position: relative; gap: 0; }
+  .shot-name, .track-card .words { position: absolute; left: 6px; right: 6px; bottom: 5px; z-index: 3; padding: 0; }
+  .shot-name, .track-card .label { font-size: 15px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 2px 0 var(--ink); }
+  .track-card .biome { display: none; }
+  .track-card .sub { padding: 2px 7px; font-size: 10.5px; }
+  .track-rows { gap: 8px; width: min(100%, calc((100cqh / var(--rows, 2) - 10px) * 6 + 150px)); }
+  .track-group { flex-direction: row; align-items: center; gap: 8px; }
+  .track-group .ribbon { flex: none; width: 6.4em; margin-left: 12px; font-size: 15px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 2px 0 var(--ink); }
+  .track-group .ribbon::before { left: -10px; right: -2px; }
+  .track-cards { flex: 1 1 auto; min-width: 0; gap: 8px; }
+  .frame > .medal-badge { width: 26px; top: 4px; right: 6px; }
+  .track-card.focused > .frame, .track-card:focus-visible > .frame { box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 14px 4px rgb(255 210 63 / 0.55); }
+  .track-card.focused, .track-card:focus-visible { transform: translateY(-2px); }
+  .cups { gap: 8px; padding: 2px; }
+  .cup-tile { width: auto; min-width: 200px; padding: 5px 14px 5px 8px; border-radius: 12px; }
+  .cup-tile .emblem { width: 38px; height: 38px; }
+  .cup-tile .label { font-size: 18px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 2px 0 var(--ink); }
+  .cup-tile .star-badge .star-svg { width: 18px; height: 18px; }
+  .cup-tile .cup-head { column-gap: 8px; row-gap: 2px; }
+  .classes { gap: 8px; padding: 2px; }
+  .classes .pill { gap: 6px; padding: 4px 12px 4px 14px; }
+  .classes .pill .label { font-size: 17px; -webkit-text-stroke-width: 2px; text-shadow: 0 2px 0 var(--ink); }
+  .classes .pill .sub { font-size: 12px; }
+  .classes .pill .badge { min-width: 18px; height: 18px; font-size: 10px; }
+  .classes .pill.focused, .classes .pill:focus-visible { box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 14px 4px rgb(255 210 63 / 0.5); }
+}

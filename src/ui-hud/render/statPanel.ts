@@ -1,7 +1,7 @@
 // The stats panel (design §5, §12), one piece on the Racer and Kart screens: four bars, each a solid bar for
 // the combo chosen now and a ghost for the one under the focus: a light extension for a gain, a hatched cut-back
 // for a loss (the solid bar gives way to it), and a chevron a step, up to three. Built once; a render writes only
-// what changed (karts.css moves the bars by scaleX alone, 240 ms on the house ease, 40 ms apart, the ghost fading
+// what changed (select.css moves the bars by scaleX alone, 240 ms on the house ease, 40 ms apart, the ghost fading
 // in over 120 ms; at once with reduced motion). The words are for screen readers: "Speed 7 of 10, up 2".
 import type { StatPanelVM } from '../screens/stats.ts';
 import { STAT_KEYS } from '../data/kartStats.ts';
@@ -21,12 +21,13 @@ export class StatPanel {
   private readonly rows: Row[] = [];
   private readonly who: TextField;
 
-  /** `cls`: the panel's place and entrance (`kart-stats enter` on the Kart screen, `roster-stats enter` by the racer screen's turntable) */
+  /** `cls`: the panel's place (`select-stats` on the Racer and Kart screens, over the hero, shown by the Stats button) */
   constructor(parent: HTMLElement, cls = '') {
     this.root = h('div', `stat-panel${cls ? ` ${cls}` : ''}`, parent);
     this.root.setAttribute('role', 'group');
     this.root.setAttribute('aria-label', 'Stats');
-    this.who = new TextField(h('span', 'sr-only', this.root));
+    // whose combo it is, both names (Adam, 26 Sept 2026: the stats "should change a little bit depending on which rider is riding it")
+    this.who = new TextField(h('div', 'sp-title', this.root));
     STAT_KEYS.forEach((key, i) => {
       const row = h('div', 'sp-row', this.root);
       row.dataset.stat = key;

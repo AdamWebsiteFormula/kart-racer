@@ -47,7 +47,7 @@ const key = (code: string, k = code) => dispatchEvent(new KeyboardEvent('keydown
 const view = (cls: string) => document.querySelector(`#ui > .screen.${cls}:not(.x-ghost)`) as HTMLElement;
 /** each view moving: its own class (title, mode-screen, settings…), in or out, and which way */
 const moving = () => [...document.querySelectorAll<HTMLElement>('#ui .x-in, #ui .x-out')].map((e) => {
-  const name = e.classList.contains('x-ghost') ? 'ghost' : [...e.classList].filter((c) => !['screen', 'overlay', 'on', 'x-in', 'x-out'].includes(c)).join('.');
+  const name = e.classList.contains('x-ghost') ? 'ghost' : [...e.classList].filter((c) => !['screen', 'overlay', 'on', 'x-in', 'x-out', 'select-screen', 'menu-screen'].includes(c)).join('.');
   return `${name} ${e.classList.contains('x-in') ? 'in' : 'out'} ${e.dataset.x}`;
 });
 const focused = () => (document.activeElement as HTMLElement | null)?.dataset.id;

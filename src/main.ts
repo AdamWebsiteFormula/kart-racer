@@ -3,7 +3,7 @@
 // session with the player. Fixed 120 Hz sim with render interpolation (plan §6.4).
 import {
   ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight, Fog, HemisphereLight, NoToneMapping, PCFShadowMap,
-  Group, PerspectiveCamera, PMREMGenerator, Scene, Vector3, WebGLRenderer, type Mesh, type MeshStandardMaterial, type ShaderMaterial, type Texture,
+  Group, PerspectiveCamera, PMREMGenerator, Scene, TextureLoader, Vector3, WebGLRenderer, type Mesh, type MeshStandardMaterial, type ShaderMaterial, type Texture,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
@@ -38,7 +38,7 @@ import { Accumulator } from './game/loop.ts';
 import { lineup } from './game/lineup.ts';
 import { RaceSession } from './game/session.ts';
 import { setSunShadow } from './game/shadow.ts';
-import { Showroom } from './game/showroom.ts';
+import { Showroom, stageFade } from './game/showroom.ts';
 import { CELEBRATE, FinishCam, joyful, reactionFor, type Placing } from './game/celebrate.ts';
 import { Podium } from './game/podium.ts';
 import type { Crowd } from './art-pipeline/crowd.ts';
@@ -864,7 +864,8 @@ function step(now: number): void {
   WATER_CLOCK.value = nowS % 3600; // every water surface drifts on one clock (wrapped so noise keeps its precision)
   BUBBLE_CLOCK.value = WATER_CLOCK.value;
   // measure only live play (not a course intro's flight, which sees far more of the course than the race does); after a pause or a hidden tab, warm up again before judging
-  const measuring = autoQuality() && !ui.paused && !document.hidden && !intro;
+  // (nor the Racer and Kart screens' stage: it draws no race, so its frames say nothing of a race's cost)
+  const measuring = autoQuality() && !ui.paused && !document.hidden && !intro && stageAlpha === 0;
   if (measuring && !governing) governor.reset(nowS);
   governing = measuring;
   if (measuring && pendingQuality < 0 && governor.sample(rawMs, nowS)) qualityChanged(nowS);
@@ -972,41 +973,43 @@ function step(now: number): void {
   cur.trackScene.cull(camera, !renderer.shadowMap.enabled, (scene.fog as Fog | null)?.far);
   // the creature, the hazards, the balloons and the coins the lens meets fade as clean ghosts; in the finish camera's close-up the pickups from farther out (scene.ts lens)
   cur.trackScene.lens(camera, !attract && celebrating && !ceremony);
-  post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
-  // the racer screen's hero (your racer in your current kart) and, with karts picked, the kart screen's (your racer in the focused kart)
-  if (ui.app.screen === 'rosterSelect' || ui.app.screen === 'kartSelect') drawTurntable(nowS, reduced);
+  // the setup screens draw their own stage (the blurred world and the big hero) over the whole
+  // canvas: while it covers it, the race behind is not drawn at all; while it fades in or out, over the race
+  const stage = stageStep(frameDt, reduced);
+  if (stage < 1) post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
+  if (stage > 0) drawStage(nowS, reduced, stage);
   // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again
   if (warmed) { last = performance.now(); governor.reset(last / 1000); }
 }
 
-// ---- the racer screen's hero turntable: the focused racer in their paint and body (design §12, §10 rewards) ----
+// ---- the setup screens' stage (design §12): the blurred world behind the Mode, Racer, Kart, Cup and Track screens, and the big 3D hero ----
 const showroom = new Showroom(scene.environment);
-const clearWas = new Color();
+new TextureLoader().load(`${import.meta.env.BASE_URL}art/menus/stage.webp`, (t) => showroom.setBackdrop(t), undefined, () => { /* no picture: its plain colour stands */ });
+/** how much of the stage shows (0 none, 1 all), eased in and out with the screen change (UI.wipeMs) */
+let stageAlpha = 0;
 
-/** Render the showroom into the main canvas under the hero box, then copy it into the box's own canvas (over the menu's dim). */
-function drawTurntable(nowS: number, reduced: boolean): void {
+/** The screens drawn on the stage: the whole setup after the title (design §12, 26 Sept 2026), as MKW's own menus sit on theirs; the title keeps the attract race. */
+const STAGE_SCREENS: ReadonlySet<string> = new Set(['modeSelect', 'rosterSelect', 'kartSelect', 'cupSelect', 'trackSelect']);
+
+/** The stage's share this frame: toward all of it on the setup screens (the Mode, Racer, Kart, Cup and Track screens), toward none elsewhere (at once with reduced motion). */
+function stageStep(dt: number, reduced: boolean): number {
+  const was = stageAlpha;
+  stageAlpha = stageFade(stageAlpha, STAGE_SCREENS.has(ui.app.screen), dt, UI.wipeMs / 1000, reduced);
+  // gone: its kart's own material copies go too (the next time, the racer on show says hello again)
+  if (was > 0 && stageAlpha === 0) showroom.empty();
+  return stageAlpha;
+}
+
+/** Draw the stage over the canvas: the backdrop at `alpha`, and the hero in the box the menu leaves for it (none where it has no room). */
+function drawStage(nowS: number, reduced: boolean, alpha: number): void {
   const t = ui.turntable();
-  if (!t) return;
-  const r = t.canvas.getBoundingClientRect();
-  if (r.width < 8 || r.height < 8) return; // hidden on a small screen
-  showroom.show(t.racerId, { ...artLook(t.look), kartId: t.kartId });
-  showroom.update(nowS, reduced, r.width / r.height);
-  const x = Math.round(r.left), w = Math.round(r.width), h = Math.round(r.height), y = Math.round(innerHeight - r.bottom);
-  const alpha = renderer.getClearAlpha();
-  renderer.getClearColor(clearWas);
-  renderer.setScissorTest(true);
-  renderer.setScissor(x, y, w, h);
-  renderer.setViewport(x, y, w, h);
-  renderer.setClearColor(showroom.background, 1);
-  renderer.clear();
-  renderer.render(showroom.scene, showroom.camera);
-  renderer.setScissorTest(false);
-  renderer.setViewport(0, 0, innerWidth, innerHeight);
-  renderer.setClearColor(clearWas, alpha);
-  // the box's own canvas, at the drawing buffer's pixels (copied this frame, while the buffer holds them)
-  const dpr = renderer.getPixelRatio(), cw = Math.max(1, Math.round(w * dpr)), ch = Math.max(1, Math.round(h * dpr));
-  if (t.canvas.width !== cw || t.canvas.height !== ch) { t.canvas.width = cw; t.canvas.height = ch; }
-  t.canvas.getContext('2d')?.drawImage(renderer.domElement, Math.round(x * dpr), Math.round(r.top * dpr), cw, ch, 0, 0, cw, ch);
+  const r = t?.box.getBoundingClientRect();
+  const view = { w: innerWidth, h: innerHeight };
+  const box = t && r && r.width >= 8 && r.height >= 8 ? { x: r.left, y: r.top, w: r.width, h: r.height } : undefined;
+  if (t && box) showroom.show(t.racerId, { ...artLook(t.look), kartId: t.kartId });
+  showroom.update(nowS, reduced, view, box);
+  renderer.setViewport(0, 0, view.w, view.h);
+  showroom.draw(renderer, alpha, box !== undefined);
 }
 
 /**
@@ -1089,6 +1092,8 @@ if (import.meta.env.DEV) {
     },
     /** dev: the podium, when there is one */
     get podium() { return podium; },
+    /** dev: the Racer and Kart screens' stage (game/showroom.ts) and how much of it shows (0 to 1) */
+    showroom, get stage() { return stageAlpha; },
     stats: () => ({ tick: session?.state.tick, frames, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, drawables: session?.trackScene.drawables(), dpr: renderer.getPixelRatio(), low: !renderer.shadowMap.enabled }),
     /**
      * dev: the sound files coming down as the game asks for them on the first key press, for checks

@@ -45,23 +45,10 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.stage', 'overscroll-behavior')).toBe('contain');
   });
 
-  it('the roster sets all eight racers in one row, class, portrait and name only, so Paint, Body and the 50/100/150cc row fit (852x344 needed a 147 px scroll)', () => {
-    expect(value('.roster', 'grid-template-columns', '(max-width: 900px)')).toBe('repeat(2, minmax(0, 1fr))');
-    expect(value('.roster', 'grid-template-columns', PHONE)).toBe('repeat(8, minmax(0, 1fr))');
+  it('the Paint and Body rows stay side by side on one row, and every stage keeps a small margin inside the notch (select.css sets the racers in one row: its own tests)', () => {
     expect(value('.garage', 'flex-wrap', PHONE)).toBe('nowrap');
     // the sides keep a small margin inside the notch's inset, not 48 px on top of it
     expect(value('.stage', 'padding', PHONE)).toContain('calc(20px + var(--safe-l))');
-    expect(value('.card .stats', 'display', PHONE)).toBe('none');
-    expect(value('.card .who', 'display', PHONE)).toBe('none');
-  });
-
-  it('the title sizes its name by the height too, sets the four buttons two by two, and never spills off the top', () => {
-    expect(value('.logo .l1', 'font-size', PHONE)).toMatch(/vh/);
-    expect(value('.logo .l2', 'font-size', PHONE)).toMatch(/vh/);
-    expect(value('.title .menu', 'grid-template-columns', PHONE)).toBe('1fr 1fr');
-    expect(value('.title .stage', 'justify-content', PHONE)).toBe('safe center');
-    // on any screen a title taller than the window starts at the top (sweep: at 1366x657 plain centre cut the logo's top off)
-    expect(value('.title .stage', 'justify-content')).toBe('safe center');
   });
 
   it('the rotate prompt takes the taps, so none goes through to the buttons hidden under it', () => {
@@ -73,11 +60,6 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
   it('the touch controls, shown, take a touch anywhere (a thumb on the screen is the gas before the green light)', () => {
     expect(value('.touch', 'pointer-events')).toBe('none');
     expect(value('.touch.on', 'pointer-events')).toBe('auto');
-  });
-
-  it('cups sit side by side and track cards fit the stage', () => {
-    expect(value('.cups', 'grid-template-columns', PHONE)).toBe('repeat(auto-fit, minmax(260px, 1fr))');
-    expect(value('.track-cards', 'width', PHONE)).toBe('100%');
   });
 
   it('the pause fits without a scroll, its six buttons two by two, under the query the focus grids use (seam review)', () => {
@@ -92,6 +74,16 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     expect(value('.pause .list', 'display')).toBe('');
   });
 
+  it('the dialogs are the setup\'s glass, not cream cards (design §12, 26 Sept 2026): white words, the focus the one ring, the rows\' old ink drop gone', () => {
+    expect(value('.overlay .box', 'color')).toBe('rgb(255, 255, 255)');
+    expect(value('.overlay .box', 'border-radius')).toBe('26px');
+    expect(value('.overlay .btn.focused', 'box-shadow')).toMatch(/var\(--sun\)/);
+    expect(value('.overlay .btn.focused', 'color')).toBe('var(--sun)');
+    expect(value('.setting', 'box-shadow')).toBe('');
+    // the earned unlock stays in the sun, its words in ink
+    expect([value('.unlock.on', 'background'), value('.unlock.on', 'color')]).toEqual(['var(--sun)', 'var(--ink)']);
+  });
+
   it('Settings drawn again after a change does not pop in again (seam review)', () => {
     expect(value('.overlay .box', 'animation')).toMatch(/pop-in/);
     expect(value('.overlay .box.redraw', 'animation')).toBe('none');
@@ -103,16 +95,10 @@ describe('menus on a phone on its side (bug hunt 3)', () => {
     // over Done on a bigger screen
     expect(value('.settings .box.dialog > .foot', 'flex-direction')).toBe('column');
   });
-
-  it('the mode icons shrink with the cards (sweep 25 Sept 2026)', () => {
-    expect(value('.modes .btn .icon', 'width')).toBe('44px');
-    expect(value('.modes .btn .icon', 'width', PHONE)).toBe('30px');
-  });
 });
 
 describe('menu icons and the Settings help line (sweep 25 Sept 2026)', () => {
   it('icons are sized by their box, never by their attributes', () => {
-    expect(value('.modes .btn .icon svg', 'width')).toBe('100%');
     expect(value('.unlock .mark svg', 'width')).toBe('100%');
     expect(value('.opt .lock svg', 'width')).toBe('100%');
     expect(value('.arrow-svg', 'width')).toMatch(/em$/);
@@ -168,17 +154,12 @@ describe('sweep of every screen (24 Sept 2026)', () => {
     expect(value('#ui .screen[inert]:not(.x-out) > .stage', 'opacity')).toBe('0');
   });
 
-  it('a laptop window (1280x720, 1366x657) fits the title and the racer screen down to the class row', () => {
+  it('a laptop window (1280x720, 1366x657): the Paint row drops its hints (the title fits: menus.css, its own tests)', () => {
     const LAPTOP = '(max-height: 800px)';
-    expect(value('.logo .l1', 'font-size', LAPTOP)).toMatch(/vh/);
-    expect(value('.logo .l2', 'font-size', LAPTOP)).toMatch(/vh/);
-    expect(value('.card .who', 'display', LAPTOP)).toBe('none');
     expect(value('.pick-hint', 'display', LAPTOP)).toBe('none');
-    expect(value('.card .face.has-portrait', 'width', LAPTOP)).toBe('60px');
   });
 
-  it('on a phone on its side the odd last button (Credits, or Quit without Restart) sits centred under the others', () => {
-    expect(value('.title .menu .btn:last-child:nth-child(odd)', 'grid-column', PHONE)).toBe('1 / -1');
+  it('on a phone on its side the odd last button of the pause (Quit without Restart) sits centred under the others', () => {
     expect(value('.pause .list .btn:last-child:nth-child(odd)', 'grid-column', PHONE)).toBe('1 / -1');
   });
 
@@ -365,37 +346,65 @@ describe('the end buttons, the lap pop and the Knockout goal (25 Sept 2026)', ()
   });
 });
 
-describe('the Kart screen and the stats panel (karts.css, K5)', () => {
+describe('the Racer and Kart screens (select.css; design §12, 26 Sept 2026: as Mario Kart World\'s select screens)', () => {
   let kcss = '';
   beforeAll(async () => {
     const fs = (await import('node:fs' as string)) as { readFileSync(p: string, enc: 'utf8'): string };
-    kcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'karts.css')), 'utf8');
+    kcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'select.css')), 'utf8');
   });
-  /** `selector`'s `prop` in karts.css, top level or in the @media `media` */
+  /** `selector`'s `prop` in select.css, top level or in the @media `media` */
   const kvalue = (selector: string, prop: string, media?: string) => {
     const saved = css;
     css = kcss;
     try { return value(selector, prop, media); } finally { css = saved; }
   };
-  const NARROW = '(max-width: 1100px), (max-height: 620px)';
+  const COMPACT = UI.selectCompactQuery;
+  const LAPTOP = '(max-height: 800px)';
 
-  it('ten cards in 5 × 2 beside the hero and the panel; below 1100 px (or 620 tall) the hero goes and the panel is a strip over the cards', () => {
-    expect(kvalue('.kart-grid', 'grid-template-columns')).toBe('repeat(5, minmax(0, 1fr))');
-    expect(kvalue('.kart-body', 'grid-template-areas')).toBe("'grid hero' 'grid panel'");
-    expect(kvalue('.kart-hero', 'display', NARROW)).toBe('none');
-    expect(kvalue('.kart-body', 'grid-template-areas', NARROW)).toBe("'panel' 'grid'");
-    expect(kvalue('.stat-panel', 'grid-template-columns', NARROW)).toBe('repeat(4, minmax(0, 1fr))');
-    // the racer screen's panel too: under the turntable, a strip over the cards where the turntable has no room
-    expect(kvalue('.roster-body:has(> .roster-stats)', 'grid-template-areas')).toBe("'main hero' 'main panel'");
-    expect(kvalue('.roster-body:has(> .roster-stats)', 'grid-template-areas', NARROW)).toBe("'panel' 'main'");
-    // the hero's breakpoint is the racer screen's (ui.css): both screens change layout together
-    expect(value('.hero', 'display', NARROW)).toBe('none');
+  it('the tiles on the left (racers four across, karts three), the hero\'s room on the right; a small screen: the hero goes, the karts five across, the stats a strip under the tiles', () => {
+    expect(kvalue('.select-body', 'grid-template-columns')).toBe('minmax(0, 1.24fr) minmax(0, 1fr)');
+    expect(kvalue('.roster.select-grid', 'grid-template-columns')).toBe('repeat(4, minmax(0, 1fr))');
+    expect(kvalue('.kart-grid.select-grid', 'grid-template-columns')).toBe('repeat(3, minmax(0, 1fr))');
+    expect(kvalue('.kart-grid.cols-5', 'grid-template-columns')).toBe('repeat(5, minmax(0, 1fr))');
+    // sized by the room's height too, so the rows always fit it
+    expect(kvalue('.roster.select-grid', 'width')).toMatch(/cqh/);
+    expect(kvalue('.select-body', 'container-type')).toBe('size');
+    expect(kvalue('.hero-box', 'flex')).toBe('1 1 auto');
+    expect(kvalue('.select-body', 'grid-template-columns', COMPACT)).toBe('minmax(0, 1fr)');
+    expect(kvalue('.hero-box', 'display', COMPACT)).toBe('none');
+    expect(kvalue('.select-side .stat-panel', 'grid-template-columns', COMPACT)).toBe('repeat(4, minmax(0, 1fr))');
+    expect(kvalue('.select-side .stat-panel', 'position', COMPACT)).toBe('static');
+    expect(kvalue('.kart-who', 'display', COMPACT)).toBe('inline-flex');
   });
 
-  it('a phone on its side: each card its picture and name, sized by the screen\'s height, and the strip thin', () => {
-    for (const sel of ['.kc-by', '.kc-line', '.kc-hint']) expect(kvalue(sel, 'display', PHONE), sel).toBe('none');
-    expect(kvalue('.kc-art .kart-svg', 'max-height', PHONE)).toMatch(/vh$/);
-    expect(kvalue('.sp-track', 'height', PHONE)).toBe('10px');
+  it('nothing on a tile but its picture; the stats hidden until asked for, then over the hero, which steps back to make room', () => {
+    expect(kvalue('.stat-panel[hidden]', 'display')).toBe('none');
+    expect(kvalue('.select-side .stat-panel', 'position')).toBe('absolute');
+    expect(kvalue('.select-side.stats-on .hero-box', 'transform')).toMatch(/scale/);
+    expect(kvalue('.hero-box', 'transition')).toBe('transform var(--t-med) var(--out)');
+    expect(kvalue('.racer-tile', 'aspect-ratio')).toBe('4 / 5');
+    expect(kvalue('.tile-art', 'object-fit')).toBe('cover');
+    expect(kvalue('.kc-art img.art', 'object-fit')).toBe('contain');
+    // the drawing under the picture only until the picture loads
+    expect(kvalue('.kc-art:has(> img.art) > .kart-svg', 'display')).toBe('none');
+    // a locked twin: a dark shape
+    expect(kvalue('.kart-tile.locked .kc-art img.art', 'filter')).toMatch(/brightness\(0\)/);
+  });
+
+  it('focus: a white and sun ring, a glow and a lift (less in a laptop window, where the ring must clear the heading); a sheen sweeps the glass once', () => {
+    expect(kvalue('.tile.focused', 'transform')).toBe('translateY(-6px) scale(1.06)');
+    expect(kvalue('.tile.focused', 'box-shadow')).toMatch(/var\(--sun\)/);
+    expect(kvalue('.tile.focused', 'transform', LAPTOP)).toBe('translateY(-3px) scale(1.05)');
+    expect(kvalue('.tile.focused::before', 'animation')).toMatch(/^tile-sheen /);
+  });
+
+  it('a phone on its side: the racers in one row, the karts two rows of five, the name beside its line, the strip thin; the prompts stay on a touch screen, as buttons', () => {
+    expect(kvalue('.roster.select-grid', 'grid-template-columns', PHONE)).toBe('repeat(8, minmax(0, 1fr))');
+    expect(kvalue('.roster.select-grid', 'grid-template-columns', '(max-width: 720px) and (min-height: 501px)')).toBe('repeat(2, minmax(0, 1fr))');
+    expect(kvalue('.nameplate', 'flex-direction', PHONE)).toBe('row');
+    expect(kvalue('.sp-track', 'height', PHONE)).toBe('8px');
+    expect(kvalue('.select-stage .prompts', 'display', '(pointer: coarse)')).toBe('flex');
+    expect(kvalue('.prompts .prompt:not(.prompt-btn)', 'display', '(pointer: coarse)')).toBe('none');
   });
 
   it('the bars move by scaleX alone, on the UI\'s timings, and at once with reduced motion (no stagger either)', () => {
@@ -406,10 +415,12 @@ describe('the Kart screen and the stats panel (karts.css, K5)', () => {
     expect(kvalue(':root', '--t-ghost')).toBe(`${UI.statGhostMs}ms`);
     expect(kvalue(':root', '--t-lock-in')).toBe(`${UI.lockInMs}ms`);
     expect(kvalue(":root[data-reduced-motion='on'] .sp-track > i", 'transition-delay')).toBe('0ms');
-    // a gain's light extension and a loss's hatching show only with a ghost
+    // a gain's light extension and a loss's hatching show only with a ghost; the bar in five segments
     expect(kvalue('.sp-gain', 'opacity')).toBe('0');
     expect(kvalue(".sp-row[data-ghost='gain'] .sp-gain", 'opacity')).toBe('1');
     expect(kvalue('.sp-loss', 'background')).toMatch(/repeating-linear-gradient/);
+    // (jsdom's parser drops a gradient with a calc in it: read the rule's text)
+    expect(kcss).toMatch(/\.sp-track::after \{[^}]*repeating-linear-gradient\(90deg, transparent 0 calc\(20% - 3px\)/);
   });
 
   it('its animations move only transforms and opacity', () => {
@@ -426,6 +437,89 @@ describe('the Kart screen and the stats panel (karts.css, K5)', () => {
         for (let i = 0; i < style.length; i++) expect(['opacity', 'transform'], `${r.name} ${style[i]}`).toContain(style[i]);
       }
     }
-    expect(names.sort()).toEqual(['hero-bob', 'hero-flash', 'hero-in', 'kart-idle', 'lock-pulse', 'refuse-shake']);
+    expect(names.sort()).toEqual(['lock-pulse', 'np-flash', 'np-swap', 'refuse-shake', 'stats-in', 'tile-sheen']);
+  });
+});
+
+describe('the title, Mode, Cup and Track screens (menus.css; design §12, 26 Sept 2026: as Mario Kart World\'s own menus)', () => {
+  let mcss = '';
+  beforeAll(async () => {
+    const fs = (await import('node:fs' as string)) as { readFileSync(p: string, enc: 'utf8'): string };
+    mcss = fs.readFileSync(decodeURIComponent(import.meta.url.replace(/^file:\/\//, '').replace(/[^/]+$/, 'menus.css')), 'utf8');
+  });
+  /** `selector`'s `prop` in menus.css, top level or in the @media `media` */
+  const mvalue = (selector: string, prop: string, media?: string) => {
+    const saved = css;
+    css = mcss;
+    try { return value(selector, prop, media); } finally { css = saved; }
+  };
+  const LAPTOP = '(max-height: 800px)';
+
+  it('the title: the bands one under another down the left, the logo sized by the height too on a laptop and a phone (on one line there), never spilling off the top', () => {
+    expect(mvalue('.title .stage', 'align-items')).toBe('flex-start');
+    // on any screen a title taller than the window starts at the top (sweep: at 1366x657 plain centre cut the logo's top off)
+    expect(mvalue('.title .stage', 'justify-content')).toBe('safe center');
+    expect(mvalue('.title .menu', 'flex-direction')).toBe('column');
+    for (const m of [LAPTOP, PHONE]) {
+      expect(mvalue('.logo .l1', 'font-size', m), m).toMatch(/vh/);
+      expect(mvalue('.logo .l2', 'font-size', m), m).toMatch(/vh/);
+    }
+    expect(mvalue('.logo .l2', 'display', PHONE)).toBe('inline-block');
+    expect(mvalue('.title .menu', '--band-h', PHONE)).toBe('42px');
+    // the prompt shows the keys or the pad's: it never sets its own display over .only-keys and .only-pad
+    expect(mvalue('.title .press', 'display')).toBe('');
+  });
+
+  it('a band: slanted glass, its emblem on a disc sized by the band (the icons by their box, never their attributes), the focus a ring, a glow, a slide and a sheen', () => {
+    expect(mvalue('.band > .glass', 'transform')).toMatch(/^skewX\(-\d+deg\)$/);
+    expect(mvalue('.band > .icon', 'width')).toBe('calc(var(--band-h, 64px) + 8px)');
+    expect(mvalue('.band > .icon svg', 'width')).toBe('70%');
+    expect(mvalue('.cup-tile .emblem svg', 'width')).toBe('100%');
+    expect(mvalue('.band.focused > .glass', 'box-shadow')).toMatch(/var\(--sun\)/);
+    expect(mvalue('.band.focused', 'transform')).toMatch(/translateX/);
+    expect(mvalue('.band.focused > .glass::after', 'animation')).toMatch(/^band-sheen /);
+    // each mode's own line is for assistive tech; the eyes read the focused one's at the foot
+    expect([mvalue('.band > .sub', 'position'), mvalue('.band > .sub', 'width')]).toEqual(['absolute', '1px']);
+    expect(mvalue('.modes.bands', '--band-h', PHONE)).toBe('42px');
+  });
+
+  it('the Mode screen keeps its hero beside the bands on a phone on its side; a narrow window gives the bands the width', () => {
+    expect(mvalue('.menu-side .hero-box', 'display')).toBe('block');
+    expect(mvalue('.menu-side .hero-box', 'display', '(max-width: 720px) and (min-height: 501px)')).toBe('none');
+  });
+
+  it('the pictures: big, sized to the room (its height too), a wider cut on a phone on its side with the names on them', () => {
+    expect(mvalue('.cup-show', 'container-type')).toBe('size');
+    expect(mvalue('.track-groups', 'container-type')).toBe('size');
+    expect(mvalue('.cup-preview .shots', 'grid-template-columns')).toBe('repeat(3, minmax(0, 1fr))');
+    expect(mvalue('.track-cards', 'grid-template-columns')).toBe('repeat(3, minmax(0, 1fr))');
+    expect(mvalue('.frame', 'aspect-ratio')).toBe('16 / 9');
+    expect(mvalue('.frame', 'aspect-ratio', PHONE)).toBe('2 / 1');
+    expect(mvalue('.track-card .words', 'position', PHONE)).toBe('absolute');
+    expect(mvalue('.cup-preview[hidden]', 'display')).toBe('none');
+    expect(mvalue('.track-card.focused > .frame', 'box-shadow')).toMatch(/var\(--sun\)/);
+  });
+
+  it('the class row: glass pills, the class chosen in the sun, the focus the ring', () => {
+    expect(mvalue('.classes', 'display')).toBe('flex');
+    expect(mvalue('.classes .pill[aria-pressed=\'true\']', 'color')).toBe('var(--ink)');
+    expect(mvalue('.classes .pill.focused', 'box-shadow')).toMatch(/var\(--sun\)/);
+  });
+
+  it('its animations move only transforms and opacity', () => {
+    document.head.innerHTML = '';
+    const st = document.createElement('style');
+    st.textContent = mcss;
+    document.head.appendChild(st);
+    const names: string[] = [];
+    for (const r of st.sheet!.cssRules) {
+      if (!(r instanceof CSSKeyframesRule)) continue;
+      names.push(r.name);
+      for (const k of r.cssRules) {
+        const style = (k as CSSKeyframeRule).style;
+        for (let i = 0; i < style.length; i++) expect(['opacity', 'transform'], `${r.name} ${style[i]}`).toContain(style[i]);
+      }
+    }
+    expect(names.sort()).toEqual(['band-sheen', 'medal-stick', 'say-in', 'shot-in']);
   });
 });
