@@ -34,6 +34,12 @@ export const CAM = Object.freeze({
    */
   loopAcross: 0.7,
   /**
+   * the side view's field of view (degrees), eased in with the swing: two ring radii out, the whole ring
+   * wants about 52° plus room round it, more than the chase view's own (fov); the view it had before
+   * the chase view narrowed (27 Sept 2026)
+   */
+  loopFov: 66,
+  /**
    * Falls and the claw (Boardwalk's "jarring underwater transition": the camera followed a kart 5 m
    * down off the pier and aimed 2.4 m under the sea while the claw fetched it). The camera keeps
    * seaClear above a sea (a water track's ground plane, plus the current tide: seaLevel below) — enough
@@ -81,18 +87,30 @@ export const CAM = Object.freeze({
    * shadow edge snapping it.
    */
   portalLead: 4, portalFade: 10, tunnelEase: 2.5,
-  /** metres behind the kart at a standstill and up from it (research plan §4.7: 5.5 back, 2.2 up; 2.4 so the lens clears a 2.2 m racer's head and sees the road past it) */
-  back: 5.5,
-  /** extra metres of back-off at top speed: a touch, so speed never shrinks your kart to a speck */
-  backAtSpeed: 0.5,
-  height: 2.4,
+  /**
+   * The chase framing, measured on Mario Kart World (27 Sept 2026, the MKW gap review's item 2: "the camera
+   * keeps your kart small"; Adam: "far, far away from the Mario Kart World quality"). In 1600×900 stills of
+   * ngiIINHSiJc (Luigi, standard kart) the kart is about 241 px wide on the grid (2:09.4) and 229-243 px at
+   * speed (2:14-2:20, 3:48), its wheels' bottom at 83% down the frame, its cap's top at 52%, the horizon at
+   * 30-33% (the road's vanishing point, fitted to its lane lines), and the view is about 49° tall: light
+   * poles on both sides of the frame lean in to a vanishing point 5,700-6,700 px under the middle, which with
+   * the horizon gives the focal length (f² = the product of the two vanishing points' distances from the
+   * middle): 47°, 49° and 52° in three stills at 2:14-2:15 and 3:48. So: a narrow view, the lens a little
+   * farther back and higher, aimed down about 9°, and your kart 15% of the frame's width whatever the speed
+   * (ours was 12.7% on the grid and 10.6-10.7% at speed and at a boost's punch, in a 60-78° view, the horizon
+   * 43-46% down: scripts/headless/chase-look.mjs). Metres behind the kart at a standstill and up from it.
+   */
+  back: 5.6,
+  /** extra metres of back-off at top speed: a touch (MKW's kart is about 5% smaller at speed than on the grid) */
+  backAtSpeed: 0.15,
+  height: 2.5,
   /** metres the camera keeps above the ground under its own spot (a steep climb seen looking back) */
   roadClear: 1.2,
   /** metres the camera keeps under a tunnel's timber beams (tunnelWall: each hangs 0.12 below it, and the near plane is 0.3) */
   beamClear: 0.45,
-  /** metres ahead of the kart the camera looks, and up from it (plan §4.7: 6 m ahead; 1.5 up, a shallow tilt, so your kart sits low in frame) */
+  /** metres ahead of the kart the camera looks, and up from it (plan §4.7: 6 m ahead; low, so the view tilts down about 9° as MKW's does: the horizon a third down, your kart in the lower third) */
   aheadLook: 6,
-  lookHeight: 1.5,
+  lookHeight: 0.65,
   /** 1/s, how fast the camera's offset from the kart chases its ideal one (it rides with the kart, so speed adds no trail) */
   lag: 10,
   /** 1/s, how fast the camera's own yaw swings round behind the kart: slow, so the kart turns inside the frame */
@@ -104,11 +122,15 @@ export const CAM = Object.freeze({
   /** 1/s, how fast the speed the camera reads (for distance and field of view) follows the real speed: a bump must not pump the view */
   speedLag: 2,
   topSpeed: 25,
-  /** vertical field of view at a standstill and the extra at top speed: speed you can see (plan §4.7: 60°, 72° on a boost) */
-  fov: 60,
-  fovAtSpeed: 8,
-  /** the widest the view gets with a boost's hold and punch on top (juice.ts JUICE.punch): wider pushes your kart into the distance */
-  fovMax: 80,
+  /**
+   * vertical field of view at a standstill and the extra at top speed (MKW: about 47° on the grid to 49° at
+   * speed, above; it was 60° to 68° here, after plan §4.7's 60°): the sense of speed comes from what passes
+   * by, the speed lines and the boost's punch, not from pushing your kart away
+   */
+  fov: 50,
+  fovAtSpeed: 2.5,
+  /** the widest the view gets with a boost's hold and punch on top (juice.ts JUICE.punch) and the Final Lap Shift's pulse: wider pushes your kart into the distance */
+  fovMax: 58,
   /** metres from the lens within which an item dissolves (glow.ts fadeNearCamera): all karts share the item meshes, so what yours trails must stay farther (camera.test.ts) */
   nearFade: 2.8,
   /**
@@ -139,9 +161,12 @@ export function fovFor(speed: number): number {
   return CAM.fov + CAM.fovAtSpeed * Math.min(1, Math.abs(speed) / CAM.topSpeed);
 }
 
-/** The field of view with the vfx kick (boost wider, hit narrower) on top, never wider than CAM.fovMax. */
+/**
+ * The field of view with the vfx kick (boost wider, hit narrower) on top: the kick never widens it past
+ * CAM.fovMax, and never narrows a view already wider than that (a loop's side view, CAM.loopFov).
+ */
 export function kickedFov(fov: number, kick: number): number {
-  return Math.min(CAM.fovMax, fov + kick);
+  return Math.min(Math.max(CAM.fovMax, fov), fov + kick);
 }
 
 export interface CamPose { position: Vec3; target: Vec3 }
@@ -486,7 +511,8 @@ export class ChaseCam {
     // crest or a flood's own tide (clampAboveSea reads both fresh: `sea` above is the flat level alone)
     clampAboveSea(this.pos, track);
 
-    this.fov = fovFor(this.speed) + JUICE.holdFov * this.hold * r;
+    const chaseFov = fovFor(this.speed) + JUICE.holdFov * this.hold * r;
+    this.fov = chaseFov + (CAM.loopFov - chaseFov) * w;
     // the mine: how deep the lens is, for the light
     const d = tunnelDepth(track, road);
     const inWant = d === -Infinity ? 0 : smooth01((d + CAM.portalLead) / (CAM.portalLead + CAM.portalFade));

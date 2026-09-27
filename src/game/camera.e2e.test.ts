@@ -269,7 +269,9 @@ describe('boost feedback (critiques: "no FOV punch, no shake, no pull-back")', (
   /** Cruise at 22 m/s, boost at 2 s (speed ramping up to the boosted top like the sim), back to cruise after it. */
   const run = (kind: PunchKind, source: BoostSource, mult: number, secs: number, reduced = false) => {
     const kick = new CameraKick();
-    let base = 0, baseBack = 0, peak = 0, peakBack = 0, after = 0, maxStep = 0, last = 0;
+    let base = 0, baseBack = 0, peak = 0, peakBack = 0, after = 0, maxStep = 0, last = 0, baseSize = 0, minSize = Infinity;
+    // your kart's size on screen goes as 1 / (its distance × tan(half the view))
+    const size = (fov: number, back: number) => 1 / (back * Math.tan((fov * Math.PI) / 360));
     const cruise = 22, fire = 2;
     const speedAt = (s: number) => (s < fire ? cruise : s < fire + secs ? Math.min(cruise * mult, cruise + (s - fire) * 7.5) : Math.max(cruise, cruise * mult - (s - fire - secs) * 6));
     drive(track, t0, 8, speedAt, (k, s, cam) => {
@@ -282,11 +284,11 @@ describe('boost feedback (critiques: "no FOV punch, no shake, no pull-back")', (
       const back = Math.hypot(cam.pos[0] - k.position[0], cam.pos[2] - k.position[2]);
       if (s > 0.5) maxStep = Math.max(maxStep, Math.abs(fov - last));
       last = fov;
-      if (s < fire && s > fire - 0.2) { base = fov; baseBack = back; }
-      if (s >= fire && s < fire + 0.8) { peak = Math.max(peak, fov); peakBack = Math.max(peakBack, back); }
+      if (s < fire && s > fire - 0.2) { base = fov; baseBack = back; baseSize = size(fov, back); }
+      if (s >= fire && s < fire + 0.8) { peak = Math.max(peak, fov); peakBack = Math.max(peakBack, back); minSize = Math.min(minSize, size(fov, back)); }
       if (s > 7.9) after = fov;
     });
-    return { rise: peak - base, pull: peakBack - baseBack, settle: Math.abs(after - base), peak, maxStep };
+    return { rise: peak - base, pull: peakBack - baseBack, shrink: 1 - minSize / baseSize, settle: Math.abs(after - base), peak, maxStep };
   };
 
   it('each boost punches the view wider and pulls the camera back by its tier, then settles; never past fovMax', () => {
@@ -295,11 +297,16 @@ describe('boost feedback (critiques: "no FOV punch, no shake, no pull-back")', (
     expect(r.mini.rise).toBeLessThan(r.super.rise);
     expect(r.super.rise).toBeLessThan(r.ultra.rise);
     expect(r.mini.pull).toBeLessThan(r.ultra.pull);
+    expect(r.mini.shrink).toBeLessThan(r.ultra.shrink);
     expect(r.pad.rise).toBeGreaterThan(r.mini.rise);
     expect(r.item.rise).toBeGreaterThan(r.trick.rise);
     for (const [kind, x] of Object.entries(r)) {
-      expect(x.rise, kind).toBeGreaterThan(5); // degrees: a punch you can see (it was 0 to 8, capped at 74°)
-      expect(x.pull, kind).toBeGreaterThan(0.35); // metres back at the punch
+      expect(x.rise, kind).toBeGreaterThan(1.5); // degrees: a punch you can see on the narrow view
+      expect(x.pull, kind).toBeGreaterThan(0.3); // metres back at the punch, the hold and the surge
+      // your kart shrinks by a tenth to a quarter at the peak, as Mario Kart World's does (15-24%, JUICE.punch):
+      // never the third it lost before (10° on a 68° view and 0.6 m back)
+      expect(x.shrink, kind).toBeGreaterThan(0.1);
+      expect(x.shrink, kind).toBeLessThan(0.26);
       expect(x.peak, kind).toBeLessThanOrEqual(CAM.fovMax);
       expect(x.settle, kind).toBeLessThan(0.3); // back to the cruise view once it is over
       expect(x.maxStep, kind).toBeLessThan(2.5); // degrees a frame: a punch over six frames, not a cut

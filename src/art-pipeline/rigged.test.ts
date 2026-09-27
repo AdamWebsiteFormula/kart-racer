@@ -5,7 +5,7 @@
 // animation on the bones (wheels roll and steer, the steering wheel turns and the hands go with it,
 // head, spine, body on its springs, a gesture's aim).
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { DataTexture, Euler, Matrix4, Quaternion, Vector3, type Bone, type MeshStandardMaterial, type Object3D, type SkinnedMesh, type Texture } from 'three';
+import { BufferAttribute, BufferGeometry, DataTexture, Euler, Matrix4, Quaternion, Vector3, type Bone, type MeshStandardMaterial, type Object3D, type SkinnedMesh, type Texture } from 'three';
 import { newPose } from '../kart-controller/anim.ts';
 import { DRIVER_ANIM, newDriverPose, type WheelGround } from '../kart-controller/driverAnim.ts';
 import { KART_ANIM } from '../kart-controller/anim.ts';
@@ -15,7 +15,7 @@ import { RACER_MODELS, RacerModels, textureWithImage } from './glb.ts';
 import { buildRacerMesh, exhaustFor } from './kart.ts';
 import { portDir } from './racers.ts';
 import { isShared } from './toon.ts';
-import { cutSteering, hubSlot, isPartsSpec, KART_BONES, makeRigged, makeRiggedDriver, partOf, riggedMaterial, type PartsSpec, type RiggedKart, type RiggedTemplate } from './rigged.ts';
+import { BOOSTER, cutSteering, hubSlot, isPartsSpec, KART_BONES, makeRigged, makeRiggedDriver, partOf, riggedMaterial, seatDriver, shoulderHeight, trimBody, TRIM_SOFT, type Part, type PartsSpec, type RiggedKart, type RiggedTemplate } from './rigged.ts';
 import { partsManifest, riggedTemplate, trianglesIn } from './__tests__/parts.ts';
 
 /** The triangle budget per part file (scripts/models/racer-parts.sh shrinks a racer's files to it). */
@@ -118,10 +118,16 @@ describe('the merge: one skinned mesh', () => {
 
 describe('seated by IK on the kart\'s points', () => {
   const near = (a: Vector3, b: readonly number[], d: number) => expect(a.distanceTo(new Vector3(b[0], b[1], b[2]))).toBeLessThan(d);
+  /** the Hips on the seat, or straight over it on the kart's booster (seatDriver: at most BOOSTER) */
+  const onSeat = (a: Vector3, s: readonly number[]) => {
+    expect(Math.hypot(a.x - s[0], a.z - s[2])).toBeLessThan(0.002);
+    expect(a.y).toBeGreaterThan(s[1] - 0.002);
+    expect(a.y).toBeLessThan(s[1] + BOOSTER + 0.002);
+  };
 
   it('its own kart: the Hips on the seat, the hands a hand\'s length from the grips, the feet on the rests', () => {
     const k = makeRigged(t);
-    near(world(bone(k, 'Hips')), spec.body.seat!, 0.002);
+    onSeat(world(bone(k, 'Hips')), spec.body.seat!);
     for (const [i, side] of [[0, 'Left'], [1, 'Right']] as const) {
       const wrist = world(bone(k, `${side}Hand`)), grip = new Vector3(...spec.body.grips![i]);
       expect(Math.abs(wrist.distanceTo(grip) - t.pose.wrist), `${side} hand`).toBeLessThan(0.03);
@@ -136,7 +142,7 @@ describe('seated by IK on the kart\'s points', () => {
   it('a shared body: the same driver sits on the Classic\'s seat and holds its wheel', () => {
     for (const body of ['classic', 'buggy'] as const) {
       const s = SEATS[body], k = makeRiggedDriver(t, s, undefined);
-      near(world(bone(k, 'Hips')), s.seat, 0.002);
+      onSeat(world(bone(k, 'Hips')), s.seat);
       for (const [i, side] of [[0, 'Left'], [1, 'Right']] as const) {
         expect(world(bone(k, `${side}Hand`)).distanceTo(new Vector3(...s.grips[i])), `${body} ${side}`).toBeLessThan(t.pose.wrist + 0.03);
       }
@@ -144,6 +150,94 @@ describe('seated by IK on the kart\'s points', () => {
       k.traverse((o) => { if ((o as SkinnedMesh).isMesh) meshes++; });
       expect(meshes).toBe(1);
     }
+  });
+
+  it('the booster: a driver whose shoulders sit under the kart\'s line sits higher, up to it (at most BOOSTER); hands and feet stay on the kart\'s points', () => {
+    const k = makeRigged(t), s = { ...t.seat, shoulders: undefined };
+    expect(seatDriver(k, s, t.pose, t.rest).lift).toBe(0);
+    const low = shoulderHeight(k), hips = world(bone(k, 'Hips')).y;
+    // a line 0.1 m over the shoulders: 0.1 m up, the shoulders on the line
+    const up = seatDriver(k, { ...s, shoulders: low + 0.1 }, t.pose, t.rest);
+    expect(up.lift).toBeCloseTo(0.1, 6);
+    expect(world(bone(k, 'Hips')).y).toBeCloseTo(hips + 0.1, 3);
+    expect(Math.abs(shoulderHeight(k) - (low + 0.1))).toBeLessThan(0.03);
+    for (const [i, side] of [[0, 'Left'], [1, 'Right']] as const) {
+      expect(world(bone(k, `${side}Hand`)).distanceTo(new Vector3(...t.seat.grips[i])), side).toBeLessThan(t.pose.wrist + 0.03);
+    }
+    // a line far over them: only as high as the booster goes; a line under them: not at all
+    expect(seatDriver(k, { ...s, shoulders: low + 1 }, t.pose, t.rest).lift).toBe(BOOSTER);
+    expect(seatDriver(k, { ...s, shoulders: low - 0.1 }, t.pose, t.rest).lift).toBe(0);
+    expect(world(bone(k, 'Hips')).y).toBeCloseTo(hips, 4);
+  });
+});
+
+describe('trims: the bodywork that hid a driver from the chase camera, lowered', () => {
+  /** A part of `pts` vertices (normals up, or `n`), every one on bone 1. */
+  const partAt = (pts: [number, number, number][], n: [number, number, number] = [0, 1, 0]): Part => {
+    const g = new BufferGeometry();
+    g.setAttribute('position', new BufferAttribute(new Float32Array(pts.flat()), 3));
+    g.setAttribute('normal', new BufferAttribute(new Float32Array(pts.flatMap(() => n)), 3));
+    return partOf(g, 1);
+  };
+
+  it('squashes the box from its bottom so its top comes down to `to`; nothing under or over it moves; its sides ease out over `soft`', () => {
+    const pts: [number, number, number][] = [[0, 0.3, 0], [0, 0.5, 0], [0, 0.8, 0], [0, 0.9, 0], [0.13, 0.8, 0], [0.2, 0.8, 0], [0, 0.8, -0.13]];
+    const p = partAt(pts);
+    const moved = trimBody(p, [{ box: [[-0.1, 0.4, -0.1], [0.1, 0.8, 0.1]], to: 0.6 }]);
+    const y = (i: number) => p.pos[i * 3 + 1];
+    expect(y(0)).toBeCloseTo(0.3, 6); // under the box
+    expect(y(1)).toBeCloseTo(0.45, 6); // halfway up the band: halfway up the squashed band
+    expect(y(2)).toBeCloseTo(0.6, 6); // the box's top, down to `to`
+    expect(y(3)).toBeCloseTo(0.9, 6); // over the box: not moved
+    // 0.03 m past its side (of TRIM_SOFT 0.06): half the ease, smoothstep(0.5) = 0.5 of the drop; 0.1 m past: none
+    expect(y(4)).toBeCloseTo(0.8 - 0.5 * 0.2, 6);
+    expect(y(5)).toBeCloseTo(0.8, 6);
+    expect(y(6)).toBeCloseTo(0.7, 6);
+    expect(moved).toBe(4);
+    for (let i = 0; i < pts.length; i++) { expect(p.pos[i * 3]).toBeCloseTo(pts[i][0], 6); expect(p.pos[i * 3 + 2]).toBeCloseTo(pts[i][2], 6); }
+    expect(TRIM_SOFT).toBe(0.06);
+  });
+
+  it('turns the normals as the squash does, and stretches up when `to` is over the box (a roll cage raised clear of the heads)', () => {
+    const p = partAt([[0, 0.6, 0]], [Math.SQRT1_2, Math.SQRT1_2, 0]);
+    trimBody(p, [{ box: [[-0.1, 0.4, -0.1], [0.1, 0.8, 0.1]], to: 0.6 }]);
+    // squashed by a half in y: the normal (1, 1, 0) becomes (1, 2, 0), normalised
+    expect(p.nrm[0]).toBeCloseTo(1 / Math.sqrt(5), 6);
+    expect(p.nrm[1]).toBeCloseTo(2 / Math.sqrt(5), 6);
+    const q = partAt([[0, 0.8, 0], [0, 0.6, 0]]);
+    trimBody(q, [{ box: [[-0.1, 0.4, -0.1], [0.1, 0.8, 0.1]], to: 1.2 }]);
+    expect(q.pos[1]).toBeCloseTo(1.2, 6);
+    expect(q.pos[4]).toBeCloseTo(0.8, 6);
+  });
+
+  it('the manifest takes trims and a shoulders line, and ignores an entry with a bad one (that racer keeps its old model)', () => {
+    const ok = structuredClone(MANIFEST.juniper);
+    ok.body.trim = [{ box: [[-0.5, 0.6, -0.5], [0.5, 1, -0.2]], to: 0.8, soft: 0.05 }];
+    ok.body.shoulders = 0.85;
+    expect(isPartsSpec(ok)).toBe(true);
+    for (const bad of [
+      { box: [[-0.5, 0.6, -0.5], [0.5, 0.5, -0.2]], to: 0.55 }, // an upside-down box
+      { box: [[-0.5, 0.6, -0.5], [0.5, 1, -0.2]], to: 0.6 }, // squashed to nothing
+      { box: [[-0.5, 0.6, -0.5], [0.5, 1, -0.2]], to: 0.8, soft: -1 },
+      { box: [[-0.5, 0.6], [0.5, 1, -0.2]], to: 0.8 },
+    ]) expect(isPartsSpec({ ...ok, body: { ...ok.body, trim: [bad] } }), JSON.stringify(bad)).toBe(false);
+    expect(isPartsSpec({ ...ok, body: { ...ok.body, shoulders: '0.8' } })).toBe(false);
+  });
+
+  it('on the real files: the Timber Wagon\'s seatback and roll bar stand no higher than their trim behind Juniper', () => {
+    const tr = spec.body.trim![0], [lo, hi] = tr.box;
+    const names = mesh(t.root).skeleton.bones.map((b) => b.name);
+    const g = t.kartOnly!, P = g.getAttribute('position'), J = g.getAttribute('skinIndex');
+    let inside = 0, top = -Infinity;
+    for (let i = 0; i < P.count; i++) {
+      if (names[J.getX(i)] !== 'body') continue;
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+      if (x < lo[0] || x > hi[0] || z < lo[2] || z > hi[2] || y <= lo[1]) continue;
+      inside++;
+      top = Math.max(top, y);
+    }
+    expect(inside).toBeGreaterThan(200);
+    expect(top).toBeLessThanOrEqual(tr.to + 1e-4);
   });
 });
 
