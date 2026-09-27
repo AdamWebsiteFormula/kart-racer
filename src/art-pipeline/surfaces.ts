@@ -567,18 +567,37 @@ export interface RoadLook {
   sand?: string; frost?: number; seams?: number; wet?: number; wetTint?: string;
   /** a neon edge's light spilling onto the deck beside it (Boardwalk) */
   spill?: string;
+  /**
+   * The large features a player reads from the chase camera (27 Sept 2026, review item 4: "the road is
+   * one flat color"; Mario Kart World's roads carry rubbered racing lines, patched and resealed
+   * asphalt, tar seams and sand spilling over the edge: youtube.com/watch?v=ngiIINHSiJc 2:15, 2:24,
+   * 2:46; Moo Moo Meadows AFN7RL6qEZI 0:40, Desert Hills jBK-cunGXlk 0:35, DK Pass Il2hmsFCM88 0:35).
+   * `tone`: long stretches (60 to 150 m) a shade apart, ± this share; `reseal`: the share of 44 m
+   * stretches holding a resealed section (the whole width, a half or a lane) in `resealTint`, or an
+   * older paler patch, each with a tar seam round it; `seal`: tar-sealed cracks wandering along the lane
+   * joints, this dark; `dust`/`dustWidth`/`dustAmount`: the biome's dust or dirt blown onto the road's
+   * edges; `puddles`: dark damp spots (Windmill Run), or with `puddleTint` (a multiplier) and `puddleGloss`
+   * (the PBR look's roughness there) Frostbite's glassy ice patches; `line`: how much darker
+   * the rubbered racing line is (the PBR look), `lineTint` its colour (Frostbite's packed, icy snow).
+   */
+  tone?: number; reseal?: number; resealTint?: readonly [number, number, number]; resealGloss?: number; seal?: number;
+  dust?: string; dustWidth?: number; dustAmount?: number; puddles?: number; puddleTint?: readonly [number, number, number]; puddleGloss?: number;
+  line?: number; lineTint?: string;
 }
 export const ROAD_LOOKS: Readonly<Record<string, RoadLook>> = Object.freeze({
-  harbour: { wear: 1, cracks: 0.55, patches: 0.7, sheen: 0.16, shine: 22 },
-  meadow: { wear: 0.9, cracks: 0.75, patches: 0.5, sheen: 0.13, shine: 18 },
-  canyon: { wear: 0.85, cracks: 1, patches: 0.35, sheen: 0.1, shine: 14, sand: '#e8a868' },
-  frost: { wear: 0.7, cracks: 0.35, patches: 0, sheen: 0.32, shine: 42, frost: 0.55 },
-  skyline: { wear: 0.6, cracks: 0, patches: 0, sheen: 0.32, shine: 30, seams: 1 },
-  boardwalk: { wear: 0.45, cracks: 0, patches: 0, sheen: 0.4, shine: 70, wet: 0.75, wetTint: '#8a6cff', spill: '#2fd8ff' },
+  harbour: { wear: 1, cracks: 0.55, patches: 0.7, sheen: 0.16, shine: 22, tone: 0.07, reseal: 0.5, resealTint: [0.76, 0.77, 0.82], seal: 0.5, dust: '#dccfa8', dustWidth: 1.3, dustAmount: 0.5, line: 0.28 },
+  meadow: { wear: 0.9, cracks: 0.75, patches: 0.5, sheen: 0.13, shine: 18, tone: 0.08, reseal: 0.45, resealTint: [0.74, 0.75, 0.8], seal: 0.55, dust: '#b39c76', dustWidth: 1.6, dustAmount: 0.55, puddles: 1, line: 0.28 },
+  canyon: { wear: 0.85, cracks: 1, patches: 0.35, sheen: 0.1, shine: 14, sand: '#e8a868', tone: 0.08, reseal: 0.35, resealTint: [0.8, 0.74, 0.7], seal: 0.5, line: 0.3 },
+  frost: { wear: 0.7, cracks: 0.35, patches: 0, sheen: 0.32, shine: 42, frost: 0.55, tone: 0.05, puddles: 0.8, puddleTint: [0.9, 0.94, 1.0], puddleGloss: 0.55, line: 0.22, lineTint: '#9fb4d6' },
+  skyline: { wear: 0.6, cracks: 0, patches: 0, sheen: 0.32, shine: 30, seams: 1, tone: 0.04, line: 0.16 },
+  boardwalk: { wear: 0.45, cracks: 0, patches: 0, sheen: 0.4, shine: 70, wet: 0.75, wetTint: '#8a6cff', spill: '#2fd8ff', tone: 0.05, line: 0.2 },
 });
 
 const WEAR_PARS = `varying vec3 vWearW;
-uniform vec3 uSand; uniform vec3 uWetTint; uniform vec3 uSpill;
+uniform vec3 uSand; uniform vec3 uWetTint; uniform vec3 uSpill; uniform vec3 uResealTint; uniform vec3 uDust; uniform vec3 uPuddleTint;
+#ifndef STANDARD
+varying vec2 vLane;
+#endif
 float rwHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float rwNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
@@ -595,6 +614,84 @@ float rwCrack(vec2 p) {
     if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
   }
   return d2 - d1;
+}
+#ifdef PUDDLES
+// a damp spot on the road at world xz (x: metres across from the middle, hw: the half-width), 0..1, anti-aliased
+float rwPuddle(vec2 w, float x, float hw) {
+  float p = rwNoise(w * 0.42 + 1.3) * 0.6 + rwNoise(w * 1.1 + 7.7) * 0.4;
+  p += 0.07 * (1.0 - smoothstep(0.5, 3.0, hw - abs(x)));
+  float aa = fwidth(p) * 1.5 + 0.004;
+  return smoothstep(0.735 - aa, 0.735 + aa, p);
+}
+#endif`
+
+/**
+ * The road's large features, read from the chase camera (RoadLook tone, reseal, seal, dust, puddles):
+ * everything a metre or more across, or, where thin (a seam, a sealed crack), anti-aliased by its own
+ * pixel width and gone by 80 m, so nothing shimmers far off. Metres along and across the road from the
+ * ribbon (vRoad, and vLane.y its half-width). Inside WEAR_ALBEDO's road block (rw, rwView, rwClean).
+ */
+const WEAR_BIG = `{
+  float rbHw = max(vLane.y, 2.0), rbAlong = vRoad.y * 10.0, rbX = (vRoad.x - 0.5) * 2.0 * rbHw;
+  float rbThin = 1.0 - smoothstep(35.0, 80.0, rwView);
+#ifdef TONE
+  // long stretches laid at different times, a shade apart every 60 to 150 m
+  diffuseColor.rgb *= 1.0 + TONE * (rwNoise(vec2(rbAlong * 0.011, 7.3)) * 2.0 - 1.0);
+#endif
+#ifdef RESEAL
+  {
+    // resealed sections, road-aligned: now and then a stretch 8 to 26 m long of fresh asphalt across the
+    // whole width (past both edges, so no seam runs along a curb), one half or one lane, or an older paler
+    // patch, each ringed by a tar seam
+    float cellL = 44.0, cell = floor(rbAlong / cellL);
+    float has = step(1.0 - RESEAL, rwHash(vec2(cell, 11.7)));
+    float len = 8.0 + 18.0 * rwHash(vec2(cell, 2.9));
+    float c0 = (cell + 0.5) * cellL + (rwHash(vec2(cell, 8.3)) - 0.5) * (cellL - len - 6.0);
+    float w = rwHash(vec2(cell, 6.6));
+    float xm = w < 0.45 ? 0.0 : w < 0.75 ? sign(w - 0.6) * (rbHw * 0.5 + 0.5) : (rwHash(vec2(cell, 3.3)) - 0.5) * rbHw;
+    float xw = w < 0.45 ? rbHw + 2.0 : w < 0.75 ? rbHw * 0.5 + 0.5 : 1.9;
+    vec2 q = vec2(abs(rbAlong - c0) - len * 0.5, abs(rbX - xm) - xw);
+    float box = max(q.x, q.y), aa = fwidth(box) + 0.01;
+    float inside = (1.0 - smoothstep(-aa, aa, box)) * has * rwClean;
+    float seam = (1.0 - smoothstep(0.05, 0.05 + aa * 1.5, abs(box))) * has * rwClean * rbThin;
+    vec3 tint = rwHash(vec2(cell, 4.1)) < 0.62 ? uResealTint : vec3(1.05, 1.05, 1.03);
+    diffuseColor.rgb *= mix(vec3(1.0), tint, inside) * (1.0 - 0.32 * seam);
+  #if defined(STANDARD) && defined(RESEAL_GLOSS)
+    roughnessFactor = mix(roughnessFactor, RESEAL_GLOSS, inside);
+  #endif
+  }
+#endif
+#ifdef SEAL
+  {
+    // tar-sealed cracks: dark lines wandering along the two lane joints, in pieces
+    float side = rbX > 0.0 ? 1.0 : 0.0;
+    float lx = abs(rbX) - rbHw * 0.5 + 1.1 * (rwNoise(vec2(rbAlong * 0.045, 1.7 + side * 3.6)) - 0.5) + 0.35 * (rwNoise(vec2(rbAlong * 0.27, 9.2 + side)) - 0.5);
+    float on = smoothstep(0.45, 0.6, rwNoise(vec2(rbAlong * 0.035, 3.3 + side * 5.5)));
+    float aa = fwidth(lx) * 1.2 + 0.004;
+    float line = (1.0 - smoothstep(0.04 - aa, 0.04 + aa, abs(lx))) * on * rbThin * rwClean;
+    diffuseColor.rgb *= 1.0 - SEAL * line;
+  }
+#endif
+#ifdef DUST
+  {
+    // the land's dust and dirt blown onto the edges, in drifts
+    float e = rbHw - abs(rbX), side = rbX > 0.0 ? 1.0 : 0.0;
+    float reach = max(0.3, DUST_W * (0.55 + 0.9 * rwNoise(vec2(rbAlong * 0.08, 2.0 + side * 4.0))));
+    float dust = (1.0 - smoothstep(0.0, reach, e)) * (0.55 + 0.45 * rwNoise(rw * 0.6));
+    float grain = mix(0.5, rwNoise(rw * 2.1), rbThin);
+    diffuseColor.rgb = mix(diffuseColor.rgb, uDust * (0.9 + 0.2 * grain), dust * DUST_A * rwClean);
+  }
+#endif
+#ifdef PUDDLES
+  {
+    // dark damp spots where the rain collects, more of them by the edges; a smooth, faintly glossy film in the PBR look
+    float pud = rwPuddle(rw, rbX, rbHw) * rwClean * PUDDLES;
+    diffuseColor.rgb *= mix(vec3(1.0), uPuddleTint, pud);
+  #ifdef STANDARD
+    roughnessFactor = mix(roughnessFactor, PUDDLE_GLOSS, pud);
+  #endif
+  }
+#endif
 }`;
 
 /** The road's albedo: world-space patches, the worn bands, grit, patches and cracks, the biome at the edges. Before the emissive (after the lines are painted). */
@@ -664,6 +761,7 @@ if (vMark < 0.5) {
   rwWet = smoothstep(0.45, 0.75, rwNoise(rw * 0.12 + 2.0));
   diffuseColor.rgb *= 1.0 - 0.12 * rwWet;
 #endif
+${WEAR_BIG}
 }`;
 
 /** The sun's glint on the road (and a wet deck's sheen), after the lights: stronger and tighter on the polished bands, none in shadow. */
@@ -696,18 +794,33 @@ const WEAR_GLINT = `if (vMark < 0.5) {
 export function roadWear(m: MeshToonMaterial, biome: string): void {
   const look = ROAD_LOOKS[biome];
   if (!look) return;
+  const f = (x: number) => x.toFixed(3);
   const defines = [
     `#define WEAR ${look.wear.toFixed(2)}`, `#define SHEEN ${look.sheen.toFixed(3)}`, `#define SHINE ${look.shine.toFixed(1)}`,
     `#define PATCHES ${Math.round(look.patches * 100)}`, `#define CRACKS ${Math.round(look.cracks * 100)}`,
     look.sand ? '#define SAND' : '', look.frost ? `#define FROST ${look.frost.toFixed(2)}` : '',
     look.seams ? '#define SEAMS' : '', look.wet ? `#define WET ${look.wet.toFixed(2)}` : '', look.spill ? '#define SPILL' : '',
+    // the large features read from the chase camera (WEAR_BIG)
+    look.tone ? `#define TONE ${f(look.tone)}` : '', look.reseal ? `#define RESEAL ${f(look.reseal)}` : '',
+    look.resealGloss ? `#define RESEAL_GLOSS ${f(look.resealGloss)}` : '', look.seal ? `#define SEAL ${f(look.seal)}` : '',
+    look.dust ? `#define DUST\n#define DUST_W ${f(look.dustWidth ?? 1.2)}\n#define DUST_A ${f(look.dustAmount ?? 0.5)}` : '',
+    look.puddles ? `#define PUDDLES ${f(look.puddles)}\n#define PUDDLE_GLOSS ${f(look.puddleGloss ?? 0.66)}` : '',
   ].filter(Boolean).join('\n');
-  const uniforms = { uSand: { value: new Color(look.sand ?? '#000000') }, uWetTint: { value: new Color(look.wetTint ?? '#000000') }, uSpill: { value: new Color(look.spill ?? '#000000') } };
+  const reseal = look.resealTint ?? [1, 1, 1], pud = look.puddleTint ?? [0.68, 0.68, 0.68];
+  const uniforms = {
+    uSand: { value: new Color(look.sand ?? '#000000') }, uWetTint: { value: new Color(look.wetTint ?? '#000000') }, uSpill: { value: new Color(look.spill ?? '#000000') },
+    // a multiplier (linear), not a colour
+    uResealTint: { value: new Color().setRGB(reseal[0], reseal[1], reseal[2]) }, uDust: { value: new Color(look.dust ?? '#000000') },
+    uPuddleTint: { value: new Color().setRGB(pud[0], pud[1], pud[2]) },
+  };
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = `varying vec3 vWearW;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWearW = (modelMatrix * vec4(transformed, 1.0)).xyz;')}`;
+    // the racing line and the road's half-width (road.ts `lane`): the PBR look's own road patch declares them
+    // (track-builder scene.ts paintRoadLines); the toon look reads them only here, for the half-width
+    const lane = '#ifndef STANDARD\nattribute vec2 lane;\nvarying vec2 vLane;\n#endif\n';
+    shader.vertexShader = `varying vec3 vWearW;\n${lane}${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWearW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#ifndef STANDARD\n  vLane = lane;\n#endif')}`;
     shader.fragmentShader = `${defines}\n${WEAR_PARS}\n${shader.fragmentShader}`
       .replace('#include <emissivemap_fragment>', `${WEAR_ALBEDO}\n#include <emissivemap_fragment>`)
       .replace('#include <aomap_fragment>', `#include <aomap_fragment>\n${WEAR_GLINT}`);
@@ -733,14 +846,17 @@ export const ROAD_GRAIN_METRES = 4;
  * Same material, same draw calls. Only a MeshStandardMaterial compiles it (STANDARD).
  */
 export function roadDetail(m: MeshToonMaterial, biome: string): void {
-  const uniforms = { uRoadGrain: { value: roadDetailSource(biome) }, uRoadWet: ROAD_WET };
+  const look = ROAD_LOOKS[biome];
+  const uniforms = { uRoadGrain: { value: roadDetailSource(biome) }, uRoadWet: ROAD_WET, uLineTint: { value: new Color(look?.lineTint ?? '#000000') } };
   const g = ROAD_GRAIN_METRES.toFixed(2);
+  // the rubbered racing line (27 Sept 2026: was 0.12 everywhere, too faint to read from the chase camera)
+  const line = (look?.line ?? 0.12).toFixed(3), tint = look?.lineTint ? '1.0' : '0.0';
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `#ifdef STANDARD\nvarying vec3 vRdW;\n#endif\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef STANDARD\n  vRdW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif')}`;
-    shader.fragmentShader = `#ifdef STANDARD\nuniform sampler2D uRoadGrain;\nuniform float uRoadWet;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n#endif\n${shader.fragmentShader}`
+    shader.fragmentShader = `#ifdef STANDARD\nuniform sampler2D uRoadGrain;\nuniform float uRoadWet;\nuniform vec3 uLineTint;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n#endif\n${shader.fragmentShader}`
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 #ifdef STANDARD
   {
@@ -764,8 +880,12 @@ export function roadDetail(m: MeshToonMaterial, biome: string): void {
       }
       float px = fwidth(lat);
       marks = min(marks, 1.0) * (0.55 + 0.45 * vBend) * (1.0 - smoothstep(0.04, 0.12, px)) * (1.0 - smoothstep(25.0, 60.0, rdView)) * (1.0 - mudMask) * (1.0 - roadPaint);
-      diffuseColor.rgb *= (1.0 - 0.12 * band) * (1.0 - 0.3 * marks) * (0.84 + 0.16 * rdH);
-      rdR = mix(0.97, 0.82, rdH) - 0.1 * band - 0.1 * marks;
+      // the line's rubber lies in streaks along it (tire tracks), smoothed away before they could shimmer
+      float streak = lkNoise(vec2(lat * 4.5 + 3.0, along * 0.05)) * 2.0 - 1.0;
+      float lineK = band * (1.0 + 0.45 * streak * (1.0 - smoothstep(0.05, 0.14, px * 4.5))) * (1.0 - roadPaint * 0.6);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * uLineTint * 1.6, ${tint} * lineK * 0.5);
+      diffuseColor.rgb *= (1.0 - ${line} * lineK) * (1.0 - 0.3 * marks) * (0.84 + 0.16 * rdH);
+      rdR = mix(0.97, 0.82, rdH) - 0.16 * band - 0.1 * marks;
       rdR = mix(rdR, 0.55, roadPaint);
       rdR = mix(rdR, 0.92, mudMask);
     } else if (vMark < 1.5) {
@@ -780,7 +900,14 @@ export function roadDetail(m: MeshToonMaterial, biome: string): void {
 #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 #ifdef STANDARD
-  if (vMark < 1.5) normal = lkBend(normal, lkSlope(uRoadGrain, vRdW.xz / ${g}) * 0.9 * (1.0 - smoothstep(${ROAD_RELIEF_FAR[0].toFixed(1)}, ${ROAD_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))), 1.0);
+  if (vMark < 1.5) {
+    // a damp spot's film of water lies smooth over the grain (it would sparkle like glitter otherwise)
+    float rdFlat = 1.0;
+  #ifdef PUDDLES
+    if (vMark < 0.5) rdFlat = 1.0 - 0.85 * rwPuddle(vRdW.xz, (vRoad.x - 0.5) * 2.0 * vLane.y, vLane.y) * (1.0 - mudMask);
+  #endif
+    normal = lkBend(normal, lkSlope(uRoadGrain, vRdW.xz / ${g}) * 0.9 * rdFlat * (1.0 - smoothstep(${ROAD_RELIEF_FAR[0].toFixed(1)}, ${ROAD_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))), 1.0);
+  }
 #endif`);
   };
   const key = m.customProgramCacheKey.bind(m);
