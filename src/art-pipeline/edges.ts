@@ -33,7 +33,7 @@ function patch(m: ModelBuilder, colours: readonly Paint[], heads: number, seed: 
   for (let k = 0; k < heads; k++) {
     const a = k * 2.399 + seed, r = 0.25 + 1.0 * Math.sqrt((k + 0.5) / heads);
     const x = Math.cos(a) * r, z = Math.sin(a) * r * 0.8, y = 0.035 + ((k * 7 + seed * 3) % 5) * 0.016;
-    m.cone(0.12, 0.07, colours[k % colours.length], [x, y, z], [Math.PI, 0, 0], 4, false);
+    m.cone(0.12, 0.06, colours[k % colours.length], [x, y, z], [0, a, 0], 5, false);
   }
 }
 
@@ -59,7 +59,7 @@ function wildflowers(m: ModelBuilder, heads: readonly Paint[], seed: number): vo
   m.cone(0.3, 0.36, LEAF[seed % 3], [0, 0.18, 0], [0, seed, 0], 5, false);
   for (let k = 0; k < 4; k++) {
     const a = k * 1.9 + seed, r = 0.1 + 0.08 * (k % 2), y = 0.3 + ((k * 3 + seed) % 3) * 0.05;
-    m.cone(0.12, 0.08, heads[k % heads.length], [Math.cos(a) * r, y, Math.sin(a) * r], [Math.PI, 0, 0], 4, false);
+    m.cone(0.12, 0.07, heads[k % heads.length], [Math.cos(a) * r, y, Math.sin(a) * r], [0, a, 0], 5, false);
   }
 }
 
@@ -128,12 +128,12 @@ export const EDGE_MODELS: Record<string, { build: Build }> = {
       m.ball([0.3, 0.2, 0.9], LEAF[1], [0, 0.7, 0], undefined, 5, false);
     },
   },
-  // a stone sea wall, 4 m along Z: dressed blocks under a pale coping
+  // a stone sea wall, 4 m along Z: courses of pale dressed blocks under a white coping
   'edge-seawall': {
     build: (m) => {
-      m.box([0.7, 0.9, 4.0], '#d6c29c', [0, 0.45, 0], undefined, false);
-      m.box([0.86, 0.14, 4.02], '#f4ead2', [0, 0.95, 0], undefined, false);
-      for (const [z, y, w] of [[-1.3, 0.28, 1.2], [0.4, 0.28, 1.6], [-0.4, 0.66, 1.4], [1.35, 0.66, 1.1]] as const) m.box([0.72, 0.3, w], '#c4ad86', [0, y, z], undefined, false);
+      m.box([1.0, 1.05, 4.0], '#eadcbc', [0, 0.52, 0], undefined, false);
+      m.box([1.2, 0.16, 4.04], '#fbf6ea', [0, 1.12, 0], undefined, false);
+      for (const [z, y, w] of [[-1.25, 0.25, 1.3], [0.45, 0.25, 1.7], [-0.5, 0.7, 1.5], [1.3, 0.7, 1.2]] as const) m.box([1.03, 0.36, w], '#d8c49c', [0, y, z], undefined, false);
     },
   },
   // a rope line on short posts along the dunes, 4 m along Z
@@ -195,6 +195,17 @@ export const EDGE_MODELS: Record<string, { build: Build }> = {
     },
   },
   'edge-drygrass': { build: (m) => blades(m, ['#d9b36a', '#c29a52', '#e6c889'], 4, 0.6, 0.1) },
+  // a saguaro with two arms (the dressing's own is a heavier model)
+  'edge-saguaro': {
+    build: (m) => {
+      m.cyl(0.32, 0.38, 4.2, '#3f9a5a', [0, 2.1, 0], undefined, 6, false);
+      m.cone(0.32, 0.3, '#3f9a5a', [0, 4.35, 0], undefined, 6, false);
+      m.cyl(0.2, 0.22, 1.5, '#2f7f49', [0.62, 2.6, 0], undefined, 5, false);
+      m.cyl(0.18, 0.2, 0.7, '#2f7f49', [0.36, 1.95, 0], [0, 0, 1.2], 5, false);
+      m.cyl(0.18, 0.2, 1.2, '#2f7f49', [-0.55, 2.05, 0.1], undefined, 5, false);
+      m.cyl(0.16, 0.18, 0.6, '#2f7f49', [-0.32, 1.55, 0.05], [0, 0, -1.2], 5, false);
+    },
+  },
   // two little barrel cacti with a flower each (the verge's own are a heavier model)
   'edge-barrels': {
     build: (m) => {
@@ -258,8 +269,8 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
     styles: [
       {
         name: 'hedgerow', weight: 0.4, bank: true,
-        sweep: { profile: HEDGE, at: 3.8, height: [1.3, 1.9], foot: lin('#3f8f36'), top: lin('#86d45e'), vary: 0.16, lumps: 0.28, smooth: true },
-        dots: [{ assets: ['edge-oak', 'edge-oak', 'edge-poplar'], every: [14, 26], at: [5.8, 6.8], scale: [0.85, 1.25] }, { assets: ['edge-wildflowers', 'edge-poppies', 'edge-longgrass'], every: [2.5, 5], at: [0.8, 3.0] }],
+        sweep: { profile: HEDGE, at: 3.8, height: [1.3, 1.9], foot: lin('#3a8a33'), top: lin('#7fcf57'), vary: 0.16, lumps: 0.3, smooth: false },
+        dots: [{ assets: ['edge-oak', 'edge-oak', 'edge-poplar'], every: [9, 18], at: [5.8, 6.8], scale: [0.85, 1.25] }, { assets: ['edge-wildflowers', 'edge-poppies', 'edge-longgrass'], every: [2.5, 5], at: [0.8, 3.0] }],
       },
       {
         name: 'fence', weight: 0.35, bank: true,
@@ -272,7 +283,7 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
       },
     ],
     run: [22, 55], gap: [0, 3],
-    clusters: { assets: ['edge-oak', 'edge-oak', 'edge-bush', 'edge-bush', 'edge-bales', 'edge-poplar'], size: [3, 5], at: [1.5, 7] },
+    clusters: { assets: ['edge-oak', 'edge-oak', 'edge-bush', 'edge-bush', 'edge-bales', 'edge-poplar', 'edge-oak'], size: [4, 6], at: [1.5, 7.5] },
     drifts: [
       { asset: 'edge-longgrass', count: 240, scale: [0.8, 1.35] },
       { asset: 'edge-wildflowers', count: 110 },
@@ -316,12 +327,12 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
   canyon: {
     bank: { profile: DUNE, height: [1.6, 3.0] },
     styles: [
-      { name: 'dune', weight: 0.45, bank: true, dots: [{ assets: ['edge-barrels', 'edge-outcrop', 'tumbleweed', 'edge-drygrass', 'edge-drygrass'], every: [5, 11], at: [1.0, 7.5] }] },
-      { name: 'ranch', weight: 0.35, bank: true, row: { asset: 'ranch-fence', every: 4, at: 1.0 }, dots: [{ assets: ['saguaro', 'edge-outcrop', 'edge-barrels'], every: [10, 20], at: [4.0, 7.5] }, { assets: ['edge-drygrass'], every: [3, 6], at: [2, 5] }] },
+      { name: 'dune', weight: 0.45, bank: true, dots: [{ assets: ['edge-barrels', 'edge-outcrop', 'tumbleweed', 'edge-drygrass', 'edge-drygrass'], every: [5, 11], at: [1.0, 7.5] }, { assets: ['edge-saguaro'], every: [12, 24], at: [3.0, 6.5], scale: [0.8, 1.3] }] },
+      { name: 'ranch', weight: 0.35, bank: true, row: { asset: 'ranch-fence', every: 4, at: 1.0 }, dots: [{ assets: ['edge-saguaro', 'edge-outcrop', 'edge-barrels'], every: [8, 16], at: [4.0, 7.5] }, { assets: ['edge-drygrass'], every: [3, 6], at: [2, 5] }] },
       { name: 'rocks', weight: 0.2, bank: false, dots: [{ assets: ['edge-outcrop', 'edge-boulders', 'edge-outcrop'], every: [4, 7], at: [1.2, 3.4] }] },
     ],
     run: [20, 50], gap: [0, 4],
-    clusters: { assets: ['saguaro-tall', 'saguaro', 'edge-boulders', 'edge-outcrop', 'edge-barrels'], size: [3, 5], at: [1.5, 7.5] },
+    clusters: { assets: ['edge-saguaro', 'edge-saguaro', 'edge-boulders', 'edge-outcrop', 'edge-barrels', 'saguaro-tall'], size: [3, 5], at: [1.5, 7.5] },
     drifts: [
       { asset: 'edge-drygrass', count: 170, scale: [0.8, 1.35] },
       { asset: 'edge-ripples', count: 60 },

@@ -60,7 +60,8 @@ export function trackAssets(biome?: string): TrackAssets {
   // old verge tufts (grass.ts; the flower clumps stay, for their colour)
   const lawn = biome === 'harbour' || biome === 'meadow';
   const pbr = isPbr() ? { look: applyLook, ...(lawn ? { grass: { geometry: tuftTemplate(), material: grassMaterial(biome), replaces: ['tuft'] } } : {}) } : {};
-  // what lines each land track's edge past the course limit, and the cover inside it (edges.ts)
-  const edge = edgeKit(biome);
+  // what lines each land track's edge past the course limit, and the cover inside it (edges.ts); `?noedge` in
+  // the address leaves it off, for a side-by-side look at the same build
+  const edge = new URLSearchParams(globalThis.location?.search ?? '').has('noedge') ? undefined : edgeKit(biome);
   return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces, ...pbr, ...(edge ? { edge } : {}) };
 }

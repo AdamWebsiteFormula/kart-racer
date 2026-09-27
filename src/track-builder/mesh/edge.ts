@@ -502,7 +502,12 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
       const [fx, fz] = at(k0 + i, s, sw.at);
       const base = ctx.groundAt(fx, fz) + baseAt(i) - 0.12;
       cx += fx; cz += fz;
-      ring.push(sw.profile.map(([o, up]) => { const [x, z] = at(k0 + i, s, sw.at + o); return [x, base + up * h, z]; }));
+      ring.push(sw.profile.map(([o, up], p) => {
+        // a lumpy sweep's upper points (a hedge's leaves) each nudged up or down and in or out a little: a ragged top, not a tube
+        const j = sw.lumps > 0.1 && up > 0.3 ? wobble(noiseSeed + 17 + p * 5, (k0 + i) * 1.7, 0.9) * 2 - 1 : 0;
+        const [x, z] = at(k0 + i, s, sw.at + o + j * 0.14);
+        return [x, base + up * h * (1 + j * sw.lumps * 0.6), z];
+      }));
     }
     cx /= n; cz /= n;
     const shadeOf = (i: number) => 1 + sw.vary * (wobble(noiseSeed + 11, k0 + i, 1.7) * 2 - 1);

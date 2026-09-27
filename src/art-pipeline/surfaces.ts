@@ -618,7 +618,8 @@ float rwCrack(vec2 p) {
 #ifdef PUDDLES
 // a damp spot on the road at world xz (x: metres across from the middle, hw: the half-width), 0..1, anti-aliased
 float rwPuddle(vec2 w, float x, float hw) {
-  float p = rwNoise(w * 0.42 + 1.3) * 0.6 + rwNoise(w * 1.1 + 7.7) * 0.4;
+  vec2 q = w + (vec2(rwNoise(w * 0.21 + 3.3), rwNoise(w * 0.21 + 9.1)) - 0.5) * 3.0;
+  float p = rwNoise(q * 0.42 + 1.3) * 0.6 + rwNoise(q * 1.1 + 7.7) * 0.4;
   p += 0.07 * (1.0 - smoothstep(0.5, 3.0, hw - abs(x)));
   float aa = fwidth(p) * 1.5 + 0.004;
   return smoothstep(0.735 - aa, 0.735 + aa, p);
@@ -806,7 +807,7 @@ export function roadWear(m: MeshToonMaterial, biome: string): void {
     look.dust ? `#define DUST\n#define DUST_W ${f(look.dustWidth ?? 1.2)}\n#define DUST_A ${f(look.dustAmount ?? 0.5)}` : '',
     look.puddles ? `#define PUDDLES ${f(look.puddles)}\n#define PUDDLE_GLOSS ${f(look.puddleGloss ?? 0.66)}` : '',
   ].filter(Boolean).join('\n');
-  const reseal = look.resealTint ?? [1, 1, 1], pud = look.puddleTint ?? [0.68, 0.68, 0.68];
+  const reseal = look.resealTint ?? [1, 1, 1], pud = look.puddleTint ?? [0.74, 0.74, 0.76];
   const uniforms = {
     uSand: { value: new Color(look.sand ?? '#000000') }, uWetTint: { value: new Color(look.wetTint ?? '#000000') }, uSpill: { value: new Color(look.spill ?? '#000000') },
     // a multiplier (linear), not a colour
@@ -1091,6 +1092,32 @@ export function coastMaterial(biome: string): Material | undefined {
 /** Metres a tile of the dirt's grain covers (the beach texture, finer). */
 const DIRT_METRES = 3;
 
+/** The lawns (Lighthouse Loop, Windmill Run): their grass carries LAWN_FLOWERS. */
+const LAWN: ReadonlySet<string> = new Set(['harbour', 'meadow']);
+
+/**
+ * Little flowers over a lawn (27 Sept 2026; review item 1: "the road runs through an empty lawn"; the grass
+ * of Mario Kart World's Moo Moo Meadows is speckled with them right up to the road: youtube.com/watch?v=
+ * AFN7RL6qEZI 0:70): in patches that come and go every 10 m or so, a head a few centimetres across in about
+ * one 30 cm cell of three, white, yellow or pink. Drawn only while a cell is several pixels wide (by its own
+ * screen-space size), so no head is ever smaller than a pixel and nothing sparkles; beyond that a patch
+ * only lifts the grass's tint a little. Starts a metre past the curb (the dirt edge stays bare). No
+ * triangles: the land's own shader (pbrCoast), after its dirt edge.
+ */
+const LAWN_FLOWERS = `
+  {
+    float lfPatch = smoothstep(0.48, 0.74, lkNoise(vWorldUv * 0.09 + 7.1) * 0.7 + lkNoise(vWorldUv * 0.31 + 1.7) * 0.3) * lkTop * (1.0 - lkDirt) * smoothstep(0.8, 1.6, vLkCurb);
+    vec2 lfCell = vWorldUv * 3.2, lfI = floor(lfCell), lfF = fract(lfCell);
+    float lfH = lkHash(lfI);
+    vec2 lfAt = vec2(lkHash(lfI + 3.1), lkHash(lfI + 7.9)) * 0.6 + 0.2;
+    float lfW = fwidth(lfCell.x) + fwidth(lfCell.y);
+    float lfHead = (1.0 - smoothstep(0.13 - lfW, 0.13 + lfW, length(lfF - lfAt))) * step(1.0 - lfPatch * 0.4, lfH);
+    float lfNear = 1.0 - smoothstep(0.1, 0.26, lfW);
+    vec3 lfC = fract(lfH * 13.7) > 0.8 ? vec3(1.0, 0.5, 0.72) : fract(lfH * 13.7) > 0.55 ? vec3(1.0, 0.84, 0.2) : vec3(0.97, 0.97, 0.9);
+    diffuseColor.rgb = mix(diffuseColor.rgb, lfC, lfHead * lfNear);
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.07 + vec3(0.02, 0.016, 0.008), lfPatch * (1.0 - lfNear) * 0.6);
+  }`;
+
 /**
  * The coast in the PBR look, on top of its two textures: the top varies across the land (GROUND_LOOKS),
  * a grass top gets a soft dirt edge by the curb instead of a hard line (the land's `curb`: metres past
@@ -1113,7 +1140,7 @@ function pbrCoast(shader: WebGLProgramParametersWithUniforms, biome: string, spe
   float lkE = vLkCurb + (lkNoise(vWorldUv * 0.16) - 0.5) * 2.4 + (lkNoise(vWorldUv * 0.6) - 0.5) * 1.1 + (lkNoise(vWorldUv * 2.1 + 5.0) - 0.5) * 0.45;
   float lkDirt = ${spec.dirt ? '1.0' : '0.0'} * (1.0 - smoothstep(0.3, 2.3, lkE)) * lkTop * step(-0.6, vLkCurb);
   vec3 lkDirtC = uDirt * (0.78 + 0.44 * dot(texture2D(beachMap, vWorldUv / ${f(DIRT_METRES)}).rgb, vec3(0.3333)));
-  diffuseColor.rgb = mix(diffuseColor.rgb, lkDirtC, lkDirt);`)
+  diffuseColor.rgb = mix(diffuseColor.rgb, lkDirtC, lkDirt);${LAWN.has(biome) ? LAWN_FLOWERS : ''}`)
     .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   roughnessFactor = mix(mix(${f(gl.rough)}, ${f(beach.rough)}, smoothstep(0.0, 1.0, vBlend)), 0.95, lkDirt);`)
     .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
