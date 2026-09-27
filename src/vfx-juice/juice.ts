@@ -189,13 +189,15 @@ export class TimeScale {
 // ---------------------------------------------------------------- director
 /**
  * `gear`: a speed gear picked up (the race's `coin` event: the sim still calls them coins); `gearsLost`: a
- * hit knocked `count` gears loose (the hit's coinsLost), and they fly out of the kart (gears.ts).
+ * hit knocked `count` gears loose (the hit's coinsLost), and they fly out of the kart (gears.ts). `bump`:
+ * two karts touched (`racerId` and `other`, once a pair a tick); `wall`: a kart hit a wall (any kart; the
+ * player's also from a bumper car's shove or a rockfall); `hitStars`: a kart was hit (contact.ts draws all three).
  */
-export type Burst = 'balloon' | 'gear' | 'gearsLost' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'strike' | 'slam' | 'spring' | 'fizz';
+export type Burst = 'balloon' | 'gear' | 'gearsLost' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'bump' | 'strike' | 'slam' | 'spring' | 'fizz';
 
 export interface Effects {
-  /** `mine`: the player's own (a balloon or gear pickup, gears lost), drawn at full size; a rival's is small. `count`: gears lost */
-  bursts: { kind: Burst; racerId: string; mine?: boolean; count?: number }[];
+  /** `mine`: the player's own (a balloon or gear pickup, gears lost, a bump or a wall), drawn at full size; a rival's is small. `count`: gears lost; `other`: the kart a bump met */
+  bursts: { kind: Burst; racerId: string; mine?: boolean; count?: number; other?: string }[];
   /** creature stomps and slams: dust at a world point, and a shake that fades with distance from the player */
   quakes: { position: [number, number, number]; strength: number }[];
   /** drift spark tier per racer that changed this tick (0 = sparks off) */
@@ -235,8 +237,20 @@ function kart(fx: Effects, id: string, e: KartEvent, me: string | null): void {
       fx.bursts.push({ kind: 'land', racerId: id });
       if (mine) fx.trauma += JUICE.traumaLand;
       break;
-    case 'wall': if (mine) { fx.trauma += JUICE.traumaWall; fx.bursts.push({ kind: 'wall', racerId: id }); } break;
-    case 'bump': if (mine) fx.trauma += JUICE.traumaBump; break;
+    case 'wall':
+      // every kart's: sparks where it meets the wall (a rival's smaller); only the player's shakes
+      fx.bursts.push({ kind: 'wall', racerId: id, mine });
+      if (mine) fx.trauma += JUICE.traumaWall;
+      break;
+    case 'bump': {
+      // both karts report the same touch: one burst a pair
+      const other = e.otherId;
+      let seen = false;
+      for (let i = 0; i < fx.bursts.length; i++) { const b = fx.bursts[i]; if (b.kind === 'bump' && b.racerId === other && b.other === id) { seen = true; break; } }
+      if (!seen) fx.bursts.push({ kind: 'bump', racerId: id, other, mine: mine || other === me });
+      if (mine) fx.trauma += JUICE.traumaBump;
+      break;
+    }
     case 'hit':
       fx.bursts.push({ kind: 'hitStars', racerId: id });
       if (e.coinsLost > 0) fx.bursts.push({ kind: 'gearsLost', racerId: id, mine, count: e.coinsLost });

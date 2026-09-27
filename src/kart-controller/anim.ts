@@ -127,6 +127,38 @@ export const KART_ANIM = Object.freeze({
   spinShare: 0.8,
   /** rad: with reduced motion, a wobble instead of the turn */
   spinWobble: 0.3,
+  /**
+   * A hit tosses the kart (Mario Kart World throws a hit kart up nose-first, ngiIINHSiJc 2:47; ours a smaller
+   * hop, render only: 27 Sept 2026, "an item hit is a flat spin"): `hitHop` m up over `hitHopSeconds`, the nose
+   * lifting `hitTumble` rad and the body rolling `hitRoll` rad into the spin, a squash as it lands (1/s)
+   */
+  hitHop: 0.5,
+  hitHopSeconds: 0.44,
+  hitTumble: 0.32,
+  hitRoll: 0.14,
+  hitLand: 3.2,
+  /** rad/s: the driver's head snaps back as the hit lands, and turns aside */
+  hitNod: 3.2,
+  hitLook: 2.4,
+  /**
+   * The dizzy recover once the spin ends (the stars circle the head a moment more: vfx-juice contact.ts): for
+   * `dizzySeconds` the body sways (`dizzySway` rad of yaw, a third of it roll) and the head wobbles round
+   * (`dizzyLook` rad side to side, `dizzyNod` forward and back, a quarter turn apart) at `dizzyHz`, dying away
+   */
+  dizzySeconds: 0.85,
+  dizzyHz: 2.3,
+  dizzySway: 0.08,
+  dizzyLook: 0.32,
+  dizzyNod: 0.1,
+  /**
+   * A shove (a kart's bump, a wall) sets the body wobbling on a loose spring about its middle: rad/s of yaw per
+   * m/s of shove (a bump's 3.5 m/s about 5°), a share of it as roll; and the driver's head snaps away from the
+   * push (rad/s of look per m/s)
+   */
+  joltSpring: [4.6, 0.2] as SpringTune,
+  joltPerShove: 0.55,
+  joltRoll: 0.35,
+  headSnap: 0.9,
   /** rad and Hz: a fishtail while an oil slick (or a tug) slows the kart */
   slowWobble: 0.12,
   slowHz: 3,
@@ -176,6 +208,16 @@ export type KartAnimTuning = typeof KART_ANIM;
 
 /** A damped spring's state: position and velocity. */
 export interface Spring { x: number; v: number }
+
+/**
+ * The render-only hop a hit tosses a kart into, `elapsed` s into its spin: metres off the road, a parabola
+ * over hitHopSeconds (0 outside it). The dizzy stars ride over the head with it (vfx-juice contact.ts).
+ */
+export function hitHop(elapsed: number, t: KartAnimTuning = KART_ANIM): number {
+  if (!(elapsed > 0) || elapsed >= t.hitHopSeconds) return 0;
+  const u = elapsed / t.hitHopSeconds;
+  return 4 * t.hitHop * u * (1 - u);
+}
 
 /**
  * One step of a damped spring toward `target`: semi-implicit Euler in sub-steps of at most 0.2 rad
@@ -433,6 +475,12 @@ export class KartAnim {
   private readonly look: Spring = { x: 0, v: 0 };
   private readonly nod: Spring = { x: 0, v: 0 };
   private readonly steer: Spring = { x: 0, v: 0 };
+  /** the body's wobble after a shove (a loose spring), and the extra yaw it and the dizzy sway give, on the last two ticks */
+  private readonly jolt: Spring = { x: 0, v: 0 };
+  private swayPrev = 0;
+  private swayCurr = 0;
+  /** the clock when the last spin ended (the dizzy recover runs from it) */
+  private dizzyAt = -Infinity;
   private readonly c: AnimKartConsts;
   private readonly t: KartAnimTuning;
   /** a per-kart offset so the field's idle shivers are not in step */
@@ -501,6 +549,8 @@ export class KartAnim {
     const prev = this.prev, curr = this.curr;
     prev.roll = curr.roll; prev.pitch = curr.pitch; prev.yaw = curr.yaw; prev.spin = curr.spin; prev.wobble = curr.wobble;
     prev.squash = curr.squash; prev.lean = curr.lean; prev.look = curr.look; prev.nod = curr.nod; prev.steer = curr.steer;
+    prev.hop = curr.hop;
+    this.swayPrev = this.swayCurr;
     const sp = this.sPrev, sc = this.sCurr;
     sp.heave = sc.heave; sp.roll = sc.roll; sp.pitch = sc.pitch; sp.nod = sc.nod;
     this.clock += dt;
@@ -568,6 +618,9 @@ export class KartAnim {
       this.roll.v += t.shoveRoll * k;
       this.lean.v -= t.shoveLean * k;
       this.squash.v -= t.shoveSquash * Math.abs(k);
+      // the body wobbles on after the blow, and the driver's head snaps away from it
+      this.jolt.v += t.joltPerShove * k;
+      this.look.v -= t.headSnap * k;
     }
     // the same from behind or ahead (braking and boosts change speed far slower than this)
     if (!riding && Math.abs(bump) > t.shoveMin) {
@@ -575,6 +628,8 @@ export class KartAnim {
       this.pitch.v -= t.shovePitch * k;
       this.nod.v -= t.shovePitch * k;
       this.squash.v -= t.shoveSquash * Math.abs(k);
+      // a ram or a head-on stop wobbles it too, the way it slides
+      this.jolt.v += t.joltPerShove * 0.6 * Math.abs(k) * (s.lateralVelocity >= 0 ? 1 : -1);
     }
     if (s.drift.phase === 'drifting' && this.lastPhase !== 'drifting') this.yaw.v += s.drift.direction * t.driftKick;
     if (s.boost.remaining > this.lastBoost + 0.05 && s.boost.multiplier > 1) {
@@ -586,7 +641,11 @@ export class KartAnim {
     if (spinning && !this.wasSpinning) {
       this.spinDir = s.lateralVelocity >= 0 ? 1 : -1;
       this.squash.v += t.hitPop;
+      // the head snaps back and aside as the blow lands
+      this.nod.v -= t.hitNod;
+      this.look.v += this.spinDir * t.hitLook;
     }
+    if (!spinning && this.wasSpinning) this.dizzyAt = this.clock;
     const trick = s.airborne.trickQueued;
     if (trick && !this.lastTrick) {
       this.roll.v += this.trickDir * t.trickFlick;
@@ -650,28 +709,47 @@ export class KartAnim {
     stepSpring(this.look, clamp(look, -t.lookMax, t.lookMax), t.lookSpring, dt);
     stepSpring(this.nod, nodT, t.nodSpring, dt);
     stepSpring(this.steer, spinning ? 0 : clamp(input.steer, -1, 1) * t.steerAngle, t.steerSpring, dt);
+    stepSpring(this.jolt, 0, t.joltSpring, dt);
 
-    // --- the hit's spin: from the sim's own spin timer, so it ends with it
+    // --- the hit's spin: from the sim's own spin timer, so it ends with it; the toss (a hop, the nose up, a roll into the spin)
+    let tumble = 0;
+    curr.hop = 0;
     if (spinning) {
       const T = Math.max(1e-6, this.c.hitSpinSeconds);
       const p = clamp((T - s.status.spinRemaining) / (T * t.spinShare), 0, 1);
       const e = 1 - (1 - p) * (1 - p) * (1 - p);
       curr.spin = this.spinDir * 2 * Math.PI * t.spinTurns * e;
       curr.wobble = this.spinDir * t.spinWobble * Math.sin(3 * Math.PI * p) * (1 - p);
+      const el = T - s.status.spinRemaining;
+      curr.hop = hitHop(el, t);
+      if (el > 0 && el < t.hitHopSeconds) tumble = Math.sin((Math.PI * el) / t.hitHopSeconds);
+      // down: it lands with a squash
+      if (el >= t.hitHopSeconds && el - dt < t.hitHopSeconds) this.squash.v -= t.hitLand;
     } else if (this.wasSpinning) {
       // done: the turn is whole, so drop it from both ends of the interpolation at once (no unwinding)
       prev.spin -= curr.spin;
       curr.spin = 0;
       curr.wobble = 0;
     }
+    // the dizzy recover: the body sways and the head wobbles round, dying away
+    let sway = 0, swayRoll = 0, dizzyLook = 0, dizzyNod = 0;
+    const since = this.clock - this.dizzyAt;
+    if (!spinning && since < t.dizzySeconds) {
+      const fade = (1 - since / t.dizzySeconds) ** 2, ph = 2 * Math.PI * t.dizzyHz * since;
+      sway = t.dizzySway * fade * Math.sin(ph);
+      swayRoll = (t.dizzySway / 3) * fade * Math.sin(ph + 1);
+      dizzyLook = t.dizzyLook * fade * Math.sin(ph);
+      dizzyNod = t.dizzyNod * fade * Math.cos(ph);
+    }
 
-    curr.roll = clamp(this.roll.x, -t.rollMax, t.rollMax);
-    curr.pitch = clamp(this.pitch.x, -t.pitchMax * 1.5, t.pitchMax * 1.5);
+    curr.roll = clamp(this.roll.x, -t.rollMax, t.rollMax) + this.jolt.x * t.joltRoll + swayRoll + this.spinDir * t.hitRoll * tumble;
+    curr.pitch = clamp(this.pitch.x, -t.pitchMax * 1.5, t.pitchMax * 1.5) - t.hitTumble * tumble;
     curr.yaw = this.yaw.x;
+    this.swayCurr = this.jolt.x + sway;
     curr.squash = clamp(this.squash.x, -t.squashMax, t.squashMax);
     curr.lean = this.lean.x;
-    curr.look = this.look.x;
-    curr.nod = clamp(this.nod.x, -t.nodMax * 1.5, t.nodMax * 1.5);
+    curr.look = this.look.x + dizzyLook;
+    curr.nod = clamp(this.nod.x, -t.nodMax * 1.5, t.nodMax * 1.5) + dizzyNod;
     curr.steer = this.steer.x;
 
     this.lastX = x; this.lastY = y; this.lastZ = z;
@@ -703,14 +781,15 @@ export class KartAnim {
     out.pitch = (lerp(a.pitch, b.pitch, alpha) + lerp(ra.pitch, rb.pitch, alpha)) * k + lerp(sa.pitch, sb.pitch, alpha) * sk;
     out.spin = reduced ? 0 : lerp(a.spin, b.spin, alpha) + lerp(ra.spin, rb.spin, alpha);
     out.wobble = reduced ? lerp(a.wobble, b.wobble, alpha) : 0;
-    out.yaw = lerp(a.yaw, b.yaw, alpha) + lerp(ra.yaw, rb.yaw, alpha) * k;
+    // (the drift's slip stays whole with reduced motion: it says which way the kart slides; a shove's wobble and the dizzy sway shrink)
+    out.yaw = lerp(a.yaw, b.yaw, alpha) + (lerp(ra.yaw, rb.yaw, alpha) + lerp(this.swayPrev, this.swayCurr, alpha)) * k;
     const squash = (lerp(a.squash, b.squash, alpha) + lerp(ra.squash, rb.squash, alpha)) * k;
     out.squash = squash * t.squashShare;
     out.heave = squash * t.heavePerSquash + lerp(sa.heave, sb.heave, alpha) * sk;
     out.lean = (lerp(a.lean, b.lean, alpha) + lerp(ra.lean, rb.lean, alpha)) * k;
     out.look = (lerp(a.look, b.look, alpha) + lerp(ra.look, rb.look, alpha)) * k;
     out.nod = (lerp(a.nod, b.nod, alpha) + lerp(ra.nod, rb.nod, alpha)) * k + lerp(sa.nod, sb.nod, alpha) * sk;
-    out.hop = lerp(ra.hop, rb.hop, alpha) * k;
+    out.hop = (lerp(a.hop, b.hop, alpha) + lerp(ra.hop, rb.hop, alpha)) * k;
     out.steer = lerp(a.steer, b.steer, alpha);
     out.lift = t.halfTrack * Math.abs(Math.sin(out.roll)) + t.halfBase * Math.abs(Math.sin(out.pitch));
     return out;

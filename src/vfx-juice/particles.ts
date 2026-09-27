@@ -12,8 +12,11 @@ import {
 export const PARTICLE = Object.freeze({
   /** every particle fades out between these view depths (metres): nothing near the lens fills the screen */
   nearFade: [1.2, 3.5] as const,
-  /** the widest a particle draws, in metres per metre of view depth (a cap on its size on screen) */
-  maxSize: { glow: 0.12, soft: 0.3, confetti: 0.04, spark: 0.04 },
+  /**
+   * the widest a particle draws, in metres per metre of view depth (a cap on its size on screen); `shape` is a
+   * star's or an impact burst's (SHAPE), in any pool: a contact's burst reads at the chase camera's 5 to 7 m
+   */
+  maxSize: { glow: 0.12, soft: 0.3, confetti: 0.04, spark: 0.04, shape: 0.3 },
   /** the longest a streak draws, in metres per metre of view depth (a spark at 3 m is at most 0.6 m long) */
   maxStreak: 0.2,
   /** a confetti piece is a paper strip this tall for its width */
@@ -24,6 +27,38 @@ export const PARTICLE = Object.freeze({
 
 /** How much of what is behind it a streak's middle hides (premultiplied: the rest of it is added light). */
 export const STREAK_COVER = 0.55;
+
+/**
+ * What a particle is drawn as, beyond its pool's own disc, puff or paper strip (SpawnOpts.shape; the
+ * contact effects, contact.ts): a cartoon star (five points, a darker rim, a pale heart) or an impact
+ * burst (uneven spikes round a white-hot heart, a new set of spikes per particle). Both turn by
+ * SpawnOpts.spin and never flip like confetti.
+ */
+export const SHAPE = Object.freeze({ none: 0, star: 1, burst: 2 });
+/** A star's inner corners as a share of its points' reach; an impact burst's spike count and its shortest spike. */
+export const STAR_INNER = 0.46, BURST_SPIKES = 9, BURST_SHORT = 0.52;
+
+/**
+ * The cartoon star's edge: signed distance (quad half-widths, + outside) of `p` (the quad's middle at 0, its
+ * edges at ±1) from a five-pointed star with a point straight up. The angle is folded into half of one point
+ * (0 to 36°), where the edge is the straight line from the tip to the inner corner. Mirrors the shader's own.
+ */
+export function starEdge(px: number, py: number, inner = STAR_INNER): number {
+  const seg = (2 * Math.PI) / 5;
+  let an = Math.atan2(px, py);
+  an = ((an + seg / 2) % seg + seg) % seg - seg / 2;
+  an = Math.abs(an);
+  const r = Math.hypot(px, py), fx = r * Math.sin(an), fy = r * Math.cos(an);
+  const [nx, ny] = starNormal(inner);
+  return fx * nx + (fy - 1) * ny;
+}
+
+/** The outward normal of a star's edge in its folded half point (from the tip, (0, 1), to the inner corner). */
+function starNormal(inner: number): [number, number] {
+  const half = Math.PI / 5, ex = inner * Math.sin(half), ey = inner * Math.cos(half) - 1, el = Math.hypot(ex, ey);
+  return [-ey / el, ex / el];
+}
+const STAR_N = starNormal(STAR_INNER);
 
 /** How much of a particle shows at `depth` metres from the lens (the shader's near fade). */
 export function nearFade(depth: number): number {
@@ -43,18 +78,20 @@ export function drawnStreak(length: number, depth: number): number {
 }
 
 const VERT = `
-attribute vec3 aOffset; attribute vec4 aColor; attribute float aSize; attribute vec3 aSpin;
-uniform float uTime; uniform float uMaxSize; uniform float uStrip;
-varying vec4 vColor; varying vec2 vUv;
+attribute vec3 aOffset; attribute vec4 aColor; attribute float aSize; attribute vec3 aSpin; attribute float aShape;
+uniform float uTime; uniform float uMaxSize; uniform float uStrip; uniform float uMaxShape;
+varying vec4 vColor; varying vec2 vUv; varying float vKind; varying float vSeed;
 #ifdef STREAKS
 attribute vec3 aStreak; uniform float uMaxStreak; varying vec3 vShape;
 #endif
 void main() {
   vUv = uv;
+  vKind = aShape; vSeed = aSpin.x;
   vec4 mv = modelViewMatrix * vec4(aOffset, 1.0);
   float depth = -mv.z;
-  // never bigger on screen than uMaxSize per metre of depth, and gone near the lens
-  float w = min(aSize, depth * uMaxSize);
+  // never bigger on screen than uMaxSize per metre of depth (a star or a burst: uMaxShape), and gone near the lens
+  float shaped = step(0.5, aShape);
+  float w = min(aSize, depth * mix(uMaxSize, uMaxShape, shaped));
 #ifdef STREAKS
   // a capsule from where the spark was a moment ago (its motion against its kart, aStreak) to where
   // it is: head at the particle, the quad padded half a width round each end
@@ -71,19 +108,20 @@ void main() {
   float shade = 1.0;
 #else
   // aSpin: phase, turn rate, flip rate. A confetti strip turns and flips over like paper (its
-  // width through zero); a round particle has no spin and draws as it always did.
+  // width through zero); a round particle has no spin and draws as it always did; a star or a
+  // burst (aShape) turns but never flips, and is square
   float a = aSpin.x + uTime * aSpin.y;
-  float flip = cos(aSpin.x * 3.0 + uTime * aSpin.z);
-  vec2 p = vec2(position.x * flip, position.y * uStrip);
+  float flip = shaped > 0.5 ? 1.0 : cos(aSpin.x * 3.0 + uTime * aSpin.z);
+  vec2 p = vec2(position.x * flip, position.y * mix(uStrip, 1.0, shaped));
   p = vec2(p.x * cos(a) - p.y * sin(a), p.x * sin(a) + p.y * cos(a));
   mv.xy += p * w;
-  float shade = uStrip < 1.0 ? 0.62 + 0.38 * abs(flip) : 1.0; // the paper catches the light as it flips
+  float shade = uStrip < 1.0 && shaped < 0.5 ? 0.62 + 0.38 * abs(flip) : 1.0; // the paper catches the light as it flips
 #endif
   vColor = vec4(aColor.rgb * shade, aColor.a * smoothstep(${PARTICLE.nearFade[0].toFixed(2)}, ${PARTICLE.nearFade[1].toFixed(2)}, depth));
   gl_Position = projectionMatrix * mv;
 }`;
 const FRAG = `
-varying vec4 vColor; varying vec2 vUv;
+varying vec4 vColor; varying vec2 vUv; varying float vKind; varying float vSeed;
 uniform float uSquare; uniform float uPuff;
 #ifdef STREAKS
 varying vec3 vShape;
@@ -102,12 +140,38 @@ void main() {
   vec3 c = mix(vColor.rgb * 1.05, vec3(top) * 1.2, core * core * 0.4);
   gl_FragColor = vec4(c * a, a * ${STREAK_COVER.toFixed(2)});
 #else
-  float d = length(vUv - 0.5);
-  // a spark is a disc with a soft rim; dust and smoke (uPuff) a puff with no hard edge
-  float a = uSquare > 0.5 ? 1.0 : 1.0 - smoothstep(mix(0.25, 0.05, uPuff), 0.5, d);
+  vec3 rgb = vColor.rgb;
+  float a;
+  if (vKind > 1.5) {
+    // an impact burst: uneven spikes (a new set per particle, from its phase) round a white-hot heart, the tips toward orange
+    vec2 q = (vUv - 0.5) * 2.0;
+    float r = length(q);
+    float s = (atan(q.y, q.x) / 6.2831853 + 0.5) * ${BURST_SPIKES.toFixed(1)};
+    float f = fract(s) - 0.5;
+    float len = ${BURST_SHORT.toFixed(2)} + ${(1 - BURST_SHORT).toFixed(2)} * fract(sin((floor(s) + vSeed * 7.13) * 78.233) * 43758.5453);
+    float edge = mix(0.3, len * 0.97, pow(1.0 - abs(f) * 2.0, 2.2));
+    a = 1.0 - smoothstep(edge - 0.05, edge, r);
+    float top = max(rgb.r, max(rgb.g, rgb.b));
+    rgb = mix(rgb * mix(vec3(1.0), vec3(1.0, 0.55, 0.3), smoothstep(0.3, 0.9, r)), vec3(1.1, 1.05, 0.85) * top, 1.0 - smoothstep(0.06, 0.3, r));
+  } else if (vKind > 0.5) {
+    // a cartoon star: five points (the angle folded into half of one, where the edge is one straight line),
+    // a darker orange rim and a pale heart
+    vec2 q = (vUv - 0.5) * 2.0 / 0.94;
+    float r = length(q);
+    float an = abs(mod(atan(q.x, q.y) + 0.6283185, 1.2566371) - 0.6283185);
+    float d = dot(r * vec2(sin(an), cos(an)) - vec2(0.0, 1.0), vec2(${STAR_N[0].toFixed(5)}, ${STAR_N[1].toFixed(5)}));
+    a = 1.0 - smoothstep(-0.03, 0.03, d);
+    float top = max(rgb.r, max(rgb.g, rgb.b));
+    rgb = mix(rgb, vec3(1.0, 1.0, 0.8) * top, (1.0 - smoothstep(0.0, 0.34, r)) * 0.35);
+    rgb = mix(rgb, vColor.rgb * vec3(0.95, 0.48, 0.16), smoothstep(-0.2, -0.12, d));
+  } else {
+    float d = length(vUv - 0.5);
+    // a spark is a disc with a soft rim; dust and smoke (uPuff) a puff with no hard edge
+    a = uSquare > 0.5 ? 1.0 : 1.0 - smoothstep(mix(0.25, 0.05, uPuff), 0.5, d);
+  }
   a *= vColor.a;
   if (a <= 0.004) discard;
-  gl_FragColor = vec4(vColor.rgb, a);
+  gl_FragColor = vec4(rgb, a);
 #endif
 }`;
 
@@ -123,6 +187,11 @@ export interface SpawnOpts {
   stretch?: number;
   /** 0..1: the most opaque it draws (the pipes' faint puffs); default 1 */
   alpha?: number;
+  /** SHAPE: a cartoon star or an impact burst instead of the pool's own disc, puff or strip; default none */
+  shape?: number;
+  /** a star's or a burst's turn (rad/s) and where it starts (rad; a burst's spikes are dealt from it too) */
+  spin?: number;
+  phase?: number;
 }
 
 export class ParticlePool {
@@ -149,6 +218,8 @@ export class ParticlePool {
   private readonly streak: Float32Array;
   /** each particle's most opaque (SpawnOpts.alpha) */
   private readonly opa: Float32Array;
+  /** each particle's SHAPE */
+  private readonly shape: Float32Array;
   private readonly spins: boolean;
   private time = 0;
   private seed = 0x9e3779b9;
@@ -157,6 +228,7 @@ export class ParticlePool {
   private readonly aColor: InstancedBufferAttribute;
   private readonly aSize: InstancedBufferAttribute;
   private readonly aSpin: InstancedBufferAttribute;
+  private readonly aShape: InstancedBufferAttribute;
   private readonly aStreak: InstancedBufferAttribute | null = null;
 
   /**
@@ -181,16 +253,19 @@ export class ParticlePool {
     this.stretch = new Float32Array(streaks ? n : 0);
     this.streak = new Float32Array(streaks ? n * 3 : 0);
     this.opa = new Float32Array(n);
+    this.shape = new Float32Array(n);
     this.spins = square;
     const geo = new PlaneGeometry(1, 1);
     this.aOffset = new InstancedBufferAttribute(this.pos, 3);
     this.aColor = new InstancedBufferAttribute(this.col, 4);
     this.aSize = new InstancedBufferAttribute(this.size, 1);
     this.aSpin = new InstancedBufferAttribute(this.spin, 3);
+    this.aShape = new InstancedBufferAttribute(this.shape, 1);
     geo.setAttribute('aOffset', this.aOffset);
     geo.setAttribute('aSpin', this.aSpin);
     geo.setAttribute('aColor', this.aColor);
     geo.setAttribute('aSize', this.aSize);
+    geo.setAttribute('aShape', this.aShape);
     if (streaks) {
       this.aStreak = new InstancedBufferAttribute(this.streak, 3);
       geo.setAttribute('aStreak', this.aStreak);
@@ -204,6 +279,7 @@ export class ParticlePool {
       uniforms: {
         uSquare: { value: square ? 1 : 0 }, uPuff: { value: additive || square ? 0 : 1 }, uTime: { value: 0 },
         uMaxSize: { value: maxSize }, uStrip: { value: square ? PARTICLE.strip : 1 }, uMaxStreak: { value: PARTICLE.maxStreak },
+        uMaxShape: { value: Math.max(maxSize, PARTICLE.maxSize.shape) },
       },
     });
     this.mesh = new InstancedMesh(geo, this.mat, capacity);
@@ -226,12 +302,51 @@ export class ParticlePool {
     this.grav[i] = o.gravity ?? 0; this.drag[i] = o.drag ?? 0; this.grow[i] = o.grow ?? 0;
     this.opa[i] = o.alpha ?? 1;
     if (this.streaks) this.stretch[i] = o.stretch ?? 0;
-    if (this.spins) {
+    this.shapeOf(i, o);
+  }
+
+  /** A particle's shape and turn: a star or a burst turns as told; a confetti strip its own way; anything else none. */
+  private shapeOf(i: number, o: SpawnOpts): void {
+    const shape = o.shape ?? 0;
+    this.shape[i] = shape;
+    if (shape > 0) {
+      this.spin[i * 3] = o.phase ?? 0; this.spin[i * 3 + 1] = o.spin ?? 0; this.spin[i * 3 + 2] = 0;
+      this.shaped = true;
+    } else if (this.spins) {
       const [s0, s1] = PARTICLE.spin, [f0, f1] = PARTICLE.flutter;
       this.spin[i * 3] = this.rnd() * Math.PI * 2;
       this.spin[i * 3 + 1] = (s0 + this.rnd() * (s1 - s0)) * (this.rnd() < 0.5 ? -1 : 1);
       this.spin[i * 3 + 2] = f0 + this.rnd() * (f1 - f0);
-    }
+    } else { this.spin[i * 3] = 0; this.spin[i * 3 + 1] = 0; this.spin[i * 3 + 2] = 0; }
+  }
+
+  /** whether a star or a burst has been drawn since the pool was made: their turn and shape then go up every frame */
+  private shaped = false;
+
+  /**
+   * Draw one particle for this frame only, as it stands (no motion; gone at the next update): what must sit
+   * exactly where something is each frame, as a dizzy star circling a racer's head does. Call after update().
+   * `o.life` is unused; `o.alpha` is its opacity. When full, the oldest is overwritten.
+   */
+  place(o: SpawnOpts): void {
+    let i = this.count;
+    if (i >= this.capacity) i = this.oldest();
+    else this.count++;
+    const j = i * 3;
+    this.pos[j] = o.x; this.pos[j + 1] = o.y; this.pos[j + 2] = o.z;
+    this.vel[j] = 0; this.vel[j + 1] = 0; this.vel[j + 2] = 0;
+    this.car[j] = 0; this.car[j + 1] = 0; this.car[j + 2] = 0;
+    this.rgb[j] = o.r; this.rgb[j + 1] = o.g; this.rgb[j + 2] = o.b;
+    this.col[i * 4] = o.r; this.col[i * 4 + 1] = o.g; this.col[i * 4 + 2] = o.b; this.col[i * 4 + 3] = o.alpha ?? 1;
+    this.baseSize[i] = o.size; this.size[i] = o.size;
+    // no life left: the next update drops it
+    this.life[i] = 0; this.maxLife[i] = 1;
+    this.grav[i] = 0; this.drag[i] = 0; this.grow[i] = 0; this.opa[i] = o.alpha ?? 1;
+    if (this.streaks) { this.stretch[i] = 0; this.streak[j] = 0; this.streak[j + 1] = 0; this.streak[j + 2] = 0; }
+    this.shapeOf(i, o);
+    this.mesh.count = this.count;
+    this.aOffset.needsUpdate = this.aColor.needsUpdate = this.aSize.needsUpdate = this.aSpin.needsUpdate = this.aShape.needsUpdate = true;
+    if (this.aStreak) this.aStreak.needsUpdate = true;
   }
 
   /** Visual-only randomness for the spins (never touches the sim). */
@@ -273,7 +388,8 @@ export class ParticlePool {
     this.count = w;
     this.mesh.count = w;
     this.aOffset.needsUpdate = this.aColor.needsUpdate = this.aSize.needsUpdate = true;
-    if (this.spins) this.aSpin.needsUpdate = true;
+    if (this.spins || this.shaped) this.aSpin.needsUpdate = true;
+    if (this.shaped) this.aShape.needsUpdate = true;
     if (this.aStreak) this.aStreak.needsUpdate = true;
   }
 
@@ -286,6 +402,7 @@ export class ParticlePool {
     this.baseSize[to] = this.baseSize[from]; this.maxLife[to] = this.maxLife[from];
     this.grav[to] = this.grav[from]; this.drag[to] = this.drag[from]; this.grow[to] = this.grow[from];
     this.opa[to] = this.opa[from];
+    this.shape[to] = this.shape[from];
     if (this.streaks) this.stretch[to] = this.stretch[from];
   }
 

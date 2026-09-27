@@ -930,7 +930,7 @@ function step(now: number): void {
   if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced, nowS);
   const pl = cur.player;
   // (no speed lines, lens or FOV kicks over the celebration; the podium's hidden field makes no sparks or dust)
-  vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced, cur.revs);
+  vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced, cur.revs, ceremony ? undefined : cur.views);
   if (!attract && !celebrating && !ceremony) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));
   camera.updateProjectionMatrix();
   const sh = vfx.shake;
