@@ -1,0 +1,3 @@
+# the builder's working files (candidates, renders, as-played WAVs) and Python/numba caches
+.work/
+__pycache__/

@@ -31,6 +31,7 @@ import { appendFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
 import { fileFor, LYRIA_SONGS, MOMENT, SFX, SONG_MOMENT, SONGS } from '../elevenlabs/catalog.ts';
+import { RECIPES } from '../sfx/recipes.ts';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const API = 'https://generativelanguage.googleapis.com/v1beta';
@@ -249,7 +250,9 @@ async function generate(parts, schema, label) {
   return { error: last };
 }
 
-const spec = (id) => SFX.find((s) => s.id === id);
+// a catalog sound, or a built one (scripts/sfx/recipes.ts: its brief is the prompt, its length as built)
+const BUILT = existsSync(`${ROOT}scripts/sfx/built.json`) ? JSON.parse(readFileSync(`${ROOT}scripts/sfx/built.json`, 'utf8')) : {};
+const spec = (id) => SFX.find((s) => s.id === id) ?? ((r) => r && { id, prompt: r.brief, seconds: r.loop ?? BUILT[id]?.seconds ?? 1, loop: !!r.loop })(RECIPES.find((r) => r.id === id));
 function brief(id) {
   const s = spec(id);
   if (!s) throw new Error(`no catalog sound ${id}`);
@@ -393,7 +396,7 @@ const out = (r) => console.log(JSON.stringify(r));
 const [mode, ...rest] = words;
 const BATCH = Number(flag('batch', '1'));
 if (mode === 'sfx') {
-  const ids = rest.length ? rest : SFX.map((s) => s.id);
+  const ids = rest.length ? rest : [...SFX.map((s) => s.id), ...RECIPES.map((r) => r.id)];
   const items = ids.map((id) => ({ id, path: `${ROOT}public/audio/sfx/${fileFor(id)}` }));
   if (BATCH > 1) for (let i = 0; i < items.length; i += BATCH) for (const r of await judgeBatch(items.slice(i, i + BATCH))) out(r);
   else for (const { id, path } of items) out(await judgeSfx(id, path));

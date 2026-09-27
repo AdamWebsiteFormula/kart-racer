@@ -10,6 +10,7 @@ import MANIFEST from '../../public/audio/manifest.json';
 import { engineCutoff, OFFROAD_BY_TRACK, racerPitch, ROAD_BY_TRACK } from './engine.ts';
 import { PATCHES } from './sfx.ts';
 import { LYRIA_SONGS, MOMENT, SFX, sfxBody, SONG_MOMENT, songBody, SONGS } from '../../scripts/elevenlabs/catalog.ts';
+import { RECIPES } from '../../scripts/sfx/recipes.ts';
 
 const HOP = 0.01;
 /** the loops the wheels can ask for (engine.ts wheelSound, sparkLayer) */
@@ -281,7 +282,8 @@ describe('no singing and no human voices (Adam, 24 Sept 2026)', () => {
 
   it('every sound the game can cue has a catalog entry, the rumble loops, and the stings fit their wait', () => {
     const ids = new Map(SFX.map((s) => [s.id, s]));
-    for (const id of Object.keys(PATCHES)) expect(ids.has(id), id).toBe(true);
+    // or a recipe (scripts/sfx/recipes.ts): built from the packs, the old takes and synthesis (provenance.test.ts)
+    for (const id of Object.keys(PATCHES)) expect(ids.has(id) || RECIPES.some((r) => r.id === id), id).toBe(true);
     expect(ids.get('offroad')?.loop).toBe(true);
     // every loop under the wheels (each course's surfaces, the sparks) is made as a loop
     for (const id of LOOPS_UNDER_WHEELS) expect(ids.get(id)?.loop, id).toBe(true);

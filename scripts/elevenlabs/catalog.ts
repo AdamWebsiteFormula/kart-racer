@@ -213,6 +213,13 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'sparks', seconds: 3, loop: true, prompt: 'The continuous crackle of bright electric sparks spraying from spinning go-kart wheels: a steady sizzling, fizzing electric crackle. Even, no engine, no music, no voice.' },
 ];
 
+/**
+ * ElevenLabs sounds the game no longer ships as they came: each is now built from a recipe
+ * (scripts/sfx/recipes.ts, which may use the old take as a layer, pinned to a commit). Their prompts stay
+ * here as the record of what those takes were; generate.ts never makes them again.
+ */
+export const REPLACED: readonly SfxSpec[] = [];
+
 const SONG_TAIL = 'Constant driving energy from the first second, no intro, no fade-out, so it loops. Instrumental, no vocals.';
 
 // design §11: Sunrise Cup = brass/ska, Summit Cup = synth-brass/funk, finale = orchestral pop
