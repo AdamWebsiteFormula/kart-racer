@@ -156,18 +156,6 @@
   "hitConfirm": {
    "url": "audio/sfx/hitConfirm.mp3"
   },
-  "spin": {
-   "url": "audio/sfx/spin.mp3"
-  },
-  "boost1": {
-   "url": "audio/sfx/boost1.mp3"
-  },
-  "boost2": {
-   "url": "audio/sfx/boost2.mp3"
-  },
-  "boost3": {
-   "url": "audio/sfx/boost3.mp3"
-  },
   "boostPad": {
    "url": "audio/sfx/boostPad.mp3"
   },
@@ -198,9 +186,6 @@
   "land": {
    "url": "audio/sfx/land.mp3"
   },
-  "wall": {
-   "url": "audio/sfx/wall.mp3"
-  },
   "bump": {
    "url": "audio/sfx/bump.mp3"
   },
@@ -215,9 +200,6 @@
   },
   "respawn": {
    "url": "audio/sfx/respawn.mp3"
-  },
-  "uiMove": {
-   "url": "audio/sfx/uiMove.mp3"
   },
   "uiConfirm": {
    "url": "audio/sfx/uiConfirm.mp3"
@@ -316,6 +298,24 @@
   "sparks": {
    "url": "audio/sfx/sparks.mp3",
    "loop": true
+  },
+  "boost1": {
+   "url": "audio/sfx/boost1.mp3"
+  },
+  "boost2": {
+   "url": "audio/sfx/boost2.mp3"
+  },
+  "boost3": {
+   "url": "audio/sfx/boost3.mp3"
+  },
+  "uiMove": {
+   "url": "audio/sfx/uiMove.mp3"
+  },
+  "spin": {
+   "url": "audio/sfx/spin.mp3"
+  },
+  "wall": {
+   "url": "audio/sfx/wall.mp3"
   }
  },
  "music": {

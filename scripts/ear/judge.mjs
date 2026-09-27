@@ -257,9 +257,10 @@ function brief(id) {
   const s = spec(id);
   if (!s) throw new Error(`no catalog sound ${id}`);
   const o = typeof BRIEFS[id] === 'string' ? { prompt: BRIEFS[id] } : BRIEFS[id] ?? {};
-  const prompt = o.prompt ?? s.prompt, seconds = o.seconds ?? s.seconds;
-  return `Sound: "${id}".\nBrief (what it was made to be): ${prompt}\nIn-game moment: ${MOMENT[id]}\n` +
-    `Requested length: about ${seconds} s${s.loop ? ', a seamless loop' : ''}. The game trims silence before and after the sound, ` +
+  // a brief file may also carry its own moment and loop flag (a test render, such as the engine through a rev)
+  const prompt = o.prompt ?? s.prompt, seconds = o.seconds ?? s.seconds, moment = o.moment ?? MOMENT[id], loop = o.loop ?? s.loop;
+  return `Sound: "${id}".\nBrief (what it was made to be): ${prompt}\nIn-game moment: ${moment}\n` +
+    `Requested length: about ${seconds} s${loop ? ', a seamless loop' : ''}. The game trims silence before and after the sound, ` +
     `levels its loudness and fades its edges, so judge the sound itself: its character, clarity, length and punch, not its volume. ` +
     `The clip you get has a quarter second of silence before the sound and silence after it; the silence is not part of the sound.`;
 }

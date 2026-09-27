@@ -127,14 +127,7 @@ export const SFX: readonly SfxSpec[] = [
   { id: 'hit', seconds: 0.8, prompt: `A go-kart getting bonked by a thrown toy: bouncy boing with a small plastic crash. ${CARTOON}` },
   // your own item landed on a rival, however far ahead (the attacker's payoff)
   { id: 'hitConfirm', seconds: 0.7, prompt: 'A satisfying cartoon score sound when your thrown toy hits a rival far away: a punchy rubbery thwack and a bright two-note chime going up. Short. No music, no voice.' },
-  { id: 'spin', seconds: 1.3, prompt: `A go-kart spinning out: a descending slide whistle over a short tyre squeal. ${CARTOON}` },
   // boosts: the drift tiers grow
-  // remade 24 Sept 2026: the first takes rang like a bell, a beep and a train horn to both ears;
-  // a boost is air: each tier a bigger whoosh than the last
-  { id: 'boost1', seconds: 0.7, influence: 0.6, prompt: 'A quick soft whoosh of rushing air as a small go-kart darts forward: one short airy swoosh that fades fast. No music, no voice.' },
-  { id: 'boost2', seconds: 1, influence: 0.6, prompt: 'A strong whoosh of rushing air as a go-kart surges forward: a big airy swoosh swelling up with a deep rumble underneath, then fading. No music, no voice.' },
-  // remade 26 Sept 2026 (audition pack sfx-2, whoosh-led retake, judge 3/4 -> 9/8; local ear CLAP 0.96 against the brief)
-  { id: 'boost3', seconds: 1.6, influence: 0.65, prompt: 'The biggest speed boost in a modern arcade racing game: a powerful rushing whoosh of wind and flame that swells in over a quarter second and surges upward in pitch, a deep, warm rumble underneath, then a glittering shimmer of electric sparks trailing off at the end. Smooth, soft onset, thrilling and polished. No music, no voice.' },
   { id: 'boostPad', seconds: 0.9, prompt: 'A go-kart driving over a glowing speed boost pad: an electric zap and a fast rising whoosh. Arcade style. No music, no voice.' },
   // the trick itself, the moment the button is pressed in the air
   { id: 'trick', seconds: 0.7, prompt: `A go-kart doing a quick mid-air flip trick: a fast spinning air whoosh swish with a tiny sparkle. ${CARTOON}` },
@@ -160,15 +153,12 @@ export const SFX: readonly SfxSpec[] = [
   // small car touches down. Quick and bright, no engine, no music, no voice."), 0.6 s. Judge 2/3 -> 8/8 (compare),
   // 10/10, 9/9, 10/10 alone. This prompt stays as the judge's brief
   { id: 'land', seconds: 0.6, prompt: 'A go-kart landing on asphalt after a small jump: a solid rubbery thump with a tyre chirp. No music, no voice.' },
-  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
-  { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
   { id: 'bump', seconds: 0.5, prompt: `Two go-karts bumping into each other: one rubbery bonk. ${CARTOON}` },
   { id: 'wrongWay', seconds: 1.2, prompt: 'A warning alert: two-tone buzzer beeps repeating twice. Arcade game alarm, friendly not scary. No voice.' },
   { id: 'gainPlace', seconds: 0.5, influence: 0.5, prompt: 'A quick positive upward blip: two rising bright notes, arcade game, very short. No voice.' },
   { id: 'losePlace', seconds: 0.5, influence: 0.5, prompt: 'A quick soft downward blip: two falling notes, arcade game, very short. No voice.' },
   { id: 'respawn', seconds: 1.2, prompt: 'A magical reappear sound: a rising sparkle chime with a soft whoosh, something gently placed back. No voice.' },
   // menus
-  { id: 'uiMove', seconds: 0.5, influence: 0.6, prompt: 'A very short soft menu cursor tick: one light plastic click, arcade game menu. No echo, no voice.' },
   { id: 'uiConfirm', seconds: 0.5, influence: 0.5, prompt: 'A bright menu confirm sound: a cheerful two-note chime going up, arcade game menu, short. No voice.' },
   // remade 24 Sept 2026: the first came out 27 dB under full scale
   { id: 'uiBack', seconds: 0.5, influence: 0.5, prompt: 'A clear menu back sound: one short bubbly pop going down, arcade game menu, clean, present and not too quiet. No voice.' },
@@ -218,7 +208,18 @@ export const SFX: readonly SfxSpec[] = [
  * (scripts/sfx/recipes.ts, which may use the old take as a layer, pinned to a commit). Their prompts stay
  * here as the record of what those takes were; generate.ts never makes them again.
  */
-export const REPLACED: readonly SfxSpec[] = [];
+export const REPLACED: readonly SfxSpec[] = [
+  // remade 24 Sept 2026: the first takes rang like a bell, a beep and a train horn to both ears;
+  // a boost is air: each tier a bigger whoosh than the last
+  { id: 'boost1', seconds: 0.7, influence: 0.6, prompt: 'A quick soft whoosh of rushing air as a small go-kart darts forward: one short airy swoosh that fades fast. No music, no voice.' },
+  { id: 'boost2', seconds: 1, influence: 0.6, prompt: 'A strong whoosh of rushing air as a go-kart surges forward: a big airy swoosh swelling up with a deep rumble underneath, then fading. No music, no voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-2, whoosh-led retake, judge 3/4 -> 9/8; local ear CLAP 0.96 against the brief)
+  { id: 'boost3', seconds: 1.6, influence: 0.65, prompt: 'The biggest speed boost in a modern arcade racing game: a powerful rushing whoosh of wind and flame that swells in over a quarter second and surges upward in pitch, a deep, warm rumble underneath, then a glittering shimmer of electric sparks trailing off at the end. Smooth, soft onset, thrilling and polished. No music, no voice.' },
+  { id: 'uiMove', seconds: 0.5, influence: 0.6, prompt: 'A very short soft menu cursor tick: one light plastic click, arcade game menu. No echo, no voice.' },
+  { id: 'spin', seconds: 1.3, prompt: `A go-kart spinning out: a descending slide whistle over a short tyre squeal. ${CARTOON}` },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
+  { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
+];
 
 const SONG_TAIL = 'Constant driving energy from the first second, no intro, no fade-out, so it loops. Instrumental, no vocals.';
 
