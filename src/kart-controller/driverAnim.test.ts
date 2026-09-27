@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { KartAnim, SAD_BEATS, type Reaction } from './anim.ts';
 import { makeConstants } from './constants.ts';
 import {
-  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, sadBody, type DriverContext, type DriverPose, type SadBody,
+  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, SAD_HANDS, sadBody, type DriverContext, type DriverPose, type SadBody,
 } from './driverAnim.ts';
 import { SIM_DT } from './step.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type KartState, type Vec3 } from './types.ts';
@@ -268,6 +268,12 @@ describe('DriverAnim: body and arms', () => {
     expect(palm.L.fore[2]).toBeLessThan(0); // and back toward the face
     expect(palm.R.wheel).toBe(1);
     expect(arms('deflated', 1.6).R.wheel).toBe(0);
+    // Sprocket (SAD_HANDS): both hands up on top of the head, where they show over his steering wheel
+    expect(SAD_HANDS.sprocket).toBe('head');
+    expect(SAD_HANDS.nova).toBeUndefined();
+    const R2 = newDriverPose().armR, L2 = newDriverPose().armL;
+    reactionArms('deflated', 1.6, R2, L2, 4, 1, 'head');
+    for (const a of [R2, L2]) { expect(a.wheel).toBe(0); expect(a.upper[1]).toBeGreaterThan(0.8); expect(a.fore[1]).toBeGreaterThan(0.85); }
     // dejected: both hands keep the wheel as the body slumps over it (the elbows fold: the IK)
     const over = arms('dejected', 2);
     expect(over.R.wheel + over.L.wheel).toBe(2);

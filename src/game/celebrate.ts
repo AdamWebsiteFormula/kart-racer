@@ -50,7 +50,9 @@ export const CELEBRATE = Object.freeze({
    * over the head (plus `clear`): from the side, the pod's hull hid Nova whatever the height; from high in
    * front, over the nose into the cockpit, her bowed helmet shows. When the results come in beside the racer,
    * the camera backs off to the whole kart's distance as the kart moves `aside` of the way across the frame
-   * (normalized screen x): closer, a kart moved into the room left of the panel ran off the screen's edge.
+   * (normalized screen x): closer, a kart moved into the room left of the panel ran off the screen's edge. It
+   * keeps its own angle there, on the swing's side (not besideAngle's): the hand at the face was raised on
+   * that side, and Pip's lamp came back in front of his face from besideAngle.
    */
   sad: Object.freeze({ distance: 3.2, rise: 0.35, look: -0.05, angle: 0.55, deep: 4, clear: 0.05, deepAngle: 0.3, aside: 0.4 }),
 });
@@ -59,13 +61,14 @@ export const CELEBRATE = Object.freeze({
  * The karts whose shape stands in front of a seated driver's face (measured from the models, 27 Sept 2026):
  * `front`, how high the kart's front rises in front of its driver all across (m over the kart's origin, its
  * middle band: Nova's pod 1.04 against her head at 0.80 to 0.86; the Wind-Up Racer's round nose 1.06 against
- * Sprocket's 0.84 to 0.89), seen over from higher; `angle`, a narrow thing right in front of the face seen past
- * from further round (rad off the nose: the Parcel Scooter's lamp, 1.18 m, 0.2 m in front of Pip's face: at
- * 0.55 his wing over his face showed only as a tip beside it, "a wave"; at 1 rad it is plain). Every other
- * kart's front sits under its drivers' heads.
+ * Sprocket's 0.84 to 0.89), seen over from higher; `angle`, from further round (rad off the nose): past a
+ * narrow thing right in front of the face (the Parcel Scooter's lamp, 1.18 m, 0.2 m in front of Pip's face: at
+ * 0.55 his wing over his face showed only as a tip beside it, "a wave"; at 1 rad it is plain), or over a
+ * cockpit open at its sides (the Wind-Up Racer's tub: from the front its wheel hides Sprocket's face). Every
+ * other kart's front sits under its drivers' heads.
  */
 export const KART_FRAME: Readonly<Record<string, Readonly<{ front?: number; angle?: number }>>> = Object.freeze({
-  pod: Object.freeze({ front: 1.04 }), windup: Object.freeze({ front: 1.06 }), scooter: Object.freeze({ angle: 1 }),
+  pod: Object.freeze({ front: 1.04 }), windup: Object.freeze({ front: 1.06, angle: 1 }), scooter: Object.freeze({ angle: 1 }),
 });
 
 /** The finish camera's pose over a disappointed driver: its distance, height and aim height over the kart (m) and its angle off the nose (rad), from the driver's seated `head` height and its kart's KART_FRAME (none: an open kart). */
@@ -239,7 +242,12 @@ export class FinishCam {
       const a = this.angleAt(this.time, reduced);
       if (dt > 0) o.v = (a - o.x) / dt;
       o.x = a;
-    } else if (reduced) { o.x = C.besideAngle; o.v = 0; } else if (dt > 0) stepSpring(o, C.besideAngle, [C.besideSpring, 1], dt);
+    } else {
+      // (a disappointed driver keeps its own view, on the side the swing came round: the hand at its face was
+      // raised on that side, and a view past a lamp or over a pod's front holds only from where it was chosen)
+      const want = this.driver.on ? this.side * this.driver.angle : C.besideAngle;
+      if (reduced) { o.x = want; o.v = 0; } else if (dt > 0) stepSpring(o, want, [C.besideSpring, 1], dt);
+    }
     const a = o.x;
     this.frameX = reduced ? this.frameWant : this.frameX + (this.frameWant - this.frameX) * (1 - Math.exp(-C.besideRate * dt));
     const F = this.driver.on ? this.driver : null;

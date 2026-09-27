@@ -199,10 +199,14 @@ describe('FinishCam', () => {
       expect(j.r.dist).toBeCloseTo(CELEBRATE.distance, 0);
       expect(Math.abs(Math.atan2(k.r.side, k.r.ahead) - Math.atan2(j.r.side, j.r.ahead))).toBeGreaterThan(0.2);
     }
-    // the results come in beside the racer: it backs off to the whole kart's distance as the kart moves aside
+    // the results come in beside the racer: it backs off to the whole kart's distance as the kart moves aside, and
+    // keeps its own angle on the swing's side (not besideAngle's)
     const s = run(true, 1.1, 2.2);
+    const before = Math.atan2(rel(s.cam, s.p).side, rel(s.cam, s.p).ahead);
     for (let i = 0; i < 4 * 60; i++) { s.cam.besideAt(-0.5); s.cam.update(track, s.p.k, s.p.root, s.p.h, false, 1 / 60); }
     expect(rel(s.cam, s.p).dist).toBeCloseTo(CELEBRATE.distance, 0);
+    expect(Math.atan2(rel(s.cam, s.p).side, rel(s.cam, s.p).ahead)).toBeCloseTo(before, 1);
+    expect(Math.abs(before)).toBeCloseTo(CELEBRATE.sad.angle, 1);
     // a new finish starts with no driver framing left from the last
     const n = new FinishCam();
     const c = chase(s.p);
