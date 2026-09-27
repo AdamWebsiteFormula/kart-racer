@@ -187,11 +187,15 @@ export class TimeScale {
 }
 
 // ---------------------------------------------------------------- director
-export type Burst = 'balloon' | 'coin' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'strike' | 'slam' | 'spring' | 'fizz';
+/**
+ * `gear`: a speed gear picked up (the race's `coin` event: the sim still calls them coins); `gearsLost`: a
+ * hit knocked `count` gears loose (the hit's coinsLost), and they fly out of the kart (gears.ts).
+ */
+export type Burst = 'balloon' | 'gear' | 'gearsLost' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'strike' | 'slam' | 'spring' | 'fizz';
 
 export interface Effects {
-  /** `mine`: the player's own pickup (a balloon or coin pop), drawn at full size; a rival's is small */
-  bursts: { kind: Burst; racerId: string; mine?: boolean }[];
+  /** `mine`: the player's own (a balloon or gear pickup, gears lost), drawn at full size; a rival's is small. `count`: gears lost */
+  bursts: { kind: Burst; racerId: string; mine?: boolean; count?: number }[];
   /** creature stomps and slams: dust at a world point, and a shake that fades with distance from the player */
   quakes: { position: [number, number, number]; strength: number }[];
   /** drift spark tier per racer that changed this tick (0 = sparks off) */
@@ -235,6 +239,7 @@ function kart(fx: Effects, id: string, e: KartEvent, me: string | null): void {
     case 'bump': if (mine) fx.trauma += JUICE.traumaBump; break;
     case 'hit':
       fx.bursts.push({ kind: 'hitStars', racerId: id });
+      if (e.coinsLost > 0) fx.bursts.push({ kind: 'gearsLost', racerId: id, mine, count: e.coinsLost });
       if (mine) { fx.trauma += JUICE.traumaHit; fx.kickHit = true; fx.hitStop = true; }
       break;
     default: break;
@@ -260,7 +265,8 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
         if ((e.kind === 'rumblesaur' && e.action === 'stomp') || (e.kind === 'kraken' && e.action === 'slam')) out.quakes.push({ position: [...e.position], strength: 1 });
         else if (e.kind === 'yeti' && e.action === 'idle') out.quakes.push({ position: [...e.position], strength: 0.3 });
         break;
-      case 'coin': out.bursts.push({ kind: 'coin', racerId: e.racerId, mine: e.racerId === me }); break;
+      // a speed gear picked up (the sim's `coin` event)
+      case 'coin': out.bursts.push({ kind: 'gear', racerId: e.racerId, mine: e.racerId === me }); break;
       case 'finish':
         if (e.racerId === me) { if (!e.dnf && confettiFor(e.rank)) out.bursts.push({ kind: 'confetti', racerId: e.racerId }); if (!e.dnf) out.slowMo = true; }
         break;
@@ -279,6 +285,7 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
     switch (e.type) {
       case 'hit':
         out.bursts.push({ kind: 'hitStars', racerId: e.racerId });
+        if (e.coinsLost > 0) out.bursts.push({ kind: 'gearsLost', racerId: e.racerId, mine: e.racerId === me, count: e.coinsLost });
         if (e.racerId === me) { out.trauma += JUICE.traumaHit; out.kickHit = true; out.hitStop = true; }
         break;
       case 'shieldUp': case 'shieldPop': out.bursts.push({ kind: 'shield', racerId: e.racerId }); break;

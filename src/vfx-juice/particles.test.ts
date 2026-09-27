@@ -1,10 +1,12 @@
-import { AdditiveBlending, CustomBlending, OneFactor, OneMinusSrcAlphaFactor, PerspectiveCamera, Scene, ShaderMaterial, SrcColorFactor, ZeroFactor } from 'three';
+import { AdditiveBlending, CustomBlending, Matrix4, OneFactor, OneMinusSrcAlphaFactor, PerspectiveCamera, Scene, ShaderMaterial, SrcColorFactor, Vector3, ZeroFactor } from 'three';
 import { describe, expect, it } from 'vitest';
+import { decorGeometry } from '../art-pipeline/decor.ts';
 import { createKartState } from '../kart-controller/types.ts';
+import { SCATTER } from './gears.ts';
 import { newEffects } from './juice.ts';
 import { drawnSize, drawnStreak, nearFade, PARTICLE, ParticlePool, STREAK_COVER } from './particles.ts';
 import { SKID, skidShade, Skids } from './trails.ts';
-import { CONFETTI, CONFETTI_BURST, POP, STRIKE_BURST, Vfx } from './vfx.ts';
+import { CONFETTI, CONFETTI_BURST, GEAR_POP, POP, STRIKE_BURST, Vfx } from './vfx.ts';
 
 /** Every live particle's position and velocity, read back from the pool's buffers. */
 function offsets(pool: ParticlePool): number[][] {
@@ -138,10 +140,11 @@ describe('tyre marks darken what they lie on', () => {
   });
 });
 
-describe('balloon and coin pops', () => {
-  const pop = (kind: 'balloon' | 'coin', mine: boolean) => {
+describe('balloon pops and gear pickups', () => {
+  const pop = (kind: 'balloon' | 'gear', mine: boolean, speed = 0) => {
     const vfx = new Vfx(new Scene(), new PerspectiveCamera());
     const k = createKartState({ racerId: 'nova', isPlayer: mine, position: [0, 0, 0], heading: 0 });
+    k.speed = speed;
     const fx = newEffects();
     fx.bursts.push({ kind, racerId: 'nova', mine });
     vfx.onTick(fx, () => k, 0, false);
@@ -157,8 +160,67 @@ describe('balloon and coin pops', () => {
     expect(Math.max(...POP.rivalGlow)).toBeLessThanOrEqual(1);
   });
 
-  it('a rival picking up a coin sparkles less than you do', () => {
-    expect(pop('coin', false).glow.count).toBeLessThan(pop('coin', true).glow.count);
+  it('a rival picking up a gear sparkles less than you do', () => {
+    expect(pop('gear', false).glow.count).toBeLessThan(pop('gear', true).glow.count);
+  });
+
+  it('a gear picked up throws a ratchet of sparks, one per tooth, round the kart and turning, carried along with it (not a coin\'s flip)', () => {
+    const vfx = pop('gear', true, 20);
+    expect(vfx.glow.count).toBe(POP.mine.gearSparks + 1); // and the glint at its heart
+    const before = offsets(vfx.glow).slice(0, POP.mine.gearSparks);
+    // a ring round a point 1.1 m over the kart, standing across the road (the kart heads +Z)
+    const cy = GEAR_POP.up;
+    for (const [x, y, z] of before) {
+      expect(Math.hypot(x, y - cy)).toBeCloseTo(GEAR_POP.radius, 4);
+      expect(z).toBeCloseTo(0, 5);
+    }
+    vfx.glow.update(0.1);
+    const after = offsets(vfx.glow).slice(0, POP.mine.gearSparks);
+    // carried along with the kart (20 m/s up the road), and every spark has swung the same way round the ring
+    const angle = ([x, y]: number[]) => Math.atan2(y - cy, x);
+    const turned = after.map((p, i) => { const d = angle(p) - angle(before[i]); return Math.atan2(Math.sin(d), Math.cos(d)); });
+    for (let i = 0; i < after.length; i++) expect(after[i][2]).toBeCloseTo(2, 1);
+    expect(new Set(turned.map((d) => Math.sign(d))).size).toBe(1);
+    expect(Math.abs(turned[0])).toBeGreaterThan(0.3);
+  });
+});
+
+describe('gears knocked loose (gears.ts)', () => {
+  const lose = (count: number, n = 1) => {
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+    const k = createKartState({ racerId: 'nova', isPlayer: true, position: [0, 2, 0], heading: 0 });
+    k.speed = 20;
+    for (let i = 0; i < n; i++) {
+      const fx = newEffects();
+      fx.bursts.push({ kind: 'gearsLost', racerId: 'nova', mine: true, count });
+      vfx.onTick(fx, () => k, 0, false);
+    }
+    return vfx;
+  };
+
+  it('each gear a hit costs flies out of the kart as a little gear, one draw for all, up and out to both sides, lands, and is gone within a second and a bit', () => {
+    const vfx = lose(2), g = vfx.gears;
+    expect(g.flying).toBe(2);
+    expect(g.mesh.name).toBe('gears-lost');
+    expect(g.mesh.geometry).toBe(decorGeometry('coin')!.body); // the track's gear
+    g.update(1 / 60);
+    expect([g.mesh.visible, g.mesh.count]).toEqual([true, 2]);
+    const at = (i: number) => new Vector3().setFromMatrixPosition(new Matrix4().fromArray(g.mesh.instanceMatrix.array as Float32Array, i * 16));
+    let high = 0;
+    for (let t = 0; t < 0.5; t += 1 / 60) { g.update(1 / 60); high = Math.max(high, at(0).y, at(1).y); }
+    expect(high).toBeGreaterThan(2 + 1.5); // thrown well up over the kart
+    expect(Math.sign(at(0).x)).not.toBe(Math.sign(at(1).x)); // out to either side
+    for (let t = 0; t < 0.4; t += 1 / 60) g.update(1 / 60);
+    expect(Math.min(at(0).y, at(1).y)).toBeGreaterThanOrEqual(2 + SCATTER.rest - 1e-6); // never through the road
+    for (let t = 0; t < SCATTER.life; t += 1 / 60) g.update(1 / 60);
+    expect([g.flying, g.mesh.count, g.mesh.visible]).toEqual([0, 0, false]);
+  });
+
+  it('never more in the air than the pool holds; a new race clears them', () => {
+    const vfx = lose(2, 20);
+    expect(vfx.gears.flying).toBe(SCATTER.cap);
+    vfx.reset();
+    expect(vfx.gears.flying).toBe(0);
   });
 });
 
