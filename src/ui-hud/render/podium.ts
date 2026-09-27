@@ -5,8 +5,9 @@
 import '../podium.css';
 import { SHAPE_PATHS } from '../icons.ts';
 import type { PodiumVM } from '../screens/podium.ts';
+import { letters } from './banner.ts';
 import { button, clear, h } from './dom.ts';
-import { face, type ScreenView } from './screens.ts';
+import { face, rankCell, type ScreenView } from './screens.ts';
 
 export class PodiumView implements ScreenView {
   readonly root: HTMLElement;
@@ -21,7 +22,12 @@ export class PodiumView implements ScreenView {
     clear(this.root);
     this.buttons.clear();
     const top = h('div', 'podium-top', this.root);
-    h('h2', 'podium-head', top, vm.headline);
+    // the headline as the race's banners draw theirs: struck letters dropping in (render/banner.ts); named whole
+    const head = h('h2', 'podium-head', top);
+    head.setAttribute('aria-label', vm.headline);
+    const chs = h('span', 'chs', head);
+    chs.setAttribute('aria-hidden', 'true');
+    letters(chs, vm.headline);
     // the series and the player's stars on one row under it, clear of the cup the camera shows above the winner
     const meta = h('div', 'podium-meta', top);
     h('div', 'podium-sub', meta, vm.sub);
@@ -38,7 +44,7 @@ export class PodiumView implements ScreenView {
     for (const p of vm.places) {
       const li = h('li', `podium-place p${p.place}${p.player ? ' me' : ''}`, list);
       li.style.setProperty('--accent', p.accent);
-      h('span', 'rk', li, p.label);
+      rankCell(li, p.label);
       face(li, p.racerId);
       h('span', 'nm', li, p.name + (p.player ? ' (you)' : ''));
     }

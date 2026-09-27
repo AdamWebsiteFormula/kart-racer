@@ -5,7 +5,9 @@ import { GO_TICK, STEP_TICKS } from '../race-manager/countdown.ts';
 import { RACE } from '../race-manager/constants.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { UI } from './constants.ts';
-import { CONTROLS_STRIP, feedHud, hudModel, lapPop, lapSplits, newHudMemory, positionTier } from './hudModel.ts';
+import { CONTROLS_STRIP, feedHud, hudModel, lapPop, lapSplits, newHudMemory, positionTier, startLamps } from './hudModel.ts';
+import { startLampsLit } from '../track-builder/mesh/gantry.ts';
+import { SIM_DT } from '../kart-controller/step.ts';
 
 const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
 
@@ -172,6 +174,25 @@ describe('countdown', () => {
       const vm = hudModel(counting(stepped + 1), kart(), 4, 10, m, 0, defs, 0);
       expect([vm.banner?.kind, vm.banner?.text, vm.keysHint], `tick ${stepped}`).toEqual(['countdown', want, true]);
     }
+  });
+
+  it('the start lamps near the camera light with the gantry\'s own, tick for tick: one red a beat with the count, green for the beat after GO, then away (27 Sept 2026)', () => {
+    // race time as RaceManager keeps it: the tick last stepped, from the go (race.ts step)
+    const timeAt = (tick: number) => (tick - 1 - GO_TICK) * SIM_DT;
+    const m = newHudMemory();
+    for (let tick = 0; tick <= GO_TICK + 3 * STEP_TICKS; tick++) {
+      const t = timeAt(tick);
+      expect(startLamps(t), `tick ${tick}`).toBe(startLampsLit(t));
+      const st = race({ phase: tick <= GO_TICK ? 'countdown' : 'racing', tick, goTick: GO_TICK, time: t });
+      expect(hudModel(st, kart(), 8, 10, m, 0, defs, 0).lamps, `tick ${tick}`).toBe(startLampsLit(t));
+    }
+    // the count's numeral and the lamps say the same beat: 3 with one red, 2 with two, 1 with three
+    for (const [tick, n, lit] of [[STEP_TICKS / 2, '3', 1], [STEP_TICKS * 1.5, '2', 2], [STEP_TICKS * 2.5, '1', 3]] as const) {
+      const vm = hudModel(race({ phase: 'countdown', tick, goTick: GO_TICK, time: timeAt(tick) }), kart(), 8, 10, m, 0, defs, 0);
+      expect([vm.banner?.text, vm.lamps]).toEqual([n, lit]);
+    }
+    // the course intro (tick 0), the race well under way, and a state with no clock: no board
+    expect([startLamps(-GO_TICK * SIM_DT), startLamps(30), startLamps(Number.NaN)]).toEqual([0, 0, 0]);
   });
 
   it('a pause (or a hidden tab) holds the number and the controls strip: the wall clock runs on, the sim does not (bug hunt 3)', () => {

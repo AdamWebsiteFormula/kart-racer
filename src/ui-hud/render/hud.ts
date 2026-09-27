@@ -7,6 +7,8 @@ import { iconFor, iconMarkup, medalSvg, wheelSvg } from '../icons.ts';
 import { gearSvg } from '../gearIcon.ts';
 import { medalLabel } from '../screens/menus.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
+import { RACE } from '../../race-manager/constants.ts';
+import { letters } from './banner.ts';
 import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
 
 class SlotView {
@@ -236,7 +238,16 @@ export class HudView {
   private lapFinal: Flag;
   private mirror: Flag;
   private banner: HTMLElement;
-  private bannerBig: TextField;
+  /** the banner's words once, for assistive tech (the letters beside them are for the eyes) */
+  private bannerWords: TextField;
+  /** the banner's letters (render/banner.ts), drawn again only when the words or their kind change */
+  private bannerLetters: HTMLElement;
+  private shownText = '';
+  private shownKind = 'none';
+  /** the words going: a copy that squashes and stretches away while the next words come in (hidden from assistive tech) */
+  private ghost: HTMLElement;
+  private ghostLetters: HTMLElement;
+  private ghostKind: Attr;
   private bannerSmall: TextField;
   private bannerKind: Attr;
   private bannerSkip: Flag;
@@ -262,6 +273,12 @@ export class HudView {
   private splitsKey = '';
   /** the lap popped in the splits as last drawn (lap|delta; '' none) */
   private popKey = '';
+  /** the start lamps near the camera: which are lit, the board on show, and the board going up and away after GO */
+  private lamps: HTMLElement;
+  private lampsLit: Attr;
+  private lampsOn: Flag;
+  private lampsLeaving: Flag;
+  private lampsShown = false;
 
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen hud', parent);
@@ -317,10 +334,23 @@ export class HudView {
     wheel.setAttribute('aria-label', 'Steering assist on');
     this.assist = new Attr(wheel, 'data-state');
 
+    // the start lamps, held near the camera as the countdown begins (hudModel startLamps: lit with the gantry's own)
+    this.lamps = h('div', 'lamps', this.root);
+    this.lamps.setAttribute('aria-hidden', 'true');
+    for (let k = 0; k < RACE.countdownSteps; k++) h('span', 'lamp', this.lamps);
+    this.lampsLit = new Attr(this.lamps, 'data-lit');
+    this.lampsOn = new Flag(this.lamps, 'on');
+    this.lampsLeaving = new Flag(this.lamps, 'leaving');
+    // up and away: then out of sight for good (a screen's exit animation would bring back what an animation holds)
+    this.lamps.addEventListener('animationend', (e) => { if (e.animationName === 'lamps-up') this.lampsLeaving.set(false); });
+
     this.banner = h('div', 'banner', this.root);
     this.banner.setAttribute('aria-live', 'polite');
     this.banner.setAttribute('role', 'status');
-    this.bannerBig = new TextField(h('span', 'big display', this.banner));
+    const big = h('span', 'big', this.banner);
+    this.bannerWords = new TextField(h('span', 'sr-only', big));
+    this.bannerLetters = h('span', 'chs', big);
+    this.bannerLetters.setAttribute('aria-hidden', 'true');
     this.bannerSmall = new TextField(h('span', 'small', this.banner));
     this.bannerKind = new Attr(this.banner, 'data-kind');
     const medal = h('span', 'medal-won', this.banner);
@@ -338,6 +368,11 @@ export class HudView {
       return e;
     };
     this.bannerSkip = new Flag(prompt(this.banner, 'skip sr-only'), 'on');
+    // after the banner, and under it (ui.css): the words going, as the next come in
+    this.ghost = h('div', 'banner ghost', this.root);
+    this.ghost.setAttribute('aria-hidden', 'true');
+    this.ghostLetters = h('span', 'chs', h('span', 'big', this.ghost));
+    this.ghostKind = new Attr(this.ghost, 'data-kind');
     const pill = prompt(this.root, 'finish-go');
     pill.setAttribute('aria-hidden', 'true');
     this.skipPill = new Flag(pill, 'on');
@@ -408,12 +443,38 @@ export class HudView {
     const key = b ? `${b.kind}|${b.text}|${b.sub}|${b.skip}` : '';
     if (key !== this.lastBanner) {
       this.lastBanner = key;
-      this.bannerBig.set(b?.text ?? '');
+      const text = b?.text ?? '', kind = b?.kind ?? 'none';
+      // new words (not only a new line under them): the ones on show squash and stretch away as these drop in
+      const fresh = text !== this.shownText || kind !== this.shownKind;
+      if (fresh) {
+        if (this.shownText) {
+          this.ghostKind.set(this.shownKind);
+          letters(this.ghostLetters, this.shownText);
+          replay(this.ghost, 'out');
+        }
+        this.shownText = text;
+        this.shownKind = kind;
+        letters(this.bannerLetters, text);
+      }
+      this.bannerWords.set(text);
       this.bannerSmall.set(b?.sub ?? '');
-      this.bannerKind.set(b?.kind ?? 'none');
+      this.bannerKind.set(kind);
       this.bannerSkip.set(b?.skip ?? false);
       this.skipPill.set(b?.skip ?? false);
-      if (b) replay(this.banner, 'show'); else this.banner.classList.remove('show');
+      if (!b) this.banner.classList.remove('show');
+      else if (fresh) replay(this.banner, 'show');
+    }
+    // the start lamps: on show from the first red to the green, then up and away (the last lamps lit go with them)
+    const lit = vm.lamps;
+    if (lit !== 0) {
+      this.lampsLit.set(lit < 0 ? 'go' : String(lit));
+      this.lampsLeaving.set(false);
+      this.lampsOn.set(true);
+      this.lampsShown = true;
+    } else if (this.lampsShown) {
+      this.lampsShown = false;
+      this.lampsOn.set(false);
+      this.lampsLeaving.set(true);
     }
     this.medalIcon.set(vm.medal ? medalSvg(vm.medal, 64) : '');
     this.medalText.set(vm.medal ? `${medalLabel(vm.medal)} medal!` : '');

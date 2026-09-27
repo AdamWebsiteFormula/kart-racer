@@ -1,34 +1,35 @@
 /* The podium ceremony's overlay (render/podium.ts). No dim and no panel: the 3D ceremony shows through.
-   House style: the headline like the race banners (Lilita One in sun, an ink stroke and drop), the places
-   as the results rows' little cards, Continue the house button. Tokens from ui.css. Reduced motion: ui.css
-   drops every animation to 1 ms, so it simply appears. */
+   House style (27 Sept 2026, the end screens in the setup's glass): the headline struck in gold like the race's banners
+   (ui.css .ch: its letters drop in one after another), the places as the results' glass bars in their podium colors
+   (the player's in the sun), each popping in, 3rd to 1st, and Continue a pane of glass with the one focus ring.
+   Tokens from ui.css. Reduced motion: ui.css drops every animation to 1 ms, so it simply appears. */
 
 #ui .podium { pointer-events: none; }
 
 .podium .podium-top {
   position: absolute;
-  top: calc(20px + var(--safe-t));
+  top: calc(18px + var(--safe-t));
   left: 50%;
-  width: min(92vw, 980px);
+  width: min(94vw, 1180px);
   transform: translateX(-50%);
   text-align: center;
-  animation: podium-drop var(--t-slow) var(--pop) 300ms backwards;
 }
 .podium-head {
+  --face: linear-gradient(180deg, #fffbe8 14%, #ffe76a 42%, #ffc21c 43%, #ffa00e 66%, #f27a00 84%);
+  --side: #a44300;
   margin: 0;
-  font: 400 clamp(46px, 6.6vw, 92px)/1 var(--display);
-  color: var(--sun);
-  -webkit-text-stroke: 6px var(--ink);
-  paint-order: stroke fill;
-  text-shadow: 0 7px 0 var(--ink);
+  font: 400 clamp(46px, 6.4vw, 96px)/1.12 var(--display);
+  letter-spacing: 0.03em;
 }
-.podium-meta { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
+.podium.on .podium-head .ch { animation: ch-drop 640ms backwards; animation-delay: calc(260ms + var(--i) * 38ms); }
+.podium-meta { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; animation: pop-in var(--t-slow) var(--pop) 900ms backwards; }
 .podium-sub {
   display: inline-block;
   padding: 7px 18px;
   border-radius: 999px;
-  background: rgb(27 27 47 / 0.62);
-  color: var(--paper);
+  background: linear-gradient(180deg, rgb(34 40 94 / 0.86), rgb(16 18 46 / 0.9));
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.36);
+  color: #fff;
   font: 600 18px/1.2 var(--body);
 }
 .podium .podium-stars { margin: 0; gap: 4px; }
@@ -47,57 +48,67 @@
   flex-wrap: wrap;
   gap: 12px 16px;
   pointer-events: auto;
-  animation: pop-in var(--t-slow) var(--pop) 1000ms backwards;
 }
-.podium-places { display: flex; align-items: flex-end; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.podium-places { display: flex; align-items: flex-end; gap: 12px; margin: 0; padding: 0; list-style: none; }
+/* each place a bar of the results' glass, its place struck in its podium color (ui.css .row.r1 .rk and the rest) */
 .podium-place {
-  --face: 34px;
+  --face: 36px;
   display: grid;
   grid-template-columns: auto var(--face) auto;
   align-items: center;
-  gap: 9px;
-  padding: 9px 15px;
-  border: 3px solid var(--ink);
-  border-radius: var(--radius-sm);
-  background: var(--paper);
-  color: var(--ink);
+  gap: 10px;
+  padding: 9px 18px 9px 14px;
+  border: 3px solid transparent;
+  border-radius: 17px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.15) 0%, rgb(255 255 255 / 0.04) 46%, transparent 48%) padding-box,
+    linear-gradient(90deg, rgb(30 36 88 / 0.92), rgb(20 24 62 / 0.86)) padding-box;
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.3), inset 0 1.5px 0 rgb(255 255 255 / 0.45), 0 8px 18px rgb(8 10 30 / 0.34);
+  color: #fff;
   font: 600 19px/1 var(--body);
-  box-shadow: 0 5px 0 var(--ink);
   white-space: nowrap;
+  animation: pop-in var(--t-slow) var(--pop) backwards;
 }
-/* the winner's card stands a step higher, as on the podium */
-.podium-place.p1 { margin-bottom: 12px; }
-.podium-place .rk { font: 400 26px/1 var(--display); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
-.podium-place.p1 .rk { color: var(--gold); }
-.podium-place.p2 .rk { color: var(--silver); }
-.podium-place.p3 .rk { color: var(--bronze); }
-.podium-place.me { background: var(--sun); }
+/* 3rd, then 2nd, then the winner, a beat apart; the winner's bar stands a step higher, as on the podium */
+.podium-place.p3 { animation-delay: 1000ms; }
+.podium-place.p2 { animation-delay: 1160ms; }
+.podium-place.p1 { margin-bottom: 14px; animation-delay: 1340ms; }
+.podium-place .rk { font: 400 34px/1 var(--display); white-space: nowrap; transform: skewX(-8deg); }
+.podium-place .nm { font: 400 23px/1.1 var(--display); letter-spacing: 0.01em; -webkit-text-stroke: 2.5px var(--ink); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink); }
+.podium-place.me {
+  border-color: var(--ink);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.42) 0%, rgb(255 255 255 / 0.12) 46%, transparent 48%) padding-box,
+    linear-gradient(90deg, #ffd84a, #f7b52a) padding-box;
+  box-shadow: inset 0 1.5px 0 rgb(255 255 255 / 0.6), 0 0 26px 4px rgb(255 200 50 / 0.45), 0 8px 18px rgb(8 10 30 / 0.35);
+}
 .podium-mine {
   align-self: center;
   padding: 10px 18px;
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--paper);
+  background: linear-gradient(180deg, rgb(34 40 94 / 0.9), rgb(16 18 46 / 0.92));
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.4);
+  color: #fff;
   font: 600 19px/1 var(--body);
   white-space: nowrap;
+  animation: pop-in var(--t-slow) var(--pop) 1500ms backwards;
 }
-.podium .podium-bar .btn { align-self: center; padding: 10px 26px; }
-
-@keyframes podium-drop { from { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(0.9); } to { opacity: 1; transform: translateX(-50%); } }
+.podium .podium-bar .btn { align-self: center; padding: 10px 26px; animation: pop-in var(--t-slow) var(--pop) 1600ms backwards; }
 
 /* a phone on its side: smaller, tighter, nothing off the screen */
 @media (max-height: 500px) {
-  .podium .podium-top { top: calc(10px + var(--safe-t)); }
-  .podium-head { font-size: clamp(32px, 7vh, 48px); -webkit-text-stroke-width: 4px; text-shadow: 0 4px 0 var(--ink); }
-  .podium-meta { margin-top: 6px; gap: 8px; }
+  .podium .podium-top { top: calc(8px + var(--safe-t)); }
+  .podium-head { font-size: clamp(30px, 7.4vh, 46px); }
+  .podium-meta { margin-top: 4px; gap: 8px; }
   .podium-sub { padding: 4px 12px; font-size: 14px; }
   .podium .podium-stars .star { width: 26px; height: 26px; }
   .podium .podium-bar { bottom: calc(10px + var(--safe-b)); gap: 8px 10px; }
   .podium-places { gap: 6px; }
-  .podium-place { --face: 26px; padding: 5px 10px; font-size: 15px; gap: 6px; box-shadow: 0 3px 0 var(--ink); }
+  .podium-place { --face: 26px; padding: 4px 11px 4px 8px; font-size: 15px; gap: 6px; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.3), 0 4px 10px rgb(8 10 30 / 0.3); }
   .podium-place .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
   .podium-place.p1 { margin-bottom: 6px; }
-  .podium-place .rk { font-size: 19px; }
+  .podium-place .rk { font-size: 22px; }
+  .podium-place .nm { font-size: 16px; -webkit-text-stroke-width: 2px; text-shadow: 0 1.5px 0 var(--ink); }
   .podium-mine { padding: 7px 12px; font-size: 15px; }
   .podium .podium-bar .btn { padding: 6px 18px; }
   .podium .podium-bar .btn .label { font-size: 20px; }
@@ -112,7 +123,8 @@
    the kart the camera circles (the prompt for the results waits on its pill below it, ui.css .finish-go); the
    item slots, the map, the assist badge and the hints go; the place and the time stay (a press or a tap still goes
    straight to the results). --banner-scale: FINISH! keeps it as it rises away for the results (ui.css x-rise-out) */
-#ui .hud.celebrate .banner { --banner-scale: 0.56; top: 12%; transform: scale(var(--banner-scale)); transform-origin: 50% 0; transition: top 700ms var(--out), transform 700ms var(--out); }
+/* (FINISH! lands big first, every letter down, then rises: MKW's FINISH comes in over the kart before anything moves aside) */
+#ui .hud.celebrate .banner { --banner-scale: 0.56; top: 12%; transform: scale(var(--banner-scale)); transform-origin: 50% 0; transition: top 700ms var(--out) 1s, transform 700ms var(--out) 1s; }
 /* (the Knockout's TOP 6 strip goes too: under the timer it crowded FINISH! on a laptop; the cut screen comes next) */
 #ui .hud.celebrate :is(.tl, .br, .assist-dock, .keys-hint, .ko-strip) { opacity: 0; transition: opacity 500ms ease; }
 #ui:has(.hud.celebrate) .touch { display: none; }
