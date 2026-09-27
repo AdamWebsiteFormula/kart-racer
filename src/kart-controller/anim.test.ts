@@ -191,6 +191,26 @@ describe('KartAnim: shoves', () => {
     drive(b, t, NEUTRAL_INPUT, 60, 0, (k, i) => { k.lateralVelocity = -Math.min(i, 30) * 0.3; });
     expect(Math.abs(b.curr.squash)).toBeLessThan(1e-9);
   });
+
+  it('a shove sets the body wobbling on a loose spring and snaps the head away from the push; it dies within a second or two', () => {
+    const a = new KartAnim(c), s = cruising();
+    drive(a, s, NEUTRAL_INPUT, 60);
+    s.lateralVelocity = c.bumpForce;
+    const yaw: number[] = [];
+    let look = 0;
+    for (let i = 0; i < 90; i++) { s.lateralVelocity *= 0.9; const p = drive(a, s, NEUTRAL_INPUT, 1); yaw.push(p.yaw); look = Math.min(look, a.curr.look); }
+    // it swings both ways (a wobble, not one lean)
+    expect(Math.max(...yaw)).toBeGreaterThan(0.03);
+    expect(Math.min(...yaw)).toBeLessThan(-0.01);
+    expect(look).toBeLessThan(-0.05);
+    expect(Math.abs(drive(a, s, NEUTRAL_INPUT, 240).yaw)).toBeLessThan(0.002);
+    // reduced motion keeps only a share of the wobble
+    const r = new KartAnim(c), q = cruising();
+    drive(r, q, NEUTRAL_INPUT, 60);
+    q.lateralVelocity = c.bumpForce;
+    drive(r, q, NEUTRAL_INPUT, 6);
+    expect(Math.abs(r.pose(1, true, newPose()).yaw)).toBeCloseTo(Math.abs(r.pose(1, false, newPose()).yaw) * T.reducedScale, 9);
+  });
 });
 
 describe('KartAnim: pitch', () => {
@@ -304,6 +324,44 @@ describe('KartAnim: hits', () => {
     expect(most).toBeCloseTo(2 * Math.PI * T.spinTurns, 3);
     expect(biggestStep).toBeLessThan(0.1); // no frame jumps (0.1 rad is a fast spin's step at 4 samples a tick)
     expect(a.pose(1, false, pose).spin).toBe(0); // done: the whole turn is dropped from both ends
+  });
+
+  it('a hit tosses the kart: a hop with the nose up and a roll into the spin, a squash as it lands, the head snapped back (27 Sept 2026: "a flat spin")', () => {
+    const a = new KartAnim(c), s = cruising(15);
+    drive(a, s, NEUTRAL_INPUT, 30);
+    s.status.spinRemaining = c.hitSpinSeconds;
+    let hop = 0, nose = 0, head = 0, squash = 0, landedAt = -1;
+    for (let i = 0; i < 90; i++) {
+      drive(a, s, NEUTRAL_INPUT, 1);
+      s.status.spinRemaining = Math.max(0, s.status.spinRemaining - dt);
+      const p = a.pose(1, false, newPose());
+      hop = Math.max(hop, p.hop); nose = Math.min(nose, a.curr.pitch); head = Math.min(head, a.curr.nod);
+      if (p.hop === 0 && hop > 0 && landedAt < 0) landedAt = i;
+      if (landedAt >= 0 && i < landedAt + 20) squash = Math.min(squash, a.curr.squash);
+    }
+    expect(hop).toBeGreaterThan(T.hitHop * 0.95);
+    expect(hop).toBeLessThanOrEqual(T.hitHop + 1e-9);
+    expect(landedAt * dt).toBeCloseTo(T.hitHopSeconds, 1);
+    expect(nose).toBeLessThan(-T.hitTumble * 0.8);
+    expect(head).toBeLessThan(-0.05);
+    expect(squash).toBeLessThan(-0.03);
+  });
+
+  it('the dizzy recover: once the spin ends the body sways and the head wobbles round, dying away; then it is still', () => {
+    const a = new KartAnim(c), s = cruising(10);
+    drive(a, s, NEUTRAL_INPUT, 30);
+    s.status.spinRemaining = c.hitSpinSeconds;
+    for (let i = 0; i < Math.ceil(c.hitSpinSeconds / dt) + 1; i++) { drive(a, s, NEUTRAL_INPUT, 1); s.status.spinRemaining = Math.max(0, s.status.spinRemaining - dt); }
+    let swayL = 0, swayR = 0, lookL = 0, lookR = 0;
+    for (let i = 0; i < Math.round(T.dizzySeconds / dt); i++) {
+      const p = drive(a, s, NEUTRAL_INPUT, 1);
+      swayL = Math.min(swayL, p.yaw); swayR = Math.max(swayR, p.yaw); lookL = Math.min(lookL, p.look); lookR = Math.max(lookR, p.look);
+    }
+    expect(swayR - swayL).toBeGreaterThan(T.dizzySway);
+    expect(lookR - lookL).toBeGreaterThan(T.dizzyLook);
+    const still = drive(a, s, NEUTRAL_INPUT, 240);
+    expect(Math.abs(still.yaw)).toBeLessThan(0.002);
+    expect(Math.abs(still.look)).toBeLessThan(0.002);
   });
 
   it('reduced motion scales everything down and swaps the spin for a small wobble', () => {

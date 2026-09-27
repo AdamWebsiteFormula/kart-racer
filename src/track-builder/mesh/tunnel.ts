@@ -1,9 +1,10 @@
 // The mine on Mesa Rush (a shortcut's `tunnel`: track-builder/tunnel.ts). A rock bore portal to
 // portal (walls at the curb, an arched roof), timber frames every tunnelFrameSpacing metres, lanterns
 // on alternate walls, and a heavy timber portal with a header board at each end. The mesa over it is
-// the land (terrain.ts). One mesh, vertex colours, one draw call; the lanterns light themselves: dim
-// embers until the Final Lap Shift, when they flicker on one after another from the mouth in (the
-// only route is the mine now, "now lit": design §6; the shift's stage sets `userData.lamps`).
+// the land (terrain.ts). One mesh, vertex colours, one draw call; the lanterns light themselves and the
+// bore round them (BORE_LIGHT): burning low until the Final Lap Shift, when they flicker on one after
+// another from the mouth in (the only route is the mine now, "now lit": design §6; the shift's stage
+// sets `userData.lamps`), and the road through it takes their pools (lightBoreRoad).
 import { BufferGeometry, DoubleSide, Float32BufferAttribute, Mesh, MeshToonMaterial, type Texture } from 'three';
 import { BUILDER } from '../constants.ts';
 import type { TunnelLine } from '../tunnel.ts';
@@ -25,6 +26,122 @@ const ARCH = 8, FLOOR = -0.5;
 
 /** `lamp`: per vertex, metres into the bore from its mouth for a lantern's glass, else -1; `cur` is what the next quads get. */
 interface Buf { pos: number[]; col: number[]; idx: number[]; lamp: number[]; cur: number }
+
+/**
+ * The bore's own light, baked per vertex at build time (27 Sept 2026, the fresh-eyes review's item 10: on laps 1
+ * and 2 "most of the screen goes black" in the mine; Mario Kart World's covered stretches are dimmer but always
+ * readable, with lit walls, lamps and a glowing exit: YouTube ngiIINHSiJc 6:44 underpass, 6:58, 10:34 to 10:38
+ * the train's warm planks with a pool of light on the floor). Each lantern throws a warm pool on the rock and the
+ * timber round it (`reach` m, faces turned to it more, `wrap` of it on faces edge-on), a dim warm `fill` lies
+ * everywhere in the bore (their light off the walls), and the day spills in at both mouths (`dayReach` m). Before
+ * the Final Lap Shift the lanterns burn low (`ember` of their light, their glass at `glass`); each one's pool comes
+ * up to full as its lantern flickers on, from the mouth inward. Added after the scene's own lights, from the rock's
+ * and the timber's colors before the baked shading (bake.ts), which would darken the light of the lanterns too.
+ */
+export const BORE_LIGHT = Object.freeze({
+  ember: 0.38, glass: 0.3, reach: 2.8, wrap: 0.35, most: 2.2, power: 3.4,
+  warm: [1, 0.7, 0.42] as const,
+  fill: 0.18,
+  dayReach: 6.5, day: 1.15, dayColor: [1, 0.86, 0.7] as const,
+});
+
+/** A lantern: where its glass is and how far into the bore (m from its first mouth; its flicker waits for that). */
+export interface Lantern { x: number; y: number; z: number; at: number }
+
+/** The nearest of a tunnel line's points to (x, z): its index and squared distance, into `out` (every 4th point, then the ones round the best). */
+function nearestOnLine(t: TunnelLine, x: number, z: number, out: { k: number; d2: number }): void {
+  const n = t.x.length;
+  let bd = Infinity, bk = 0;
+  for (let i = 0; i < n; i += 4) { const dx = t.x[i] - x, dz = t.z[i] - z, d = dx * dx + dz * dz; if (d < bd) { bd = d; bk = i; } }
+  const lo = Math.max(0, bk - 4), hi = Math.min(n - 1, bk + 4);
+  for (let i = lo; i <= hi; i++) { const dx = t.x[i] - x, dz = t.z[i] - z, d = dx * dx + dz * dz; if (d < bd) { bd = d; bk = i; } }
+  // the last point too (the coarse pass may step over it)
+  { const dx = t.x[n - 1] - x, dz = t.z[n - 1] - z, d = dx * dx + dz * dz; if (d < bd) { bd = d; bk = n - 1; } }
+  out.k = bk; out.d2 = bd;
+}
+
+/** The road's pools (lightBoreRoad): how much brighter at a pool's heart, m across, the fill between, the most they add up to. */
+export const BORE_ROAD = Object.freeze({ road: 1.9, roadReach: 3.6, roadFill: 0.4, most: 1.6 });
+/** The final lap's road through the bore: its lanterns' level (they are lit) and the bore's shade it never had baked. */
+export const FINAL_ROAD = Object.freeze({ level: 0.8, shade: 0.6 });
+
+/**
+ * The road through a bore, lit by its lanterns (27 Sept 2026: "the road readable"): each lantern's warm pool on
+ * the road under it (`roadReach` m across, `road` brighter at its heart) and their fill (`roadFill`), multiplied
+ * into the road's vertex colors once at build time, at `level` of the lanterns' light (BORE_LIGHT.ember for the
+ * shortcut's road on laps 1 and 2; `FINAL_ROAD.level` for the final lap's road, built with the shift, when they are
+ * lit). `shade`: the bore's own shade for a road the baked shading never saw (the final lap's, built ahead unbaked:
+ * `FINAL_ROAD.shade`, about what the bake gives the shortcut's road in the bore). Only what lies inside a bore changes.
+ * Returns how many vertices it lit.
+ */
+export function lightBoreRoad(geo: BufferGeometry, lanterns: readonly Lantern[], tunnels: readonly TunnelLine[], level: number, shade = 1): number {
+  const pos = geo.getAttribute('position'), col = geo.getAttribute('color');
+  if (!pos || !col || !lanterns.length) return 0;
+  const R = BORE_ROAD, W = BORE_LIGHT.warm, R2 = R.roadReach * R.roadReach, near = { k: 0, d2: 0 };
+  let lit = 0;
+  for (const t of tunnels) {
+    const ds = t.lut.length / t.lut.step, n = t.x.length;
+    for (let v = 0; v < pos.count; v++) {
+      const x = pos.getX(v), y = pos.getY(v), z = pos.getZ(v);
+      if (x < t.minX - 12 || x > t.maxX + 12 || z < t.minZ - 12 || z > t.maxZ + 12) continue;
+      nearestOnLine(t, x, z, near);
+      const bk = near.k, bd = near.d2;
+      // inside the bore: beside its line (not past a mouth), at its road's height
+      if (bk === 0 || bk === n - 1 || bd > 10 * 10 || Math.abs(y - t.y[bk]) > 2.5) continue;
+      const depth = Math.min(bk, n - 1 - bk) * ds, inside = Math.min(1, depth / 3);
+      let sum = 0;
+      for (const q of lanterns) { const dx = q.x - x, dz = q.z - z; sum += 1 / (1 + (dx * dx + dz * dz) / R2); }
+      const k = level * inside * (Math.min(R.most, sum) * R.road + R.roadFill), s = 1 + (shade - 1) * inside;
+      col.setXYZ(v, col.getX(v) * s * (1 + W[0] * k), col.getY(v) * s * (1 + W[1] * k), col.getZ(v) * s * (1 + W[2] * k));
+      lit++;
+    }
+  }
+  if (lit) col.needsUpdate = true;
+  return lit;
+}
+
+/**
+ * Each vertex's share of the bore's light (BORE_LIGHT): `lampLit` its color under the lanterns at full, `lampAt` how
+ * far in the lantern lighting it most is (its pool flickers on with it), `dayLit` its color in the day spilling in
+ * from the nearer mouth (and the fill). `pos`, `col` and `nrm` flat xyz; `lamp` > -0.5 marks a lantern's own glass.
+ */
+export function boreLight(pos: ArrayLike<number>, col: ArrayLike<number>, nrm: ArrayLike<number>, lamp: ArrayLike<number>, lanterns: readonly Lantern[], tunnels: readonly TunnelLine[]):
+  { lampLit: Float32Array; lampAt: Float32Array; dayLit: Float32Array } {
+  const L = BORE_LIGHT, n = lamp.length, R2 = L.reach * L.reach, far2 = (4 * L.reach) ** 2, near = { k: 0, d2: 0 };
+  const lampLit = new Float32Array(n * 3), lampAt = new Float32Array(n), dayLit = new Float32Array(n * 3);
+  for (let v = 0; v < n; v++) {
+    if (lamp[v] > -0.5) continue; // a lantern's glass lights itself
+    const x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
+    const nx = nrm[v * 3], ny = nrm[v * 3 + 1], nz = nrm[v * 3 + 2];
+    let sum = 0, best = 0, at = 0;
+    for (const q of lanterns) {
+      const dx = q.x - x, dy = q.y - y, dz = q.z - z, d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 > far2) continue;
+      const d = Math.sqrt(d2) || 1, facing = Math.abs(nx * dx + ny * dy + nz * dz) / d;
+      const f = (L.wrap + (1 - L.wrap) * facing) / (1 + d2 / R2);
+      sum += f;
+      if (f > best) { best = f; at = q.at; }
+    }
+    const k = Math.min(L.most, sum) * L.power;
+    lampAt[v] = at;
+    // how far into the bore it is from the nearer mouth (0 at a mouth and outside it)
+    let depth = 0;
+    for (const t of tunnels) {
+      nearestOnLine(t, x, z, near);
+      if (near.d2 > 12 * 12) continue;
+      const ds = t.lut.length / t.lut.step;
+      depth = Math.max(depth, Math.min(near.k, t.x.length - 1 - near.k) * ds);
+    }
+    // the day at a mouth (none right at it and outside: the sky lights that); the lanterns' fill, anywhere in
+    const inside = Math.min(1, depth / 1.5), day = L.day * inside * Math.exp(-depth / L.dayReach), lit = k + L.fill * inside;
+    for (let c = 0; c < 3; c++) {
+      const albedo = col[v * 3 + c];
+      lampLit[v * 3 + c] = albedo * L.warm[c] * lit;
+      dayLit[v * 3 + c] = albedo * L.dayColor[c] * day;
+    }
+  }
+  return { lampLit, lampAt, dayLit };
+}
 
 const hash = (i: number): number => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
@@ -53,6 +170,7 @@ const scale = (c: Rgb, k: number): Rgb => [c[0] * k, c[1] * k, c[2] * k];
 export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Texture | null, groundAt?: (x: number, z: number) => number): Mesh | null {
   if (!tunnels.length) return null;
   const b: Buf = { pos: [], col: [], idx: [], lamp: [], cur: -1 };
+  const glassAt: Lantern[] = [];
   const { kerbWidth, tunnelWall: WALL, tunnelApex: APEX, tunnelHill: HILL, tunnelFrameSpacing, tunnelLanternSpacing } = BUILDER;
   for (const t of tunnels) {
     const L = t.lut, ds = L.length / L.step;
@@ -113,7 +231,9 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
       const fr = frame(t.i0 + Math.round(((k - 0.5) * tunnelLanternSpacing) / ds)), side = k % 2 === 0 ? 1 : -1;
       const mul = (v: Vec3, s: number): Vec3 => [v[0] * s, v[1] * s, v[2] * s];
       b.cur = (k - 0.5) * tunnelLanternSpacing;
-      box(b, at(fr, side * (fr.w - 0.38), WALL - 0.8), mul(fr.r, 0.17), mul(fr.up, 0.24), mul(fr.f, 0.17), LAMP);
+      const glass = at(fr, side * (fr.w - 0.38), WALL - 0.8);
+      box(b, glass, mul(fr.r, 0.17), mul(fr.up, 0.24), mul(fr.f, 0.17), LAMP);
+      glassAt.push({ x: glass[0], y: glass[1], z: glass[2], at: b.cur });
       b.cur = -1;
       box(b, at(fr, side * (fr.w - 0.38), WALL - 0.48), mul(fr.r, 0.22), mul(fr.up, 0.07), mul(fr.f, 0.22), IRON);
       box(b, at(fr, side * (fr.w - 0.2), WALL - 0.44), mul(fr.r, 0.2), mul(fr.up, 0.04), mul(fr.f, 0.05), IRON);
@@ -169,7 +289,11 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
       box(b, out(at(fr, 0, APEX + 1.35)), mul(fr.r, Math.min(3.2, W * 0.6)), mul(fr.up, 0.5), mul(fr.f, 0.18), WOOD_LIGHT);
       // a lantern either side of the mouth (the far mouth's light last)
       b.cur = dir < 0 ? 0 : (t.i1 - t.i0) * ds;
-      for (const side of [-1, 1]) box(b, out(at(fr, side * (W + 1.05), WALL)), mul(fr.r, 0.2), mul(fr.up, 0.28), mul(fr.f, 0.2), LAMP);
+      for (const side of [-1, 1]) {
+        const glass = out(at(fr, side * (W + 1.05), WALL));
+        box(b, glass, mul(fr.r, 0.2), mul(fr.up, 0.28), mul(fr.f, 0.2), LAMP);
+        glassAt.push({ x: glass[0], y: glass[1], z: glass[2], at: b.cur });
+      }
       b.cur = -1;
     }
   }
@@ -179,6 +303,11 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
   g.setAttribute('lamp', new Float32BufferAttribute(b.lamp, 1));
   g.setIndex(b.idx);
   g.computeVertexNormals();
+  // the bore's own light (BORE_LIGHT), from the colors as built (the baked shading comes later, to `color` only)
+  const light = boreLight(b.pos, b.col, g.getAttribute('normal').array, b.lamp, glassAt, tunnels);
+  g.setAttribute('lampLit', new Float32BufferAttribute(light.lampLit, 3));
+  g.setAttribute('lampAt', new Float32BufferAttribute(light.lampAt, 1));
+  g.setAttribute('dayLit', new Float32BufferAttribute(light.dayLit, 3));
   const mat = new MeshToonMaterial({ vertexColors: true, gradientMap, side: DoubleSide });
   glowFromVertexColours(mat);
   const lamps = { since: { value: -1 }, reduced: { value: 0 } };
@@ -186,6 +315,8 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
   const m = new Mesh(g, mat);
   m.name = 'tunnels';
   m.userData.lamps = lamps;
+  // where the lanterns are, for the road under them (lightBoreRoad)
+  m.userData.lanterns = glassAt;
   m.castShadow = true;
   m.receiveShadow = true;
   return m;
@@ -195,30 +326,50 @@ export function buildTunnels(tunnels: readonly TunnelLine[], gradientMap: Textur
 export const LANTERNS = Object.freeze({ delay: 0.35, speed: 60 });
 
 /**
- * The lanterns' light: an ember (5 % of its glow, the glass dim) until `since` (seconds since the Final
- * Lap Shift) reaches each one, when it flickers on twice over 0.3 s and burns steady with a faint
- * shimmer (reduced motion: straight on). Small lights, never a screen-sized flash.
+ * 0..1: how far a lantern `at` m into the bore is lit, `since` s after the Final Lap Shift (-1 before it): off
+ * until LANTERNS.delay plus its distance at LANTERNS.speed, then two flickers over 0.3 s (reduced motion: straight
+ * on), then steady with a faint shimmer. The shader's `lampOn` is the same.
+ */
+export function lampOn(since: number, at: number, reduced: boolean): number {
+  const t = since - (LANTERNS.delay + at / LANTERNS.speed);
+  if (since < 0 || t <= 0) return 0;
+  const flick = reduced || t >= 0.3 ? 1 : (((t * 6.5 + at * 0.37) % 1) >= 0.45 ? 1 : 0);
+  return flick * (0.95 + 0.05 * Math.sin(since * 7 + at));
+}
+
+/**
+ * The lanterns' light: low (their glass at BORE_LIGHT.glass, their pools at BORE_LIGHT.ember) until `since`
+ * (seconds since the Final Lap Shift) reaches each one, when it flickers on twice over 0.3 s and burns steady
+ * with a faint shimmer (reduced motion: straight on), its pool with it; the day spilling in at the mouths all
+ * along. The glass lights from its own color, LAMP, not the vertex color: the baked shading (bake.ts) darkens
+ * that below the glow line (glow.ts). Small lights, never a screen-sized flash.
  */
 function lanternsLight(m: MeshToonMaterial, u: { since: { value: number }; reduced: { value: number } }): void {
   const prev = m.onBeforeCompile;
+  const L = BORE_LIGHT, f = (x: number) => x.toFixed(3);
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
     shader.uniforms.uLampSince = u.since;
     shader.uniforms.uLampReduced = u.reduced;
-    shader.vertexShader = `attribute float lamp;\nvarying float vLamp;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vLamp = lamp;')}`;
-    shader.fragmentShader = `uniform float uLampSince;\nuniform float uLampReduced;\nvarying float vLamp;\n${shader.fragmentShader}`.replace('#include <aomap_fragment>', `#include <aomap_fragment>
+    shader.vertexShader = `attribute float lamp;\nattribute vec3 lampLit;\nattribute float lampAt;\nattribute vec3 dayLit;\nvarying float vLamp;\nvarying vec3 vLampLit;\nvarying float vLampAt;\nvarying vec3 vDayLit;\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vLamp = lamp; vLampLit = lampLit; vLampAt = lampAt; vDayLit = dayLit;')}`;
+    shader.fragmentShader = `uniform float uLampSince;\nuniform float uLampReduced;\nvarying float vLamp;\nvarying vec3 vLampLit;\nvarying float vLampAt;\nvarying vec3 vDayLit;
+float lampOn(float at) {
+  float t = uLampSince - (${LANTERNS.delay.toFixed(2)} + at / ${LANTERNS.speed.toFixed(1)});
+  if (uLampSince < 0.0 || t <= 0.0) return 0.0;
+  float flick = uLampReduced > 0.5 || t >= 0.3 ? 1.0 : step(0.45, fract(t * 6.5 + at * 0.37));
+  return flick * (0.95 + 0.05 * sin(uLampSince * 7.0 + at));
+}
+${shader.fragmentShader}`.replace('#include <aomap_fragment>', `#include <aomap_fragment>
       if (vLamp > -0.5) {
-        float t = uLampSince - (${LANTERNS.delay.toFixed(2)} + vLamp / ${LANTERNS.speed.toFixed(1)});
-        float lit = 0.0;
-        if (uLampSince >= 0.0 && t > 0.0) {
-          float flick = uLampReduced > 0.5 || t >= 0.3 ? 1.0 : step(0.45, fract(t * 6.5 + vLamp * 0.37));
-          lit = flick * (0.95 + 0.05 * sin(uLampSince * 7.0 + vLamp));
-        }
-        totalEmissiveRadiance *= mix(0.05, 1.0, lit);
+        float lit = lampOn(vLamp);
+        totalEmissiveRadiance = vec3(${f(LAMP[0] * 0.9)}, ${f(LAMP[1] * 0.9)}, ${f(LAMP[2] * 0.9)}) * mix(${f(L.glass)}, 1.0, lit);
         reflectedLight.directDiffuse *= mix(0.3, 1.0, lit);
         reflectedLight.indirectDiffuse *= mix(0.3, 1.0, lit);
+      } else {
+        // the lanterns' pools and their fill, low until each one's lantern comes on; the day at the mouths
+        totalEmissiveRadiance += vLampLit * mix(${f(L.ember)}, 1.0, lampOn(vLampAt)) + vDayLit;
       }`);
   };
   const key = m.customProgramCacheKey.bind(m);
-  m.customProgramCacheKey = () => `${key()}|lamps`;
+  m.customProgramCacheKey = () => `${key()}|lamps2`;
 }

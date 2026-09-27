@@ -6,6 +6,7 @@ import { decorGeometry, vertexToon } from '../art-pipeline/index.ts';
 import type { RevView } from '../kart-controller/rev.ts';
 import type { KartState } from '../kart-controller/types.ts';
 import { fadeNearCameraAlpha } from '../track-builder/mesh/glow.ts';
+import { Contact, type Drawn } from './contact.ts';
 import { GearScatter } from './gears.ts';
 import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, type Effects } from './juice.ts';
 import { KartFx } from './kartfx.ts';
@@ -75,6 +76,8 @@ export class Vfx {
   readonly time = new TimeScale();
   /** each kart's drift specks, flame flakes, pipe puffs, dust and tyre marks (kartfx.ts; the tyre stars and the flames burn on the kart's own mesh, flames.ts) */
   readonly kartFx = new KartFx(this.soft, this.skids);
+  /** contact with punch (contact.ts): bumps, walls and hits, a scrape's sparks, the dizzy stars and the player's camera jolt, in the pools above */
+  readonly contact = new Contact(this.glow, this.soft, this.kartFx.sparks);
   /** gears a hit knocks loose, flying out of the kart (gears.ts): the track's gear, small, in the items' own see-through-near-the-lens toon */
   readonly gears: GearScatter;
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
@@ -96,6 +99,7 @@ export class Vfx {
   /** New race: forget trails and particles. */
   reset(): void {
     this.glow.clear(); this.soft.clear(); this.confetti.clear(); this.skids.clear(); this.kartFx.reset(); this.gears.clear();
+    this.contact.reset();
     this.wet = 0;
     this.trauma.value = 0;
     this.time.reset(); // a restart mid hit-stop or slow-mo must not start frozen
@@ -171,11 +175,14 @@ export class Vfx {
           break;
         }
         case 'hitStars':
-          for (let i = 0; i < 14; i++) {
-            const a = (i / 14) * Math.PI * 2;
-            this.spawn(this.glow, x, y + 1.4, z, Math.cos(a) * 3, 3 + rnd() * 2, Math.sin(a) * 3, [1.9, 1.6, 0.3], 0.26, 0.6, 7, 1.5);
-          }
+          // the cartoon burst, a ring, stars flung out (contact.ts); the spin's stars circle the head in frame()
+          this.contact.hit(k, b.racerId === this.lastPlayer?.racerId, now, reduced);
           break;
+        case 'bump': {
+          const o = b.other ? kartOf(b.other) : undefined;
+          if (o) this.contact.bump(k, o, b.mine ? (this.lastPlayer?.racerId ?? null) : null, now, reduced);
+          break;
+        }
         case 'confetti': {
           // up the road from the kart (forward = (sin h, 0, cos h), right = (cos h, 0, −sin h))
           const C = CONFETTI_BURST, s = Math.sin(k.heading), c = Math.cos(k.heading);
@@ -186,9 +193,13 @@ export class Vfx {
           }
           break;
         }
-        case 'land': case 'wall':
+        case 'land':
           // a low, quick scuff of dust, not big pale puffs (they read as blurry blobs behind the kart, at night most of all)
           for (let i = 0; i < 8; i++) this.spawn(this.soft, x + sym() * 0.6, y + 0.15, z + sym() * 0.6, sym() * 2.5, rnd() * 1.2, sym() * 2.5, SCUFF, 0.3, 0.38, 0, 2.2, 1);
+          break;
+        case 'wall':
+          // sparks where the kart meets the wall, its dust there, a scrape along it (contact.ts)
+          this.contact.wall(k, b.mine ?? b.racerId === this.lastPlayer?.racerId, now, reduced);
           break;
         case 'shield':
           for (let i = 0; i < 18; i++) this.spawn(this.glow, x, y + 1, z, sym() * 3, sym() * 3, sym() * 3, [0.6, 1.3, 1.9], 0.25, 0.45, 0, 2);
@@ -285,16 +296,20 @@ export class Vfx {
   /**
    * Once per rendered frame. `simDt` is the sim time that passed this frame (0 while paused or
    * frozen), so emitters stop with the sim; particles keep fading on the real `dt`. `revs`: each
-   * kart's engine rev (kart-controller rev.ts), in `karts`' order, for the pipes' smoke.
+   * kart's engine rev (kart-controller rev.ts), in `karts`' order, for the pipes' smoke. `views`: the
+   * karts' drawn places, in `karts`' order (the dizzy stars circle the drawn head; else the sim's).
    */
-  frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean, revs?: readonly (RevView | undefined)[]): void {
+  frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean, revs?: readonly (RevView | undefined)[], views?: readonly Drawn[]): void {
     this.lastPlayer = player;
     // (an index loop, not for-of: an iterator is garbage every frame)
     if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced, revs?.[i], this.wet);
+    this.contact.emit(simDt, t, karts, camPos);
     this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt); this.gears.update(dt);
     this.skids.setTime(t);
     this.trauma.update(dt);
     this.trauma.shake(t, this.shake, !reduced);
+    // after the pools' update: the dizzy stars are drawn where they stand this frame; the player's contact jolt joins the shake
+    this.contact.draw(t, karts, views, this.shake, reduced);
     // the streaks run while a boost does, hardest at its punch; never under reduced motion
     this.lines.update(t, dt, this.boostLevel(player, t, reduced));
     this.camRoll.update(dt, player !== undefined && player.drift.active && player.grounded, player?.drift.direction ?? 0, player?.speed ?? 0, reduced);

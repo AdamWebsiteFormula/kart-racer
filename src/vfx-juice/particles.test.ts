@@ -4,7 +4,7 @@ import { decorGeometry } from '../art-pipeline/decor.ts';
 import { createKartState } from '../kart-controller/types.ts';
 import { SCATTER } from './gears.ts';
 import { newEffects } from './juice.ts';
-import { drawnSize, drawnStreak, nearFade, PARTICLE, ParticlePool, STREAK_COVER } from './particles.ts';
+import { drawnSize, drawnStreak, nearFade, PARTICLE, ParticlePool, SHAPE, STREAK_COVER } from './particles.ts';
 import { SKID, skidShade, Skids } from './trails.ts';
 import { CONFETTI, CONFETTI_BURST, GEAR_POP, POP, STRIKE_BURST, Vfx } from './vfx.ts';
 
@@ -69,6 +69,33 @@ describe('particles near the lens (detail review 2026-09-24)', () => {
     const pool = new ParticlePool(4, true);
     pool.spawn({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 1 });
     expect(Array.from(pool.mesh.geometry.getAttribute('aSpin').array as Float32Array)).toEqual(new Array(12).fill(0));
+  });
+
+  it('a star or a burst (contact.ts) turns as told, in any pool, and its slot forgets it once it is gone', () => {
+    const pool = new ParticlePool(4, false);
+    const o = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.3, life: 0.1, shape: SHAPE.star, spin: 5, phase: 1 };
+    pool.spawn(o);
+    const spin = pool.mesh.geometry.getAttribute('aSpin').array as Float32Array, shape = pool.mesh.geometry.getAttribute('aShape').array as Float32Array;
+    expect([spin[0], spin[1], spin[2], shape[0]]).toEqual([1, 5, 0, SHAPE.star]);
+    pool.update(0.2); // gone
+    pool.spawn({ ...o, shape: undefined, spin: undefined, phase: undefined, life: 1 });
+    expect([spin[0], spin[1], spin[2], shape[0]]).toEqual([0, 0, 0, 0]);
+    // a star is square (never the confetti's strip) and draws up to its own size cap
+    const m = pool.mesh.material as ShaderMaterial;
+    expect(m.vertexShader).toContain('mix(uStrip, 1.0, shaped)');
+    expect(m.uniforms.uMaxShape.value).toBe(PARTICLE.maxSize.shape);
+  });
+
+  it('place(): drawn this frame only, where it is put (the dizzy stars circling a head)', () => {
+    const pool = new ParticlePool(8, false);
+    pool.place({ x: 1, y: 2, z: 3, vx: 0, vy: 0, vz: 0, r: 1, g: 0.8, b: 0, size: 0.4, life: 0, shape: SHAPE.star, alpha: 0.5 });
+    expect(pool.count).toBe(1);
+    expect(pool.mesh.count).toBe(1);
+    const col = pool.mesh.geometry.getAttribute('aColor').array as Float32Array;
+    expect([col[0], col[1], col[2], col[3]]).toEqual([1, Math.fround(0.8), 0, 0.5]);
+    expect(offsets(pool)).toEqual([[1, 2, 3]]);
+    pool.update(1 / 60);
+    expect(pool.count).toBe(0);
   });
 });
 
