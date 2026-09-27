@@ -10,7 +10,8 @@ import { NearGhost } from './ghost.ts';
 import { insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
-import { buildTrackScene, isDrawn, PICKUP_GHOST } from './scene.ts';
+import { buildTrackScene, GEAR_MOTION, isDrawn, PICKUP_GHOST } from './scene.ts';
+import { trackAssetsFor } from '../../art-pipeline/decor.ts';
 import boardwalkJson from '../tracks/boardwalk-nights.json';
 import canyonJson from '../tracks/canyon-rush.json';
 
@@ -79,6 +80,59 @@ describe('draw-call budget (SOP test 14)', () => {
     expect(scene.instancers.get('balloons')!.count).toBe(HARBOUR_LOOP.pickups!.length);
     expect(scene.instancers.get('coins')!.count).toBe(HARBOUR_LOOP.coins!.length);
     expect(scene.instancers.get('decor:palm')!.count).toBe(60);
+  });
+});
+
+describe('the speed gears (the track\'s coins, drawn as gears: Adam, 26 Sept 2026)', () => {
+  it('are one InstancedMesh for every gear on the track (one draw call), drawing the art\'s gear model', () => {
+    const assets = trackAssetsFor();
+    const scene = buildTrackScene(buildTrack(HARBOUR_LOOP), assets);
+    const gears = scene.instancers.get('coins')!;
+    expect(gears).toBeInstanceOf(InstancedMesh);
+    expect(gears.geometry).toBe(assets.geometries.coin);
+    expect(gears.count).toBe(HARBOUR_LOOP.coins!.length);
+    const drawn = meshes(scene).filter((m) => m.geometry === assets.geometries.coin);
+    expect(drawn).toEqual([gears]);
+    scene.dispose();
+  });
+
+  it('turn on their axles and bob, never drifting from where they were placed; a taken one is hidden until its timer runs out', () => {
+    const scene = buildTrackScene(buildTrack(HARBOUR_LOOP));
+    const gears = scene.instancers.get('coins')!, n = HARBOUR_LOOP.coins!.length;
+    const a = gears.instanceMatrix.array as Float32Array;
+    const G = GEAR_MOTION, w = (Math.PI * 2) / G.bobS;
+    scene.update(0); // (the scene is drawn at time 0 once built)
+    const placed = Array.from(a.subarray(0, n * 16));
+    for (const t of [0.3, 1.1, 7.25]) {
+      scene.update(t);
+      for (let k = 0; k < n; k++) {
+        const o = k * 16;
+        // the axle (the model's Z) points where it was placed; the teeth have turned round it
+        for (const e of [8, 9, 10]) expect(a[o + e]).toBeCloseTo(placed[o + e], 5);
+        const turned = new Vector3(a[o], a[o + 1], a[o + 2]).angleTo(new Vector3(placed[o], placed[o + 1], placed[o + 2]));
+        const expected = Math.abs(Math.atan2(Math.sin(t * G.spin), Math.cos(t * G.spin)));
+        expect(turned).toBeCloseTo(expected, 4);
+        // over the same spot, up and down by no more than the bob round where it was placed
+        expect(a[o + 12]).toBeCloseTo(placed[o + 12], 5);
+        expect(a[o + 14]).toBeCloseTo(placed[o + 14], 5);
+        const rest = placed[o + 13] - G.bob * Math.sin(-k * G.phase);
+        expect(a[o + 13] - rest).toBeCloseTo(G.bob * Math.sin(t * w - k * G.phase), 4);
+      }
+    }
+    // a row bobs as a ripple, not in step
+    scene.update(0.4);
+    const bob = (k: number) => a[k * 16 + 13] - (placed[k * 16 + 13] - G.bob * Math.sin(-k * G.phase));
+    expect(bob(0)).not.toBeCloseTo(bob(1), 3);
+    // taken: hidden (zero scale) until the race-manager's timer runs out, still turning after
+    const timers = Array.from({ length: n }, () => ({ respawnRemaining: 0 }));
+    timers[1].respawnRemaining = 2;
+    scene.update(2, [], { coins: timers });
+    expect([a[16], a[16 + 5], a[16 + 10]]).toEqual([0, 0, 0]);
+    expect(a[0]).not.toBe(0);
+    timers[1].respawnRemaining = 0;
+    scene.update(2.1, [], { coins: timers });
+    expect(new Vector3(a[16], a[17], a[18]).length()).toBeCloseTo(1, 5);
+    scene.dispose();
   });
 });
 

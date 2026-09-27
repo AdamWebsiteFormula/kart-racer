@@ -511,7 +511,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .split.pop { transform: none; }
 }
 
-/* the place, the coin pill beside it on the numeral's baseline, and a Knockout's goal right under the numeral */
+/* the place, the gear pill beside it on the numeral's baseline, and a Knockout's goal right under the numeral */
 .hud .bl { position: absolute; bottom: calc(14px + var(--safe-b)); left: calc(24px + var(--safe-l)); display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 .hud .bl .pc { display: flex; align-items: flex-end; gap: 14px; }
 /* A Knockout race's goal where the eye goes for the place (Mario Kart World's "be 8th or better", in our
@@ -541,12 +541,16 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .place .n::after { color: transparent; background: var(--face); -webkit-background-clip: text; background-clip: text; text-shadow: none; }
 .place .suf { font: 400 44px/1 var(--display); color: var(--suf); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 4px 0 var(--ink); margin: 6px 0 0 2px; }
 .place.flourish { animation: flourish 400ms var(--pop); }
-/* the coins: a pill with the lap counter's weight, a gold coin and two digits (05); at the cap (10,
-   coinsFull) it rings and glows gold, and pops as it gets there */
-.coins { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; padding: 5px 16px 5px 6px; border-radius: 999px; background: rgb(27 27 47 / 0.5); font: 400 36px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
-.coins .coin { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--ink); background: radial-gradient(circle at 34% 30%, #fffbe3 0 13%, transparent 15%), radial-gradient(circle, #ffd84a 0 48%, #d99200 50% 57%, #ffc629 59%); box-shadow: 0 3px 0 var(--ink); }
-.coins.full { color: var(--sun); box-shadow: 0 0 0 3px var(--sun), 0 0 20px 6px rgb(255 210 63 / 0.6); animation: coins-full 520ms var(--pop); }
-@keyframes coins-full { 40% { transform: scale(1.16); } }
+/* the gears (Adam, 26 Sept 2026: gears, not coins): a pill with the lap counter's weight, our teal cog
+   (gearIcon.ts) and two digits (05). Each gear clicks the cog round a tooth; at the cap (10, coinsFull) the
+   pill rings and glows teal, the gear's own color, and pops as it gets there */
+.gears { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; padding: 5px 16px 5px 6px; border-radius: 999px; background: rgb(27 27 47 / 0.5); font: 400 36px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+.gears .gear { flex: none; display: block; width: 34px; height: 34px; filter: drop-shadow(0 3px 0 var(--ink)); }
+.gears .gear svg { display: block; width: 100%; height: 100%; }
+.gears .gear.tick svg { animation: gear-tick 300ms var(--pop); }
+@keyframes gear-tick { from { transform: rotate(-45deg); } to { transform: rotate(0deg); } }
+.gears.full { color: var(--teal); box-shadow: 0 0 0 3px var(--teal), 0 0 20px 6px rgb(46 196 182 / 0.6); animation: gears-full 520ms var(--pop); }
+@keyframes gears-full { 40% { transform: scale(1.16); } }
 
 .hud .br { position: absolute; bottom: calc(18px + var(--safe-b)); right: calc(22px + var(--safe-r)); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 /* no box behind the map (MKW has none): the course's ink outline and its soft shadow carry it */
@@ -638,12 +642,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* a phone on its side as its browser shows it, a toolbar up: 300 to 360 px tall (844x390 had room).
    There the place sat on the item slot and the lap counter on Item and Drift (cross-browser sweep,
    24 Sept 2026: 852x344 with the notch, 915x356, 780x304, 667x325). The corners draw smaller, the
-   coins sit beside the place, and the thumb buttons at 82 % (Look and Brake still 48 px) */
+   gears sit beside the place, and the thumb buttons at 82 % (Look and Brake still 48 px) */
 @media (pointer: coarse) and (max-height: 420px) {
   :root .hud .tl { transform: scale(0.72); transform-origin: top left; }
   :root .hud .bl { bottom: calc(126px + var(--safe-b)); gap: 10px; transform: scale(0.75); transform-origin: bottom left; }
   :root .hud .bl .pc { flex-direction: row; align-items: flex-end; gap: 10px; }
-  :root .hud .bl .coins { margin: 0 0 6px; }
+  :root .hud .bl .gears { margin: 0 0 6px; }
   :root .hud .br { transform: scale(0.8); transform-origin: top right; }
   :root .touch .buttons { transform: scale(0.82); transform-origin: bottom right; }
 }
@@ -974,11 +978,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .rows { gap: 6px; }
   .row { padding: 6px 12px; }
 }
-/* a narrow window with keys: the coin pill in step with the smaller numeral, and clear of the controls
+/* a narrow window with keys: the gear pill in step with the smaller numeral, and clear of the controls
    strip, which reached its glow at 880 px (a phone has no strip and keeps the lap counter's weight) */
 @media (max-width: 900px) and (pointer: fine) {
-  .coins { padding: 4px 13px 4px 5px; font-size: 28px; -webkit-text-stroke-width: 3px; }
-  .coins .coin { width: 27px; height: 27px; }
+  .gears { padding: 4px 13px 4px 5px; font-size: 28px; -webkit-text-stroke-width: 3px; }
+  .gears .gear { width: 27px; height: 27px; }
 }
 /* a laptop window (1280x720, 1366x657): the faces a little smaller, so eight rows are no taller than they
    were with the color dots */

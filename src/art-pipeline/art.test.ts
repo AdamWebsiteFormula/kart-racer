@@ -1,48 +1,12 @@
 // Art checks: every racer builds inside the kart footprint and a triangle budget, has an ink
 // hull, and passes the SOP's 32 px silhouette test (no two racers read the same in black).
-import type { BufferGeometry } from 'three';
 import { describe, expect, it } from 'vitest';
 import { BASE } from '../kart-controller/constants.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
 import { inkFor, INK_SKIP_LIGHTNESS, lightness } from './model.ts';
 import { Color } from 'three';
 import { RACER_IDS, racerModel } from './racers.ts';
-
-const SIZE = 32;
-
-/** Rasterise a geometry's triangles, projected on two world axes, into a SIZE² bitmap. */
-function silhouette(g: BufferGeometry, ax: 0 | 1 | 2, ay: 0 | 1 | 2, box: { min: number[]; max: number[] }): Uint8Array {
-  const pos = g.getAttribute('position');
-  const idx = g.index!;
-  const bmp = new Uint8Array(SIZE * SIZE);
-  const span = Math.max(box.max[ax] - box.min[ax], box.max[ay] - box.min[ay]);
-  const px = (v: number, a: number) => ((v - box.min[a]) / span) * SIZE;
-  const P = (i: number) => [px(pos.getComponent(i, ax), ax), SIZE - px(pos.getComponent(i, ay), ay)];
-  for (let t = 0; t < idx.count; t += 3) {
-    const [a, b, c] = [P(idx.getX(t)), P(idx.getX(t + 1)), P(idx.getX(t + 2))];
-    const x0 = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]))), x1 = Math.min(SIZE - 1, Math.ceil(Math.max(a[0], b[0], c[0])));
-    const y0 = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]))), y1 = Math.min(SIZE - 1, Math.ceil(Math.max(a[1], b[1], c[1])));
-    const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-    if (Math.abs(area) < 1e-9) continue;
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const p = [x + 0.5, y + 0.5];
-      const w0 = (b[0] - p[0]) * (c[1] - p[1]) - (b[1] - p[1]) * (c[0] - p[0]);
-      const w1 = (c[0] - p[0]) * (a[1] - p[1]) - (c[1] - p[1]) * (a[0] - p[0]);
-      const w2 = (a[0] - p[0]) * (b[1] - p[1]) - (a[1] - p[1]) * (b[0] - p[0]);
-      if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0)) bmp[y * SIZE + x] = 1;
-    }
-  }
-  return bmp;
-}
-
-const iou = (a: Uint8Array, b: Uint8Array) => {
-  let i = 0, u = 0;
-  for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; }
-  return i / u;
-};
-
-const svg = (bmp: Uint8Array) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="128" height="128" shape-rendering="crispEdges"><rect width="${SIZE}" height="${SIZE}" fill="#fff"/>`
-  + [...bmp].map((v, k) => (v ? `<rect x="${k % SIZE}" y="${Math.floor(k / SIZE)}" width="1" height="1"/>` : '')).join('') + '</svg>';
+import { iou, silhouette, svg } from './__tests__/silhouette.ts';
 
 const built = RACER_IDS.map((id) => {
   const m = racerModel(id)!;
@@ -106,7 +70,7 @@ describe('track dressing', () => {
   it('every model exists, and the per-instance triangle budget holds', async () => {
     const { DECOR_NAMES, decorGeometry } = await import('./decor.ts');
     // budgets per instance: the kerb repeats a thousand times, the lighthouse once
-    const budget: Record<string, number> = { 'harbour-barrier': 80, 'meadow-barrier': 80, 'canyon-barrier': 80, fence: 150, palm: 1100, oak: 700, cactus: 700, gull: 400, balloon: 1200, coin: 260, lighthouse: 3000, windmill: 3000, arch: 1500, mesa: 800, 'frost-barrier': 80, 'skyline-barrier': 80, 'boardwalk-barrier': 80, pine: 500, snowman: 1000, lamp: 300, stall: 500, cloud: 700, 'cloud-sea': 700, 'sky-lamp': 600, peak: 1500, airship: 4000, 'ferris-wheel': 6000, tent: 1200, island: 900, gust: 1200, tuft: 80, flowers: 240, bush: 220, scrub: 200, pebbles: 80, sapling: 150, stones: 120, crate: 80, umbrella: 120, 'rope-post': 180 };
+    const budget: Record<string, number> = { 'harbour-barrier': 80, 'meadow-barrier': 80, 'canyon-barrier': 80, fence: 150, palm: 1100, oak: 700, cactus: 700, gull: 400, balloon: 1200, coin: 400, lighthouse: 3000, windmill: 3000, arch: 1500, mesa: 800, 'frost-barrier': 80, 'skyline-barrier': 80, 'boardwalk-barrier': 80, pine: 500, snowman: 1000, lamp: 300, stall: 500, cloud: 700, 'cloud-sea': 700, 'sky-lamp': 600, peak: 1500, airship: 4000, 'ferris-wheel': 6000, tent: 1200, island: 900, gust: 1200, tuft: 80, flowers: 240, bush: 220, scrub: 200, pebbles: 80, sapling: 150, stones: 120, crate: 80, umbrella: 120, 'rope-post': 180 };
     for (const name of DECOR_NAMES) {
       const g = decorGeometry(name)!;
       const tris = g.body.index!.count / 3;

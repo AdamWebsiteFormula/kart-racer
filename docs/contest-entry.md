@@ -41,7 +41,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 - **Start boost.** Press the gas the moment the **2** appears. On a phone, put a thumb on the screen then.
 - **Tricks.** Off a ramp or a bump, press drift in the air for a trick boost when you land.
 - **Slipstream.** Stay right behind a racer for 2 seconds for a boost.
-- **Coins.** Each one adds a little top speed, up to 10. A hit spins you out and costs 2.
+- **Gears.** Grab gears to tune up your kart: each one adds a little top speed, up to 10. A hit spins you out and knocks 2 gears loose.
 - **Balloons.** Pop one for an item. A gold pair fills both slots.
 - **Falls.** Drive off an open edge and a claw on a cable carries you back to the road.
 

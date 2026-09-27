@@ -186,6 +186,13 @@ const LENS_EYE = new Vector3();
 /** Race-manager timers, by feature index within its kind; a feature with respawnRemaining > 0 is hidden. */
 export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[]; coins?: readonly { respawnRemaining: number }[] }
 
+/**
+ * The speed gears (the track's `coins`, drawn as gears: art-pipeline gear.ts; Adam, 26 Sept 2026) turn on
+ * their axles, clockwise as the driver meets them, `spin` rad/s, and bob `bob` metres every `bobS`
+ * seconds, each a step (`phase` rad) behind the one before it. Pictures only, on the scene's clock.
+ */
+export const GEAR_MOTION = Object.freeze({ spin: 2.4, bob: 0.07, bobS: 1.6, phase: 0.9 });
+
 const SKY_RADIUS = 900;
 /** The pickups' glow pulse: ± this share of it, once every PICKUP_PULSE_S seconds. */
 const PICKUP_PULSE = 0.2, PICKUP_PULSE_S = 1.6;
@@ -854,10 +861,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     }
   }
 
-  // features: balloons, coins, glowing boost pads; ramps and trick bumps are merged meshes
+  // features: balloons, the speed gears (kind `coin`), glowing boost pads; ramps and trick bumps are merged meshes
   const featureNames: [string, BakedFeature['kind'], string, Rgb][] = [
     ['balloons', 'pickup', 'balloon', palette.accent],
-    ['coins', 'coin', 'coin', [1, 0.84, 0.2]],
+    ['coins', 'coin', 'coin', [0.23, 0.84, 0.78]], // teal, as the gear model is (the placeholder's colour)
     ['boostPads', 'boostPad', 'boostPad', palette.surfaces.boost],
   ];
   const featureSlots = new Map<string, { slots: number[]; mats: Float32Array }>();
@@ -1002,7 +1009,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       fb.mesh.instanceMatrix.needsUpdate = true;
     }
   };
-  // popped balloons and taken coins vanish until their timer runs out
+  // popped balloons and taken gears vanish until their timer runs out
   const syncLive = (name: string, timers: readonly { respawnRemaining: number }[] | undefined) => {
     const m = instancers.get(name), fs = featureSlots.get(name);
     if (!m || !fs || !timers) return;
@@ -1010,6 +1017,21 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       const gone = (timers[fs.slots[k]]?.respawnRemaining ?? 0) > 0;
       if (gone) m.setMatrixAt(k, hidden);
       else { scratch.fromArray(fs.mats, k * 16); m.setMatrixAt(k, scratch); }
+    }
+    m.instanceMatrix.needsUpdate = true;
+  };
+  // the speed gears turn and bob every frame (GEAR_MOTION), from their placed matrices so nothing drifts
+  const gearTurn = new Matrix4();
+  const turnGears = (time: number, timers: readonly { respawnRemaining: number }[] | undefined) => {
+    const m = instancers.get('coins'), fs = featureSlots.get('coins');
+    if (!m || !fs) return;
+    const G = GEAR_MOTION, w = (Math.PI * 2) / G.bobS;
+    gearTurn.makeRotationZ(time * G.spin);
+    for (let k = 0; k < fs.slots.length; k++) {
+      if ((timers?.[fs.slots[k]]?.respawnRemaining ?? 0) > 0) { m.setMatrixAt(k, hidden); continue; }
+      scratch.fromArray(fs.mats, k * 16).multiply(gearTurn);
+      scratch.elements[13] += G.bob * Math.sin(time * w - k * G.phase);
+      m.setMatrixAt(k, scratch);
     }
     m.instanceMatrix.needsUpdate = true;
   };
@@ -1040,7 +1062,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     pickupGlow.value = glowNow * (1 + PICKUP_PULSE * Math.sin((time / PICKUP_PULSE_S) * Math.PI * 2));
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); assets.look?.(group); }
-    if (live) { syncLive('balloons', live.pickups); syncLive('coins', live.coins); }
+    if (live) syncLive('balloons', live.pickups);
+    turnGears(time, live?.coins);
     hazardCounts.fill(0);
     for (const h of active) {
       if (h.type === 'gust') continue;

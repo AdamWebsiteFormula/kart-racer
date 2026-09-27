@@ -1,9 +1,12 @@
 // Vfx: the Three.js side of the juice. Emits particles from kart state every frame (drift sparks,
 // boost flames, off-road dust, tyre marks) and bursts from the director's effects each tick
-// (balloon pops, coin glints, hit stars, confetti), and owns the shake, kicks and time scale.
+// (balloon pops, gear sparkles, gears knocked loose, hit stars, confetti), and owns the shake, kicks and time scale.
 import type { Camera, Scene } from 'three';
+import { decorGeometry, vertexToon } from '../art-pipeline/index.ts';
 import type { RevView } from '../kart-controller/rev.ts';
 import type { KartState } from '../kart-controller/types.ts';
+import { fadeNearCameraAlpha } from '../track-builder/mesh/glow.ts';
+import { GearScatter } from './gears.ts';
 import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, type Effects } from './juice.ts';
 import { KartFx } from './kartfx.ts';
 import { ParticlePool, type SpawnOpts } from './particles.ts';
@@ -25,15 +28,23 @@ export const CONFETTI: readonly (readonly [number, number, number])[] = [
  * the road, so the kart drives into it and the chase camera, 6 m behind, looks at it, not through it.
  */
 /**
- * Balloon and coin pops: your own at full size, a rival's small and dim. With balloons back in 0.5 s,
+ * Balloon pops and gear pickups: your own at full size, a rival's small and dim. With balloons back in 0.5 s,
  * eight karts pop a row at once, and full-size bright sparkles bloomed into discs over the road.
  */
 export const POP = Object.freeze({
-  mine: Object.freeze({ confetti: 26, glow: 10, glowSize: 0.3, coinGlow: 10 }),
-  rival: Object.freeze({ confetti: 8, glow: 3, glowSize: 0.16, coinGlow: 3 }),
+  mine: Object.freeze({ confetti: 26, glow: 10, glowSize: 0.3, gearSparks: 8 }),
+  rival: Object.freeze({ confetti: 8, glow: 3, glowSize: 0.16, gearSparks: 4 }),
   /** a rival's sparkle colour stays under the bloom threshold (the player's is HDR and blooms) */
   rivalGlow: Object.freeze([1.0, 0.92, 0.7]),
 });
+/**
+ * A gear picked up (Adam, 26 Sept 2026: gears, not coins): a ratchet of sparks, one per tooth, flung round
+ * the kart like a spinning cog throwing them off (not a coin's flip), carried along with it so the ring turns
+ * where the chase camera looks; teal and white-hot at its heart. `radius` and the speeds are metres and m/s.
+ */
+export const GEAR_POP = Object.freeze({ radius: 0.35, turn: 4.4, out: 1.3, up: 1.1, size: 0.2, life: 0.42, drag: 2.6, glint: 0.55, glintLife: 0.2 });
+/** The player's gear sparks (teal, HDR so they bloom) and the glint; gears knocked loose throw a few of the same */
+const GEAR_TEAL: readonly number[] = [0.5, 2.1, 1.9];
 export const CONFETTI_BURST = Object.freeze({ count: 180, ahead: 4, lead: 0.4, spread: 4, depth: 3, rise: 4.5, riseSpread: 3, size: 0.22 });
 /** The STRIKE burst: thrown up and out to the sides and forward from `ahead` metres in front, never back at the lens. */
 export const STRIKE_BURST = Object.freeze({ count: 140, ahead: 1.5, side: 9, forward: [1, 8] as const, up: [5, 13] as const, size: 0.24 });
@@ -64,20 +75,25 @@ export class Vfx {
   readonly time = new TimeScale();
   /** each kart's drift specks, flame flakes, pipe puffs, dust and tyre marks (kartfx.ts; the tyre stars and the flames burn on the kart's own mesh, flames.ts) */
   readonly kartFx = new KartFx(this.soft, this.skids);
+  /** gears a hit knocks loose, flying out of the kart (gears.ts): the track's gear, small, in the items' own see-through-near-the-lens toon */
+  readonly gears: GearScatter;
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
   /** a firework's colour, reused */
   private readonly hot: number[] = [1, 1, 1];
   readonly shake = { x: 0, y: 0, z: 0, roll: 0 };
 
   constructor(scene: Scene, camera: Camera) {
-    scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh, this.kartFx.sparks.mesh);
+    const gearMaterial = vertexToon().clone();
+    fadeNearCameraAlpha(gearMaterial, 2.8); // game/camera.ts CAM.nearFade, as a thrown item fades
+    this.gears = new GearScatter(decorGeometry('coin')!.body, gearMaterial);
+    scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh, this.kartFx.sparks.mesh, this.gears.mesh);
     this.lines.attach(camera);
     if (!camera.parent) scene.add(camera); // camera children only render if the camera is in the scene
   }
 
   /** New race: forget trails and particles. */
   reset(): void {
-    this.glow.clear(); this.soft.clear(); this.confetti.clear(); this.skids.clear(); this.kartFx.reset();
+    this.glow.clear(); this.soft.clear(); this.confetti.clear(); this.skids.clear(); this.kartFx.reset(); this.gears.clear();
     this.trauma.value = 0;
     this.time.reset(); // a restart mid hit-stop or slow-mo must not start frozen
     this.kick.reset();
@@ -124,9 +140,31 @@ export class Vfx {
           for (let i = 0; i < p.glow; i++) this.spawn(this.glow, x, y + 1.6, z, sym() * 3, rnd() * 3, sym() * 3, glow, p.glowSize, 0.3, 0, 3);
           break;
         }
-        case 'coin': {
-          const n = b.mine ? POP.mine.coinGlow : POP.rival.coinGlow, glow = b.mine ? [1.8, 1.4, 0.3] : POP.rivalGlow;
-          for (let i = 0; i < n; i++) this.spawn(this.glow, x, y + 1, z, sym() * 2, 2 + rnd() * 3, sym() * 2, glow, 0.18, 0.5, 6);
+        case 'gear': {
+          // the ring stands across the road (side to side and up), facing the chase camera, and turns
+          // clockwise as the camera sees it, as the gears on the road do; each spark is carried along with the kart
+          const G = GEAR_POP, n = b.mine ? POP.mine.gearSparks : POP.rival.gearSparks, glow = b.mine ? GEAR_TEAL : POP.rivalGlow;
+          const s = Math.sin(k.heading), c = Math.cos(k.heading), v = Math.max(0, k.speed), scale = b.mine ? 1 : 0.6;
+          const o = this.o, turn = rnd() * Math.PI * 2;
+          o.cx = s * v; o.cy = 0; o.cz = c * v;
+          for (let i = 0; i < n; i++) {
+            const a = turn + (i / n) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+            // out from the middle: side × cos + up × sin (side = rightOf(heading), the driver's left); along the
+            // ring its derivative, −side × sin + up × cos: from behind the kart, clockwise
+            const ox = c * ca, oz = -s * ca, oy = sa, tx = -c * sa, tz = s * sa, ty = ca;
+            this.spawn(this.glow, x + ox * G.radius, y + G.up + oy * G.radius, z + oz * G.radius,
+              (tx * G.turn + ox * G.out) * scale, (ty * G.turn + oy * G.out) * scale, (tz * G.turn + oz * G.out) * scale,
+              i % 2 && b.mine ? WHITE_HOT : glow, G.size * scale, G.life, 0, G.drag);
+          }
+          if (b.mine) this.spawn(this.glow, x, y + G.up, z, 0, 0, 0, WHITE_HOT, G.glint, G.glintLife, 0, 0, -0.8);
+          o.cx = 0; o.cz = 0;
+          break;
+        }
+        case 'gearsLost': {
+          // the gears themselves fly out (gears.ts), with a few sparks off them
+          this.gears.spawn(k, b.count ?? 1);
+          const glow = b.mine ? GEAR_TEAL : POP.rivalGlow;
+          for (let i = 0; i < 6; i++) this.spawn(this.glow, x, y + 0.9, z, sym() * 3, 2 + rnd() * 3, sym() * 3, glow, 0.16, 0.4, 8, 1);
           break;
         }
         case 'hitStars':
@@ -250,7 +288,7 @@ export class Vfx {
     this.lastPlayer = player;
     // (an index loop, not for-of: an iterator is garbage every frame)
     if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced, revs?.[i]);
-    this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt);
+    this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt); this.gears.update(dt);
     this.skids.setTime(t);
     this.trauma.update(dt);
     this.trauma.shake(t, this.shake, !reduced);
@@ -272,5 +310,6 @@ export class Vfx {
 
   dispose(): void {
     this.glow.dispose(); this.soft.dispose(); this.confetti.dispose(); this.skids.dispose(); this.lines.dispose(); this.kartFx.dispose();
+    this.gears.dispose(); (this.gears.mesh.material as { dispose(): void }).dispose();
   }
 }

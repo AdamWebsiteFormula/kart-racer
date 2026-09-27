@@ -127,7 +127,7 @@ describe('fx director', () => {
     expect(fx.boosts).toEqual([{ racerId: 'p', source: 'drift' }]);
     expect(fx.kickBoost).toBe('super'); // a 1.5 s drift boost: the orange mini-turbo
     expect(fx.hitStop).toBe(false); // someone else was hit
-    expect(fx.bursts.map((b) => b.kind)).toEqual(['hitStars', 'balloon', 'coin', 'confetti']);
+    expect(fx.bursts.map((b) => b.kind)).toEqual(['hitStars', 'balloon', 'gear', 'confetti']);
     expect(fx.slowMo).toBe(true);
     expect(fx.trauma).toBeCloseTo(JUICE.punch.super.trauma);
   });
@@ -170,12 +170,29 @@ describe('fx director', () => {
 });
 
 describe('pickup pops know whose they are', () => {
-  it('marks the player’s own balloon and coin pops, not a rival’s', () => {
+  it('marks the player’s own balloon pops and gear pickups (the sim\'s coin event), not a rival’s', () => {
     const fx = directFx([
       { type: 'pickup', racerId: 'p', index: 0 }, { type: 'pickup', racerId: 'a', index: 1 },
       { type: 'coin', racerId: 'p', coins: 1 }, { type: 'coin', racerId: 'a', coins: 1 },
     ], [], 'p');
-    expect(fx.bursts.map((b) => `${b.kind}:${b.mine}`)).toEqual(['balloon:true', 'balloon:false', 'coin:true', 'coin:false']);
+    expect(fx.bursts.map((b) => `${b.kind}:${b.mine}`)).toEqual(['balloon:true', 'balloon:false', 'gear:true', 'gear:false']);
+  });
+});
+
+describe('gears knocked loose (Adam, 26 Sept 2026: gears, not coins)', () => {
+  it('a hit that costs gears throws that many out of the kart, from an item or a hazard; a hit with none to lose throws none', () => {
+    const items = directFx([], [
+      { type: 'hit', racerId: 'p', byRacerId: 'x', itemId: 'beachBall', spun: true, coinsLost: 2 },
+      { type: 'hit', racerId: 'a', byRacerId: 'x', itemId: 'beachBall', spun: true, coinsLost: 1 },
+      { type: 'hit', racerId: 'b', byRacerId: 'x', itemId: 'beachBall', spun: true, coinsLost: 0 },
+    ], 'p');
+    expect(items.bursts.filter((b) => b.kind === 'gearsLost')).toEqual([
+      { kind: 'gearsLost', racerId: 'p', mine: true, count: 2 }, { kind: 'gearsLost', racerId: 'a', mine: false, count: 1 },
+    ]);
+    const hazard = directFx([{ type: 'kart', racerId: 'p', event: { type: 'hit', kind: 'hazard', spun: true, coinsLost: 2 } } as RaceEvent], [], 'p');
+    expect(hazard.bursts).toEqual([{ kind: 'hitStars', racerId: 'p' }, { kind: 'gearsLost', racerId: 'p', mine: true, count: 2 }]);
+    const none = directFx([{ type: 'kart', racerId: 'p', event: { type: 'hit', kind: 'hazard', spun: true, coinsLost: 0 } } as RaceEvent], [], 'p');
+    expect(none.bursts.map((b) => b.kind)).toEqual(['hitStars']);
   });
 });
 

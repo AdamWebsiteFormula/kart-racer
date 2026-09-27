@@ -4,6 +4,7 @@ import { UI } from '../constants.ts';
 import { castCard } from '../data/cast.ts';
 import { CONTROLS_STRIP, SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
 import { iconFor, iconMarkup, medalSvg, wheelSvg } from '../icons.ts';
+import { gearSvg } from '../gearIcon.ts';
 import { medalLabel } from '../screens/menus.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
 import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
@@ -225,8 +226,11 @@ export class HudView {
   private placeLayers: Attr;
   private placeSuf: TextField;
   private placeTier: Attr;
-  private coins: TextField;
-  private coinsFull: Flag;
+  /** the gear pill (the view model keeps the sim's name, coins): its icon, count and cap flag */
+  private gearIcon: HTMLElement;
+  private gears: TextField;
+  private gearsFull: Flag;
+  private lastGears = '';
   private lapN: TextField;
   private lapOf: TextField;
   private lapFinal: Flag;
@@ -272,7 +276,7 @@ export class HudView {
     this.splits = h('div', 'splits', tc);
     this.solo = new Flag(this.root, 'solo');
 
-    // the place, the coin pill on its baseline, and a Knockout's goal right under the numeral, where the eye
+    // the place, the gear pill on its baseline, and a Knockout's goal right under the numeral, where the eye
     // goes for the place (Mario Kart World); it sat under the timer, a glance away from the place it is about
     const bl = h('div', 'bl', this.root);
     const pc = h('div', 'pc', bl);
@@ -283,10 +287,14 @@ export class HudView {
     this.placeLayers = new Attr(n, 'data-n');
     this.placeSuf = new TextField(h('span', 'suf', this.place));
     this.placeTier = new Attr(this.place, 'data-tier');
-    const coins = h('div', 'coins', pc);
-    h('span', 'coin', coins);
-    this.coins = new TextField(h('span', '', coins));
-    this.coinsFull = new Flag(coins, 'full');
+    // the gears (Adam, 26 Sept 2026: gears, not coins): our own cog and the count; the icon names the number for screen readers
+    const gears = h('div', 'gears', pc);
+    this.gearIcon = h('span', 'gear', gears);
+    this.gearIcon.innerHTML = gearSvg();
+    this.gearIcon.setAttribute('role', 'img');
+    this.gearIcon.setAttribute('aria-label', 'Gears');
+    this.gears = new TextField(h('span', '', gears));
+    this.gearsFull = new Flag(gears, 'full');
     this.ko = h('div', 'ko-strip', bl);
     this.koText = new TextField(this.ko);
     this.koDanger = new Flag(this.ko, 'danger');
@@ -386,8 +394,11 @@ export class HudView {
     }
     if (vm.flourish && !this.lastFlourish) replay(this.place, 'flourish');
     this.lastFlourish = vm.flourish;
-    this.coins.set(vm.coins);
-    this.coinsFull.set(vm.coinsFull);
+    // one more gear: the cog clicks round a tooth, like a ratchet
+    if (this.lastGears !== '' && Number(vm.coins) > Number(this.lastGears)) replay(this.gearIcon, 'tick');
+    this.lastGears = vm.coins;
+    this.gears.set(vm.coins);
+    this.gearsFull.set(vm.coinsFull);
     const [n, of] = vm.lap.split('/');
     this.lapN.set(n);
     this.lapOf.set(`/${of}`);
