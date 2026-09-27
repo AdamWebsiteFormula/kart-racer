@@ -223,7 +223,7 @@ export type Reaction = 'champion' | 'cheer' | 'bounce' | 'relief' | 'shrug' | 's
 export const REACTIONS: readonly Reaction[] = Object.freeze(['champion', 'cheer', 'bounce', 'relief', 'shrug', 'sigh', 'deflated', 'dejected']);
 /** Seconds each reaction's main move lasts; after it a gentle idle in the same mood carries on. */
 export const REACTION_SECONDS: Readonly<Record<Reaction, number>> = Object.freeze({
-  champion: 3.2, cheer: 3, bounce: 2.6, relief: 2.9, shrug: 2.2, sigh: 4.3, deflated: 4.6, dejected: 5,
+  champion: 3.2, cheer: 3, bounce: 2.6, relief: 2.9, shrug: 2.2, sigh: 4.5, deflated: 4.9, dejected: 5.2,
 });
 /** The disappointed ones (4th and below): no confetti, no look at the camera until the chin comes up. */
 export const sad = (r: Reaction | null): boolean => r === 'sigh' || r === 'deflated' || r === 'dejected';
@@ -319,13 +319,14 @@ export function reactionPose(kind: Reaction, t: number, out: AnimPose): AnimPose
  * forehead, a slow head shake twice, then chin up and a polite clap for the winner, the results list
  * sliding in beside them; docs/sops/kart-controller.md Decisions, 26 Sept 2026), pulled earlier to
  * fit our finish: the camera is round in front ~0.95 s in (its swing runs under the slow-mo) and the
- * results come beside the racer at ~3.6 s. `sag`: the slump goes down; `shake`: the head shake; `up`:
+ * results come beside the racer at ~3.6 s, so the slump holds until just before them (a blind read of
+ * stills called a racer whose chin was already up "neutral") and the clap plays beside them. `sag`: the slump goes down; `shake`: the head shake; `up`:
  * the chin comes back up; `clap`: the polite clap; `tap` (sigh only): the fist is pulled down ("darn!").
  */
 export const SAD_BEATS = Object.freeze({
-  sigh: Object.freeze({ tap: 1.15, sag: [1.45, 1.85] as const, shake: [1.85, 2.95] as const, up: [2.9, 3.35] as const, clap: [3.4, 4.1] as const }),
-  deflated: Object.freeze({ tap: -1, sag: [0.3, 0.9] as const, shake: [1.0, 2.6] as const, up: [2.6, 3.1] as const, clap: [3.2, 4.4] as const }),
-  dejected: Object.freeze({ tap: -1, sag: [0.3, 1.2] as const, shake: [1.4, 3.1] as const, up: [3.1, 3.7] as const, clap: [3.8, 4.8] as const }),
+  sigh: Object.freeze({ tap: 1.15, sag: [1.45, 1.85] as const, shake: [1.85, 3.1] as const, up: [3.2, 3.6] as const, clap: [3.65, 4.35] as const }),
+  deflated: Object.freeze({ tap: -1, sag: [0.3, 0.9] as const, shake: [1.0, 2.9] as const, up: [3.1, 3.5] as const, clap: [3.6, 4.7] as const }),
+  dejected: Object.freeze({ tap: -1, sag: [0.3, 1.2] as const, shake: [1.4, 3.3] as const, up: [3.4, 3.9] as const, clap: [4.0, 5.0] as const }),
 });
 
 /**
@@ -348,7 +349,7 @@ function sadReactionPose(kind: 'sigh' | 'deflated' | 'dejected', t: number, out:
       const aw = hold(t, 0.25, 0.6, B.sag[0], B.sag[0] + 0.3);
       const tap = hump(t, B.tap - 0.03, B.tap + 0.2);
       out.squash = -0.03 * aw - 0.05 * tap - 0.07 * sag;
-      out.nod = 0.18 * aw + 0.12 * tap + 0.3 * sag;
+      out.nod = 0.18 * aw + 0.12 * tap + 0.42 * sag;
       out.pitch = 0.025 * tap + 0.02 * sag;
       out.look = 0.24 * wave(t, B.shake[0], B.shake[1], 1.3);
       out.lean = -0.04 * sag;
@@ -358,7 +359,7 @@ function sadReactionPose(kind: 'sigh' | 'deflated' | 'dejected', t: number, out:
       // the slump, the head down (a hand to the forehead: driverAnim.ts), a slow head shake twice, then
       // a breath and chin up
       out.squash = -0.085 * sag + 0.03 * hump(t, B.up[0] + 0.1, B.up[1] + 0.15);
-      out.nod = 0.37 * sag;
+      out.nod = 0.46 * sag;
       out.pitch = 0.03 * sag;
       out.look = 0.24 * wave(t, B.shake[0], B.shake[1], 1.25);
       out.lean = -0.06 * sag;

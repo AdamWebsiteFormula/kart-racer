@@ -389,11 +389,11 @@ export function sadBody(kind: Reaction, t: number, out: SadBody): SadBody {
     // the fist's "darn!" folds the body a little; then the sigh: the shoulders up, then down and low
     const aw = hold(t, 0.25, 0.6, B.sag[0], B.sag[0] + 0.3), darn = hump(t, B.tap - 0.03, B.tap + 0.3);
     const breathIn = hold(t, B.sag[0] - 0.2, B.sag[0], B.sag[0] + 0.05, B.sag[0] + 0.25);
-    out.spine = 0.06 * aw + 0.12 * darn + 0.18 * sag;
-    out.shoulders = -0.3 * aw + 0.6 * breathIn - 0.5 * sag;
+    out.spine = 0.06 * aw + 0.12 * darn + 0.21 * sag;
+    out.shoulders = -0.3 * aw + 0.6 * breathIn - 0.6 * sag;
   } else if (kind === 'deflated') {
-    out.spine = 0.25 * sag;
-    out.shoulders = -0.6 * sag;
+    out.spine = 0.27 * sag;
+    out.shoulders = -0.65 * sag;
   } else {
     out.spine = 0.5 * sag;
     out.shoulders = -0.75 * sag + 0.35 * hump(t, B.up[0], B.up[1] + 0.2);
