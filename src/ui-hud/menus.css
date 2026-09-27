@@ -232,7 +232,7 @@
 .cups { display: flex; flex-wrap: wrap; gap: clamp(12px, 1.4vw, 22px); padding: 6px 4px; }
 /* slanted as the bands are (two Gemini Flash critiques against MKW's stills, 26 Sept 2026: "skew the plates"), the words
    upright on it */
-.cup-tile { width: clamp(250px, 21vw, 340px); padding: 10px 20px 10px 14px; text-align: left; transform: skewX(-8deg); }
+.cup-tile { width: auto; min-width: clamp(250px, 21vw, 340px); padding: 10px 24px 10px 14px; text-align: left; transform: skewX(-8deg); }
 .cup-tile > * { transform: skewX(8deg); }
 .cup-tile.focused, .cup-tile:focus-visible { transform: translateY(-6px) scale(1.06) skewX(-8deg); }
 .cup-tile .cup-head { position: relative; z-index: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 12px; row-gap: 4px; }

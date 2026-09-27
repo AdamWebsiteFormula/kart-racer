@@ -1,7 +1,7 @@
 // A silent headless Chrome for checks (CLAUDE.md "Browser checks: silent, always"): --mute-audio,
 // its own throwaway profile, and every game URL gets ?mute, so the game never makes an AudioContext.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,9 +17,11 @@ export function muted(url) {
 
 /** Opens headless Chrome at `width`×`height`; `uncapped` turns vsync and the frame cap off. */
 export async function openChrome({ width = 1600, height = 900, dpr = 1, uncapped = false } = {}) {
-  const port = 9400 + Math.floor(Math.random() * 400);
+  // Chrome picks a free port itself (0) and writes it into its own profile (DevToolsActivePort): a port chosen
+  // here at random could already be another session's Chrome, whose page this check then drove (27 Sept 2026:
+  // two agents' checks at once, one's clicks landed in the other's race)
   const profile = mkdtempSync(join(tmpdir(), 'rascal-chrome-'));
-  const args = ['--headless=new', '--mute-audio', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${width},${height}`, '--no-first-run', '--no-default-browser-check'];
+  const args = ['--headless=new', '--mute-audio', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${width},${height}`, '--no-first-run', '--no-default-browser-check'];
   if (uncapped) args.push('--disable-gpu-vsync', '--disable-frame-rate-limit');
   const proc = spawn(CHROME, [...args, 'about:blank'], { stdio: 'ignore' });
   // a check stopped midway (Ctrl-C, kill) must not leave the game running in an orphaned Chrome
@@ -27,9 +29,13 @@ export async function openChrome({ width = 1600, height = 900, dpr = 1, uncapped
   process.once('exit', orphanGuard);
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.once(sig, () => { orphanGuard(); process.exit(130); });
   let target;
+  let port = 0;
   for (let i = 0; i < 75 && !target; i++) {
     await sleep(200);
-    try { target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page'); } catch { /* not up yet */ }
+    try {
+      port ||= Number(readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]) || 0;
+      if (port) target = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === 'page');
+    } catch { /* not up yet */ }
   }
   if (!target) { proc.kill(); throw new Error('headless Chrome did not start'); }
   const ws = new WebSocket(target.webSocketDebuggerUrl);
