@@ -4,7 +4,7 @@ import { BASE, makeConstants } from '../kart-controller/constants.ts';
 import { EngineRev } from '../kart-controller/rev.ts';
 import { createKartState, NEUTRAL_INPUT, type KartState } from '../kart-controller/types.ts';
 import { TIER_RGB } from './flames.ts';
-import { EMBER, MARK, PUFF, SMOKE, SPARK, streaksPerKart } from './kartfx.ts';
+import { EMBER, MARK, PUFF, SMOKE, SPARK, SPRAY, streaksPerKart } from './kartfx.ts';
 import { Vfx } from './vfx.ts';
 
 const RACERS = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'];
@@ -186,6 +186,63 @@ describe('the pipes\' breath', () => {
     run(0.3);
     const a = vfx.soft.mesh.geometry.getAttribute('aColor').array as Float32Array;
     for (let i = 0; i < vfx.soft.count; i++) expect(a[i * 4 + 3]).toBeLessThanOrEqual(PUFF.launchAlpha + 1e-6);
+  });
+});
+
+describe('spray off the tires on a wet road (Meadow\'s storm)', () => {
+  /** Soft particles a kart throws in `secs` on `surface` at `speed`, with the road `wet`. */
+  const spray = (wet: number, surface: KartState['surface'] = 'road', speed = 20, reduced = false, grounded = true) => {
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+    vfx.wet = wet;
+    const k = driver('juniper', 0, speed, 0, true);
+    k.surface = surface;
+    k.grounded = grounded;
+    const dt = 1 / 60;
+    for (let i = 0; i < 60; i++) {
+      k.position[2] += k.speed * dt;
+      vfx.frame(dt, dt, i * dt, [k], k, [0, 3, k.position[2] - 6], reduced);
+    }
+    // alive at the end: about as many as it throws in one puff's life
+    return { vfx, k, thrown: vfx.soft.count };
+  };
+
+  it('a faint pale mist from both rear tires, a trail about a kart long behind it, as hard as it rains', () => {
+    const { vfx, k, thrown } = spray(1);
+    // about SPRAY.rate a second, each living about SPRAY.life (the pipes' idle puffs stop at speed)
+    expect(thrown).toBeGreaterThan(SPRAY.rate * SPRAY.life * 0.6);
+    expect(thrown).toBeLessThan(SPRAY.rate * SPRAY.life * 1.4);
+    const a = vfx.soft.mesh.geometry.getAttribute('aColor').array as Float32Array;
+    const xs: number[] = [];
+    for (const { p } of live(vfx.soft)) {
+      // behind the kart, never ahead, and a short trail (it rides with most of the kart's speed)
+      expect(p[2]).toBeLessThan(k.position[2] + 0.5);
+      expect(k.position[2] - p[2]).toBeLessThan(5);
+      xs.push(p[0]);
+    }
+    for (let i = 0; i < vfx.soft.count; i++) expect(a[i * 4 + 3]).toBeLessThanOrEqual(SPRAY.alpha + 1e-6);
+    // from both sides
+    expect(Math.min(...xs)).toBeLessThan(-0.2);
+    expect(Math.max(...xs)).toBeGreaterThan(0.2);
+    // half the rain, about half the spray
+    expect(spray(0.5).thrown).toBeLessThan(thrown * 0.7);
+  });
+
+  it('none on a dry road, off the road (the dust\'s ground), in the air, or crawling; reduced motion throws half', () => {
+    expect(spray(0).thrown).toBe(0);
+    expect(spray(1, 'road', SPRAY.minSpeed * 0.8).thrown).toBe(0);
+    expect(spray(1, 'road', 20, false, false).thrown).toBe(0);
+    const dirt = spray(1, 'dirt').vfx.soft, d = dirt.mesh.geometry.getAttribute('aColor').array as Float32Array;
+    for (let i = 0; i < dirt.count; i++) expect([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]].every((x, j) => Math.abs(x - SPRAY.color[j]) < 1e-4)).toBe(false);
+    const full = spray(1).thrown, calm = spray(1, 'road', 20, true).thrown;
+    expect(calm).toBeLessThan(full * 0.65);
+    expect(calm).toBeGreaterThan(full * 0.35);
+  });
+
+  it('a new race starts dry', () => {
+    const vfx = new Vfx(new Scene(), new PerspectiveCamera());
+    vfx.wet = 1;
+    vfx.reset();
+    expect(vfx.wet).toBe(0);
   });
 });
 

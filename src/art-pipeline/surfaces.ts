@@ -7,13 +7,23 @@ import {
 } from 'three';
 import { toonRamp } from './toon.ts';
 import { detailTexture } from './detail.ts';
-import { isPbr, litWorld, look, PBR } from './look.ts';
+import { isPbr, litWorld, look, PBR, worldEnvironment } from './look.ts';
 import { WATER_DEPTH, WATER_DEPTH_GLSL, waterDepthHook, waterDepthUniforms } from './waterDepth.ts';
 import { buildWaveGridMesh, gerstnerRide, GERSTNER_GLSL, SEA_TIDE, WAVE_FADE, waveFade, WAVE_MAX_HEIGHT } from './waterWaves.ts';
+import { RIPPLE_GLSL, rippleTexture } from './waterRipples.ts';
 import { LAKE_POINTS, type LakeHook } from '../track-builder/mesh/shiftStage.ts';
 
 /** Seconds, advanced by the game loop; every water surface animates from it. */
 export const WATER_CLOCK = { value: 0 };
+
+/**
+ * How wet the road is, 0..1 (the game sets it each frame from the Final Lap Shift's storm, track-builder
+ * shiftStage.ts `wet`; 0 everywhere else). The PBR road (roadDetail) darkens and turns glossy with it: a
+ * wet surface is darker (water fills its pores) and smoother (a film of water over the grain): Sébastien
+ * Lagarde, "Water drop 3b: physically based wet surfaces" (seblagarde.wordpress.com, 2013); Mario Kart
+ * World's rain leaves the road "darkened with a high-gloss" sheen (art-pipeline SOP, 26 Sept 2026).
+ */
+export const ROAD_WET = { value: 0 };
 
 /**
  * Real wave geometry (research brief, 26 Sept 2026: Digital Foundry's MKW tech review — "waves have
@@ -50,121 +60,170 @@ void main() {
 }`;
 
 /**
+ * The sea's look knobs (surfaces.ts WATER_FRAG), tuned on stills from the chase, shore, pier and intro
+ * cameras (scripts/headless/sea-look.mjs) against Mario Kart World footage (art-pipeline SOP, 26 Sept
+ * 2026): how much the swell's height and the ripples' own height lift crests and deepen troughs, how
+ * much the sun shades each facet, the most of the sky a facet reflects (Fresnel's cap), and the glint's
+ * base roughness (Blinn-Phong m² : 2 / (n + 2)), anti-aliasing gain, far roughening, gain and ceiling
+ * (over 1 it blooms), and how much of the shallow colour the Low tier's patches reach.
+ */
+export const SEA_LOOK = Object.freeze({
+  swellCrest: 0.7, rippleCrest: 0.55, crestLift: 0.4, troughDeepen: 0.25, sunShade: 0.3,
+  reflectMax: 0.62, skyFloor: 0.06, glintElevation: 0.45,
+  glintM2: 0.0035, glintAA: 0.3, glintFar: 0.02, glintGain: 0.009, glintMax: 4,
+  lowPatches: 0.8,
+});
+
+/**
  * MKW-style sea (research brief, 26 Sept 2026): the shoal floor and anything standing in it (a pier
  * post, a boat hull, a rock) show through crystal-clear shallow water, fading to blue with depth
  * (waterDepth.ts's `lkSceneDropBelow`/`lkWaterAlpha`/`lkWaterColorMix`, read from the scene depth
  * captured just before this material draws: art-pipeline waterDepth.ts, scene.ts renderOrder -2);
  * white foam at the shoreline (`lkWaterFoam`), broken by scrolling noise, with faint bands lapping
- * toward the shore; two scrolling procedural "normal" layers (no normal map: a world-space bump from
- * a noise height field's own slope, so it never swims as the camera turns, unlike a screen-space
- * derivative would) feed a Schlick Fresnel toward the sky/horizon colour and a sun glint. `uHasDepth`
- * 0 (the performance governor's Low tier draws straight to the canvas, or anything about the copy is
- * missing) falls all the way back to the original look: the slow drifting deep/shallow noise patches,
- * opaque, with the old vertical horizon fade — never a torn or half-drawn frame.
+ * toward the shore, and whitecaps on the swell's highest crests.
+ *
+ * Waves you can see from the chase camera (Adam, 26 Sept 2026: "The water still looks solid and blue
+ * and does not look like it has waves"; research in the art-pipeline SOP, 26 Sept 2026: Mario Kart
+ * World's sea shows a ripple pattern at every distance, lighter crests over darker troughs, the sky in
+ * every facet, and sun glints on the ripple tops that twinkle near the kart and become a broad sheen
+ * far off): the swell's own normal (waterWaves.ts, near the course) tipped by four scrolling ripple
+ * layers (waterRipples.ts: one generated, mipmapped tiling map, sampled in world space so nothing swims
+ * as the camera turns); the body colour lifts on crests and deepens in troughs; the sky is reflected
+ * through Schlick's Fresnel (the painted sky's own map in the PBR look, `uSkyEnv`, else this sea's
+ * horizon-to-zenith gradient), capped at `REFLECT_MAX` so the far sea keeps its blue instead of
+ * turning into the pale horizon: facets tipped toward the eye reflect the high, blue sky and those
+ * tipped away the bright horizon, which is what makes waves read at a grazing angle; the sun's glint is
+ * a Blinn-Phong lobe on the same normal, widened where the normal changes faster than the pixels can
+ * hold it (specular anti-aliasing: Kaplanyan et al., "Filtering Distributions of Normals for Shading
+ * Antialiasing", HPG 2016; Filament's `normalFiltering`) and with distance, so near glints are sharp
+ * flecks and far ones a sheen, never a crawl of single pixels. `uHasDepth` 0 (the performance
+ * governor's Low tier draws straight to the canvas, or anything about the copy is missing) keeps all
+ * of that but the see-through, the depth tint and the shore foam: an opaque sea of slow deep and shallow
+ * patches, never a torn or half-drawn frame.
  */
 const WATER_FRAG = `
-uniform float time; uniform float uTideFade; uniform vec3 deep; uniform vec3 shallow; uniform vec3 sparkle; uniform vec3 horizon;
-uniform vec3 sunDir; uniform float night;
+uniform float time; uniform float uTideFade; uniform vec3 deep; uniform vec3 shallow; uniform vec3 sparkle; uniform vec3 horizon; uniform vec3 zenith;
+uniform vec3 sunDir; uniform vec3 glintDir; uniform float night;
+uniform sampler2D uSkyEnv; uniform float uHasEnv;
 varying vec3 vWorld;
 varying float vCrest;
 #include <fog_pars_fragment>
+#include <cube_uv_reflection_fragment>
 ${WATER_DEPTH_GLSL}
 ${GERSTNER_GLSL}
+${RIPPLE_GLSL}
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
-// a scrolling layer's own world-space slope: finite differences of a noise height field, a small
-// fixed world-space step apart, so the "normal" it feeds never swims as the camera turns (a
-// screen-space derivative would)
-vec2 lkSlopeOf(vec2 worldXZ, float scale, vec2 drift, float t) {
-  float e = 0.25;
-  vec2 base = worldXZ * scale + drift * t;
-  float h0 = noise(base), hx = noise(base + vec2(e * scale, 0.0)), hz = noise(base + vec2(0.0, e * scale));
-  return vec2(h0 - hx, h0 - hz) / e;
+// the sky seen along dir: the painted sky's own map (the PBR look), else this sea's own gradient from
+// its horizon up to its zenith; a facet tipped so far that its reflection looks down sees the far water,
+// so below the horizon it fades from the horizon to the sea's own deep tone (never the map's land shade)
+vec3 lkSky(vec3 dir, float rough) {
+  vec3 up = mix(horizon, zenith, sqrt(clamp(dir.y, 0.0, 1.0)));
+#ifdef ENVMAP_TYPE_CUBE_UV
+  if (uHasEnv > 0.5) up = textureCubeUV(uSkyEnv, normalize(vec3(dir.x, max(dir.y, ${SEA_LOOK.skyFloor.toFixed(3)}), dir.z)), rough).rgb;
+#endif
+  return mix(up, deep, clamp(-dir.y * 4.0, 0.0, 1.0));
 }
 void main() {
-  vec3 viewDir = normalize(cameraPosition - vWorld);
+  vec3 toEye = cameraPosition - vWorld;
+  float viewDist = length(toEye.xz);
+  vec3 viewDir = normalize(toEye);
   bool haveDepth = uHasDepth > 0.5;
-
-  vec3 c;
-  if (haveDepth) {
-    // shallow (turquoise) to deep (this material's own tone), by the vertical depth of whatever the
-    // captured scene depth finds behind this pixel
-    c = mix(shallow, deep, lkWaterColorMix(lkSceneDropBelow()));
-  } else {
-    // two slow drifting layers make soft patches of deep and shallow water (today's look, unchanged)
-    vec2 p = vWorld.xz * 0.06;
-    float n = noise(p + vec2(time * 0.04, time * 0.025)) * 0.6 + noise(p * 2.3 - vec2(time * 0.03, -time * 0.05)) * 0.4;
-    c = mix(deep, shallow, smoothstep(0.3, 0.8, n));
-  }
-
-  // cartoon sparkle: thin bright lines where two moving ripple fields cross the same level (both paths)
-  vec2 q = vWorld.xz * 0.22;
-  float sd = abs(noise(q + vec2(time * 0.35, 0.0)) - noise(q * 1.07 - vec2(0.0, time * 0.3)));
-  // a thin line at any distance: its width follows the screen, not the world
-  float sline = 1.0 - smoothstep(0.0, max(0.012, fwidth(sd) * 1.4), sd);
-  float viewDist = length(cameraPosition.xz - vWorld.xz);
-  c = mix(c, sparkle, sline * 0.6 * (1.0 - smoothstep(60.0, 260.0, viewDist)));
-
-  if (!haveDepth) {
-    // towards the horizon the water mirrors the sky (today's look, unchanged); nothing below needs a
-    // scene depth this frame does not have
-    c = mix(c, horizon, pow(1.0 - clamp(viewDir.y, 0.0, 1.0), 4.0) * 0.55);
-    gl_FragColor = vec4(c, 1.0);
-    #include <fog_fragment>
-    return;
-  }
-
   float dep = lkSceneDropBelow();
 
-  // the swell's own analytic normal, evaluated fresh at this fragment's own world xz (not interpolated
-  // from the vertex shader: on the graded grid's own coarse, far rings — or the flat far plane's two
-  // huge triangles — a linearly-interpolated per-vertex normal read as visibly faceted in the sky's own
-  // reflection, review 26 Sept 2026 finding 3; the same fade the vertex shader computed for its own
-  // displacement, recomputed here from vWorld instead of carried as a varying: one extra length and
-  // smoothstep call, cheaper than a second varying) plus two scrolling procedural ripple layers on top (no
-  // normal map: a world-space bump from a noise height field's own slope, so it never swims as the
-  // camera turns, unlike a screen-space derivative would) → Schlick Fresnel toward the sky/horizon
-  // colour, and a sun glint
+  // the water's own colour: shallow turquoise to deep blue by the depth of whatever the captured scene
+  // depth finds under it; without one, slow drifting patches of deep and shallow water (opaque)
+  vec3 body;
+  if (haveDepth) body = mix(shallow, deep, lkWaterColorMix(dep));
+  else {
+    vec2 p = vWorld.xz * 0.06;
+    float n = noise(p + vec2(time * 0.04, time * 0.025)) * 0.6 + noise(p * 2.3 - vec2(time * 0.03, -time * 0.05)) * 0.4;
+    body = mix(deep, shallow, smoothstep(0.3, 0.8, n) * ${SEA_LOOK.lowPatches.toFixed(2)});
+  }
+
+  // the surface: the swell's analytic normal (fresh per fragment from vWorld: review 26 Sept 2026,
+  // finding 3; faded with distance as the vertex shader fades the swell itself) tipped by the ripples
   float fade = (1.0 - smoothstep(${WAVE_FADE.near.toFixed(1)}, ${WAVE_FADE.far.toFixed(1)}, length(vWorld.xz - cameraPosition.xz))) * uTideFade;
   vec3 gNormal = lkGerstnerNormal(vWorld.xz, time, fade);
-  vec2 slope = lkSlopeOf(vWorld.xz, 0.1, vec2(0.5, 0.18), time) * 0.6 + lkSlopeOf(vWorld.xz, 0.17, vec2(-0.32, 0.46), time) * 0.4;
-  vec3 nrm = normalize(gNormal + vec3(-slope.x * 0.35, 0.0, -slope.y * 0.35));
+  vec3 rip = lkRipples(vWorld.xz, time, viewDist);
+  vec3 nrm = normalize(gNormal + vec3(-rip.x, 0.0, -rip.y));
   float ndv = clamp(dot(nrm, viewDir), 0.0, 1.0);
-  float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
-  c = mix(c, horizon, fresnel * 0.7);
-  vec3 halfV = normalize(sunDir + viewDir);
-  float glint = pow(max(dot(nrm, halfV), 0.0), 60.0);
-  c += vec3(1.0, 0.96, 0.82) * glint * (1.0 - night * 0.55);
 
-  float alpha = lkWaterAlpha(dep);
+  // lighter crests (the sun through their thin tops) over darker troughs, from the swell and the ripples
+  float crest = clamp(vCrest * ${SEA_LOOK.swellCrest.toFixed(2)} + rip.z * ${SEA_LOOK.rippleCrest.toFixed(2)}, -1.0, 1.0);
+  body = mix(body, shallow * 1.2 + vec3(0.02, 0.05, 0.04), max(crest, 0.0) * ${SEA_LOOK.crestLift.toFixed(2)});
+  body *= 1.0 - max(-crest, 0.0) * ${SEA_LOOK.troughDeepen.toFixed(2)};
+  body *= ${(1 - SEA_LOOK.sunShade).toFixed(2)} + ${SEA_LOOK.sunShade.toFixed(2)} * max(dot(nrm, sunDir), 0.0);
 
-  // foam: a soft line at the shoreline, broken by scrolling noise, plus faint bands lapping toward it
-  float foamBase = lkWaterFoam(dep);
-  float breakup = noise(vWorld.xz * 0.8 + vec2(time * 0.18, time * 0.12)) * 0.6 + 0.4;
-  float foam = foamBase * smoothstep(0.2, 0.85, breakup);
-  float bandRange = ${(WATER_DEPTH.foamWidth * 3.2).toFixed(3)};
-  if (dep > 0.0 && dep < bandRange) {
-    float phase = fract(dep * 0.5 - time * 0.2);
-    foam = max(foam, smoothstep(0.8, 1.0, phase) * (1.0 - dep / bandRange) * 0.5);
+  // the sky in every facet: Schlick's Fresnel, capped so the far sea keeps its blue
+  float farK = smoothstep(30.0, 320.0, viewDist);
+  vec3 sky = lkSky(reflect(-viewDir, nrm), mix(0.05, 0.3, farK));
+  float F = (0.02 + 0.98 * pow(1.0 - ndv, 5.0)) * ${SEA_LOOK.reflectMax.toFixed(2)};
+  vec3 c = mix(body, sky, F);
+
+  // the sun's glint: a Blinn-Phong lobe on the same normal, widened by how fast the normal turns across
+  // this pixel's neighbours and by distance, so it is sharp flecks near the kart and a sheen far off
+  vec3 du = dFdx(nrm), dv = dFdy(nrm);
+  float m2 = ${SEA_LOOK.glintM2.toFixed(4)} + min(${SEA_LOOK.glintAA.toFixed(2)} * (dot(du, du) + dot(dv, dv)), 0.2) + farK * ${SEA_LOOK.glintFar.toFixed(3)};
+  float shin = 2.0 / m2 - 2.0;
+  float glint = pow(max(dot(nrm, normalize(glintDir + viewDir)), 0.0), shin) * (shin + 2.0) * ${SEA_LOOK.glintGain.toFixed(4)};
+  glint = min(glint, ${SEA_LOOK.glintMax.toFixed(1)}) * (1.0 - night * 0.55);
+  c += sparkle * glint;
+
+  float alpha = 1.0;
+  if (haveDepth) {
+    // what the surface reflects is not seen through it (Fresnel), and a glint shows on the clearest shallows
+    alpha = max(mix(lkWaterAlpha(dep), 1.0, F), min(glint, 1.0));
+    // foam: a soft line at the shoreline (and round posts, hulls and rocks: wherever the depth under the
+    // surface is small), broken by scrolling noise, plus faint bands lapping toward it
+    float foamBase = lkWaterFoam(dep);
+    float breakup = noise(vWorld.xz * 0.8 + vec2(time * 0.18, time * 0.12)) * 0.6 + 0.4;
+    float foam = foamBase * smoothstep(0.2, 0.85, breakup);
+    float bandRange = ${(WATER_DEPTH.foamWidth * 3.2).toFixed(3)};
+    if (dep > 0.0 && dep < bandRange) {
+      float phase = fract(dep * 0.5 - time * 0.2);
+      foam = max(foam, smoothstep(0.8, 1.0, phase) * (1.0 - dep / bandRange) * 0.5);
+    }
+    // whitecaps: lacy foam on the ripple crests of the swell's highest crests only (MKW-like: white on
+    // the crests, never a solid white sheet or a milky blob where the swell peaks)
+    float whitecap = smoothstep(0.55, 0.9, vCrest) * smoothstep(0.05, 0.55, rip.z + breakup - 0.6);
+    foam = clamp(max(foam, whitecap * 0.7), 0.0, 1.0) * (1.0 - night * 0.3);
+    c = mix(c, mix(vec3(1.0), vec3(0.82, 0.9, 1.0), night), foam);
+    // foam floats on the surface: it hides what is under it
+    alpha = max(alpha, foam * 0.9);
   }
-  // whitecaps: a soft cap only on the highest crests (subtle, MKW-like: never a solid white sheet),
-  // broken by the same scrolling noise as the shoreline foam
-  float whitecap = smoothstep(0.6, 0.92, vCrest) * smoothstep(0.35, 0.85, breakup);
-  foam = max(foam, whitecap * 0.7);
-  vec3 foamColor = mix(vec3(1.0), vec3(0.82, 0.9, 1.0), night);
-  c = mix(c, foamColor, clamp(foam, 0.0, 1.0) * (1.0 - night * 0.3));
 
   gl_FragColor = vec4(c, alpha);
   #include <fog_fragment>
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 
-const WATERS: Readonly<Record<string, { deep: string; shallow: string; sparkle: string; horizon: string; night?: boolean }>> = Object.freeze({
-  harbour: { deep: '#1b7fc0', shallow: '#46c2e6', sparkle: '#f2fdff', horizon: '#bfe8f7' },
-  boardwalk: { deep: '#0a1440', shallow: '#1d3f86', sparkle: '#9fe6ff', horizon: '#6a3a9a', night: true },
+
+/** The PMREM layout of the painted sky's map (look.ts SkyEnvironment, PBR.envSize): three's own cubeUV sizes for it, which a ShaderMaterial must define itself. */
+function cubeUvDefines(size = PBR.envSize): Record<string, string> {
+  const height = 4 * size, maxMip = Math.log2(height) - 2;
+  return {
+    ENVMAP_TYPE_CUBE_UV: '', CUBEUV_TEXEL_WIDTH: (1 / (3 * Math.max(2 ** maxMip, 7 * 16))).toPrecision(8),
+    CUBEUV_TEXEL_HEIGHT: (1 / height).toPrecision(8), CUBEUV_MAX_MIP: `${maxMip.toFixed(1)}`,
+  };
+}
+
+/** Binds the painted sky's map for the sea's reflections when there is one of the size its defines expect (the PBR look), else its own gradient. */
+function bindSky(m: ShaderMaterial): void {
+  const env = worldEnvironment();
+  const h = (env?.image as { height?: number } | undefined)?.height;
+  m.uniforms.uSkyEnv.value = env;
+  m.uniforms.uHasEnv.value = env && h === 4 * PBR.envSize ? 1 : 0;
+}
+
+const WATERS: Readonly<Record<string, { deep: string; shallow: string; sparkle: string; horizon: string; zenith: string; night?: boolean }>> = Object.freeze({
+  harbour: { deep: '#1b7fc0', shallow: '#46c2e6', sparkle: '#fff6dc', horizon: '#bfe8f7', zenith: '#3f96e2' },
+  boardwalk: { deep: '#0a1440', shallow: '#1d3f86', sparkle: '#9fe6ff', horizon: '#6a3a9a', zenith: '#161a5c', night: true },
 });
 
 const waterCache = new Map<string, ShaderMaterial>();
@@ -184,18 +243,25 @@ export function waterMaterial(biome: string, sunDirection?: readonly [number, nu
     const w = WATERS[key];
     m = new ShaderMaterial({
       vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, fog: true, transparent: true, depthWrite: true,
+      defines: cubeUvDefines(),
       uniforms: UniformsUtils.merge([UniformsLib.fog, waterDepthUniforms(), {
         time: { value: 0 }, deep: { value: new Color(w.deep) }, shallow: { value: new Color(w.shallow) },
-        sparkle: { value: new Color(w.sparkle) }, horizon: { value: new Color(w.horizon) },
-        sunDir: { value: new Vector3(...DEFAULT_SUN).normalize() }, night: { value: w.night ? 1 : 0 },
+        sparkle: { value: new Color(w.sparkle) }, horizon: { value: new Color(w.horizon) }, zenith: { value: new Color(w.zenith) },
+        sunDir: { value: new Vector3(...DEFAULT_SUN).normalize() }, glintDir: { value: new Vector3(0, 1, 0) }, night: { value: w.night ? 1 : 0 },
+        uSkyEnv: { value: null }, uHasEnv: { value: 0 },
       }]),
     });
     m.uniforms.time = WATER_CLOCK; // one clock for every water surface
     m.uniforms.uTideFade = SEA_TIDE.scale; // 1 with no tide; shrinks as Harbour's own flood comes in
+    m.uniforms.uRipple = { value: rippleTexture() }; // shared, never cloned per material
     m.userData.shared = true;
     // track-builder's scene.ts calls these generically (any material may want a hand in its mesh, or
-    // a companion mesh added beside it), without importing anything from art-pipeline
-    m.userData.attachDepth = (mesh: Object3D) => { mesh.onBeforeRender = waterDepthHook(m!); };
+    // a companion mesh added beside it), without importing anything from art-pipeline; the flat sea
+    // draws first (renderOrder -2), so its hook copies the scene depth and binds the sky map for both
+    m.userData.attachDepth = (mesh: Object3D) => {
+      const depth = waterDepthHook(m!);
+      mesh.onBeforeRender = (renderer, scene, camera) => { depth(renderer, scene, camera); bindSky(m!); };
+    };
     m.userData.waveGrid = (waterY: number) => buildWaveGridMesh(m!, waterY);
     // a generic hook (track-builder never imports art-pipeline): the sea as the shader draws it at
     // (x, z) for a floating decor instance (a boat) to ride each frame, seen from a camera at (eyeX,
@@ -210,7 +276,21 @@ export function waterMaterial(biome: string, sunDirection?: readonly [number, nu
   }
   const [sx, sy, sz] = sunDirection ?? DEFAULT_SUN;
   (m.uniforms.sunDir.value as Vector3).set(sx, sy, sz).normalize();
+  glintDirection(m.uniforms.sunDir.value as Vector3, m.uniforms.glintDir.value as Vector3);
   return m;
+}
+
+/**
+ * The sun's glint comes from the sun's own bearing but never from higher than SEA_LOOK.glintElevation
+ * (radians) over the horizon: the courses' suns stand 45-60° up, so their true reflection lies under
+ * the chase camera, out of sight; lowered, the glitter runs down the middle distance toward the sun, as
+ * Mario Kart World's does ("a concentrated band of shimmering white sun glints aligned toward the light
+ * source", art-pipeline SOP 26 Sept 2026). The sky's own reflection keeps the true sun.
+ */
+export function glintDirection(sun: Vector3, out: Vector3): Vector3 {
+  const flat = Math.hypot(sun.x, sun.z), up = Math.min(Math.atan2(sun.y, flat), SEA_LOOK.glintElevation);
+  if (flat < 1e-6) return out.set(0, 1, 0);
+  return out.set((sun.x / flat) * Math.cos(up), Math.sin(up), (sun.z / flat) * Math.cos(up));
 }
 
 /** Painted ground per biome (public/textures/<name>.webp) and how many metres one tile covers. */
@@ -653,14 +733,14 @@ export const ROAD_GRAIN_METRES = 4;
  * Same material, same draw calls. Only a MeshStandardMaterial compiles it (STANDARD).
  */
 export function roadDetail(m: MeshToonMaterial, biome: string): void {
-  const uniforms = { uRoadGrain: { value: roadDetailSource(biome) } };
+  const uniforms = { uRoadGrain: { value: roadDetailSource(biome) }, uRoadWet: ROAD_WET };
   const g = ROAD_GRAIN_METRES.toFixed(2);
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `#ifdef STANDARD\nvarying vec3 vRdW;\n#endif\n${shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef STANDARD\n  vRdW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif')}`;
-    shader.fragmentShader = `#ifdef STANDARD\nuniform sampler2D uRoadGrain;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n#endif\n${shader.fragmentShader}`
+    shader.fragmentShader = `#ifdef STANDARD\nuniform sampler2D uRoadGrain;\nuniform float uRoadWet;\nvarying vec3 vRdW;\n${NOISE_GLSL}\n${LOOK_GLSL}\n#endif\n${shader.fragmentShader}`
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 #ifdef STANDARD
   {
@@ -693,6 +773,9 @@ export function roadDetail(m: MeshToonMaterial, biome: string): void {
       rdR = mix(0.9, 0.9, roadCurb);
     }
     roughnessFactor = clamp(rdR, 0.3, 1.0);
+    // the storm's wet road (ROAD_WET): darker, and glossy under its film of water
+    diffuseColor.rgb *= 1.0 - ${WET_ROAD.darken.toFixed(2)} * uRoadWet;
+    roughnessFactor = mix(roughnessFactor, ${WET_ROAD.roughness.toFixed(2)}, uRoadWet);
   }
 #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -705,6 +788,9 @@ export function roadDetail(m: MeshToonMaterial, biome: string): void {
   // a little less of the pale sky's sheen than the props take: the road read washed out
   m.userData.lookEnv = ROAD_ENV;
 }
+
+/** A fully wet road (ROAD_WET 1): how much darker its albedo, and the roughness its water film brings it down to. */
+export const WET_ROAD = Object.freeze({ darken: 0.3, roughness: 0.5 });
 
 /** The road's share of the sky's light in the PBR look (look.ts PBR.env for the rest of the world). */
 export const ROAD_ENV = 0.22;

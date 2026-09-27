@@ -31,6 +31,7 @@ import {
   boltGeometry, boltMaterial, Boxes, cloudMesh, floodMaterial, GLOW_KIND, GlowBuilder, glowMaterial, weatherMesh,
   type CloudUniforms, type FloodUniforms, type GlowUniforms, type WeatherUniforms,
 } from './shiftFx.ts';
+import { SplashField, type SplashUniforms } from './splash.ts';
 
 /** The frozen lake's paint on Frostbite's snow (art-pipeline surfaces.ts): its path and how far the frost has spread. */
 export interface LakeHook {
@@ -55,6 +56,14 @@ export interface SeaTideHook {
   rise: { value: number };
   scale: { value: number };
 }
+/**
+ * The sea's ripples (art-pipeline waterRipples.ts: one tiling slope-and-height map and the GLSL that
+ * reads it, `lkRipples`), for any other water the stage draws: Harbour Loop's flood over the beach road
+ * shades with the same moving ripples as the sea beside it (Adam, 26 Sept 2026: the water "does not look
+ * like it has waves"). Handed over through TrackAssets, so track-builder never imports art-pipeline.
+ */
+export interface RippleHook { map: Texture; glsl: string }
+
 /** Points along the lake's middle at most (the shader's array). */
 export const LAKE_POINTS = 12;
 
@@ -81,6 +90,7 @@ export interface StageContext {
   roadMaterial: Material;
   lake?: LakeHook;
   tide?: SeaTideHook;
+  ripples?: RippleHook;
 }
 
 /** A sound the game plays under the shift's sting: at a world point (fading with distance) or everywhere. */
@@ -103,6 +113,8 @@ export interface ShiftStage {
   readonly since: number;
   /** lightning's brightness 0..1 (the game's lights flash with it) */
   readonly flash: number;
+  /** how wet the road is 0..1 (the storm's rain; the karts' tires throw spray: vfx-juice) */
+  readonly wet: number;
   /** the fog's near and far, metres (a blizzard closes in) */
   readonly fog: { readonly near: number; readonly far: number };
   /** this frame's sounds and bursts (cleared every update) */
@@ -225,6 +237,7 @@ class StageImpl implements ShiftStage {
   readonly anchors: Record<string, Vec3> = {};
   since = -1;
   flash = 0;
+  wet = 0;
   readonly fog = { near: FOG.near, far: FOG.far };
   readonly cues: StageCue[] = [];
   readonly bursts: StageBurst[] = [];
@@ -281,6 +294,7 @@ class StageImpl implements ShiftStage {
     f.since = since; f.prev = this.prev; f.clock = clock; f.reduced = reduced; f.focus = focus; f.heading = heading;
     this.since = since;
     this.flash = 0;
+    this.wet = 0;
     fogAt(this.kind, since, this.fog);
     // (index loops and no destructuring here and in the pieces: an iterator is garbage every frame)
     const anchor = this.anchors[CUE_ANCHOR[this.kind] ?? ''] ?? null;
@@ -411,7 +425,9 @@ function flood(ctx: StageContext): Piece | null {
   g.setIndex(idx);
   g.computeBoundingSphere();
   const u: FloodUniforms = { uFront: { value: -10 }, uClock: { value: 0 }, uRise: { value: 0 }, uLength: { value: (rows[r1].i - rows[r0].i) * ds } };
-  const mat = floodMaterial(u);
+  // the sea's own ripples, and its glint from the sun's bearing, no higher than the sea's (26°)
+  const sun = ctx.track.def.environment?.sunDirection ?? [0.4, 0.8, 0.3], flat = Math.hypot(sun[0], sun[2]) || 1, up = Math.min(Math.atan2(sun[1], flat), 0.45);
+  const mat = floodMaterial(u, undefined, undefined, undefined, ctx.ripples, [(sun[0] / flat) * Math.cos(up), Math.sin(up), (sun[2] / flat) * Math.cos(up)]);
   mat.side = DoubleSide; // seen from either side of its winding
   const mesh = own(new Mesh(g, mat));
   mesh.name = 'shift-flood';
@@ -533,6 +549,9 @@ function oakSpot(ctx: StageContext): OakSpot | null {
   return null;
 }
 
+/** Metres of land past the shoulder line a splash may land on: land.ts keeps it flat out to COAST.flat (14 m) past it, then eases it down. */
+const SPLASH_LAND = 13;
+
 function storm(ctx: StageContext): Piece {
   const S = SHOW.storm;
   const meshes: Object3D[] = [];
@@ -576,6 +595,38 @@ function storm(ctx: StageContext): Piece {
   const rain = own(weatherMesh('rain', wu));
   rain.visible = false;
   meshes.push(rain);
+  // splashes where the drops land (splash.ts): on the road as drawn (its banked deck, the curb up on it)
+  // and on the land beside it, which terrain.ts lays flat from the curb out, offroadDrop under the curb's
+  // height (lut.ts drives on the same), out to where land.ts starts easing it down; the main road's
+  // nearest sample is searched round the one nearest the camera's kart, found afresh each frame
+  const ML = ctx.track.branches.main.lut, per = metresPer(ML), reach = Math.ceil(34 / per);
+  let hint = 0;
+  const nearestSample = (x: number, z: number, from: number, span: number): number => {
+    let best = ML.idx(from), bd = Infinity;
+    for (let d = -span; d <= span; d++) {
+      const j = ML.idx(from + d), dx = ML.px[j] - x, dz = ML.pz[j] - z, q = dx * dx + dz * dz;
+      if (q < bd) { bd = q; best = j; }
+    }
+    return best;
+  };
+  const surface = (p: Float64Array): boolean => {
+    // (the search written out here, not a call: a call's number arguments would be boxed, ten times a frame)
+    const x = p[0], z = p[1];
+    let j = ML.idx(hint), bd = Infinity;
+    for (let d = -reach; d <= reach; d++) {
+      const k = ML.idx(hint + d), dx = ML.px[k] - x, dz = ML.pz[k] - z, q = dx * dx + dz * dz;
+      if (q < bd) { bd = q; j = k; }
+    }
+    const lat = (x - ML.px[j]) * ML.rx[j] + (z - ML.pz[j]) * ML.rz[j], hw = ML.hw[j], curb = hw + BUILDER.kerbWidth, a = Math.abs(lat);
+    if (a > curb + BUILDER.shoulderWidth + SPLASH_LAND) return false;
+    const c = a <= curb ? lat : lat < 0 ? -curb : curb;
+    p[2] = ML.py[j] - c * Math.tan(ML.bank[j]) + (a <= hw ? 0 : a <= curb ? BUILDER.kerbHeight : -BUILDER.offroadDrop);
+    return true;
+  };
+  const su: SplashUniforms = { uTime: { value: 0 }, uFlash: { value: 0 }, uReduced: { value: 0 } };
+  const splashes = new SplashField(su, surface);
+  splashes.mesh.visible = false;
+  meshes.push(splashes.mesh);
   // the bolt
   const bolt = own(new Mesh(boltGeometry(), boltMaterial()));
   bolt.name = 'shift-bolt';
@@ -615,6 +666,17 @@ function storm(ctx: StageContext): Piece {
       cu.uCover.value = on ? ease(f.since, S.clouds[0], S.clouds[1]) : 0;
       wu.uTime.value = f.clock; wu.uFlash.value = flash;
       wu.uDensity.value = on ? ease(f.since, S.rain[0], S.rain[1]) : 0;
+      // the drops land and splash round the camera's kart, as hard as it rains; the road is as wet
+      splashes.mesh.visible = on;
+      su.uFlash.value = flash;
+      if (on && f.focus) {
+        hint = nearestSample(f.focus[0], f.focus[2], hint, reach);
+        const j = hint, dx = ML.px[j] - f.focus[0], dz = ML.pz[j] - f.focus[2];
+        // (the first frame, or a respawn far from the last: look along the whole lap once)
+        if (dx * dx + dz * dz > 30 * 30) hint = nearestSample(f.focus[0], f.focus[2], 0, ML.n >> 1);
+      }
+      splashes.update(f.clock, f.focus, f.heading, wu.uDensity.value, f.reduced);
+      f.stage.wet = wu.uDensity.value;
       // the bolt: on the oak first, then far off; seen while its flash is bright
       const k = on ? lastStrike(f.since) : -1;
       if (k >= 0) {

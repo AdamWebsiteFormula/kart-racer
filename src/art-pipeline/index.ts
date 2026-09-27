@@ -5,6 +5,7 @@ import { trackAssetsFor } from './decor.ts';
 import { PROP_MODELS } from './glb.ts';
 import { coastMaterial, FROST_LAKE, groundMaterial, roadDetail, roadGrain, roadWear } from './surfaces.ts';
 import { SEA_TIDE } from './waterWaves.ts';
+import { RIPPLE_GLSL, rippleTexture } from './waterRipples.ts';
 import { toonRamp } from './toon.ts';
 import { buildVista } from './vista.ts';
 import { withCrowd } from './crowd.ts';
@@ -24,7 +25,7 @@ export { DAY_GRADE, DAY_LIGHT, fadeSky, lightOf, paintSky, preloadSky, SKIES, SK
 export { isShared, toonRamp, vertexToon } from './toon.ts';
 export { BUBBLE_CLOCK, bubbleMaterial, ITEM_MODEL_KINDS, itemGeometry, oilSlickMaterial, strikeBallMaterial } from './items.ts';
 
-export { preloadSurfaces, ROAD_LOOKS, roadWear, WATER_CLOCK, type RoadLook } from './surfaces.ts';
+export { preloadSurfaces, ROAD_LOOKS, ROAD_WET, roadWear, WATER_CLOCK, type RoadLook } from './surfaces.ts';
 export { applyLook, DEFAULT_LOOK, isPbr, look, lookFromSearch, LOOKS, PBR, setLook, SkyEnvironment, worldEnvironment, type Look } from './look.ts';
 
 /**
@@ -50,7 +51,7 @@ export function trackAssets(biome?: string): TrackAssets {
     // Frostbite's lake on the snow, frozen by its Final Lap Shift (surfaces.ts FROST_LAKE)
     ...(biome === 'frost' ? { lake: FROST_LAKE } : {}),
     // Harbour Loop's flood tide (waterWaves.ts SEA_TIDE): the only sea track with a Final Lap Shift that raises the sea
-    ...(biome === 'harbour' ? { tide: SEA_TIDE } : {}),
+    ...(biome === 'harbour' ? { tide: SEA_TIDE, ripples: { map: rippleTexture(), glsl: RIPPLE_GLSL } } : {}),
   } : {};
   // the far vista: set-pieces, movers and glows past the scenery (vista.ts); the crowd by the road (crowd.ts)
   // the PBR prototype (look.ts, ?look=pbr): the world's materials swapped for their stylized-PBR twins once
