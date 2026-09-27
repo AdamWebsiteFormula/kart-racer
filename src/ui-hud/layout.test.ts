@@ -396,6 +396,10 @@ describe('the race\'s big moments and the end screens at the menus\' quality (27
     moves('lamps-sway', ['transform']);
     moves('lamps-up', ['transform', 'visibility']);
     moves('lamp-on', ['transform', 'filter']);
+    // the HUD's own layers (the lamps, the banners over their ghost, the timer over the cables) stay inside it: the pause
+    // over the countdown is on top of them all
+    expect(value('#ui .hud', 'isolation')).toBe('isolate');
+    expect([value('.lamps', 'z-index'), value('.hud .tc', 'z-index')]).toEqual(['1', '2']);
   });
 
   it('the end screens: no paper card, glass rows, the player\'s in the sun and inked, the buttons glass with the one focus ring', () => {
