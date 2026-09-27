@@ -221,15 +221,18 @@ describe('the race HUD beside real MKW footage (25 Sept 2026)', () => {
     expect(value('.place.flourish', 'animation')).toMatch(/flourish/);
   });
 
-  it('has no box behind the map, and the coins sit in a pill that glows at the cap', () => {
+  it('has no box behind the map, and the gears sit in a pill that glows teal at the cap (gears, not coins: 26 Sept 2026)', () => {
     expect(value('.minimap', 'background')).toBe('');
     expect(value('.minimap', 'border')).toBe('');
-    expect(value('.coins', 'border-radius')).toBe('999px');
-    expect(value('.coins', 'background')).not.toBe('');
-    expect(value('.coins.full', 'box-shadow')).toMatch(/var\(--sun\)/);
+    expect(value('.gears', 'border-radius')).toBe('999px');
+    expect(value('.gears', 'background')).not.toBe('');
+    expect(value('.gears.full', 'box-shadow')).toMatch(/var\(--teal\)/);
     // smaller in a narrow window with keys (the controls strip reached its glow at 880 px); a phone has no strip
-    expect(value('.coins', 'font-size', '(max-width: 900px) and (pointer: fine)')).toBe('28px');
-    expect(value('.coins', 'font-size', '(max-width: 900px)')).toBe('');
+    expect(value('.gears', 'font-size', '(max-width: 900px) and (pointer: fine)')).toBe('28px');
+    expect(value('.gears', 'font-size', '(max-width: 900px)')).toBe('');
+    expect(value('.gears .gear', 'width', '(max-width: 900px) and (pointer: fine)')).toBe('27px');
+    // no gold coin left in the stylesheet
+    expect(value('.coins', 'border-radius')).toBe('');
   });
 });
 

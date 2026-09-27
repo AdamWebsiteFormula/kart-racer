@@ -75,7 +75,7 @@ describe('HUD renderer', () => {
     expect(banner.getAttribute('aria-live')).toBe('polite');
   });
 
-  it('the place numeral takes its place color with the numeral and the flourish; the coin pill shows two digits', () => {
+  it('the place numeral takes its place color with the numeral and the flourish; the gear pill shows two digits', () => {
     document.body.innerHTML = '';
     const v = new HudView(document.body);
     const m = newHudMemory();
@@ -86,7 +86,7 @@ describe('HUD renderer', () => {
     feedHud(m, [{ type: 'positionChange', racerId: 'p', rank: 1 }], [], 'p', 1);
     v.render(hudModel(race, kart(), 1, 10, m, 1, defs, 0));
     expect([place.getAttribute('data-tier'), n.getAttribute('data-n'), n.textContent, place.classList.contains('flourish')]).toEqual(['gold', '1', '1', true]);
-    expect(v.root.querySelector('.coins')!.textContent).toBe('02');
+    expect(v.root.querySelector('.gears')!.textContent).toBe('02');
   });
 
   it('the driving assists: Steering assist\'s wheel at the foot of the screen (lit while it works), and the strip says the gas is automatic', () => {

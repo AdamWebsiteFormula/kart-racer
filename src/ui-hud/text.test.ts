@@ -69,11 +69,12 @@ describe('How to Play says what the game does', () => {
     expect(ITEM_LINES.fogBank).toContain(`${item('fogBank').behaviour.minPosition}th place back`);
   });
 
-  it('the tips give the real start boost, coin and slipstream rules (a hit always spins and costs coins)', () => {
+  it('the tips give the real start boost, gear and slipstream rules (a hit always spins and knocks gears loose)', () => {
     expect(tip(/start boost/)).toContain(`the ${BASE.startBoostCentreSeconds} appears`);
+    // the speed pickups are gears (Adam, 26 Sept 2026); the kart schema still counts them as coins
     expect(BASE.coinShield.enabled).toBe(false);
-    expect(tip(/coins/)).toContain(`up to ${BASE.coinCap}`);
-    expect(tip(/coins/)).toContain(`spins you out and costs ${BASE.hitCoinsLost} coins`);
+    expect(tip(/gears/)).toContain(`up to ${BASE.coinCap}`);
+    expect(tip(/gears/)).toContain(`spins you out and knocks ${BASE.hitCoinsLost} gears loose`);
     expect(tip(/slipstream/)).toContain(`${BASE.slipstreamSeconds} seconds`);
   });
 
@@ -215,6 +216,8 @@ describe('every word a player reads', () => {
       expect(w, w).not.toMatch(/\p{Extended_Pictographic}/u);
       expect(w, w).not.toMatch(/colour|grey|tyre|kerb|harbour|centre|favourite|metre|licence|defence|behaviour|honour|neighbour|travell|cancell|organis|realis|apologis/i);
       expect(w, w).not.toMatch(/mario|nintendo|luigi|bowser|yoshi|koopa|lakitu|mushroom|shell|bob-?omb|banana|item ?box|mini-?turbo|rocket start|ultra turbo|super star/i);
+      // gears, not coins (Adam, 26 Sept 2026: "too much of a copy of Mario Kart")
+      expect(w, w).not.toMatch(/\bcoins?\b/i);
       expect(w, w).not.toMatch(/\bjeep|jet[- ]?ski|waverunner|coca|pepsi|lego|hot wheels/i);
       expect(w, w).not.toMatch(/ruthless|kill|dead\b|blood|stupid|idiot|hate/i);
     }

@@ -34,9 +34,10 @@ describe('the race HUD on a short touch screen', () => {
     expect(inMedia(SHORT, ':root .hud .br')?.getPropertyValue('transform-origin')).toBe('top right');
     expect(inMedia(SHORT, ':root .touch .buttons')?.getPropertyValue('transform-origin')).toBe('bottom right');
   });
-  it('sets the coins beside the place (a Knockout\'s goal under them), just above the steering pad', () => {
+  it('sets the gears beside the place (a Knockout\'s goal under them), just above the steering pad', () => {
     const bl = inMedia(SHORT, ':root .hud .bl');
     expect(inMedia(SHORT, ':root .hud .bl .pc')?.getPropertyValue('flex-direction')).toBe('row');
+    expect(inMedia(SHORT, ':root .hud .bl .gears')?.getPropertyValue('margin')).toBe('0px 0px 6px');
     expect(bl?.getPropertyValue('transform-origin')).toBe('bottom left');
     expect(bl?.getPropertyValue('bottom')).toContain('126px');
   });
