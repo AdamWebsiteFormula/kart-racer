@@ -43,6 +43,11 @@ export class GameAudio {
   private wantKey: string | null = null;
   private songKey: string | null = null;
   private awaitGo = false;
+  /**
+   * A recording due within AUDIO.songWait of its start, waited for with no synth stand-in: the song, its start
+   * (`after`, as play() takes it) and when the synth stands in after all if the recording has still not started
+   */
+  private waiting: { key: string; song: SongId | null; after: number; giveUp: number } | null = null;
   private song: SongPlayer | null = null;
   private loopPlayer: LoopEngine | null = null;
   private readonly loopAi: LoopEngine[] = [];
@@ -73,18 +78,27 @@ export class GameAudio {
     this.bank = bank;
     // the manifest is enough to ask for the recorded song (the synth plays it till the file is in)
     bank.onManifest = () => this.samplesReady();
-    const unlock = () => {
-      if (this.bus.unlock()) { this.start(); return; }
-      // resume() settles asynchronously: start the scheduler the moment the context runs,
-      // so the very first gesture is enough (Safari and Chrome)
-      const c = this.bus.ctx;
-      if (c && !this.watching) {
-        this.watching = true;
-        c.addEventListener?.('statechange', () => { if (c.state === 'running') this.start(); });
-      }
-    };
+    // the events a browser lets sound start from (its user activation: html.spec.whatwg.org "activation triggering input event")
+    const unlock = () => this.unlock();
     for (const ev of ['pointerdown', 'keydown', 'touchend']) addEventListener(ev, unlock, { passive: true });
     addEventListener('visibilitychange', () => this.bus.setHidden(document.hidden));
+  }
+
+  /**
+   * A press, click or tap (the page's own listeners), or the start screen's press by a pad (ui-hud: Chrome counts a pad
+   * button the page reads as the page's user activation, blink navigator_gamepad.cc): the one context is built and
+   * resumed, and the song asked for starts. A browser that refuses (no gesture yet) leaves it for the next; a silent
+   * bus (?mute) never builds one.
+   */
+  unlock(): void {
+    if (this.bus.unlock()) { this.start(); return; }
+    // resume() settles asynchronously: start the scheduler the moment the context runs,
+    // so the very first gesture is enough (Safari and Chrome)
+    const c = this.bus.ctx;
+    if (c && !this.watching) {
+      this.watching = true;
+      c.addEventListener?.('statechange', () => { if (c.state === 'running') this.start(); });
+    }
   }
 
   private start(): void {
@@ -109,7 +123,10 @@ export class GameAudio {
   /**
    * Switch songs: the recording `key` when there is one, else the synth `song`. Queued until the
    * context is unlocked. The results song waits for the finish sting's last chord. A recording still
-   * coming down (the files take turns, performance/loadQueue.ts) has the synth play the song meanwhile.
+   * coming down (the files take turns, performance/loadQueue.ts) has the synth play the song meanwhile,
+   * unless it is due within AUDIO.songWait of its start (its file in hand, decoding: the title's after
+   * the start screen's press): then nothing plays till it starts, as a synth flash and then the switch
+   * sounds cheap (Adam, 28 Sept 2026). One waited for that stalls gets the synth after AUDIO.songGiveUp.
    */
   play(song: SongId | null, key: string | null = song): void {
     this.wantSong = song;
@@ -120,9 +137,18 @@ export class GameAudio {
     const after = song === 'results' ? this.stingEnds : 0;
     if (key && this.bank.hasSong(key)) {
       if (this.songKey !== key) this.startSong(ctx, key, after);
-      if (this.bank.isReady(key)) { this.seq = null; this.songId = null; } else this.synth(ctx, song, after);
+      if (this.bank.isReady(key)) { this.seq = null; this.songId = null; this.waiting = null; return; }
+      // the synth already stands in (the recording's list came late): it plays on till the recording takes over
+      if ((this.seq && this.songId === song) || this.waiting?.key === key) return;
+      const at = Math.max(ctx.currentTime, after);
+      if (ctx.currentTime + this.bank.readyIn(key) <= at + AUDIO.songWait) {
+        this.seq = null;
+        this.songId = null;
+        this.waiting = { key, song, after, giveUp: at + AUDIO.songGiveUp };
+      } else this.synth(ctx, song, after);
       return;
     }
+    this.waiting = null;
     this.stopSong();
     this.synth(ctx, song, after);
   }
@@ -141,6 +167,7 @@ export class GameAudio {
     this.song.stop(ctx.currentTime, 0.3);
     void this.bank.song(ctx, key).then((s) => {
       if (this.songKey !== key) return; // another song was asked for while this one decoded
+      if (this.waiting?.key === key) this.waiting = null;
       if (s) { this.seq = null; this.songId = null; this.song!.start(s, Math.max(ctx.currentTime + 0.05, after)); return; }
       // it would not decode: the synth plays instead
       this.songKey = null;
@@ -163,11 +190,13 @@ export class GameAudio {
     this.wantSong = null;
     this.wantKey = null;
     this.awaitGo = false;
+    this.waiting = null;
   }
 
   private stopSong(): void {
     if (this.songKey) this.song?.stop(this.bus.time);
     this.songKey = null;
+    this.waiting = null;
   }
 
   /**
@@ -196,8 +225,15 @@ export class GameAudio {
   }
 
   private pump(): void {
-    const ctx = this.bus.ctx, seq = this.seq;
+    const ctx = this.bus.ctx;
     if (!ctx || ctx.state !== 'running') return;
+    // a recording waited for (no synth stand-in) that has still not started: a stalled line, the synth after all
+    const w = this.waiting;
+    if (w && ctx.currentTime >= w.giveUp) {
+      this.waiting = null;
+      if (this.songKey === w.key) this.synth(ctx, w.song, w.after);
+    }
+    const seq = this.seq;
     if (!seq) return;
     const notes = seq.take(ctx.currentTime + AUDIO.scheduleAhead, this.booked);
     for (const n of notes) {

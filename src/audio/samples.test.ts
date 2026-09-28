@@ -445,6 +445,80 @@ describe('sample bank', () => {
     expect(counts.reduce((a, b) => a + b, 0)).toBe(ids.length);
   });
 
+  it('a song\'s file can come ahead of its moment (the title\'s while the start screen waits): bytes only, at its turn, no context; the song then decodes those bytes, fetched once (28 Sept 2026)', async () => {
+    const manifest = { sfx: { uiMove: { url: 'audio/sfx/uiMove.mp3' } }, music: { title: { url: 'audio/music/title.mp3', bpm: 128 } } };
+    const fetched: string[] = [];
+    const f = (async (u: string) => {
+      fetched.push(String(u));
+      return { ok: true, json: async () => manifest, arrayBuffer: async () => new ArrayBuffer(16000) };
+    }) as unknown as typeof fetch;
+    const asked: { tier: number; song?: string }[] = [];
+    const bank = new SampleBank('/', f);
+    bank.schedule = (job, tier, song) => { asked.push({ tier, song }); return job(); };
+    let listed = 0;
+    bank.onManifest = () => listed++;
+    expect([bank.hasSong('title'), bank.fetched('title'), bank.readyIn('title')]).toEqual([false, false, Infinity]);
+    await bank.prefetch('title'); // (no context anywhere: prefetch takes none)
+    expect(fetched).toEqual(['/audio/manifest.json', '/audio/music/title.mp3']);
+    expect(asked).toEqual([{ tier: SONG_TIER, song: 'title' }]);
+    expect([listed, bank.hasSong('title'), bank.fetched('title'), bank.isReady('title')]).toEqual([1, true, true, false]);
+    // in hand, it is a decode away
+    expect(bank.readyIn('title')).toBe(AUDIO.songDecode);
+    await bank.prefetch('title'); // again: nothing more comes down
+    let decoded = 0;
+    const data = new Float32Array(8000);
+    const ctx = { decodeAudioData: async (b: ArrayBuffer) => { decoded += b.byteLength; return { duration: 1, sampleRate: 8000, numberOfChannels: 1, getChannelData: () => data } as unknown as AudioBuffer; } } as unknown as BaseAudioContext;
+    // the sound effects' load finds the list in: it is not fetched again, and nobody is told twice
+    await bank.load(ctx);
+    const s = await bank.song(ctx, 'title');
+    expect(s).not.toBeNull();
+    expect(decoded, 'the prefetched bytes, decoded').toBe(16000 + 16000);
+    expect(fetched.filter((u) => u.endsWith('title.mp3')).length, 'the song fetched once').toBe(1);
+    expect(fetched.filter((u) => u.endsWith('manifest.json')).length).toBe(1);
+    expect([listed, bank.isReady('title'), bank.readyIn('title')]).toEqual([1, true, 0]);
+    // offline: nothing, and it says so without throwing
+    const off = new SampleBank('/', (() => Promise.reject(new Error('offline'))) as typeof fetch);
+    await off.prefetch('title');
+    expect([off.hasSong('title'), off.fetched('title'), off.readyIn('title')]).toEqual([false, false, Infinity]);
+  });
+
+  it('while a song\'s file comes, readyIn is the rest of it at the speed it has come so far, plus a decode; its bytes arrive whole', async () => {
+    const manifest = { sfx: {}, music: { title: { url: 'audio/music/title.mp3', bpm: 128 } } };
+    const bytes = Uint8Array.from({ length: 1000 }, (_, i) => i & 255);
+    let give!: (chunk: Uint8Array | null) => void;
+    const next = () => new Promise<Uint8Array | null>((r) => { give = r; });
+    let pending = next();
+    const reader = { read: async () => { const c = await pending; pending = next(); return c ? { done: false, value: c } : { done: true, value: undefined }; } };
+    const f = (async (u: string) => (String(u).endsWith('.json')
+      ? { ok: true, json: async () => manifest }
+      : { ok: true, headers: { get: (h: string) => (h === 'content-length' ? '1000' : null) }, body: { getReader: () => reader } })) as unknown as typeof fetch;
+    const bank = new SampleBank('/', f);
+    let now = 0;
+    bank.now = () => now;
+    const done = bank.prefetch('title');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(bank.readyIn('title'), 'nothing in yet: nobody can tell').toBe(Infinity);
+    now = 100;
+    give(bytes.slice(0, 250)); // a quarter in 0.1 s: the rest in 0.3 s
+    await new Promise((r) => setTimeout(r, 0));
+    now = 200;
+    // 250 bytes in 0.2 s: 750 to go at 1250 a second
+    expect(bank.readyIn('title')).toBeCloseTo(0.6 + AUDIO.songDecode, 6);
+    give(bytes.slice(250, 900));
+    await new Promise((r) => setTimeout(r, 0));
+    now = 300;
+    expect(bank.readyIn('title')).toBeCloseTo(100 / (900 / 0.3) + AUDIO.songDecode, 6);
+    give(bytes.slice(900));
+    await new Promise((r) => setTimeout(r, 0));
+    give(null);
+    await done;
+    expect(bank.readyIn('title')).toBe(AUDIO.songDecode);
+    let got: Uint8Array | null = null;
+    const ctx = { decodeAudioData: async (b: ArrayBuffer) => { got = new Uint8Array(b); return { duration: 1, sampleRate: 8000, numberOfChannels: 1, getChannelData: () => new Float32Array(8000) } as unknown as AudioBuffer; } } as unknown as BaseAudioContext;
+    await bank.song(ctx, 'title');
+    expect(got).toEqual(bytes);
+  });
+
   it('keeps title and results decoded always, and the two most recent race songs', async () => {
     const keys = ['title', 'results', 'race-a', 'race-b', 'race-c'];
     const manifest = { sfx: {}, music: Object.fromEntries(keys.map((k) => [k, { url: `audio/music/${k}.mp3`, bpm: 120 }])) };

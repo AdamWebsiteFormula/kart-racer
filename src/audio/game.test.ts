@@ -48,8 +48,11 @@ class FakeCtx {
   addEventListener() { /* no events here */ }
 }
 
-/** A fake bank's voice side: no lines recorded (a test that wants some gives its own). */
-const NO_VOICES = { loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined };
+/**
+ * A fake bank's voice side: no lines recorded (a test that wants some gives its own); and no recording due soon
+ * (readyIn: a test of the wait for one gives its own), so a recording not decoded has the synth stand in.
+ */
+const NO_VOICES = { loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined, readyIn: () => Infinity };
 
 const SONG: Sample = { buffer: { duration: 40 } as AudioBuffer, start: 0.5, end: 32.5, gain: 1 };
 /** The recorded race and results songs, or none (the synth plays). */
@@ -144,6 +147,17 @@ describe('a recording still coming down (the files take turns: performance/loadQ
     return { b, land: () => { state.ready = true; arrive(SONG); } };
   }
   const recordings = (ctx: FakeCtx) => ctx.sources.filter((s) => s.kind === 'buffer' && s.offset === SONG.start);
+  /** A bank whose title recording is `due` seconds off (its readyIn) and lands when the test says (null: it will not decode). */
+  function dueBank(due: number) {
+    let arrive!: (s: Sample | null) => void;
+    const file = new Promise<Sample | null>((r) => { arrive = r; });
+    const state = { ready: false };
+    const b = {
+      ...NO_VOICES, onLoaded: null, load: async () => undefined, get: () => undefined, hasSong: (k: string) => k === 'title',
+      isReady: (k: string) => k === 'title' && state.ready, readyIn: () => (state.ready ? 0 : due), song: () => file,
+    } as unknown as SampleBank;
+    return { b, land: (s: Sample | null = SONG) => { state.ready = s !== null; arrive(s); } };
+  }
 
   it('the synth plays the title until its recording is decoded, then the recording takes over', async () => {
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
@@ -196,6 +210,68 @@ describe('a recording still coming down (the files take turns: performance/loadQ
     b.onManifest?.();
     expect(asked, 'asked for the moment the list is in').toBe(1);
     expect(inner.seq, 'the synth plays on meanwhile').not.toBeNull();
+  });
+
+  it('a recording due within half a second (its file in hand, decoding) is waited for: no synth flash before it (Adam, 28 Sept 2026)', async () => {
+    const { b, land } = dueBank(0.3);
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, b);
+    bus.unlock();
+    const ctx = FakeCtx.last;
+    audio.play('title');
+    const inner = audio as unknown as { seq: unknown; pump(): void };
+    expect(inner.seq, 'no synth stand-in').toBeNull();
+    // the scheduler runs on while it decodes: nothing is booked, whatever the clock says (short of the give-up)
+    for (const t of [1.1, 1.3, 1.6, 1 + AUDIO.songGiveUp - 0.05]) { ctx.currentTime = t; inner.pump(); }
+    expect(inner.seq).toBeNull();
+    expect(ctx.sources.filter((s) => s.kind === 'osc'), 'not one synth note').toHaveLength(0);
+    land();
+    await flush();
+    expect(recordings(ctx)).toHaveLength(1);
+    ctx.currentTime = 9;
+    inner.pump();
+    expect(inner.seq, 'the recording plays: the wait is over').toBeNull();
+  });
+
+  it('one further off (a slow line) has the synth stand in at once, as before; one waited for that stalls gets it after the give-up', async () => {
+    const far = dueBank(4);
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, far.b);
+    bus.unlock();
+    audio.play('title');
+    expect((audio as unknown as { seq: unknown }).seq, 'far off: the synth').not.toBeNull();
+
+    const soon = dueBank(0.2);
+    const bus2 = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const late = new GameAudio(bus2, soon.b);
+    bus2.unlock();
+    const ctx = FakeCtx.last;
+    late.play('title');
+    const inner = late as unknown as { seq: { song: { bpm: number } } | null; songId: unknown; pump(): void };
+    expect(inner.seq).toBeNull();
+    ctx.currentTime = 1 + AUDIO.songGiveUp;
+    inner.pump();
+    expect([inner.seq !== null, inner.songId], 'stalled: the synth after all').toEqual([true, 'title']);
+    // asked again meanwhile (the list arriving, the attract race restarting): the synth plays on, no gap
+    const standIn = inner.seq;
+    late.play('title');
+    expect(inner.seq).toBe(standIn);
+    soon.land();
+    await flush();
+    expect([inner.seq, recordings(ctx).length], 'the recording takes over').toEqual([null, 1]);
+  });
+
+  it('a recording waited for that will not decode: the synth plays it instead', async () => {
+    const { b, land } = dueBank(0.2);
+    const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
+    const audio = new GameAudio(bus, b);
+    bus.unlock();
+    audio.play('title');
+    const inner = audio as unknown as { seq: unknown; songId: unknown };
+    expect(inner.seq).toBeNull();
+    land(null);
+    await flush();
+    expect([inner.seq !== null, inner.songId]).toEqual([true, 'title']);
   });
 
   it('a sound effect not in yet plays on the synth', () => {

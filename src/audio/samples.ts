@@ -479,14 +479,25 @@ function voiceContext(ctx: BaseAudioContext): BaseAudioContext {
  */
 export type AudioSchedule = <T>(job: () => Promise<T>, tier: number, song?: string) => Promise<T>;
 
+/** A song's file on its way: when its first bytes came (the bank's clock, ms), how many are in, of how many. */
+interface Coming { t0: number; got: number; total: number }
+
 /**
  * The manifest, every decoded sound effect, and songs decoded on demand (title, results and two race
- * songs kept: they are big). Every file comes down through `schedule`, in turn.
+ * songs kept: they are big). Every file comes down through `schedule`, in turn; a song's file can come
+ * down ahead of its moment, bytes only (`prefetch`: the title's while the start screen waits).
  */
 export class SampleBank {
   private manifest: Manifest | null = null;
+  /** the manifest's fetch, once (no audio context needed) */
+  private listing: Promise<Manifest | null> | null = null;
   private readonly sfx = new Map<string, Sample>();
   private readonly songs = new Map<string, Promise<Sample | null>>();
+  /** each song's file by key, fetched once; a decode takes the bytes (it detaches them), so a song decoded is dropped here */
+  private readonly files = new Map<string, Promise<ArrayBuffer | null>>();
+  /** songs' files on their way, with how far they have got (readyIn), and those in hand, not decoded yet */
+  private readonly coming = new Map<string, Coming>();
+  private readonly inHand = new Set<string>();
   /** each racer's lines by `racer:moment`, in take order; a moment is here only once all its takes are in */
   private readonly lines = new Map<string, Sample[]>();
   private voicing: Promise<void> | null = null;
@@ -501,10 +512,25 @@ export class SampleBank {
   onManifest: (() => void) | null = null;
   /** called once the manifest and every sound effect are in */
   onLoaded: (() => void) | null = null;
+  /** the clock a song's download is timed on (ms: readyIn); tests replace it */
+  now: () => number = () => performance.now();
 
   constructor(base: string = import.meta.env?.BASE_URL ?? '/', f: typeof fetch = (...a) => fetch(...a)) {
     this.base = base;
     this.get_ = f;
+  }
+
+  /** The recordings' list, fetched once (no audio context needed); `onManifest` is told as it lands. Null offline. */
+  private list(): Promise<Manifest | null> {
+    this.listing ??= (async () => {
+      const r = await this.get_(`${this.base}audio/manifest.json`).catch(() => null);
+      if (!r?.ok) return null;
+      const manifest = (await r.json()) as Manifest;
+      this.manifest = manifest;
+      this.onManifest?.();
+      return manifest;
+    })().catch(() => null);
+    return this.listing;
   }
 
   /**
@@ -513,11 +539,8 @@ export class SampleBank {
    */
   load(ctx: BaseAudioContext): Promise<void> {
     this.loading ??= (async () => {
-      const r = await this.get_(`${this.base}audio/manifest.json`).catch(() => null);
-      if (!r?.ok) return;
-      const manifest = (await r.json()) as Manifest;
-      this.manifest = manifest;
-      this.onManifest?.();
+      const manifest = await this.list();
+      if (!manifest) return;
       // asked for in turn order (a stable sort: the manifest's order within a turn)
       const ids = Object.keys(manifest.sfx).sort((a, b) => sfxTier(a) - sfxTier(b));
       await Promise.all(ids.map(async (id) => {
@@ -530,18 +553,83 @@ export class SampleBank {
     return this.loading;
   }
 
+  /**
+   * The song `key`'s file, fetched ahead of its moment (the title's while the start screen waits for the first press;
+   * browsers refuse sound before one): its bytes only, at its turn in the line, and no audio context (none may start
+   * before the press, and ?mute never makes one). `song()` decodes them when the song is asked for, so the press
+   * waits for a decode, not a download. Safe to call again; fails soft.
+   */
+  async prefetch(key: string): Promise<void> {
+    const m = (await this.list())?.music[key];
+    if (m && !this.songs.has(key)) await this.file(key, m.url);
+  }
+
   /** The file's bytes when its turn comes (the line is free again once they are in), then decoded. */
-  private async decode(ctx: BaseAudioContext, url: string, tier: number, song?: string): Promise<AudioBuffer | null> {
+  private async decode(ctx: BaseAudioContext, url: string, tier: number): Promise<AudioBuffer | null> {
     try {
       const bytes = await this.schedule(async () => {
         const r = await this.get_(`${this.base}${url}`);
         return r.ok ? await r.arrayBuffer() : null;
-      }, tier, song);
+      }, tier);
       return bytes ? await ctx.decodeAudioData(bytes) : null;
     } catch {
       return null;
     }
   }
+
+  /** The song `key`'s file, once, at its turn (SONG_TIER, the line knowing it for a song); how fast it comes is measured (readyIn). */
+  private file(key: string, url: string): Promise<ArrayBuffer | null> {
+    let f = this.files.get(key);
+    if (!f) {
+      const mine = this.schedule(() => this.bytes(key, `${this.base}${url}`), SONG_TIER, key).catch(() => null);
+      f = mine;
+      this.files.set(key, f);
+      void mine.then((b) => {
+        this.coming.delete(key);
+        if (b && this.files.get(key) === mine) this.inHand.add(key);
+      });
+    }
+    return f;
+  }
+
+  /** A song file's bytes, read as they come when the server gives its size (so readyIn can tell how long the rest will take). */
+  private async bytes(key: string, url: string): Promise<ArrayBuffer | null> {
+    const r = await this.get_(url);
+    if (!r.ok) return null;
+    const total = Number(r.headers?.get?.('content-length')) || 0;
+    const reader = total > 0 ? r.body?.getReader?.() : undefined;
+    if (!reader) return r.arrayBuffer();
+    const c: Coming = { t0: this.now(), got: 0, total };
+    this.coming.set(key, c);
+    const parts: Uint8Array[] = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      c.got += value.length;
+    }
+    const out = new Uint8Array(c.got);
+    let at = 0;
+    for (const p of parts) { out.set(p, at); at += p.length; }
+    return out.buffer;
+  }
+
+  /**
+   * About how long (seconds) until the song `key`'s recording can play: 0 once it is decoded; a decode's worth
+   * (AUDIO.songDecode) with its file in hand or decoding; while its file comes, the rest of it at the speed it has
+   * come so far, plus that; Infinity when nobody can tell (not asked for, waiting its turn, no size given).
+   */
+  readyIn(key: string): number {
+    if (this.ready.has(key)) return 0;
+    if (this.inHand.has(key)) return AUDIO.songDecode;
+    const c = this.coming.get(key);
+    const s = c ? (this.now() - c.t0) / 1000 : 0;
+    if (!c || c.got <= 0 || s <= 0 || c.got > c.total) return Infinity;
+    return (c.total - c.got) / (c.got / s) + AUDIO.songDecode;
+  }
+
+  /** Whether the song `key`'s file is in hand (fetched, or decoded already). */
+  fetched(key: string): boolean { return this.inHand.has(key) || this.ready.has(key); }
 
   get(id: string): Sample | undefined { return this.sfx.get(id); }
 
@@ -571,17 +659,21 @@ export class SampleBank {
   /** Whether the song's recording is decoded (else the synth stands in while it comes down). */
   isReady(key: string): boolean { return this.ready.has(key); }
 
-  /** A decoded song, fetched on first ask (at SONG_TIER: it is wanted now). */
+  /** A decoded song, fetched on first ask (at SONG_TIER: it is wanted now) unless its file came ahead (prefetch). */
   song(ctx: BaseAudioContext, key: string): Promise<Sample | null> {
     const m = this.manifest?.music[key];
     if (!m) return Promise.resolve(null);
     let p = this.songs.get(key);
     if (!p) {
-      const mine: Promise<Sample | null> = this.decode(ctx, m.url, SONG_TIER, key).then((b) => {
+      const mine: Promise<Sample | null> = this.file(key, m.url).then(async (bytes) => {
+        // the decode takes the bytes: a song dropped later (below) is fetched again when it is asked for again
+        this.files.delete(key);
+        const b = bytes ? await ctx.decodeAudioData(bytes).catch(() => null) : null;
+        this.inHand.delete(key);
         const s = b ? cutSong(b, m.bpm, m.loop) : null;
         if (s && this.songs.get(key) === mine) this.ready.add(key);
         return s;
-      });
+      }).catch(() => null);
       p = mine;
       this.songs.set(key, p);
       // a decoded song is tens of MB: title and results stay (every race comes back to them), and the
