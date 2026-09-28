@@ -1477,16 +1477,20 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // the props a bank goes round: buildings on a footing (the kit names them) and anything very wide (a span's
     // legs, a cliff); a smaller prop where a bank is laid (a tree, a post, a fence) is lifted onto it below
     const solid = new Occupancy(), solidNames = new Set(assets.edge.solid ?? []);
+    // and the props that stand up out of the land, which the limit's rail goes round (edge.ts): all but the ground
+    // relief (a dune, a knoll, a drift: a low mound half under the land, which the rail may cross)
+    const standing = new Occupancy(), relief = new Set(assets.edge.relief ?? []);
     for (const p of decor) {
       if (p.band === 'verge' || p.band === 'sky') continue;
       for (let i = 0; i < p.count; i++) {
         const m = p.matrices, o = i * 16, r = p.footprint * Math.hypot(m[o], m[o + 1], m[o + 2]);
         if (solidNames.has(p.asset) || r >= EDGE_WIDE) solid.add(m[o + 12], m[o + 14], r);
+        if (!relief.has(p.asset)) standing.add(m[o + 12], m[o + 14], r * 0.7);
       }
     }
     edge = placeEdge({
       branches, kit: assets.edge, seed: def.id, groundAt, waterY: groundKind === 'water' ? groundY : undefined,
-      occupied, solid, avoid, jumps: track.jumps, startT: track.startT, course,
+      occupied, solid, standing, avoid, jumps: track.jumps, startT: track.startT, course,
       geometry: (k) => { const g = assets.geometries?.[k]; return g && g.hasAttribute('color') && !assets.materials?.[k] ? g : null; },
     });
     // the bank is land: it joins the land's own mesh and material (one draw, as before)
