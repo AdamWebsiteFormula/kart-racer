@@ -204,12 +204,15 @@ export interface TrackScene {
 
 /**
  * The balloons and coins near the lens (ghost.ts): gone at the first number of metres, whole from the
- * second. In a race they fade where they used to dissolve, 2.6 m out, never the one your kart is about
- * to pop (5.5 m ahead of the lens). The finish camera circles your kart 4.4 m off with a narrow view
- * and flies through the balloon row past the line (review, 25 Sept 2026: one filled a quarter of the
- * frame as a giant stippled blob), so there they fade from 6 m and are gone by 2.4.
+ * second. In a race they fade from 4.4 m and are gone by 2 (28 Sept 2026; the fresh-eyes review's nit 5,
+ * "a gear blurs across the lens as you take it": from 2.6 m, a gear or a balloon the chase camera passed
+ * still crossed a corner of the frame big and nearly solid), never one your kart can still take: the chase
+ * camera stands 5.6 m behind the kart and 2.5 m over it, so a pickup it takes beside or ahead of it is
+ * 5 m or more from the lens (game/camera.test.ts checks it against CAM). The finish camera circles your kart
+ * 4.4 m off with a narrow view and flies through the balloon row past the line (review, 25 Sept 2026: one
+ * filled a quarter of the frame as a giant stippled blob), so there they fade from 6 m and are gone by 2.4.
  */
-export const PICKUP_GHOST = Object.freeze({ race: [0.8, 2.6] as const, closeUp: [2.4, 6] as const });
+export const PICKUP_GHOST = Object.freeze({ race: [2, 4.4] as const, closeUp: [2.4, 6] as const });
 const PICKUP_GHOSTED = ['balloons', 'coins'] as const;
 const LENS_EYE = new Vector3();
 
@@ -222,6 +225,42 @@ export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[
  * seconds, each a step (`phase` rad) behind the one before it. Pictures only, on the scene's clock.
  */
 export const GEAR_MOTION = Object.freeze({ spin: 2.4, bob: 0.07, bobS: 1.6, phase: 0.9 });
+
+/**
+ * The pickup balloons float on their ribbons (28 Sept 2026; the fresh-eyes review's nit 3, "the pickup
+ * balloons hang dead still by day": their only motion was the night glow's pulse, while the gears turn and
+ * bob). Each is tied where its ribbon meets the road (BUILDER.balloonHeight under its middle) and rides a
+ * light breeze there as a tethered party balloon does, its ribbon taut: it sways across the road (`sway`
+ * rad every `swayS` s) and nods along it (`nod` rad every `nodS` s) about the tie, so the ribbon swings with
+ * it and the balloon's top moves most; it bobs (`bob` m every `bobS` s) and turns a little on its ribbon
+ * (`turn` rad every `turnS` s), so its shine slides round it. Each balloon on its own phase (its index times
+ * the golden angle), so a row never moves in step. Pictures only, on the scene's clock, written every frame
+ * from the placed matrices (nothing drifts); a popped one stays hidden until its timer runs out.
+ */
+export const BALLOON_MOTION = Object.freeze({ sway: 0.075, swayS: 2.7, nod: 0.05, nodS: 3.4, bob: 0.06, bobS: 2.2, turn: 0.3, turnS: 6.5 });
+
+/**
+ * A balloon's float at `time` on phase `phase` (BALLOON_MOTION), as a local matrix to put after its placed one:
+ * the bob, then the sway and nod about the tie `tie` metres under its middle, then the turn about its own
+ * upright. Pure; writes `out` (and `twist`) and returns `out`.
+ */
+export function balloonFloat(time: number, phase: number, tie: number, out: Matrix4, twist: Matrix4): Matrix4 {
+  const B = BALLOON_MOTION, TAU = Math.PI * 2;
+  const sway = B.sway * Math.sin((TAU * time) / B.swayS + phase);
+  const nod = B.nod * Math.sin((TAU * time) / B.nodS + 1.7 * phase);
+  const turn = B.turn * Math.sin((TAU * time) / B.turnS + 2.3 * phase);
+  const bob = B.bob * Math.sin((TAU * time) / B.bobS + 0.6 * phase);
+  // the tilt about the origin, moved to turn about the tie (0, -tie, 0): t = p - R p, R's up column times tie
+  out.makeRotationFromEuler(FLOAT_TILT.set(nod, 0, sway));
+  const e = out.elements;
+  e[12] = tie * e[4];
+  e[13] = tie * (e[5] - 1) + bob;
+  e[14] = tie * e[6];
+  return out.multiply(twist.makeRotationY(turn));
+}
+const FLOAT_TILT = new Euler();
+/** radians between neighbours' phases (the golden angle: any number of them, never in step) */
+const GOLDEN_ANGLE = 2.399963;
 
 const SKY_RADIUS = 900;
 /** The pickups' glow pulse: ± this share of it, once every PICKUP_PULSE_S seconds. */
@@ -1079,14 +1118,18 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       fb.mesh.instanceMatrix.needsUpdate = true;
     }
   };
-  // popped balloons and taken gears vanish until their timer runs out
-  const syncLive = (name: string, timers: readonly { respawnRemaining: number }[] | undefined) => {
-    const m = instancers.get(name), fs = featureSlots.get(name);
-    if (!m || !fs || !timers) return;
+  // the balloons float on their ribbons every frame (BALLOON_MOTION), from their placed matrices so nothing
+  // drifts; a popped one vanishes until its timer runs out. Each keeps its own phase by its index among every
+  // balloon on the track (a shortcut that closes leaves the others' as they were)
+  const balloonLocal = new Matrix4(), balloonTwist = new Matrix4();
+  const floatBalloons = (time: number, timers: readonly { respawnRemaining: number }[] | undefined) => {
+    const m = instancers.get('balloons'), fs = featureSlots.get('balloons');
+    if (!m || !fs) return;
     for (let k = 0; k < fs.slots.length; k++) {
-      const gone = (timers[fs.slots[k]]?.respawnRemaining ?? 0) > 0;
-      if (gone) m.setMatrixAt(k, hidden);
-      else { scratch.fromArray(fs.mats, k * 16); m.setMatrixAt(k, scratch); }
+      const j = fs.slots[k];
+      if ((timers?.[j]?.respawnRemaining ?? 0) > 0) { m.setMatrixAt(k, hidden); continue; }
+      balloonFloat(time, j * GOLDEN_ANGLE, BUILDER.balloonHeight, balloonLocal, balloonTwist);
+      m.setMatrixAt(k, scratch.fromArray(fs.mats, k * 16).multiply(balloonLocal));
     }
     m.instanceMatrix.needsUpdate = true;
   };
@@ -1132,7 +1175,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     pickupGlow.value = glowNow * (1 + PICKUP_PULSE * Math.sin((time / PICKUP_PULSE_S) * Math.PI * 2));
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); assets.look?.(group); }
-    if (live) syncLive('balloons', live.pickups);
+    floatBalloons(time, live?.pickups);
     turnGears(time, live?.coins);
     hazardCounts.fill(0);
     for (const h of active) {
