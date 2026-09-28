@@ -169,7 +169,7 @@ export interface TrackScene {
   vista?: VistaParts;
   /** the Final Lap Shift's set piece (mesh/shiftStage.ts), played from the shift's tick by the session; none once shifted */
   stage?: ShiftStage;
-  /** name → instancer; names: barriers, balloons, coins, boostPads, ramps, hazard:<asset>, decor:<asset> */
+  /** name → instancer; names: barriers, balloons, coins, boostPads, ramps, hazard:<asset>, decor:<asset> (an asset's second band: decor:<asset>#2) */
   instancers: Map<string, InstancedMesh>;
   fog: { color: Rgb; density: number };
   sky: string | undefined;
@@ -460,6 +460,26 @@ function reachOf(g: BufferGeometry): number {
   let r = 0;
   for (let i = 0; i < p.count; i++) r = Math.max(r, Math.hypot(p.getX(i), p.getZ(i)));
   g.userData.groundReach = r;
+  return r;
+}
+
+/**
+ * A prop planted on a bank (the course's edge, edge.ts): lifted by the bank as drawn at its spot, but its lowest
+ * point no higher than the lowest the land and bank are drawn within its base's reach (its lowest `band` metres, at
+ * most `reach` m round its centre, `ring` points), `sink` metres under that: on a steep face no side of it hangs in
+ * the air. (A model reaching below its origin, a half-buried snowball, has that much in hand already.)
+ */
+export const PLANT = Object.freeze({ band: 0.25, reach: 0.6, ring: 8, sink: 0.04 });
+
+/** How far a model's lowest PLANT.band metres reach from its own vertical axis (a trunk, a footing), cached on the geometry. */
+export function baseReachOf(g: BufferGeometry): number {
+  const cached = g.userData.baseReach as number | undefined;
+  if (cached !== undefined) return cached;
+  if (!g.boundingBox) g.computeBoundingBox();
+  const p = g.getAttribute('position'), floor = g.boundingBox!.min.y + PLANT.band;
+  let r = 0;
+  for (let i = 0; i < p.count; i++) if (p.getY(i) <= floor) r = Math.max(r, Math.hypot(p.getX(i), p.getZ(i)));
+  g.userData.baseReach = r;
   return r;
 }
 
@@ -815,6 +835,14 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const twin = track.shifted ? null : shiftedTwin(def);
   const course = [...branches.list.map((b) => b.lut), ...(twin && twin.branches.main.lut.length !== branches.main.lut.length ? [twin.branches.main.lut] : [])];
   const decor: DecorPlacement[] = [];
+  /**
+   * Each placement's own instancer. An asset can stand in two bands of one track (Frostbite Pass's pines and
+   * chalets, Mesa Rush's rocks), so `decor:<asset>` names two instancers: anything done to a placement's copies
+   * goes through this, never by name (28 Sept 2026: the bank lift went by name to the other band's instancer).
+   */
+  const decorMesh = new Map<DecorPlacement, InstancedMesh>();
+  /** each placement's model's base: its reach (baseReachOf) and how far it reaches below its origin (m, model units), for planting it on a bank */
+  const decorBase = new Map<DecorPlacement, { reach: number; below: number }>();
   /** the decor instancers (and their piers) the Low tier thins (cull) */
   const pools: Pool[] = [];
   const toMerge: { item: MergeItem; far: boolean }[] = [];
@@ -835,6 +863,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     const extent = { across: Math.max(-bb.min.x, bb.max.x, 0), along: Math.max(-bb.min.z, bb.max.z, 0) };
     const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, occupied, course);
     decor.push(p);
+    decorBase.set(p, { reach: baseReachOf(geo), below: Math.max(0, -bb.min.y) });
     // the PBR look's grass by the road (below) takes the place of this ground cover
     if (entry.band === 'verge' && assets.grass?.replaces.includes(entry.asset)) continue;
     // and the edge's cover (edge.ts) takes the place of this
@@ -853,7 +882,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // an instancer is never culled per instance, so every copy is drawn into the shadow map each
     // frame: only the roadside band is near enough for its shadows to be seen
     m.castShadow = entry.band === 'roadside';
-    instancers.set(m.name, m);
+    decorMesh.set(p, m);
+    // (the asset's second band in the map as decor:<asset>#2, so the map holds every instancer)
+    let key = m.name;
+    for (let n = 2; instancers.has(key); n++) key = `${m.name}#${n}`;
+    instancers.set(key, m);
     group.add(m);
     withHull(m, entry.asset);
     const pool = m.count > 0 ? newPool(m, entry.band) : null;
@@ -1426,16 +1459,29 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
         OWNED.add(merged);
       }
     }
-    // every prop a bank now runs under stands on it: lifted by the bank's height there (less a little, so it
-    // stays planted), in its placement (the merged dressing is built from it below) and its instancer
+    // every prop a bank now runs under stands on it, in its placement (the merged dressing is built from it below)
+    // and its own instancer: planted at the lowest the land and bank are drawn under its base (its bottom's reach
+    // round its centre, at most PLANT.reach), less PLANT.sink, so on a bank's steep face no side of it hangs in the
+    // air (28 Sept 2026: a pine lifted by the bank's height at its centre showed up to 0.65 m of air under one side)
+    const bankAt = edge.bankAt, drawn = (x: number, z: number) => groundAt(x, z) + bankAt(x, z);
     for (const p of decor) {
       if (p.band === 'verge' || p.band === 'sky' || p.layout === 'span') continue;
-      const im = instancers.get(`decor:${p.asset}`), arr = im ? (im.instanceMatrix.array as Float32Array) : null;
+      const im = decorMesh.get(p), arr = im ? (im.instanceMatrix.array as Float32Array) : null;
       // (and the Low tier's own copy of its placed matrices, which it draws its thinned copies from)
       const full = im ? pools.find((q) => q.mesh === im)?.full : undefined;
+      const base = decorBase.get(p) ?? { reach: 0, below: 0 };
       let moved = false;
       for (let i = 0; i < p.count; i++) {
-        const o = i * 16, dy = edge.bankAt(p.matrices[o + 12], p.matrices[o + 14]) - 0.04;
+        const m = p.matrices, o = i * 16, x = m[o + 12], z = m[o + 14];
+        if (bankAt(x, z) < PLANT.sink + 0.02) continue;
+        const r = Math.min(PLANT.reach, base.reach * Math.max(Math.hypot(m[o], m[o + 1], m[o + 2]), Math.hypot(m[o + 8], m[o + 9], m[o + 10])));
+        let ring = Infinity;
+        for (let k = 0; k < PLANT.ring; k++) { const a = (k / PLANT.ring) * Math.PI * 2; ring = Math.min(ring, drawn(x + Math.cos(a) * r, z + Math.sin(a) * r)); }
+        // as high as its own spot on the bank lifts it, but its lowest point (`below` its origin: a half-buried
+        // snowball's is deep already) no higher than the lowest the land is drawn round its base; `own` is the
+        // entry's own lift or sink over the land (placeDecor), kept
+        const g = groundAt(x, z), own = m[o + 13] - g, sy = Math.hypot(m[o + 4], m[o + 5], m[o + 6]);
+        const dy = Math.min(drawn(x, z) - g, ring - g - own + base.below * sy) - PLANT.sink;
         if (dy < 0.02) continue;
         p.matrices[o + 13] += dy;
         if (arr && o + 13 < arr.length) arr[o + 13] += dy;
@@ -1467,7 +1513,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   bakeReceivers.push({ mesh: startLine });
   if (coastMesh) bakeReceivers.push({ mesh: coastMesh });
   if (landmarkMesh && !landmarkMesh.userData.sharedMaterial) bakeReceivers.push({ mesh: landmarkMesh });
-  const decorOccluders = Array.from(instancers.values()).filter((m) => m.name.startsWith('decor:'));
+  // (every decor instancer, both bands of an asset used twice: by name, Frostbite's roadside pines were left out)
+  const decorOccluders = Array.from(decorMesh.values());
   group.userData.bakeStats = bakeTrackShading(group, { receivers: bakeReceivers, decor: decorOccluders, sun: env.sunDirection ?? [0.4, 0.8, 0.3] });
   // the road through a mine, under its lanterns burning low (tunnel.ts; after the bake, which would darken their light)
   if (tunnels) for (const c of chunks) lightBoreRoad(c.mesh.geometry, tunnels.userData.lanterns as Lantern[], track.tunnels, BORE_LIGHT.ember);

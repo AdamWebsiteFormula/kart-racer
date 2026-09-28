@@ -6,7 +6,7 @@
 // rebuilt balloons, is fine as long as its shader is one already compiled.)
 import { describe, expect, it } from 'vitest';
 import {
-  ACESFilmicToneMapping, BoxGeometry, DirectionalLight, Group, InstancedMesh, Mesh, MeshToonMaterial, NoToneMapping, NormalBlending, PerspectiveCamera, Scene, ShaderMaterial,
+  ACESFilmicToneMapping, BatchedMesh, BoxGeometry, DirectionalLight, Group, InstancedMesh, Mesh, MeshToonMaterial, NoToneMapping, NormalBlending, PerspectiveCamera, Scene, ShaderMaterial,
   type Material, type Object3D, type WebGLRenderer,
 } from 'three';
 import { RaceSession } from '../game/session.ts';
@@ -29,19 +29,26 @@ describe('exposeAll', () => {
     const pool = new InstancedMesh(geo, mat, 8); pool.count = 0; pool.visible = false;
     const busy = new InstancedMesh(geo, mat, 8); busy.count = 3; busy.frustumCulled = false;
     const lamp = new DirectionalLight(); lamp.visible = false;
-    scene.add(hiddenParent, pool, busy, lamp);
+    // a batch with every copy hidden (the items out of play: game/itemsView.ts)
+    const batch = new BatchedMesh(2, 24, 36, mat);
+    const box = batch.addGeometry(geo);
+    for (let k = 0; k < 2; k++) batch.setVisibleAt(batch.addInstance(box), false);
+    batch.visible = false;
+    scene.add(hiddenParent, pool, busy, lamp, batch);
     const undo = exposeAll(scene);
-    expect(hiddenParent.visible && pool.visible).toBe(true);
+    expect(hiddenParent.visible && pool.visible && batch.visible).toBe(true);
     expect(child.frustumCulled || pool.frustumCulled).toBe(false);
     expect(pool.count).toBe(1);
     expect(busy.count).toBe(3);
+    expect([batch.getVisibleAt(0), batch.getVisibleAt(1)], 'the batch shows one copy').toEqual([true, false]);
     expect(lamp.visible, 'a light never: it would change every shader').toBe(false);
     undo();
-    expect(hiddenParent.visible || pool.visible).toBe(false);
+    expect(hiddenParent.visible || pool.visible || batch.visible).toBe(false);
     expect(child.frustumCulled && pool.frustumCulled).toBe(true);
     expect(busy.frustumCulled).toBe(false);
     expect(pool.count).toBe(0);
     expect(busy.count).toBe(3);
+    expect([batch.getVisibleAt(0), batch.getVisibleAt(1)]).toEqual([false, false]);
     expect(materialsOf(scene)).toEqual(new Set([mat]));
   });
 });
@@ -155,7 +162,7 @@ function shaderKey(m: Material, o: Object3D): string {
     m.alphaTest > 0, m.alphaHash, m.premultipliedAlpha, m.toneMapped, m.vertexColors, x.fog, x.flatShading,
     ...['map', 'alphaMap', 'emissiveMap', 'normalMap', 'aoMap', 'lightMap', 'gradientMap', 'envMap', 'bumpMap', 'roughnessMap', 'metalnessMap'].map((k) => !!x[k]),
     sm.isShaderMaterial ? `${sm.vertexShader.length}:${sm.fragmentShader.length}` : '',
-    !!im.isInstancedMesh, !!im.instanceColor, !!(o as Mesh).morphTargetInfluences,
+    !!im.isInstancedMesh, !!im.instanceColor, !!(o as Mesh).morphTargetInfluences, !!(o as BatchedMesh).isBatchedMesh,
   ].join('|');
 }
 

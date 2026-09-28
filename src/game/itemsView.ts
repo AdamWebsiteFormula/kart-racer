@@ -1,11 +1,12 @@
 // What the race shows of the items (design §8): what flies and what lies on the road, the item a
 // kart trails behind it, the Triple Fizz bottles orbiting a kart, the Pogo Spring under a jumping
 // kart, the Grapple Anchor's chain, the Strike Ball around a kart and the Bubble around a shielded
-// one. One InstancedMesh per model kind, drawn only while something of that kind is out.
-// Projectiles interpolate prev → current like karts.
+// one. The solid kinds that wear the items' toon and cast a shadow are one BatchedMesh (BATCHED: one
+// draw a pass however many kinds are out); the rest an InstancedMesh per kind. Each is drawn only
+// while something of it is out. Projectiles interpolate prev → current like karts.
 import { jumpLift } from '../kart-controller/ground.ts';
 import {
-  InstancedMesh, Group, Matrix4, Object3D, Quaternion, SphereGeometry, Vector3, type BufferGeometry, type Material, type MeshToonMaterial,
+  BatchedMesh, BufferGeometry, InstancedMesh, Group, Matrix4, Object3D, Quaternion, SphereGeometry, Vector3, type Material, type MeshToonMaterial,
 } from 'three';
 import { bubbleMaterial, itemGeometry, oilSlickMaterial, strikeBallMaterial, vertexToon } from '../art-pipeline/index.ts';
 import type { KartState } from '../kart-controller/types.ts';
@@ -26,7 +27,27 @@ export const TRAIL_BALL_SCALE = 0.55;
 export const TRAIL_DECOY_SCALE = 0.45;
 const LINK = 0.2; // chain link spacing, metres
 
-class Kind {
+/**
+ * The kinds drawn together in one BatchedMesh (`items`), and how many of each can be out at once: every
+ * solid kind that wears the items' toon and casts a shadow (the chain's links cast none; the slick, the
+ * Strike Ball and the Bubble wear their own materials), so they cost one draw a pass however many kinds
+ * are out. One InstancedMesh a kind drew up to 11 draws for a pack holding items on Frostbite Pass's start
+ * straight and put its final lap over the 100 budget (28 Sept 2026, docs/sops/performance.md).
+ */
+export const BATCHED_ITEMS: Readonly<Record<string, number>> = Object.freeze({
+  beachBall: 16, homingKite: 16, windUpMouse: 16, oilCan: 16, decoyBalloon: 16, fizzBottle: 24, pogoSpring: 8, grappleAnchor: 8,
+});
+
+/** One kind's copies this frame: as many as are out, put in order, shown at the end. */
+interface Slots {
+  begin(): void;
+  add(m: Matrix4): void;
+  /** shows this frame's copies; returns how many */
+  end(): number;
+}
+
+/** A kind of its own: one InstancedMesh. */
+class Kind implements Slots {
   readonly mesh: InstancedMesh;
   private n = 0;
   constructor(geometry: BufferGeometry, material: Material, cap: number, shadows = true) {
@@ -38,11 +59,64 @@ class Kind {
   }
   begin(): void { this.n = 0; }
   add(m: Matrix4): void { if (this.n < this.mesh.instanceMatrix.count) this.mesh.setMatrixAt(this.n++, m); }
-  end(): void {
+  end(): number {
     this.mesh.count = this.n;
     this.mesh.visible = this.n > 0;
     if (this.n > 0) this.mesh.instanceMatrix.needsUpdate = true;
+    return this.n;
   }
+}
+
+/** A kind in the batch: its instances made up front, hidden; the first as many as are out shown (only the ones that change are touched). */
+class Batched implements Slots {
+  private readonly batch: BatchedMesh;
+  readonly ids: Int32Array;
+  private n = 0;
+  private shown = 0;
+  constructor(batch: BatchedMesh, ids: Int32Array) { this.batch = batch; this.ids = ids; }
+  begin(): void { this.n = 0; }
+  add(m: Matrix4): void { if (this.n < this.ids.length) this.batch.setMatrixAt(this.ids[this.n++], m); }
+  end(): number {
+    for (let k = this.n; k < this.shown; k++) this.batch.setVisibleAt(this.ids[k], false);
+    for (let k = this.shown; k < this.n; k++) this.batch.setVisibleAt(this.ids[k], true);
+    this.shown = this.n;
+    return this.n;
+  }
+}
+
+/** A copy of an item model the batch can take: its three attributes, indexed (a model made without an index gets 0..n−1), its bounds. */
+function batchable(src: BufferGeometry): BufferGeometry {
+  const g = new BufferGeometry();
+  for (const a of ['position', 'normal', 'color']) g.setAttribute(a, src.getAttribute(a).clone());
+  if (src.index) g.setIndex(src.index.clone());
+  else g.setIndex(Array.from({ length: src.getAttribute('position').count }, (_, i) => i));
+  g.computeBoundingBox();
+  g.computeBoundingSphere();
+  return g;
+}
+
+/** The batch of BATCHED_ITEMS in `material`, every copy made and hidden, and each kind's instance ids. */
+function itemBatch(material: Material): { mesh: BatchedMesh; ids: Record<string, Int32Array> } {
+  const kinds = Object.entries(BATCHED_ITEMS);
+  const geos = kinds.map(([k]) => batchable(itemGeometry(k) as BufferGeometry));
+  const verts = geos.reduce((s, g) => s + g.getAttribute('position').count, 0);
+  const index = geos.reduce((s, g) => s + g.index!.count, 0);
+  const mesh = new BatchedMesh(kinds.reduce((s, [, n]) => s + n, 0), verts, index, material);
+  const ids: Record<string, Int32Array> = {};
+  kinds.forEach(([k, n], i) => {
+    const geometry = mesh.addGeometry(geos[i]);
+    const list = new Int32Array(n);
+    for (let j = 0; j < n; j++) { list[j] = mesh.addInstance(geometry); mesh.setVisibleAt(list[j], false); }
+    ids[k] = list;
+  });
+  mesh.name = 'items';
+  mesh.castShadow = true;
+  // its own bounds never follow the items: each copy is culled on its own (perObjectFrustumCulled), and not
+  // sorted (no garbage a frame; one InstancedMesh a kind never sorted its copies either)
+  mesh.frustumCulled = false;
+  mesh.sortObjects = false;
+  mesh.visible = false;
+  return { mesh, ids };
 }
 
 let itemToonMaterial: MeshToonMaterial | null = null;
@@ -56,14 +130,32 @@ function itemToon(): MeshToonMaterial {
   return itemToonMaterial;
 }
 
+let chainToonMaterial: MeshToonMaterial | null = null;
+/**
+ * The chain's links' own copy of it (the same shader): the batch draws the items' toon batched, and a
+ * material drawn batched and instanced by turns would have three look its program up again at every
+ * switch. Shared, never disposed.
+ */
+function chainToon(): MeshToonMaterial {
+  if (!chainToonMaterial) {
+    chainToonMaterial = vertexToon().clone();
+    chainToonMaterial.userData.shared = true;
+    fadeNearCameraAlpha(chainToonMaterial, CAM.nearFade);
+  }
+  return chainToonMaterial;
+}
+
 /** Deterministic 0..1 from an id, for a drop's resting angle. */
 const spread = (id: number) => ((id * 2654435761) >>> 0) / 4294967296;
 
 export class ItemsView {
   readonly root = new Group();
-  private readonly kinds: Record<string, Kind>;
-  /** the kinds as a list, walked twice a frame without making a new array each time */
-  private readonly all: Kind[];
+  /** the kinds drawn together (BATCHED_ITEMS): one draw a pass */
+  readonly batch: BatchedMesh;
+  private readonly kinds: Record<string, Slots>;
+  /** the batch's kinds and the rest, as lists walked twice a frame without making a new array each time */
+  private readonly inBatch: Batched[];
+  private readonly own: Kind[];
   private readonly roll: number[] = [];
   private readonly spin = new Quaternion();
   private readonly q = new Quaternion();
@@ -76,33 +168,40 @@ export class ItemsView {
   private readonly dummy = new Object3D();
 
   constructor() {
-    const toon = itemToon();
     // an item against the lens (a rival's Strike Ball, a ball trailing the kart in front) fades out smoothly, as a rival's kart does
     fadeNearCameraAlpha(strikeBallMaterial(), CAM.nearFade);
-    const kind = (name: string, cap = 16, material: Material = toon, shadows = true) => new Kind(itemGeometry(name) as BufferGeometry, material, cap, shadows);
-    this.kinds = {
-      beachBall: kind('beachBall'),
-      homingKite: kind('homingKite'),
-      windUpMouse: kind('windUpMouse'),
-      oilCan: kind('oilCan'),
+    const kind = (name: string, cap: number, material: Material, shadows: boolean) => new Kind(itemGeometry(name) as BufferGeometry, material, cap, shadows);
+    const { mesh, ids } = itemBatch(itemToon());
+    this.batch = mesh;
+    const batched: Record<string, Batched> = {};
+    for (const k of Object.keys(BATCHED_ITEMS)) batched[k] = new Batched(mesh, ids[k]);
+    const own: Record<string, Kind> = {
       oilSlick: kind('oilSlick', 16, oilSlickMaterial(), false),
-      decoyBalloon: kind('decoyBalloon'),
-      fizzBottle: kind('fizzBottle', 24),
-      pogoSpring: kind('pogoSpring', 8),
-      grappleAnchor: kind('grappleAnchor', 8),
-      chainLink: kind('chainLink', 240, toon, false),
+      chainLink: kind('chainLink', 240, chainToon(), false),
       strikeBall: new Kind(new SphereGeometry(RIDE_RADIUS, 40, 28), strikeBallMaterial(), 8),
       bubble: new Kind(new SphereGeometry(1.6, 28, 20), bubbleMaterial(), 8, false),
     };
-    this.all = Object.values(this.kinds);
-    for (const k of this.all) this.root.add(k.mesh);
+    this.kinds = { ...batched, ...own };
+    this.inBatch = Object.values(batched);
+    this.own = Object.values(own);
+    this.root.add(mesh);
+    for (const k of this.own) this.root.add(k.mesh);
   }
 
-  /** Free what this view made: every kind's instance buffer and the two spheres. The item models are shared; the session frees the materials. */
+  /** Free what this view made: the batch (its buffers and textures), every kind's instance buffer and the two spheres. The item models are shared; the session frees the materials. */
   dispose(): void {
-    for (const k of Object.values(this.kinds)) k.mesh.dispose();
-    this.kinds.strikeBall.mesh.geometry.dispose();
-    this.kinds.bubble.mesh.geometry.dispose();
+    this.batch.dispose();
+    for (const k of this.own) k.mesh.dispose();
+    (this.kinds.strikeBall as Kind).mesh.geometry.dispose();
+    (this.kinds.bubble as Kind).mesh.geometry.dispose();
+  }
+
+  /** Where copy `k` of `kind` stands (checks): its matrix into `out`. */
+  matrixOf(kind: string, k: number, out: Matrix4): Matrix4 {
+    const s = this.kinds[kind];
+    if (s instanceof Batched) return this.batch.getMatrixAt(s.ids[k], out);
+    (s as Kind).mesh.getMatrixAt(k, out);
+    return out;
   }
 
   private put(kind: string, x: number, y: number, z: number, q: Quaternion, scale = 1, sy = scale): void {
@@ -122,7 +221,8 @@ export class ItemsView {
 
   /** alpha: render interpolation between the previous and the current tick; dt: this frame's seconds. */
   onFrame(items: Items, karts: readonly KartState[], kartRoots: readonly Object3D[], alpha: number, time: number, dt = 0, track?: Track): void {
-    for (let i = 0; i < this.all.length; i++) this.all[i].begin();
+    for (let i = 0; i < this.inBatch.length; i++) this.inBatch[i].begin();
+    for (let i = 0; i < this.own.length; i++) this.own[i].begin();
     const st = items.state;
 
     // flying: face the way they travel
@@ -233,7 +333,7 @@ export class ItemsView {
         const ax = o.x - Math.sin(oh) * 1.3, ay = o.y + 0.5, az = o.z - Math.cos(oh) * 1.3;
         const sx = r.x + fx * 1.1, sy = r.y + 0.7, sz = r.z + fz * 1.1;
         const dx = ax - sx, dy = ay - sy, dz = az - sz, len = Math.hypot(dx, dy, dz);
-        const n = Math.min(this.kinds.chainLink.mesh.instanceMatrix.count, Math.max(2, Math.floor(len / LINK)));
+        const n = Math.min((this.kinds.chainLink as Kind).mesh.instanceMatrix.count, Math.max(2, Math.floor(len / LINK)));
         // links face along the chain, every other one turned a quarter
         this.dummy.position.set(sx, sy, sz);
         this.dummy.lookAt(ax, ay, az);
@@ -247,7 +347,11 @@ export class ItemsView {
       }
     }
 
-    for (let i = 0; i < this.all.length; i++) this.all[i].end();
+    let batched = 0;
+    for (let i = 0; i < this.inBatch.length; i++) batched += this.inBatch[i].end();
+    // an empty batch is not drawn at all (it would still bind its program in both passes)
+    this.batch.visible = batched > 0;
+    for (let i = 0; i < this.own.length; i++) this.own[i].end();
   }
 
   /** Karts left inside a Strike Ball when a race ends are shown again. */

@@ -283,7 +283,7 @@ function waveArm(a: ArmPose, t: number, hz: number): void {
  * brow wipe and a fist pump for relief, palms up for the shrug; the disappointed ones' in sadArms.
  * After the main move (`main` s) the joyful ones keep waving. Pure.
  */
-export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, main: number, near: 1 | -1 = 1, hands: SadHands = 'brow'): void {
+export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, main: number, near: 1 | -1 = 1, hands: SadHands = 'brow', early = false): void {
   const tail = t > main;
   onWheel(R); onWheel(L);
   switch (kind) {
@@ -316,7 +316,7 @@ export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, 
     case 'sigh':
     case 'deflated':
     case 'dejected':
-      sadArms(kind, t, R, L, near, hands);
+      sadArms(kind, t, R, L, near, hands, early);
       break;
   }
 }
@@ -333,19 +333,36 @@ export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, 
 const SAD_AIM = Object.freeze({
   palm: [-0.35, 0.2, 0.92] as const, palmFore: [0.7, 0.62, -0.35] as const,
   head: [-0.35, 0.9, 0.25] as const, headFore: [0.3, 0.95, -0.1] as const,
+  cradle: [-0.2, -0.35, 0.92] as const, cradleFore: [0.25, 0.93, -0.27] as const,
   darnUp: [-0.4, 0.3, 0.87] as const, darnUpFore: [-0.1, 0.9, 0.42] as const,
   darnDown: [-0.3, -0.25, 0.92] as const, darnDownFore: [0.3, -0.1, 0.95] as const,
   clap: [-0.3, -0.42, 0.86] as const, clapOpen: [0.2, 0.45, 0.87] as const, clapShut: [0.82, 0.3, 0.48] as const,
 });
 /**
  * Where a disappointed racer's hands go in the deflated reaction: 'brow', one hand over the brow and the eyes
- * (every racer but one), or 'head', both hands up on top of the head ("oh no!"): Sprocket, whose boxy head sits
+ * (every racer but two), 'head', both hands up on top of the head ("oh no!"): Sprocket, whose boxy head sits
  * low behind a steering wheel at the height of his face, so a hand at his brow was hidden and blind reads of the
  * finish camera's stills called him "neutral" (27 Sept 2026); with both hands on his head, "very disappointed",
- * twice. (Tried on Nova too, deep in her pod: only her hands showed over its rim, and read as a wave.)
+ * twice (tried on Nova too, deep in her pod: only her hands showed over its rim, and read as a wave); or
+ * 'cradle', the head held in both hands, the elbows low in front of the chest and the forearms up to the sides of
+ * the helmet: Nova, whose helmet shows no bowed face of its own and whose one hand at her brow read "neutral" 1.2 s
+ * in (28 Sept 2026, with the pod seen from its side: game/celebrate.ts KART_FRAME; hands over the visor hid behind
+ * her steering wheel, and at the temples with the elbows out, the head not yet down, one blind read called it
+ * "pleased": a salute).
  */
-export type SadHands = 'brow' | 'head';
-export const SAD_HANDS: Readonly<Record<string, SadHands>> = Object.freeze({ sprocket: 'head' });
+export type SadHands = 'brow' | 'head' | 'cradle';
+export const SAD_HANDS: Readonly<Record<string, SadHands>> = Object.freeze({ sprocket: 'head', nova: 'cradle' });
+/**
+ * The racers whose deflated hand move starts with the slump (SAD_BEATS.deflated.sag[0]), not 0.25 s after it, and
+ * whose head bows on into their hands while they hold it (SAD_BOW), so the pose is made by the time the finish
+ * camera is round (0.64 s of reaction at 1.2 s after the line, under the finish slow-mo): Nova (28 Sept 2026: her
+ * helmet shows no bowed face of its own) and Pip (28 Sept 2026: 0.64 s in, his wing was still rising to his goggles
+ * and his head was up, and 4 of 6 blind reads called it happy, a wave; with his head bowed into his wing, from 2.2 s,
+ * very disappointed).
+ */
+export const SAD_EARLY: ReadonlySet<string> = new Set(['nova', 'pip']);
+/** rad the head bows on (the driver's own head pitch, over the reaction's nod) while a SAD_EARLY racer's hands hold it */
+export const SAD_BOW = 0.3;
 /** claps a second (the palms meet this often) */
 export const CLAP_HZ = 2.2;
 
@@ -364,7 +381,7 @@ function clapArm(a: ArmPose, u: number): void {
  * Each takes the wheel again as the chin comes up, then claps politely. Every change goes through the wheel, so the
  * blend (easeArm) carries it and nothing snaps. The right arm's aims for both; the caller mirrors the left. Pure.
  */
-export function sadArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, near: 1 | -1 = 1, hands: SadHands = 'brow'): void {
+export function sadArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, near: 1 | -1 = 1, hands: SadHands = 'brow', early = false): void {
   if (!sad(kind)) return;
   const B = SAD_BEATS[kind as 'sigh' | 'deflated' | 'dejected'];
   if (t >= B.clap[0] && t < B.clap[1]) { clapArm(R, t - B.clap[0]); clapArm(L, t - B.clap[0]); return; }
@@ -374,14 +391,20 @@ export function sadArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, near:
     const k = sstep(B.tap - 0.06, B.tap + 0.06, t); // "darn!": the fist pulled down as the head drops
     mix(A.upper, SAD_AIM.darnUp, SAD_AIM.darnDown, k); mix(A.fore, SAD_AIM.darnUpFore, SAD_AIM.darnDownFore, k); A.wheel = 0;
   }
-  if (kind === 'deflated' && t >= sadHandFrom(kind) && t < B.up[0] + 0.1) {
+  if (kind === 'deflated' && t >= sadHandFrom(kind, early) && t < B.up[0] + 0.1) {
     if (hands === 'head') for (const X of [R, L]) { set(X.upper, SAD_AIM.head); set(X.fore, SAD_AIM.headFore); X.wheel = 0; }
+    else if (hands === 'cradle') for (const X of [R, L]) { set(X.upper, SAD_AIM.cradle); set(X.fore, SAD_AIM.cradleFore); X.wheel = 0; }
     else { set(A.upper, SAD_AIM.palm); set(A.fore, SAD_AIM.palmFore); A.wheel = 0; }
   }
 }
 
-/** When a disappointed reaction's one-handed move starts (s): sigh's fist, deflated's hand to the forehead (Infinity: none). */
-export function sadHandFrom(kind: Reaction): number {
+/**
+ * When a disappointed reaction's hand move starts (s): sigh's fist, deflated's hand to the forehead (Infinity:
+ * none); a SAD_EARLY racer's (`early`) deflated move as the slump starts, so it is made by the time the finish
+ * camera is round.
+ */
+export function sadHandFrom(kind: Reaction, early = false): number {
+  if (kind === 'deflated' && early) return SAD_BEATS.deflated.sag[0];
   return kind === 'sigh' ? SAD_BEATS.sigh.tap - 0.4 : kind === 'deflated' ? SAD_BEATS.deflated.sag[0] + 0.25 : Infinity;
 }
 
@@ -527,7 +550,7 @@ export class DriverAnim {
         wantPitch = clamp(b.pitch, -t.pitchMax, t.pitchMax);
         if (down) { want *= down.eye; wantPitch *= down.eye; } // (down at the wheel, not at the camera)
         // the hand nearer the camera does a one-handed move: latched as it starts (the +X side is the left's)
-        if (down && rt < sadHandFrom(reaction!)) this.sadNear = b.yaw > 0 ? -1 : 1;
+        if (down && rt < sadHandFrom(reaction!, SAD_EARLY.has(s.racerId))) this.sadNear = b.yaw > 0 ? -1 : 1;
       }
     }
     if (Number.isNaN(want) && input.lookBack && !reaction) {
@@ -578,7 +601,9 @@ export class DriverAnim {
     const tt = now - this.trickAt;
     if (tt < t.trickSeconds) twistT += t.trickTwist * Math.sin((TAU * tt) / t.trickSeconds) * (reaction ? 0 : 1);
     stepLimited(this.yaw, yawT, t.headSpring, dt, t.headSpeed);
-    stepSpring(this.pitch, Number.isNaN(want) ? 0 : wantPitch, t.pitchSpring, dt);
+    // a SAD_EARLY racer's head bows on into their hands while they hold it (SAD_BOW)
+    const bowed = down && reaction === 'deflated' && SAD_EARLY.has(s.racerId) && rt >= sadHandFrom(reaction, true) && rt < SAD_BEATS.deflated.up[0];
+    stepSpring(this.pitch, (Number.isNaN(want) ? 0 : wantPitch) + (bowed ? SAD_BOW : 0), t.pitchSpring, dt);
     stepLimited(this.twist, clamp(twistT, -t.twistMax - t.trickTwist, t.twistMax + t.trickTwist), t.twistSpring, dt, t.twistSpeed);
 
     // --- the spine: forward on the gas, back on a boost, folding over on a landing
@@ -602,7 +627,7 @@ export class DriverAnim {
     const sinceSpin = now - this.spinEnded;
     const ga = now - this.gestureAt;
     if (reaction) {
-      reactionArms(reaction, rt, R, L, anim.reactionMain, this.sadNear, SAD_HANDS[s.racerId] ?? 'brow');
+      reactionArms(reaction, rt, R, L, anim.reactionMain, this.sadNear, SAD_HANDS[s.racerId] ?? 'brow', SAD_EARLY.has(s.racerId));
       mirror(L);
       if (reaction === 'shrug') curr.shrug = hump(rt, 0.02, 0.95);
       if (down) curr.shrug = down.shoulders;

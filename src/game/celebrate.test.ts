@@ -169,12 +169,20 @@ describe('FinishCam', () => {
     expect(f.height).toBeCloseTo(1.3 + CELEBRATE.sad.rise, 6);
     expect(f.look).toBeCloseTo(1.3 + CELEBRATE.sad.look, 6);
     expect(f.angle).toBe(CELEBRATE.sad.angle);
-    // Nova deep in her pod (her head 0.82 m, its front 1.04 m): over the front, from nearer its nose
+    // Nova deep in her pod (28 Sept 2026): from its side, where the cockpit stands lower than her shoulders (over its
+    // nose only the top of her helmet showed), level with her head as in an open kart, and nearer (she is small in it)
     sadFrame(0.82, KART_FRAME.pod, f);
+    expect(f.height).toBeCloseTo(0.82 + CELEBRATE.sad.rise, 6);
+    expect(f.angle).toBeGreaterThan(1.3);
+    expect(f.angle).toBeLessThan(Math.PI / 2);
+    expect(f.distance).toBeLessThan(CELEBRATE.sad.distance);
+    // a kart whose front rises over a deep driver's head, with no angle of its own: over its front, from nearer its nose
+    sadFrame(0.82, { front: 1.04 }, f);
     expect(f.height).toBeGreaterThan(0.82 + CELEBRATE.sad.rise + 0.8);
     expect(f.angle).toBe(CELEBRATE.sad.deepAngle);
-    // a tall driver in the pod sits over its front: framed as in an open kart
-    sadFrame(1.2, KART_FRAME.pod, f);
+    expect(f.distance).toBe(CELEBRATE.sad.distance);
+    // a tall driver over such a front: framed as in an open kart
+    sadFrame(1.2, { front: 1.04 }, f);
     expect(f.height).toBeCloseTo(1.2 + CELEBRATE.sad.rise, 6);
     // Pip behind the Scooter's lamp: seen past it, from further round
     sadFrame(0.88, KART_FRAME.scooter, f);
