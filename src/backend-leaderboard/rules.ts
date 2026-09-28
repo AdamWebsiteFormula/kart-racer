@@ -12,8 +12,10 @@ export const BOARD_MODES: readonly BoardMode[] = ['timeTrial', 'daily'];
  * so a v6 game's run replays differently: it is told to reload.
  * 8 (27 Sept 2026): the course limit is laid stretch by stretch (track-builder limits.ts: narrow on straights,
  * wide on a bend's outside, as Mario Kart World), so a v7 game's run replays differently: it is told to reload.
+ * 9 (28 Sept 2026): the drift arc measured on Mario Kart World (kart schema driftSteerMax 0.4 → 0.36: full in and
+ * centred turn wider), so a v8 game's drifts replay differently: it is told to reload.
  */
-export const CLIENT_VERSION = '8';
+export const CLIENT_VERSION = '9';
 export const MAX_LOG_BYTES = 256 * 1024;
 export const MIN_TIME_MS = 30_000;
 /** Yesterday's Daily still takes posts this long after midnight UTC (a race started just before). */

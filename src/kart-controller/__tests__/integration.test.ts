@@ -70,9 +70,10 @@ describe('integration on the flat oval', () => {
   });
 
   it('lap time on the oval is within ±2% of the recorded time', () => {
-    // re-recorded 24 Sept 2026 for the MKW drift reward (tiers 165/400/700, boosts 0.8/1.5/2.4 s, driftSteerMin 0.03):
-    // the scripted drifter is 3 % faster (2185 on 21 Sept at driftSteerMax 0.4, 2160 on 14 Sept), medium 150cc, 17.7 s
-    const RECORDED_TICKS = 2120;
+    // re-recorded 28 Sept 2026 for the drift arc measured on Mario Kart World (driftSteerMax 0.4 → 0.36: full in
+    // 0.86 rad/s, a 29 m arc, the centred line 53 m): this scripted driver drifts the oval's 30 m bends near full
+    // lock, so its lap is 3 % slower (2120 on 24 Sept, 2185 on 21 Sept, 2160 on 14 Sept), medium 150cc, 18.2 s
+    const RECORDED_TICKS = 2184;
     const { ticks } = driveLap(spawn(track, 0.01), track, c);
     expect(Math.abs(ticks - RECORDED_TICKS) / RECORDED_TICKS).toBeLessThan(0.02);
   });

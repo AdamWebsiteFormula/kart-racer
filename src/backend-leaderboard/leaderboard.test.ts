@@ -18,7 +18,7 @@ const IDS = Object.keys(TRACKS);
 
 /** A "client" run exactly as the game plays it: the shared sim tick, a scripted player, the race's own input log; in `kartId` (absent: the racer's own). */
 /** `hops`: the drift button tapped every 0.75 s, and again 6 ticks into each flight (hops on every slope, tricks off every jump and crest). */
-function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string, hops = false) {
+function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string, hops = false, drifts = false) {
   const config = soloConfig(mode, trackId, racerId, seed, kartId);
   const track = buildTrack(TRACKS[trackId]);
   const manager = new RaceManager(track, config);
@@ -32,7 +32,9 @@ function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: numb
     const i = drive(manager.state.karts[0], track);
     wobble += 0.37; // unrounded analogue values, like a real stick
     const tick = manager.state.tick;
-    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991, drift: hops && (tick % 90 === 0 || tick % 90 === 6) });
+    // `drifts`: the button held 1.25 s of every 2, so the look-ahead's steering locks real drifts in the bends
+    const drift = drifts ? tick % 240 < 150 : hops && (tick % 90 === 0 || tick % 90 === 6);
+    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991, drift });
   }
   return { result: manager.results().ranks[0], log: manager.state.inputLog };
 }
@@ -81,11 +83,13 @@ describe('submission rules', () => {
     expect(checkSubmission({ ...good, kartId: 'rocket' }, IDS)).toBe('unknown kart');
     // a v5 game sends no kartId: it hears "please reload" (400), which the board words as "The game was updated";
     // so does a v6 game (26 Sept 2026: its hops and tricks replay differently on the v7 sim), and a v7 game
-    // (27 Sept 2026: its course limit stood 12 m past every curb; v8 lays it stretch by stretch, track-builder limits.ts)
-    expect(CLIENT_VERSION).toBe('8');
+    // (27 Sept 2026: its course limit stood 12 m past every curb; v8 lays it stretch by stretch, track-builder limits.ts),
+    // and a v8 game (28 Sept 2026: its drifts turned the tighter arc; v9 turns the one measured on Mario Kart World)
+    expect(CLIENT_VERSION).toBe('9');
     expect(checkSubmission({ ...noKart, clientVersion: '5' }, IDS)).toBe('please reload the game: new version');
     expect(checkSubmission({ ...good, clientVersion: '6' }, IDS)).toBe('please reload the game: new version');
     expect(checkSubmission({ ...good, clientVersion: '7' }, IDS)).toBe('please reload the game: new version');
+    expect(checkSubmission({ ...good, clientVersion: '8' }, IDS)).toBe('please reload the game: new version');
     expect(postError(400, 'please reload the game: new version')).toMatch(/Reload the page/);
   });
   it('a solo run carries its kart, and a restarted Daily keeps it', () => {
@@ -308,6 +312,14 @@ describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => 
       expect(hopper.result.dnf, `${id} hopping`).toBe(false);
       const h = core.verifyRun(core.TRACKS[id], 'timeTrial', 'pip', 0, encodeLog(hopper.log), hopper.result.timeMs);
       expect(h, `${id}, hopping: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: hopper.result.timeMs });
+    }
+    // drifts (28 Sept 2026: the drift arc measured on Mario Kart World): the runs above never hold a drift, so a
+    // drift law changed without a rebuild slipped past them too
+    for (const id of ['harbour-loop', 'frostbite-pass'] as const) {
+      const drifter = clientRun(id, 'timeTrial', 'pip', 0, 0, undefined, false, true);
+      expect(drifter.result.dnf, `${id} drifting`).toBe(false);
+      const d = core.verifyRun(core.TRACKS[id], 'timeTrial', 'pip', 0, encodeLog(drifter.log), drifter.result.timeMs);
+      expect(d, `${id}, drifting: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: drifter.result.timeMs });
     }
   }, 120_000);
 });
