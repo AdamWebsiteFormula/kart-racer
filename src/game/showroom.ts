@@ -9,8 +9,8 @@
 // copies of the materials (never the near-camera fade the rivals' shared ones carry) and gives them back
 // when it changes. A new racer pops in and gives a happy bounce (the finish's own reaction, anim.ts).
 import {
-  AmbientLight, Box3, Color, DirectionalLight, Group, HemisphereLight, Mesh, PerspectiveCamera, PlaneGeometry, Scene,
-  ShaderMaterial, Sphere, SRGBColorSpace,
+  AmbientLight, Box3, Color, ConstantAlphaFactor, CustomBlending, DirectionalLight, Group, HemisphereLight, Mesh, OneMinusConstantAlphaFactor,
+  PerspectiveCamera, PlaneGeometry, Scene, ShaderMaterial, Sphere, SRGBColorSpace,
   type Material, type Object3D, type Texture, type WebGLRenderer,
 } from 'three';
 import { buildRacerMesh, freeSkeletons, isShared, RACER_MODELS, type KartLook } from '../art-pipeline/index.ts';
@@ -99,11 +99,28 @@ void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(
 // a dark core out to about the wheels (the kart hides its middle: what shows is the contact under the tyres),
 // then a soft halo round it
 const SHADOW_FRAG = /* glsl */ `varying vec2 vUv;
+uniform float fade;
 void main() {
   float d = length(vUv - 0.5) * 2.0;
   float a = ${SHADOW.opacity.toFixed(2)} * (1.0 - smoothstep(0.5, 0.8, d)) + 0.2 * (1.0 - smoothstep(0.8, 1.0, d));
-  gl_FragColor = vec4(0.03, 0.04, 0.1, a);
+  gl_FragColor = vec4(0.03, 0.04, 0.1, a * fade);
 }`;
+
+/**
+ * The hero fades in and out with the stage (27 Sept 2026: over the 240 ms change from the title to the Mode screen
+ * it stood solid over the fading race while the backdrop faded under it). Each of the kart's own opaque materials
+ * blends by a constant alpha, one while it is whole (the same as no blending), and during the fade the kart's
+ * nearest surface is drawn into depth first, so only its front shows through the fade, never its own insides
+ * (the kart fader's ghosts do the same: kartFade.ts). Set on its own copies as it goes on the stand, so the
+ * programs precompile() compiles are the ones it draws with.
+ */
+function fadeable(m: Material): void {
+  if (m.transparent) { m.userData.fadeOpacity = m.opacity; return; } // (see-through already: its opacity is scaled instead)
+  m.blending = CustomBlending;
+  m.blendSrc = ConstantAlphaFactor;
+  m.blendDst = OneMinusConstantAlphaFactor;
+  m.blendAlpha = 1;
+}
 
 // the backdrop: the blurred world, cover-fitted to the screen, drifting very slowly, a little darker at the
 // edges and along the bottom (the prompt bar); drawn first with no depth, over the race while it fades in
@@ -130,7 +147,7 @@ export class Showroom {
   readonly camera = new PerspectiveCamera(30, 16 / 9, 0.5, 80);
   readonly background = new Color(SHOWROOM_BG);
   /** the kart on the stand, and what it is; a rigged racer (art-pipeline rigged.ts) sits in a KartView and idles, looking at you */
-  private kart: { key: string; root: Group; view: KartView | null; state: KartState; frame: { y: number; radius: number }; fresh: boolean; at: number } | null = null;
+  private kart: { key: string; root: Group; view: KartView | null; state: KartState; frame: { y: number; radius: number }; fresh: boolean; at: number; mats: Material[] } | null = null;
   private last = -1;
   /** the camera's fit now (eased toward each frame's), or null before the first frame */
   private fit: { dist: number; offX: number; offY: number; y: number } | null = null;
@@ -152,7 +169,7 @@ export class Showroom {
     this.scene.add(key, rim, new HemisphereLight(0xeef6ff, 0x6a6a58, 1.2), new AmbientLight(0xdfeaff, 0.3));
     // a soft contact shadow on the ground under the kart (the ground itself unseen), so the hero stands, not floats;
     // it stays on the ground when the kart hops
-    const shadow = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({ vertexShader: SHADOW_VERT, fragmentShader: SHADOW_FRAG, transparent: true, depthWrite: false, toneMapped: false }));
+    const shadow = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({ vertexShader: SHADOW_VERT, fragmentShader: SHADOW_FRAG, transparent: true, depthWrite: false, toneMapped: false, uniforms: { fade: { value: 1 } } }));
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.y = 0.01;
     shadow.scale.set(SHADOW.halfWidth, SHADOW.halfLength, 1);
@@ -196,13 +213,19 @@ export class Showroom {
     const root = buildRacerMesh(racerId, look);
     if (!root) return;
     ownKartMaterials(root);
+    // its own copies fade with the stage (fadeable); a shared one never changes
+    const mats: Material[] = [];
+    root.traverse((o) => {
+      const m = (o as Mesh).material as Material | Material[] | undefined;
+      for (const x of Array.isArray(m) ? m : m ? [m] : []) if (!isShared(x) && !mats.includes(x)) { fadeable(x); mats.push(x); }
+    });
     const state = createKartState({ racerId });
     const view = root.userData.rig ? new KartView(makeConstants('medium', 150), root, state) : null;
     // the hero close-up stands calm: the engine's rumble is the race's (kart-controller rev.ts)
     if (view) view.engine = false;
     const target = view ? view.root : root;
     this.stand.add(target);
-    this.kart = { key, root, view, state, frame: this.frameOf(target), fresh: hello, at: -1 };
+    this.kart = { key, root, view, state, frame: this.frameOf(target), fresh: hello, at: -1, mats };
   }
 
   /**
@@ -274,8 +297,8 @@ export class Showroom {
 
   /**
    * Draw the stage over whatever the canvas holds: the backdrop at `alpha` (0 to 1: fading in over the race,
-   * or out), then, with `hero`, the kart on top. The caller has updated it this frame and set the viewport to
-   * the whole canvas.
+   * or out), then, with `hero`, the kart on top at the same `alpha` (its nearest surface into depth first while
+   * it fades: fadeable). The caller has updated it this frame and set the viewport to the whole canvas.
    */
   draw(renderer: WebGLRenderer, alpha: number, hero = true): void {
     const auto = renderer.autoClear;
@@ -283,7 +306,25 @@ export class Showroom {
     this.backdrop.mesh.material.uniforms.opacity.value = alpha;
     renderer.clearDepth();
     renderer.render(this.backdrop.scene, this.camera);
-    if (this.kart && hero) { renderer.clearDepth(); renderer.render(this.scene, this.camera); }
+    const k = this.kart;
+    if (k && hero) {
+      renderer.clearDepth();
+      const fading = alpha < 1;
+      if (fading) {
+        // depth only (a hair behind the surface, so the kart's own front passes the depth test after it)
+        this.shadow.visible = false;
+        for (const m of k.mats) { m.colorWrite = false; m.polygonOffset = true; m.polygonOffsetFactor = 1; m.polygonOffsetUnits = 1; }
+        renderer.render(this.scene, this.camera);
+        for (const m of k.mats) { m.colorWrite = true; m.polygonOffset = false; }
+        this.shadow.visible = true;
+      }
+      for (const m of k.mats) {
+        const glass = m.userData.fadeOpacity as number | undefined;
+        if (glass !== undefined) m.opacity = glass * alpha; else m.blendAlpha = alpha;
+      }
+      this.shadow.material.uniforms.fade.value = alpha;
+      renderer.render(this.scene, this.camera);
+    }
     renderer.autoClear = auto;
   }
 

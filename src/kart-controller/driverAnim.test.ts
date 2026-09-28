@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { KartAnim, SAD_BEATS, type Reaction } from './anim.ts';
 import { makeConstants } from './constants.ts';
 import {
-  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, sadBody, type DriverContext, type DriverPose, type SadBody,
+  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, SAD_HANDS, sadBody, type DriverContext, type DriverPose, type SadBody,
 } from './driverAnim.ts';
 import { SIM_DT } from './step.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type KartState, type Vec3 } from './types.ts';
@@ -241,7 +241,7 @@ describe('DriverAnim: body and arms', () => {
     expect(Math.abs(p.headYaw + r.anim.curr.look)).toBeLessThan(0.3); // the camera is dead ahead
   });
 
-  it('4th and below: sigh pulls a fist down ("darn!"); deflated puts a hand to the forehead (the hand nearer the camera); dejected slumps over the wheel; all clap', () => {
+  it('4th and below: sigh pulls a fist down ("darn!"); deflated puts a hand over the brow (the hand nearer the camera); dejected slumps over the wheel; all clap', () => {
     const arms = (k: Reaction, t: number, near: 1 | -1 = 1) => { const R = newDriverPose().armR, L = newDriverPose().armL; reactionArms(k, t, R, L, 4, near); return { R, L }; };
     // sigh: the fist up by the face, then pulled down, then back on the wheel
     const S = SAD_BEATS.sigh;
@@ -256,14 +256,24 @@ describe('DriverAnim: body and arms', () => {
     // the camera on the left's side: the left hand does it
     expect(arms('sigh', S.tap - 0.2, -1).L.wheel).toBe(0);
     expect(arms('sigh', S.tap - 0.2, -1).R.wheel).toBe(1);
-    // deflated: a hand up to the head through the shake, the other keeps the wheel
+    // deflated: a hand over the brow and the eyes through the shake, the other keeps the wheel: the elbow forward,
+    // the forearm up and in across the face and back toward it (27 Sept 2026: the elbow out and up at the temple
+    // read as a salute from the finish camera)
     const palm = arms('deflated', 1.6, -1);
     expect(palm.L.wheel).toBe(0);
-    expect(palm.L.upper[1]).toBeGreaterThan(0.4); // the elbow out and up
-    expect(palm.L.fore[0]).toBeGreaterThan(0.6); // the forearm in, toward the forehead (the right arm's frame; the caller mirrors)
-    expect(palm.L.fore[1]).toBeGreaterThan(0.25);
+    expect(palm.L.upper[2]).toBeGreaterThan(0.8); // the elbow forward, in front of the chest
+    expect(Math.abs(palm.L.upper[0])).toBeLessThan(0.45); // not out to the side
+    expect(palm.L.fore[0]).toBeGreaterThan(0.5); // the forearm in, across the face (the right arm's frame; the caller mirrors)
+    expect(palm.L.fore[1]).toBeGreaterThan(0.5); // and up to the brow
+    expect(palm.L.fore[2]).toBeLessThan(0); // and back toward the face
     expect(palm.R.wheel).toBe(1);
     expect(arms('deflated', 1.6).R.wheel).toBe(0);
+    // Sprocket (SAD_HANDS): both hands up on top of the head, where they show over his steering wheel
+    expect(SAD_HANDS.sprocket).toBe('head');
+    expect(SAD_HANDS.nova).toBeUndefined();
+    const R2 = newDriverPose().armR, L2 = newDriverPose().armL;
+    reactionArms('deflated', 1.6, R2, L2, 4, 1, 'head');
+    for (const a of [R2, L2]) { expect(a.wheel).toBe(0); expect(a.upper[1]).toBeGreaterThan(0.8); expect(a.fore[1]).toBeGreaterThan(0.85); }
     // dejected: both hands keep the wheel as the body slumps over it (the elbows fold: the IK)
     const over = arms('dejected', 2);
     expect(over.R.wheel + over.L.wheel).toBe(2);

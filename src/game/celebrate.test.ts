@@ -7,7 +7,7 @@ import { createKartState, type TrackSample, type Vec3 } from '../kart-controller
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { CAM } from './camera.ts';
-import { CELEBRATE, FinishCam, joyful, lostReaction, reactionFor } from './celebrate.ts';
+import { CELEBRATE, FinishCam, joyful, KART_FRAME, lostReaction, reactionFor, sadFrame } from './celebrate.ts';
 
 const FILES = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
 
@@ -159,6 +159,61 @@ describe('FinishCam', () => {
     cam.update(track, p.k, p.root, p.h, true, 1 / 60, aspect);
     expect(screenX(cam, p)).toBeCloseTo(-0.45, 2);
     expect(Math.atan2(rel(cam, p).side, rel(cam, p).ahead)).toBeCloseTo(CELEBRATE.besideAngle, 3);
+  });
+
+  it('a disappointed finish is framed on the driver (27 Sept 2026): close and level with its head, holding the three-quarter view; a driver sitting deep in its kart from higher, nearer the nose; beside the results it backs off to the whole kart', () => {
+    const f = { distance: 0, height: 0, look: 0, angle: 0 };
+    // an open kart: level with the driver's head, a little over it, aimed at it, the swing's own angle
+    sadFrame(1.3, undefined, f);
+    expect(f.distance).toBeLessThan(CELEBRATE.distance);
+    expect(f.height).toBeCloseTo(1.3 + CELEBRATE.sad.rise, 6);
+    expect(f.look).toBeCloseTo(1.3 + CELEBRATE.sad.look, 6);
+    expect(f.angle).toBe(CELEBRATE.sad.angle);
+    // Nova deep in her pod (her head 0.82 m, its front 1.04 m): over the front, from nearer its nose
+    sadFrame(0.82, KART_FRAME.pod, f);
+    expect(f.height).toBeGreaterThan(0.82 + CELEBRATE.sad.rise + 0.8);
+    expect(f.angle).toBe(CELEBRATE.sad.deepAngle);
+    // a tall driver in the pod sits over its front: framed as in an open kart
+    sadFrame(1.2, KART_FRAME.pod, f);
+    expect(f.height).toBeCloseTo(1.2 + CELEBRATE.sad.rise, 6);
+    // Pip behind the Scooter's lamp: seen past it, from further round
+    sadFrame(0.88, KART_FRAME.scooter, f);
+    expect(f.angle).toBeGreaterThan(CELEBRATE.sad.angle + 0.3);
+
+    const run = (sad: boolean, head: number | null, secs: number, cam = new FinishCam(), p = at(80, 3)) => {
+      const c = chase(p);
+      cam.start(track, p.k, p.root, p.h, c.pos, c.look, 64);
+      cam.frameDriver(head, 'skimmer', sad);
+      for (let i = 0; i < secs * 60; i++) cam.update(track, p.k, p.root, p.h, false, 1 / 60);
+      return { cam, p, r: rel(cam, p) };
+    };
+    // round in front: close, over the driver's head, and it holds there (no circling across the front)
+    const a = run(true, 1.1, 2.2), b = run(true, 1.1, 3.6);
+    expect(a.r.dist).toBeCloseTo(CELEBRATE.sad.distance, 0);
+    expect(a.r.up).toBeCloseTo(1.1 + CELEBRATE.sad.rise, 1);
+    expect(Math.abs(Math.atan2(a.r.side, a.r.ahead))).toBeCloseTo(CELEBRATE.sad.angle, 1);
+    expect(Math.abs(Math.atan2(b.r.side, b.r.ahead) - Math.atan2(a.r.side, a.r.ahead))).toBeLessThan(0.02);
+    // a joyful finish, or a kart with no rig (no head to frame): the whole kart, circling on, as ever
+    for (const [sad, head] of [[false, 1.1], [true, null]] as const) {
+      const j = run(sad, head, 2.2), k = run(sad, head, 3.6);
+      expect(j.r.dist).toBeCloseTo(CELEBRATE.distance, 0);
+      expect(Math.abs(Math.atan2(k.r.side, k.r.ahead) - Math.atan2(j.r.side, j.r.ahead))).toBeGreaterThan(0.2);
+    }
+    // the results come in beside the racer: it backs off to the whole kart's distance as the kart moves aside, and
+    // keeps its own angle on the swing's side (not besideAngle's)
+    const s = run(true, 1.1, 2.2);
+    const before = Math.atan2(rel(s.cam, s.p).side, rel(s.cam, s.p).ahead);
+    for (let i = 0; i < 4 * 60; i++) { s.cam.besideAt(-0.5); s.cam.update(track, s.p.k, s.p.root, s.p.h, false, 1 / 60); }
+    expect(rel(s.cam, s.p).dist).toBeCloseTo(CELEBRATE.distance, 0);
+    expect(Math.atan2(rel(s.cam, s.p).side, rel(s.cam, s.p).ahead)).toBeCloseTo(before, 1);
+    expect(Math.abs(before)).toBeCloseTo(CELEBRATE.sad.angle, 1);
+    // a new finish starts with no driver framing left from the last
+    const n = new FinishCam();
+    const c = chase(s.p);
+    n.frameDriver(1.1, undefined, true);
+    n.start(track, s.p.k, s.p.root, s.p.h, c.pos, c.look, 64);
+    for (let i = 0; i < 2.2 * 60; i++) n.update(track, s.p.k, s.p.root, s.p.h, false, 1 / 60);
+    expect(rel(n, s.p).dist).toBeCloseTo(CELEBRATE.distance, 0);
   });
 
   it('reduced motion: the chase view holds, then one cut to the front shot, and it stays there (no swing, no circling)', () => {

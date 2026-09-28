@@ -36,7 +36,50 @@ export const CELEBRATE = Object.freeze({
   besideSpring: 0.55,
   /** degrees the view widens per unit the kart moves across (normalized screen x): a laptop window's narrower room still holds the whole kart */
   besideZoom: 10,
+  /**
+   * A disappointed finish (4th and below) framed on the driver (FinishCam.frameDriver; 27 Sept 2026): its
+   * reaction is the upper body alone (the head bowed, a hand to the face, a slow shake), and from 4 m out and
+   * 1.6 m up the small drivers showed only the tops of their heads and the drivers sitting deep in their
+   * karts not even that. Mario Kart World's losing shot (muted stills, YouTube igoZK9g7-I8 at about 6 s and
+   * 20 s): a front three-quarter view close on the racer, the camera about level with its head. So: this far
+   * out (m), `angle` off the nose (rad; the swing's own, 45° read worse), `rise` over the driver's own seated head (the
+   * rig's Head bone), aimed `look` from it; it holds there rather than circling on across the front (dead ahead
+   * a bowed head is only its top, and the hand at the face, the one nearer the camera as the move starts, went
+   * round to the far side). A driver sitting deep behind a kart's front that rises over its head (KART_FRAME
+   * front) is seen from higher and nearer its nose (`deepAngle`), `deep` metres up per metre the front stands
+   * over the head (plus `clear`): from the side, the pod's hull hid Nova whatever the height; from high in
+   * front, over the nose into the cockpit, her bowed helmet shows. When the results come in beside the racer,
+   * the camera backs off to the whole kart's distance as the kart moves `aside` of the way across the frame
+   * (normalized screen x): closer, a kart moved into the room left of the panel ran off the screen's edge. It
+   * keeps its own angle there, on the swing's side (not besideAngle's): the hand at the face was raised on
+   * that side, and Pip's lamp came back in front of his face from besideAngle.
+   */
+  sad: Object.freeze({ distance: 3.2, rise: 0.35, look: -0.05, angle: 0.55, deep: 4, clear: 0.05, deepAngle: 0.3, aside: 0.4 }),
 });
+
+/**
+ * The karts whose shape stands in front of a seated driver's face (measured from the models, 27 Sept 2026):
+ * `front`, how high the kart's front rises in front of its driver all across (m over the kart's origin, its
+ * middle band: Nova's pod 1.04 against her head at 0.80 to 0.86; the Wind-Up Racer's round nose 1.06 against
+ * Sprocket's 0.84 to 0.89), seen over from higher; `angle`, from further round (rad off the nose): past a
+ * narrow thing right in front of the face (the Parcel Scooter's lamp, 1.18 m, 0.2 m in front of Pip's face: at
+ * 0.55 his wing over his face showed only as a tip beside it, "a wave"; at 1 rad it is plain), or over a
+ * cockpit open at its sides (the Wind-Up Racer's tub: from the front its wheel hides Sprocket's face). Every
+ * other kart's front sits under its drivers' heads.
+ */
+export const KART_FRAME: Readonly<Record<string, Readonly<{ front?: number; angle?: number }>>> = Object.freeze({
+  pod: Object.freeze({ front: 1.04 }), windup: Object.freeze({ front: 1.06, angle: 1 }), scooter: Object.freeze({ angle: 1 }),
+});
+
+/** The finish camera's pose over a disappointed driver: its distance, height and aim height over the kart (m) and its angle off the nose (rad), from the driver's seated `head` height and its kart's KART_FRAME (none: an open kart). */
+export function sadFrame(head: number, kart: Readonly<{ front?: number; angle?: number }> | undefined, out: { distance: number; height: number; look: number; angle: number }): { distance: number; height: number; look: number; angle: number } {
+  const S = CELEBRATE.sad, deep = Math.max(0, (kart?.front ?? 0) + S.clear - head);
+  out.distance = S.distance;
+  out.height = head + S.rise + S.deep * deep;
+  out.look = head + S.look;
+  out.angle = kart?.angle ?? (deep > 0 ? S.deepAngle : S.angle);
+  return out;
+}
 
 /** How the player placed, for their reaction. */
 export interface Placing {
@@ -123,6 +166,8 @@ export class FinishCam {
   /** the circling's angle and speed this frame; once the results are beside the kart it settles on CELEBRATE.besideAngle */
   private readonly orbit = { x: 0, v: 0 };
   private settling = false;
+  /** a disappointed finish framed on its driver (frameDriver), or none: the kart as a whole (CELEBRATE) */
+  private readonly driver = { on: false, distance: 0, height: 0, look: 0, angle: 0 };
   private readonly under: TrackSample = { position: [0, 0, 0], tangent: [0, 0, 0], normal: [0, 0, 0], groundY: 0, halfWidth: 0, surface: 'road', gripScale: 1 };
 
   /**
@@ -133,6 +178,7 @@ export class FinishCam {
     this.time = 0;
     this.frameX = this.frameWant = 0;
     this.settling = false;
+    this.driver.on = false; // (frameDriver, just after, for a disappointed one)
     this.yaw = viewYaw;
     this.y = root.y;
     const fx = Math.sin(viewYaw), fz = Math.cos(viewYaw), sx = fz, sz = -fx;
@@ -155,6 +201,16 @@ export class FinishCam {
   }
 
   /**
+   * Frame the driver for a disappointed reaction (`sad`; CELEBRATE.sad): `head` the driver's seated head over
+   * the kart (m; the rig's Head bone; null: a kart with no rig, framed as a whole), `kartId` its kart
+   * (KART_FRAME). Not sad: the kart as a whole, as ever (a leap and a turn in the air need the room).
+   */
+  frameDriver(head: number | null, kartId: string | undefined, sad: boolean): void {
+    this.driver.on = sad && head !== null && Number.isFinite(head);
+    if (this.driver.on) sadFrame(head!, kartId ? KART_FRAME[kartId] : undefined, this.driver);
+  }
+
+  /**
    * The results are up beside the kart (Mario Kart World): `ndcX` is where across the frame the kart goes,
    * the middle of the room left of the panel (normalized screen x, −1 the left edge; main.ts from UiRoot's
    * besideRoom); 0 puts it back in the middle. The first time, the circling starts to settle (CELEBRATE.besideAngle).
@@ -164,11 +220,11 @@ export class FinishCam {
     if (this.frameWant < 0) this.settling = true;
   }
 
-  /** The kart's angle this frame: 0 ahead, ± to its ±X side (after the swing it circles on). */
+  /** The kart's angle this frame: 0 ahead, ± to its ±X side (after the swing it circles on; over a disappointed driver it holds the three-quarter view). */
   angleAt(time: number, reduced: boolean): number {
-    const C = CELEBRATE, end = this.side * C.angle;
+    const C = CELEBRATE, end = this.side * (this.driver.on ? this.driver.angle : C.angle);
     if (reduced) return time < C.reducedHold ? this.a0 : end;
-    return lerp(this.a0, end, smoother(time / C.swing)) - this.side * C.orbit * Math.max(0, time - C.swing);
+    return lerp(this.a0, end, smoother(time / C.swing)) - this.side * (this.driver.on ? 0 : C.orbit) * Math.max(0, time - C.swing);
   }
 
   /** One rendered frame; `dt` real seconds that ran (0 while paused); `aspect` the view's width over height (to frame the kart beside the results). */
@@ -186,10 +242,19 @@ export class FinishCam {
       const a = this.angleAt(this.time, reduced);
       if (dt > 0) o.v = (a - o.x) / dt;
       o.x = a;
-    } else if (reduced) { o.x = C.besideAngle; o.v = 0; } else if (dt > 0) stepSpring(o, C.besideAngle, [C.besideSpring, 1], dt);
+    } else {
+      // (a disappointed driver keeps its own view, on the side the swing came round: the hand at its face was
+      // raised on that side, and a view past a lamp or over a pod's front holds only from where it was chosen)
+      const want = this.driver.on ? this.side * this.driver.angle : C.besideAngle;
+      if (reduced) { o.x = want; o.v = 0; } else if (dt > 0) stepSpring(o, want, [C.besideSpring, 1], dt);
+    }
     const a = o.x;
     this.frameX = reduced ? this.frameWant : this.frameX + (this.frameWant - this.frameX) * (1 - Math.exp(-C.besideRate * dt));
-    const d = lerp(this.d0, C.distance, e), h = lerp(this.h0, C.height, e);
+    const F = this.driver.on ? this.driver : null;
+    // beside the results the kart moves into the room left of them: the close-up on a disappointed driver backs
+    // off to the whole kart's distance as it goes (the kart still fits there; its height and aim stay the driver's)
+    const aside = F ? Math.min(1, -this.frameX / C.sad.aside) : 0;
+    const d = lerp(this.d0, F ? lerp(F.distance, C.distance, aside) : C.distance, e), h = lerp(this.h0, F ? F.height : C.height, e);
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), sx = fz, sz = -fx;
     const ca = Math.cos(a), sa = Math.sin(a);
     const p = this.pos;
@@ -202,7 +267,7 @@ export class FinishCam {
     clampAboveSea(p, track);
     const lf = lerp(this.look0[0], 0, e), ls = lerp(this.look0[1], 0, e);
     this.look[0] = root.x + fx * lf + sx * ls;
-    this.look[1] = this.y + lerp(this.look0[2], C.lookHeight, e);
+    this.look[1] = this.y + lerp(this.look0[2], F ? F.look : C.lookHeight, e);
     this.look[2] = root.z + fz * lf + sz * ls;
     this.fov = lerp(this.fov0, C.fov, e);
     // beside the results: a little wider, and aimed to the camera's right of the kart, so the kart sits at frameX across the view

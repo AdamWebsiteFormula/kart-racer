@@ -64,9 +64,7 @@ export const EMBER = Object.freeze({
  * standstill. Subtle: never a cloud. Off the road the engine's own rev (kart-controller rev.ts) adds the
  * rest in Mario Kart World's language (YouTube KkZV6Lp5Z5o, KCuVvGgJ5-4, TcPA3HMHSh0; mariowiki Rocket
  * Start): revving burns (the flames, flames.ts) and does not smoke; a blip throws a puff or two with its
- * spit of fire, a pop a few dark ones; smoke means trouble: a start held too early over-revs and smokes
- * gray on the grid, and at the go it "backfires and stalls" in a burst of dark smoke with the rear tires
- * scrubbing (our start costs no time, design §7, so only the look and the sound say so).
+ * spit of fire, a pop a few dark ones; smoke means trouble: a start held too early (STALL).
  */
 export const PUFF = Object.freeze({
   color: Object.freeze([0.44, 0.49, 0.6] as const),
@@ -74,12 +72,46 @@ export const PUFF = Object.freeze({
   idleSpeed: 1, idleRate: 3, size: 0.14, life: 0.55, alpha: 0.55,
   /** a launch: under `launchSpeed` m/s and gaining `launchAccel` m/s² or more */
   launchSpeed: 9, launchAccel: 4, launchRate: 12, launchAlpha: 0.62,
-  /** how much a puff grows over its life, and how fast it leaves the pipe (m/s) */
-  grow: 2.4, speed: 0.9,
+  /** how much a puff grows over its life, how fast it leaves the pipe (m/s), and how fast it rises (m/s²) */
+  grow: 2.4, speed: 0.9, lift: 0.3,
   /** a blip's puffs (a little darker than the breath); a pop's (times its size), dark */
   blipPuffs: 2, blipColor: Object.freeze([0.33, 0.35, 0.4] as const), popPuffs: 3, popColor: Object.freeze([0.26, 0.26, 0.29] as const),
-  /** held too early on the grid: gray smoke puffs a second, this much bigger; the stall at the go: dark smoke from the pipes and tire smoke, this many each */
-  earlyRate: 7, earlySize: 1.5, stallSmoke: 10, stallTires: 8, stallColor: Object.freeze([0.2, 0.2, 0.22] as const),
+});
+
+/**
+ * A start held too early: an engine that stalls (design §7: it costs no time, so only the look and the
+ * sound say so). Mario Kart World's mistimed start (muted stills, 27 Sept 2026: YouTube TcPA3HMHSh0 at
+ * 12.9-13.6 s, KCuVvGgJ5-4 at 0-2 s): held early the pipes burn and spit soot; at the go a backfire (a
+ * flash, pale flecks), then dark charcoal smoke round the pipes that rises and thins within about half a
+ * second, a wisp or two at the kart's sides after it, never white; the kart sits there dead. Ours drives
+ * off (no time lost), so after the burst the engine chokes for a moment: a thin trail of small puffs
+ * riding with the kart, so none is left hanging in front of the chase camera (the first cut threw 18
+ * puffs growing to 0.7 to 1 m, eight of them white tire smoke, which the kart left behind at the lens:
+ * "big soft white cotton balls", 27 Sept 2026). Sizes in meters, times in seconds.
+ */
+export const STALL = Object.freeze({
+  /** charcoal (linear; about 0.25 on screen), a breath of blue */
+  color: Object.freeze([0.05, 0.05, 0.056] as const),
+  /**
+   * the burst at the go: puffs over the pipes, each this big growing `grow` times, out of the pipe at `speed`
+   * m/s and up at `up` (and rising `lift` m/s² more): up past the driver in a moment, where the chase camera
+   * sees them against the road ahead (low, over the kart's own shade, charcoal is lost)
+   */
+  puffs: 8, size: 0.17, grow: 1.5, life: 0.45, speed: 1.2, up: 1.8, lift: 1.5, alpha: 0.85,
+  /**
+   * they keep up with the kart as it pulls away from a standstill: its velocity, and `follow` m/s along its
+   * heading (about its mean speed over their life from a standstill: 15 m/s² for 0.45 s, halved), all times
+   * `carry`; left in the air where it stood, the chase camera ran into them
+   */
+  follow: 3.3, carry: 0.85,
+  /** then the engine chokes: this long, `chokeRate` smaller puffs a second, riding with the kart */
+  choke: 0.6, chokeRate: 12, chokeSize: 0.12,
+  /** the backfire's pale flecks thrown out of the pipes (streaks), and their color (linear, blooms) */
+  flecks: 6, fleckColor: Object.freeze([1.9, 1.6, 0.9] as const),
+  /** on the grid, held too early: soot, this many puffs a second over the idle breath, this big */
+  sootRate: 6, sootSize: 0.11,
+  /** reduced motion: this share of every puff; no flecks */
+  reduced: 0.5,
 });
 
 /** A drift's tire smoke: faint white puffs where the rear tires scrub the road (a rival's fewer, reduced motion's half). */
@@ -131,6 +163,8 @@ interface KartMem {
   boost: BoostTier;
   /** the engine's rev last seen (a new race's is a new one), and its last blip, pop count and launch seen */
   rev: RevView | null; lastBlip: number; lastPops: number; lastLaunch: number;
+  /** a stall's choke still to run (s), and its puffs owed; the soot owed while a start is held too early */
+  chokeLeft: number; chokeAcc: number; sootAcc: number;
   exhaust: Exhaust | undefined;
   /** where its rear tires touch the road (the specks), and where they roll (the marks): half track and along, in its own frame */
   sx: number; sz: number; mx: number; mz: number;
@@ -170,7 +204,7 @@ export class KartFx {
       m = {
         l: [0, 0, 0], r: [0, 0, 0], skid: false, skidFor: 0, skidInk: 0, side: 1, sparkAcc: 0, emberAcc: 0, dustAcc: 0, puffAcc: 0, puffPipe: 0, smokeAcc: 0, smokeSide: 1,
         sprayAcc: 0, spraySide: 1,
-        lastTier: 0, lastSince: -1, lastSpeed: 0, boost: new BoostTier(), exhaust, rev: null, lastBlip: 0, lastPops: 0, lastLaunch: 0,
+        lastTier: 0, lastSince: -1, lastSpeed: 0, boost: new BoostTier(), exhaust, rev: null, lastBlip: 0, lastPops: 0, lastLaunch: 0, chokeLeft: 0, chokeAcc: 0, sootAcc: 0,
         sx: contact.x, sz: contact.z, mx: rear?.x ?? 0.55, mz: rear?.z ?? -0.6,
       };
       this.mem.set(k.racerId, m);
@@ -290,46 +324,64 @@ export class KartFx {
     } else m.emberAcc = 0;
 
     // the pipes' breath: a puff at idle, quicker ones on a hard launch; small, gray-blue, soon gone;
-    // and gray smoke, quicker and bigger, while a start is held too early (the engine over-revving)
+    // and a little soot rising while a start is held too early (the engine over-revving)
     const accel = dt > 0 ? (k.speed - m.lastSpeed) / dt : 0;
     m.lastSpeed = k.speed;
-    const idle = k.grounded && Math.abs(k.speed) < PUFF.idleSpeed, launch = k.grounded && k.speed < PUFF.launchSpeed && accel >= PUFF.launchAccel;
-    const early = rev?.start === 'early' && k.grounded;
+    // (a stalled engine does not breathe out a launch: its own smoke does)
+    const stalling = rev !== undefined && rev.launch === 'early' && rev.clock - rev.launchAt < STALL.choke;
+    const idle = k.grounded && Math.abs(k.speed) < PUFF.idleSpeed, launch = k.grounded && k.speed < PUFF.launchSpeed && accel >= PUFF.launchAccel && !stalling;
+    const early = rev?.start === 'early' && k.grounded && !launch;
     const ex = m.exhaust;
     const pipes = ex && ex.ports.length && k.boost.remaining <= 0 ? ex : undefined;
+    const n = mine ? 1 : SPARK.rival, R = reduced ? STALL.reduced : 1;
     if ((idle || launch) && pipes) {
-      const rate = launch ? PUFF.launchRate : PUFF.idleRate + (early ? PUFF.earlyRate : 0);
-      m.puffAcc += dt * rate * (mine ? 1 : SPARK.rival);
+      m.puffAcc += dt * (launch ? PUFF.launchRate : PUFF.idleRate) * n;
       while (m.puffAcc >= 1) {
         m.puffAcc -= 1;
-        this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * (launch ? 1.6 : early ? 1.4 : 1), launch ? PUFF.color : early ? PUFF.popColor : PUFF.color,
-          launch ? 0.85 : 1, PUFF.size * (early && !launch ? PUFF.earlySize : 1), launch ? PUFF.launchAlpha : PUFF.alpha);
+        this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * (launch ? 1.6 : 1), PUFF.color, launch ? 0.85 : 1, PUFF.size, launch ? PUFF.launchAlpha : PUFF.alpha);
       }
-    } else m.puffAcc = 0;
-    // the engine's moments: a blip's puffs, a pop's dark ones, a start held too early stalling in smoke at the go
+      if (early) {
+        m.sootAcc += dt * STALL.sootRate * n * R;
+        while (m.sootAcc >= 1) {
+          m.sootAcc -= 1;
+          this.puff(m, pipes, px, py, pz, s, c, STALL.speed, STALL.color, 1, STALL.sootSize, STALL.alpha, STALL.life, STALL.grow, STALL.lift, STALL.up * 0.6);
+        }
+      } else m.sootAcc = 0;
+    } else m.puffAcc = m.sootAcc = 0;
+    // the engine's moments: a blip's puffs, a pop's dark ones, a start held too early stalling at the go
     if (rev) {
-      if (m.rev !== rev) { m.rev = rev; m.lastBlip = rev.blipAt; m.lastPops = rev.pops; m.lastLaunch = rev.launchAt; }
-      const n = mine ? 1 : SPARK.rival;
+      if (m.rev !== rev) { m.rev = rev; m.lastBlip = rev.blipAt; m.lastPops = rev.pops; m.lastLaunch = rev.launchAt; m.chokeLeft = 0; }
       if (rev.blipAt > m.lastBlip) {
         m.lastBlip = rev.blipAt;
         if (pipes) for (let i = Math.round(PUFF.blipPuffs * n); i > 0; i--) this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * 1.8, PUFF.blipColor, 1, PUFF.size * 1.4, PUFF.alpha);
       }
+      // (a stall's cough and its crackles are pops too: its own smoke stands for theirs)
       if (rev.pops !== m.lastPops) {
         m.lastPops = rev.pops;
-        if (pipes) for (let i = Math.max(1, Math.round(PUFF.popPuffs * rev.popSize * n)); i > 0; i--) this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * 2.2, PUFF.popColor, 1, PUFF.size * (1.2 + rev.popSize), PUFF.launchAlpha);
+        if (pipes && !stalling) for (let i = Math.max(1, Math.round(PUFF.popPuffs * rev.popSize * n)); i > 0; i--) this.puff(m, pipes, px, py, pz, s, c, PUFF.speed * 2.2, PUFF.popColor, 1, PUFF.size * (1.2 + rev.popSize), PUFF.launchAlpha);
       }
       if (rev.launchAt > m.lastLaunch) {
         m.lastLaunch = rev.launchAt;
-        if (rev.launch === 'early') {
-          const R = reduced ? 0.5 : 1;
-          if (ex && ex.ports.length) for (let i = Math.round(PUFF.stallSmoke * n * R); i > 0; i--) this.puff(m, ex, px, py, pz, s, c, PUFF.speed * (1.5 + rnd()), PUFF.stallColor, 1, PUFF.size * 2.2, 0.7);
-          // the rear tires scrub: white smoke where they meet the road
-          for (let i = Math.round(PUFF.stallTires * n * R); i > 0; i--) {
-            const side = i % 2 ? 1 : -1, x = sbx + c * m.sx * side, z = sbz - s * m.sx * side;
-            this.put(this.soft, x + sym() * 0.1, py + 0.12, z + sym() * 0.1, sym() * 0.8 - s * 1.2, 0.4 + rnd() * 0.5, sym() * 0.8 - c * 1.2, 0, 0, 0,
-              SMOKE.color, 1, SMOKE.size * 1.4, SMOKE.life * 1.6, -0.2, 1.6, SMOKE.grow, 0, 0.5);
+        if (rev.launch === 'early' && ex && ex.ports.length) {
+          // the backfire: pale flecks out of the pipes, and a burst of charcoal puffs that rise and thin
+          if (!reduced) for (let i = Math.round(STALL.flecks * n); i > 0; i--) this.fleck(m, ex, px, py, pz, s, c, vx, vy, vz);
+          for (let i = Math.round(STALL.puffs * n * R); i > 0; i--) {
+            this.puff(m, ex, px, py, pz, s, c, STALL.speed * (0.8 + 0.5 * rnd()), STALL.color, 1, STALL.size, STALL.alpha, STALL.life, STALL.grow, STALL.lift, STALL.up * (0.8 + 0.4 * rnd()),
+              (vx + s * STALL.follow) * STALL.carry, (vz + c * STALL.follow) * STALL.carry);
           }
+          m.chokeLeft = STALL.choke;
+          m.chokeAcc = 0;
         }
+      }
+    }
+    // the engine choking just after a stall: a thin trail of small puffs riding with the kart, thinning out
+    if (m.chokeLeft > 0 && ex && ex.ports.length) {
+      m.chokeLeft -= dt;
+      m.chokeAcc += dt * STALL.chokeRate * n * R;
+      const left = Math.max(0, m.chokeLeft) / STALL.choke;
+      while (m.chokeAcc >= 1) {
+        m.chokeAcc -= 1;
+        this.puff(m, ex, px, py, pz, s, c, STALL.speed * 0.6, STALL.color, 1, STALL.chokeSize, STALL.alpha * (0.35 + 0.65 * left), STALL.life * 0.8, STALL.grow, STALL.lift, STALL.up * 0.7, vx * STALL.carry, vz * STALL.carry);
       }
     }
 
@@ -361,14 +413,29 @@ export class KartFx {
     } else m.sprayAcc = 0;
   }
 
-  /** One puff out of the kart's next pipe at `sp` m/s (and a little rise): `col` times `gain`, about `size` m across, `alpha` opaque. */
-  private puff(m: KartMem, ex: Exhaust, px: number, py: number, pz: number, s: number, c: number, sp: number, col: Rgb, gain: number, size: number, alpha: number): void {
+  /**
+   * One puff out of the kart's next pipe at `sp` m/s (and `up` m/s up): `col` times `gain`, about `size` m
+   * across, `alpha` opaque, living about `life` s, growing `grow` times, rising `lift` m/s², riding with
+   * (`cx`, `cz`) m/s (a stall's smoke keeps up with its kart).
+   */
+  private puff(m: KartMem, ex: Exhaust, px: number, py: number, pz: number, s: number, c: number, sp: number, col: Rgb, gain: number, size: number, alpha: number,
+    life: number = PUFF.life, grow: number = PUFF.grow, lift: number = PUFF.lift, up = 0.35, cx = 0, cz = 0): void {
     m.puffPipe = (m.puffPipe + 1) % ex.ports.length;
     const p = ex.ports[m.puffPipe], d = portDir(ex, p);
     const x = px + c * p[0] + s * p[2], y = py + p[1], z = pz - s * p[0] + c * p[2];
     const ox = c * d[0] + s * d[2], oz = -s * d[0] + c * d[2];
-    this.put(this.soft, x + ox * 0.06, y + d[1] * 0.06, z + oz * 0.06, ox * sp + sym() * 0.15, d[1] * sp + 0.35 + rnd() * 0.2, oz * sp + sym() * 0.15, 0, 0, 0,
-      col, gain, size * (0.8 + 0.4 * rnd()), PUFF.life * (0.8 + 0.4 * rnd()), -0.3, 1.8, PUFF.grow, 0, alpha);
+    this.put(this.soft, x + ox * 0.06, y + d[1] * 0.06, z + oz * 0.06, ox * sp + sym() * 0.15, d[1] * sp + up + rnd() * 0.2, oz * sp + sym() * 0.15, cx, 0, cz,
+      col, gain, size * (0.8 + 0.4 * rnd()), life * (0.8 + 0.4 * rnd()), -lift, 1.8, grow, 0, alpha);
+  }
+
+  /** One of a backfire's pale flecks: a short streak thrown out of the kart's next pipe, falling, riding with the kart. */
+  private fleck(m: KartMem, ex: Exhaust, px: number, py: number, pz: number, s: number, c: number, vx: number, vy: number, vz: number): void {
+    m.puffPipe = (m.puffPipe + 1) % ex.ports.length;
+    const p = ex.ports[m.puffPipe], d = portDir(ex, p);
+    const x = px + c * p[0] + s * p[2], y = py + p[1], z = pz - s * p[0] + c * p[2];
+    const ox = c * d[0] + s * d[2], oz = -s * d[0] + c * d[2], sp = 2 + rnd() * 2.5;
+    this.put(this.sparks, x + ox * 0.08, y + d[1] * 0.08, z + oz * 0.08, ox * sp + sym() * 1.6, d[1] * sp + 0.8 + rnd() * 1.6, oz * sp + sym() * 1.6, vx * 0.8, vy * 0.8, vz * 0.8,
+      STALL.fleckColor, 1, EMBER.width, 0.12 + rnd() * 0.12, 9, 2, -0.4, EMBER.stretch);
   }
 
   /** One speck from the rear tire on `side` (-1 left, 1 right): thrown back, out to that side and up, riding with its kart. */

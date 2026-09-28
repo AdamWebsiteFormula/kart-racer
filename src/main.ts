@@ -43,7 +43,7 @@ import { CELEBRATE, FinishCam, joyful, reactionFor, type Placing } from './game/
 import { Podium } from './game/podium.ts';
 import type { Crowd } from './art-pipeline/crowd.ts';
 import type { SfxId } from './audio/types.ts';
-import type { Reaction } from './kart-controller/anim.ts';
+import { sad, type Reaction } from './kart-controller/anim.ts';
 import { medalFor } from './ui-hud/screens/menus.ts';
 import { CAST, UI, UiRoot, attractTrack, browserBackend, introCard, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
@@ -596,8 +596,17 @@ function startCelebration(s: RaceSession): void {
   celebrating = true;
   const i = s.playerIndex, k = s.state.karts[i], root = s.views[i].root;
   finishCam.start(s.track, k, root.position, root.rotation.y, camPos, camLook, camera.fov);
-  s.views[i].anim.react(reactionAt(k.rank));
+  react(s, reactionAt(k.rank));
   ui.celebrate(true); // the HUD steps aside: FINISH! up and small, the slots, map and hints away
+}
+
+const headAt = new Vector3();
+/** The player reacts; a disappointed one is framed on the driver: its seated head over the kart (the rig's Head bone) and its kart's shape (game/celebrate.ts frameDriver). */
+function react(s: RaceSession, r: Reaction): void {
+  const i = s.playerIndex, v = s.views[i];
+  const bone = sad(r) ? v.chassis.getObjectByName('Head') : undefined;
+  v.anim.react(r);
+  finishCam.frameDriver(bone ? bone.getWorldPosition(headAt).y - v.root.position.y : null, s.state.karts[i].kartId, sad(r));
 }
 
 /** Where the kart goes across the frame beside the results (FinishCam.besideAt): the middle of the room the panel leaves on the left (UiRoot.besideRoom), measured again as the screen or the window changes and twice a second. */
@@ -1092,7 +1101,7 @@ if (import.meta.env.DEV) {
       if (!s || s.playerIndex < 0) return;
       devPlacing = { rank, field: opts.field ?? 8, ...(opts.ko ? { knockout: opts.ko } : {}) };
       if (opts.atLine) return;
-      if (celebrating) { s.views[s.playerIndex].anim.react(reactionAt(rank)); return; }
+      if (celebrating) { react(s, reactionAt(rank)); return; }
       startCelebration(s);
       if (!ui.reducedMotion) vfx.time.slowMo(last / 1000);
     },

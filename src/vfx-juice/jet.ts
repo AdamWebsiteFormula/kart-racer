@@ -18,7 +18,7 @@
 // bright sky) and add light (the flares, glows, halos and streaks glow at night); the bloom catches
 // everything past 1.
 import {
-  BufferAttribute, BufferGeometry, Color, CustomBlending, FrontSide, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial, Sphere, Vector2, Vector3,
+  BufferAttribute, BufferGeometry, Color, CustomBlending, FrontSide, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial, Sphere, Vector2, Vector3, type Texture,
 } from 'three';
 import { portDir, type Exhaust } from '../art-pipeline/index.ts';
 
@@ -183,11 +183,38 @@ export function jetGeometry(e: Exhaust): BufferGeometry {
 const B = JET.bands;
 const f3 = (x: number): string => x.toFixed(3);
 
+/**
+ * One draw for many karts (flameBatch.ts): with JET_BATCHED the per-kart uniforms are plain globals read
+ * from the kart's row of `uKarts` (its mesh's world matrix, then its uniforms, as BATCH_ROW lays them out),
+ * so the shader below is the same code either way. A row whose draw flag is 0 collapses its vertices.
+ */
 const JET_VERT = `
 attribute vec3 aAxis; attribute vec3 aSide; attribute vec4 aInfo;
-uniform vec2 uLen; uniform vec2 uWid; uniform float uTime; uniform float uWave; uniform float uOn;
+uniform float uTime; uniform float uWave;
+#ifdef JET_BATCHED
+attribute float aKart;
+uniform highp sampler2D uKarts;
+flat varying int vRow;
+vec2 uLen; vec2 uWid; float uOn; float uPop; float uFlash; float uRing; vec3 uWind; float uBend;
+float uStar; float uStarFlash; vec3 uWheel; float uArc; float jetDraw;
+mat4 jetMV;
+void jetRead() {
+  int r = int(aKart + 0.5);
+  vRow = r;
+  jetMV = viewMatrix * mat4(texelFetch(uKarts, ivec2(0, r), 0), texelFetch(uKarts, ivec2(1, r), 0), texelFetch(uKarts, ivec2(2, r), 0), texelFetch(uKarts, ivec2(3, r), 0));
+  vec4 t = texelFetch(uKarts, ivec2(4, r), 0); uLen = t.xy; uWid = t.zw;
+  t = texelFetch(uKarts, ivec2(5, r), 0); uOn = t.x; uPop = t.y; uFlash = t.z; uRing = t.w;
+  t = texelFetch(uKarts, ivec2(6, r), 0); uWind = t.xyz; uBend = t.w;
+  t = texelFetch(uKarts, ivec2(7, r), 0); uStar = t.x; uStarFlash = t.y; uArc = t.z; jetDraw = t.w;
+  uWheel = texelFetch(uKarts, ivec2(8, r), 0).xyz;
+}
+#define JET_MV jetMV
+#else
+uniform vec2 uLen; uniform vec2 uWid; uniform float uOn;
 uniform float uPop; uniform float uFlash; uniform float uRing; uniform vec3 uWind; uniform float uBend;
 uniform float uStar; uniform float uStarFlash; uniform vec3 uWheel; uniform float uArc;
+#define JET_MV modelViewMatrix
+#endif
 varying vec3 vView; varying vec2 vUv; varying vec3 vNoise; varying vec3 vA; varying vec3 vM; varying vec3 vB;
 varying float vS; varying float vWid; varying float vKind; varying float vSeed;
 /** v turned by the rotation that takes unit a onto unit b */
@@ -199,6 +226,10 @@ vec3 jetTurn(vec3 v, vec3 a, vec3 b) {
   return v * cs + cross(k, v) * sn + k * dot(k, v) * (1.0 - cs);
 }
 void main() {
+#ifdef JET_BATCHED
+  jetRead();
+  if (jetDraw < 0.5) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; }
+#endif
   float s = aInfo.x, pipe = aInfo.y, kind = aInfo.z;
   float len = pipe < 0.5 ? uLen.x : uLen.y;
   float wid = pipe < 0.5 ? uWid.x : uWid.y;
@@ -218,18 +249,18 @@ void main() {
     vec3 across = cross(tang, vec3(0.0, 1.0, 0.0));
     float sway = uWave * s * s * 0.05 * sin(uTime * 17.0 + pipe * 2.3);
     vec3 p = position + b + jetTurn(aSide, aAxis, tang) * (wid * aInfo.w) + across * sway;
-    mv = modelViewMatrix * vec4(p, 1.0);
+    mv = JET_MV * vec4(p, 1.0);
     // the curve as two straight pieces for the heat: mouth, middle, point
-    vA = (modelViewMatrix * vec4(position, 1.0)).xyz;
-    vM = (modelViewMatrix * vec4(position + 0.5 * c1 + 0.25 * c2, 1.0)).xyz;
-    vB = (modelViewMatrix * vec4(position + c2, 1.0)).xyz;
+    vA = (JET_MV * vec4(position, 1.0)).xyz;
+    vM = (JET_MV * vec4(position + 0.5 * c1 + 0.25 * c2, 1.0)).xyz;
+    vB = (JET_MV * vec4(position + c2, 1.0)).xyz;
     // the noise rides the skin and runs out along the jet: tongues licking away from the nozzle
     vNoise = aSide * ${f3(JET.tongues)} + aAxis * (s * 2.4 - uTime * 5.5 * uWave);
     // a jet shorter than its stub draws nothing (the pipes' glow on the grid shows alone)
     off = uOn < 0.5 || len < ${f3(JET.stub)};
   } else if (kind < 1.5) {
     // the nozzle flare, just out of the pipe; the ignition's flash swells it
-    mv = modelViewMatrix * vec4(position + aAxis * (0.03 + 0.08 * uFlash), 1.0);
+    mv = JET_MV * vec4(position + aAxis * (0.03 + 0.08 * uFlash), 1.0);
     mv.xy += aSide.xy * wid * (${f3(JET.flare)} + 0.25 * uPop + ${f3(JET.flash)} * uFlash);
     off = uOn < 0.5;
   } else if (kind < 2.5) {
@@ -239,22 +270,22 @@ void main() {
     vec3 hu = normalize(cross(tipDir, abs(tipDir.y) > 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0)));
     vec3 hw = cross(tipDir, hu);
     vec3 hc = position + tipDir * (0.15 + 0.45 * max(uRing, 0.0));
-    vec4 cv = modelViewMatrix * vec4(hc, 1.0);
-    float face = dot((modelViewMatrix * vec4(tipDir, 0.0)).xyz, -cv.xyz) >= 0.0 ? 1.0 : -1.0;
+    vec4 cv = JET_MV * vec4(hc, 1.0);
+    float face = dot((JET_MV * vec4(tipDir, 0.0)).xyz, -cv.xyz) >= 0.0 ? 1.0 : -1.0;
     float rad = mix(0.3, 1.5, max(uRing, 0.0)) * 1.2;
-    mv = modelViewMatrix * vec4(hc + (hu * (aSide.x * face) + hw * aSide.y) * rad, 1.0);
+    mv = JET_MV * vec4(hc + (hu * (aSide.x * face) + hw * aSide.y) * rad, 1.0);
     vUv = aSide.xy * 1.2;
     off = uOn < 0.5 || uRing < 0.0;
   } else if (kind < 3.5) {
     // the ignition's billows along the jet: they swell as the pop fades and burn away
     float grow = 1.0 - uPop, at = min(1.0, (0.12 + 0.3 * s) * (0.8 + 0.5 * grow));
     vec3 c = position + 2.0 * at * (1.0 - at) * c1 + at * at * c2 + vec3(0.0, 0.08 * s * grow, 0.0);
-    mv = modelViewMatrix * vec4(c, 1.0);
+    mv = JET_MV * vec4(c, 1.0);
     mv.xy += aSide.xy * wid * (${f3(JET.puff)} + 0.25 * s) * (0.8 + 0.7 * grow);
     off = uOn < 0.5 || uPop <= 0.002;
   } else if (kind < 4.5) {
     // a wheel star at the rear tire's contact patch on side s, a little toward the lens so the road does not cut it
-    mv = modelViewMatrix * vec4(s * uWheel.x, uWheel.y, uWheel.z, 1.0);
+    mv = JET_MV * vec4(s * uWheel.x, uWheel.y, uWheel.z, 1.0);
     mv.xyz += normalize(-mv.xyz) * 0.3;
     float size = uStar * (1.0 + ${f3(JET.starGrow)} * uStarFlash);
     mv.xy += aSide.xy * vec2(${f3(JET.starAspect)}, 1.0) * size;
@@ -263,8 +294,8 @@ void main() {
   } else if (kind < 5.5) {
     // a wind arc: a thin ribbon along its curve, spread across it on screen (the curve turned a
     // quarter to the left, so the ribbon keeps its winding whichever way it runs)
-    mv = modelViewMatrix * vec4(position, 1.0);
-    vec2 t2 = (modelViewMatrix * vec4(aAxis, 0.0)).xy;
+    mv = JET_MV * vec4(position, 1.0);
+    vec2 t2 = (JET_MV * vec4(aAxis, 0.0)).xy;
     t2 = length(t2) > 1e-5 ? normalize(t2) : vec2(1.0, 0.0);
     mv.xy += vec2(-t2.y, t2.x) * (aSide.x * ${f3(JET.arcWidth)});
     vUv = vec2(aSide.x, s);
@@ -272,7 +303,7 @@ void main() {
     off = uArc <= 0.0;
   } else {
     // the soft light round a burning jet, on its curve a little under half way out
-    mv = modelViewMatrix * vec4(position + 0.495 * c1 + 0.2025 * c2, 1.0);
+    mv = JET_MV * vec4(position + 0.495 * c1 + 0.2025 * c2, 1.0);
     mv.xy += aSide.xy * (len * ${f3(JET.glowSize)} + wid);
     off = uOn < 0.5;
   }
@@ -281,10 +312,35 @@ void main() {
 }`;
 
 const JET_FRAG = `
+uniform float uTime; uniform float uWave;
+#ifdef JET_BATCHED
+uniform highp sampler2D uKarts;
+flat varying int vRow;
+vec3 uMouth; vec3 uFringe; vec3 uCore; vec3 uInner; vec3 uBody; vec3 uEdge; vec3 uHeart;
+float uGain; float uPop; float uFlash; float uRing;
+vec3 uStarCol; vec3 uStarHot; float uStarGain; float uStarRays; float uStarFlash;
+float uFade; float uKart; float uSeed; float uArc; float uGlow;
+void jetRead() {
+  int r = vRow;
+  vec4 t = texelFetch(uKarts, ivec2(5, r), 0); uPop = t.y; uFlash = t.z; uRing = t.w;
+  t = texelFetch(uKarts, ivec2(7, r), 0); uStarFlash = t.y; uArc = t.z;
+  uGlow = texelFetch(uKarts, ivec2(8, r), 0).w;
+  t = texelFetch(uKarts, ivec2(9, r), 0); uMouth = t.rgb; uGain = t.w;
+  t = texelFetch(uKarts, ivec2(10, r), 0); uFringe = t.rgb; uFade = t.w;
+  t = texelFetch(uKarts, ivec2(11, r), 0); uCore = t.rgb; uKart = t.w;
+  t = texelFetch(uKarts, ivec2(12, r), 0); uInner = t.rgb; uSeed = t.w;
+  t = texelFetch(uKarts, ivec2(13, r), 0); uBody = t.rgb; uStarGain = t.w;
+  t = texelFetch(uKarts, ivec2(14, r), 0); uEdge = t.rgb; uStarRays = t.w;
+  uHeart = texelFetch(uKarts, ivec2(15, r), 0).rgb;
+  uStarCol = texelFetch(uKarts, ivec2(16, r), 0).rgb;
+  uStarHot = texelFetch(uKarts, ivec2(17, r), 0).rgb;
+}
+#else
 uniform vec3 uMouth; uniform vec3 uFringe; uniform vec3 uCore; uniform vec3 uInner; uniform vec3 uBody; uniform vec3 uEdge; uniform vec3 uHeart;
-uniform float uGain; uniform float uTime; uniform float uWave; uniform float uPop; uniform float uFlash; uniform float uRing;
+uniform float uGain; uniform float uPop; uniform float uFlash; uniform float uRing;
 uniform vec3 uStarCol; uniform vec3 uStarHot; uniform float uStarGain; uniform float uStarRays; uniform float uStarFlash;
 uniform float uFade; uniform float uKart; uniform float uSeed; uniform float uArc; uniform float uGlow;
+#endif
 varying vec3 vView; varying vec2 vUv; varying vec3 vNoise; varying vec3 vA; varying vec3 vM; varying vec3 vB;
 varying float vS; varying float vWid; varying float vKind; varying float vSeed;
 float jetHash(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
@@ -320,6 +376,9 @@ vec3 jetBands(float h, float w) {
   return mix(c, uCore, smoothstep(${f3(B.core)} - w, ${f3(B.core)} + w, h));
 }
 void main() {
+#ifdef JET_BATCHED
+  jetRead();
+#endif
   float dist = length(vView);
   // a rival's flames fade with its kart (its ghost's opacity), and are gone right against the lens
   float fade = uKart * (uFade > 0.0 ? smoothstep(0.6, 1.6, dist) : 1.0);
@@ -482,6 +541,38 @@ export interface JetUniforms {
   /** the kart's own opacity (a rival's ghost near the lens, game/kartFade.ts; 1 otherwise) */
   uKart: { value: number };
   uSeed: { value: number };
+}
+
+/**
+ * A batch's row (flameBatch.ts): RGBA float texels per kart, what the JET_BATCHED shader reads from each.
+ * The first four are its mesh's world matrix, a column each.
+ */
+export const BATCH_ROW = Object.freeze({
+  texels: 18,
+  /** uLen.xy, uWid.xy */ size: 4,
+  /** uOn, uPop, uFlash, uRing */ fire: 5,
+  /** uWind.xyz, uBend */ wind: 6,
+  /** uStar, uStarFlash, uArc, draw (1 or 0) */ star: 7,
+  /** uWheel.xyz, uGlow */ wheel: 8,
+  /** uMouth.rgb, uGain */ mouth: 9,
+  /** uFringe.rgb, uFade */ fringe: 10,
+  /** uCore.rgb, uKart */ core: 11,
+  /** uInner.rgb, uSeed */ inner: 12,
+  /** uBody.rgb, uStarGain */ body: 13,
+  /** uEdge.rgb, uStarRays */ edge: 14,
+  /** uHeart.rgb */ heart: 15,
+  /** uStarCol.rgb */ starCol: 16,
+  /** uStarHot.rgb */ starHot: 17,
+});
+
+/** The shared material of a batch of karts' flames (flameBatch.ts): the same shader, each kart's uniforms from its row of `karts`. */
+export function jetBatchMaterial(karts: Texture): ShaderMaterial {
+  return new ShaderMaterial({
+    vertexShader: JET_VERT, fragmentShader: JET_FRAG, defines: { JET_BATCHED: 1 },
+    uniforms: { uKarts: { value: karts }, uTime: { value: 0 }, uWave: { value: 1 } },
+    transparent: true, depthWrite: false, side: FrontSide, fog: false,
+    blending: CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor,
+  });
 }
 
 /** A kart's own material (its colors, timing and wheels are its own); freed with the race. */
