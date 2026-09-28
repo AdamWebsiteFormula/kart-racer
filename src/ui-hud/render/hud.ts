@@ -11,6 +11,9 @@ import { RACE } from '../../race-manager/constants.ts';
 import { letters } from './banner.ts';
 import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
 
+/** The slot's landing animations (ui.css): the last to end takes the `land` class off (reduced motion runs only the fade) */
+const LAND_ENDS: ReadonlySet<string> = new Set(['slot-shine', 'slot-fade']);
+
 class SlotView {
   readonly root: HTMLElement;
   private state: Attr;
@@ -19,6 +22,8 @@ class SlotView {
   private charges: TextField;
   private label: Attr;
   private readonly size: number;
+  /** the state last drawn: a roll that stops (rolling to an item) lands it */
+  private shown = '';
   constructor(parent: HTMLElement, next: boolean) {
     this.root = h('div', next ? 'slot next' : 'slot', parent);
     this.root.setAttribute('role', 'img'); // an icon: its aria-label (below) is its name
@@ -27,11 +32,18 @@ class SlotView {
     this.icon = new Markup(ic);
     this.glyph = new TextField(h('span', 'glyph', this.root));
     this.charges = new TextField(h('span', 'charges', this.root));
+    // the shine that crosses the balloon as an item lands in it (ui.css .gloss)
+    h('span', 'gloss', this.root);
     this.state = new Attr(this.root, 'data-state');
     this.label = new Attr(this.root, 'aria-label');
     this.size = next ? 44 : 72;
+    // landed and settled: the class goes, so nothing replays it (a HUD shown again restarts what an animation holds)
+    this.root.addEventListener('animationend', (e) => { if (LAND_ENDS.has(e.animationName)) this.root.classList.remove('land'); });
   }
   render(s: ItemSlotVM): void {
+    // the roulette stopped on an item: it lands in the balloon (Adam, 28 Sept 2026: "just appear without any animation")
+    if (this.shown === 'rolling' && s.state !== 'rolling' && s.state !== 'empty') replay(this.root, 'land');
+    this.shown = s.state;
     this.state.set(s.state);
     this.icon.set(s.itemId ? iconMarkup(s.itemId, this.size) : '');
     this.glyph.set(iconFor(s.itemId)?.glyph ?? '');

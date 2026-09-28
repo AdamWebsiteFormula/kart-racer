@@ -58,8 +58,24 @@ export const UI = Object.freeze({
   besideQuery: '(min-width: 1180px)',
   besideMinRoom: 0.3,
   reducedMotionMs: 1,
-  /** the rolling item slot changes name this often; wall time drives it (cosmetic only) */
+  /**
+   * The rolling item slot's faces (design §8: "flicking item art with ticks, slowing, then a chime"): this far
+   * apart as the roll starts, slowing to `rouletteSlowMs` apart as it comes to its stop, as the ticks slow
+   * (audio voices.ts rouletteGap). The roll's own time drives them (the sim's rouletteRemaining), so a pause
+   * holds them. Cosmetic only (hudModel rouletteFace).
+   */
   rouletteFlickerMs: 90,
+  rouletteSlowMs: 220,
+  /**
+   * The roulette stops and the item lands in its balloon slot (Adam, 28 Sept 2026: "just appear without any
+   * animation. Looks cheap."): it drops in bright, squashes, springs back and settles over `slotLandMs` (ui.css
+   * `--t-land`), a ring flashing out off the balloon and a shine crossing it; reduced motion, a fade over
+   * `slotFadeMs`. A Double balloon's two items land one after the other: the second slot rolls on
+   * `slotStaggerMs` more (the sim has both ready at once; the second is not usable before the first anyway).
+   */
+  slotLandMs: 480,
+  slotFadeMs: 160,
+  slotStaggerMs: 260,
   /** a gamepad stick past this counts as a direction */
   stickDeadZone: 0.5,
   /** up or down past the first or last stop scrolls a tall panel this far (px) */
