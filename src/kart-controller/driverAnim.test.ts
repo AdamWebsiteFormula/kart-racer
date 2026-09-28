@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { KartAnim, SAD_BEATS, type Reaction } from './anim.ts';
 import { makeConstants } from './constants.ts';
 import {
-  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, SAD_CRADLE_NOD, SAD_HANDS, sadBody, sadHandFrom, type DriverContext, type DriverPose, type SadBody,
+  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, SAD_BOW, SAD_EARLY, SAD_HANDS, sadBody, sadHandFrom, type DriverContext, type DriverPose, type SadBody,
 } from './driverAnim.ts';
 import { SIM_DT } from './step.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type KartState, type Vec3 } from './types.ts';
@@ -273,14 +273,15 @@ describe('DriverAnim: body and arms', () => {
     const R2 = newDriverPose().armR, L2 = newDriverPose().armL;
     reactionArms('deflated', 1.6, R2, L2, 4, 1, 'head');
     for (const a of [R2, L2]) { expect(a.wheel).toBe(0); expect(a.upper[1]).toBeGreaterThan(0.8); expect(a.fore[1]).toBeGreaterThan(0.85); }
-    // Nova (28 Sept 2026): her head held in both hands, from as the slump starts (earlier than the one hand at the
-    // brow): the elbows low in front of the chest, not out to the side (a salute), the forearms up to the helmet
+    // Nova (28 Sept 2026): her head held in both hands, from as the slump starts (SAD_EARLY: earlier than the one hand
+    // at the brow): the elbows low in front of the chest, not out to the side (a salute), the forearms up to the helmet
     expect(SAD_HANDS.nova).toBe('cradle');
-    expect(sadHandFrom('deflated', 'cradle')).toBe(SAD_BEATS.deflated.sag[0]);
-    expect(sadHandFrom('deflated', 'cradle')).toBeLessThan(sadHandFrom('deflated'));
+    expect(SAD_EARLY.has('nova')).toBe(true);
+    expect(sadHandFrom('deflated', true)).toBe(SAD_BEATS.deflated.sag[0]);
+    expect(sadHandFrom('deflated', true)).toBeLessThan(sadHandFrom('deflated'));
     for (const t of [SAD_BEATS.deflated.sag[0] + 0.02, 1.6, SAD_BEATS.deflated.up[0]]) {
       const R3 = newDriverPose().armR, L3 = newDriverPose().armL;
-      reactionArms('deflated', t, R3, L3, 4, 1, 'cradle');
+      reactionArms('deflated', t, R3, L3, 4, 1, 'cradle', true);
       for (const a of [R3, L3]) {
         expect(a.wheel, `${t}`).toBe(0);
         expect(a.upper[2]).toBeGreaterThan(0.8); // the elbow forward, in front of the chest
@@ -290,15 +291,30 @@ describe('DriverAnim: body and arms', () => {
       }
     }
     const before = { R: newDriverPose().armR, L: newDriverPose().armL };
-    reactionArms('deflated', SAD_BEATS.deflated.sag[0] - 0.02, before.R, before.L, 4, 1, 'cradle');
+    reactionArms('deflated', SAD_BEATS.deflated.sag[0] - 0.02, before.R, before.L, 4, 1, 'cradle', true);
     expect(before.R.wheel + before.L.wheel, 'the wheel until the slump starts').toBe(2);
-    // and her head bows on into her hands while they hold it (SAD_CRADLE_NOD over the one-handed racers' bow),
-    // then comes up with the chin as theirs does
+    // Pip (28 Sept 2026): his wing over his goggles, the one nearer the camera, from as the slump starts too, not
+    // 0.25 s after it as the other one-handed racers (at 0.64 s it was still rising: a wave)
+    expect(SAD_HANDS.pip).toBeUndefined();
+    expect(SAD_EARLY.has('pip')).toBe(true);
+    expect(SAD_EARLY.has('juniper')).toBe(false);
+    const early = (t: number, isEarly: boolean) => { const R4 = newDriverPose().armR, L4 = newDriverPose().armL; reactionArms('deflated', t, R4, L4, 4, -1, 'brow', isEarly); return { R: R4, L: L4 }; };
+    const pipAt = early(SAD_BEATS.deflated.sag[0] + 0.02, true);
+    expect(pipAt.L.wheel).toBe(0);
+    expect(pipAt.L.upper[2]).toBeGreaterThan(0.8); // the elbow forward: the hand over the brow, as the others'
+    expect(pipAt.L.fore[1]).toBeGreaterThan(0.5);
+    expect(pipAt.R.wheel).toBe(1);
+    expect(early(SAD_BEATS.deflated.sag[0] + 0.02, false).L.wheel, 'the others: not yet').toBe(1);
+    expect(early(SAD_BEATS.deflated.sag[0] - 0.02, true).L.wheel, 'the wheel until the slump starts').toBe(1);
+    // and an early racer's head bows on into their hands while they hold them there (SAD_BOW over the others' bow),
+    // mostly by the time the finish camera is round, then comes up with the chin as theirs does
     const eye = { eye: at(0.8, 1.2, 2.5), faceEye: false, karts: null, self: -1 };
     const bowAt = (racer: string, t: number) => { const r = rig(0, racer); r.anim.react('deflated'); return r.tick(Math.round(t / dt), NEUTRAL_INPUT, eye).headPitch; };
-    expect(bowAt('nova', 1.6) - bowAt('juniper', 1.6)).toBeCloseTo(SAD_CRADLE_NOD, 1);
-    expect(bowAt('nova', 0.64) - bowAt('juniper', 0.64), 'mostly there by the time the finish camera is round').toBeGreaterThan(SAD_CRADLE_NOD * 0.6);
-    expect(Math.abs(bowAt('nova', 4.4) - bowAt('juniper', 4.4))).toBeLessThan(0.02);
+    for (const racer of ['nova', 'pip']) {
+      expect(bowAt(racer, 1.6) - bowAt('juniper', 1.6), racer).toBeCloseTo(SAD_BOW, 1);
+      expect(bowAt(racer, 0.64) - bowAt('juniper', 0.64), `${racer}: mostly there by the time the finish camera is round`).toBeGreaterThan(SAD_BOW * 0.6);
+      expect(Math.abs(bowAt(racer, 4.4) - bowAt('juniper', 4.4)), racer).toBeLessThan(0.02);
+    }
     // dejected: both hands keep the wheel as the body slumps over it (the elbows fold: the IK)
     const over = arms('dejected', 2);
     expect(over.R.wheel + over.L.wheel).toBe(2);
