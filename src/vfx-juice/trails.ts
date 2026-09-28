@@ -125,14 +125,35 @@ export class Skids {
  * never the middle where the road ahead and the karts are, and none in the `under` cone straight
  * down the screen (your kart and the road it is on). A weak boost shows `few` of them, faint; a
  * punch shows them all at `alpha`.
+ *
+ * Only the screen's lower sides (28 Sept 2026; the fresh-eyes review: "boost streaks cross the whole
+ * sky and read as scratches or rain, most of all at night"): as Mario Kart World's boosts draw them,
+ * low at the road's height beside the kart while the edges of the view smear, nothing over the sky
+ * (ngiIINHSiJc 2:22.4-2:23.6 and 6:45-6:47, KkZV6Lp5Z5o 1:33-1:35). Each streak's angle round the
+ * ellipse lies between the `under` cone and `top` over the level on either side (the horizon stands a
+ * third of the way down the chase camera's view: CAM in game/camera.ts), fading out over the last `fadeUp`.
  */
 export const LINES = Object.freeze({
-  count: 72, inner: 0.74, outer: 1.2, length: [0.1, 0.24] as const, width: 0.0072, alpha: 0.62, few: 0.45,
+  count: 36, inner: 0.74, outer: 1.2, length: [0.1, 0.24] as const, width: 0.0072, alpha: 0.62, few: 0.45,
   /** each crosses the ring this many times a second (random between the two) */
   rate: [1.5, 2.8] as const,
   /** radians either side of straight down with no streaks (fading out over the next 15°) */
   under: (40 * Math.PI) / 180,
+  /** radians over the level (either side of the screen) the streaks reach, fading out over the last `fadeUp` */
+  top: (10 * Math.PI) / 180,
+  fadeUp: (15 * Math.PI) / 180,
 });
+
+/**
+ * Where streak `i` of `count` runs round the ellipse (radians from the screen's right, counter-clockwise):
+ * right and left in turn, spread evenly from the edge of the `under` cone up to `top` over the level,
+ * nudged by `jitter` (0..1) within its own share. Pure.
+ */
+export function lineAngle(i: number, count: number, jitter: number): number {
+  const lo = -(Math.PI / 2 - LINES.under), hi = LINES.top, perSide = Math.ceil(count / 2);
+  const e = lo + ((Math.floor(i / 2) + jitter) / perSide) * (hi - lo);
+  return i % 2 === 0 ? e : Math.PI - e;
+}
 
 const LINE_VERT = `
 attribute vec4 aLine; uniform float uTime; uniform float uOn; uniform float uAspect; varying float vA; varying vec2 vUv;
@@ -151,7 +172,9 @@ void main() {
   p.x /= uAspect;
   float shown = step(aLine.y, ${LINES.few.toFixed(3)} + ${(1 - LINES.few).toFixed(3)} * uOn);
   float down = 1.0 - smoothstep(cos(${(LINES.under + Math.PI / 12).toFixed(4)}), cos(${LINES.under.toFixed(4)}), -dir.y);
-  vA = uOn * shown * down * smoothstep(0.0, 0.2, t) * (1.0 - smoothstep(0.6, 1.0, t)) * ${LINES.alpha.toFixed(3)};
+  // the top of the lower sides: faded out toward LINES.top over the level (none ever over the sky)
+  float up = 1.0 - smoothstep(sin(${(LINES.top - LINES.fadeUp).toFixed(4)}), sin(${LINES.top.toFixed(4)}), dir.y);
+  vA = uOn * shown * down * up * smoothstep(0.0, 0.2, t) * (1.0 - smoothstep(0.6, 1.0, t)) * ${LINES.alpha.toFixed(3)};
   gl_Position = vec4(p, 0.0, 1.0);
 }`;
 const LINE_FRAG = `varying float vA; varying vec2 vUv;
@@ -163,7 +186,7 @@ void main() {
   gl_FragColor = vec4(1.0, 1.0, 1.0, a);
 }`;
 
-/** White streaks round the screen's edge; `update`'s level fades them in and out (boosting only). */
+/** White streaks round the screen's lower sides (lineAngle); `update`'s level fades them in and out (boosting only). */
 export class SpeedLines {
   readonly mesh: InstancedMesh;
   private readonly mat: ShaderMaterial;
@@ -174,7 +197,7 @@ export class SpeedLines {
     const a = new Float32Array(count * 4);
     let x = 12345;
     const rnd = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 0xffffffff; };
-    for (let i = 0; i < count; i++) a.set([rnd() * Math.PI * 2, rnd(), rnd(), LINES.rate[0] + rnd() * (LINES.rate[1] - LINES.rate[0])], i * 4);
+    for (let i = 0; i < count; i++) a.set([lineAngle(i, count, rnd()), rnd(), rnd(), LINES.rate[0] + rnd() * (LINES.rate[1] - LINES.rate[0])], i * 4);
     g.setAttribute('aLine', new InstancedBufferAttribute(a, 4));
     // normal blending, not additive: white added to a bright sky was lost in it. Both sides: the
     // streak's frame (across, along) mirrors the quad's (x, y), so one side faces away (the streaks
