@@ -1,0 +1,228 @@
+/* Type direction A, "Broadcast" (?type=a: ui-hud/typeface.ts; 28 Sept 2026, Adam: "Why do so many of the graphics with the
+   fonts feel outdated and not cool?"). On trial beside direction B (type-b.css); the house type stays the default.
+   The system: one grotesk superfamily, as motorsport and sports broadcast graphics set it, in the house colors.
+   - Display (the logo, the count, GO!, FINAL LAP, FINISH!, the place, the lap, headings, names): Mona Sans Expanded
+     (wdth 125) Black (900) Italic, tracked tight; menu words and names at 112 % and 800.
+   - Text (prompts, labels, lines, dialogs): Mona Sans at its normal width, 600 to 800, italic for prompts and labels.
+   - No ink outlines and no ink extrusions anywhere: small words are white with a lift (a short soft shadow); the big
+     words are one flat color with a hard offset in a deeper tone of it (a two-color print), and a soft shadow to seat
+     them over any sky. The place numeral keeps its tier colors (gold, silver, bronze) as a two-stop gradient, no horizon.
+   - Motion: the big words dash in from the right, stretched and leaning, and snap into place one after another; the
+     count and GO! punch in from big; going, they dash off to the left. Reduced motion (ui.css): they appear and go.
+   Mario Kart World (stills: youtube.com/watch?v=_9JZhslBy3E 0:00-0:21, 2:53-3:24; ngiIINHSiJc 2:07-2:13, 4:33-4:42)
+   sets its menus, prompts and results in italic white with a soft shadow and no outline, and keeps outlines for its
+   few big painted moments; this direction takes the italic and the clean small words and trades the painted moments
+   for broadcast type. Our own fonts and colors: nothing of Nintendo's lettering. */
+@import '@fontsource-variable/mona-sans/standard-italic.css';
+@import '@fontsource-variable/mona-sans/wght.css';
+
+:root[data-type='a'] {
+  --display: 'Mona Sans Variable', 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+  --body: 'Mona Sans Variable', 'Segoe UI', system-ui, sans-serif;
+  /* a small word's lift over the scene: a short soft shadow, never an ink extrusion */
+  --lift: 0 2px 0 rgb(8 10 34 / 0.28), 0 2px 10px rgb(8 10 34 / 0.45);
+  --lift-big: 0 0.03em 0 rgb(8 10 34 / 0.22), 0 0.08em 0.22em rgb(8 10 34 / 0.45);
+  --navy: #141a45;
+}
+
+/* ---------- every word: no ink outline, no ink extrusion; the lift instead; italic and heavy in the display's places ---------- */
+:root[data-type='a'] #ui :where(.display, .band > .label, .start-prompt, .mode-say, .ribbon, .shot-name, .cup-tile .label, .track-card .label,
+  .classes .pill .label, .np-name, .heading, .slot .charges, .timer, .split, .split .d, .place .suf, .gears, .lap, .banner .small,
+  .overlay h2, .overlay .btn .label, .overlay .setting .label, .results h2, .row .nm, :is(.results, .podium) .btn .label, .res-delta,
+  .rows.cut .tm, .podium-place .nm, .board h3, .soon-tag, .ko-strip.danger) {
+  -webkit-text-stroke: 0;
+  text-shadow: var(--lift);
+}
+:root[data-type='a'] #ui :where(.display, .band > .label, .start-prompt, .mode-say, .ribbon, .shot-name, .cup-tile .label, .track-card .label,
+  .classes .pill .label, .np-name, .heading, .slot .charges, .timer, .split, .place .n, .place .suf, .gears, .lap, .banner .big,
+  .banner .small, .btn .label, .ko-strip, .mirror-badge, .tile-letter, .kc-stamp, .sp-title, .kart-who, .overlay h2, .results h2, .row .nm,
+  .row .rk, .res-delta, .rows.cut .tm, .board h3, .podium-head, .podium-place .rk, .podium-place .nm, .soon-tag, .credits h3, .howto h3,
+  .unlock .txt b, .howto .item .txt b, .rung b, .board-row .rk, .intro .driver .who, .banner .medal-won .mw-text, .touch .tb, .rotate-hint,
+  .toast) {
+  font-style: italic;
+  font-weight: 800;
+  font-stretch: 112%;
+  letter-spacing: -0.01em;
+}
+/* the text face's own words: upright for reading, italic for what a player acts on or glances at */
+:root[data-type='a'] #ui :where(.prompts .prompt, .title .press, .hint, .np-sub, .pick-hint, .finish-go, .slot .tag, .lap .word, .opt .nm) { font-style: italic; }
+
+/* ---------- the logo: RASCAL over RALLY!, Expanded Black Italic in the sun and coral, each line printed over a deeper
+   tone of its own color and a navy block (a hard offset down and right, two steps deep), a navy keyline round the
+   letters; the two lines seated on a slanted navy plate with a sun edge, the logo's badge (two fresh-eyes critics,
+   28 Sept 2026: "no depth", "put the logo on a badge so it stops floating") ---------- */
+:root[data-type='a'] #ui .logo { position: relative; isolation: isolate; line-height: 0.84; letter-spacing: -0.035em; text-transform: uppercase; }
+:root[data-type='a'] #ui .logo::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 16% -5% 0% -3%;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(36 44 110 / 0.92), rgb(16 20 58 / 0.95));
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.26), inset 0 -5px 0 0 var(--sun), 0 12px 30px rgb(8 10 34 / 0.42);
+  transform: rotate(-4deg) skewX(-14deg);
+}
+:root[data-type='a'] #ui .logo .l1, :root[data-type='a'] #ui .logo .l2 { font-weight: 900; font-stretch: 125%; -webkit-text-stroke: 0.05em #141a45; paint-order: stroke fill; }
+:root[data-type='a'] #ui .logo .l1 {
+  font-size: clamp(56px, 7.4vw, 118px);
+  transform: rotate(-4deg) skewX(-4deg);
+  text-shadow: 0.045em 0.05em 0 #e2561b, 0.075em 0.085em 0 #141a45, 0.075em 0.085em 0.28em rgb(8 10 34 / 0.4);
+}
+:root[data-type='a'] #ui .logo .l2 {
+  margin: 0.02em 0 0 0.9em;
+  font-size: clamp(50px, 6.6vw, 106px);
+  transform: rotate(-4deg) skewX(-4deg);
+  text-shadow: 0.045em 0.05em 0 #a51d4a, 0.075em 0.085em 0 #141a45, 0.075em 0.085em 0.28em rgb(8 10 34 / 0.4);
+}
+/* no gloss: the letters are flat and crisp */
+:root[data-type='a'] #ui .logo [data-text]::after { content: none; }
+@media (max-height: 800px) {
+  :root[data-type='a'] #ui .logo .l1 { font-size: min(7.4vw, 12.2vh); }
+  :root[data-type='a'] #ui .logo .l2 { font-size: min(6.6vw, 11vh); }
+}
+@media (max-height: 500px) {
+  :root[data-type='a'] #ui .logo .l1 { font-size: min(6vw, 11.5vh); }
+  :root[data-type='a'] #ui .logo .l2 { margin: 0 0 0 0.3em; font-size: min(5.4vw, 10.5vh); }
+  :root[data-type='a'] #ui .logo::before { inset: 12% -3% 6% -2%; border-radius: 10px; }
+}
+
+/* ---------- the start screen's prompt and the title's menu ---------- */
+:root[data-type='a'] #ui .start-prompt { font-weight: 700; font-stretch: 118%; letter-spacing: 0.01em; text-shadow: var(--lift), 0 0 26px rgb(8 10 34 / 0.5); }
+:root[data-type='a'] #ui .start-prompt.focused, :root[data-type='a'] #ui .start-prompt:focus-visible { text-shadow: var(--lift), 0 0 26px rgb(255 210 63 / 0.55); }
+:root[data-type='a'] #ui .band > .label { font-weight: 800; font-stretch: 116%; letter-spacing: -0.015em; transform: none; font-size: calc(var(--band-font, 32px) * 0.94); }
+/* the title's bands taller and their words bigger (two fresh-eyes critics, 28 Sept 2026: the menu words read small) */
+:root[data-type='a'] #ui .title .menu { width: min(530px, 42vw); --band-h: 70px; --band-font: 36px; }
+@media (max-height: 800px) { :root[data-type='a'] #ui .title .menu { --band-h: min(64px, 8.4vh); --band-font: 32px; } }
+@media (max-height: 500px) { :root[data-type='a'] #ui .title .menu { width: min(390px, 48vw); --band-h: 44px; --band-font: 24px; } }
+:root[data-type='a'] #ui .title .press { font-weight: 700; text-shadow: none; letter-spacing: 0.02em; }
+:root[data-type='a'] #ui .menu-side .mode-say { font-weight: 700; font-stretch: 112%; transform: none; }
+
+/* ---------- headings (Pick your racer, the Mode, Cup and Track screens, dialogs): Expanded Black Italic, a sun slash before them ---------- */
+:root[data-type='a'] #ui .heading { position: relative; font-weight: 900; font-stretch: 118%; letter-spacing: -0.025em; padding-left: 0.62em; }
+:root[data-type='a'] #ui .heading::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.14em;
+  bottom: 0.1em;
+  width: 0.26em;
+  border-radius: 0.04em;
+  background: linear-gradient(180deg, #ffe27a, var(--sun) 50%, #f4a51c);
+  box-shadow: 0 0.04em 0.16em rgb(8 10 34 / 0.4);
+  transform: skewX(-14deg);
+}
+
+/* ---------- the name under the racer: caps on a flat plate in their color, slanted like a lower third ---------- */
+:root[data-type='a'] #ui .nameplate .np-name {
+  font-weight: 900;
+  font-stretch: 125%;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  font-size: clamp(48px, 4.8vw, 84px);
+  padding: 0 0.28em;
+  text-shadow: 0.045em 0.05em 0 color-mix(in srgb, var(--ribbon, var(--coral)) 45%, #0b0f2e), 0 0.08em 0.24em rgb(8 10 34 / 0.35);
+}
+:root[data-type='a'] #ui .np-name::before, :root[data-type='a'] #ui .np-name::after {
+  left: -0.2em;
+  right: -0.2em;
+  top: 22%;
+  bottom: 4%;
+  border: 0;
+  border-radius: 0.1em;
+  transform: skewX(-16deg);
+}
+:root[data-type='a'] #ui .np-name::before {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon, var(--coral)) 82%, #fff) 0%, var(--ribbon, var(--coral)) 55%, color-mix(in srgb, var(--ribbon, var(--coral)) 80%, #0b0f2e) 100%);
+  box-shadow: 0 0.12em 0.3em rgb(8 10 34 / 0.35), inset 0 0.035em 0 rgb(255 255 255 / 0.4);
+}
+:root[data-type='a'] #ui .np-sub { font-weight: 600; }
+:root[data-type='a'] #ui .select-side .btn.pick .label { font-weight: 800; font-stretch: 112%; text-shadow: none; }
+:root[data-type='a'] #ui .prompts .prompt { font-weight: 600; text-shadow: var(--lift); }
+:root[data-type='a'] #ui .select-stage .prompts kbd, :root[data-type='a'] #ui .hint kbd { font-style: normal; font-weight: 700; font-stretch: 100%; }
+
+/* ---------- the race HUD ---------- */
+/* the item balloons: NEXT tracked caps, the count on a small dark chip (white on the pale balloon needs one) */
+:root[data-type='a'] #ui .slot .tag { top: -20px; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-shadow: var(--lift); }
+:root[data-type='a'] #ui .slot .charges { top: -10px; right: -14px; padding: 3px 8px 4px 7px; border-radius: 9px; background: rgb(12 16 44 / 0.8); font-weight: 900; font-stretch: 118%; font-size: 22px; text-shadow: none; box-shadow: 0 2px 8px rgb(8 10 34 / 0.35); }
+:root[data-type='a'] #ui .slot .charges:empty { display: none; }
+/* the timer: tabular figures on a dark glass tab, big enough to read at a glance (the critics: "too much text is tiny") */
+:root[data-type='a'] #ui .timer { font-weight: 800; font-stretch: 110%; font-size: 32px; letter-spacing: 0; padding: 8px 18px 10px; border-radius: 12px; background: rgb(12 16 44 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.22); }
+:root[data-type='a'] #ui .split { font-weight: 800; font-stretch: 108%; }
+/* the place: Expanded Black Italic in its tier's color, printed over a deeper tone of it, a navy keyline round both and a
+   soft shadow under (the numeral's own glyph is the offset, down and right; its face over it, up and left; the keyline
+   and the shadow under both) */
+:root[data-type='a'] #ui .place { --face: linear-gradient(180deg, #ffe066 0%, #ffc21a 100%); --side: #d9480f; --suf: #ffffff; }
+:root[data-type='a'] #ui .place[data-tier='gold'] { --face: linear-gradient(180deg, #fff1a1 0%, #ffcf1f 58%, #ffb800 100%); --side: #c2410c; --suf: #ffe066; }
+:root[data-type='a'] #ui .place[data-tier='silver'] { --face: linear-gradient(180deg, #ffffff 0%, #d6e6f7 100%); --side: #3f5f8f; --suf: #e8f2ff; }
+:root[data-type='a'] #ui .place[data-tier='bronze'] { --face: linear-gradient(180deg, #ffd0b8 0%, #f08a5d 100%); --side: #8c3521; --suf: #ffc3a6; }
+:root[data-type='a'] #ui .place .n { font-weight: 900; font-stretch: 125%; font-size: 132px; letter-spacing: -0.04em; color: var(--side); text-shadow: none; }
+:root[data-type='a'] #ui .place .n::after { transform: translate(-0.05em, -0.05em); }
+:root[data-type='a'] #ui .place .n::before { color: #141a45; -webkit-text-stroke: 0.07em #141a45; transform: translate(-0.05em, -0.05em); text-shadow: 0.05em 0.05em 0 #141a45, 0.07em 0.1em 0.2em rgb(8 10 34 / 0.45); }
+:root[data-type='a'] #ui .place .suf { font-weight: 900; font-stretch: 118%; font-size: 40px; margin: 4px 0 0 4px; color: var(--suf); -webkit-text-stroke: 0.07em #141a45; paint-order: stroke fill; text-shadow: 0.05em 0.06em 0 var(--side), 0.08em 0.1em 0 #141a45, 0 2px 8px rgb(8 10 34 / 0.45); }
+/* the gears and the lap on dark glass tabs (the critics: "put the lap and counter in dark plates"), tabular figures */
+:root[data-type='a'] #ui .gears { font-weight: 900; font-stretch: 115%; font-size: 34px; padding: 5px 16px 6px 6px; background: rgb(12 16 44 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.22); }
+:root[data-type='a'] #ui .lap { display: flex; align-items: baseline; padding: 6px 16px 8px; border-radius: 12px; background: rgb(12 16 44 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.22); font-weight: 900; font-stretch: 122%; font-size: 42px; letter-spacing: -0.02em; }
+:root[data-type='a'] #ui .lap .word { order: -1; font-size: 17px; font-weight: 800; font-stretch: 105%; letter-spacing: 0.12em; margin-right: 8px; }
+:root[data-type='a'] #ui .lap .of { font-size: 26px; }
+:root[data-type='a'] #ui .ko-strip { font-weight: 800; font-stretch: 108%; }
+:root[data-type='a'] #ui .mirror-badge { font-weight: 800; }
+
+/* ---------- the big words (the count, GO!, FINAL LAP, FINISH!, the shift's label): one bright color printed over a
+   deeper tone of it, a navy keyline round both, a soft shadow; Expanded Black Italic, tight. Each letter's own glyph is
+   the offset (.ch, down and right), its face over it (::after, up and left), the keyline and the shadow under both
+   (::before). The keyline came with the fresh-eyes critics (28 Sept 2026: "the pale GO! fades into the sky") ---------- */
+:root[data-type='a'] #ui .banner .big {
+  --face: #ffd84a;
+  --side: #e8590c;
+  font-weight: 900;
+  font-stretch: 125%;
+  letter-spacing: -0.03em;
+  font-size: clamp(60px, 9.4vw, 136px);
+}
+:root[data-type='a'] #ui .banner[data-kind='countdown'] .big, :root[data-type='a'] #ui .banner[data-kind='go'] .big { font-size: clamp(90px, min(14vw, 26vh), 220px); letter-spacing: -0.02em; }
+:root[data-type='a'] #ui .banner[data-kind='go'] .big { --face: #8ee04a; --side: #167a36; }
+:root[data-type='a'] #ui .banner[data-kind='finalLap'] .big { --face: #ff7566; --side: #8e1f47; }
+:root[data-type='a'] #ui .banner[data-kind='wrongWay'] .big { --face: #ff5a5a; --side: #6c1020; font-size: clamp(44px, 6vw, 84px); }
+:root[data-type='a'] #ui .banner[data-kind='shift'] .big { font-size: clamp(36px, 5vw, 70px); }
+:root[data-type='a'] #ui .banner[data-kind='finish'] .big { --face: #ffd84a; --side: #d9480f; }
+:root[data-type='a'] #ui .ch { color: var(--side); text-shadow: none; transform: none; transform-origin: 50% 70%; }
+:root[data-type='a'] #ui .ch::before { color: #141a45; -webkit-text-stroke: 0.075em #141a45; transform: translate(-0.055em, -0.055em); text-shadow: 0.055em 0.055em 0 #141a45, 0.08em 0.11em 0.2em rgb(8 10 34 / 0.5); }
+/* (the face: its color, a touch lighter across the top, cut to the glyph) */
+:root[data-type='a'] #ui .ch::after { background-image: linear-gradient(180deg, color-mix(in srgb, var(--face) 50%, #fff) 0%, var(--face) 38%); color: transparent; transform: translate(-0.055em, -0.055em); }
+/* FINISH!'s sash: our checkers, flat, no ink rim, a band low across the letters' feet so the words read over it; it
+   stops short of the place beside it (the critics: "the 1st chip is jammed against FINISH!") */
+:root[data-type='a'] #ui .banner[data-kind='finish'] .chs::before { border: 0; border-radius: 0.03em; top: 0.6em; height: 0.3em; right: -0.1em; background: repeating-conic-gradient(#141a45 0 25%, #fff 0 50%) 0 0 / 0.15em 0.15em; box-shadow: 0 0.06em 0.18em rgb(8 10 34 / 0.4); }
+/* the line under the words (FINISH!'s place, the shift's label): text face, a dark tab */
+:root[data-type='a'] #ui .banner .small { font-weight: 900; font-stretch: 118%; color: var(--sun); }
+:root[data-type='a'] #ui .banner[data-kind='finish'] .small { margin-left: 1.3em; border-radius: 14px; background: rgb(12 16 44 / 0.66); color: #fff; text-shadow: none; font-size: clamp(38px, 4.8vw, 66px); }
+:root[data-type='a'] #ui .finish-go { font-weight: 700; }
+/* the motion: dash in from the right, stretched and leaning, snap into place; the count and GO! punch in from big */
+:root[data-type='a'] #ui .banner.show .ch { animation: a-dash 420ms backwards; animation-delay: calc(var(--i) * 32ms); }
+:root[data-type='a'] #ui .banner[data-kind='countdown'].show .ch, :root[data-type='a'] #ui .banner[data-kind='go'].show .ch { animation: a-punch 380ms backwards; animation-delay: calc(var(--i) * 40ms); }
+:root[data-type='a'] #ui .banner.ghost.out .ch { animation: a-off 260ms both; animation-delay: calc(var(--i) * 18ms); }
+@keyframes a-dash {
+  0% { opacity: 0; transform: translateX(1.4em) skewX(-24deg) scaleX(1.5); animation-timing-function: cubic-bezier(0.16, 0.9, 0.3, 1); }
+  60% { opacity: 1; transform: translateX(-0.05em) skewX(4deg) scaleX(0.97); animation-timing-function: ease-in-out; }
+  100% { transform: none; }
+}
+@keyframes a-punch {
+  0% { opacity: 0; transform: scale(1.9) skewX(-14deg); animation-timing-function: cubic-bezier(0.3, 0, 0.8, 0.4); }
+  45% { opacity: 1; transform: scale(0.94); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  100% { transform: none; }
+}
+@keyframes a-off { to { opacity: 0; transform: translateX(-1.2em) skewX(-24deg) scaleX(1.4); } }
+
+/* ---------- the rest of the setup and the end screens take the same type (their layouts unchanged) ---------- */
+:root[data-type='a'] #ui .menu-stage .ribbon { font-weight: 900; font-stretch: 118%; letter-spacing: -0.02em; }
+:root[data-type='a'] #ui .menu-stage .ribbon::before { border: 0; border-radius: 0.12em; box-shadow: 0 0.1em 0.26em rgb(8 10 34 / 0.35), inset 0 0.04em 0 rgb(255 255 255 / 0.4); transform: skewX(-16deg); }
+:root[data-type='a'] #ui :is(.results h2, .overlay h2, .podium-head) { font-weight: 900; font-stretch: 120%; letter-spacing: -0.02em; }
+:root[data-type='a'] #ui .row .nm { font-weight: 800; font-stretch: 110%; }
+/* the podium's headline: struck letters as the banners' */
+:root[data-type='a'] #ui .podium-head { --face: #ffd84a; --side: #d9480f; }
+:root[data-type='a'] #ui .podium.on .podium-head .ch { animation-name: a-dash; animation-duration: 420ms; }
+/* the places on the end screens: the tier's face over a deeper tone of it, no ink; the italic is the font's own */
+:root[data-type='a'] #ui :is(.row .rk, .board-row .rk) { transform: none; font-weight: 900; font-stretch: 118%; }
+:root[data-type='a'] #ui .rk { -webkit-text-stroke: 0; text-shadow: var(--lift); }
+:root[data-type='a'] #ui .rk > * { color: var(--tier-side); text-shadow: none; }
+:root[data-type='a'] #ui .rk > *::after { transform: translate(-0.05em, -0.05em); }
+:root[data-type='a'] #ui .rk > *::before { color: #141a45; -webkit-text-stroke: 0.08em #141a45; transform: translate(-0.05em, -0.05em); text-shadow: 0.05em 0.05em 0 #141a45, 0 0.06em 0.14em rgb(8 10 34 / 0.45); }

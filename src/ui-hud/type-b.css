@@ -1,0 +1,202 @@
+/* Type direction B, "Cartoon" (?type=b: ui-hud/typeface.ts; 28 Sept 2026, Adam: "Why do so many of the graphics with the
+   fonts feel outdated and not cool?"). On trial beside direction A (type-a.css); the house type stays the default.
+   The system: Mario Kart World's two registers in our own fonts and colors (stills: youtube.com/watch?v=_9JZhslBy3E
+   0:00-0:21, 2:53-3:24; ngiIINHSiJc 2:07-2:13, 4:33-4:42): clean italic words for everything a player reads, and a
+   few big painted-looking words for the race's moments.
+   - Display (the logo, the count, GO!, FINAL LAP, FINISH!, the place, the lap, headings, names): Rubik Black (900)
+     Italic, chunky with soft corners, tracked tight.
+   - Text (the menus, prompts, labels, lines, dialogs): Nunito, rounded, 700 to 900; italic for menus, prompts and
+     labels (as MKW's menus and prompts), upright for reading.
+   - Small words: white with a lift (a short soft shadow), no outline at all.
+   - Big words: a warm gradient face (bright top, deeper foot, no hard horizon), a rim in a deep tone of their own color
+     (burnt orange for the sun, forest for the grass, raspberry for the coral) with the same tone dropped under it as
+     the letter's side, and a soft shadow: never the ink outline and ink block of the old banners.
+   - Motion: the big words drop in with a squash and a stretch, one after another, as the banners do now; reduced
+     motion (ui.css): they appear and go. Nothing of Nintendo's lettering: our fonts, our colors, our letters. */
+@import '@fontsource-variable/rubik/wght-italic.css';
+@import '@fontsource-variable/nunito/wght.css';
+@import '@fontsource-variable/nunito/wght-italic.css';
+
+:root[data-type='b'] {
+  --display: 'Rubik Variable', 'Arial Rounded MT Bold', 'Segoe UI', system-ui, sans-serif;
+  --body: 'Nunito Variable', 'Segoe UI', system-ui, sans-serif;
+  --lift: 0 2px 0 rgb(10 12 40 / 0.3), 0 2px 10px rgb(10 12 40 / 0.45);
+  /* the house sun, grass and coral as painted faces, each with its rim */
+  --sun-face: linear-gradient(180deg, #fff7c9 4%, #ffe45a 34%, #ffc81e 60%, #ff9f12 96%);
+  --sun-rim: #a8340a;
+  --grass-face: linear-gradient(180deg, #f1ffd8 4%, #c3f36e 34%, #82d943 60%, #46ab34 96%);
+  --grass-rim: #13552a;
+  --coral-face: linear-gradient(180deg, #fff0ec 4%, #ffae9f 34%, #ff7466 60%, #e8464e 96%);
+  --coral-rim: #74153d;
+  /* the logo's outer line and block, a deep navy (never the old black ink) */
+  --deep: #16193f;
+}
+
+/* ---------- every word: no ink outline, no ink extrusion; the lift instead; italic and heavy in the display's places ---------- */
+:root[data-type='b'] #ui :where(.display, .band > .label, .start-prompt, .mode-say, .ribbon, .shot-name, .cup-tile .label, .track-card .label,
+  .classes .pill .label, .np-name, .heading, .slot .charges, .timer, .split, .split .d, .place .suf, .gears, .lap, .banner .small,
+  .overlay h2, .overlay .btn .label, .overlay .setting .label, .results h2, .row .nm, :is(.results, .podium) .btn .label, .res-delta,
+  .rows.cut .tm, .podium-place .nm, .board h3, .soon-tag, .ko-strip.danger) {
+  -webkit-text-stroke: 0;
+  text-shadow: var(--lift);
+}
+:root[data-type='b'] #ui :where(.display, .ribbon, .shot-name, .cup-tile .label, .track-card .label, .classes .pill .label, .np-name,
+  .heading, .slot .charges, .timer, .split, .place .n, .place .suf, .gears, .lap, .banner .big, .banner .small, .btn .label, .ko-strip,
+  .mirror-badge, .tile-letter, .kc-stamp, .sp-title, .kart-who, .overlay h2, .results h2, .row .nm, .row .rk, .res-delta, .rows.cut .tm,
+  .board h3, .podium-head, .podium-place .rk, .podium-place .nm, .soon-tag, .credits h3, .howto h3, .unlock .txt b, .howto .item .txt b,
+  .rung b, .board-row .rk, .intro .driver .who, .banner .medal-won .mw-text, .touch .tb, .rotate-hint, .toast) {
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+/* the text face's italics: what a player acts on or glances at (MKW's menus and prompts are italic) */
+:root[data-type='b'] #ui :where(.band > .label, .start-prompt, .mode-say, .prompts .prompt, .title .press, .hint, .np-sub, .pick-hint,
+  .finish-go, .slot .tag, .lap .word, .opt .nm, .select-side .btn.pick .label) {
+  font-family: var(--body);
+  font-style: italic;
+  font-weight: 900;
+}
+
+/* ---------- the logo: Rascal over Rally!, Rubik Black Italic, painted faces in the sun and coral, each rimmed in a deep
+   tone of its own color, then a deep navy outer line and block under the rim so the letters stand off any sky (two
+   fresh-eyes critics, 28 Sept 2026: "its edges dissolve into the sky", "a thick dark outline and a hard offset
+   extrusion instead of a blurred shadow"); the gloss over the letters stays ---------- */
+:root[data-type='b'] #ui .logo { line-height: 0.9; letter-spacing: -0.025em; }
+:root[data-type='b'] #ui .logo .l1::before, :root[data-type='b'] #ui .logo .l2::before {
+  content: attr(data-text);
+  content: attr(data-text) / '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  color: var(--deep);
+  -webkit-text-stroke: 0.2em var(--deep);
+  text-shadow: 0 0.1em 0 var(--deep), 0 0.14em 0.3em rgb(10 12 40 / 0.45);
+  pointer-events: none;
+}
+:root[data-type='b'] #ui .logo .l1, :root[data-type='b'] #ui .logo .l2 { font-weight: 900; paint-order: stroke fill; }
+:root[data-type='b'] #ui .logo .l1 {
+  font-size: clamp(60px, 8.2vw, 130px);
+  color: #ffd12e;
+  -webkit-text-stroke: 0.085em var(--sun-rim);
+  text-shadow: 0 0.04em 0 var(--sun-rim), 0 0.07em 0 var(--sun-rim);
+  transform: rotate(-4deg);
+}
+:root[data-type='b'] #ui .logo .l2 {
+  margin: -0.02em 0 0 0.66em;
+  font-size: clamp(54px, 7.3vw, 116px);
+  color: #ff6f61;
+  -webkit-text-stroke: 0.085em var(--coral-rim);
+  text-shadow: 0 0.04em 0 var(--coral-rim), 0 0.07em 0 var(--coral-rim);
+  transform: rotate(-4deg);
+}
+/* the gloss: a bright top and a warm foot, softer than the old one */
+:root[data-type='b'] #ui .logo [data-text]::after { background-image: linear-gradient(180deg, rgb(255 255 255 / 0.66) 0%, rgb(255 255 255 / 0.14) 46%, transparent 50%, transparent 74%, rgb(150 40 0 / 0.2) 100%); }
+@media (max-height: 800px) {
+  :root[data-type='b'] #ui .logo .l1 { font-size: min(8.2vw, 13.4vh); }
+  :root[data-type='b'] #ui .logo .l2 { font-size: min(7.3vw, 12vh); }
+}
+@media (max-height: 500px) {
+  :root[data-type='b'] #ui .logo .l1 { font-size: min(6.8vw, 12.6vh); }
+  :root[data-type='b'] #ui .logo .l2 { margin: 0 0 0 0.3em; font-size: min(6.2vw, 11.6vh); }
+}
+
+/* ---------- the start screen's prompt and the title's menu: Nunito Black Italic, white, lifted ---------- */
+:root[data-type='b'] #ui .start-prompt { font-size: clamp(28px, 2.6vw, 44px); letter-spacing: 0.005em; text-shadow: var(--lift), 0 0 26px rgb(10 12 40 / 0.5); }
+:root[data-type='b'] #ui .start-prompt.focused, :root[data-type='b'] #ui .start-prompt:focus-visible { text-shadow: var(--lift), 0 0 26px rgb(255 210 63 / 0.55); }
+:root[data-type='b'] #ui .band > .label { letter-spacing: 0; transform: rotate(-2deg); font-size: calc(var(--band-font, 32px) * 1.02); }
+/* the title's bands taller and their words bigger (two fresh-eyes critics, 28 Sept 2026: the menu words read small) */
+:root[data-type='b'] #ui .title .menu { width: min(530px, 42vw); --band-h: 70px; --band-font: 36px; }
+@media (max-height: 800px) { :root[data-type='b'] #ui .title .menu { --band-h: min(64px, 8.4vh); --band-font: 32px; } }
+@media (max-height: 500px) { :root[data-type='b'] #ui .title .menu { width: min(390px, 48vw); --band-h: 44px; --band-font: 24px; } }
+:root[data-type='b'] #ui .title .press { text-shadow: none; }
+:root[data-type='b'] #ui .menu-side .mode-say { transform: rotate(-2deg); }
+
+/* ---------- headings: Rubik Black Italic, white, lifted, the baseline tipped up a little ---------- */
+:root[data-type='b'] #ui .heading { font-weight: 900; letter-spacing: -0.015em; transform: rotate(-2deg); transform-origin: 0 100%; }
+
+/* ---------- the name under the racer: Rubik Black Italic in white on the ribbon in their color, the ribbon's ink rim gone ---------- */
+:root[data-type='b'] #ui .nameplate .np-name { font-weight: 900; letter-spacing: -0.02em; text-shadow: 0 0.05em 0 color-mix(in srgb, var(--ribbon, var(--coral)) 42%, #10123a), 0 0.1em 0.24em rgb(10 12 40 / 0.35); }
+:root[data-type='b'] #ui .np-name::before, :root[data-type='b'] #ui .np-name::after { border: 0; transform: skewX(-10deg); }
+:root[data-type='b'] #ui .np-name::before {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon, var(--coral)) 58%, #fff) 0 42%, var(--ribbon, var(--coral)) 58% 100%);
+  box-shadow: 0 0.1em 0 color-mix(in srgb, var(--ribbon, var(--coral)) 55%, #10123a), 0 0.16em 0.3em rgb(10 12 40 / 0.3);
+}
+:root[data-type='b'] #ui .select-side .btn.pick .label { text-shadow: none; }
+:root[data-type='b'] #ui .np-sub { font-weight: 800; }
+:root[data-type='b'] #ui .prompts .prompt { font-weight: 800; }
+:root[data-type='b'] #ui .select-stage .prompts kbd, :root[data-type='b'] #ui .hint kbd { font-family: var(--body); font-style: normal; font-weight: 800; }
+
+/* ---------- the race HUD ---------- */
+:root[data-type='b'] #ui .slot .tag { top: -20px; font-size: 12px; font-weight: 900; letter-spacing: 0.08em; text-shadow: var(--lift); }
+:root[data-type='b'] #ui .slot .charges { top: -10px; right: -14px; padding: 2px 9px 4px 8px; border-radius: 999px; background: var(--coral); font-weight: 900; font-size: 23px; text-shadow: 0 1px 0 var(--coral-rim); box-shadow: 0 3px 0 var(--coral-rim), 0 4px 10px rgb(10 12 40 / 0.35); }
+:root[data-type='b'] #ui .slot .charges:empty { display: none; }
+/* the timer, the gears and the lap on dark glass pills, big enough to read at a glance (the critics: "too much text is
+   tiny", "put the lap and counter in dark plates") */
+:root[data-type='b'] #ui .timer { font-weight: 800; font-size: 33px; letter-spacing: 0.01em; padding: 7px 20px 10px; background: rgb(14 16 44 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.24); }
+/* the place: the tier's painted face, its rim and side a deep tone of it (no ink), a soft shadow under */
+:root[data-type='b'] #ui .place { --face: var(--sun-face); --side: var(--sun-rim); --suf: #ffffff; }
+:root[data-type='b'] #ui .place[data-tier='gold'] { --face: linear-gradient(180deg, #fffbe0 4%, #ffec7a 34%, #ffcd1c 60%, #f5a300 96%); --side: #b8430a; --suf: #ffe36b; }
+:root[data-type='b'] #ui .place[data-tier='silver'] { --face: linear-gradient(180deg, #ffffff 4%, #f0f7ff 34%, #c9dcf0 62%, #93b2d4 96%); --side: #3a5a86; --suf: #e6f1ff; }
+:root[data-type='b'] #ui .place[data-tier='bronze'] { --face: linear-gradient(180deg, #fff1ea 4%, #ffc3a6 34%, #f38e62 62%, #cf6440 96%); --side: #7a2a1c; --suf: #ffc3a6; }
+:root[data-type='b'] #ui .place .n { font-weight: 900; font-size: 128px; letter-spacing: -0.03em; color: transparent; text-shadow: none; }
+:root[data-type='b'] #ui .place .n::before { color: var(--side); -webkit-text-stroke: 0.09em var(--side); text-shadow: 0 0.035em 0 var(--side), 0 0.07em 0 var(--side), 0 0.1em 0.2em rgb(10 12 40 / 0.45); }
+:root[data-type='b'] #ui .place .suf { font-weight: 900; font-size: 42px; color: var(--suf); -webkit-text-stroke: 0.1em var(--side); paint-order: stroke fill; text-shadow: 0 0.07em 0 var(--side), 0 3px 8px rgb(10 12 40 / 0.4); }
+:root[data-type='b'] #ui .gears { font-weight: 900; font-size: 36px; background: rgb(14 16 44 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.24); }
+:root[data-type='b'] #ui .lap { display: flex; align-items: baseline; padding: 6px 18px 9px; border-radius: 999px; background: rgb(14 16 44 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.24); font-weight: 900; font-size: 44px; letter-spacing: -0.01em; }
+:root[data-type='b'] #ui .lap .word { order: -1; font-size: 21px; letter-spacing: 0.02em; margin-right: 7px; text-transform: capitalize; }
+:root[data-type='b'] #ui .lap .of { font-size: 28px; }
+:root[data-type='b'] #ui .ko-strip, :root[data-type='b'] #ui .mirror-badge { font-weight: 900; }
+
+/* ---------- the big words: a painted face, a rim and side in a deep tone of its own color, a soft shadow; Rubik Black
+   Italic (the letter's own glyph is left clear: the rim and its drop under it, ::before; the face over it, ::after) ---------- */
+:root[data-type='b'] #ui .banner .big { --face: var(--sun-face); --side: var(--sun-rim); font-weight: 900; letter-spacing: 0.02em; font-size: clamp(66px, 10.6vw, 150px); }
+:root[data-type='b'] #ui .banner[data-kind='countdown'] .big, :root[data-type='b'] #ui .banner[data-kind='go'] .big { font-size: clamp(92px, min(14.4vw, 27vh), 226px); letter-spacing: 0; }
+:root[data-type='b'] #ui .banner[data-kind='go'] .big { --face: var(--grass-face); --side: var(--grass-rim); }
+:root[data-type='b'] #ui .banner[data-kind='finalLap'] .big { --face: var(--coral-face); --side: var(--coral-rim); }
+:root[data-type='b'] #ui .banner[data-kind='wrongWay'] .big { --face: linear-gradient(180deg, #ffffff 4%, #ffc0c0 34%, #ff5252 60%, #d92a2a 96%); --side: #6c1020; font-size: clamp(46px, 6.6vw, 90px); }
+:root[data-type='b'] #ui .banner[data-kind='shift'] .big { font-size: clamp(38px, 5.6vw, 76px); }
+:root[data-type='b'] #ui .ch { color: transparent; text-shadow: none; transform: skewX(-4deg); }
+:root[data-type='b'] #ui .ch::before { color: var(--side); -webkit-text-stroke: 0.095em var(--side); text-shadow: 0 0.045em 0 var(--side), 0 0.085em 0 var(--side), 0 0.12em 0.22em rgb(10 12 40 / 0.45); }
+/* the letters' own slant is Rubik's italic, a little more from the lean the motion keeps (-4deg, not the old -9deg) */
+@keyframes b-drop {
+  0% { opacity: 0; transform: translateY(-0.75em) skewX(-4deg) scale(0.74, 1.42); animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.55); }
+  34% { opacity: 1; transform: translateY(0.05em) skewX(-4deg) scale(1.28, 0.72); animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }
+  58% { transform: translateY(-0.06em) skewX(-4deg) scale(0.92, 1.1) rotate(-2deg); animation-timing-function: ease-in-out; }
+  80% { transform: skewX(-4deg) scale(1.03, 0.98); animation-timing-function: ease-out; }
+  100% { transform: skewX(-4deg); }
+}
+@keyframes b-slam {
+  0% { opacity: 0; transform: skewX(-4deg) scale(2.6); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.5); }
+  32% { opacity: 1; transform: skewX(-4deg) scale(1.24, 0.78); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  56% { transform: skewX(-4deg) scale(0.92, 1.1); animation-timing-function: ease-in-out; }
+  78% { transform: skewX(-4deg) scale(1.03, 0.98); animation-timing-function: ease-out; }
+  100% { transform: skewX(-4deg); }
+}
+@keyframes b-out {
+  0% { opacity: 1; transform: skewX(-4deg); animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1); }
+  30% { opacity: 1; transform: skewX(-4deg) scale(1.2, 0.78); animation-timing-function: cubic-bezier(0.45, 0, 1, 1); }
+  100% { opacity: 0; transform: translateY(-0.42em) skewX(-4deg) scale(0.5, 1.8); }
+}
+:root[data-type='b'] #ui .banner.show .ch { animation-name: b-drop; }
+:root[data-type='b'] #ui .banner[data-kind='countdown'].show .ch, :root[data-type='b'] #ui .banner[data-kind='go'].show .ch { animation-name: b-slam; }
+:root[data-type='b'] #ui .banner.ghost.out .ch { animation-name: b-out; }
+/* FINISH!'s sash: our checkers without the ink rim, a soft shadow; it stops short of the place beside it (the critics:
+   "the 1st chip is jammed against FINISH!") */
+:root[data-type='b'] #ui .banner[data-kind='finish'] .chs::before { border: 0; right: -0.1em; background: repeating-conic-gradient(#1d2150 0 25%, #fff 0 50%) 0 0 / 0.21em 0.21em; box-shadow: 0 0.06em 0.18em rgb(10 12 40 / 0.4); }
+:root[data-type='b'] #ui .banner .small { font-weight: 900; color: #ffe45a; -webkit-text-stroke: 0; text-shadow: 0 0.05em 0 var(--sun-rim), var(--lift); }
+:root[data-type='b'] #ui .banner[data-kind='finish'] .small { margin-left: 1.3em; background: rgb(14 16 44 / 0.66); color: #fff; text-shadow: none; font-size: clamp(38px, 4.8vw, 66px); }
+:root[data-type='b'] #ui .finish-go { font-weight: 800; font-style: italic; }
+
+/* ---------- the rest of the setup and the end screens take the same type (their layouts unchanged) ---------- */
+:root[data-type='b'] #ui .menu-stage .ribbon { font-weight: 900; }
+:root[data-type='b'] #ui .menu-stage .ribbon::before { border: 0; box-shadow: 0 0.1em 0 color-mix(in srgb, var(--ribbon, var(--coral)) 55%, #10123a), 0 0.16em 0.3em rgb(10 12 40 / 0.3); }
+:root[data-type='b'] #ui :is(.results h2, .overlay h2, .podium-head) { font-weight: 900; }
+/* the podium's headline: struck letters as the banners' */
+:root[data-type='b'] #ui .podium-head { --face: var(--sun-face); --side: var(--sun-rim); }
+:root[data-type='b'] #ui .podium.on .podium-head .ch { animation-name: b-drop; }
+/* the places on the end screens: the tier's face, its rim and side a deep tone of it, no ink; the italic is the font's own */
+:root[data-type='b'] #ui :is(.row .rk, .board-row .rk) { transform: none; font-weight: 900; }
+:root[data-type='b'] #ui .rk { -webkit-text-stroke: 0; text-shadow: var(--lift); }
+:root[data-type='b'] #ui .rk > * { color: transparent; text-shadow: none; }
+:root[data-type='b'] #ui .rk > *::before { color: var(--tier-side); -webkit-text-stroke: 0.1em var(--tier-side); text-shadow: 0 0.05em 0 var(--tier-side), 0 0.08em 0.16em rgb(10 12 40 / 0.4); }

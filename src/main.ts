@@ -48,6 +48,10 @@ import { sad, type Reaction } from './kart-controller/anim.ts';
 import { medalFor } from './ui-hud/screens/menus.ts';
 import { CAST, UI, UiRoot, attractTrack, browserBackend, introCard, trackCard, type KartLookIds, type RacePlan, type Settings, type UiHost } from './ui-hud/index.ts';
 import './ui-hud/ui.css';
+import { applyTypeDirection, typeDirection } from './ui-hud/typeface.ts';
+
+// ?type=a / ?type=b: a type direction on trial for Adam to pick from (ui-hud/typeface.ts, 28 Sept 2026); none: the house type
+void applyTypeDirection(document.documentElement, typeDirection(location.search));
 
 // ---- content: every track file present is a built track ----
 const TRACK_FILES = import.meta.glob('./track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
