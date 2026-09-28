@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialApp, isPaused, reduce } from './app.ts';
+import { initialApp, isPaused, onStartScreen, reduce } from './app.ts';
 import type { AppAction, AppState, Screen } from './types.ts';
 
 // the flow with the kart switch off (UI.kartPick): Racer goes straight on; the Kart screen's flow is walked on its own below and in karts.test.ts
@@ -192,5 +192,23 @@ describe('one more go from the results (25 Sept 2026, Mario Kart World\'s end-of
     for (const s of [racing, paused, initialApp()]) {
       for (const a of [{ type: 'raceAgain' }, { type: 'nextTrack', trackId: 'x' }, { type: 'changeTrack' }, { type: 'changeRacer' }] as const) expect(reduce(s, a)).toBe(s);
     }
+  });
+});
+
+describe('the start screen (design §12, 28 Sept 2026: the press the browser starts the title music from)', () => {
+  it('the title opens on it; the press brings the menu, once; back from the Mode screen comes straight to the menu', () => {
+    const title = walk([{ type: 'boot' }]).s;
+    expect([title.screen, onStartScreen(title)]).toEqual(['title', true]);
+    const menu = reduce(title, { type: 'press' });
+    expect([menu.screen, menu.pressed, onStartScreen(menu)]).toEqual(['title', true, false]);
+    expect(reduce(menu, { type: 'press' }), 'pressed once is enough').toBe(menu);
+    const back = walk([{ type: 'start' }, { type: 'back' }], menu).s;
+    expect([back.screen, onStartScreen(back)]).toEqual(['title', false]);
+    // a script's walk straight through (the dev console's kart.race) counts as the press too
+    expect(onStartScreen(walk([{ type: 'boot' }, { type: 'start' }, { type: 'back' }]).s)).toBe(false);
+    // nowhere else is there a start screen to press
+    for (const s of [initialApp(), walk([{ type: 'boot' }, { type: 'start' }]).s]) expect(reduce(s, { type: 'press' })).toBe(s);
+    // a dialog over the title is no start screen
+    expect(onStartScreen(reduce(title, { type: 'openSettings' }))).toBe(false);
   });
 });

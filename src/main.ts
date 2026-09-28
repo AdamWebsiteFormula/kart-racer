@@ -8,6 +8,7 @@ import {
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
 import { AudioBus, finishLine, GameAudio, SampleBank, songForTrack, themeForTrack, type Listener } from './audio/index.ts';
+import { silence, StandInContext } from './audio/standIn.ts';
 import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
@@ -241,7 +242,12 @@ const hudAssist = { autoAccelerate: false, steering: false, working: false };
 const MUTED = new URLSearchParams(location.search).has('mute');
 /** any racer in any kart is on in the game (Adam, 25 Sept 2026: K7, design §5); `?nokarts` turns it off (UI.kartPick stays off as the tests' default) */
 const KARTS_PICK = !new URLSearchParams(location.search).has('nokarts');
-const audio = new GameAudio(MUTED ? AudioBus.silent() : undefined);
+/**
+ * dev, with ?mute only: `&standin` runs the real sound on a stand-in context (audio/standIn.ts: plain objects, no Web
+ * Audio, nothing can be heard), so a silent check can time the music (kart.audioTrace; scripts/headless/title-song.mjs)
+ */
+const STAND_IN = import.meta.env.DEV && MUTED && new URLSearchParams(location.search).has('standin');
+const audio = new GameAudio(MUTED ? (STAND_IN ? new AudioBus(StandInContext as unknown as new () => AudioContext) : AudioBus.silent()) : undefined);
 /** Background files: a few at a time, in the order the player meets them (performance/loadQueue.ts). */
 const files = new LoadQueue(3);
 /** The background line's turns, first to last. */
@@ -250,9 +256,15 @@ const RANK = Object.freeze({
   race: -1,
   /** then its own song (the go) and its first seconds of sound (countdown, go, engines, drift, boosts), and its final-lap sky */
   raceNext: -0.5,
+  /**
+   * the title song's file while the start screen waits for its press (28 Sept 2026), alone at the line's full speed: the
+   * press starts the music, so its file is the first thing the line brings after the title's sky (measured on Fast 4G:
+   * sharing the line with the models it was not in 4 s after the title was up; docs/sops/audio.md)
+   */
+  titleSong: -0.3,
   /** the menus' clicks (27 KB, on the first key press): ahead of the pictures, which a screen fetches for itself anyway */
   clicks: -0.25,
-  /** the pictures on the next screens; the title song (on the first key press); the results song */
+  /** the pictures on the next screens; the results song */
   screens: 0,
   /** the eight racers' models (every race); then a race's first seconds of sound (countdown, go, engines, drift, boosts) */
   racers: 1,
@@ -266,10 +278,13 @@ const RANK = Object.freeze({
 /** A sound's turn (audio/samples.ts SFX_TIERS) → its place in the line. */
 const SOUND_RANK = [RANK.clicks, RANK.racers, RANK.items, RANK.rest] as const;
 // every sound file waits its turn in the same line as the models (on the first key press all 102 and the
-// title song used to be asked for at once): a song takes a whole turn, a sound effect half of one. Tagged,
-// so a race start can move them: its first seconds' sounds forward, the title song back (raceLine)
+// title song used to be asked for at once): a song takes a whole turn, a sound effect half of one; the title
+// song on the start screen the whole line (it comes down alone). Tagged, so a race start can move them: its
+// first seconds' sounds forward, the title song back (raceLine)
 audio.bank.schedule = (job, tier, song) => song
-  ? files.add(job, song === 'title' ? (attract ? RANK.screens : RANK.rest) : song === 'results' ? RANK.screens : RANK.raceNext, 1, `song:${song}`)
+  ? (song === 'title' && attract
+    ? files.add(job, RANK.titleSong, files.limit, 'song:title')
+    : files.add(job, song === 'title' ? RANK.rest : song === 'results' ? RANK.screens : RANK.raceNext, 1, `song:${song}`))
   : files.add(job, SOUND_RANK[Math.min(tier, SOUND_RANK.length - 1)], 0.5, `sfx:${tier}`);
 /**
  * The line as a race or the menus want it: a race wants its racers' models, then its song and first
@@ -277,7 +292,7 @@ audio.bank.schedule = (job, tier, song) => song
  * files still waiting move; nothing running stops).
  */
 function raceLine(racing: boolean): void {
-  files.rerank('song:title', racing ? RANK.rest : RANK.screens);
+  files.rerank('song:title', racing ? RANK.rest : RANK.titleSong);
   if (racing) files.rerank('sfx:1', RANK.raceNext);
 }
 /** racerId → kart index for the current session (audio needs positions by racer) */
@@ -469,6 +484,9 @@ const host: UiHost = {
   },
   uiSound(kind) { audio.ui(kind); },
   racerPicked(racerId) { audio.select(racerId); },
+  // the start screen's press starts the title music: a key, a click or a tap already did through the audio's own
+  // listeners; a pad's press does here (Chrome counts a pad button the page reads as its user activation)
+  pressedStart() { audio.unlock(); },
   screenChanged(app) {
     // the series' podium ceremony (game/podium.ts), after its standings or its cut
     if (app.screen === 'podium' && podium && !podium.showing) startPodium();
@@ -504,6 +522,9 @@ function backgroundFiles(): void {
   const base = import.meta.env.BASE_URL;
   // the title's own sky painting first (the page preloads its fonts): nothing else shares the line till then
   files.hold(Promise.race([preloadSky(session?.trackScene.sky), new Promise((r) => setTimeout(r, 2000))]));
+  // then the title song's file, while the start screen waits for its press: bytes only (no audio context before a
+  // press, none ever under ?mute), so the press has only a decode to wait for, not a download (28 Sept 2026)
+  void audio.bank.prefetch('title');
   // the pictures on the next screens (racer portraits, track cards: ui-hud render/screens.ts addresses)
   for (const c of CAST) void files.add(() => prefetchImage(`${base}art/racers/${c.id}.webp`), RANK.screens);
   for (const id of TRACKS.keys()) void files.add(() => prefetchImage(`${base}art/tracks/${id}.webp`), RANK.screens);
@@ -828,9 +849,11 @@ function tvCamera(frameDt: number): void {
   const r = 11;
   const want: Vec3 = [k.x + Math.sin(orbit) * r, k.y + 2.8, k.z + Math.cos(orbit) * r];
   smoothTo(camPos, want, 0.6, frameDt);
-  // the camera's right, flat: the look point moves that way so the leader sits a third in from the left
+  // the camera's right, flat: the look point moves that way so the leader sits a third in from the left; on the start
+  // screen (no menu yet) the leader sits in the middle under the logo, as Mario Kart World's title frames its kart
+  const aside = ui.app.screen === 'title' && !ui.app.pressed ? 0 : TV_ASIDE;
   const dx = k.x - camPos[0], dz = k.z - camPos[2], len = Math.hypot(dx, dz) || 1;
-  smoothTo(camLook, [k.x - (dz / len) * TV_ASIDE, k.y + 0.4, k.z + (dx / len) * TV_ASIDE], 0.25, frameDt);
+  smoothTo(camLook, [k.x - (dz / len) * aside, k.y + 0.4, k.z + (dx / len) * aside], 0.25, frameDt);
   // review, 26 Sept 2026, finding 1: the leader can be down by the coast; the TV orbit keeps clear of the sea's own surface too
   clampAboveSea(camPos, s.track);
   camera.fov = 58;
@@ -1130,10 +1153,6 @@ if (import.meta.env.DEV) {
         e.kb = Math.round(bytes.byteLength / 1024);
         return new Response(bytes, { status: r.status });
       }) as unknown as typeof fetch;
-      const silence = (bytes: number) => {
-        const rate = 44100, length = Math.max(1, Math.round(((bytes * 8) / 128000) * rate)), chs = [new Float32Array(length), new Float32Array(length)];
-        return { sampleRate: rate, numberOfChannels: 2, length, duration: length / rate, getChannelData: (c: number) => chs[c] } as unknown as AudioBuffer;
-      };
       const stand = { decodeAudioData: async (b: ArrayBuffer) => silence(b.byteLength) } as unknown as BaseAudioContext;
       const bank = new SampleBank(import.meta.env.BASE_URL, traced);
       bank.schedule = audio.bank.schedule;
@@ -1147,5 +1166,24 @@ if (import.meta.env.DEV) {
     /** dev: a race's song asked for from the last kart.audioLoad()'s bank, as a race start asks for it (its turn in the line) */
     audioSong: (trackId: string) => { devSong?.(themeForTrack(trackId)); },
     get audioLog() { return devAudioLog; },
+    /**
+     * dev, under ?mute&standin (the real sound on a stand-in context that plays nothing): when the first press made
+     * the context (page ms), every song source started since (page ms it was asked, the context time it starts at,
+     * its length and loop), whether the synth plays a song now, and whether the title's file was in hand. For timing
+     * the title music from the start screen's press without a sound (scripts/headless/title-song.mjs).
+     */
+    get audioTrace() {
+      const c = audio.bus.ctx as unknown as StandInContext | null;
+      const inner = audio as unknown as { seq: unknown; songId: unknown };
+      return {
+        made: c?.madeAt ?? null,
+        // a song: a looping source over 20 s long (the engine and wheel loops are a few seconds); `sounds` page ms after
+        // its start() call, booked `ahead` s later on the context's clock
+        songs: (c?.started ?? []).filter((x) => x.kind === 'buffer' && x.loop && (x.buffer?.duration ?? 0) > 20)
+          .map((x) => ({ at: Math.round(x.at), ahead: (x.startedAt ?? 0) - x.calledAt, seconds: x.buffer?.duration, loop: [x.loopStart, x.loopEnd] })),
+        synth: inner.seq ? inner.songId : null,
+        titleInHand: audio.bank.fetched('title'),
+      };
+    },
   };
 }

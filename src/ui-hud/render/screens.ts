@@ -4,7 +4,7 @@ import { GAME_TITLE, UI } from '../constants.ts';
 import { arrowSvg, cupSvg, iconFor, iconMarkup, kartSvg, lockSvg, medalSvg, menuSvg, SHAPE_PATHS, starIcon } from '../icons.ts';
 import { CREDITS_MADE, type CreditSection } from '../screens/credits.ts';
 import { AUTO_GAS_NOTE, CONTROLS, CREATURES, ITEM_LINES, LETTERS_LEAD, TIPS } from '../data/howto.ts';
-import { DONE_HELP, type CupEntry, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
+import { DONE_HELP, START_PROMPT, type CupEntry, type CupVM, type MedalLadderVM, type MenuVM, type RosterVM, type SettingRow, type TrackVM } from '../screens/menus.ts';
 import type { BoardVM, CutVM, EndMenuVM, GpRow, GpVM, ResultsVM } from '../screens/results.ts';
 import { faceCrop } from '../data/faces.ts';
 import type { UnlockRow } from '../unlocks.ts';
@@ -162,33 +162,77 @@ export class BootView implements ScreenView {
 }
 
 /**
+ * How the title is drawn: 'start' the start screen (the logo big, the prompt); 'menu' the menu (the logo drops in and
+ * the bands pop in: at boot without a start screen, or back from a screen or a dialog); 'woke' the menu coming in from
+ * the start screen's press (the logo glides from where it stood to its place, the bands slide in from the left).
+ */
+export type TitlePhase = 'start' | 'menu' | 'woke';
+
+/**
  * The title (design §12, 26 Sept 2026): the attract race runs on behind, as Mario Kart World's title shows its
  * world; the logo at the top left and the menu under it, one glass band under another down the left, each with
  * its emblem, as MKW's main menu (stills: youtube.com/watch?v=_9JZhslBy3E, 0:02 to 0:19).
+ * Before its menu, the start screen (28 Sept 2026, Adam: "The game should have music playing here"): as MKW's title
+ * (the same video, 0:02 to 0:16: its logo big at the top over the live world, "Press ... to start" at the foot, then
+ * the menu slides in from the left), our logo big at the top and a gently pulsing prompt at the foot in the words of the
+ * input in hand. The press that ends it is the one the browser lets the music start from.
  */
 export class TitleView implements ScreenView {
   readonly root: HTMLElement;
   readonly buttons = new Map<string, HTMLElement>();
+  /** the logo's box: the start screen's press glides it from where it stood (big, at the top) to its place over the menu */
+  private logoBox: HTMLElement | null = null;
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen title', parent);
     this.root.setAttribute('aria-label', GAME_TITLE.join(' '));
   }
-  render(vm: MenuVM): void {
+  /** `calm`: reduced motion (the menu comes in at once, the logo in its place: no glide) */
+  render(vm: MenuVM, phase: TitlePhase = 'menu', calm = false): void {
+    // (where the logo stood, before the start screen's face goes)
+    const was = phase === 'woke' && !calm ? this.logoBox?.getBoundingClientRect() : undefined;
     clear(this.root);
     this.buttons.clear();
+    this.root.classList.toggle('start', phase === 'start');
+    this.root.classList.toggle('woke', phase === 'woke');
     const st = stage(this.root);
-    const logo = h('h1', 'logo', st);
+    const box = h('div', 'logo-box', st);
+    const logo = h('h1', 'logo', box);
     GAME_TITLE.forEach((w, i) => { h('span', `l${i + 1} display`, logo, w).dataset.text = w; }); // (data-text: the gloss over the letters, menus.css)
+    this.logoBox = box;
+    if (phase === 'start') {
+      // the whole screen takes the press (UiRoot); the prompt is its one button, so assistive tech says it on focus
+      const p = button(st, 'press', 'start-prompt');
+      h('span', 'only-keys', p, START_PROMPT.keys);
+      h('span', 'only-pad', p, START_PROMPT.pad);
+      h('span', 'tap', p, START_PROMPT.touch);
+      this.buttons.set('press', p);
+      return;
+    }
     const menu = h('div', 'menu bands', st);
     vm.entries.forEach((e, i) => {
       const b = button(menu, e.id, 'band enter');
       band(b, menuSvg(e.id), e.label);
-      delay(b, 420 + i * 70);
+      delay(b, phase === 'woke' ? UI.startBandMs + i * UI.startBandStaggerMs : 420 + i * 70);
       this.buttons.set(e.id, b);
     });
     h('div', 'press only-keys', st, 'Press Enter');
     h('div', 'press only-pad', st, 'Press A');
+    if (was) glide(box, was);
   }
+}
+
+/**
+ * The logo's box from where it stood (`was`, the start screen's big logo) to where it is now, over the menu: the one
+ * logo moving, as a title's does (FLIP: the box laid out in its new place, then played from the old one). Transform only.
+ */
+function glide(box: HTMLElement, was: DOMRect): void {
+  const now = box.getBoundingClientRect();
+  if (!(now.width > 0 && was.width > 0) || typeof box.animate !== 'function') return;
+  const s = was.width / now.width;
+  box.animate(
+    [{ transformOrigin: '0 0', transform: `translate(${was.left - now.left}px, ${was.top - now.top}px) scale(${s})` }, { transformOrigin: '0 0', transform: 'none' }],
+    { duration: UI.startGlideMs, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+  );
 }
 
 /**

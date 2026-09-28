@@ -19,6 +19,11 @@ const afterPicks = (s: AppState): Screen => (needsCup(s) ? 'cupSelect' : needsTr
 /** One level up from the cup or track screen: the Kart screen when karts are picked, else the Racer screen. */
 const beforeCourse = (s: AppState): Screen => (s.kartPick ? 'kartSelect' : 'rosterSelect');
 export const isPaused = (s: AppState) => s.screen === 'racing' && s.overlays.length > 0;
+/**
+ * The start screen (design §12, 28 Sept 2026, as Mario Kart World's title before its menu): the title before its first
+ * press, the logo big over the attract race and a prompt. The press that ends it lets the browser start the sound.
+ */
+export const onStartScreen = (s: AppState) => s.screen === 'title' && !s.pressed && s.overlays.length === 0;
 
 const push = (s: AppState, o: Overlay): AppState => (topOverlay(s) === o ? s : { ...s, overlays: [...s.overlays, o] });
 const pop = (s: AppState): AppState => ({ ...s, overlays: s.overlays.slice(0, -1) });
@@ -39,8 +44,11 @@ export function reduce(s: AppState, a: AppAction): AppState {
     }
   }
   switch (a.type) {
+    // the title opens on the start screen; once pressed through it shows its menu for the rest of the session
+    // (back from the Mode screen comes straight to the menu)
     case 'boot': return s.screen === 'boot' ? { ...s, screen: 'title' } : s;
-    case 'start': return s.screen === 'title' ? { ...s, screen: 'modeSelect' } : s;
+    case 'press': return s.screen === 'title' && !s.pressed ? { ...s, pressed: true } : s;
+    case 'start': return s.screen === 'title' ? { ...s, screen: 'modeSelect', pressed: true } : s;
     case 'pickMode': return s.screen === 'modeSelect' ? { ...s, mode: a.mode, cupId: null, trackId: null, screen: 'rosterSelect' } : s;
     case 'setSpeedClass': return { ...s, speedClass: a.speedClass };
     // the Mirror switch at the end of the class row, on the cup and track screens (shown only once unlocked, for

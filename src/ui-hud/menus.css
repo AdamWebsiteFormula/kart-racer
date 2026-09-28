@@ -134,6 +134,59 @@
 /* (no display here: .only-keys and .only-pad say which one shows) */
 .title .press { margin: 18px 0 0 24px; padding: 7px 16px 8px; border-radius: 999px; background: rgb(14 16 38 / 0.56); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.34); font: 600 17px/1 var(--body); color: var(--paper); text-shadow: 0 2px 0 var(--ink); animation: pulse 1.6s ease-in-out infinite; }
 
+/* ---------- the start screen (design §12, 28 Sept 2026; Adam: "The game should have music playing here"), as Mario
+   Kart World's title before its menu (youtube.com/watch?v=_9JZhslBy3E, 0:02 to 0:16: its logo big at the top over
+   the live world, "Press L + R to start" at the foot; the press, then the menu slides in from the left). Ours: the
+   logo big at the top middle over the attract race, a gently pulsing prompt at the foot. The first press starts the
+   music (a browser starts none before one), the logo glides to its place (TitleView 'woke') and the bands slide in.
+   Reduced motion (ui.css): no pulse, no glide, the menu at once. ---------- */
+/* no shade down the left (no bands yet): a little at the top under the logo and at the foot under the prompt */
+.title.start > .dim { background: linear-gradient(180deg, rgb(14 16 38 / 0.3) 0%, transparent 34%, transparent 70%, rgb(14 16 38 / 0.46) 100%); }
+.title.start .stage { align-items: center; justify-content: flex-start; padding-top: calc(clamp(20px, 6vh, 64px) + var(--safe-t)); }
+/* the logo big, as MKW's fills the top of its title: its box scaled from its top middle (the logo's own layout as on the
+   menu, so the glide out of it is one move and one scale) */
+.title.start .logo-box { transform: scale(1.4); transform-origin: 50% 0; }
+.start-prompt {
+  appearance: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(clamp(24px, 8vh, 84px) + var(--safe-b));
+  width: fit-content;
+  margin: 0 auto;
+  padding: 6px 18px;
+  border: 0;
+  background: none;
+  color: #fff;
+  font: 400 clamp(26px, 2.4vw, 40px)/1 var(--display);
+  letter-spacing: 0.02em;
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 4px 0 var(--ink), 0 0 22px rgb(14 16 38 / 0.55);
+  cursor: pointer;
+  outline: none;
+  animation: start-pulse 1.8s ease-in-out infinite;
+}
+/* the one stop on the screen, always focused: a soft sun glow says so */
+.start-prompt.focused, .start-prompt:focus-visible { text-shadow: 0 4px 0 var(--ink), 0 0 22px rgb(255 210 63 / 0.6); }
+@keyframes start-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.035); } }
+/* the prompt in the words of the input in hand: a keyboard's, a pad's once one is used, a tap's on a touch screen */
+.start-prompt > span { display: none; }
+.start-prompt > .only-keys { display: inline; }
+:root[data-input='pad'] .start-prompt > .only-keys { display: none; }
+:root[data-input='pad'] .start-prompt > .only-pad { display: inline; }
+@media (pointer: coarse) {
+  :root:not([data-input='pad']) .start-prompt > .only-keys { display: none; }
+  :root:not([data-input='pad']) .start-prompt > .tap { display: inline; }
+}
+/* the menu coming in from the press: the logo glides (no drop-in), the bands slide in from the left one after another
+   (UI.startBandMs, UI.startBandStaggerMs), the shade and "Press Enter" fade in after them */
+.title.woke .logo { animation: none; }
+#ui .title.woke .menu > .band.enter { animation: band-in 340ms var(--out) backwards; animation-delay: var(--delay, 0ms); }
+@keyframes band-in { from { opacity: 0; transform: translateX(-90px); } }
+.title.woke > .dim { animation: x-fade-in 420ms ease backwards; }
+.title.woke .press { animation: x-fade-in 260ms ease 460ms backwards, pulse 1.6s ease-in-out 720ms infinite; }
+
 /* the stage screens: a soft vignette frames the blurred world (two Gemini Flash critiques, 26 Sept 2026), over the foot's shade (select.css) */
 .menu-screen > .dim { background: radial-gradient(ellipse 80% 75% at 58% 46%, transparent 55%, rgb(14 16 38 / 0.34) 100%), linear-gradient(180deg, rgb(20 22 48 / 0.3) 0%, transparent 15%, transparent 80%, rgb(14 16 38 / 0.72) 100%); }
 

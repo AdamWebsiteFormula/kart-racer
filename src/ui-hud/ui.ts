@@ -6,7 +6,7 @@ import type { KartState, SpeedClass } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import type { GrandPrixState, KnockoutState, RaceEvent, RaceMode, RaceResults, RaceState } from '../race-manager/types.ts';
 import type { Minimap } from '../track-builder/minimap.ts';
-import { initialApp, isPaused, needsCup, needsTrack, reduce, topOverlay } from './app.ts';
+import { initialApp, isPaused, needsCup, needsTrack, onStartScreen, reduce, topOverlay } from './app.ts';
 import { accentOf, CAST, nameOf } from './data/cast.ts';
 import { CUPS, KNOCKOUT_SETS, nextTrack, trackCard } from './data/catalog.ts';
 import { firstFocus, move } from './focus.ts';
@@ -15,7 +15,7 @@ import { ITEM_DEFINITIONS } from '../items/data.ts';
 import { UI } from './constants.ts';
 import { modeSvg } from './icons.ts';
 import { fullscreenState, toggleFullscreen } from './fullscreen.ts';
-import { isFullscreenKey, isPauseKey, isStatsKey, navFromKey, navFromPad, newRepeat, repeat } from './input.ts';
+import { isFullscreenKey, isPauseKey, isStatsKey, navFromKey, navFromPad, newRepeat, pressesStart, repeat } from './input.ts';
 import { minimapDots, type MinimapDot } from './minimap.ts';
 import { HudView } from './render/hud.ts';
 import { IntroCardView } from './render/intro.ts';
@@ -80,6 +80,13 @@ export interface UiHost {
   skipToResults?(): void;
   /** a key, a pad button or a tap during the course intro: on to the countdown now */
   skipIntro?(): void;
+  /**
+   * The start screen was pressed through (design §12, 28 Sept 2026): called from the press itself, before the menu
+   * comes in, so the host can start the sound from it. A key, a click or a tap already let the page's own audio
+   * listeners in; a pad's button is the page's user activation only while the page reads the pad (Chrome), so this is
+   * where a pad's press starts the music.
+   */
+  pressedStart?(): void;
 }
 
 export interface RaceOver {
@@ -588,6 +595,17 @@ export class UiRoot {
     if (stickOut || buttons.some(Boolean)) this.usedInput('pad');
     // a press while the screen changes is dropped, not kept for later (UI.wipeMs)
     const wiping = this.inWipe();
+    // the start screen: any button pressed afresh presses it through, on the pad's first poll too (a browser shows a
+    // pad only once one of its buttons is pressed: that press is the player's); the stick is no button. Every button
+    // down is spent, so the one that pressed does not pick a band as well once the menu is in
+    if (this.active?.key === 'start') {
+      if (!wiping && buttons.some((b, i) => b && !was[i])) this.press();
+      this.padSpent = buttons;
+      this.padStickSpent = stickOut;
+      this.padStartWas = start;
+      this.padRepeat.held = null;
+      return;
+    }
     if (this.app.screen === 'racing' && !this.app.overlays.length) {
       if (start && !this.padStartWas && !wiping) this.dispatch({ type: 'pause' });
       this.padStartWas = start;
@@ -656,6 +674,12 @@ export class UiRoot {
       if (racing ? isRaceKey(e.code) || isPauseKey(e.code, e.key) : navFromKey(e.code, e.key)) e.preventDefault();
       return;
     }
+    // the start screen: any key a browser starts sound from presses it through (Escape, a modifier alone or a
+    // browser shortcut does nothing there: input.ts pressesStart); it is the press alone, never a pick in the menu
+    if (this.active?.key === 'start') {
+      if (pressesStart(e)) { e.preventDefault(); this.press(); }
+      return;
+    }
     // typing in the name box: letters stay in the box; only Enter, Escape and up/down navigate
     if ((e.target as HTMLElement | null)?.tagName === 'INPUT') {
       if (e.key === 'Enter') { e.preventDefault(); this.host.uiSound?.('confirm'); void this.postRun(); }
@@ -709,6 +733,9 @@ export class UiRoot {
 
   private pointer(e: Event, click: boolean): void {
     if (this.inWipe(e) || this.lockIn) return; // the screen is changing under the pointer (or a chosen kart is locking in)
+    // the start screen: a click or a tap anywhere on it presses it through (on its click, the whole press: nothing of
+    // it is left to land on a band); a pointer passing over it does nothing
+    if (this.active?.key === 'start') { if (click) this.press(); return; }
     const b = (e.target as HTMLElement | null)?.closest?.('[data-id]') as HTMLElement | null;
     if (!b || !this.active || !this.active.view.root.contains(b)) return;
     const id = b.dataset.id as string;
@@ -837,7 +864,18 @@ export class UiRoot {
     this.dispatch({ type: 'back' });
   }
 
+  /**
+   * The start screen pressed through (a key, a pad's button, a click or a tap): the host hears it first, so the sound
+   * starts from this very press (UiHost.pressedStart), then the title's menu comes in.
+   */
+  private press(): void {
+    if (!onStartScreen(this.app)) return;
+    this.host.pressedStart?.();
+    this.dispatch({ type: 'press' });
+  }
+
   private confirm(id: string): void {
+    if (id === 'press') { this.press(); return; }
     const s = this.app;
     const top = topOverlay(s);
     if (s.screen === 'kartSelect' && !top && isKart(id)) { this.chooseKart(id); return; }
@@ -1074,7 +1112,8 @@ export class UiRoot {
     };
     const baseView = base[s.screen];
     const overlayView = top === 'pause' ? v.pause : top === 'settings' ? v.settings : top === 'credits' ? v.credits : top === 'howTo' ? v.howTo : top === 'unlocks' ? v.unlocks : null;
-    const key = top ?? s.screen;
+    // the title before its first press is the start screen: its own key, so the press is a change of what is on top
+    const key = top ?? (onStartScreen(s) ? 'start' : s.screen);
     const view = overlayView ?? baseView;
     const entering = this.active?.key !== key;
     const wasOn = entering ? Object.values(v).filter((x) => x.root.classList.contains('on')) : [];
@@ -1088,7 +1127,7 @@ export class UiRoot {
     if (entering && (key === 'results' || key === 'gpTable' || key === 'knockoutCut' || key === 'podium')) this.endGuardUntil = this.clock() + UI.endScreenGuardMs;
     // (before the new screen is drawn: a view drawn again as the next screen leaves its old face as a ghost)
     if (entering) this.beginWipe(from, view, wasOn, dir);
-    this.renderScreen(key, entering);
+    this.renderScreen(key, entering, from?.key);
     const model = this.models.get(key);
     if (!model) return;
     const remembered = this.focusBy.get(key);
@@ -1115,6 +1154,12 @@ export class UiRoot {
     this.endWipe();
     this.arriveLag = 0;
     if (!from || from.key === 'boot' || this.reducedMotion) return;
+    // the start screen's press: the title moves into its menu itself (TitleView 'woke': the logo glides, the bands
+    // slide in); nothing slides off, and input waits the move out as for a screen change
+    if (from.key === 'start') {
+      this.wipe = { els: [], ghost: null, until: this.clock() + UI.wipeMs, timer: setTimeout(() => this.endWipe(), UI.wipeMs + 40) };
+      return;
+    }
     if (from.key === 'racing' && to === this.views.results) this.arriveLag = UI.finishLagMs;
     const way = dir < 0 ? 'back' : 'fwd';
     const els: HTMLElement[] = [];
@@ -1151,12 +1196,15 @@ export class UiRoot {
     w.ghost?.remove();
   }
 
-  /** `entering`: false when the screen on top is drawn again (a setting changed) */
-  private renderScreen(key: string, entering: boolean): void {
+  /** `entering`: false when the screen on top is drawn again (a setting changed); `from`: what was on top before */
+  private renderScreen(key: string, entering: boolean, from?: string): void {
     const s = this.app, v = this.views, built = this.host.builtTracks;
     const short = this.short?.matches ?? false;
     switch (key) {
-      case 'title': { const vm = titleMenu(); v.title.render(vm); this.models.set(key, vm.focus); break; }
+      // the start screen: its one stop is the prompt (any key, a pad's button, a click or a tap presses it through)
+      case 'start': { v.title.render(titleMenu(), 'start'); this.models.set(key, { rows: [['press']] }); break; }
+      // from the start screen's press the menu glides in; back from a screen or a dialog it comes in as before
+      case 'title': { const vm = titleMenu(); v.title.render(vm, entering && from === 'start' ? 'woke' : 'menu', this.reducedMotion); this.models.set(key, vm.focus); break; }
       case 'modeSelect': {
         const vm = modeMenu(this.host.availableModes);
         // our own icons (icons.ts); the Daily's calendar is on the Daily's own day (UTC, as its track and board)

@@ -78,6 +78,16 @@ export const AUDIO = Object.freeze({
   pause: Object.freeze({ music: 0.3, hz: 1200, seconds: 0.15 }),
   /** the race song fades this fast when the player crosses the line, so the finish sting plays alone */
   finishFade: 0.25,
+  /**
+   * A song's recording due within `songWait` of its start is waited for, with no synth stand-in (28 Sept 2026: a
+   * synth flash, then the switch to the recording, sounds cheap; the title's file comes down while the start screen
+   * waits, so after the press only its decode is left). One waited for that has still not started `songGiveUp` after
+   * its start (a stalled line) gets the synth after all. `songDecode`: a song's decode and analysis, as the bank
+   * reckons it (samples.ts readyIn).
+   */
+  songWait: 0.5,
+  songGiveUp: 1.5,
+  songDecode: 0.25,
   /** the drift spark tiers' zaps (blue, orange, purple) also climb in pitch: two semitones, then four */
   tierRates: Object.freeze([1, 1.12, 1.26]),
   /** the master gain at full slider; over 1 because the recordings are levelled with headroom and the limiter holds the peaks */

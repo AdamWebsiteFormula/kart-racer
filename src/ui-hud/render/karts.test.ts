@@ -44,6 +44,7 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     const h = host();
     const ui = root(h);
     ui.dispatch({ type: 'boot' });
+    key('Enter'); // the start screen's press
     key('Enter'); // Race!
     key('Enter'); // Quick Race
     expect(ui.app.screen).toBe('rosterSelect');

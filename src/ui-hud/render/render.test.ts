@@ -149,6 +149,8 @@ describe('UiRoot', () => {
     const ui = new UiRoot(document.body, h, null);
     ui.dispatch({ type: 'boot' });
     expect(ui.app.screen).toBe('title');
+    key('Enter'); // the start screen's press (design §12, 28 Sept 2026): the menu, nothing picked
+    expect([ui.app.screen, ui.app.pressed]).toEqual(['title', true]);
     key('Enter'); // Race!
     expect(ui.app.screen).toBe('modeSelect');
     key('Enter'); // Quick Race
@@ -925,7 +927,7 @@ describe('gamepad', () => {
     const ui = new UiRoot(document.body, h, null);
     ui.clock = () => t;
     ui.dispatch({ type: 'boot' });
-    beat(); // the title has been up a moment (a press as it opens is a double press's second half)
+    press(ui, 1); // the start screen: any button (B here) presses it through to the menu
     return { ui, h };
   }
   afterEach(() => { delete (navigator as { getGamepads?: unknown }).getGamepads; });
@@ -1150,6 +1152,7 @@ describe('double presses (sweep 24 Sept 2026)', () => {
     ui.clock = () => now;
     ui.trusted = () => true; // as a real key press
     ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'press' }); // past the start screen
     now += 1000;
     key('Enter'); // Race! on the title
     expect(ui.app.screen).toBe('modeSelect');
@@ -1176,6 +1179,7 @@ describe('double presses (sweep 24 Sept 2026)', () => {
     ui.clock = () => now;
     ui.trusted = () => true;
     ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'press' }); // past the start screen
     const a = (down: boolean) => { pad.buttons[0].pressed = down; ui.poll(now); };
     now += 1000;
     a(true); a(false); // A on the title: Race!
@@ -1203,6 +1207,10 @@ describe('prompts follow the input (sweep 24 Sept 2026)', () => {
     ui.dispatch({ type: 'boot' });
     const root = document.documentElement;
     expect(root.dataset.input).toBe('keys');
+    // the start screen's prompt says each input's words; the stylesheet shows the one in hand
+    expect([...document.querySelectorAll('#ui .title .start-prompt > span')].map((e) => `${e.className}: ${e.textContent}`))
+      .toEqual(['only-keys: Press any key', 'only-pad: Press any button', 'tap: Tap to start']);
+    ui.dispatch({ type: 'press' });
     expect(document.querySelector('#ui .title .press.only-keys')?.textContent).toBe('Press Enter');
     expect(document.querySelector('#ui .title .press.only-pad')?.textContent).toBe('Press A');
     ui.poll(16); // a pad plugged in but nothing pressed: still the keys

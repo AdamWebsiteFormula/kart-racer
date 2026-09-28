@@ -26,6 +26,19 @@ export function navFromKey(code: string, key = ''): NavAction | null {
   return KEYS[code] ?? (code ? null : BY_KEY[key] ?? null);
 }
 
+/** Keys that only change another key (and the lock keys): pressed alone they are no press of their own. */
+const MODIFIERS: ReadonlySet<string> = new Set(['Shift', 'Control', 'Alt', 'AltGraph', 'Meta', 'OS', 'Super', 'Hyper', 'Fn', 'FnLock', 'CapsLock', 'NumLock', 'ScrollLock', 'Symbol', 'SymbolLock']);
+
+/**
+ * Does this key press the start screen through ("Press any key", design §12)? Any key a browser starts sound from:
+ * not Escape (never a user activation: html.spec.whatwg.org, "activation triggering input event"), not a modifier or
+ * lock key alone (it only changes another key, and a browser need not count it), not a browser shortcut (with Ctrl,
+ * Cmd or Alt: the browser's), not an auto-repeat. So the press that ends the start screen can start the title music.
+ */
+export function pressesStart(e: { key: string; repeat?: boolean; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): boolean {
+  return !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== 'Escape' && e.key !== 'Esc' && !MODIFIERS.has(e.key) && e.key !== 'Dead' && e.key !== 'Unidentified';
+}
+
 /** Is this the pause key (Escape or P) by code or, failing that, by key? */
 export function isPauseKey(code: string, key = ''): boolean {
   return code === 'Escape' || code === 'KeyP' || (!code && (key === 'Escape' || key === 'p' || key === 'P'));

@@ -180,6 +180,7 @@ describe('the setup as Mario Kart World sets its own (design §12, 26 Sept 2026)
   it('the title\'s bands each wear their emblem beside the words that name them, and run one under another', () => {
     const ui = new UiRoot(document.body, host(), null);
     ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'press' }); // past the start screen
     const bands = [...document.querySelectorAll<HTMLElement>('#ui .title.on .menu > .band')];
     expect(bands.map((b) => b.querySelector('.icon > svg.menu-svg')?.getAttribute('data-menu'))).toEqual(['start', 'howTo', 'unlocks', 'settings', 'credits']);
     for (const b of bands) expect(b.querySelector('.icon')!.getAttribute('aria-hidden'), b.dataset.id).toBe('true');
