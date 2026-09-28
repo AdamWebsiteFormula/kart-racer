@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ItemEvent } from '../items/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
 import { allLines, CAST, prompt } from '../../scripts/voice/catalog.ts';
-import { BARKS, Barker, type TakeCount } from './barks.ts';
+import { BARKS, Barker, LINES_A_RACE, type TakeCount } from './barks.ts';
 import type { Listener } from './director.ts';
 import type { Bark, BarkCue } from './types.ts';
 
@@ -94,98 +94,119 @@ describe('racer voice lines: who speaks and when (barks.ts)', () => {
     expect(line(6, false, 6)).toBe('good');
   });
 
-  it('Sprocket counts laps aloud: lap two, then the last lap; nobody else has lap lines', () => {
-    const b = new Barker(2);
-    b.reset(3);
-    const l = at({}, 'sprocket');
-    expect(tick(b, 30, [{ type: 'lap', racerId: 'sprocket', lap: 2, isFinal: false }], [], l)).toMatchObject({ bark: 'lap', n: 0 });
-    expect(tick(b, 60, [{ type: 'lap', racerId: 'sprocket', lap: 3, isFinal: true }], [], l)).toMatchObject({ bark: 'lap', n: 1 });
-    const only: TakeCount = (r, bark) => (bark === 'lap' ? (r === 'sprocket' ? 2 : 0) : 3);
-    const p = new Barker(2);
-    p.reset(3);
-    expect(tick(p, 30, [{ type: 'lap', racerId: 'pip', lap: 2, isFinal: false }], [], at({}), only)).toBeNull();
+  it('nobody counts laps, says sorry, or speaks on a pass or a big boost: no Mario Kart World racer does', () => {
+    for (const r of ['sprocket', 'boulder', 'pip']) {
+      const rival = r === 'pip' ? 'juniper' : 'pip';
+      const moments: RaceEvent[][] = [
+        [{ type: 'lap', racerId: r, lap: 2, isFinal: false }],
+        [{ type: 'lap', racerId: r, lap: 3, isFinal: true }],
+        [kart(r, { type: 'bump', otherId: rival })],
+        [kart('boulder', { type: 'bump', otherId: r })],
+        // the player passes a rival (from 4th), and a rival near them takes their place
+        [{ type: 'positionChange', racerId: r, rank: 3 }],
+        [{ type: 'positionChange', racerId: r, rank: 5 }, { type: 'positionChange', racerId: rival, rank: 4 }],
+        [kart(r, { type: 'boostStart', source: 'drift', multiplier: 1.3, seconds: 1.5 })],
+      ];
+      for (const m of moments) {
+        for (let s = 1; s <= 50; s++) {
+          const b = new Barker(s * 7);
+          b.reset(4);
+          expect(tick(b, 30, m, [], at({ [rival]: [2, 0, 5], boulder: [1, 0, 4] }, r)), `${r} ${JSON.stringify(m)}`).toBeNull();
+        }
+      }
+    }
+    for (const bark of ['lap', 'sorry', 'overtake', 'boost'] as const) expect(BARKS.rules[bark].chance, bark).toBe(0);
   });
 
-  it("the player's item hitting a rival is a gloat; a rival's item hitting the player is theirs, from where they are", () => {
-    const b = new Barker(4);
-    b.reset(4);
-    expect(tick(b, 5, [], [itemHit('gus', 'pip')], at({ gus: [3, 0, 8] }))).toMatchObject({ racerId: 'pip', bark: 'hitRival' });
-    // the player is hit by Gus, 6 m off to the side: the player's own hit line wins (priority), Gus waits
-    let taunts = 0, hits = 0;
-    for (let s = 1; s <= 200; s++) {
-      const r = new Barker(s * 104729);
-      r.reset(4);
-      const c = tick(r, 5, [], [itemHit('pip', 'gus')], at({ gus: [6, 0, 0] }));
-      if (c?.racerId === 'gus') taunts++;
-      if (c?.racerId === 'pip' && c.bark === 'hit') hits++;
+  it("the player's item hitting a rival: now and then the player's gloat, else sometimes the rival's cry, quieter and from their side", () => {
+    const N = 1000, g = BARKS.rules.hitRival.chance, r = BARKS.rivalChance.hit!;
+    let gloats = 0, cries = 0, cry: BarkCue | null = null;
+    for (let s = 1; s <= N; s++) {
+      const b = new Barker(s * 7919);
+      b.reset(4);
+      const c = tick(b, 5, [], [itemHit('gus', 'pip')], at({ gus: [6, 0, 0] }));
+      if (c?.racerId === 'pip' && c.bark === 'hitRival') gloats++;
+      if (c?.racerId === 'gus' && c.bark === 'hit') { cries++; cry = c; }
     }
-    expect(hits).toBe(200);
-    expect(taunts).toBe(0);
-    // with the player's hit line not recorded, Gus's taunt comes through, quieter and panned to his side
-    const noHit: TakeCount = (r, bark) => (r === 'pip' && bark === 'hit' ? 0 : 3);
-    let taunt: BarkCue | null = null;
-    for (let s = 1; s <= 50 && !taunt; s++) {
-      const r = new Barker(s * 31);
-      r.reset(4);
-      taunt = tick(r, 5, [], [itemHit('pip', 'gus')], at({ gus: [6, 0, 0] }), noHit);
-    }
-    expect(taunt).toMatchObject({ racerId: 'gus', bark: 'hitRival' });
-    expect(taunt!.gain).toBeLessThan(1);
+    expect(gloats / N).toBeCloseTo(g, 1);
+    expect(cries / N).toBeCloseTo((1 - g) * r, 1);
+    expect(cry!.gain).toBeLessThan(1);
     // heading 0 looks along +z: world +x is on the screen's left
-    expect(taunt!.pan).toBeLessThan(0);
-  });
-
-  it('a rival speaks only near the player', () => {
+    expect(cry!.pan).toBeLessThan(0);
+    // out of earshot, the rival says nothing
     for (let s = 1; s <= 100; s++) {
       const b = new Barker(s);
       b.reset(4);
-      expect(tick(b, 5, [HIT('otto')], [], at({ otto: [0, 0, BARKS.rivalNear + 5] }))).toBeNull();
+      expect(tick(b, 5, [], [itemHit('gus', 'pip')], at({ gus: [0, 0, BARKS.rivalNear + 5] }))?.racerId ?? 'pip').toBe('pip');
     }
-    let near = 0;
-    for (let s = 1; s <= 100; s++) {
-      const b = new Barker(s);
-      b.reset(4);
-      if (tick(b, 5, [HIT('otto')], [], at({ otto: [0, 0, 6] }))?.racerId === 'otto') near++;
-    }
-    expect(near).toBeGreaterThan(50);
   });
 
-  it('passing: the player moving up is an overtake line; a rival taking the player\'s place near them is theirs', () => {
-    let mine = 0;
+  it("a rival's item hitting the player is the player's own hit line; a rival never taunts, and says nothing about anyone else's hits", () => {
     for (let s = 1; s <= 200; s++) {
-      const b = new Barker(s * 17);
+      const b = new Barker(s * 104729);
       b.reset(4);
-      if (tick(b, 20, [{ type: 'positionChange', racerId: 'pip', rank: 3 }])?.bark === 'overtake') mine++;
-    }
-    expect(mine / 200).toBeGreaterThan(BARKS.rules.overtake.chance - 0.12);
-    expect(mine / 200).toBeLessThan(BARKS.rules.overtake.chance + 0.12);
-    let theirs: BarkCue | null = null;
-    for (let s = 1; s <= 60 && !theirs; s++) {
-      const b = new Barker(s * 13);
-      b.reset(3);
-      theirs = tick(b, 20, [{ type: 'positionChange', racerId: 'pip', rank: 4 }, { type: 'positionChange', racerId: 'juniper', rank: 3 }], [], at({ juniper: [2, 0, 5] }));
-    }
-    expect(theirs).toMatchObject({ racerId: 'juniper', bark: 'overtake' });
-    // a rival moving up elsewhere in the pack says nothing
-    for (let s = 1; s <= 60; s++) {
-      const b = new Barker(s * 13);
-      b.reset(3);
-      expect(tick(b, 20, [{ type: 'positionChange', racerId: 'juniper', rank: 5 }], [], at({ juniper: [2, 0, 5] }))).toBeNull();
+      expect(tick(b, 5, [HIT('pip')], [itemHit('pip', 'gus')], at({ gus: [6, 0, 0] }))).toMatchObject({ racerId: 'pip', bark: 'hit' });
+      // with the player's hit line not recorded, still no taunt from Gus
+      const noHit: TakeCount = (id, bark) => (id === 'pip' && bark === 'hit' ? 0 : 3);
+      const q = new Barker(s * 31);
+      q.reset(4);
+      expect(tick(q, 5, [HIT('pip')], [itemHit('pip', 'gus')], at({ gus: [6, 0, 0] }), noHit)).toBeNull();
+      // a rival spun by a hazard or by another rival's item, right beside the player: nothing
+      const o = new Barker(s * 13);
+      o.reset(4);
+      expect(tick(o, 5, [HIT('otto')], [itemHit('otto', 'gus')], at({ otto: [0, 0, 4], gus: [0, 0, 8] }))).toBeNull();
     }
   });
 
-  it('Boulder says sorry after a bump; the racer screen line is always said', () => {
-    let sorry = 0;
-    for (let s = 1; s <= 100; s++) {
-      const b = new Barker(s * 3);
-      b.reset(4);
-      if (tick(b, 9, [kart('boulder', { type: 'bump', otherId: 'pip' })], [], at({}, 'boulder'))?.bark === 'sorry') sorry++;
-    }
-    expect(sorry).toBeGreaterThan(50);
+  it('the racer screen line is always said', () => {
     const b = new Barker(1);
     const picks = [b.select('gus', ALL, 0), b.select('gus', ALL, 0.3)];
     expect(picks.map((p) => p?.bark)).toEqual(['select', 'select']);
     expect(picks[0]!.n).not.toBe(picks[1]!.n);
+  });
+
+  it("a whole race's moments: a few lines, as Mario Kart World's racers say (being hit, the start, the finish, a rare trick or gloat)", () => {
+    // one race's worth of the player's moments at the rates measured over 96 whole races (render.mix.ts
+    // CENSUS, 28 Sept 2026: 123 s a race), spread over the race by a seeded shuffle
+    const race = (seed: number): [number, RaceEvent[], ItemEvent[]][] => {
+      let x = seed;
+      const rnd = () => { x = (Math.imul(x, 1664525) + 1013904223) >>> 0; return x / 0x100000000; };
+      const at_ = () => 4 + rnd() * 115;
+      const out: [number, RaceEvent[], ItemEvent[]][] = [[3, [kart('pip', { type: 'boostStart', source: 'start', multiplier: 1.3, seconds: 1 })], []]];
+      for (let i = 0; i < 7; i++) out.push([at_(), [TRICK()], []]);
+      for (let i = 0; i < 8; i++) out.push([at_(), [kart('pip', { type: 'boostStart', source: 'drift', multiplier: 1.3, seconds: 1.5 })], []]);
+      for (let i = 0; i < 4; i++) out.push([at_(), [], [itemHit(i % 2 ? 'gus' : 'otto', 'pip')]]);
+      for (let i = 0; i < 4; i++) out.push([at_(), [HIT('pip')], [itemHit('pip', 'momo')]]);
+      for (let i = 0; i < 6; i++) out.push([at_(), [HIT('nova')], []]);
+      for (let i = 0; i < 39; i++) out.push([at_(), [kart('pip', { type: 'bump', otherId: 'boulder' }), kart('boulder', { type: 'bump', otherId: 'pip' })], []]);
+      let rank = 8;
+      for (let i = 0; i < 14; i++) out.push([at_(), [{ type: 'positionChange', racerId: 'pip', rank: Math.max(1, --rank) }], []]);
+      out.push([42, [{ type: 'lap', racerId: 'pip', lap: 2, isFinal: false }], []], [82, [{ type: 'lap', racerId: 'pip', lap: 3, isFinal: true }], []]);
+      out.push([123, [{ type: 'finish', racerId: 'pip', rank: 2, tick: 14760, dnf: false }], []]);
+      return out.sort((a, b) => a[0] - b[0]);
+    };
+    // Gus is hit beside the player, Otto far up the road; Momo hits the player; Nova spins out beside them
+    const near = at({ gus: [3, 0, 6], otto: [0, 0, 30], momo: [2, 0, 3], nova: [0, 0, 5], boulder: [1, 0, 2] });
+    const N = 200, said: BarkCue[] = [];
+    let most = 0;
+    for (let s = 1; s <= N; s++) {
+      const b = new Barker(s * 2654435761);
+      b.reset(8);
+      const lines = race(s).map(([t, r, i]) => tick(b, t, r, i, near, ALL, 1.4)).filter((c): c is BarkCue => !!c);
+      said.push(...lines);
+      most = Math.max(most, lines.length);
+    }
+    const per = (f: (c: BarkCue) => boolean) => said.filter(f).length / N;
+    const own = (bark: Bark) => per((c) => c.racerId === 'pip' && c.bark === bark);
+    expect(per(() => true), 'lines a race').toBeLessThanOrEqual(LINES_A_RACE);
+    expect(own('hit'), 'the player is hit 4 times: nearly every one voiced').toBeGreaterThan(3.5);
+    expect(own('start')).toBe(1);
+    expect(own('good')).toBe(1);
+    expect(own('trick'), 'of 7 tricks').toBeLessThanOrEqual(1.5);
+    expect(own('hitRival'), 'of 4 hits on a rival').toBeLessThanOrEqual(1.2);
+    expect(per((c) => c.racerId !== 'pip'), "rivals' lines").toBeLessThanOrEqual(1);
+    for (const bark of ['boost', 'overtake', 'lap', 'sorry'] as const) expect(per((c) => c.bark === bark), bark).toBe(0);
+    expect(most, 'the chattiest race').toBeLessThanOrEqual(LINES_A_RACE + 3);
   });
 });
 
