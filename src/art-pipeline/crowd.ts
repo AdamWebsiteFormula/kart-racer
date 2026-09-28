@@ -811,8 +811,8 @@ class Placer {
   readonly ctx: VistaContext;
   readonly biome: Biome;
   readonly rng: () => number;
-  /** the main line every ~2 m: centre, limit (m from the centre to the course limit or the solid edge) */
-  private readonly xs: Float32Array; private readonly zs: Float32Array; private readonly ys: Float32Array; private readonly lim: Float32Array;
+  /** the main line every ~2 m: centre, limit on the left and the right (m from the centre to the course limit or the solid edge) */
+  private readonly xs: Float32Array; private readonly zs: Float32Array; private readonly ys: Float32Array; private readonly limL: Float32Array; private readonly limR: Float32Array;
   readonly length: number;
   readonly avoid: [number, number, number][];
   /** circles the crowd itself has claimed, filed by grid cell (CLAIM_CELL m; no claim is wider than a cell) */
@@ -824,11 +824,11 @@ class Placer {
     for (let i = 1; i <= 400; i++) { const p = ctx.road!(i / 400).p; len += Math.hypot(p[0] - prev[0], p[2] - prev[2]); prev = p; }
     this.length = len;
     const n = Math.max(64, Math.round(len / 2));
-    this.xs = new Float32Array(n); this.zs = new Float32Array(n); this.ys = new Float32Array(n); this.lim = new Float32Array(n);
-    for (let i = 0; i < n; i++) { const r = ctx.road!(i / n); this.xs[i] = r.p[0]; this.ys[i] = r.p[1]; this.zs[i] = r.p[2]; this.lim[i] = r.limit; }
+    this.xs = new Float32Array(n); this.zs = new Float32Array(n); this.ys = new Float32Array(n); this.limL = new Float32Array(n); this.limR = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const r = ctx.road!(i / n); this.xs[i] = r.p[0]; this.ys[i] = r.p[1]; this.zs[i] = r.p[2]; this.limL[i] = r.limitLeft ?? r.limit; this.limR[i] = r.limitRight ?? r.limit; }
     // each segment filed under every grid cell within NEAR metres of it, so a query reads a few dozen, not all
     for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n, r = NEAR + Math.max(this.lim[i], this.lim[j]);
+      const j = (i + 1) % n, r = NEAR + Math.max(this.limL[i], this.limL[j], this.limR[i], this.limR[j]);
       const x0 = Math.floor((Math.min(this.xs[i], this.xs[j]) - r) / CELL), x1 = Math.floor((Math.max(this.xs[i], this.xs[j]) + r) / CELL);
       const z0 = Math.floor((Math.min(this.zs[i], this.zs[j]) - r) / CELL), z1 = Math.floor((Math.max(this.zs[i], this.zs[j]) + r) / CELL);
       for (let cx = x0; cx <= x1; cx++) {
@@ -851,9 +851,13 @@ class Placer {
     for (const i of list) {
       const j = (i + 1) % n, ax = this.xs[i], az = this.zs[i], bx = this.xs[j] - ax, bz = this.zs[j] - az;
       const l2 = bx * bx + bz * bz, k = l2 > 0 ? clamp01(((x - ax) * bx + (z - az) * bz) / l2) : 0;
-      const d = Math.hypot(x - ax - bx * k, z - az - bz * k) - (this.lim[i] + (this.lim[j] - this.lim[i]) * k);
+      // which side of the road the point is on (right = (dir z, -dir x)), and that side's limit
+      const lim = (x - ax) * bz - (z - az) * bx < 0 ? this.limL : this.limR;
+      const d = Math.hypot(x - ax - bx * k, z - az - bz * k) - (lim[i] + (lim[j] - lim[i]) * k);
       if (d < best) { best = d; by = this.ys[i] + (this.ys[j] - this.ys[i]) * k; }
     }
+    // near a road, every road's drivable ground counts (a shortcut's too): the scene's own measure (limits.ts)
+    if (best < NEAR && this.ctx.pastCourse) best = Math.min(best, this.ctx.pastCourse(x, z));
     return { past: best, y: by };
   }
   /**
@@ -917,11 +921,11 @@ class Placer {
     const u = ((t % 1) + 1) % 1, side = lat === this.frame(u).out ? 'out' : 'in';
     return (this.biome.keepOut ?? []).some(([a, b, sd]) => sd === side && (a <= b ? u >= a && u <= b : u >= a || u <= b));
   }
-  /** The road at t: where, which way, which way is out from the track's middle (+1: +lateral), how far its limit stands. */
-  frame(t: number): { p: V3; along: [number, number]; right: [number, number]; limit: number; out: number } {
+  /** The road at t: where, which way, which way is out from the track's middle (+1: +lateral), how far its limit stands on each side. */
+  frame(t: number): { p: V3; along: [number, number]; right: [number, number]; limitLeft: number; limitRight: number; out: number } {
     const r = this.ctx.road!(((t % 1) + 1) % 1), [cx, cz] = this.ctx.centre;
     const out = (r.p[0] - cx) * r.right[0] + (r.p[2] - cz) * r.right[1] > 0 ? 1 : -1;
-    return { p: r.p, along: r.along, right: r.right, limit: r.limit, out };
+    return { p: r.p, along: r.along, right: r.right, limitLeft: r.limitLeft ?? r.limit, limitRight: r.limitRight ?? r.limit, out };
   }
 }
 
@@ -959,7 +963,7 @@ function tryStand(p: Placer, spot: Spot, side: 'in' | 'out', L: number, rows: nu
       const f = p.frame(spot.t + dt), s = side === 'out' ? f.out : -f.out;
       if (p.forbidden(spot.t + dt, s)) continue;
       const ox = f.right[0] * s, oz = f.right[1] * s; // away from the road
-      const d0 = f.limit + CLEAR + extra;
+      const d0 = (s < 0 ? f.limitLeft : f.limitRight) + CLEAR + extra;
       const fx = f.p[0] + ox * d0, fz = f.p[2] + oz * d0;
       // its footprint: along the chord, D deep away from the road
       let ok = true, lo = Infinity, hi = -Infinity, sumY = 0, nY = 0;
@@ -1021,7 +1025,7 @@ function tryGroup(p: Placer, spot: Spot, side: 'in' | 'out', st: StandStyle, gro
       const f = p.frame(spot.t + dt), s = spot.lat ?? (side === 'out' ? f.out : -f.out);
       if (p.forbidden(spot.t + dt, s)) continue;
       const ox = f.right[0] * s, oz = f.right[1] * s, ax = f.along[0], az = f.along[1];
-      const d0 = f.limit + CLEAR + extra; // the rope line
+      const d0 = (s < 0 ? f.limitLeft : f.limitRight) + CLEAR + extra; // the rope line
       const rx = f.p[0] + ox * d0, rz = f.p[2] + oz * d0;
       const yaw = Math.atan2(-ox, -oz);
       const platformY = f.p[1] - 0.35;
@@ -1035,7 +1039,7 @@ function tryGroup(p: Placer, spot: Spot, side: 'in' | 'out', st: StandStyle, gro
           let y = platformY;
           if (!p.biome.sky) {
             const g = p.ground(x, z, f.p[1], [ox, oz]);
-            if (g === null || !level(p, x, z, f.p[1], 0.45, 0.35) || !level(p, x, z, f.p[1], LIP, 0.6)) continue;
+            if (g === null || !footing(p, x, z, f.p[1], 0.35)) continue;
             y = g;
           }
           spots.push([x, y, z]);
@@ -1058,7 +1062,9 @@ function tryGroup(p: Placer, spot: Spot, side: 'in' | 'out', st: StandStyle, gro
         // the rope line in front, each post on the ground under it (its posts reach 0.3 m into it)
         const posts = Math.max(2, Math.round(W / 2) + 1);
         const ys = Array.from({ length: posts }, (_, k) => p.ground(rx + ax * (-W / 2 + (k * W) / (posts - 1)), rz + az * (-W / 2 + (k * W) / (posts - 1)), f.p[1]));
-        if (ys.every((g) => g !== null) && p.free(rx, rz, 0.3)) {
+        // and the line itself clear of every road's drivable ground end to end (the limit moves along a stretch: limits.ts)
+        const clearLine = [-1, -0.5, 0, 0.5, 1].every((u) => p.clearance(rx + ax * u * (W / 2 + 0.1), rz + az * u * (W / 2 + 0.1)).past >= CLEAR * 0.75);
+        if (ys.every((g) => g !== null) && p.free(rx, rz, 0.3) && clearLine) {
           const ry = Math.min(...(ys as number[]));
           b.standGeos.push(ropeLine(st, W, (ys as number[]).map((g) => g - ry)).applyMatrix4(M.setPosition(rx, ry, rz)));
           b.layout.solids.push({ at: [rx, ry, rz], yaw, half: [0.12, W / 2 + 0.1], top: Math.max(...(ys as number[])) + 1, kind: 'rope' });
@@ -1084,13 +1090,13 @@ function placeVillage(p: Placer, spot: Spot, b: Built, kit: (only?: string[]) =>
     const u = p.rng(), t = spot.t + u * span, f = p.frame(t), s = p.rng() < 0.5 ? 1 : -1;
     if (p.forbidden(t, s)) continue;
     const ox = f.right[0] * s, oz = f.right[1] * s;
-    const d0 = f.limit + CLEAR + 0.5 + p.rng() * 6;
+    const d0 = (s < 0 ? f.limitLeft : f.limitRight) + CLEAR + 0.5 + p.rng() * 6;
     const x = f.p[0] + ox * d0, z = f.p[2] + oz * d0;
     if (p.clearance(x, z).past < CLEAR + 0.5 || !p.free(x, z, 0.6)) continue;
     let y = f.p[1] + 0.3 + p.rng() * 1.8; // a sprite hovering by the road
     if (!p.biome.sky) {
       const g = p.ground(x, z, f.p[1], [ox, oz]);
-      if (g === null || !level(p, x, z, f.p[1], 0.45, 0.3) || !level(p, x, z, f.p[1], LIP, 0.6)) continue;
+      if (g === null || !footing(p, x, z, f.p[1], 0.3)) continue;
       y = g;
     }
     const chunk = Math.min(chunks - 1, Math.floor(u * chunks));
@@ -1111,7 +1117,7 @@ function placeVillage(p: Placer, spot: Spot, b: Built, kit: (only?: string[]) =>
       let fy = y + (p.rng() - 0.5) * 0.8;
       if (!p.biome.sky) {
         const g = p.ground(fx, fz, f.p[1], [ox, oz]);
-        if (g === null || !level(p, fx, fz, f.p[1], 0.45, 0.3) || !level(p, fx, fz, f.p[1], LIP, 0.6)) continue;
+        if (g === null || !footing(p, fx, fz, f.p[1], 0.3)) continue;
         fy = g;
       }
       here.push([fx, fy, fz]);
@@ -1168,11 +1174,24 @@ function bends(p: Placer, n: number, taken: number[], apart = 90, clear = 45): {
 /** Metres round a critter's spot over which the land must hold level too: the drawn coast is a 2.5 m grid, and a spot at a flat top's lip stands over its slope. */
 const LIP = 2.2;
 
-/** Is the ground within `tol` metres across a circle of radius r at (x, z)? */
-function level(p: Placer, x: number, z: number, roadY: number, r: number, tol: number): boolean {
+/**
+ * Metres round a critter's spot within which every corner of the drawn coast's grid cell under it lies (a 2.5 m
+ * cell's diagonal): a drop there (the cliff where an open edge ends, a lip) is drawn as a slope under its feet.
+ * (27 Sept 2026: with the course limit laid stretch by stretch the crowd stands nearer the road, and a fox on
+ * Frostbite Pass stood 1.2 m over the drawn land by the end of a ledge.)
+ */
+const CELL_DIAG = 3.6;
+
+/** A critter's footing at (x, z): level under its feet (within `tol`), across the lip, and no drop within the drawn land's cell. */
+function footing(p: Placer, x: number, z: number, roadY: number, tol: number): boolean {
+  return level(p, x, z, roadY, 0.45, tol) && level(p, x, z, roadY, LIP, 0.6) && level(p, x, z, roadY, CELL_DIAG, 1, 12);
+}
+
+/** Is the ground within `tol` metres across a circle of radius r at (x, z) (`n` probes round it)? */
+function level(p: Placer, x: number, z: number, roadY: number, r: number, tol: number, n = 6): boolean {
   let lo = Infinity, hi = -Infinity;
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2, g = p.ground(x + Math.cos(a) * r, z + Math.sin(a) * r, roadY);
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2, g = p.ground(x + Math.cos(a) * r, z + Math.sin(a) * r, roadY);
     if (g === null) return false;
     lo = Math.min(lo, g); hi = Math.max(hi, g);
   }
@@ -1230,7 +1249,7 @@ export function buildCrowd(ctx: VistaContext, avoid: [number, number, number][] 
   const p = new Placer(ctx, biome, avoid);
   // the start gantry's pillars stand just past the limit either side of the line
   const st = nearestFrame(p, ctx.start);
-  for (const s of [-1, 1]) avoid.push([ctx.start[0] + st.right[0] * s * (st.limit + 0.9), ctx.start[1] + st.right[1] * s * (st.limit + 0.9), 2]);
+  for (const s of [-1, 1]) { const l = (s < 0 ? st.limitLeft : st.limitRight) + 0.9; avoid.push([ctx.start[0] + st.right[0] * s * l, ctx.start[1] + st.right[1] * s * l, 2]); }
   const b: Built = { spectators: [], standGeos: [], layout: { spectators: [], solids: [], groups: [] } };
   const kit = (only?: string[]): KitPick => {
     const species = pick(p.rng, biome.species.map((_s, i) => i), biome.mix.map((w, i) => (!only || only.includes(biome.species[i]) ? w : 0)));
@@ -1343,14 +1362,14 @@ export function buildCrowd(ctx: VistaContext, avoid: [number, number, number][] 
   return crowd;
 }
 
-function nearestFrame(p: Placer, at: [number, number]): { right: [number, number]; limit: number } {
+function nearestFrame(p: Placer, at: [number, number]): { right: [number, number]; limitLeft: number; limitRight: number } {
   let best = 0, bd = Infinity;
   for (let i = 0; i < 400; i++) {
     const r = p.ctx.road!(i / 400), d = (r.p[0] - at[0]) ** 2 + (r.p[2] - at[1]) ** 2;
     if (d < bd) { bd = d; best = i / 400; }
   }
   const r = p.ctx.road!(best);
-  return { right: r.right, limit: r.limit };
+  return { right: r.right, limitLeft: r.limitLeft ?? r.limit, limitRight: r.limitRight ?? r.limit };
 }
 
 /** The vista's parts with the crowd added (its meshes in the world, a cheer on the Final Lap Shift), keeping clear of the vista's perched birds. */

@@ -12,7 +12,7 @@ import { inLoop } from '../kart-controller/loop.ts';
 import { isRiding, isTowed } from '../kart-controller/powers.ts';
 import { targetSpeed } from '../kart-controller/speed.ts';
 import { driftSpeedScale } from '../kart-controller/steer.ts';
-import { NEUTRAL_INPUT, type InputState, type KartState, type TrackSample } from '../kart-controller/types.ts';
+import { NEUTRAL_INPUT, wallOn, type InputState, type KartState, type TrackSample } from '../kart-controller/types.ts';
 import type { RacePhase } from '../race-manager/types.ts';
 import * as dmath from '../sim-math/dmath.ts';
 import { BUILDER } from '../track-builder/constants.ts';
@@ -71,7 +71,7 @@ export interface SafeLine { line: number; drop: boolean }
  * the land (drivable, but slow), or clear of a wall (a pier's kickboard, a sky road's parapet, a tunnel).
  */
 export function safeLine(sample: TrackSample, side: number, kartRadius: number, out: SafeLine = { line: 0, drop: false }): SafeLine {
-  const hw = sample.halfWidth, curb = hw + BUILDER.kerbWidth, wall = sample.wall ?? hw;
+  const hw = sample.halfWidth, curb = hw + BUILDER.kerbWidth, wall = wallOn(sample, side);
   out.drop = ((sample.open ?? 0) & (side < 0 ? 1 : 2)) !== 0;
   out.line = out.drop ? curb - ASSIST.dropMargin : wall > curb + 0.5 ? curb - ASSIST.landMargin : wall - kartRadius - ASSIST.wallMargin;
   return out;

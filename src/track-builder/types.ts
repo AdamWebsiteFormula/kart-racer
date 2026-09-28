@@ -157,6 +157,12 @@ export interface TrackDefinition {
   finalLapShift: FinalLapShiftDef;
   /** off-road past the curb to a real boundary wall (Adam, 23 Sept 2026: the Mario Kart way); absent = a wall at the road's edge */
   offroad?: boolean;
+  /**
+   * where the course limit stands, stretch by stretch (limits.ts; Adam, 27 Sept 2026: "Whatever Mario Kart World
+   * does"): shares of the road's width with both curbs, from the curb out, on a straight, on a bend's outside and
+   * inside, and on the start straight. Absent: offroadReach everywhere.
+   */
+  courseLimit?: { straight?: number; outside?: number; inside?: number; start?: number };
   /** loop-the-loops on the main line: every kart rides up and round (design.md Track thrills) */
   loops?: { id: string; t: number; radius?: number }[];
   /** stretches of the main line with no wall on one or both sides: drive off and fall (the claw brings you back) */

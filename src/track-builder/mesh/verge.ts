@@ -6,7 +6,7 @@
 import type { Branches } from '../branches.ts';
 import { BUILDER } from '../constants.ts';
 import type { TrackJump } from '../../kart-controller/types.ts';
-import { hashString, insideRoadEnvelope, mulberry32, pushTransform } from './decor.ts';
+import { hashString, insideRoadEnvelope, mulberry32, pushTransform, reachOn } from './decor.ts';
 
 /**
  * How the grass is laid: `edge` metres past the curb the thick fringe spans (biased toward the curb by
@@ -54,7 +54,7 @@ export function placeGrass(branches: Branches, seed: string, groundAt?: (x: numb
         const u = rng(), dist = layer.band[0] + (layer.band[1] - layer.band[0]) * u ** layer.bias;
         const yaw = rng() * Math.PI * 2, size = G.scale[0] + (G.scale[1] - G.scale[0]) * rng(), flower = rng(), tint = rng();
         const j = main.idx(Math.round(t * main.step));
-        if (main.covered[j] || dist > main.reach[j] || (main.open[j] & (side < 0 ? 1 : 2)) || cleared(t)) continue;
+        if (main.covered[j] || dist > reachOn(main, j, side) || (main.open[j] & (side < 0 ? 1 : 2)) || cleared(t)) continue;
         const c = main.sample(t, 0), l = side * (c.halfWidth + BUILDER.kerbWidth + dist);
         const x = c.position[0] + c.tangent[2] * l, z = c.position[2] - c.tangent[0] * l;
         // off every road and curb, this one's included (the inside of a tight bend folds back toward it)

@@ -24,6 +24,7 @@ import type { Track } from '../track.ts';
 import type { ShiftKind, Vec3 } from '../types.ts';
 import { CUES, ease, fogAt, FOG, lastStrike, lightning, SHOW, span, STRIKES, THUNDER, type ShowCue } from '../shiftShow.ts';
 import { buildRibbon } from './road.ts';
+import { pastCourse } from './decor.ts';
 import { buildJumpMeshes } from './ramps.ts';
 import { fadeNearCamera, glowFromVertexColours } from './glow.ts';
 import type { Rgb, TrackPalette } from './palette.ts';
@@ -529,11 +530,11 @@ function oakSpot(ctx: StageContext): OakSpot | null {
   const bi = keptShortcuts(track)[0];
   if (bi === undefined) return null;
   const L = track.branches.list[bi].lut, ds = metresPer(L), main = track.branches.main;
-  const limit = (t: number) => main.halfWidthAt(t) + BUILDER.kerbWidth + (track.def.offroad ? BUILDER.offroadReach : 0);
   let at = -1;
   for (let i = Math.round(15 / ds); i < L.step / 2; i++) {
-    const m = mainDistance(track, roadPoint(L, i, 0));
-    if (m.d >= limit(m.t) + 1.5) { at = i; break; }
+    const q = roadPoint(L, i, 0);
+    // past the main road's course limit on its side (limits.ts), or its edge on a walled track
+    if (pastCourse(main.lut, q[0], q[2]) >= 1.5) { at = i; break; }
   }
   if (at < 0) return null;
   const height = 15;
@@ -941,15 +942,10 @@ function frozenLake(ctx: StageContext): Piece | null {
   if (!lake || !b) { if (lake) lake.count.value = 0; return null; }
   const L = b.lut, len = L.length;
   const others = track.branches.list.filter((x) => x !== b);
+  // metres past every other road's course limit (on the side of it the point is on: limits.ts)
   const clearance = (p: Vec3) => {
     let best = Infinity;
-    for (const o of others) {
-      const Lo = o.lut;
-      for (let i = 0; i < Lo.n; i += 3) {
-        const d = Math.hypot(Lo.px[i] - p[0], Lo.pz[i] - p[2]) - (Lo.hw[i] + BUILDER.kerbWidth + (track.def.offroad ? BUILDER.offroadReach : 0));
-        if (d < best) best = d;
-      }
-    }
+    for (const o of others) best = Math.min(best, pastCourse(o.lut, p[0], p[2]) + (track.def.offroad ? 0 : -BUILDER.kerbWidth));
     return best;
   };
   const n = LAKE_POINTS, arr = lake.path.value;

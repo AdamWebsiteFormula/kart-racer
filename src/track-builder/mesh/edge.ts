@@ -1,7 +1,8 @@
 // The course's edge (27 Sept 2026; fresh-eyes review item 1, "the road runs through an empty lawn";
 // Adam, 26 Sept: "the game feels very cheap"). On an off-road track, just past the invisible course
-// limit 12 m out (design §6, Adam's 23 Sept rule: the scenery lines the course, no walls or stumps along
-// the road itself), a continuous, varied boundary the way Mario Kart World lines its open-country courses
+// limit (design §6, Adam's 23 Sept rule: the scenery lines the course, no walls or stumps along the road
+// itself; where the limit stands, stretch by stretch and side by side, is limits.ts's: Adam, 27 Sept 2026,
+// "Whatever Mario Kart World does"), a continuous, varied boundary the way Mario Kart World lines its open-country courses
 // (Moo Moo Meadows youtube.com/watch?v=AFN7RL6qEZI 0:25-1:40: grass banks rising past the road with
 // fences, hay and trees on them; Desert Hills jBK-cunGXlk 0:20-1:50: dune banks with grass and rope
 // fences; DK Pass Il2hmsFCM88 0:35-1:05: snowbanks with pines and fences): the land rising into a bank
@@ -18,7 +19,7 @@ import type { Branches } from '../branches.ts';
 import { BUILDER } from '../constants.ts';
 import type { Lut } from '../lut.ts';
 import type { TrackJump } from '../../kart-controller/types.ts';
-import { hashString, insideRoadEnvelope, mulberry32, outsideOf, pushTransform, type Occupancy } from './decor.ts';
+import { hashString, insideAny, insideRoadEnvelope, mulberry32, outsideOf, pushTransform, reachOn, type Occupancy } from './decor.ts';
 import type { MergeItem } from './merge.ts';
 
 export type Rgb3 = readonly [number, number, number];
@@ -70,6 +71,8 @@ export interface EdgeKit {
 
 export interface EdgeContext {
   branches: Branches;
+  /** every road's drivable ground nothing solid may stand on: the race's roads, and the final lap's where a route change lays new ones (default: the branches) */
+  course?: readonly Lut[];
   kit: EdgeKit;
   /** seeds the edge's own random numbers (the track id): nothing else's change */
   seed: string;
@@ -181,12 +184,12 @@ function wobble(seed: number, k: number, period: number): number {
   return h(i) + (h(i + 1) - h(i)) * s;
 }
 
-/** Is the road's `side` (-1 left, 1 right) open, its road covered or its off-road narrowed (a tunnel's mouth), within `metres` of main sample i? */
+/** Is the road's `side` (-1 left, 1 right) open or its road covered within `metres` of main sample i, or a tunnel's mouth (its funnel: tunnel.ts) within that and tunnelFunnel more? */
 function blockedNear(lut: Lut, i: number, side: number, metres: number): boolean {
-  const bit = side < 0 ? 1 : 2, k = Math.ceil(metres / (lut.length / lut.step));
-  for (let d = -k; d <= k; d++) {
+  const bit = side < 0 ? 1 : 2, ds = lut.length / lut.step, k = Math.ceil(metres / ds), kf = Math.ceil((metres + BUILDER.tunnelFunnel) / ds);
+  for (let d = -kf; d <= kf; d++) {
     const j = lut.idx(i + d);
-    if (lut.open[j] & bit || lut.covered[j] || lut.reach[j] < BUILDER.offroadReach - 0.01) return true;
+    if (lut.covered[j] || (Math.abs(d) <= k && lut.open[j] & bit)) return true;
   }
   return false;
 }
@@ -233,6 +236,8 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
   const block = (why: string) => { blocked[why] = (blocked[why] ?? 0) + 1; };
   if (!main.offroad) return { bank: null, items, runs, pieces, blocked, bankAt: () => 0 };
   const rng = mulberry32(hashString(`${ctx.seed}:edge`));
+  const course = ctx.course ?? branches.list.map((b) => b.lut);
+  const insideCourse = (_b: Branches, x: number, z: number, pad: number) => insideAny(course, x, z, pad);
   const noiseSeed = hashString(`${ctx.seed}:edge-noise`) % 1000;
   const N = Math.max(8, Math.floor(main.length / EDGE_STEP));
   const ds = main.length / N;
@@ -244,15 +249,16 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
   const sideIx = (s: number) => (s < 0 ? 0 : 1);
   const station = (k: number) => {
     const t = (((k % N) + N) % N) / N, j = main.idx(Math.round(t * main.step));
-    return { t, j, x: main.px[j], y: main.py[j], z: main.pz[j], rx: main.rx[j], rz: main.rz[j], curb: main.hw[j] + BUILDER.kerbWidth, limit: main.hw[j] + BUILDER.kerbWidth + main.reach[j] };
+    const curb = main.hw[j] + BUILDER.kerbWidth;
+    return { t, j, x: main.px[j], y: main.py[j], z: main.pz[j], rx: main.rx[j], rz: main.rz[j], curb, limitL: curb + main.reachL[j], limitR: curb + main.reachR[j] };
   };
+  /** How far from the centre line the course limit stands at station k on side s. */
+  const limitOf = (c: { limitL: number; limitR: number }, s: number) => (s < 0 ? c.limitL : c.limitR);
   /** The point `out` metres past the course limit on side s at station k (fractional k lies between stations). */
   const at = (k: number, s: number, out: number): [number, number] => {
-    const c = station(k);
-    return [c.x + c.rx * s * (c.limit + out), c.z + c.rz * s * (c.limit + out)];
+    const c = station(k), l = limitOf(c, s) + out;
+    return [c.x + c.rx * s * l, c.z + c.rz * s * l];
   };
-  // every road's drivable land (to its course limit); a probe or a piece stands at least 0.3 m past it
-  const pad = BUILDER.kerbWidth + BUILDER.offroadReach;
   const avoided = (x: number, z: number, r: number) => {
     for (const [ax, az, ar] of ctx.avoid) if ((x - ax) ** 2 + (z - az) ** 2 < (r + ar) ** 2) return true;
     return false;
@@ -261,7 +267,7 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
   /** A piece of radius r may stand at (x, z): clear of every road's drivable land, every prop, the crowd and the edge's own pieces, on dry, level land. */
   /** (`touch`: the share of its reach that may not overlap what stands already: a tree's crown may lean over a hedge) */
   const placeable = (x: number, z: number, r: number, touch = 0.7): boolean => {
-    if (insideRoadEnvelope(branches, x, z, -1, pad + 0.2 + r)) return false;
+    if (insideCourse(branches, x, z, 0.2 + r)) return false;
     if (ctx.occupied.hits(x, z, r * touch) || avoided(x, z, r) || claims.hits(x, z, r * touch)) return false;
     const g0 = ctx.groundAt(x, z);
     if (!dry(g0)) return false;
@@ -293,7 +299,7 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
       let why = '', lo = Infinity, hi = -Infinity;
       for (const o of probes) {
         const [x, z] = at(k, s, o);
-        if (insideRoadEnvelope(branches, x, z, -1, pad)) { why = 'road'; break; }
+        if (insideCourse(branches, x, z, 0)) { why = 'road'; break; }
         if (ctx.solid.hits(x, z, 1.1)) { why = 'prop'; break; }
         if (avoided(x, z, 1.1)) { why = 'crowd'; break; }
         if (claims.hits(x, z, 0.7)) { why = 'edge'; break; }
@@ -303,7 +309,12 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
       }
       // every point of the bank's cross-section past every road's limit, not only the probes (a road's width
       // changes along it, and a shortcut's land may reach in between them)
-      if (!why && prof) for (const [o] of prof) { const [x, z] = at(k, s, o); if (insideRoadEnvelope(branches, x, z, -1, pad + 0.1)) { why = 'road'; break; } }
+      if (!why && prof) for (const [o] of prof) {
+        const [x, z] = at(k, s, o);
+        if (insideCourse(branches, x, z, 0.1)) { why = 'road'; break; }
+        // nor under a critter or a stand (the crowd stands on the land as drawn)
+        if (avoided(x, z, 1.4)) { why = 'crowd'; break; }
+      }
       // not on a slope or a cliff's lip, nor far under the road (a raised road's embankment falling away)
       if (!why && (hi - lo > BANK_LEVEL || c.y - lo > 3)) why = 'slope';
       if (why) block(why);
@@ -339,7 +350,7 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
     for (let k = 0; k < N; k += 4) { const c = station(k), d = (c.x - x) ** 2 + (c.z - z) ** 2; if (d < bd) { bd = d; best = k; } }
     for (let k = best - 4; k <= best + 4; k++) { const c = station(k), d = (c.x - x) ** 2 + (c.z - z) ** 2; if (d < bd) { bd = d; best = ((k % N) + N) % N; } }
     const c = station(best), lat = (x - c.x) * c.rx + (z - c.z) * c.rz;
-    return profileAt(kit.bank.profile, Math.abs(lat) - c.limit) * bankH[sideIx(lat)][best];
+    return profileAt(kit.bank.profile, Math.abs(lat) - limitOf(c, lat)) * bankH[sideIx(lat)][best];
   };
 
   // ---- clusters: the outside of each sharp bend, and both sides of each jump on the main line
@@ -382,7 +393,7 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
       const t = rng(), s = rng() < 0.5 ? -1 : 1, u = rng(), yaw = rng() * Math.PI * 2;
       const sc = d.scale ? d.scale[0] + (d.scale[1] - d.scale[0]) * rng() : 0.8 + 0.45 * rng();
       const j = main.idx(Math.round(t * main.step));
-      const reach = main.reach[j], dist = 1.0 + (reach - 1.7) * Math.pow(u, 0.8), r = foot * sc;
+      const reach = reachOn(main, j, s), dist = 1.0 + (reach - 1.7) * Math.pow(u, 0.8), r = foot * sc;
       if (main.covered[j] || main.open[j] & (s < 0 ? 1 : 2) || dist + r > reach - 0.2 || onSkirt(t)) continue;
       const c = main.sample(t, 0), l = s * (c.halfWidth + BUILDER.kerbWidth + dist);
       const x = c.position[0] + c.tangent[2] * l, z = c.position[2] - c.tangent[0] * l;
@@ -478,7 +489,7 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
         const [o, up] = profile[p], [x, z] = at(k0 + i, s, o), v = i * P + p;
         pos[v * 3] = x; pos[v * 3 + 1] = ctx.groundAt(x, z) + up * H[i] - (up <= 0 ? SINK : 0); pos[v * 3 + 2] = z;
         uv[v * 2] = x; uv[v * 2 + 1] = z;
-        curb[v] = c.limit - c.curb + o;
+        curb[v] = limitOf(c, s) - c.curb + o;
       }
     }
     const g = new BufferGeometry();

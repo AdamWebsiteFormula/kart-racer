@@ -14,7 +14,7 @@ import type { ActiveHazard, BakedFeature, TrackChanged } from '../types.ts';
 import { buildBranchChunks, chunkTouched, rebuildChunk, ribbonOptions, type Chunk } from './chunks.ts';
 import { buildRibbon, sampleRange } from './road.ts';
 import { buildShiftStage, type LakeHook, type RippleHook, type SeaTideHook, type ShiftStage } from './shiftStage.ts';
-import { hashString, mulberry32, Occupancy, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
+import { hashString, mulberry32, Occupancy, pastCourse, placeDecor, pushTransform, type DecorPlacement } from './decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
 import { CREATURE_GHOST, CreatureView } from './creatures.ts';
 import { NearGhost } from './ghost.ts';
@@ -111,12 +111,18 @@ export interface VistaContext {
   sun: [number, number, number];
   /** Mirror mode: the vista is reflected with the track */
   mirrored: boolean;
-  /** the main line at t: its centre on the road, which way it runs and which way is its +lateral (level, unit), and how far out from the centre the course limit (or the road's edge) stands */
-  road?: (t: number) => { p: [number, number, number]; along: [number, number]; right: [number, number]; limit: number };
+  /**
+   * the main line at t: its centre on the road, which way it runs and which way is its +lateral (level, unit), and
+   * how far out from the centre the course limit (or the road's edge) stands on the left (-lateral) and the right
+   * (limits.ts: a course limit may stand closer on one side), and `limit` the farther of the two
+   */
+  road?: (t: number) => { p: [number, number, number]; along: [number, number]; right: [number, number]; limit: number; limitLeft: number; limitRight: number };
   /** the ground's height at (x, z) (the land as drawn on an off-road track, else the ground plane) */
   groundAt?: (x: number, z: number) => number;
   /** whether no prop of the scenery stands within r metres of (x, z) */
   clear?: (x: number, z: number, r: number) => boolean;
+  /** metres (x, z) stands past every road's drivable ground (each road's course limit on the side of it, shortcuts too; a walled road's curb): negative on it */
+  pastCourse?: (x: number, z: number) => number;
 }
 
 /** A far vista's parts. */
@@ -793,6 +799,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const offLand = track.land && coastOpts ? track.land : null;
   const groundAt = offLand && coastOpts ? (x: number, z: number) => Math.max(groundY, landAt(offLand, coastOpts, x, z)?.y ?? -Infinity) : undefined;
   const rng = mulberry32(hashString(def.id));
+  // The Final Lap Shift's twin (below) is built now: where a route change lays a new road, nothing solid may stand
+  // on its drivable ground either (its course limit, limits.ts, is laid by its own geometry)
+  const twin = track.shifted ? null : shiftedTwin(def);
+  const course = [...branches.list.map((b) => b.lut), ...(twin && twin.branches.main.lut.length !== branches.main.lut.length ? [twin.branches.main.lut] : [])];
   const decor: DecorPlacement[] = [];
   /** the decor instancers (and their piers) the Low tier thins (cull) */
   const pools: Pool[] = [];
@@ -812,7 +822,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // corners reach √2 further, and a chalet's eaves hung over the course limit into the lens's path)
     const bb = geo.boundingBox!, footprint = reachOf(geo);
     const extent = { across: Math.max(-bb.min.x, bb.max.x, 0), along: Math.max(-bb.min.z, bb.max.z, 0) };
-    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, occupied);
+    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, occupied, course);
     decor.push(p);
     // the PBR look's grass by the road (below) takes the place of this ground cover
     if (entry.band === 'verge' && assets.grass?.replaces.includes(entry.asset)) continue;
@@ -1209,11 +1219,17 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       sun: [sd[0] / sl, sd[1] / sl, sd[2] / sl], mirrored: def.mirrored === true,
       road: (t) => {
         const c = lut.sample(t, 0), h = Math.hypot(c.tangent[0], c.tangent[2]) || 1;
-        const limit = c.halfWidth + BUILDER.kerbWidth + (def.offroad === true ? BUILDER.offroadReach : 0);
-        return { p: [c.position[0], c.position[1], c.position[2]], along: [c.tangent[0] / h, c.tangent[2] / h], right: [c.tangent[2] / h, -c.tangent[0] / h], limit };
+        const off = def.offroad === true, curb = c.halfWidth + BUILDER.kerbWidth;
+        const limitLeft = off ? c.wallLeft ?? curb : curb, limitRight = off ? c.wallRight ?? curb : curb;
+        return { p: [c.position[0], c.position[1], c.position[2]], along: [c.tangent[0] / h, c.tangent[2] / h], right: [c.tangent[2] / h, -c.tangent[0] / h], limit: Math.max(limitLeft, limitRight), limitLeft, limitRight };
       },
       groundAt: (x, z) => (groundAt ? groundAt(x, z) : groundY),
       clear: (x, z, r) => !occupied.hits(x, z, r),
+      pastCourse: (x, z) => {
+        let best = Infinity;
+        for (const L of course) best = Math.min(best, pastCourse(L, x, z) - (L.offroad ? 0 : BUILDER.kerbWidth));
+        return best;
+      },
     });
     farLandmark = vista?.landmark;
     vistaParts = vista ?? undefined;
@@ -1284,7 +1300,6 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // the race's warm-up compiles and uploads them (performance/warmup.ts) and the shift's tick only swaps
   // them in (its rebuild was the race's one hitch left: Canyon 8 to 14 ms of script on an M4 Pro, 75 ms
   // at 4x CPU).
-  const twin = track.shifted ? null : shiftedTwin(def);
   const stage = buildShiftStage({
     track, twin, palette, gradient: GRADIENT ?? null, group, groundY: groundKind === 'none' ? NaN : groundY, groundAt,
     clear: (x, z, r) => !occupied.hits(x, z, r), geometry: (k) => geometryFor(assets, k, 'decor'), material: (k) => assets.materials?.[k],
@@ -1377,7 +1392,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     }
     edge = placeEdge({
       branches, kit: assets.edge, seed: def.id, groundAt, waterY: groundKind === 'water' ? groundY : undefined,
-      occupied, solid, avoid, jumps: track.jumps, startT: track.startT,
+      occupied, solid, avoid, jumps: track.jumps, startT: track.startT, course,
       geometry: (k) => { const g = assets.geometries?.[k]; return g && g.hasAttribute('color') && !assets.materials?.[k] ? g : null; },
     });
     // the bank is land: it joins the land's own mesh and material (one draw, as before)
@@ -1385,6 +1400,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       const merged = mergeGeometries([coastMesh.geometry, edge.bank], false);
       edge.bank.dispose();
       if (merged) {
+        merged.userData.grid = coastMesh.geometry.userData.grid;
         merged.computeBoundingSphere();
         merged.computeBoundingBox();
         coastMesh.geometry.dispose();

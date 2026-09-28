@@ -12,7 +12,7 @@
     "bronze": 148000
   },
   "voidY": -10,
-  "offroad": true,
+  "offroad": true, "courseLimit": {"straight": 0.3, "outside": 1.0, "inside": 0.25, "start": 0.35},
   "landmark": "windmill",
   "music": "meadow",
   "controlPoints": [

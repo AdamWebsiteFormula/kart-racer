@@ -8,7 +8,7 @@ import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { cloneDef } from '../track-builder/__tests__/fixtures.ts';
-import { insideRoadEnvelope, pushTransform } from '../track-builder/mesh/decor.ts';
+import { insideRoadEnvelope, pushTransform, insideCourse } from '../track-builder/mesh/decor.ts';
 import { DRESSING_SLICES, mergeInstances, sliceOf } from '../track-builder/mesh/merge.ts';
 import { buildTrackScene } from '../track-builder/mesh/scene.ts';
 import frostJson from '../track-builder/tracks/frostbite-pass.json';
@@ -53,7 +53,6 @@ describe('mergeInstances', () => {
 describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World density', (_id, raw) => {
   const def = cloneDef(raw), track = buildTrack(def), scene = buildTrackScene(track, trackAssets(def.biome));
   const lut = track.branches.main.lut, entries = def.environment!.decor!;
-  const limit = BUILDER.kerbWidth + BUILDER.offroadReach;
 
   it('places (nearly) every piece of every entry, and bakes the merged ones into at most six slices', () => {
     // exact today; a little slack so a reshaped road does not fail here first (scene.test.ts checks exact counts)
@@ -82,10 +81,11 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
     let bad = '';
     scene.decor.forEach((p) => {
       if (p.layout === 'span' || p.band === 'sky') return;
-      const pad = p.band === 'verge' ? BUILDER.kerbWidth + 0.5 : limit + 0.5;
       for (let i = 0; i < p.count; i++) {
         const x = p.matrices[i * 16 + 12], z = p.matrices[i * 16 + 14];
-        if (insideRoadEnvelope(track.branches, x, z, -1, pad)) bad ||= `${p.asset} ${i} at (${x.toFixed(1)}, ${z.toFixed(1)})`;
+        // ground cover keeps off the roads and curbs; everything else stands past every road's course limit (limits.ts: per stretch and side)
+        const inside = p.band === 'verge' ? insideRoadEnvelope(track.branches, x, z, -1, BUILDER.kerbWidth + 0.5) : insideCourse(track.branches, x, z, 0.5);
+        if (inside) bad ||= `${p.asset} ${i} at (${x.toFixed(1)}, ${z.toFixed(1)})`;
       }
     });
     expect(bad).toBe('');
@@ -93,6 +93,8 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
 
   it('something stands near the road all the way round, and a middle and far layer frame every quarter of the lap', () => {
     const near = scene.decor.filter((p) => p.band === 'roadside');
+    // the course's edge lines the road too (edge.ts: its banks' hedges, fences, rocks and clusters; not the cover on the verge)
+    const edge = (scene.edge?.pieces ?? []).filter((q) => q.kind !== 'cover');
     const far = scene.decor.filter((p) => p.band === 'far');
     const step = Math.max(1, Math.round(20 / (lut.length / lut.step)));
     let worst = 0, where = 0;
@@ -102,6 +104,7 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
       if (lut.open[i]) continue; // a drop beside the road (a ledge, a bridge): nothing stands there
       let best = Infinity;
       for (const p of near) for (let k = 0; k < p.count; k++) best = Math.min(best, Math.hypot(p.matrices[k * 16 + 12] - x, p.matrices[k * 16 + 14] - z) - lut.hw[i]);
+      for (const q of edge) best = Math.min(best, Math.hypot(q.x - x, q.z - z) - lut.hw[i]);
       if (best > worst) { worst = best; where = i / lut.step; }
       for (const p of far) for (let k = 0; k < p.count; k++) {
         const d = Math.hypot(p.matrices[k * 16 + 12] - x, p.matrices[k * 16 + 14] - z);
@@ -131,7 +134,6 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
 const spanned = all.filter((d) => (d.environment?.decor ?? []).some((e) => e.layout === 'span'));
 describe.each(spanned.map((d) => [d.id, d] as const))('%s: spans', (_id, raw) => {
   const def = cloneDef(raw), track = buildTrack(def), scene = buildTrackScene(track, trackAssets(def.biome));
-  const limit = BUILDER.kerbWidth + BUILDER.offroadReach;
 
   it('a span crosses high over the road, its legs past the course limit on both sides', () => {
     const spans = scene.decor.filter((p) => p.layout === 'span');
@@ -146,7 +148,7 @@ describe.each(spanned.map((d) => [d.id, d] as const))('%s: spans', (_id, raw) =>
         for (let j = 0; j < pos.count; j++) {
           v.fromBufferAttribute(pos, j).applyMatrix4(m);
           // over the drivable ground it stays well above a kart in the air; near the ground it is only its legs, past the limit
-          if (insideRoadEnvelope(track.branches, v.x, v.z, -1, limit)) expect(v.y - roadY, `${p.asset} over the road`).toBeGreaterThan(5.5);
+          if (insideCourse(track.branches, v.x, v.z, 0)) expect(v.y - roadY, `${p.asset} over the road`).toBeGreaterThan(5.5);
           else if (v.y - roadY < 1) legs++;
         }
         expect(legs).toBeGreaterThan(0);

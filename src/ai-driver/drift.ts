@@ -245,7 +245,7 @@ export function stepDriftDecision(
   // inside the road edge, and a drift that let go only past the edge scraped the wall 265-331 times a
   // race); on an open edge, a little past the road onto the curb
   const openOut = (line.open & (dir > 0 ? 1 : 2)) !== 0;
-  const outLimit = openOut ? line.halfWidth + d.outsideSlack : Math.min(line.halfWidth + d.outsideSlack, line.wall - c.kartRadius - d.wallMargin);
+  const outLimit = openOut ? line.halfWidth + d.outsideSlack : Math.min(line.halfWidth + d.outsideSlack, (dir > 0 ? line.wallLeft : line.wallRight) - c.kartRadius - d.wallMargin);
   const bendOver = Math.sign(line.turnNear !== 0 ? line.turnNear : line.turnFar) !== dir || line.bendMetres < v * d.exitLead;
   // touched a wall since the hop
   const walled = s.wallCooldown > 0 && s.wallCooldown > c.wallCooldownSeconds - m.driftHold;

@@ -11,7 +11,7 @@
 // own rule), and every path is swept against the built scene headless. Mirror mode reflects every
 // spot (lateral → −lateral), so the flight is the authored one seen in the mirror. Reduced motion holds
 // each move as a still and cuts. Pure maths on the track spline: no Three.js here.
-import type { KartState, TrackHint, TrackSample, Vec3 } from '../kart-controller/types.ts';
+import { wallOn, type KartState, type TrackHint, type TrackSample, type Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import type { Track } from '../track-builder/track.ts';
 import { CAM, clampAboveSea, clampToRoad, loopCamPose, type CamPose } from './camera.ts';
@@ -270,7 +270,7 @@ function onRoad(track: Track, p: Vec3, hint: TrackHint): TrackHint {
   const h = Math.hypot(scratch.tangent[0], scratch.tangent[2]) || 1;
   const rx = scratch.tangent[2] / h, rz = -scratch.tangent[0] / h;
   const lateral = (p[0] - scratch.position[0]) * rx + (p[2] - scratch.position[2]) * rz;
-  const reach = Math.max(0, (scratch.wall ?? scratch.halfWidth) - CAM.wallClear - INTRO.wallMargin);
+  const reach = Math.max(0, wallOn(scratch, lateral) - CAM.wallClear - INTRO.wallMargin);
   if (Math.abs(lateral) > reach) {
     const out = lateral - Math.sign(lateral) * reach;
     p[0] -= rx * out; p[2] -= rz * out;

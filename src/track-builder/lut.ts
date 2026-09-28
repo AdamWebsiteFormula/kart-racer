@@ -55,8 +55,12 @@ export class Lut {
   floorY = -Infinity;
   /** inside a tunnel (tunnel.ts marks it): rock walls at the curb, no off-road */
   readonly covered: Uint8Array;
-  /** metres of drivable off-road past the curb (offroadReach; narrowing to a tunnel's mouth) */
-  readonly reach: Float32Array;
+  /**
+   * metres of drivable off-road past the curb on the left (negative lateral) and the right, to the course limit:
+   * offroadReach, or stretch by stretch on a track with a courseLimit (limits.ts), narrowing to a tunnel's mouth
+   */
+  readonly reachL: Float32Array;
+  readonly reachR: Float32Array;
   /** a tunnel's own road: the land stands this high above it (the mesa); NaN elsewhere */
   readonly landAbove: Float32Array;
   /** a tunnel's own road, and a few metres before its portals: the land keeps this far above the road clear (its bore); NaN elsewhere */
@@ -87,7 +91,8 @@ export class Lut {
     this.seg = new Uint16Array(n);
     this.grip = new Float64Array(n).fill(1);
     this.covered = new Uint8Array(n);
-    this.reach = new Float32Array(n).fill(BUILDER.offroadReach);
+    this.reachL = new Float32Array(n).fill(BUILDER.offroadReach);
+    this.reachR = new Float32Array(n).fill(BUILDER.offroadReach);
     this.landAbove = new Float32Array(n).fill(NaN);
     this.bore = new Float32Array(n).fill(NaN);
 
@@ -248,8 +253,17 @@ export class Lut {
       }
       if (openSide) out.overCliff = off > BUILDER.kerbWidth + BUILDER.shoulderWidth;
     }
-    out.wall = covered ? out.halfWidth + BUILDER.kerbWidth
-      : this.offroad ? out.halfWidth + BUILDER.kerbWidth + (this.reach[i0] * b + this.reach[i1] * a) : out.halfWidth;
+    // the boundary on each side (a tunnel's rock at the curb; an off-road track's course limit; else the road's edge),
+    // and `wall` the one on the side of `lateral` (at the centre line, the nearer)
+    let wl = out.halfWidth, wr = out.halfWidth;
+    if (covered) { wl = out.halfWidth + BUILDER.kerbWidth; wr = wl; }
+    else if (this.offroad) {
+      wl = out.halfWidth + BUILDER.kerbWidth + (this.reachL[i0] * b + this.reachL[i1] * a);
+      wr = out.halfWidth + BUILDER.kerbWidth + (this.reachR[i0] * b + this.reachR[i1] * a);
+    }
+    out.wallLeft = wl;
+    out.wallRight = wr;
+    out.wall = lateral < 0 ? wl : lateral > 0 ? wr : wl < wr ? wl : wr;
     return out;
   }
 

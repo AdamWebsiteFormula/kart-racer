@@ -166,7 +166,7 @@ describe('drift decision', () => {
       return [out.drift, m.driftEndReason];
     };
     // right-hand drift: the outside is the left (negative lateral). A walled edge at the road edge (wall = halfWidth)
-    const walled = { ...bend, halfWidth: 7, wall: 7, open: 0 };
+    const walled = { ...bend, halfWidth: 7, wallLeft: 7, wallRight: 7, open: 0 };
     expect(hold({ ...walled, myLat: -5 })).toEqual([true, 'none']);
     expect(hold({ ...walled, myLat: -(7 - c.kartRadius - AI.drift.wallMargin) - 0.05 })).toEqual([false, 'edge']);
     // an open (off-road) left edge: a little past the road first

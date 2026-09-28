@@ -6,7 +6,7 @@ import { bounceOff } from './collide.ts';
 import type { KartConstants } from './constants.ts';
 import { queueTrick } from './drift.ts';
 import { radiusOf } from './powers.ts';
-import { forwardOf, rightOf, type KartEvent, type KartState, type TrackJump, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
+import { forwardOf, rightOf, wallOn, type KartEvent, type KartState, type TrackJump, type TrackQuery, type TrackSample, type Vec3 } from './types.ts';
 import * as dmath from '../sim-math/dmath.ts';
 
 /** Signed lateral offset of `pos` from the centreline at `t` (positive = track right). */
@@ -199,7 +199,7 @@ export function stepGround(s: KartState, track: TrackQuery, c: KartConstants, dt
     // where the lip meets a side wall the corner is the wall: the nose swings out of the corner, not
     // along the lip into the side wall (which would swing it straight back into the lip)
     const at = track.sample(s.t, lateral, s.branch), side = lateral < 0 ? -1 : 1;
-    if (Math.abs(lateral) >= (at.wall ?? at.halfWidth) - radiusOf(s, c) && !((at.open ?? 0) & (side < 0 ? 1 : 2))) {
+    if (Math.abs(lateral) >= wallOn(at, lateral) - radiusOf(s, c) && !((at.open ?? 0) & (side < 0 ? 1 : 2))) {
       n[0] += right[0] * side; n[2] += right[2] * side;
       const k = dmath.hypot(n[0], n[2]);
       n[0] /= k; n[2] /= k;

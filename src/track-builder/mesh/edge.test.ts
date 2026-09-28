@@ -11,14 +11,13 @@ import { decorGeometry } from '../../art-pipeline/decor.ts';
 import { BUILDER } from '../constants.ts';
 import { buildTrack } from '../track.ts';
 import type { TrackDefinition } from '../types.ts';
-import { insideRoadEnvelope } from './decor.ts';
+import { insideCourse, insideRoadEnvelope } from './decor.ts';
 import { freeStretches, profileAt } from './edge.ts';
 import { buildTrackScene, type TrackAssets, type TrackScene } from './scene.ts';
 
 const TRACKS = Object.values(import.meta.glob('../tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 const LAND = TRACKS.filter((d) => d.offroad);
-/** Every road's drivable land reaches this far past its curb (the invisible course limit). */
-const LIMIT = BUILDER.kerbWidth + BUILDER.offroadReach;
+/** Every road's drivable land reaches past its curb to the invisible course limit, stretch by stretch and side by side (limits.ts): pastCourse measures from it. */
 
 function crowdOf(scene: TrackScene): { at: number[] }[] {
   for (const m of scene.vista?.world ?? []) {
@@ -104,14 +103,16 @@ describe.each(LAND.map((d) => [d.id, d] as const))('%s: the course edge', (_id, 
     for (const p of e.pieces) {
       if (p.kind === 'cover') {
         if (insideRoadEnvelope(b, p.x, p.z, -1, BUILDER.kerbWidth + 0.3)) bad ||= `cover ${p.asset} on a road at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`;
-        if (!insideRoadEnvelope(b, p.x, p.z, -1, LIMIT)) bad ||= `cover ${p.asset} past the limit at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`;
-      } else if (insideRoadEnvelope(b, p.x, p.z, -1, LIMIT + (p.row ? 0.2 : p.r * 0.9))) bad ||= `${p.kind} ${p.asset} inside the limit at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`;
+        if (!insideCourse(b, p.x, p.z, 0)) bad ||= `cover ${p.asset} past the limit at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`;
+      } else if (insideCourse(b, p.x, p.z, p.row ? 0.2 : p.r * 0.9)) bad ||= `${p.kind} ${p.asset} inside the limit at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`;
     }
-    // the bank's every point past every road's limit (the karts' land ends there); it joined the land's own mesh
+    // the bank's every point past every road's limit (the karts' land ends there), by the 0.1 m edge.ts keeps (the
+    // limit moves along the road, limits.ts: a point's nearest sample may stand a tenth or so wider than its station's);
+    // it joined the land's own mesh
     const pos = e.bank!.getAttribute('position'), coast = (scene.group.getObjectByName('coast') as Mesh).geometry.getAttribute('position');
     expect(coast.count).toBeGreaterThan(pos.count);
     for (let i = 0; i < pos.count; i += 3) {
-      if (insideRoadEnvelope(b, pos.getX(i), pos.getZ(i), -1, LIMIT + 0.2)) { bad ||= `bank point ${i} inside the limit`; break; }
+      if (insideCourse(b, pos.getX(i), pos.getZ(i), 0.1 - 1e-6)) { bad ||= `bank point ${i} inside the limit`; break; }
     }
     expect(bad).toBe('');
   });

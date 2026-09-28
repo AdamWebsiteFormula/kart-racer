@@ -7,7 +7,7 @@ import { HARBOUR_LOOP, HARBOUR_WALLED, HARBOUR_WALLED_PIER, cloneDef, withCreatu
 import { chunkCountFor } from './chunks.ts';
 import { CREATURE_GHOST } from './creatures.ts';
 import { NearGhost } from './ghost.ts';
-import { insideRoadEnvelope } from './decor.ts';
+import { insideCourse, insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
 import { buildTrackScene, GEAR_MOTION, isDrawn, PICKUP_GHOST } from './scene.ts';
@@ -209,6 +209,8 @@ describe('decor and barriers', () => {
         if (p.band === 'sky') expect(y).toBeGreaterThan(track.branches.main.lut.minY + BUILDER.decorBands.sky[0] - 1);
         // ground cover on the drivable verge keeps off the roads and their curbs only
         else if (p.band === 'verge') expect(insideRoadEnvelope(track.branches, x, z, -1, BUILDER.kerbWidth + 0.5)).toBe(false);
+        // on an off-road track: past every road's course limit (limits.ts: per stretch and side); else the shoulder's envelope
+        else if (track.def.offroad) expect(insideCourse(track.branches, x, z, 0.5)).toBe(false);
         else expect(insideRoadEnvelope(track.branches, x, z)).toBe(false);
       }
     }
@@ -245,9 +247,12 @@ describe('decor and barriers', () => {
     expect(HARBOUR_LOOP.offroad).toBe(true);
     expect(s.instancers.get('barriers')!.count).toBe(0);
     expect(s.group.getObjectByName('boundary')).toBeUndefined();
-    const smp = t.sample(0.1, 0);
-    expect(smp.wall).toBeCloseTo(smp.halfWidth + BUILDER.kerbWidth + BUILDER.offroadReach, 6);
-    // the roadside scenery starts just past the course limit, so it lines the course
+    // the course limit stands past the curb on each side, stretch by stretch (limits.ts), and nothing marks it
+    const L = t.branches.main.lut, j = Math.round(0.1 * L.step), smp = t.sample(j / L.step, 0);
+    expect(smp.wallLeft).toBeCloseTo(smp.halfWidth + BUILDER.kerbWidth + L.reachL[j], 4);
+    expect(smp.wallRight).toBeCloseTo(smp.halfWidth + BUILDER.kerbWidth + L.reachR[j], 4);
+    for (const r of [L.reachL[j], L.reachR[j]]) expect(r).toBeGreaterThanOrEqual(BUILDER.limitMin - 1e-6);
+    // the roadside scenery bands are laid out from offroadReach, and read from the limit as it stands (decor.ts)
     expect(BUILDER.decorBands.roadsideOffroad[0]).toBeGreaterThan(BUILDER.offroadReach);
     s.dispose();
   });

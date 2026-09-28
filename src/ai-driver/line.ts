@@ -1,7 +1,7 @@
 // The road ahead: look-ahead distance, turn angles, the personality lateral target
 // and the shortcut choice. Pure pursuit on the spline, turbo-kart-rush shape.
 import type { KartConstants } from '../kart-controller/constants.ts';
-import { headingOf, type KartState } from '../kart-controller/types.ts';
+import { headingOf, wallOn, type KartState } from '../kart-controller/types.ts';
 import { signedOffset } from '../track-builder/branches.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -78,7 +78,8 @@ export function readLine(s: KartState, track: Track, m: AiMemory, sc: Scratch, o
   out.roadErr = wrapAngle(hShort - s.heading);
   out.course = wrapAngle(s.heading + dmath.atan2(s.lateralVelocity, Math.max(1, Math.abs(s.speed))) - h);
   out.halfWidth = sc.here.halfWidth;
-  out.wall = sc.here.wall ?? sc.here.halfWidth;
+  out.wallLeft = wallOn(sc.here, -1);
+  out.wallRight = wallOn(sc.here, 1);
   out.open = sc.here.open ?? 0;
   out.narrow = sc.here.halfWidth < l.narrowRoad;
   out.airAhead = false;

@@ -12,7 +12,7 @@
     "bronze": 146000
   },
   "voidY": -12,
-  "offroad": true,
+  "offroad": true, "courseLimit": {"straight": 0.3, "outside": 0.8, "inside": 0.25, "start": 0.3},
   "landmark": "lighthouse",
   "music": "harbour",
   "controlPoints": [

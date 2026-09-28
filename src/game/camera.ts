@@ -2,7 +2,7 @@
 // Three.js camera, so this is testable headless.
 import { BASE } from '../kart-controller/constants.ts';
 import { loopFrame } from '../kart-controller/loop.ts';
-import type { KartState, TrackHint, TrackLoop, TrackQuery, TrackSample } from '../kart-controller/types.ts';
+import { wallOn, type KartState, type TrackHint, type TrackLoop, type TrackQuery, type TrackSample } from '../kart-controller/types.ts';
 import type { Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -235,8 +235,9 @@ export function clampToRoad(track: Track, pos: Vec3, kart: TrackHint, edges = fa
   below[0] = pos[0]; below[1] = track.sampleInto(at.t, 0, at.branch, under).groundY; below[2] = pos[2];
   at = track.nearest(below, at, BASE.tSearchWindow);
   const c = track.sampleInto(at.t, 0, at.branch, under);
-  const h = Math.hypot(c.tangent[0], c.tangent[2]) || 1, reach = c.wall ?? c.halfWidth;
+  const h = Math.hypot(c.tangent[0], c.tangent[2]) || 1;
   const lateral = ((pos[0] - c.position[0]) * c.tangent[2] - (pos[2] - c.position[2]) * c.tangent[0]) / h;
+  const reach = wallOn(c, lateral);
   const side = lateral < 0 ? 1 : 2, inner = reach - CAM.wallClear;
   if (Math.abs(lateral) > inner && inner > 0 && (edges || !((c.open ?? 0) & side))) {
     // back inside the wall, square to the road (right = up × tangent)

@@ -11,7 +11,7 @@ import { isRiding, isTowed, rideAim, stepPilot, towAim } from './powers.ts';
 import { stepSlipstream } from './slipstream.ts';
 import { stepSpeed, targetSpeed } from './speed.ts';
 import { stepSteer } from './steer.ts';
-import { NEUTRAL_INPUT, type HitKind, type InputState, type KartEvent, type KartState, type StepOptions, type TrackQuery, type Vec3 } from './types.ts';
+import { NEUTRAL_INPUT, wallOn, type HitKind, type InputState, type KartEvent, type KartState, type StepOptions, type TrackQuery, type Vec3 } from './types.ts';
 
 export const SIM_HZ = 120;
 export const SIM_DT = 1 / SIM_HZ;
@@ -88,7 +88,7 @@ export function stepKart(
   const g = stepGround(s, track, c, dt, events);
   // 10. walls
   // a falling kart is past every wall
-  if (!s.status.falling) stepWalls(s, g.lateral, g.right, g.sample.wall ?? g.sample.halfWidth, c, dt, events, g.sample.open ?? 0);
+  if (!s.status.falling) stepWalls(s, g.lateral, g.right, wallOn(g.sample, g.lateral), c, dt, events, g.sample.open ?? 0);
   return events;
 }
 

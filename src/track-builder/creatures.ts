@@ -93,7 +93,7 @@ export class Creature {
   private frame(t: number): Frame {
     const s = this.branches.main.sample(t, 0);
     const rx = s.tangent[2], rz = -s.tangent[0], n = dmath.hypot(rx, rz) || 1;
-    return { t, p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: s.wall ?? s.halfWidth, heading: dmath.atan2(s.tangent[0], s.tangent[2]) };
+    return { t, p: s.position, tangent: s.tangent, right: [rx / n, 0, rz / n], hw: s.halfWidth, reach: Math.max(s.wallLeft ?? s.wall ?? s.halfWidth, s.wallRight ?? s.wall ?? s.halfWidth), heading: dmath.atan2(s.tangent[0], s.tangent[2]) };
   }
 
   /**

@@ -75,7 +75,17 @@
         }
       }
     },
-    "offroad": { "type": "boolean", "default": false, "description": "The Mario Kart World edge: the land meets the curb with no strip and no wall; it is drivable (the dirt top-speed cap) out to an invisible course limit offroadReach metres past the curb, where the roadside scenery starts. False (a pier, a sky road): a solid low edge wall at the road's edge." },
+    "offroad": { "type": "boolean", "default": false, "description": "The Mario Kart World edge: the land meets the curb with no strip and no wall; it is drivable (the dirt top-speed cap) out to an invisible course limit past the curb (offroadReach metres, or per stretch: courseLimit), where the roadside scenery starts. False (a pier, a sky road): a solid low edge wall at the road's edge." },
+    "courseLimit": {
+      "type": "object",
+      "description": "Off-road tracks: where the invisible course limit stands, stretch by stretch, as Mario Kart World sets it (Adam, 27 Sept 2026: \"Whatever Mario Kart World does\"; measured on its open-country courses with the road's own width as the ruler: docs/sops/track-builder.md). Each value is a share of the road's width with both curbs (2 x (halfWidth + kerbWidth)), measured from the curb out: on a straight, on the outside and on the inside of a bend (by how sharply the road turns: limitBend), and on the start straight (limitStart). Between them the limit eases (limitSlope); by a shortcut's mouth it keeps offroadReach on the shortcut's side, and a tunnel's approach narrows as before. Absent: offroadReach everywhere.",
+      "properties": {
+        "straight": { "type": "number", "minimum": 0, "maximum": 1.5 },
+        "outside": { "type": "number", "minimum": 0, "maximum": 1.5 },
+        "inside": { "type": "number", "minimum": 0, "maximum": 1.5 },
+        "start": { "type": "number", "minimum": 0, "maximum": 1.5 }
+      }
+    },
     "loops": {
       "description": "Loop-the-loops on the main line (design.md Track thrills). Every kart on the ground is caught before the foot at t, rides up and round the ring and is set down after it with a boost. Put one on a straight at least approach + exit metres long.",
       "type": "array",
@@ -180,6 +190,13 @@
         "tunnelLanternSpacing": { "type": "number", "default": 12, "description": "metres between lanterns inside a tunnel (alternate walls)" },
         "offroadReach": { "type": "number", "default": 12, "description": "Off-road tracks: metres past the curb the ground is drivable (slowly) before an invisible course limit, just short of the roadside scenery (the Mario Kart World way: no strip, no wall along the road)" },
         "offroadDrop": { "type": "number", "default": 0.12, "description": "Off-road tracks: the ground past the curb sits this far under the road, as the land mesh draws it" },
+        "limitMin": { "type": "number", "default": 3.5, "description": "courseLimit: the least off-road past the curb anywhere but a tunnel's approach, metres (room to run wide and come back)" },
+        "limitMax": { "type": "number", "default": 17, "description": "courseLimit: the most off-road past the curb, metres (the land stays flat to about 20 m past the curb: land.ts)" },
+        "limitSlope": { "type": "number", "default": 0.22, "description": "courseLimit: metres the limit may come in or go out per metre of road (a wall angled at most about 12 degrees to the road: a kart running wide is led back, never stopped by a corner)" },
+        "limitWindow": { "type": "number", "default": 24, "description": "courseLimit: metres of road over which how sharply it turns is read" },
+        "limitBend": { "type": "array", "items": { "type": "number" }, "default": [110, 45], "description": "courseLimit: a turn of the first radius (metres) begins to count as a bend, of the second is a full bend" },
+        "limitStart": { "type": "array", "items": { "type": "number" }, "default": [45, 45], "description": "courseLimit: metres before and after the start line that take the start value (the grid and the gantry)" },
+        "limitMouth": { "type": "number", "default": 30, "description": "courseLimit: metres either side of a shortcut's ends where the main road keeps offroadReach on the shortcut's side" },
         "barrierSpacing": { "type": "number", "default": 2.0 },
         "roadTileLength": { "type": "number", "default": 10, "description": "metres of road per UV v unit" },
         "chunkCount": { "type": "integer", "default": 8 },

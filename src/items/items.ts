@@ -3,7 +3,7 @@
 // kart-controller surface (item, status, drift charge multiplier, applyHit, requestBoost).
 import type { KartConstants } from '../kart-controller/constants.ts';
 import { isRiding } from '../kart-controller/powers.ts';
-import { forwardOf, type InputState, type KartEvent, type KartState, type Vec3 } from '../kart-controller/types.ts';
+import { forwardOf, wallOn, type InputState, type KartEvent, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import type { RaceEvent, RaceState } from '../race-manager/types.ts';
 import { mainUnder } from '../track-builder/shift.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -20,7 +20,7 @@ import { refusal, spend, useItem } from './use.ts';
 /** Wholly past the course limit at t (the land beside an off-road road is course): no kart can reach it there. */
 function offCourse(track: Track, t: number, branch: number, lateral: number, radius: number): boolean {
   const smp = track.sample(t, 0, branch);
-  return Math.abs(lateral) > (smp.wall ?? smp.halfWidth) + radius;
+  return Math.abs(lateral) > wallOn(smp, lateral) + radius;
 }
 
 export interface ItemsHost {

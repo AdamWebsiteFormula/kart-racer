@@ -360,13 +360,14 @@ class Vista {
     const trip = group >= 0 ? this.triggers[group]?.at : undefined;
     this.fliers.push({ what, kind, anchor, move, dir, group, span: Math.max(b.max.x - b.min.x, b.max.z - b.min.z), home, colours: g, trip: kind === 'flyby' ? trip : undefined });
   }
-  /** A road spot: the main line at t, which way it runs, which way is away from the track's middle, and how far out the course limit stands. */
-  road(t: number): { p: V3; along: [number, number]; out: [number, number]; limit: number } | null {
+  /** A road spot: the main line at t, which way it runs, which way is away from the track's middle, and how far out the course limit stands that way (`limit`) and the other (`limitIn`). */
+  road(t: number): { p: V3; along: [number, number]; out: [number, number]; limit: number; limitIn: number } | null {
     const r = this.ctx.road?.(t);
     if (!r) return null;
     const [cx, cz] = this.ctx.centre, toMid = (cx - r.p[0]) * r.right[0] + (cz - r.p[2]) * r.right[1];
     const s = toMid > 0 ? -1 : 1;
-    return { p: r.p, along: r.along, out: [r.right[0] * s, r.right[1] * s], limit: r.limit };
+    const left = r.limitLeft ?? r.limit, right = r.limitRight ?? r.limit;
+    return { p: r.p, along: r.along, out: [r.right[0] * s, r.right[1] * s], limit: s < 0 ? left : right, limitIn: s < 0 ? right : left };
   }
   /** Per frame: the camera's place sets the perched birds and flybys off; the detail level; the night's glow. */
   tick(cam: V3, clock: number, detail: number): void {
@@ -733,7 +734,7 @@ function harbour(v: Vista): void {
     const r = v.road(0.1 + k * 0.004);
     if (!r) break;
     const past = r.limit + 1.6, x = r.p[0] + r.out[0] * past, z = r.p[2] + r.out[1] * past;
-    if (!(v.ctx.clear?.(x, z, 1.4) ?? true)) continue;
+    if (!(v.ctx.clear?.(x, z, 1.4) ?? true) || (v.ctx.pastCourse?.(x, z) ?? Infinity) < 1.2) continue;
     const y = v.ctx.groundAt?.(x, z) ?? r.p[1];
     v.movers.push(mover(post, [x, y, z], 0, [MOVE.still, 0, 0, 0]));
     const at: V3 = [x, y + 1.43, z], face = Math.atan2(r.along[0], r.along[1]) + (placed % 2 ? Math.PI : 0);
@@ -845,8 +846,8 @@ function meadow(v: Vista): void {
     const r = v.road(0.18 + (k % 40) * 0.0025);
     if (!r) break;
     const out: [number, number] = k < 40 ? r.out : [-r.out[0], -r.out[1]];
-    const past = r.limit + 1.4, x = r.p[0] + out[0] * past, z = r.p[2] + out[1] * past;
-    const clear = [-3, 0, 3].every((o) => v.ctx.clear?.(x + r.along[0] * o, z + r.along[1] * o, 1.2) ?? true);
+    const past = (k < 40 ? r.limit : r.limitIn) + 1.4, x = r.p[0] + out[0] * past, z = r.p[2] + out[1] * past;
+    const clear = [-3, 0, 3].every((o) => (v.ctx.clear?.(x + r.along[0] * o, z + r.along[1] * o, 1.2) ?? true) && (v.ctx.pastCourse?.(x + r.along[0] * o, z + r.along[1] * o) ?? Infinity) >= 1);
     if (clear) spot = { p: [x, v.ctx.groundAt?.(x, z) ?? r.p[1], z], along: r.along, out };
   }
   if (spot) {

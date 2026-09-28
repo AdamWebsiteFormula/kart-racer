@@ -255,6 +255,8 @@ export function buildCoast(branches: Branches, o: CoastOptions): BufferGeometry 
   g.computeVertexNormals();
   g.computeBoundingSphere();
   g.computeBoundingBox();
+  // its first nx x nz vertices are a regular grid (the course's banks may be merged in after them: edge.ts)
+  g.userData.grid = { nx, nz, x0, z0, cell: o.cell };
   return g;
 }
 

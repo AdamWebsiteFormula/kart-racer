@@ -43,10 +43,9 @@ export function layTunnel(lut: Lut, from: number, to: number): TunnelLine {
   return { lut, i0, i1, x, y, z, minX, maxX, minZ, maxZ };
 }
 
-/** Cover `lut`'s samples that run along a tunnel's road, and narrow its off-road before each. */
+/** Cover `lut`'s samples that run along a tunnel's road, and narrow its off-road before each (over the course limit already laid: limits.ts). */
 export function coverTunnels(lut: Lut, tunnels: readonly TunnelLine[]): void {
   lut.covered.fill(0);
-  lut.reach.fill(BUILDER.offroadReach);
   if (!tunnels.length) return;
   for (let i = 0; i < lut.n; i++) {
     const px = lut.px[i], pz = lut.pz[i];
@@ -59,7 +58,7 @@ export function coverTunnels(lut: Lut, tunnels: readonly TunnelLine[]): void {
       }
       // on the line (not just past a portal: there the nearest point is the line's end)
       const end = bk === 0 || bk === t.x.length - 1;
-      if (best < (end ? 0.3 * 0.3 : 1.5 * 1.5) && Math.abs(lut.py[i] - by) < 2) { lut.covered[i] = 1; lut.reach[i] = 0; break; }
+      if (best < (end ? 0.3 * 0.3 : 1.5 * 1.5) && Math.abs(lut.py[i] - by) < 2) { lut.covered[i] = 1; lut.reachL[i] = 0; lut.reachR[i] = 0; break; }
     }
   }
   const ds = lut.length / lut.step, m = Math.ceil(BUILDER.tunnelFunnel / ds);
@@ -68,7 +67,9 @@ export function coverTunnels(lut: Lut, tunnels: readonly TunnelLine[]): void {
     for (let k = 1; k <= m; k++) {
       const a = lut.idx(i + k), b = lut.idx(i - k);
       if ((a !== i && lut.covered[a]) || (b !== i && lut.covered[b])) {
-        lut.reach[i] = BUILDER.offroadReach * smooth((k * ds) / BUILDER.tunnelFunnel);
+        const funnel = BUILDER.offroadReach * smooth((k * ds) / BUILDER.tunnelFunnel);
+        if (funnel < lut.reachL[i]) lut.reachL[i] = funnel;
+        if (funnel < lut.reachR[i]) lut.reachR[i] = funnel;
         break;
       }
     }

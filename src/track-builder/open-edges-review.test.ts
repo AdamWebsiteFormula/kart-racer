@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { stepWalls } from '../kart-controller/collide.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { SIM_DT, stepKart } from '../kart-controller/step.ts';
-import { createKartState, NEUTRAL_INPUT, type KartEvent, type KartState } from '../kart-controller/types.ts';
+import { createKartState, NEUTRAL_INPUT, type KartEvent, type KartState, wallOn } from '../kart-controller/types.ts';
 import { BUILDER } from './constants.ts';
 import { wrap01 } from './lut.ts';
 import { buildTrack, type Track } from './track.ts';
@@ -202,20 +202,26 @@ describe('off-road (Adam, 23 Sept 2026: the Mario Kart way)', () => {
     expect(curb.groundY - mid.groundY).toBeCloseTo(BUILDER.offroadDrop, 2);
     expect(track.sample(T, hw + kw + sw).groundY).toBeCloseTo(mid.groundY, 2);
     expect(mid.overCliff).toBe(false);
-    expect(mid.wall).toBeCloseTo(hw + kw + BUILDER.offroadReach, 6);
+    // the course limit: past the curb by this side's reach here (limits.ts: stretch by stretch)
+    const L = track.branches.main.lut, f = T * L.step, i0 = Math.floor(f), a = f - i0;
+    expect(mid.wall).toBeCloseTo(hw + kw + L.reachR[i0] * (1 - a) + L.reachR[L.idx(i0 + 1)] * a, 4);
+    expect(mid.wall).toBeGreaterThan(hw + kw + BUILDER.limitMin - 1e-6);
     void drop;
   });
 
   it('a kart steered off the road rolls onto the off-road, slows to the dirt cap, and is held at the course limit, not the road edge', () => {
     const s = kartAt(track, T, 0, 22);
-    let maxLat = 0, dirtTicks = 0;
+    let maxLat = 0, dirtTicks = 0, over = -Infinity;
     for (let k = 0; k < 360; k++) {
       stepKart(s, { ...NEUTRAL_INPUT, throttle: 1, steer: 1 }, track, c, SIM_DT);
-      maxLat = Math.max(maxLat, Math.abs(lateralOf(track, s)));
+      const lat = lateralOf(track, s);
+      maxLat = Math.max(maxLat, Math.abs(lat));
+      // held at the course limit wherever it stands (limits.ts: it moves along the road)
+      over = Math.max(over, Math.abs(lat) - (wallOn(track.sample(s.t, lat), lat) - c.kartRadius));
       if (s.surface === 'dirt') dirtTicks++;
     }
     expect(maxLat).toBeGreaterThan(hw + kw); // it left the road
-    expect(maxLat).toBeLessThanOrEqual(hw + kw + BUILDER.offroadReach - c.kartRadius + 0.05); // held at the course limit
+    expect(over).toBeLessThanOrEqual(0.05);
     expect(dirtTicks).toBeGreaterThan(0);
     expect(s.status.falling).toBe(false);
   });

@@ -125,8 +125,9 @@ export interface LineInfo {
   /** where the kart is going (its velocity, not its nose) against the road here, rad, positive = right of it */
   course: number;
   halfWidth: number;
-  /** lateral of the boundary wall here (TrackSample.wall), and the open edges (bit 1 left, bit 2 right: no wall) */
-  wall: number;
+  /** lateral of the boundary wall here on the left (negative lateral) and the right (TrackSample.wallLeft, wallRight), and the open edges (bit 1 left, bit 2 right: no wall) */
+  wallLeft: number;
+  wallRight: number;
   open: number;
   /** how much further (rad) the road turns the way it turns now, over the bend scan, and the metres to where it stops */
   bendAngle: number;
@@ -170,7 +171,7 @@ export function makeScratch(): Scratch {
 }
 
 export function emptyLine(): LineInfo {
-  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, kappaShort: 0, turnShort: 0, roadErr: 0, course: 0, halfWidth: 1, wall: Infinity, open: 0, bendAngle: Infinity, bendMetres: Infinity, bendStart: 0, bendHalfWidth: Infinity, airMetres: Infinity, hazardInLane: false, dodging: false, hopRing: false, branch: 0, myLat: 0, nearBranch: false, nearNarrowBranch: false, narrow: false, airAhead: false, branchAhead: 0, branchSide: 0 };
+  return { L: 0, turnNear: 0, turnFar: 0, probeNear: 1, kappa: 0, kappaShort: 0, turnShort: 0, roadErr: 0, course: 0, halfWidth: 1, wallLeft: Infinity, wallRight: Infinity, open: 0, bendAngle: Infinity, bendMetres: Infinity, bendStart: 0, bendHalfWidth: Infinity, airMetres: Infinity, hazardInLane: false, dodging: false, hopRing: false, branch: 0, myLat: 0, nearBranch: false, nearNarrowBranch: false, narrow: false, airAhead: false, branchAhead: 0, branchSide: 0 };
 }
 
 /** Item roles from item.schema.json; the items session supplies the id → role map. */

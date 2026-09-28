@@ -12,7 +12,7 @@
     "bronze": 135000
   },
   "voidY": -25,
-  "offroad": true,
+  "offroad": true, "courseLimit": {"straight": 0.45, "outside": 1.0, "inside": 0.3, "start": 0.4},
   "landmark": "arch",
   "music": "canyon",
   "controlPoints": [

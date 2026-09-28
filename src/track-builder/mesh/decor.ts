@@ -64,10 +64,59 @@ function nearestXZ(lut: Lut, x: number, z: number): { d2: number; hw: number } {
 
 /** Full envelope past the road edge: kerb + shoulder + 1 m air. */
 export const ENVELOPE_PAD = BUILDER.kerbWidth + BUILDER.shoulderWidth + 1;
+
+/** Metres of drivable off-road past the curb at LUT sample j on one side (-1 the left, 1 the right): the course limit (limits.ts). */
+export function reachOn(lut: Lut, j: number, side: number): number { return side < 0 ? lut.reachL[j] : lut.reachR[j]; }
+
+/** The nearest LUT sample to (x, z) in the level plane (coarse stride, then refined). */
+function nearestIndex(lut: Lut, x: number, z: number): number {
+  const step = BUILDER.globalSearchStep;
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < lut.n; i += step) {
+    const dx = lut.px[i] - x, dz = lut.pz[i] - z, d = dx * dx + dz * dz;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  for (let k = -step; k <= step; k++) {
+    const i = lut.idx(best + k), dx = lut.px[i] - x, dz = lut.pz[i] - z, d = dx * dx + dz * dz;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+/**
+ * Metres (x, z) stands past a road's drivable ground (negative: on it): past the course limit on the side of the
+ * road it is on for an off-road road (the curb, then the land out to reachL or reachR; in a tunnel, the curb),
+ * else past the road's edge.
+ */
+export function pastCourse(lut: Lut, x: number, z: number): number {
+  const i = nearestIndex(lut, x, z), dx = x - lut.px[i], dz = z - lut.pz[i];
+  const lateral = dx * lut.rx[i] + dz * lut.rz[i];
+  const limit = lut.hw[i] + (lut.offroad ? BUILDER.kerbWidth + (lut.covered[i] ? 0 : reachOn(lut, i, lateral)) : 0);
+  return Math.sqrt(dx * dx + dz * dz) - limit;
+}
+
+/** Is (x, z) within `pad` metres past any branch's drivable ground (pastCourse), `except` skipped? */
+export function insideCourse(branches: Branches, x: number, z: number, pad = 0, except = -1): boolean {
+  for (const b of branches.list) {
+    if (b.index === except) continue;
+    if (pastCourse(b.lut, x, z) < pad) return true;
+  }
+  return false;
+}
+
+/** Is (x, z) within `pad` metres past any of these roads' drivable ground (the race's roads, and the final lap's where a route change lays new ones)? */
+export function insideAny(course: readonly Lut[], x: number, z: number, pad = 0): boolean {
+  for (const L of course) if (pastCourse(L, x, z) < pad) return true;
+  return false;
+}
 /** Metres along the road past a roadside prop's footprint that must not be an open edge either. */
 const OPEN_CLEAR = 5;
-/** Metres more than the course limit and its footprint that a roadside prop stands off an off-road track's curb (at exactly the limit, the road envelope test rejected it half the time). */
-const CLEAR_EPS = 0.1;
+/**
+ * Metres more than the course limit and its footprint that a roadside prop stands off an off-road track's curb (at
+ * exactly the limit, the road envelope test rejected it half the time; with the limit laid per stretch (limits.ts)
+ * the nearest sample's own limit can differ from the one it was placed by by a few tenths too).
+ */
+const CLEAR_EPS = 0.4;
 /** Metres the land as drawn may rise or fall under a prop's footprint (more: it hangs off a lip or straddles a slope). */
 const FOOTING = 0.5;
 /** Metres a set-piece on footing 'sink' reaches below its origin: the land under it may fall this far. */
@@ -149,7 +198,7 @@ export function outsideOf(lut: Lut, t: number): { side: number; bend: number } {
  * so order matters and is fixed by the JSON. A row or span entry (DecorEntry) is laid out as its
  * `layout` says; `extent` is the model's reach across and along (default: `footprint` both ways).
  */
-export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number, footprint = 0, extent?: DecorExtent, occupied?: Occupancy): DecorPlacement {
+export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => number, groundY: number, groundAt?: (x: number, z: number) => number, footprint = 0, extent?: DecorExtent, occupied?: Occupancy, course: readonly Lut[] = branches.list.map((b) => b.lut)): DecorPlacement {
   const main = branches.main.lut;
   const verge = entry.band === 'verge';
   const layout = entry.layout ?? 'scatter', row = layout === 'row', span = layout === 'span';
@@ -158,7 +207,7 @@ export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => num
   const none: DecorPlacement = { asset: entry.asset, band: entry.band, matrices: new Float32Array(0), count: 0, footprint: reach, layout };
   // a verge lies on an off-road track's drivable land; a pier or a sky road has none; a span's legs stand past an off-road course limit
   if ((verge || span) && !main.offroad) return none;
-  if (span) return placeSpans(branches, entry, rng, groundAt, across);
+  if (span) return placeSpans(branches, entry, rng, groundAt, across, course);
   const edge = entry.band === 'roadside' || verge; // laid out from the curb, not the centreline
   const band = entry.dist ?? (entry.band === 'roadside' && main.offroad ? BUILDER.decorBands.roadsideOffroad : BUILDER.decorBands[entry.band]);
   const [s0, s1] = entry.scale ?? [1, 1];
@@ -201,12 +250,20 @@ export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => num
     } else {
       const j = main.idx(Math.round(tt * main.step)), foot = reach * scale;
       // a verge prop stays on the drivable land, footprint and all (which narrows to nothing at a tunnel's mouth)
-      if (verge && (main.covered[j] || dist + foot > main.reach[j])) continue;
-      // a roadside prop on an off-road track stands wholly past the course limit (its footprint too), where karts cannot reach it
-      const clear = entry.band === 'roadside' && main.offroad ? Math.max(dist, BUILDER.offroadReach + 0.5 + foot + CLEAR_EPS) : dist;
+      if (verge && (main.covered[j] || dist + foot > reachOn(main, j, side))) continue;
+      // a roadside prop on an off-road track stands wholly past the course limit (its footprint too), where karts
+      // cannot reach it; its band (and a row's `dist`) is read from the limit as it stands here (limits.ts: it
+      // comes in on a straight and goes out on a bend's outside), offroadReach being where the bands were laid out
+      const offroadSide = entry.band === 'roadside' && main.offroad;
+      const past = (ts: number): number => {
+        if (!offroadSide) return dist;
+        const r = reachOn(main, main.idx(Math.round((((ts % 1) + 1) % 1) * main.step)), side);
+        return Math.max(r + dist - BUILDER.offroadReach, r + 0.5 + foot + CLEAR_EPS);
+      };
       const at = (ts: number, s = main.sample(ts, 0)): [number, number] => {
-        const l = side * (edge ? s.halfWidth + BUILDER.kerbWidth + clear : dist);
-        return [s.position[0] + s.tangent[2] * l, s.position[2] - s.tangent[0] * l];
+        // square to the road across the level ground (on a hill the tangent climbs: its level part is shorter)
+        const l = side * (edge ? s.halfWidth + BUILDER.kerbWidth + past(ts) : dist), h = Math.hypot(s.tangent[0], s.tangent[2]) || 1;
+        return [s.position[0] + (s.tangent[2] / h) * l, s.position[2] - (s.tangent[0] / h) * l];
       };
       [x, z] = at(tt, c);
       if (row) {
@@ -220,12 +277,13 @@ export function placeDecor(branches: Branches, entry: DecorEntry, rng: () => num
       y = groundAt ? groundAt(x, z) : entry.band === 'roadside' ? c.position[1] - BUILDER.shoulderDrop : groundY + (entry.footing === 'pier' ? BUILDER.pierLift : 0);
       // clear of every road (on an off-road track, of where karts can drive past its curb, footprint
       // and all; ground cover, which karts drive through, keeps off the roads and their curbs only)
-      const pad = verge ? BUILDER.kerbWidth + 0.5 + foot : main.offroad ? BUILDER.kerbWidth + BUILDER.offroadReach + 0.5 + foot : ENVELOPE_PAD;
-      if (insideRoadEnvelope(branches, x, z, -1, pad)) continue;
+      const pad = verge ? BUILDER.kerbWidth + 0.5 + foot : ENVELOPE_PAD;
+      const blocked = (px: number, pz: number) => (!verge && main.offroad ? insideAny(course, px, pz, 0.5 + foot) : insideRoadEnvelope(branches, px, pz, -1, pad));
+      if (blocked(x, z)) continue;
       // a long row piece (a fence, a cliff wall) keeps its ends off the road too, on the inside of a bend
       if (row && along > across) {
         const a = along * scale;
-        if (insideRoadEnvelope(branches, x + c.tangent[0] * a, z + c.tangent[2] * a, -1, pad) || insideRoadEnvelope(branches, x - c.tangent[0] * a, z - c.tangent[2] * a, -1, pad)) continue;
+        if (blocked(x + c.tangent[0] * a, z + c.tangent[2] * a) || blocked(x - c.tangent[0] * a, z - c.tangent[2] * a)) continue;
       }
       // bug hunt 3: beside an open edge a roadside prop stood over the drop, in Harbor's sea or over the
       // water off Boardwalk's pier (placeBarriers skips those sides too); and on the land as drawn a
@@ -321,18 +379,17 @@ const SPAN_FOOT: [number, number] = [-2.5, 1.5];
  * at road height, turned along the road, stretched across it (X only) so its legs stand just past the
  * course limit on both sides. A span keeps off tunnels and open edges, and both legs must meet the land.
  */
-function placeSpans(branches: Branches, entry: DecorEntry, rng: () => number, groundAt: ((x: number, z: number) => number) | undefined, half: number): DecorPlacement {
+function placeSpans(branches: Branches, entry: DecorEntry, rng: () => number, groundAt: ((x: number, z: number) => number) | undefined, half: number, course: readonly Lut[]): DecorPlacement {
   const main = branches.main.lut, out: number[] = [];
-  const pad = BUILDER.kerbWidth + BUILDER.offroadReach + 0.5;
   let placed = 0;
   for (let tries = 0; placed < entry.instances && tries < entry.instances * 40; tries++) {
     const t = groupT(entry.at, rng()), c = main.sample(t, 0), j = main.idx(Math.round(t * main.step));
-    const legs = c.halfWidth + BUILDER.kerbWidth + BUILDER.offroadReach + SPAN_CLEAR;
+    const legs = c.halfWidth + BUILDER.kerbWidth + Math.max(main.reachL[j], main.reachR[j]) + SPAN_CLEAR;
     if (main.covered[j] || openBeside(main, t, -1, OPEN_CLEAR) || openBeside(main, t, 1, OPEN_CLEAR)) continue;
     let ok = true;
     for (const side of [-1, 1]) {
       const l = side * legs, x = c.position[0] + c.tangent[2] * l, z = c.position[2] - c.tangent[0] * l;
-      if (insideRoadEnvelope(branches, x, z, -1, pad)) { ok = false; break; }
+      if (insideAny(course, x, z, 0.5)) { ok = false; break; }
       if (groundAt) {
         const dy = groundAt(x, z) - c.position[1];
         if (dy < SPAN_FOOT[0] || dy > SPAN_FOOT[1]) { ok = false; break; }

@@ -4,7 +4,7 @@
 // (rides the spline either way, weaving across the road, and bumps up to 3 karts).
 import { jumpLift } from '../kart-controller/ground.ts';
 import { BASE } from '../kart-controller/constants.ts';
-import { forwardOf, type KartState, type Vec3 } from '../kart-controller/types.ts';
+import { forwardOf, wallOn, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import { signedOffset } from '../track-builder/branches.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -164,8 +164,9 @@ export function stepProjectiles(
         p.lateral += Math.max(-step, Math.min(step, want - p.lateral));
       }
       // the Mouse keeps to the road; a Kite chasing its kart follows it onto the sand, out to the course limit
-      const edge = p.weave <= 0 && p.target >= 0 ? smp.wall ?? smp.halfWidth : smp.halfWidth;
-      p.lateral = Math.max(-edge + p.radius, Math.min(edge - p.radius, p.lateral));
+      const chase = p.weave <= 0 && p.target >= 0;
+      const edgeL = chase ? wallOn(smp, -1) : smp.halfWidth, edgeR = chase ? wallOn(smp, 1) : smp.halfWidth;
+      p.lateral = Math.max(-edgeL + p.radius, Math.min(edgeR - p.radius, p.lateral));
       const at = track.sample(p.t, p.lateral, p.branch);
       p.position[0] = at.position[0]; p.position[1] = at.groundY + jumpLift(track, p.t, p.branch, p.lateral, at.halfWidth, at.open ?? 0) + cfg.projectileHeight; p.position[2] = at.position[2];
       continue;
@@ -185,7 +186,7 @@ export function stepProjectiles(
     const smp = track.sample(p.t, 0, p.branch);
     const r = rightAt(track, p.t, p.branch, scratchRight);
     let lat = (p.position[0] - smp.position[0]) * r[0] + (p.position[2] - smp.position[2]) * r[2];
-    const limit = (smp.wall ?? smp.halfWidth) - p.radius;
+    const limit = wallOn(smp, lat) - p.radius;
     if (Math.abs(lat) > limit) {
       p.bouncesLeft--;
       if (p.bouncesLeft < 0) { popProjectile(m, p, events); continue; }

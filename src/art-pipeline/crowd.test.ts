@@ -4,6 +4,7 @@
 // shader as a pure function of the clock.
 import { describe, expect, it } from 'vitest';
 import { Matrix4, Vector3, type BufferGeometry, type InstancedMesh, type Mesh } from 'three';
+import { pastCourse } from '../track-builder/mesh/decor.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { mirrorTrack } from '../track-builder/mirror.ts';
@@ -26,22 +27,14 @@ function crowdOf(group: { traverse(f: (o: { name: string; userData: Record<strin
 }
 
 /** Each road of `track` as points with the distance from its centre to its course limit (off-road) or solid edge (pier, sky road). */
-function limits(track: Track): { x: number; z: number; lim: number }[] {
-  const out: { x: number; z: number; lim: number }[] = [];
-  for (const b of track.branches.list) {
-    const L = b.lut;
-    for (let i = 0; i < L.n; i += 2) {
-      const s = L.sample(i / L.n, 0);
-      out.push({ x: L.px[i], z: L.pz[i], lim: Math.max(s.wall ?? 0, L.hw[i] + BUILDER.kerbWidth) });
-    }
-  }
-  return out;
+function limits(track: Track): Track {
+  return track;
 }
 
-/** How far (x, z) stands past the nearest road's limit. */
-function pastLimit(lims: readonly { x: number; z: number; lim: number }[], x: number, z: number): number {
+/** How far (x, z) stands past the nearest road's limit (each road's own, on the side of it the point is on: track-builder limits.ts), a walled road's curb at the least. */
+function pastLimit(track: Track, x: number, z: number): number {
   let best = Infinity;
-  for (const l of lims) best = Math.min(best, Math.hypot(l.x - x, l.z - z) - l.lim);
+  for (const b of track.branches.list) best = Math.min(best, pastCourse(b.lut, x, z) - (b.lut.offroad ? 0 : BUILDER.kerbWidth));
   return best;
 }
 
@@ -68,7 +61,9 @@ function landHeight(coast: Mesh | undefined): ((x: number, z: number) => number 
   const x0 = pos.getX(0), z0 = pos.getZ(0), cell = pos.getX(1) - x0;
   let nx = 1;
   while (nx < pos.count && Math.abs(pos.getZ(nx) - z0) < 1e-6) nx++;
-  const nz = pos.count / nx;
+  // (the course's banks, edge.ts, are merged in after the grid: its size is recorded, land.ts)
+  const grid = (coast.geometry as BufferGeometry).userData.grid as { nx: number; nz: number } | undefined;
+  const nz = grid ? grid.nz : pos.count / nx;
   return (x, z) => {
     const fi = (x - x0) / cell, fj = (z - z0) / cell, i = Math.floor(fi), j = Math.floor(fj);
     if (i < 0 || j < 0 || i >= nx - 1 || j >= nz - 1) return null;

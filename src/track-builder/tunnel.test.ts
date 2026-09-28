@@ -68,10 +68,12 @@ describe('the mine tunnel (Mesa Rush)', () => {
     const t = track.tunnels[0], L = t.lut, ds = L.length / L.step;
     expect(L.covered[t.i0]).toBe(1);
     expect(L.covered[t.i0 - 1]).toBe(0);
-    expect(L.reach[t.i0 - 1]).toBeLessThan(0.5);
-    expect(L.reach[t.i1 + 1]).toBeLessThan(0.5);
-    expect(L.reach[t.i0 - Math.ceil(BUILDER.tunnelFunnel / ds) - 2]).toBeCloseTo(BUILDER.offroadReach, 6);
-    for (let i = t.i0 - 40; i < t.i0; i++) expect(L.reach[i]).toBeLessThanOrEqual(L.reach[i - 1] + 1e-6);
+    for (const reach of [L.reachL, L.reachR]) {
+      expect(reach[t.i0 - 1]).toBeLessThan(0.5);
+      expect(reach[t.i1 + 1]).toBeLessThan(0.5);
+      expect(reach[t.i0 - Math.ceil(BUILDER.tunnelFunnel / ds) - 2]).toBeCloseTo(BUILDER.offroadReach, 6);
+      for (let i = t.i0 - 40; i < t.i0; i++) expect(reach[i]).toBeLessThanOrEqual(reach[i - 1] + 1e-6);
+    }
   });
 
   it('on the final lap the main road takes the mine: its samples along the bore are covered too', () => {

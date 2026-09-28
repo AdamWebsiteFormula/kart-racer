@@ -182,8 +182,20 @@ export interface TrackSample {
   open?: number;
   /** past an open edge's cliff: no ground under this point, the kart falls */
   overCliff?: boolean;
-  /** lateral distance of the boundary wall from the centre line: past the off-road band on an off-road track, else the road's edge (absent = halfWidth) */
+  /**
+   * lateral distance of the boundary wall from the centre line on the side of the sampled lateral (at 0: the
+   * nearer side's): past the off-road band on an off-road track, else the road's edge (absent = halfWidth)
+   */
   wall?: number;
+  /** the same, for each side: the left (negative lateral) and the right; a course limit may stand closer on one side (track-builder limits.ts) */
+  wallLeft?: number;
+  wallRight?: number;
+}
+
+/** The boundary wall's lateral distance from the centre line on the side of `lateral` (the left for negative). */
+export function wallOn(s: TrackSample, lateral: number): number {
+  const side = lateral < 0 ? s.wallLeft : s.wallRight;
+  return side ?? s.wall ?? s.halfWidth;
 }
 
 /** t is main-equivalent; branch 0 unless the feature sits on a shortcut. */

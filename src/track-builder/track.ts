@@ -11,6 +11,7 @@ import { buildCheckpoints, buildSpawnGrid } from './race.ts';
 import { applyFinalLapShift, type ShiftKart } from './shift.ts';
 import { RoadIndex, groundPlaneY } from './terrain.ts';
 import { coverTunnels, layTunnel, type TunnelLine } from './tunnel.ts';
+import { layCourseLimits } from './limits.ts';
 import type { BakedFeature, Checkpoint, ControlPoint, SpawnSlot, TrackChanged, TrackDefinition, Vec3 } from './types.ts';
 import { assertValid } from './validate.ts';
 
@@ -121,13 +122,15 @@ export class Track implements TrackQuery {
   /** @internal Checkpoints, spawn grid, minimap and feature views from the current LUTs. */
   rebuildDerived(): void {
     const lut = this.branches.main.lut;
-    // off-road past the curb on every branch (a route change builds a new LUT, so it is set again here)
+    // off-road past the curb on every branch (a route change builds a new LUT, so it is set again here), out to
+    // the course limit, stretch by stretch (limits.ts), narrowed before and in a tunnel
     for (const b of this.branches.list) {
       b.lut.offroad = this.def.offroad === true;
       b.lut.land = this.land;
       b.lut.floorY = this.groundPlaneY;
-      coverTunnels(b.lut, this.tunnels);
     }
+    layCourseLimits(this.branches, this.def, this.startT);
+    for (const b of this.branches.list) coverTunnels(b.lut, this.tunnels);
     // open edges (a route change builds a new LUT, so they are laid again here)
     lut.open.fill(0);
     for (const e of this.openEdges) {

@@ -171,7 +171,7 @@ describe('the final-lap road takes the surface of the roads it runs along', () =
     const main = track.branches.main.lut;
     let worst = 0, where = '';
     for (let i = 0; i < main.n; i++) {
-      if (main.covered[i] || main.reach[i] < 0.6) continue;
+      if (main.covered[i] || Math.min(main.reachL[i], main.reachR[i]) < 0.6) continue;
       for (const side of [-1, 1]) {
         if (main.open[i] & (side < 0 ? 1 : 2)) continue;
         const curb = main.hw[i] + BUILDER.kerbWidth;

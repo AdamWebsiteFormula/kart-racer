@@ -3,7 +3,7 @@ import { PerspectiveCamera, Raycaster, Vector3, type BufferGeometry } from 'thre
 import { itemGeometry, KART_FIT } from '../art-pipeline/index.ts';
 import { SEA_TIDE, tideScale, WAVE_MAX_HEIGHT } from '../art-pipeline/waterWaves.ts';
 import { BASE } from '../kart-controller/constants.ts';
-import type { Vec3 } from '../kart-controller/types.ts';
+import { wallOn, type Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
 import { SHOW } from '../track-builder/shiftShow.ts';
@@ -291,9 +291,10 @@ describe('chase framing: your kart as big as Mario Kart World\'s, at every speed
         for (let k = 0; k < 400; k++) {
           const t = b.toMain(k / 400);
           const mid = track.sample(t, 0, b.index);
-          const reach = mid.wall ?? mid.halfWidth;
           for (const side of [-1, 1]) {
             if ((mid.open ?? 0) & (side < 0 ? 1 : 2)) continue;
+            // (a course limit may stand closer on one side: track-builder limits.ts)
+            const reach = wallOn(mid, side);
             const kart = track.sample(t, side * (reach - BASE.kartRadius), b.index);
             const pos = idealPose(kart.position, Math.atan2(kart.tangent[0], kart.tangent[2]), CAM.topSpeed, false).position;
             const lateralOf = (p: Vec3) => {
@@ -302,7 +303,7 @@ describe('chase framing: your kart as big as Mario Kart World\'s, at every speed
               const h = Math.hypot(c.tangent[0], c.tangent[2]) || 1;
               if ((c.open ?? 0) & 3) return { over: -Infinity, reach: Infinity }; // an open edge: no wall to keep inside
               const lat = ((p[0] - c.position[0]) * c.tangent[2] - (p[2] - c.position[2]) * c.tangent[0]) / h;
-              return { over: Math.abs(lat) - (c.wall ?? c.halfWidth), reach: c.wall ?? c.halfWidth };
+              return { over: Math.abs(lat) - wallOn(c, lat), reach: wallOn(c, lat) };
             };
             if (lateralOf(pos).over > 0) raw++;
             clampToRoad(track, pos, { t, branch: b.index });

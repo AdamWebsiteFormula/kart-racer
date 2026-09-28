@@ -7,7 +7,7 @@ import { BASE, type KartConstants } from '../kart-controller/constants.ts';
 import { cancelDrift } from '../kart-controller/drift.ts';
 import { jumpLift, lateralOffset } from '../kart-controller/ground.ts';
 import { radiusOf } from '../kart-controller/powers.ts';
-import { headingOf, type InputState, type KartState, type Vec3 } from '../kart-controller/types.ts';
+import { headingOf, wallOn, type InputState, type KartState, type Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import { wrap01 } from '../track-builder/lut.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -108,7 +108,7 @@ export function strandedByShift(s: KartState, track: Track, c: KartConstants): b
   const lateral = lateralOffset(track, s.t, s.position, s.branch).lateral;
   const smp = track.sample(s.t, lateral, s.branch), open = smp.open ?? 0;
   const walled = !(open & (lateral < 0 ? 1 : 2));
-  if (walled && Math.abs(lateral) - ((smp.wall ?? smp.halfWidth) - radiusOf(s, c)) > c.wallEndOvershoot) return true;
+  if (walled && Math.abs(lateral) - (wallOn(smp, lateral) - radiusOf(s, c)) > c.wallEndOvershoot) return true;
   const dy = s.position[1] - (smp.groundY + jumpLift(track, s.t, s.branch, lateral, smp.halfWidth, open));
   return dy < -c.groundCatch || (s.grounded && dy > c.groundCatch);
 }

@@ -5,7 +5,7 @@ import { REAL_TRACKS, count, give, go, kart, placeAt, placeOn, press, seconds, s
 import { distXZ } from './hits.ts';
 import { spawnProjectile } from './projectiles.ts';
 import type { GroundItem, Projectile } from './types.ts';
-import type { Vec3 } from '../kart-controller/types.ts';
+import { wallOn, type Vec3 } from '../kart-controller/types.ts';
 import { GO_TICK } from '../race-manager/countdown.ts';
 import { OVAL } from '../race-manager/__tests__/fixtures.ts';
 import { signedOffset } from '../track-builder/branches.ts';
@@ -330,8 +330,14 @@ describe('across the Final Lap Shift', () => {
 
   it("a shift that rebuilds no road moves no shot (seam review: on Meadow's hairpin grass a Kite was sent 70 m along the road, past its kart)", () => {
     for (const item of ['homingKite', 'beachBall']) {
-      for (const [t0, lat0] of [[0.94, -18], [0.92, -21]] as const) {
+      for (const t0 of [0.92, 0.93]) {
         const h = setup({ n: 3, def: trackDef('meadow'), laps: 2 });
+        // on the hairpin's inside grass, as far out as a kart can go there and on to its kart ahead (the course limit
+        // stands close on a bend's inside since 27 Sept 2026, limits.ts: the -18 and -21 m the review used lie past it)
+        let wall = Infinity;
+        for (let d = 0; d <= 14; d++) wall = Math.min(wall, wallOn(h.track.sample(t0 + d / h.track.length, -1, 0), -1));
+        const lat0 = -(wall - 2.5);
+        expect(h.track.sample(t0, lat0, 0).surface, `on the grass at t ${t0}`).toBe('dirt');
         go(h);
         const L = h.track.length, at = `${item} at t ${t0}, lateral ${lat0}`;
         placeAt(h.track, kart(h, 0), 0.5, 0);
