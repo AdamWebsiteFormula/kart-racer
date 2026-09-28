@@ -664,6 +664,8 @@ def fx(x, steps):
             x = physics.fx_gate(x, s)
         elif op == 'doppler':
             x = physics.fx_doppler(x, s)
+        elif op == 'hit':  # the n-th separate hit of a recording of several (onsets `gap` s apart at least), `len` s from just before it
+            x = pick_hit(x, int(s['n']), s.get('len', 0.6), s.get('gap', 0.25), s.get('pre', 0.004), s.get('floor', -30))
         elif op == 'loopcut':  # a loop `seconds` long cut from `from`, its wrap crossfaded over `xfade` (the material runs on past it)
             a = int(s.get('from', 0) * SR)
             x = loopify(x[:, a:].copy(), s['seconds'], s.get('xfade', 0.06))
@@ -722,6 +724,31 @@ def loopify(x, seconds, xfade=0.06):
     y = x[:, :n].copy()
     th = np.linspace(0, np.pi / 2, k)
     y[:, :k] = x[:, n:n + k] * np.cos(th) + x[:, :k] * np.sin(th)
+    return y
+
+
+def hit_onsets(x, gap=0.25, floor=-30):
+    """Where each separate hit starts in a recording of several: 2 ms level over `floor` dB of the loudest, rising
+    from under it, at least `gap` s after the last."""
+    env = envelope(x, 0.002)
+    th = env.max() * 10 ** (floor / 20)
+    on, last = [], -1e9
+    for i in range(1, len(env)):
+        if env[i] >= th and env[i - 1] < th and (i * 0.002 - last) >= gap:
+            on.append(i * 0.002)
+            last = i * 0.002
+    return on
+
+
+def pick_hit(x, n, length, gap=0.25, pre=0.004, floor=-30):
+    on = hit_onsets(x, gap, floor)
+    if not on:
+        raise ValueError('no hits found')
+    t = on[n % len(on)]
+    a = max(0, int((t - pre) * SR))
+    y = x[:, a:a + int(length * SR)].copy()
+    k = min(y.shape[-1] // 3, int(0.03 * SR))
+    y[:, -k:] *= np.cos(np.linspace(0, np.pi / 2, k)) ** 2
     return y
 
 

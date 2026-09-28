@@ -50,7 +50,9 @@ export type Fx =
   /** a pass-by: Doppler, distance and pan for a source going past at `speed` m/s, `dist` m away, closest at `at` s */
   | { op: 'doppler'; speed?: number; dist?: number; at?: number; pan?: number }
   /** a seamless loop `seconds` long cut from `from` (the material runs on past it for the wrap's crossfade) */
-  | { op: 'loopcut'; seconds: number; from?: number; xfade?: number };
+  | { op: 'loopcut'; seconds: number; from?: number; xfade?: number }
+  /** the `n`-th separate hit of a recording of several (a take per hit: variants), `len` s long */
+  | { op: 'hit'; n: number; len?: number; gap?: number; pre?: number; floor?: number };
 
 /** Code-made sound (dsp.py SYNTHS, physics.py), seeded so it is the same every build. */
 export type Synth = 'noise' | 'whoosh' | 'tone' | 'fm' | 'crackle' | 'silence' | 'flame' | 'engine' | 'kart' | 'modal' | 'squeal' | 'piston';
