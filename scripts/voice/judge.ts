@@ -64,7 +64,8 @@ for (const batch of batches) {
   let got: { clips: Verdict[] } | null = null, used = '';
   for (let attempt = 0; attempt < 4 && !got; attempt++) {
     used = MODELS[attempt % MODELS.length];
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${used}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body }).catch(() => null);
+    // a verdict comes back in about 8 s; on 28 Sept some requests hung 5 min or more, so give up after 90 s and try again
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${used}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body, signal: AbortSignal.timeout(90000) }).catch(() => null);
     const t = r ? await r.json().catch(() => ({})) : {};
     if (r?.status === 429) { console.error(`${used}: the daily limit; stopping (judged takes are kept)`); process.exit(2); }
     if (!r?.ok) { console.error(`${used}: ${r?.status ?? 'no answer'}, trying again`); await sleep(20000); continue; }
