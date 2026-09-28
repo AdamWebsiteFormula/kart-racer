@@ -145,6 +145,13 @@ function standing(e: HTMLElement, r: GpRow, moves: boolean, count: boolean, arro
 }
 
 /** Relative luminance of a #rrggbb colour, 0 (black) to 1 (white). */
+/** A color's saturation (HSV, 0..1) from its hex. */
+export function saturation(hex: string): number {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, mx = Math.max(r, g, b);
+  return mx ? (mx - Math.min(r, g, b)) / mx : 0;
+}
+
 export function luminance(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
   const ch = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -295,7 +302,7 @@ const BODY_ICONS: Record<string, string> = {
   buggy: '<path d="M6 17h36l-4-6H30l-5-6h-9l-3 6H9z"/><path d="M16 5l4-3h8l3 3"/><circle cx="13" cy="20" r="6"/><circle cx="35" cy="20" r="6"/>',
 };
 
-/** A racer's tile picture: their face, head and shoulders, cut out of their portrait (scripts/art/racer-tiles.py). */
+/** A racer's tile picture: the racer alone, full figure, standing in a pose of their own, rendered from their 3D model (scripts/headless/racer-tiles.mjs, src/game/racerIcons.ts). */
 export const racerTileUrl = (racerId: string): string => `${import.meta.env.BASE_URL}art/racers/tiles/${racerId}.webp`;
 
 /** The class row (screens/menus.ts speedRow) under the cups or the tracks: 50cc, 100cc, 150cc, and Mirror where the mode takes it. */
@@ -316,10 +323,12 @@ function classRow(parent: HTMLElement, entries: readonly { id: string; label: st
 
 /**
  * The Racer screen (design §12, 26 Sept 2026; Mario Kart World's character select, render/select.ts): the eight
- * racers' faces on glass tiles, four by two, nothing else on them; the racer on show large on the right in the
- * kart they would race in (the game draws it in `turntable`, the box left for it: game/showroom.ts), their name
- * big on a ribbon in their color under it, the kart on a line below, and the paint picker for a racer who has
- * an alt; the stats only when the Stats button shows them (Y, a pad's Y, or a tap on the prompt).
+ * racers on glass tiles, four by two, nothing else on them, each alone, full figure, in a pose of their own (28 Sept
+ * 2026, Adam: "This part should just show the characters, not the karts"); the racer on show large on the right,
+ * standing alone, idling and giving their flourish (the game draws it in `turntable`, the box left for it:
+ * game/showroom.ts, art-pipeline stand.ts), their name big on a ribbon in their color under it, their paint on a
+ * line below (no kart: that comes on the Kart screen), and the paint picker for a racer who has an alt; the stats
+ * only when the Stats button shows them (Y, a pad's Y, or a tap on the prompt).
  */
 export class RosterView implements ScreenView {
   readonly root: HTMLElement;
@@ -355,8 +364,9 @@ export class RosterView implements ScreenView {
       delay(b, i * UI.staggerRosterMs);
       b.style.setProperty('--accent', c.accent);
       b.style.setProperty('--secondary', c.secondary);
-      // the glass is lit in the racer's color; a pale one (Sprocket's cream) would light nothing: the other one
-      b.style.setProperty('--glow', luminance(c.accent) > 0.6 ? c.secondary : c.accent);
+      // the glass is lit in the racer's color; a pale one (Sprocket's cream) or a gray one would light nothing, or
+      // light a gray racer on gray (Momo's charcoal, Boulder's slate: a fresh-eyes critique, 28 Sept 2026): the other one
+      b.style.setProperty('--glow', luminance(c.accent) > 0.6 || saturation(c.accent) < 0.25 ? c.secondary : c.accent);
       b.setAttribute('aria-label', `${c.name}, ${c.archetype.toLowerCase()} class. ${c.species} with a ${c.kart.toLowerCase()}. ${c.personality}. ${c.words}.`);
       // (the initial stands under the picture until it loads, or if it never does)
       h('span', 'tile-letter', b, c.name[0]).setAttribute('aria-hidden', 'true');
@@ -435,11 +445,13 @@ export class RosterView implements ScreenView {
     }
     const p = this.plate;
     if (!p) return;
-    // the name on a ribbon in the racer's color (the course intro's title card's), and under it the kart they
-    // would race in and their paint, as Mario Kart World names the outfit under the racer (MKW: "King Boo", "Pro Racer")
+    // the name on a ribbon in the racer's color (the course intro's title card's), and under it their paint, as Mario
+    // Kart World names the outfit under the racer (MKW: "King Boo", "Pro Racer"). No kart: with karts picked
+    // (`kartName`) the kart comes on the Kart screen (Adam, 28 Sept 2026: "This part should just show the characters,
+    // not the karts"); without, the body chosen here (the Body row) is named
     const paint = g.choices.some((c) => c.id === 'paint') && g.paintName !== DEFAULT_PAINT_NAME ? g.paintName : '';
     const body = !kartName && g.bodyName !== BODIES[0].name ? g.bodyName : '';
-    const sub = [kartName ?? body, paint].filter(Boolean).join(' · ');
+    const sub = [body, paint].filter(Boolean).join(' · ');
     const key = `${g.racerId}|${sub}`;
     if (key === this.plateOf) return;
     const swap = this.plateOf.split('|')[0] !== g.racerId;
@@ -449,6 +461,12 @@ export class RosterView implements ScreenView {
     p.sub.textContent = sub;
     if (swap) replay(p.root, 'swap');
     if (this.turntable) this.turntable.dataset.racer = g.racerId;
+  }
+
+  /** A racer picked: its tile pulses and the name's ribbon flashes the sun while the racer on the stage gives its flourish (UI.racerLockInMs). */
+  lockIn(id: string): void {
+    this.buttons.get(id)?.classList.add('locked-in');
+    this.side?.classList.add('locked-in');
   }
 
   /** Mark the tile the garage dresses (it keeps a ring while the focus is down in the garage). */

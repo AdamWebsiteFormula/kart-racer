@@ -178,6 +178,8 @@ export class UiRoot {
   private previewing = '';
   /** a kart chosen: its "Locked in!" pulse plays until then (UI.lockInMs), input waits, then the next screen comes */
   private lockIn: { until: number; timer: ReturnType<typeof setTimeout> } | null = null;
+  /** racers picked on the Racer screen so far: each a flourish on the stage (turntable().cheer) */
+  private cheers = 0;
   /** the last pointer down's kind: on a touch screen a first tap on a kart card previews it, a second on the same one chooses */
   private pointerKind = '';
   /** the Kart screen as last drawn (its cards' names, colors and locks, for the hero) */
@@ -904,7 +906,7 @@ export class UiRoot {
       case 'modeSelect': this.dispatch({ type: 'pickMode', mode: id as RaceMode }); break;
       case 'rosterSelect': {
         if (id === 'paint' || id === 'body') this.changeLook(id, 1);
-        else this.dispatch({ type: 'pickRacer', racerId: id });
+        else this.chooseRacer(id);
         break;
       }
       // the class row under the cups and the tracks (screens/menus.ts speedRow): a class or the Mirror switch, else the cup or track
@@ -944,6 +946,23 @@ export class UiRoot {
     if (this.reducedMotion) { go(); return; }
     this.views.karts.lockIn(id);
     this.lockIn = { until: this.clock() + UI.lockInMs, timer: setTimeout(() => { this.lockIn = null; go(); }, UI.lockInMs) };
+  }
+
+  /**
+   * A racer tile pressed (Enter, pad A, a click, a second tap). With karts picked the racer standing on the stage gives
+   * its flourish as it is picked, as Mario Kart World's character does before its vehicle screen comes (stills:
+   * youtube.com/watch?v=_9JZhslBy3E, 3:22: Mario crouches and jumps, a fist in the air, about a second): the tile
+   * pulses, input waits UI.racerLockInMs, then the Kart screen comes. With reduced motion, or karts not picked, at once.
+   */
+  private chooseRacer(id: string): void {
+    if (this.lockIn) return;
+    if (this.focusBy.get('rosterSelect') !== id) this.setFocus(id, false);
+    if (this.dressing !== id) this.dress(id);
+    const go = () => { if (this.app.screen === 'rosterSelect' && !this.app.overlays.length) this.dispatch({ type: 'pickRacer', racerId: id }); };
+    if (this.reducedMotion || !this.kartPick) { go(); return; }
+    this.cheers++;
+    this.views.roster.lockIn(id);
+    this.lockIn = { until: this.clock() + UI.racerLockInMs, timer: setTimeout(() => { this.lockIn = null; go(); }, UI.racerLockInMs) };
   }
 
   /** The kart under the focus on show on the Kart screen: large in the hero, and its four bars as a ghost over the kart chosen now. */
@@ -1009,7 +1028,7 @@ export class UiRoot {
    * `kartId`: with karts picked, that kart (its shared body, Classic or Buggy, is in `look` already); absent, the
    * racer's own kart.
    */
-  turntable(): { box: HTMLElement; racerId: string; look: KartLookIds; kartId?: string } | null {
+  turntable(): { box: HTMLElement; racerId: string; look: KartLookIds; kartId?: string; stand?: boolean; cheer?: number } | null {
     const key = this.active?.key;
     // the Mode screen's: the racer last chosen, in the kart they race in, as MKW's mode menu shows its racers beside the list
     if (key === 'modeSelect') {
@@ -1027,6 +1046,9 @@ export class UiRoot {
     const box = this.views.roster.turntable;
     if (key !== 'rosterSelect' || !box?.isConnected) return null;
     const racerId = this.dressing || this.app.racerId, kartId = this.kartOf(racerId);
+    // with karts picked the kart comes on the Kart screen: here the racer stands alone (Adam, 28 Sept 2026: "This part
+    // should just show the characters, not the karts"), and `cheer` counts the picks (each one its flourish)
+    if (this.kartPick) return { box, racerId, look: lookFor(this.save, racerId, kartId), stand: true, cheer: this.cheers };
     return { box, racerId, look: lookFor(this.save, racerId, kartId), ...(kartId ? { kartId } : {}) };
   }
 

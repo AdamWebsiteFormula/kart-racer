@@ -2,12 +2,70 @@
 // changes, turning (or standing still for reduced motion), standing in the box the menu leaves for it on
 // the whole screen, popping in, and giving back its own material copies, never a shared one.
 import { describe, expect, it, vi } from 'vitest';
-import { ConstantAlphaFactor, CustomBlending, OneMinusConstantAlphaFactor, type Material, type Mesh, type Scene, type ShaderMaterial, type WebGLRenderer } from 'three';
-import { buildRacerMesh, isShared } from '../art-pipeline/index.ts';
-import { frameDistance, heroFit, MAX_DISTANCE, MIN_DISTANCE, POP_FROM, POP_S, popScale, Showroom, stageFade, STILL_YAW, TURN_RATE } from './showroom.ts';
+import { Box3, ConstantAlphaFactor, CustomBlending, OneMinusConstantAlphaFactor, Vector3, type Material, type Mesh, type Scene, type ShaderMaterial, type WebGLRenderer } from 'three';
+import { buildRacerMesh, isShared, RACER_MODELS } from '../art-pipeline/index.ts';
+import { riggedTemplate } from '../art-pipeline/__tests__/parts.ts';
+import { frameDistance, heroFit, MAX_DISTANCE, MIN_DISTANCE, POP_FROM, POP_S, popScale, Showroom, stageFade, STAND_YAW, STILL_YAW, TURN_RATE } from './showroom.ts';
 
 const kartOf = (s: Showroom) => s.scene.getObjectByName('racer-pip') ?? s.scene.getObjectByName('racer-boulder');
 const mats = (o: { traverse(f: (x: unknown) => void): void }) => { const out: Material[] = []; o.traverse((x) => { const m = (x as Mesh).material as Material | undefined; if ((x as Mesh).isMesh && m) out.push(m); }); return out; };
+
+describe('the Racer screen\'s racer standing alone (Adam, 28 Sept 2026: "This part should just show the characters, not the karts")', () => {
+  it('stands the racer alone on the stand (no kart), facing you a little from the side without turning, nothing until its model is in; a new racer or one out of a kart says hello with its flourish, and a pick is its flourish again', async () => {
+    const t = await riggedTemplate('juniper');
+    const spy = vi.spyOn(RACER_MODELS, 'rigged').mockImplementation((id: string) => (id === 'juniper' ? t : undefined));
+    const s = new Showroom();
+    const view = { w: 1600, h: 900 }, box = { x: 900, y: 100, w: 600, h: 650 };
+    s.show('pip', {}, true); // (no model in for Pip here: the backdrop alone until it is)
+    expect([s.showing, s.standing]).toEqual(['', null]);
+    s.show('juniper', {}, true);
+    const fig = s.standing!;
+    expect(fig.racerId).toBe('juniper');
+    expect(s.scene.getObjectByName('standing-juniper')).toBe(fig.root);
+    expect(s.scene.getObjectByName('racer-juniper')).toBeUndefined(); // no kart
+    s.update(1, false, view, box);
+    expect(fig.flourishing).toBe(true); // hello: its flourish as it comes on show
+    const stand = fig.root.parent!;
+    for (let t = 1; t < 3; t += 1 / 30) s.update(t, false, view, box);
+    expect(stand.rotation.y).toBe(STAND_YAW); // never turning: it moves on its own
+    expect(fig.flourishing).toBe(false);
+    s.cheer(); // picked
+    expect(fig.flourishing).toBe(true);
+    // the same racer, same paint: not built again; into a kart (the Kart screen): built as a kart, says hello again
+    s.show('juniper', {}, true);
+    expect(s.standing).toBe(fig);
+    s.show('juniper', {}, false);
+    expect(s.standing).toBeNull();
+    expect(s.showing.includes('stand')).toBe(false);
+    s.dispose();
+    spy.mockRestore();
+  }, 120_000);
+
+  it('frames each racer by their height: whoever is on show, their feet stand on one line in the box and their head below its top', async () => {
+    const ts = { juniper: await riggedTemplate('juniper'), gus: await riggedTemplate('gus') } as Record<string, Awaited<ReturnType<typeof riggedTemplate>>>;
+    const spy = vi.spyOn(RACER_MODELS, 'rigged').mockImplementation((id: string) => ts[id]);
+    const s = new Showroom();
+    const view = { w: 1600, h: 900 }, box = { x: 900, y: 100, w: 600, h: 560 };
+    const feetAndHead = (id: string): [number, number] => {
+      s.show(id, {}, true);
+      s.update(10, true, view, box);
+      const fig = s.standing!;
+      s.camera.updateMatrixWorld(); // (a render does this)
+      fig.root.updateMatrixWorld(true);
+      const px = (y: number) => { const p = new Vector3(0, y, 0).applyMatrix4(fig.root.parent!.matrixWorld).project(s.camera); return (1 - p.y) / 2 * view.h; };
+      return [px(0), px(new Box3().setFromObject(fig.root, true).max.y)];
+    };
+    const [jFeet, jHead] = feetAndHead('juniper'), [gFeet, gHead] = feetAndHead('gus');
+    expect(Math.abs(jFeet - gFeet), 'the feet on one line').toBeLessThan(6);
+    for (const [feet, head] of [[jFeet, jHead], [gFeet, gHead]]) {
+      expect(feet).toBeLessThan(box.y + box.h);
+      expect(head).toBeGreaterThan(box.y);
+      expect((feet - head) / box.h).toBeGreaterThan(0.75); // big in its box
+    }
+    s.dispose();
+    spy.mockRestore();
+  }, 120_000);
+});
 
 describe('the showroom', () => {
   it('shows the look, rebuilds only on a change, frees only its own material copies', () => {

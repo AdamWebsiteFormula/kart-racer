@@ -1025,6 +1025,8 @@ const showroom = new Showroom(scene.environment);
 new TextureLoader().load(`${import.meta.env.BASE_URL}art/menus/stage.webp`, (t) => showroom.setBackdrop(t), undefined, () => { /* no picture: its plain colour stands */ });
 /** how much of the stage shows (0 none, 1 all), eased in and out with the screen change (UI.wipeMs) */
 let stageAlpha = 0;
+/** the Racer screen's picks seen so far (UiRoot.turntable().cheer): a new one is the racer's flourish */
+let stageCheers = 0;
 
 /** The screens drawn on the stage: the whole setup after the title (design §12, 26 Sept 2026), as MKW's own menus sit on theirs; the title keeps the attract race. */
 const STAGE_SCREENS: ReadonlySet<string> = new Set(['modeSelect', 'rosterSelect', 'kartSelect', 'cupSelect', 'trackSelect']);
@@ -1044,7 +1046,9 @@ function drawStage(nowS: number, reduced: boolean, alpha: number): void {
   const r = t?.box.getBoundingClientRect();
   const view = { w: innerWidth, h: innerHeight };
   const box = t && r && r.width >= 8 && r.height >= 8 ? { x: r.left, y: r.top, w: r.width, h: r.height } : undefined;
-  if (t && box) showroom.show(t.racerId, { ...artLook(t.look), kartId: t.kartId });
+  // the Racer screen's racer stands alone (art-pipeline stand.ts); each pick there is its flourish
+  if (t && box) showroom.show(t.racerId, { ...artLook(t.look), kartId: t.kartId }, t.stand === true);
+  if (t?.cheer !== undefined && t.cheer !== stageCheers) { if (t.cheer > stageCheers) showroom.cheer(); stageCheers = t.cheer; }
   showroom.update(nowS, reduced, view, box);
   renderer.setViewport(0, 0, view.w, view.h);
   showroom.draw(renderer, alpha, box !== undefined);
