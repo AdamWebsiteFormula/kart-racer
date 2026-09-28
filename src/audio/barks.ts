@@ -1,16 +1,21 @@
 // Racer voice lines ("barks"): who says what, and when. Pure; GameAudio plays the answer.
 //
-// Mario Kart gives every racer a short exclamation for a handful of moments (Mario Kart 8's voice bank:
-// select, rocket start, dash, jump, attack, overtake, damage, goal top / rank-out, first place: one
-// or two clips each). The rules below are the standard bark practice (Valve's dynamic dialog, GDC 2012:
-// a cooldown per line so the same gag never fires twice in a row, a random pick among recorded takes;
-// Wwise / FMOD voice limiting: a small voice budget and priorities, lower lines dropped, not stacked):
+// As often, and at the moments, Mario Kart World's racers speak (Adam, 28 Sept 2026: "The characters in
+// Mario Kart World don't say very much. I only want them saying the same amount of things"). Its quote
+// list (mariowiki.com/List_of_quotes_from_the_Mario_Kart_series, Mario Kart World section) ties lines
+// only to being picked, the finish (1st, 2nd-9th, out), being hit and a Star, all short exclamations;
+// Mario Kart 8's passing quips are gone from it (comicbook.com, 5 July 2025); no racer in any Mario Kart
+// counts laps or apologizes; a review calls its voice work minimal. Mario Kart 8 also voiced tricks,
+// boosts and item hits on a rival; World's list shows none of those, so here a trick and a gloat are rare
+// and a boost says nothing. The rate is measured on whole races (render.mix.ts, barks.mix.ts; audio SOP).
+// The mechanics are standard bark practice (Valve's dynamic dialog, GDC 2012: a cooldown per line, a
+// random pick among takes; Wwise / FMOD voice limiting: a small budget and priorities, lower lines
+// dropped, not stacked):
 // - one line at a time, whoever says it, at least `gap` apart, and a racer's own lines `perRacer` apart;
-// - each moment has a chance and its own cooldown, so a trick or a boost is voiced now and then, not
-//   every time (Crash Team Racing Nitro-Fueled's few, frequent lines were reviewed as repetitive);
+// - each moment has a chance and its own cooldown; a chance of 0 is a moment nobody speaks at;
 // - the takes of a moment come round in a shuffled order, never the same one twice running;
-// - the player's racer says everything; a rival speaks only near the player, quieter with distance,
-//   and only about the player: hit near them, their item hitting the player, passing the player.
+// - the player's racer says the lines; a rival speaks only when the player's item hits them, near the
+//   player, quieter with distance.
 import type { ItemEvent } from '../items/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
 import { distanceGain, type Listener } from './director.ts';
@@ -35,22 +40,33 @@ export const BARKS = Object.freeze({
   /** a rival's line against the player's own (AUDIO.otherGain is the same idea for their sounds) */
   rivalGain: 0.75,
   rules: {
+    // Mario Kart World: said when picked, when hit, at the finish (its quote list)
     select: { chance: 1, cooldown: 0, priority: 5 },
-    start: { chance: 1, cooldown: 0, priority: 3 },
-    boost: { chance: 0.35, cooldown: 10, priority: 1 },
-    trick: { chance: 0.5, cooldown: 7, priority: 1 },
-    hitRival: { chance: 1, cooldown: 4, priority: 3 },
-    overtake: { chance: 0.4, cooldown: 12, priority: 2 },
     hit: { chance: 1, cooldown: 2.5, priority: 4 },
     win: { chance: 1, cooldown: 0, priority: 5 },
     good: { chance: 1, cooldown: 0, priority: 5 },
     lose: { chance: 1, cooldown: 0, priority: 5 },
-    lap: { chance: 1, cooldown: 0, priority: 3 },
-    sorry: { chance: 0.7, cooldown: 8, priority: 2 },
+    // a rocket start: once a race at most (Mario Kart 8's voice bank has it)
+    start: { chance: 1, cooldown: 0, priority: 3 },
+    // rare: Mario Kart 8 voiced them, World's quote list does not (about one of each a race)
+    trick: { chance: 0.2, cooldown: 30, priority: 1 },
+    hitRival: { chance: 0.25, cooldown: 30, priority: 3 },
+    // never: World dropped the passing quips; no Mario Kart racer counts laps or says sorry; no boost line
+    boost: { chance: 0, cooldown: 0, priority: 1 },
+    overtake: { chance: 0, cooldown: 0, priority: 2 },
+    lap: { chance: 0, cooldown: 0, priority: 3 },
+    sorry: { chance: 0, cooldown: 0, priority: 2 },
   } satisfies Record<Bark, Rule> as Readonly<Record<Bark, Rule>>,
-  /** a rival taunting the player after their item hit them, and a rival hit near the player */
-  rivalChance: { hitRival: 0.7, hit: 0.8, overtake: 0.5 } as Readonly<Partial<Record<Bark, number>>>,
+  /** a rival's line: only their hit, when the player's item hit them (the rest are 0: never) */
+  rivalChance: { hit: 0.5 } as Readonly<Partial<Record<Bark, number>>>,
 });
+
+/**
+ * The lines a race these rules come to, on average (the tests hold them to it): over 96 whole races, six
+ * tracks, each racer as the player (render.mix.ts CENSUS, 28 Sept 2026), 8.3 a race, 4.0 of them the
+ * player being hit and 1 the finish; 18.4 before the cut.
+ */
+export const LINES_A_RACE = 9;
 
 /** How many takes of a moment a racer has (0: none recorded, so nothing is said). */
 export type TakeCount = (racerId: string, bark: Bark) => number;
@@ -68,6 +84,7 @@ export class Barker {
   private lastRank: number | null = null;
   private goodRank = 3;
   private readonly found: Candidate[] = [];
+  private readonly rolled: Bark[] = [];
   /** when the line the game is playing ends (GameAudio sets it): nothing starts before, unless it cuts in */
   until = -Infinity;
 
@@ -130,9 +147,16 @@ export class Barker {
   pick(race: readonly RaceEvent[], items: readonly ItemEvent[], l: Listener, now: number, count: TakeCount): BarkCue | null {
     const me = l.playerId;
     if (!me) return null;
-    const found = this.found;
+    const found = this.found, rolled = this.rolled;
     found.length = 0;
-    const mine = (bark: Bark, n?: number) => found.push({ racerId: me, bark, gain: 1, pan: 0, n });
+    rolled.length = 0;
+    // each moment rolls its chance once a tick (a hit comes as a kart event and an item event); a missed
+    // roll drops the line and leaves the moment's cooldown free
+    const mine = (bark: Bark, n?: number) => {
+      if (rolled.includes(bark)) return;
+      rolled.push(bark);
+      if (this.random() < BARKS.rules[bark].chance) found.push({ racerId: me, bark, gain: 1, pan: 0, n });
+    };
     const theirs = (racerId: string, bark: Bark) => {
       if (racerId === me) return;
       const p = l.positionOf(racerId);
@@ -152,7 +176,7 @@ export class Barker {
           if (e.racerId === me) mine(!e.dnf && e.rank === 1 ? 'win' : !e.dnf && e.rank <= this.goodRank ? 'good' : 'lose');
           break;
         case 'lap':
-          // Sprocket counts laps aloud (design §4): lap two, and the last one
+          // Sprocket's lap count (lap two, the last lap): chance 0, as no Mario Kart racer counts laps
           if (e.racerId === me && !e.isFinal && e.lap === 2) mine('lap', 0);
           else if (e.racerId === me && e.isFinal) mine('lap', 1);
           break;
@@ -162,12 +186,11 @@ export class Barker {
           else if (e.racerId !== me && myNewRank !== null && this.lastRank !== null && myNewRank > this.lastRank && e.rank === this.lastRank) theirs(e.racerId, 'overtake');
           break;
         case 'kart': {
+          // a rival's own spins and bumps are not the player's business: they say nothing
+          if (e.racerId !== me) break;
           const k = e.event;
-          if (k.type === 'hit') { if (e.racerId === me) mine('hit'); else theirs(e.racerId, 'hit'); }
-          else if (e.racerId !== me) {
-            // Boulder apologizes after ramming anyone, near the player
-            if (k.type === 'bump' && e.racerId === 'boulder') theirs('boulder', 'sorry');
-          } else if (k.type === 'trick') mine('trick');
+          if (k.type === 'hit') mine('hit');
+          else if (k.type === 'trick') mine('trick');
           else if (k.type === 'boostStart' && k.source === 'start') mine('start');
           // a big drift boost only (orange and up): the small ones come every corner
           else if (k.type === 'boostStart' && k.source === 'drift' && k.seconds > 1) mine('boost');
@@ -180,14 +203,19 @@ export class Barker {
     if (myNewRank !== null) this.lastRank = myNewRank;
     for (const e of items) {
       if (e.type !== 'hit') continue;
-      if (e.racerId === me) mine('hit'); else theirs(e.racerId, 'hit');
-      if (e.byRacerId === me && e.racerId !== me) mine('hitRival');
-      else if (e.racerId === me && e.byRacerId && e.byRacerId !== me) theirs(e.byRacerId, 'hitRival');
+      if (e.racerId === me) {
+        mine('hit');
+        if (e.byRacerId && e.byRacerId !== me) theirs(e.byRacerId, 'hitRival');
+      } else if (e.byRacerId === me) {
+        // the player's item hit a rival: the player's gloat, or the rival's cry near the player
+        mine('hitRival');
+        theirs(e.racerId, 'hit');
+      }
     }
     if (found.length === 0) return null;
 
     // the best candidate that may speak now: priority first, and the player's own a step ahead of a
-    // rival's (the player's gloat over the rival's yelp; a rival's taunt never over the player's hit)
+    // rival's (the player's gloat over the rival's cry; a rival never over the player's hit)
     let best: Candidate | null = null, bestScore = -Infinity;
     for (const c of found) {
       const rule = BARKS.rules[c.bark];
@@ -204,8 +232,6 @@ export class Barker {
     }
     if (!best) return null;
     const rule = BARKS.rules[best.bark];
-    // the chance is rolled only for the line that would speak, so a missed roll leaves the moment free
-    if (best.racerId === me && this.random() >= rule.chance) return null;
     this.lastAt = now; this.lastPriority = rule.priority;
     this.racerAt.set(best.racerId, now);
     this.barkAt.set(`${best.racerId}:${best.bark}`, now);

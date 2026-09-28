@@ -13,14 +13,16 @@ import type { RaceConfig } from '../race-manager/types.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
+import VOICE from '../../public/audio/voice.json';
+import { Barker, type TakeCount } from './barks.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
+import type { Bark, BarkCue } from './types.ts';
 
 const FILES = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
 /** main.ts: the results screen opens this long after the race is over */
 const RESULTS_AFTER = 2.5;
 
-function race(def: TrackDefinition, seed: number) {
-  const player = CAST[0].id;
+function race(def: TrackDefinition, seed: number, player = CAST[0].id) {
   const config: RaceConfig = {
     mode: 'quick', trackId: def.id, speedClass: 150, seed,
     // main.ts roster(): the player first in racer order
@@ -36,13 +38,13 @@ function race(def: TrackDefinition, seed: number) {
   const st = manager.state;
   const ear: Vec3 = [0, 0, 0];
   const l: Listener = { playerId: player, position: ear, heading: 0, positionOf: (id) => st.karts.find((k) => k.racerId === id)?.position };
-  const hear = (ev: ReturnType<typeof simTick>) => {
+  const follow = () => {
     const k = st.karts[pi];
     ear[0] = k.position[0] - Math.sin(k.heading) * 12; ear[1] = k.position[1]; ear[2] = k.position[2] - Math.cos(k.heading) * 12;
     l.heading = k.heading;
-    return direct(ev.race, ev.items, l).cues;
   };
-  return { st, pi, player, tick: () => simTick(parts, null), hear };
+  const hear = (ev: ReturnType<typeof simTick>) => { follow(); return direct(ev.race, ev.items, l).cues; };
+  return { st, pi, player, l, follow, tick: () => simTick(parts, null), hear };
 }
 
 describe('the race\'s sounds, end to end', () => {
@@ -86,4 +88,39 @@ describe('the race\'s sounds, end to end', () => {
     expect(fanfare, 'the finish cue plays while the race screen is up').toBe(true);
     expect(after, 'bumps, pads and creatures the results screen would play').toBeGreaterThan(0);
   });
+
+  // Sprocket once counted laps and Boulder said sorry after bumps: the two racers with habits of their
+  // own, on Frostbite Pass (where the most is said) and Boardwalk Nights, and Pip on Harbour Loop
+  for (const [file, player] of [['frostbite-pass', 'sprocket'], ['boardwalk-nights', 'boulder'], ['harbour-loop', 'pip']] as const) {
+    it(`${file}, ${player}: a whole race says a few lines, at Mario Kart World's moments (barks.ts)`, () => {
+      const voices = VOICE as Record<string, Partial<Record<Bark, string[]>>>;
+      const takes: TakeCount = (r, b) => voices[r]?.[b]?.length ?? 0;
+      const r = race(FILES[`../track-builder/tracks/${file}.json`], 11, player);
+      const b = new Barker(11);
+      b.reset(r.st.trackers[r.pi].shownRank);
+      const lines: BarkCue[] = [];
+      let finish = 0;
+      for (let t = 0; t < 400 * SIM_HZ && !finish; t++) {
+        const ev = r.tick();
+        r.follow();
+        const now = t * SIM_DT;
+        const c = b.pick(ev.race, ev.items, r.l, now, takes);
+        // a line rings for about as long as the recorded ones do (1.4 s on average)
+        if (c) { lines.push(c); b.until = now + 1.4; }
+        if (ev.race.some((e) => e.type === 'finish' && e.racerId === player)) finish = now;
+      }
+      expect(finish, 'the race ended').toBeGreaterThan(0);
+      const said = lines.map((c) => `${c.racerId}:${c.bark}`);
+      // being hit is always voiced, as in World, so a hard race says more; the rest stays a handful (over 96
+      // whole races: 3.3 a race, 8 at most; it was 14)
+      const chatter = lines.filter((c) => !(c.racerId === player && ['hit', 'win', 'good', 'lose'].includes(c.bark)));
+      expect(chatter.length, said.join(' ')).toBeLessThanOrEqual(6);
+      // the player's own lines, at the moments World's racers speak at; a rival only cries out at the player's hit
+      for (const c of lines) {
+        if (c.racerId === player) expect(['start', 'hit', 'trick', 'hitRival', 'win', 'good', 'lose'], said.join(' ')).toContain(c.bark);
+        else expect(c.bark, said.join(' ')).toBe('hit');
+      }
+      expect(said.filter((s) => /:(win|good|lose)$/.test(s)), 'one finish line').toHaveLength(1);
+    });
+  }
 });
