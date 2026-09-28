@@ -150,6 +150,44 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
   });
 });
 
+describe('picking a racer (Adam, 28 Sept 2026: the Racer screen shows the characters alone; MKW\'s character gives a flourish as it is picked)', () => {
+  it('the racer standing on the stage gives its flourish (turntable().cheer counts the picks), the tile pulses, input waits UI.racerLockInMs, then the Kart screen comes', () => {
+    vi.useFakeTimers();
+    const ui = root(host(), true);
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    expect(ui.turntable()).toMatchObject({ racerId: 'pip', stand: true, cheer: 0 });
+    key('ArrowRight'); // Momo
+    key('Enter');
+    expect(ui.app.screen).toBe('rosterSelect');
+    expect(ui.turntable()).toMatchObject({ racerId: 'momo', stand: true, cheer: 1 });
+    expect(q('[data-id="momo"]')!.classList.contains('locked-in')).toBe(true);
+    key('ArrowRight'); key('Escape'); key('Enter'); // dropped while the flourish plays
+    expect([ui.app.screen, ui.turntable()?.cheer]).toEqual(['rosterSelect', 1]);
+    vi.advanceTimersByTime(UI.racerLockInMs);
+    expect([ui.app.screen, ui.app.racerId]).toEqual(['kartSelect', 'momo']);
+    // the Kart screen's hero: the racer seated in the kart again
+    expect(ui.turntable()).toMatchObject({ racerId: 'momo', kartId: 'scrap' });
+    expect(ui.turntable()!.stand).toBeUndefined();
+    ui.dispose();
+  });
+
+  it('with reduced motion, or karts not picked, a racer goes on at once (no flourish)', () => {
+    const ui = root(host());
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
+    key('Enter');
+    expect(ui.app.screen).toBe('kartSelect');
+    ui.dispose();
+    document.body.innerHTML = '';
+    const off = new UiRoot(document.body, host(), null, { kartPick: false });
+    for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) off.dispatch(a);
+    // without karts picked the Racer screen is where the body is chosen: the racer in their own kart, as ever
+    expect(off.turntable()!.stand).toBeUndefined();
+    key('Enter');
+    expect(off.app.screen).toBe('trackSelect');
+    off.dispose();
+  });
+});
+
 describe('choosing a kart', () => {
   it('locks in with a short pulse before the next screen (UI.lockInMs), and input waits it out', () => {
     vi.useFakeTimers();
@@ -232,9 +270,11 @@ describe('choosing a kart', () => {
     expect(t.box).toBe(q('.hero-box'));
     expect(t.box.getAttribute('aria-hidden')).toBe('true');
     expect([t.racerId, t.kartId]).toEqual(['boulder', 'windup']);
-    // the racer screen's: the racer on show in the kart they would race in (their own until one is chosen)
+    // the racer screen's: the racer on show standing alone, no kart (Adam, 28 Sept 2026: "This part should just show
+    // the characters, not the karts"), and the picks so far (each one the racer's flourish on the stage)
     ui.dispatch({ type: 'back' });
-    expect(ui.turntable()).toMatchObject({ racerId: 'boulder', kartId: 'stomper', look: {} });
+    expect(ui.turntable()).toMatchObject({ racerId: 'boulder', stand: true, cheer: 0, look: {} });
+    expect(ui.turntable()!.kartId).toBeUndefined();
     ui.dispose();
   });
 });
@@ -333,9 +373,10 @@ describe('the Racer screen with karts picked (design §12)', () => {
     expect(panel).not.toBeNull();
     expect(panel.hidden).toBe(true); // hidden until asked for (Adam, 26 Sept 2026)
     expect(q('[data-id="body"]')).toBeNull();
-    // under the hero: the racer's name big, the kart they would race in under it; no class, words or bars on any tile
+    // under the hero: the racer's name big and nothing of a kart (Adam, 28 Sept 2026: "This part should just show the
+    // characters, not the karts"); no class, words or bars on any tile
     expect(q('.np-name')!.textContent).toBe('Pip');
-    expect(q('.np-text')!.textContent).toBe('Parcel Scooter');
+    expect(q('.np-text')!.textContent).toBe('');
     expect(q('.racer-tile .cls, .racer-tile .stats, .racer-tile .who, .racer-tile .quip')).toBeNull();
     expect(q('[data-id="gus"]')!.textContent).toBe('B'); // (its initial under the picture, hidden from assistive tech)
     // each tile's own four stats in its label, for a screen reader
@@ -347,7 +388,7 @@ describe('the Racer screen with karts picked (design §12)', () => {
     expect(speed.getAttribute('data-ghost')).toBe('gain');
     expect(speed.querySelector('.sp-chev')!.getAttribute('data-n')).toBe('3');
     expect(q('.sp-title')!.textContent).toBe('Big Gus in the Snack Truck');
-    expect(q('.np-text')!.textContent).toBe('Snack Truck');
+    expect(q('.np-text')!.textContent).toBe('');
     on.dispose();
     document.body.innerHTML = '';
     const off = new UiRoot(document.body, host(), null, { kartPick: false });

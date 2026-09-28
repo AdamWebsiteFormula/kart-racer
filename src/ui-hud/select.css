@@ -86,7 +86,9 @@
 /* the racer the rows under the tiles dress keeps a ring while the focus is down there */
 .tile.dressed:not(.focused) { box-shadow: inset 0 0 0 3px #fff, 0 0 0 4px var(--sun), 0 10px 22px rgb(10 12 36 / 0.3); }
 
-/* a racer's tile: their face, head and shoulders, cut out (public/art/racers/tiles) */
+/* a racer's tile: the racer alone, full figure, standing in a pose of their own (28 Sept 2026, Adam: "This part should
+   just show the characters, not the karts"; rendered from their 3D model: scripts/headless/racer-tiles.mjs), feet on
+   the tile's foot, as MKW's character tiles */
 .racer-tile { aspect-ratio: 4 / 5; }
 .tile-art {
   position: absolute;
@@ -94,15 +96,17 @@
   z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: 50% 10%;
-  transform-origin: 50% 35%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  transform-origin: 50% 62%;
   transition: transform var(--t-med) var(--out);
   pointer-events: none;
   -webkit-user-drag: none;
 }
-.tile.focused .tile-art { transform: scale(1.08); }
+.tile.focused .tile-art { transform: scale(1.05); }
 .tile-letter { position: absolute; inset: 0; display: grid; place-items: center; font: 400 clamp(40px, 5vw, 72px)/1 var(--display); color: rgb(255 255 255 / 0.4); }
+/* (the picture is the racer alone on a clear ground: the initial goes while it is there, and comes back if it fails) */
+.racer-tile:has(> .tile-art) > .tile-letter { display: none; }
 
 /* a kart's tile: the kart rendered from its 3D model (public/art/karts), our drawing under it until it loads */
 .kart-tile { --accent: var(--kart-a); aspect-ratio: 16 / 9; }
@@ -148,7 +152,7 @@
   opacity: 0;
   pointer-events: none;
 }
-.kart-screen.on .kart-tile.locked-in { animation: lock-pulse var(--t-lock-in) var(--pop); }
+.kart-screen.on .kart-tile.locked-in, .roster-screen.on .racer-tile.locked-in { animation: lock-pulse var(--t-lock-in) var(--pop); }
 .kart-tile.locked-in .kc-stamp { opacity: 1; transform: translateX(-50%) rotate(-8deg) scale(1); transition: transform 180ms var(--pop), opacity 80ms linear; }
 @keyframes lock-pulse { 40% { transform: translateY(-6px) scale(1.12); } }
 /* a locked twin refused: it shakes no */

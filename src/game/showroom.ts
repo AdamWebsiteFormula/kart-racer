@@ -8,12 +8,17 @@
 // grid, turning slowly (on the Kart screen seated in the kart under the focus). The kart wears its own
 // copies of the materials (never the near-camera fade the rivals' shared ones carry) and gives them back
 // when it changes. A new racer pops in and gives a happy bounce (the finish's own reaction, anim.ts).
+// On the Racer screen (Adam, 28 Sept 2026: "This part should just show the characters, not the karts") the
+// racer stands alone instead, full body, as MKW's character select shows each character: no kart and no turn,
+// facing you a little from the side, idling in its own temper and giving its flourish when it comes on show
+// and when it is picked (art-pipeline stand.ts).
 import {
   AmbientLight, Box3, Color, ConstantAlphaFactor, CustomBlending, DirectionalLight, Group, HemisphereLight, Mesh, OneMinusConstantAlphaFactor,
   PerspectiveCamera, PlaneGeometry, Scene, ShaderMaterial, Sphere, SRGBColorSpace,
   type Material, type Object3D, type Texture, type WebGLRenderer,
 } from 'three';
 import { buildRacerMesh, freeSkeletons, isShared, RACER_MODELS, type KartLook } from '../art-pipeline/index.ts';
+import { makeStanding, type StandingRacer } from '../art-pipeline/stand.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { createKartState, NEUTRAL_INPUT, type KartState } from '../kart-controller/types.ts';
 import { KartView } from '../kart-controller/view.ts';
@@ -44,6 +49,16 @@ export const MIN_DISTANCE = 3, MAX_DISTANCE = 36;
 const DEFAULT_FRAME = Object.freeze({ y: 0.7, radius: 1.9 });
 /** a new kart on the stand pops in from this scale over POP_S seconds, with a little overshoot (none with reduced motion) */
 export const POP_FROM = 0.86, POP_S = 0.34;
+/**
+ * A racer standing (the Racer screen): turned this far toward the tiles on the screen's left (MKW's character
+ * faces you, a little toward its grid), framed by FRAME_FILL's rule at STAND_FILL (a standing figure fills its
+ * bounding sphere far more than a kart does: at the kart's fill its head and feet were cut off, and a fist
+ * raised in a flourish needs the room), the camera nearly level with it (a gentle look down at the chest, not
+ * the kart's high three-quarter), and a small contact shadow under its feet (half extents, m).
+ */
+export const STAND_YAW = -0.32, STAND_FILL = 0.9;
+const STAND_ELEVATION = 0.1;
+export const STAND_SHADOW = Object.freeze({ halfWidth: 0.42, halfLength: 0.34 });
 /** the camera eases to a new box (the stats panel opening, a window resized) at this rate a second (reduced motion: at once) */
 const FIT_RATE = 14;
 
@@ -146,8 +161,14 @@ export class Showroom {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(30, 16 / 9, 0.5, 80);
   readonly background = new Color(SHOWROOM_BG);
-  /** the kart on the stand, and what it is; a rigged racer (art-pipeline rigged.ts) sits in a KartView and idles, looking at you */
-  private kart: { key: string; root: Group; view: KartView | null; state: KartState; frame: { y: number; radius: number }; fresh: boolean; at: number; mats: Material[] } | null = null;
+  /**
+   * the kart on the stand, and what it is; a rigged racer (art-pipeline rigged.ts) sits in a KartView and idles,
+   * looking at you; or, `standing`, the racer alone on its feet (art-pipeline stand.ts)
+   */
+  private kart: {
+    key: string; racerId: string; root: Group; view: KartView | null; standing: StandingRacer | null; state: KartState;
+    frame: { y: number; radius: number }; fresh: boolean; at: number; mats: Material[];
+  } | null = null;
   private last = -1;
   /** the camera's fit now (eased toward each frame's), or null before the first frame */
   private fit: { dist: number; offX: number; offY: number; y: number } | null = null;
@@ -203,14 +224,25 @@ export class Showroom {
     if (img?.width && img.height) this.backdropAspect = img.width / img.height;
   }
 
-  /** Put this racer in this look on the stand (built again only when it changes, or once the model files arrive). */
-  show(racerId: string, look: KartLook): void {
-    const key = `${racerId}|${look.paint ?? ''}|${look.body ?? ''}|${look.kartId ?? ''}|${RACER_MODELS.has(racerId)}`;
+  /**
+   * Put this racer in this look on the stand (built again only when it changes, or once the model files arrive);
+   * `stand`: on its feet, alone (the Racer screen), in its paint; nothing until its model is in.
+   */
+  show(racerId: string, look: KartLook, stand = false): void {
+    const key = `${racerId}|${look.paint ?? ''}|${stand ? 'stand' : `${look.body ?? ''}|${look.kartId ?? ''}`}|${RACER_MODELS.has(racerId)}`;
     if (this.kart?.key === key) return;
-    // the same racer on the stand, only in another kart (the Kart screen's focus moving) or their models just in: no hello again
-    const hello = this.kart?.key.split('|')[0] !== racerId;
+    // the same racer on the stand, only in another kart (the Kart screen's focus moving), in another paint or their models
+    // just in: no hello again; a new racer, or the racer getting in or out of a kart, says hello
+    const prev = this.kart;
+    const hello = !prev || prev.racerId !== racerId || !!prev.standing !== stand;
     this.clearKart();
-    const root = buildRacerMesh(racerId, look);
+    let standing: StandingRacer | null = null;
+    if (stand) {
+      const t = RACER_MODELS.rigged(racerId);
+      if (!t) return;
+      standing = makeStanding(t, RACER_MODELS.paintMaterial(racerId, look.paint) ?? undefined);
+    }
+    const root = standing ? standing.root : buildRacerMesh(racerId, look);
     if (!root) return;
     ownKartMaterials(root);
     // its own copies fade with the stage (fadeable); a shared one never changes
@@ -220,13 +252,16 @@ export class Showroom {
       for (const x of Array.isArray(m) ? m : m ? [m] : []) if (!isShared(x) && !mats.includes(x)) { fadeable(x); mats.push(x); }
     });
     const state = createKartState({ racerId });
-    const view = root.userData.rig ? new KartView(makeConstants('medium', 150), root, state) : null;
+    const view = !standing && root.userData.rig ? new KartView(makeConstants('medium', 150), root, state) : null;
     // the hero close-up stands calm: the engine's rumble is the race's (kart-controller rev.ts)
     if (view) view.engine = false;
     const target = view ? view.root : root;
     this.stand.add(target);
-    this.kart = { key, root, view, state, frame: this.frameOf(target), fresh: hello, at: -1, mats };
+    this.kart = { key, racerId, root, view, standing, state, frame: this.frameOf(target), fresh: hello, at: -1, mats };
   }
+
+  /** The racer on its feet picked: its flourish again (the Racer screen's lock-in; nothing for a kart on the stand). */
+  cheer(): void { this.kart?.standing?.flourish(); }
 
   /**
    * The kart-plus-driver bounding sphere, measured once in its rest pose (stable through the
@@ -250,20 +285,27 @@ export class Showroom {
   /** What stands on the stand now ('' for nothing). */
   get showing(): string { return this.kart?.key ?? ''; }
 
+  /** The racer standing on the stand (the Racer screen's), or null (a kart, or nothing). */
+  get standing(): StandingRacer | null { return this.kart?.standing ?? null; }
+
   /**
    * Turn the stand and aim the camera: the whole canvas is `view` (CSS pixels) and the hero stands in `box`
    * (the whole view when absent). A rigged driver idles and looks at the camera while it can; a racer just
    * put on the stand pops in and bounces hello (not with reduced motion).
    */
   update(nowS: number, reduced: boolean, view: { w: number; h: number }, box: Box = { x: 0, y: 0, w: view.w, h: view.h }): void {
-    this.stand.rotation.y = reduced ? STILL_YAW : (nowS * TURN_RATE) % (Math.PI * 2);
     const k = this.kart, dt = this.last < 0 ? 0 : Math.min(0.1, Math.max(0, nowS - this.last));
+    const standing = k?.standing ?? null;
+    // a racer on its feet faces you a little from the side, never turning (it moves on its own); a kart turns
+    this.stand.rotation.y = standing ? STAND_YAW : reduced ? STILL_YAW : (nowS * TURN_RATE) % (Math.PI * 2);
     this.last = nowS;
     if (k && k.at < 0) {
       k.at = nowS;
-      if (k.fresh && !reduced) k.view?.anim.react('bounce');
+      if (k.fresh && !reduced) { k.view?.anim.react('bounce'); standing?.flourish(); }
     }
     this.stand.scale.setScalar(k && !reduced ? popScale(nowS - k.at) : 1);
+    this.shadow.scale.set(standing ? STAND_SHADOW.halfWidth : SHADOW.halfWidth, standing ? STAND_SHADOW.halfLength : SHADOW.halfLength, 1);
+    if (standing) standing.update(dt, this.camera.position, reduced);
     if (k?.view && dt > 0) {
       // the camera in the stand's turning frame: faced while it is anywhere in front of the kart
       const a = -this.stand.rotation.y, c = Math.cos(a), s = Math.sin(a), p = this.camera.position;
@@ -278,14 +320,15 @@ export class Showroom {
     // fixed fov and look-down angle; a view offset moves it to the box (heroFit). Eased, so the stats panel
     // opening moves the hero smoothly out of its way.
     const frame = k?.frame ?? DEFAULT_FRAME;
-    const want = { ...heroFit(view, box, frame.radius, this.camera.fov), y: frame.y };
+    const want = { ...heroFit(view, box, frame.radius, this.camera.fov, standing ? STAND_FILL : FRAME_FILL), y: frame.y };
     const f = this.fit && !reduced && dt > 0 ? this.fit : null;
     const e = f ? 1 - Math.exp(-FIT_RATE * dt) : 1;
     this.fit = f ? { dist: f.dist + (want.dist - f.dist) * e, offX: f.offX + (want.offX - f.offX) * e, offY: f.offY + (want.offY - f.offY) * e, y: f.y + (want.y - f.y) * e } : want;
     const fit = this.fit;
     this.camera.aspect = view.w / Math.max(1, view.h);
     this.camera.setViewOffset(view.w, view.h, fit.offX, fit.offY, view.w, view.h);
-    this.camera.position.set(0, fit.y + fit.dist * Math.sin(CAMERA_ELEVATION), fit.dist * Math.cos(CAMERA_ELEVATION));
+    const elevation = standing ? STAND_ELEVATION : CAMERA_ELEVATION;
+    this.camera.position.set(0, fit.y + fit.dist * Math.sin(elevation), fit.dist * Math.cos(elevation));
     this.camera.lookAt(0, fit.y, 0);
     this.camera.updateProjectionMatrix();
     // the backdrop covers the screen whatever its shape, zoomed a touch so its slow drift never shows an edge

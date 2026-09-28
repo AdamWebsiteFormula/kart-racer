@@ -454,7 +454,9 @@ describe('the Racer and Kart screens (select.css; design §12, 26 Sept 2026: as 
     expect(kvalue('.select-side.stats-on .hero-box', 'transform')).toMatch(/scale/);
     expect(kvalue('.hero-box', 'transition')).toBe('transform var(--t-med) var(--out)');
     expect(kvalue('.racer-tile', 'aspect-ratio')).toBe('4 / 5');
-    expect(kvalue('.tile-art', 'object-fit')).toBe('cover');
+    // a racer's tile: the racer alone, full figure, feet on its foot (28 Sept 2026); its initial only when the picture fails
+    expect([kvalue('.tile-art', 'object-fit'), kvalue('.tile-art', 'object-position')]).toEqual(['contain', '50% 100%']);
+    expect(kvalue('.racer-tile:has(> .tile-art) > .tile-letter', 'display')).toBe('none');
     expect(kvalue('.kc-art img.art', 'object-fit')).toBe('contain');
     // the drawing under the picture only until the picture loads
     expect(kvalue('.kc-art:has(> img.art) > .kart-svg', 'display')).toBe('none');

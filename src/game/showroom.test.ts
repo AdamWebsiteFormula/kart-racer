@@ -3,11 +3,44 @@
 // the whole screen, popping in, and giving back its own material copies, never a shared one.
 import { describe, expect, it, vi } from 'vitest';
 import { ConstantAlphaFactor, CustomBlending, OneMinusConstantAlphaFactor, type Material, type Mesh, type Scene, type ShaderMaterial, type WebGLRenderer } from 'three';
-import { buildRacerMesh, isShared } from '../art-pipeline/index.ts';
-import { frameDistance, heroFit, MAX_DISTANCE, MIN_DISTANCE, POP_FROM, POP_S, popScale, Showroom, stageFade, STILL_YAW, TURN_RATE } from './showroom.ts';
+import { buildRacerMesh, isShared, RACER_MODELS } from '../art-pipeline/index.ts';
+import { riggedTemplate } from '../art-pipeline/__tests__/parts.ts';
+import { frameDistance, heroFit, MAX_DISTANCE, MIN_DISTANCE, POP_FROM, POP_S, popScale, Showroom, stageFade, STAND_YAW, STILL_YAW, TURN_RATE } from './showroom.ts';
 
 const kartOf = (s: Showroom) => s.scene.getObjectByName('racer-pip') ?? s.scene.getObjectByName('racer-boulder');
 const mats = (o: { traverse(f: (x: unknown) => void): void }) => { const out: Material[] = []; o.traverse((x) => { const m = (x as Mesh).material as Material | undefined; if ((x as Mesh).isMesh && m) out.push(m); }); return out; };
+
+describe('the Racer screen\'s racer standing alone (Adam, 28 Sept 2026: "This part should just show the characters, not the karts")', () => {
+  it('stands the racer alone on the stand (no kart), facing you a little from the side without turning, nothing until its model is in; a new racer or one out of a kart says hello with its flourish, and a pick is its flourish again', async () => {
+    const t = await riggedTemplate('juniper');
+    const spy = vi.spyOn(RACER_MODELS, 'rigged').mockImplementation((id: string) => (id === 'juniper' ? t : undefined));
+    const s = new Showroom();
+    const view = { w: 1600, h: 900 }, box = { x: 900, y: 100, w: 600, h: 650 };
+    s.show('pip', {}, true); // (no model in for Pip here: the backdrop alone until it is)
+    expect([s.showing, s.standing]).toEqual(['', null]);
+    s.show('juniper', {}, true);
+    const fig = s.standing!;
+    expect(fig.racerId).toBe('juniper');
+    expect(s.scene.getObjectByName('standing-juniper')).toBe(fig.root);
+    expect(s.scene.getObjectByName('racer-juniper')).toBeUndefined(); // no kart
+    s.update(1, false, view, box);
+    expect(fig.flourishing).toBe(true); // hello: its flourish as it comes on show
+    const stand = fig.root.parent!;
+    for (let t = 1; t < 3; t += 1 / 30) s.update(t, false, view, box);
+    expect(stand.rotation.y).toBe(STAND_YAW); // never turning: it moves on its own
+    expect(fig.flourishing).toBe(false);
+    s.cheer(); // picked
+    expect(fig.flourishing).toBe(true);
+    // the same racer, same paint: not built again; into a kart (the Kart screen): built as a kart, says hello again
+    s.show('juniper', {}, true);
+    expect(s.standing).toBe(fig);
+    s.show('juniper', {}, false);
+    expect(s.standing).toBeNull();
+    expect(s.showing.includes('stand')).toBe(false);
+    s.dispose();
+    spy.mockRestore();
+  }, 120_000);
+});
 
 describe('the showroom', () => {
   it('shows the look, rebuilds only on a change, frees only its own material copies', () => {

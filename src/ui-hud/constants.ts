@@ -85,6 +85,12 @@ export const UI = Object.freeze({
   statGhostMs: 120,
   /** a kart chosen: its "Locked in!" pulse plays this long before the next screen comes (none with reduced motion) */
   lockInMs: 220,
+  /**
+   * a racer picked (karts picked on): the racer standing on the stage gives its flourish this long before the Kart screen
+   * comes (none with reduced motion): the flourish's own beat (art-pipeline stand.ts), as MKW's character jumps for about
+   * a second before its vehicle screen (stills: youtube.com/watch?v=_9JZhslBy3E, 3:22)
+   */
+  racerLockInMs: 720,
   /** the pad button (standard mapping: the top face button, Xbox Y) that shows the stats on the Racer and Kart screens, as the Y key does (input.ts isStatsKey) */
   padStatsButton: 3,
   /**
