@@ -155,8 +155,10 @@ export const CAST: Readonly<Record<string, CastVoice>> = {
     },
   },
   gus: {
-    name: 'Big Gus', voice: 'Algenib',
-    profile: 'A huge jolly walrus chef (male) in a bright cartoon kart-racing game: deep, booming and warm with a big hearty laugh (a "ha-ha", never a "ho ho ho"), generous, loves feeding everyone.',
+    // pace 1.3 and quick, punchy delivery (27 Sept 2026): his booming readings ran past the length check,
+    // and every rejected take spent a request of the TTS model's 100 a day (the 27 Sept run ran out on him)
+    name: 'Big Gus', voice: 'Algenib', pace: 1.3,
+    profile: 'A huge jolly walrus chef (male) in a bright cartoon kart-racing game: deep, booming and warm with a big hearty laugh (a "ha-ha", never a "ho ho ho"), generous, loves feeding everyone. He says each line quick and punchy, never drawn out.',
     lines: {
       select: ['Big Gus is cooking!', 'Who\'s hungry?'],
       start: ['Order up!', 'Soup\'s on!'],
