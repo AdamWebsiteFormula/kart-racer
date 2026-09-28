@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { KartAnim, SAD_BEATS, type Reaction } from './anim.ts';
 import { makeConstants } from './constants.ts';
 import {
-  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, SAD_HANDS, sadBody, type DriverContext, type DriverPose, type SadBody,
+  bearing, DRIVER_ANIM, DriverAnim, gestureFor, hash01, itemArm, newDriverPose, reactionArms, rivalToWatch, SAD_CRADLE_NOD, SAD_HANDS, sadBody, sadHandFrom, type DriverContext, type DriverPose, type SadBody,
 } from './driverAnim.ts';
 import { SIM_DT } from './step.ts';
 import { createKartState, NEUTRAL_INPUT, type InputState, type KartState, type Vec3 } from './types.ts';
@@ -15,9 +15,9 @@ const dt = SIM_DT;
 const T = DRIVER_ANIM;
 
 /** A kart and its two animations, ticked together as KartView does. */
-function rig(seed = 0) {
+function rig(seed = 0, racerId = 'juniper') {
   const anim = new KartAnim(c, seed), driver = new DriverAnim(seed);
-  const s = createKartState({ racerId: 'juniper' });
+  const s = createKartState({ racerId });
   const pose = newDriverPose();
   const tick = (n: number, input: InputState = NEUTRAL_INPUT, ctx?: DriverContext, each?: (i: number) => void): DriverPose => {
     for (let i = 0; i < n; i++) {
@@ -270,10 +270,35 @@ describe('DriverAnim: body and arms', () => {
     expect(arms('deflated', 1.6).R.wheel).toBe(0);
     // Sprocket (SAD_HANDS): both hands up on top of the head, where they show over his steering wheel
     expect(SAD_HANDS.sprocket).toBe('head');
-    expect(SAD_HANDS.nova).toBeUndefined();
     const R2 = newDriverPose().armR, L2 = newDriverPose().armL;
     reactionArms('deflated', 1.6, R2, L2, 4, 1, 'head');
     for (const a of [R2, L2]) { expect(a.wheel).toBe(0); expect(a.upper[1]).toBeGreaterThan(0.8); expect(a.fore[1]).toBeGreaterThan(0.85); }
+    // Nova (28 Sept 2026): her head held in both hands, from as the slump starts (earlier than the one hand at the
+    // brow): the elbows low in front of the chest, not out to the side (a salute), the forearms up to the helmet
+    expect(SAD_HANDS.nova).toBe('cradle');
+    expect(sadHandFrom('deflated', 'cradle')).toBe(SAD_BEATS.deflated.sag[0]);
+    expect(sadHandFrom('deflated', 'cradle')).toBeLessThan(sadHandFrom('deflated'));
+    for (const t of [SAD_BEATS.deflated.sag[0] + 0.02, 1.6, SAD_BEATS.deflated.up[0]]) {
+      const R3 = newDriverPose().armR, L3 = newDriverPose().armL;
+      reactionArms('deflated', t, R3, L3, 4, 1, 'cradle');
+      for (const a of [R3, L3]) {
+        expect(a.wheel, `${t}`).toBe(0);
+        expect(a.upper[2]).toBeGreaterThan(0.8); // the elbow forward, in front of the chest
+        expect(a.upper[1]).toBeLessThan(0); // and low
+        expect(Math.abs(a.upper[0])).toBeLessThan(0.45); // not out to the side
+        expect(a.fore[1]).toBeGreaterThan(0.85); // the forearm up to the head
+      }
+    }
+    const before = { R: newDriverPose().armR, L: newDriverPose().armL };
+    reactionArms('deflated', SAD_BEATS.deflated.sag[0] - 0.02, before.R, before.L, 4, 1, 'cradle');
+    expect(before.R.wheel + before.L.wheel, 'the wheel until the slump starts').toBe(2);
+    // and her head bows on into her hands while they hold it (SAD_CRADLE_NOD over the one-handed racers' bow),
+    // then comes up with the chin as theirs does
+    const eye = { eye: at(0.8, 1.2, 2.5), faceEye: false, karts: null, self: -1 };
+    const bowAt = (racer: string, t: number) => { const r = rig(0, racer); r.anim.react('deflated'); return r.tick(Math.round(t / dt), NEUTRAL_INPUT, eye).headPitch; };
+    expect(bowAt('nova', 1.6) - bowAt('juniper', 1.6)).toBeCloseTo(SAD_CRADLE_NOD, 1);
+    expect(bowAt('nova', 0.64) - bowAt('juniper', 0.64), 'mostly there by the time the finish camera is round').toBeGreaterThan(SAD_CRADLE_NOD * 0.6);
+    expect(Math.abs(bowAt('nova', 4.4) - bowAt('juniper', 4.4))).toBeLessThan(0.02);
     // dejected: both hands keep the wheel as the body slumps over it (the elbows fold: the IK)
     const over = arms('dejected', 2);
     expect(over.R.wheel + over.L.wheel).toBe(2);

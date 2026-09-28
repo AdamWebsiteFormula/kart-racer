@@ -333,19 +333,27 @@ export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, 
 const SAD_AIM = Object.freeze({
   palm: [-0.35, 0.2, 0.92] as const, palmFore: [0.7, 0.62, -0.35] as const,
   head: [-0.35, 0.9, 0.25] as const, headFore: [0.3, 0.95, -0.1] as const,
+  cradle: [-0.2, -0.35, 0.92] as const, cradleFore: [0.25, 0.93, -0.27] as const,
   darnUp: [-0.4, 0.3, 0.87] as const, darnUpFore: [-0.1, 0.9, 0.42] as const,
   darnDown: [-0.3, -0.25, 0.92] as const, darnDownFore: [0.3, -0.1, 0.95] as const,
   clap: [-0.3, -0.42, 0.86] as const, clapOpen: [0.2, 0.45, 0.87] as const, clapShut: [0.82, 0.3, 0.48] as const,
 });
 /**
  * Where a disappointed racer's hands go in the deflated reaction: 'brow', one hand over the brow and the eyes
- * (every racer but one), or 'head', both hands up on top of the head ("oh no!"): Sprocket, whose boxy head sits
+ * (every racer but two), 'head', both hands up on top of the head ("oh no!"): Sprocket, whose boxy head sits
  * low behind a steering wheel at the height of his face, so a hand at his brow was hidden and blind reads of the
  * finish camera's stills called him "neutral" (27 Sept 2026); with both hands on his head, "very disappointed",
- * twice. (Tried on Nova too, deep in her pod: only her hands showed over its rim, and read as a wave.)
+ * twice (tried on Nova too, deep in her pod: only her hands showed over its rim, and read as a wave); or
+ * 'cradle', the head held in both hands, the elbows low in front of the chest and the forearms up to the sides of
+ * the helmet, bowing on into them (SAD_CRADLE_NOD), from as the slump starts: Nova, whose helmet shows no bowed
+ * face of its own and whose one hand at her brow read "neutral" 1.2 s in (28 Sept 2026, with the pod seen from its
+ * side: game/celebrate.ts KART_FRAME; hands over the visor hid behind her steering wheel, and at the temples with
+ * the elbows out, the head not yet down, one blind read called it "pleased": a salute).
  */
-export type SadHands = 'brow' | 'head';
-export const SAD_HANDS: Readonly<Record<string, SadHands>> = Object.freeze({ sprocket: 'head' });
+export type SadHands = 'brow' | 'head' | 'cradle';
+export const SAD_HANDS: Readonly<Record<string, SadHands>> = Object.freeze({ sprocket: 'head', nova: 'cradle' });
+/** rad the head bows on (the driver's own head pitch, over the reaction's nod) while both hands hold it ('cradle') */
+export const SAD_CRADLE_NOD = 0.3;
 /** claps a second (the palms meet this often) */
 export const CLAP_HZ = 2.2;
 
@@ -374,14 +382,20 @@ export function sadArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, near:
     const k = sstep(B.tap - 0.06, B.tap + 0.06, t); // "darn!": the fist pulled down as the head drops
     mix(A.upper, SAD_AIM.darnUp, SAD_AIM.darnDown, k); mix(A.fore, SAD_AIM.darnUpFore, SAD_AIM.darnDownFore, k); A.wheel = 0;
   }
-  if (kind === 'deflated' && t >= sadHandFrom(kind) && t < B.up[0] + 0.1) {
+  if (kind === 'deflated' && t >= sadHandFrom(kind, hands) && t < B.up[0] + 0.1) {
     if (hands === 'head') for (const X of [R, L]) { set(X.upper, SAD_AIM.head); set(X.fore, SAD_AIM.headFore); X.wheel = 0; }
+    else if (hands === 'cradle') for (const X of [R, L]) { set(X.upper, SAD_AIM.cradle); set(X.fore, SAD_AIM.cradleFore); X.wheel = 0; }
     else { set(A.upper, SAD_AIM.palm); set(A.fore, SAD_AIM.palmFore); A.wheel = 0; }
   }
 }
 
-/** When a disappointed reaction's one-handed move starts (s): sigh's fist, deflated's hand to the forehead (Infinity: none). */
-export function sadHandFrom(kind: Reaction): number {
+/**
+ * When a disappointed reaction's hand move starts (s): sigh's fist, deflated's hand to the forehead (Infinity:
+ * none); both hands to the head ('cradle') as the slump starts, so the move is made by the time the finish camera
+ * is round (a helmet shows no bowed face of its own).
+ */
+export function sadHandFrom(kind: Reaction, hands: SadHands = 'brow'): number {
+  if (kind === 'deflated' && hands === 'cradle') return SAD_BEATS.deflated.sag[0];
   return kind === 'sigh' ? SAD_BEATS.sigh.tap - 0.4 : kind === 'deflated' ? SAD_BEATS.deflated.sag[0] + 0.25 : Infinity;
 }
 
@@ -578,7 +592,9 @@ export class DriverAnim {
     const tt = now - this.trickAt;
     if (tt < t.trickSeconds) twistT += t.trickTwist * Math.sin((TAU * tt) / t.trickSeconds) * (reaction ? 0 : 1);
     stepLimited(this.yaw, yawT, t.headSpring, dt, t.headSpeed);
-    stepSpring(this.pitch, Number.isNaN(want) ? 0 : wantPitch, t.pitchSpring, dt);
+    // a head held in both hands ('cradle') bows on into them while they hold it (SAD_CRADLE_NOD)
+    const cradled = down && reaction === 'deflated' && (SAD_HANDS[s.racerId] ?? 'brow') === 'cradle' && rt >= sadHandFrom(reaction, 'cradle') && rt < SAD_BEATS.deflated.up[0];
+    stepSpring(this.pitch, (Number.isNaN(want) ? 0 : wantPitch) + (cradled ? SAD_CRADLE_NOD : 0), t.pitchSpring, dt);
     stepLimited(this.twist, clamp(twistT, -t.twistMax - t.trickTwist, t.twistMax + t.trickTwist), t.twistSpring, dt, t.twistSpeed);
 
     // --- the spine: forward on the gas, back on a boost, folding over on a landing

@@ -46,11 +46,11 @@ export const CELEBRATE = Object.freeze({
    * rig's Head bone), aimed `look` from it; it holds there rather than circling on across the front (dead ahead
    * a bowed head is only its top, and the hand at the face, the one nearer the camera as the move starts, went
    * round to the far side). A driver sitting deep behind a kart's front that rises over its head (KART_FRAME
-   * front) is seen from higher and nearer its nose (`deepAngle`), `deep` metres up per metre the front stands
-   * over the head (plus `clear`): from the side, the pod's hull hid Nova whatever the height; from high in
-   * front, over the nose into the cockpit, her bowed helmet shows. When the results come in beside the racer,
-   * the camera backs off to the whole kart's distance as the kart moves `aside` of the way across the frame
-   * (normalized screen x): closer, a kart moved into the room left of the panel ran off the screen's edge. It
+   * front) is seen from higher, `deep` metres up per metre the front stands over the head (plus `clear`), and
+   * nearer its nose (`deepAngle`) unless the kart names its own angle (every such kart does since 28 Sept: over
+   * the Comet Pod's nose only the top of Nova's helmet showed; it is seen from its side). When the results come
+   * in beside the racer, the camera backs off to the whole kart's distance as the kart moves `aside` of the way
+   * across the frame (normalized screen x): closer, a kart moved into the room left of the panel ran off the screen's edge. It
    * keeps its own angle there, on the swing's side (not besideAngle's): the hand at the face was raised on
    * that side, and Pip's lamp came back in front of his face from besideAngle.
    */
@@ -60,21 +60,25 @@ export const CELEBRATE = Object.freeze({
 /**
  * The karts whose shape stands in front of a seated driver's face (measured from the models, 27 Sept 2026):
  * `front`, how high the kart's front rises in front of its driver all across (m over the kart's origin, its
- * middle band: Nova's pod 1.04 against her head at 0.80 to 0.86; the Wind-Up Racer's round nose 1.06 against
- * Sprocket's 0.84 to 0.89), seen over from higher; `angle`, from further round (rad off the nose): past a
- * narrow thing right in front of the face (the Parcel Scooter's lamp, 1.18 m, 0.2 m in front of Pip's face: at
- * 0.55 his wing over his face showed only as a tip beside it, "a wave"; at 1 rad it is plain), or over a
- * cockpit open at its sides (the Wind-Up Racer's tub: from the front its wheel hides Sprocket's face). Every
- * other kart's front sits under its drivers' heads.
+ * middle band: the Wind-Up Racer's round nose 1.06 against Sprocket's head at 0.84 to 0.89), seen over from
+ * higher; `angle`, from further round (rad off the nose): past a narrow thing right in front of the face (the
+ * Parcel Scooter's lamp, 1.18 m, 0.2 m in front of Pip's face: at 0.55 his wing over his face showed only as a
+ * tip beside it, "a wave"; at 1 rad it is plain), over a cockpit open at its sides (the Wind-Up Racer's tub:
+ * from the front its wheel hides Sprocket's face), or past a dome (the Comet Pod: its nose rises to 1.04 m in
+ * front of Nova's head at 0.80 to 0.86, and from over it, as it was framed on 27 Sept, only the top of her
+ * helmet showed, a blind read "neutral" 1.2 s in; its cockpit's sides stand lower than her shoulders, so from
+ * 1.45 rad round, level with her head, her helmet, shoulders and both hands at it show over the side, her
+ * steering wheel beside her face, not in front of it as from 0.9 or 1.15 rad: 28 Sept 2026); `distance`, from
+ * nearer than CELEBRATE.sad's (m: Nova is small in the pod). Every other kart's front sits under its drivers' heads.
  */
-export const KART_FRAME: Readonly<Record<string, Readonly<{ front?: number; angle?: number }>>> = Object.freeze({
-  pod: Object.freeze({ front: 1.04 }), windup: Object.freeze({ front: 1.06, angle: 1 }), scooter: Object.freeze({ angle: 1 }),
+export const KART_FRAME: Readonly<Record<string, Readonly<{ front?: number; angle?: number; distance?: number }>>> = Object.freeze({
+  pod: Object.freeze({ angle: 1.45, distance: 2.5 }), windup: Object.freeze({ front: 1.06, angle: 1 }), scooter: Object.freeze({ angle: 1 }),
 });
 
 /** The finish camera's pose over a disappointed driver: its distance, height and aim height over the kart (m) and its angle off the nose (rad), from the driver's seated `head` height and its kart's KART_FRAME (none: an open kart). */
-export function sadFrame(head: number, kart: Readonly<{ front?: number; angle?: number }> | undefined, out: { distance: number; height: number; look: number; angle: number }): { distance: number; height: number; look: number; angle: number } {
+export function sadFrame(head: number, kart: Readonly<{ front?: number; angle?: number; distance?: number }> | undefined, out: { distance: number; height: number; look: number; angle: number }): { distance: number; height: number; look: number; angle: number } {
   const S = CELEBRATE.sad, deep = Math.max(0, (kart?.front ?? 0) + S.clear - head);
-  out.distance = S.distance;
+  out.distance = kart?.distance ?? S.distance;
   out.height = head + S.rise + S.deep * deep;
   out.look = head + S.look;
   out.angle = kart?.angle ?? (deep > 0 ? S.deepAngle : S.angle);
