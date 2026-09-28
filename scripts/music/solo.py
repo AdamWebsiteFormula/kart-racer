@@ -9,7 +9,10 @@ import aes
 from studio import dsp, mix
 from tune import stems_for, WORK
 
+from studio.lock import heavy
 name = sys.argv[1]
+_slot = heavy('solo ' + name)
+_slot.__enter__()
 m, song, stems, n = stems_for(name)
 groups = {}
 for k in stems:
@@ -25,6 +28,6 @@ for g in want:
     y = y[:, int(6 * dsp.SR):L]
     if np.abs(y).max() < 1e-4:
         continue
-    p = os.path.join(WORK, 'solo.wav')
+    p = os.path.join(WORK, f'solo-{name}-{os.getpid()}.wav')  # one file per process: composers run at once
     sf.write(p, y.T, dsp.SR, subtype='PCM_16')
     print(g, aes.score(p), flush=True)

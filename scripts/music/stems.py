@@ -21,6 +21,9 @@ path = sys.argv[1]
 spec = importlib.util.spec_from_file_location('song', path)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
+from studio.lock import heavy
+_slot = heavy('stems')
+_slot.__enter__()
 song = mod.compose()
 notes = song.finalize()
 stems, n = render_stems(song, notes)

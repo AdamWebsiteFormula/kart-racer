@@ -43,6 +43,17 @@ RIFF = [
     "B1:8 r:16 B1:16 D2:16 r:16 B1:8 A1:8 r:16 G1:16~ G1:8 F#1:8",
 ]
 ANSWER = ["r:1", "r:2 r:8 F#5:16 A5:16 B5:8 D6:8"]
+# the verse over the riff: a low call on the lead, the pluck answering in the gaps (bars 2, 4, 6, 8)
+VERSE = [
+    "r:4 F#4:8 A4:8 B4:8 D5:8~ D5:8 B4:8",
+    "A4:4 F#4:8 E4:8~ E4:4 r:4",
+    "r:4 F#4:8 A4:8 B4:8 D5:8~ D5:8 E5:8",
+    "F#5:4 E5:8 D5:8~ D5:4 r:4",
+    "r:4 F#4:8 A4:8 B4:8 D5:8~ D5:8 B4:8",
+    "A4:4 F#4:8 E4:8~ E4:4 r:4",
+    "r:4 G4:8 B4:8 D5:8 E5:8~ E5:8 D5:8",
+    "E5:4 C#5:8 A4:8~ A4:4 r:4",
+]
 CHORUS = [
     "B4:8 D5:8 r:8 F#5:8~ F#5:4 E5:8 D5:8",
     "E5:8 F#5:8 r:8 A5:8~ A5:2",
@@ -178,7 +189,11 @@ def compose():
     s.twin(INTRO - 1, B2 + 7)
 
     # ---------------------------------------------------------------- A: the riff
-    riff(A0, 8)
+    riff(A0, 6)
+    # the G and A bars: the bass and the palm-muted guitar leave the riff for the chord roots, a lift into the chorus
+    root_pulse(A0 + 6, 2, vel=0.72)
+    power(A0 + 6, 2, 'x.x.x.x.x.x.x.x.', vel=0.52)
+    P['lead'].add([n.copy(v=n.v * 0.82) for n in lines(VERSE, at(A0))])
     for b in range(8):
         beat(A0 + b, 1 + b % 2)
         if b % 2 == 1:
@@ -274,33 +289,30 @@ _instruments()
 
 MIX = {
     'tracks': {
-        'lead': {'pan': 0.0, 'gain': -2.0, 'eq': [('hp', 250), ('peak', 2800, 1.0, 1.0)], 'sat': 3.0, 'sends': {'plate': -13, 'delay': -12}},
-        'gtrlead': {'pan': 0.2, 'gain': -6.0, 'amp': {'drive_db': 22.0, 'tone': 1.5}, 'sends': {'delay': -9, 'plate': -12}},
-        'bass': {'gain': 0.0, 'eq': [('hp', 30), ('peak', 70, 1.0, 1.5), ('peak', 280, 1.0, -2.0)], 'comp': {'thr': -18, 'ratio': 3, 'att_ms': 5, 'rel_ms': 60},
+        'lead': {'pan': 0.0, 'gain': -2.0, 'eq': [('hp', 250), ('peak', 2800, 1.0, 1.0)], 'sat': 3.0, 'sends': {'delay': -12}},
+        'gtrlead': {'pan': 0.2, 'gain': -6.0, 'amp': {'drive_db': 22.0, 'tone': 1.5}, 'sends': {'delay': -9}},
+        'bass': {'gain': -1.5, 'eq': [('hp', 30), ('peak', 280, 1.0, -2.0)], 'comp': {'thr': -18, 'ratio': 3, 'att_ms': 5, 'rel_ms': 60},
                  'sat': 2.0, 'duck': {'by': 'edrums.kick', 'depth_db': 4.0, 'rel_ms': 110}},
-        'gtr': {'pan': -0.35, 'gain': -9.0, 'amp': {'drive_db': 24.0}, 'width': 1.3, 'sends': {'room': -14}},
-        'pluck': {'pan': 0.3, 'gain': -6.0, 'width': 1.4, 'eq': [('hp', 400)], 'sends': {'delay': -8, 'plate': -14}},
-        'pad': {'gain': -6.0, 'width': 1.5, 'eq': [('hp', 220), ('lp', 7000)], 'sends': {'plate': -11}, 'duck': {'by': 'edrums.kick', 'depth_db': 6.0, 'rel_ms': 180}},
-        'keys': {'gain': -6.0, 'width': 1.4, 'eq': [('hp', 300)], 'sends': {'plate': -12}, 'duck': {'by': 'edrums.kick', 'depth_db': 5.0}},
+        'gtr': {'pan': -0.35, 'gain': -9.0, 'amp': {'drive_db': 24.0}, 'width': 1.3},
+        'pluck': {'pan': 0.3, 'gain': -6.0, 'width': 1.4, 'eq': [('hp', 400)], 'sends': {'delay': -8}},
+        'pad': {'gain': -6.0, 'width': 1.5, 'eq': [('hp', 180), ('lp', 8000)], 'duck': {'by': 'edrums.kick', 'depth_db': 6.0, 'rel_ms': 180}},
+        'keys': {'gain': -6.0, 'width': 1.4, 'eq': [('hp', 300)], 'duck': {'by': 'edrums.kick', 'depth_db': 5.0}},
         'edrums.kick': {'bus': 'drums', 'gain': -4.0, 'eq': [('hp', 32), ('peak', 60, 1.0, 1.5), ('peak', 300, 1.2, -3.0)],
                         'comp': {'thr': -14, 'ratio': 4, 'att_ms': 3, 'rel_ms': 60}},
-        'edrums.fx': {'gain': -10.0, 'width': 1.5, 'sends': {'plate': -10}},
-        'drums.kick': {'bus': 'drums', 'gain': -2.0, 'eq': [('hp', 40), ('peak', 60, 1.0, 2.0), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 2.5)],
+        'edrums.fx': {'gain': -10.0, 'width': 1.5},
+        'drums.kick': {'bus': 'drums', 'gain': -2.0, 'eq': [('hp', 40), ('peak', 60, 1.0, 0.5), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 2.5)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 5, 'rel_ms': 70}},
         'drums.snare': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 110), ('peak', 200, 1.0, 2.0), ('highshelf', 6000, 0.7, 3.0)],
-                        'comp': {'thr': -18, 'ratio': 4, 'att_ms': 5, 'rel_ms': 80}, 'sends': {'gated': -2, 'plate': -16}},
-        'drums.oh': {'bus': 'drums', 'gain': -3.0, 'eq': [('hp', 380), ('highshelf', 8000, 0.7, 2.5)]},
+                        'comp': {'thr': -18, 'ratio': 4, 'att_ms': 5, 'rel_ms': 80}},
+        'drums.oh': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 380), ('highshelf', 8000, 0.7, 3.5)]},
         'drums.room': {'bus': 'drums', 'gain': -11.0, 'eq': [('hp', 200)], 'comp': {'thr': -26, 'ratio': 6, 'att_ms': 2, 'rel_ms': 120}},
-        'clap': {'gain': -9.0, 'eq': [('hp', 400), ('peak', 1500, 1.0, 1.5)], 'sends': {'plate': -12}},
-        'tamb': {'pan': 0.4, 'gain': -15.0, 'eq': [('hp', 3000)]},
+        'clap': {'gain': -9.0, 'eq': [('hp', 400), ('peak', 1500, 1.0, 1.5)]},
+        'tamb': {'pan': 0.4, 'gain': -12.0, 'eq': [('hp', 3000)]},
     },
     'buses': {
-        'drums': {'gain': 0.0, 'comp': {'thr': -12, 'ratio': 3, 'att_ms': 8, 'rel_ms': 90, 'mix': 0.6}, 'sat': 2.5},
+        'drums': {'gain': 1.5, 'comp': {'thr': -12, 'ratio': 3, 'att_ms': 8, 'rel_ms': 90, 'mix': 0.6}, 'sat': 2.5},
     },
     'fx': {
-        'gated': {'kind': 'gated', 'length': 0.22, 'hp': 300, 'lp': 9000, 'gain': -8.0},
-        'plate': {'ir': '2.3s_Nice Plate', 'predelay': 20, 'hp': 450, 'lp': 10000, 'gain': -5.0},
-        'room': {'ir': '1.5s_Perc Room A', 'predelay': 5, 'hp': 350, 'lp': 9000, 'gain': -6.0},
         'delay': {'kind': 'delay', 'time': 60 / BPM * 0.75, 'fb': 0.3, 'lp': 5000, 'hp': 500, 'pingpong': True, 'gain': -6.0},
     },
     'master': {'comp': {'thr': -14, 'ratio': 2, 'att_ms': 20, 'rel_ms': 150, 'knee': 8}, 'lufs': -12.0, 'ceiling': -1.0, 'clip': 1.5,

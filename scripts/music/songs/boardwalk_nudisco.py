@@ -14,7 +14,7 @@ from studio.score import Song, seq, grid, chords, Note
 from studio.arrange import drum_fill, harmonize, comp, pad, shift
 
 SLOT, CANDIDATE = 'boardwalk-nights', 'a-nu-disco'
-STYLE = 'nu-disco funk: four-on-the-floor drums, claps, slap-toned octave bass, chicken-scratch guitar, disco strings, horn hook with a synth double, electric piano breakdown'
+STYLE = 'nu-disco funk: four-on-the-floor (live kit over an electronic kick), claps, slap-toned octave bass, chicken-scratch guitar, disco strings pumping with the kick, a synth hook doubled by horns, electric piano breakdown'
 FORM = ['intro 4 (groove builds, string swoop, pickup bar)', 'A 8 horn hook over F#m9-B9', 'B 8 chorus in A major (strings)',
         'C 8 breakdown: electric piano riff, the synth answers', 'D 4 fireworks build', "A' 8 hook with strings, pickup bar (= intro's last bar)"]
 
@@ -76,6 +76,7 @@ def compose():
     P['conga'] = s.part('conga', 'conga', jitter_ms=4, swing=0.52, swing_unit=0.25)
     P['tamb'] = s.part('tamb', 'tamb', jitter_ms=3, swing=0.52, swing_unit=0.25)
     P['riser'] = s.part('riser', 'riser', jitter_ms=0)
+    P['edrums'] = s.part('edrums', 'edrums', jitter_ms=1.0)
 
     prog = {}
     t = 0.0
@@ -97,6 +98,7 @@ def compose():
             bar = bar0 + b
             if kick:
                 P['drums'].add(grid('x...x...x...x...', 'kick', at(bar)))
+                P['edrums'].add(grid('x...x...x...x...', 'kick', at(bar), vels={'x': 0.9}))
             P['drums'].add(grid('....X.......X...', 'snare', at(bar), vels={'X': 0.85}) +
                            grid('xgxgxgxgxgxgxgxg', 'hhc', at(bar), vels={'x': 0.55, 'g': 0.35}))
             if open_hats:
@@ -232,8 +234,8 @@ def compose():
 
 
 def shorts():
-    """Course-intro pieces: 6.0 s (the horn hook's first bar and its answer over the disco groove, a held F#m9 at 3.8 s
-    with a string swell) and 2.5 s (a string swoop and a horn stab at 1.0 s, the delay echoing it)."""
+    """Course-intro pieces: 6.0 s (the hook's first bar and its answer over the disco groove, a held F#m9 at 3.8 s
+    with a string swell) and 2.5 s (a tom fill and a riser into an F#m9 hit at 0.95 s)."""
     out = {}
     s = Song('Boardwalk Nights (nu-disco) - course intro', 'boardwalk-nights', BPM, 'F-sharp minor', 3, 0, seed=54, tail_bars=0)
     s.about = 'the horn hook and its answer over the disco groove, landing on a held F#m9 with strings'
@@ -266,7 +268,7 @@ def shorts():
     out['intro-6s'] = (s, 6.0, 8)
 
     s = Song('Boardwalk Nights (nu-disco) - course intro short', 'boardwalk-nights', BPM, 'F-sharp minor', 2, 0, seed=55, tail_bars=0)
-    s.about = 'a disco string swoop into a horn and string stab on F#m9, echoing'
+    s.about = 'a tom fill and a riser into an F#m9 hit: synth, strings and octave bass, an impact'
     P = {}
     for k, i, l in (('tpt1', 'trumpet', 3), ('tpt2', 'trumpet', 5), ('alto', 'alto', 4), ('tbn', 'trombone', 6), ('synth', 'neon_lead', 0)):
         P[k] = s.part(k, i, lag_ms=l, jitter_ms=3, mono=True)
@@ -275,11 +277,10 @@ def shorts():
     P['drums'] = s.part('drums', 'kit', jitter_ms=2)
     P['clap'] = s.part('clap', 'clap', jitter_ms=2)
     P['bass'] = s.part('bass', 'ebass', jitter_ms=2, mono=True)
-    P['vln'].add([Note(0, 2.0, 81, 0.75, {'scoop'}, {'scoop': 12, 'scoop_t': 0.45}), Note(0, 2.0, 76, 0.65, {'scoop'}, {'scoop': 12, 'scoop_t': 0.45})])
-    stab = [(73, 'tpt1'), (69, 'tpt2'), (64, 'alto'), (57, 'tbn')]
-    for p, part in stab:
-        P[part].add([Note(2.0, 0.6, p, 0.9, {'marc'})])
-    P['synth'].add([Note(2.0, 0.5, 81, 0.8)])
+    P['edrums'] = s.part('edrums', 'edrums', jitter_ms=1)
+    P['edrums'].add([Note(0, 2.0, 'rise', 0.6), Note(2.0, 2, 'impact', 0.8), Note(2.0, 1, 'kick', 1.0)])
+    P['drums'].add(grid('....x.x.x.x.....', 'tomh', 0, vels={'x': 0.7}) + grid('.....x.x.x.x....', 'toml', 0, vels={'x': 0.75}))
+    P['synth'].add([Note(2.0, 1.2, 81, 0.85)])
     P['vln'].add([Note(2.0, 1.5, p, 0.8) for p in (81, 85)])
     P['vla'].add([Note(2.0, 1.5, 69, 0.7)])
     P['vc'].add([Note(2.0, 1.5, 42, 0.75)])
@@ -312,11 +313,13 @@ MIX = {
         'tpt2': {'bus': 'horns', 'pan': -0.35, 'gain': -3.0, 'eq': [('hp', 200)], 'sends': {'plate': -12}},
         'alto': {'bus': 'horns', 'pan': 0.2, 'gain': -2.0, 'eq': [('hp', 150)], 'sends': {'plate': -12}},
         'tbn': {'bus': 'horns', 'pan': 0.1, 'gain': -3.0, 'eq': [('hp', 80)], 'sends': {'plate': -13}},
-        'synth': {'pan': 0.0, 'gain': -10.0, 'width': 1.4, 'eq': [('hp', 300), ('lp', 9000)], 'sends': {'delay': -10, 'plate': -12}},
-        'vln': {'bus': 'strings', 'pan': -0.25, 'gain': -3.0, 'eq': [('hp', 250), ('highshelf', 8000, 0.7, 2.0)], 'sends': {'hall': -8}},
-        'vla': {'bus': 'strings', 'pan': 0.25, 'gain': -6.0, 'eq': [('hp', 180)], 'sends': {'hall': -8}},
-        'vc': {'bus': 'strings', 'pan': 0.1, 'gain': -6.0, 'eq': [('hp', 60)], 'sends': {'hall': -10}},
-        'drums.kick': {'bus': 'drums', 'gain': 2.0, 'eq': [('hp', 32), ('peak', 55, 1.0, 3.5), ('peak', 320, 1.2, -5.0), ('peak', 3500, 1.0, 2.5)],
+        'synth': {'pan': 0.0, 'gain': -2.0, 'width': 1.3, 'eq': [('hp', 300), ('peak', 2500, 1.0, 1.5), ('lp', 10000)], 'sends': {'delay': -12}},
+        'vln': {'bus': 'strings', 'pan': -0.25, 'gain': -3.0, 'eq': [('hp', 250), ('highshelf', 8000, 0.7, 2.0)], 'sends': {'hall': -12}},
+        'vla': {'bus': 'strings', 'pan': 0.25, 'gain': -6.0, 'eq': [('hp', 180)], 'sends': {'hall': -12}},
+        'vc': {'bus': 'strings', 'pan': 0.1, 'gain': -6.0, 'eq': [('hp', 60)], 'sends': {'hall': -14}},
+        'edrums.kick': {'bus': 'drums', 'gain': -4.0, 'eq': [('hp', 35), ('peak', 55, 1.0, 1.5)]},
+        'edrums.fx': {'gain': -10.0, 'width': 1.5},
+        'drums.kick': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 32), ('peak', 55, 1.0, 3.5), ('peak', 320, 1.2, -5.0), ('peak', 3500, 1.0, 2.5)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 5, 'rel_ms': 70}},
         'drums.snare': {'bus': 'drums', 'gain': -2.0, 'eq': [('hp', 100), ('peak', 220, 1.0, 1.5), ('highshelf', 6000, 0.7, 2.5)],
                         'comp': {'thr': -18, 'ratio': 3, 'att_ms': 8, 'rel_ms': 100}, 'sends': {'plate': -14}},
@@ -333,8 +336,9 @@ MIX = {
         'riser': {'gain': -10.0, 'width': 1.5, 'sends': {'hall': -6}},
     },
     'buses': {
-        'horns': {'gain': -1.0, 'eq': [('peak', 450, 0.8, -1.5), ('highshelf', 8000, 0.7, 2.0)], 'comp': {'thr': -18, 'ratio': 2.5, 'att_ms': 15, 'rel_ms': 150}, 'sat': 1.0},
-        'strings': {'gain': 0.0, 'eq': [('peak', 350, 0.8, -2.0), ('highshelf', 7000, 0.7, 1.5)], 'comp': {'thr': -20, 'ratio': 2, 'att_ms': 20, 'rel_ms': 200}},
+        'horns': {'gain': -5.0, 'eq': [('peak', 450, 0.8, -1.5), ('highshelf', 8000, 0.7, 2.0)], 'comp': {'thr': -18, 'ratio': 2.5, 'att_ms': 15, 'rel_ms': 150}, 'sat': 1.0},
+        'strings': {'gain': 0.0, 'eq': [('peak', 350, 0.8, -2.0), ('highshelf', 7000, 0.7, 1.5)], 'comp': {'thr': -20, 'ratio': 2, 'att_ms': 20, 'rel_ms': 200},
+                    'duck': {'by': 'edrums.kick', 'depth_db': 4.0, 'rel_ms': 160}},
         'drums': {'gain': 0.0, 'comp': {'thr': -14, 'ratio': 3, 'att_ms': 10, 'rel_ms': 100, 'mix': 0.6}, 'sat': 2.0},
     },
     'fx': {

@@ -96,10 +96,7 @@ def compose():
     P['keys'] = s.part('keys', 'nd_keys', jitter_ms=3, swing=0.52, swing_unit=0.25)
     P['pad'] = s.part('pad', 'nd_pad', jitter_ms=2)
     P['gtr'] = s.part('gtr', 'guitar', lag_ms=2, jitter_ms=3, swing=0.52, swing_unit=0.25)
-    P['clav'] = s.part('clav', 'clav', jitter_ms=3, swing=0.52, swing_unit=0.25)
-    P['tpt'] = s.part('tpt', 'trumpet', lag_ms=3, jitter_ms=4, mono=True)
-    P['alto'] = s.part('alto', 'alto', lag_ms=4, jitter_ms=4, mono=True)
-    P['tbn'] = s.part('tbn', 'trombone', lag_ms=5, jitter_ms=4, mono=True)
+    P['clav'] = s.part('clav', 'nd_pluck', jitter_ms=1.5, swing=0.52, swing_unit=0.25)
     P['edrums'] = s.part('edrums', 'nd_edrums', jitter_ms=0.8, vel_jitter=0.03)
     P['drums'] = s.part('drums', 'kit', jitter_ms=2.5, vel_jitter=0.05, swing=0.52, swing_unit=0.25)
     P['clap'] = s.part('clap', 'clap', jitter_ms=3)
@@ -168,10 +165,9 @@ def compose():
         P['stabs'].add(comp(span(bar0, nbars), pat, 57, 76, n=4, vel=vel, dur=0.32, t0=at(bar0), t1=at(bar0 + nbars)))
 
     def horn_hit(tt, ch, d=0.3, v=0.78):
-        vs = voice_lead(None, ch, 62, 77, 3)
-        P['tpt'].add(Note(tt, d, vs[-1], v, {'marc'}))
-        P['alto'].add(Note(tt, d, vs[-2], v * 0.95, {'marc'}))
-        P['tbn'].add(Note(tt, d, vs[0] - 12, v * 0.95, {'marc'}))
+        """The pushes: a synth-chord punch (brass punches read as circus), voiced over the stabs."""
+        vs = voice_lead(None, ch, 62, 77, 4)
+        P['stabs'].add([Note(tt, d, p, v) for p in vs])
 
     # ---------------------------------------------------------------- intro: the filter opens, the groove enters
     stabs(0, 3, vel=0.6)
@@ -193,10 +189,6 @@ def compose():
         # hand voicings: F major 7, then the E7#9 with its #9 on top (E G# D G)
         P['stabs'].add([Note(at(bar), 0.4, p, 0.85) for p in (65, 69, 72, 76)] + [Note(at(bar) + 1.5, 0.9, p, 0.85) for p in (64, 68, 74, 79)])
         P['keys'].add([Note(at(bar), 0.4, p, 0.7) for p in (57, 64, 65, 69)] + [Note(at(bar) + 1.5, 0.9, p, 0.7) for p in (56, 62, 67, 71)])
-        for tt, d, v, (a, b, c) in ((at(bar), 0.35, 0.82, (57, 72, 76)), (at(bar) + 1.5, 0.5, 0.86, (56, 74, 79))):
-            P['tbn'].add(Note(tt, d, a, v, {'marc'}))
-            P['alto'].add(Note(tt, d, b, v, {'marc'}))
-            P['tpt'].add(Note(tt, d, c, v, {'marc'}))
         P['bass'].add(lines(["F1:8^ r:8 r:8 E1:4. E2:8 D2:8"], at(bar)))
         P['sub'].add([Note(at(bar), 0.45, 29, 0.8), Note(at(bar) + 1.5, 1.4, 28, 0.8)])
         P['edrums'].add(grid('x.....x.........', 'kick', at(bar), vels={'x': 0.95}) + [Note(at(bar) + 2.0, 2.0, 'rise', 0.55)])
@@ -238,7 +230,7 @@ def compose():
     P['edrums'].add([Note(at(B0), 2.0, 'impact', 0.6), Note(at(B0) - 4.0, 4.0, 'rise', 0.5)])
 
     # ---------------------------------------------------------------- C: breakdown, then the build
-    P['clav'].add(lines(CLAV, at(C0)))
+    P['clav'].add(shift(lines(CLAV, at(C0)), 0, 12, vel=0.85))
     for b in range(4):
         groove(C0 + b, kick=False)
     octbass(C0, 4, 'l.hl.lh.l.hl.lh.', vel=0.72, sub=False)
@@ -323,6 +315,7 @@ def _instruments():
     _I.RACK['nd_pad'] = lambda: modern.Pad(gain_db=-16, cutoff=1700, attack=0.35, release=0.8, voices=5, detune=12, air=0.015)
     _I.RACK['nd_keys'] = lambda: synths.EPiano(gain_db=-6, bell=0.4, trem=(4.0, 0.18))
     _I.RACK['nd_sub'] = lambda: modern.SubBass(gain_db=-9, harm=0.15)
+    _I.RACK['nd_pluck'] = lambda: modern.Pluck(gain_db=-14, cutoff=1300, env_amt=4500, env_decay=0.06, decay=0.18, release=0.05, detune=9, res=0.12, square=0.35)
     _I.RACK['nd_edrums'] = lambda: modern.DrumSynth(kick_tune=50.0, kick_decay=0.26, snare_tune=200.0)
     _I.get.cache_clear()
 
@@ -331,46 +324,45 @@ _instruments()
 
 MIX = {
     'tracks': {
-        'lead': {'pan': 0.0, 'gain': -2.0, 'eq': [('hp', 250), ('peak', 2500, 1.0, 1.0)], 'sends': {'plate': -13, 'delay': -13}},
-        'lead2': {'pan': 0.0, 'gain': -8.0, 'width': 1.4, 'eq': [('hp', 500)], 'sends': {'plate': -12}},
-        'gtrlead': {'pan': 0.22, 'gain': -9.0, 'amp': {'drive_db': 9.0, 'tone': 0.5}, 'eq': [('hp', 180)], 'sends': {'plate': -14}},
+        # a short, dark, high-passed plate on the synths and the backbeat only (the long plate cost production quality;
+        # fully dry, the song read as 'Funny music'), a small room on the keys and guitar
+        'lead': {'pan': 0.0, 'gain': -2.0, 'eq': [('hp', 250), ('peak', 2500, 1.0, 1.0)], 'sends': {'plate': -15, 'delay': -14}},
+        'lead2': {'pan': 0.0, 'gain': -8.0, 'width': 1.4, 'eq': [('hp', 500)], 'sends': {'plate': -13}},
+        'gtrlead': {'pan': 0.22, 'gain': -9.0, 'amp': {'drive_db': 9.0, 'tone': 0.5}, 'eq': [('hp', 180)]},
         'bass': {'gain': 0.0, 'eq': [('hp', 35), ('peak', 90, 1.0, 1.0), ('peak', 250, 1.0, -2.5), ('peak', 1200, 1.2, 2.0)],
                  'comp': {'thr': -20, 'ratio': 4, 'att_ms': 6, 'rel_ms': 90}, 'sat': 2.5, 'duck': {'by': 'edrums.kick', 'depth_db': 3.0, 'rel_ms': 100}},
         'sub': {'gain': -7.0, 'eq': [('lp', 140)], 'duck': {'by': 'edrums.kick', 'depth_db': 9.0, 'rel_ms': 150}},
-        'stabs': {'gain': -5.0, 'width': 1.4, 'eq': [('hp', 250)], 'sends': {'plate': -13, 'delay': -16},
+        'stabs': {'gain': -5.0, 'width': 1.4, 'eq': [('hp', 220)], 'sends': {'plate': -15, 'delay': -17},
                   'duck': {'by': 'edrums.kick', 'depth_db': 6.0, 'rel_ms': 160}},
-        'keys': {'pan': -0.2, 'gain': -6.0, 'eq': [('hp', 150), ('peak', 320, 1.0, -2.0)], 'sends': {'room': -12}},
-        'pad': {'gain': -9.0, 'width': 1.5, 'eq': [('hp', 250), ('lp', 7000)], 'sends': {'plate': -11}, 'duck': {'by': 'edrums.kick', 'depth_db': 6.0, 'rel_ms': 200}},
-        'gtr': {'pan': 0.45, 'gain': -10.0, 'eq': [('hp', 300), ('peak', 3000, 1.0, 2.0)], 'sends': {'room': -12}},
-        'clav': {'pan': -0.35, 'gain': -8.0, 'eq': [('hp', 200)], 'sends': {'room': -12}},
-        'tpt': {'bus': 'horns', 'pan': -0.2, 'gain': 0.0, 'eq': [('hp', 200)], 'sends': {'plate': -14}},
-        'alto': {'bus': 'horns', 'pan': 0.2, 'gain': -2.0, 'eq': [('hp', 150)], 'sends': {'plate': -14}},
-        'tbn': {'bus': 'horns', 'pan': 0.05, 'gain': -3.0, 'eq': [('hp', 90)], 'sends': {'plate': -15}},
+        'keys': {'pan': -0.2, 'gain': -6.0, 'eq': [('hp', 150), ('peak', 320, 1.0, -2.0)], 'sends': {'room': -15}},
+        'pad': {'gain': -9.0, 'width': 1.5, 'eq': [('hp', 200), ('lp', 8000)], 'sends': {'plate': -13}, 'duck': {'by': 'edrums.kick', 'depth_db': 6.0, 'rel_ms': 200}},
+        'gtr': {'pan': 0.45, 'gain': -10.0, 'eq': [('hp', 300), ('peak', 3000, 1.0, 2.0)], 'sends': {'room': -15}},
+        'clav': {'pan': -0.3, 'gain': -8.0, 'width': 1.3, 'eq': [('hp', 300)], 'sends': {'delay': -10}},
         'edrums.kick': {'bus': 'drums', 'gain': -2.0, 'eq': [('peak', 55, 1.0, 1.5), ('peak', 300, 1.2, -3.0)], 'comp': {'thr': -14, 'ratio': 4, 'att_ms': 3, 'rel_ms': 60}},
-        'edrums.snare': {'bus': 'drums', 'gain': -7.0, 'eq': [('hp', 300)], 'sends': {'plate': -14}},
+        'edrums.snare': {'bus': 'drums', 'gain': -7.0, 'eq': [('hp', 300)], 'sends': {'plate': -17}},
         'edrums.hats': {'bus': 'drums', 'gain': -10.0},
-        'edrums.fx': {'gain': -10.0, 'width': 1.5, 'sends': {'plate': -10}},
+        'edrums.fx': {'gain': -10.0, 'width': 1.5},
         'drums.kick': {'bus': 'drums', 'gain': -8.0, 'eq': [('hp', 40), ('peak', 3500, 1.0, 2.0)]},
         'drums.snare': {'bus': 'drums', 'gain': -4.0, 'eq': [('hp', 120), ('peak', 200, 1.0, 1.5), ('highshelf', 6000, 0.7, 2.5)],
-                        'comp': {'thr': -18, 'ratio': 3, 'att_ms': 8, 'rel_ms': 100}, 'sends': {'plate': -16}},
-        'drums.oh': {'bus': 'drums', 'gain': -3.0, 'eq': [('hp', 350), ('highshelf', 8000, 0.7, 2.0)]},
+                        'comp': {'thr': -18, 'ratio': 3, 'att_ms': 8, 'rel_ms': 100}, 'sends': {'plate': -18}},
+        'drums.oh': {'bus': 'drums', 'gain': -1.5, 'eq': [('hp', 350), ('highshelf', 8000, 0.7, 3.0)]},
         'drums.room': {'bus': 'drums', 'gain': -12.0, 'eq': [('hp', 200)], 'comp': {'thr': -26, 'ratio': 6, 'att_ms': 2, 'rel_ms': 120}},
-        'clap': {'gain': -8.0, 'eq': [('hp', 400), ('peak', 1500, 1.0, 1.5)], 'sends': {'plate': -11}},
-        'shaker': {'pan': 0.4, 'gain': -14.0, 'eq': [('hp', 2500)]},
-        'tamb': {'pan': -0.4, 'gain': -15.0, 'eq': [('hp', 3000)]},
+        'clap': {'gain': -8.0, 'eq': [('hp', 400), ('peak', 1500, 1.0, 1.5)], 'sends': {'plate': -14}},
+        'shaker': {'pan': 0.4, 'gain': -13.0, 'eq': [('hp', 2500)]},
+        'tamb': {'pan': -0.4, 'gain': -14.0, 'eq': [('hp', 3000)]},
     },
     'buses': {
-        'horns': {'gain': -3.0, 'eq': [('peak', 450, 0.8, -2.0), ('highshelf', 8000, 0.7, 1.5)], 'comp': {'thr': -18, 'ratio': 2.5, 'att_ms': 12, 'rel_ms': 120}, 'sat': 1.0},
-        'drums': {'gain': 0.0, 'comp': {'thr': -12, 'ratio': 3, 'att_ms': 8, 'rel_ms': 90, 'mix': 0.6}, 'sat': 2.0},
+        'drums': {'gain': 1.5, 'comp': {'thr': -12, 'ratio': 3, 'att_ms': 8, 'rel_ms': 90, 'mix': 0.6}, 'sat': 2.0},
     },
     'fx': {
-        'plate': {'ir': '2.3s_Nice Plate', 'predelay': 20, 'hp': 450, 'lp': 10000, 'gain': -5.0},
-        'room': {'ir': '1.5s_Perc Room A', 'predelay': 5, 'hp': 350, 'lp': 9000, 'gain': -6.0},
+        'plate': {'ir': '1.3s_Soft Plate', 'predelay': 15, 'hp': 600, 'lp': 8000, 'decay': 0.7, 'gain': -5.0},
+        'room': {'ir': '0.7s_Small Studio', 'predelay': 5, 'hp': 400, 'lp': 9000, 'gain': -6.0},
         'delay': {'kind': 'delay', 'time': 60 / BPM * 0.75, 'fb': 0.3, 'lp': 5000, 'hp': 500, 'pingpong': True, 'gain': -6.0},
     },
     'master': {'comp': {'thr': -14, 'ratio': 2, 'att_ms': 20, 'rel_ms': 150, 'knee': 8}, 'lufs': -12.0, 'ceiling': -1.0, 'clip': 1.5,
                'target': [-15.0, -6.5, -7.2, -9.5, -9.8, -10.3, -11.5, -15.2, -20.0]},
 }
+
 
 if __name__ == '__main__':
     from studio.produce import produce

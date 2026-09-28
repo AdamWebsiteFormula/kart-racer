@@ -29,6 +29,9 @@ def chain(x, spec, key=None):
         y = dsp.saturate(y, **(s if isinstance(s, dict) else {'drive_db': s}))
     if spec.get('eq2'):
         y = dsp.eq(y, spec['eq2'])
+    if spec.get('sweep'):
+        # a filter sweep: [(seconds, Hz), ...]; keep it fully open (e.g. 20000) where the loop starts and ends
+        y = dsp.sweep_lp(y, spec['sweep'], spec.get('sweep_q', 0.8))
     if spec.get('chorus'):
         y = dsp.chorus(y, **spec['chorus'])
     if spec.get('mono'):

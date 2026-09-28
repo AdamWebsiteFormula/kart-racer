@@ -1,0 +1,66 @@
+COMPOSER BRIEF (Rascal Rally! course music, 28 Sept 2026). Read all of it before working.
+
+WHAT ADAM WANTS. "The background music all needs to be cool and not corny/cheesy/cartoony." The music a teenager
+would put on a playlist: Mario Kart World's live jazz-funk-rock band arrangements, Rocket League / Sonic Racing
+CrossWorlds EDM, F-Zero and Ridge Racer fusion rock and electro, Wipeout breakbeat and drum and bass, synthwave,
+nu-disco. Driving drums with a big snare, a punchy bass, guitar riffs or modern synths, a modern mix (tight low end,
+sidechain, wide stereo), catchy memorable melodies. Rated G, instrumental only (no vocals, no shouts, no whistling).
+BANNED: kazoo, toy piano, glockenspiel or xylophone lead melodies, slide whistle, oom-pah tuba, calliope, circus or
+carnival waltz, bouncy pizzicato strings, whistling, nursery-rhyme major melodies, comedy "wacky" sounds,
+children's-TV style, sleigh bells as a feature, cartoon-western cliches. No Nintendo/Mario Kart melodies and no
+famous tunes (write your own).
+
+THE STUDIO (worktree /Users/Adam/code/kart-racer/.claude/worktrees/agent-a41c157f86f47ce7c; run every command
+from there with ~/.cache/rascal-ear/venv/bin/python):
+- Templates: scripts/music/songs/skyline_synthwave.py (a modern candidate: SLOT/CANDIDATE, STYLE, FORM, PROG,
+  SECTIONS, compose(), custom voices registered in _I.RACK, MIX with sidechain 'duck', shorts()) and
+  harbour_funkrock.py (a live band: harmonize, comp, pad, drum grids, pickup bar + s.twin).
+- Engine: studio/score.py (notation seq/grid/chords, Song, twin), arrange.py (harmonize, comp, pad, shift,
+  tremolo, drum_fill), modern.py (Supersaw, Reese, SubBass, Pluck, Pad, Bell, DrumSynth: kick boom snare clap hat
+  ohat impact rise down; amp), synths.py (Organ, EPiano, Clav, SynthBass, Lead), instruments.py (the RACK of CC0
+  sampled instruments: trumpet, trumpet_harmon, trombone, horn, tuba, alto, bari, ebass, upright, guitar, banjo,
+  piano, violins, violas, celli, fiddle, flute, flute_vib, clarinet, oboe, harp, kit = Virtuosity multi-mic drums
+  (kick snare snare2 rim xstick flam buzz roll hhc hhh hh34 hho hhp ride bell crash sizzle tomh toml), tamb shaker
+  conga bongo_h agogo claves cabasa woodblock timbales clap snap stomp, timpani, cymbals, chimes), mix.py.
+- Notation: "Bb4:8 C5:16. [F3 A3]:4^ r:8 E5:8~ E5:2 |" (C4 = middle C; lengths 1 2 4 8 16 32, dots, t triplet;
+  flags > accent ^ marcato ' staccato !fall !doit !shake !scoop !bend !vib !sl; pp..ff; bar lines are checked).
+  Use the template's lines([bar strings], t0) helper so ties cross bar lines and each bar is checked.
+- LOOPS: INTRO bars play once, then LOOP bars repeat. The loop's last bar is the same music as the intro's last
+  bar (a pickup written by one function called twice) and compose() calls s.twin(INTRO - 1, <loop's last bar>).
+  The build then makes the wrap seamless (notes.json wrap.preMatch must be 0.0). The game replays a song from the
+  top 1.06x faster and a semitone up on the final lap: keep leads out of the extreme top. 60-90 s in all.
+- COURSE INTROS: each course candidate has shorts() returning {'intro-6s': (Song, 6.0, cadence_beat), 'intro-2s':
+  (Song, 2.5, cadence_beat)}: a 6.0 s piece from the hook ending on a held chord that can fade (landing by ~4.3 s)
+  and a 2.5 s flourish (a hit by ~1.0 s). The title and results slots do not need them.
+- BUILD (renders, writes MP3/WAV/MIDI/notes.json, the intros, and screens everything into notes.json):
+  python scripts/music/build.py <module> -> ~/.cache/rascal-music/candidates/<slot>/<candidate>/
+- CHECKS: check_scores.py <module> (parses every bar, flags ranges); review.py <module> [--png] (harmonic clashes,
+  piano roll to view with Read); stems.py scripts/music/songs/<file>.py (per-stem level and octave balance);
+  tune.py <module> "{'tracks/bass/gain': -3}" ... (mix variants on cached stems scored for production quality;
+  --fresh re-renders; keys use '/', e.g. 'tracks/drums.kick/gain'; TIMELINE=1 adds a per-5 s quality timeline);
+  solo.py <module> [part ...] (quality of each part alone); screen.py <mp3>; aes.py <mp3>; status.py (all
+  candidates and their scores).
+- ONE HEAVY JOB AT A TIME, MACHINE-WIDE (Adam, 28 Sept 2026: parallel jobs slowed his Mac down). Every render,
+  build, tune, solo, stems, screen, aes, check_scores or review run goes through the lock:
+    bash /Users/Adam/code/kart-racer/scripts/heavy.sh 'cd <worktree> && ~/.cache/rascal-ear/venv/bin/python scripts/music/<script>.py <args>'
+  started with the Bash tool's run_in_background: true; wait for its notification (or check its output, or
+  cat /tmp/rascal-heavy.lock/info). Never start a second copy while one runs. No ear server (earserver.py is not
+  to be run): screen.py and aes.py load the models inside your locked job. Batch several tune variants in one call.
+
+THE BAR (in notes.json after build): screen verdict PASS (AudioSet top-10 free of Music for children, Funny music,
+Christmas music, Lullaby, Jingle; CLAP prefers "cool driving electronic rock racing music" to "cartoon children's
+music" in over 80 % of windows); Audiobox production quality PQ >= 7.6 and enjoyment CE >= 7.2 (shipped AI songs:
+PQ 7.5-8.3, CE 7.3-8.0). Also watch CLAP five-way 'circus' and 'cheesy': lower is better.
+LESSONS SO FAR: reverb sends lower PQ (keep them modest and high-passed; a gated snare reverb cost 0.15; a horn
+chamber 0.15); the baritone sax samples score low (use trombone for low horn lines); amp-sim guitars from the clean
+hollow-body samples score low alone (moderate drive, high-cut, not too loud); supersaw lead and pluck bass score well
+alone; brass-band textures read as "circus" to CLAP (horns as punches, not oom-pah); the code DrumSynth kick is loud
+(balance with stems.py); sidechain 'duck' on pads and bass makes it modern; the master match-EQ fixes tone but the
+stems should be close already.
+
+HARD RULES: never play any sound on this Mac (no afplay, no browser, no audio app); do not call Gemini or any AI
+music or audio generator: write every note yourself; use only the CC0 sample libraries in ~/.cache/rascal-music/
+samples and code synthesis; do not download anything or pip install; do NOT edit scripts/music/studio/* or other
+composers' song files (write custom voices inside your own module and register them in _I.RACK); no git commands
+(the lead commits); the Bash tool refuses heredocs, shell loops with variables and pip: use Write/Edit for files and
+one plain command per call. Report engine bugs you cannot work around.

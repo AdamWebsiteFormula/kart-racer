@@ -46,10 +46,14 @@ def run(m, song, stems, n, changes, sections=True):
     bus, _, _ = mix.mixdown(stems, spec, n)
     y, rep = mix.master(bus, spec.get('master', {}))
     y, a_s, b_s = fold_loop(y, song)
-    tmp = os.path.join(WORK, 'tune.wav')
+    tmp = os.path.join(WORK, f'tune-{song.track}-{os.getpid()}.wav')  # one file per process: composers run at once
     import soundfile as sf
     sf.write(tmp, y.T, dsp.SR, subtype='PCM_16')
     res = {'all': aes.score(tmp)}
+    if os.environ.get('SCREEN'):
+        import screen
+        sc = screen.screen(tmp)
+        res['screen'] = {k: sc[k] for k in ('verdict', 'reasons', 'clapCoolVsCartoon', 'clap5')}
     if sections:
         res['first30'] = aes.score(tmp, 0, 30)['PQ']
         res['last30'] = aes.score(tmp, y.shape[1] / dsp.SR - 30, y.shape[1] / dsp.SR)['PQ']
@@ -65,9 +69,11 @@ if __name__ == '__main__':
     name = sys.argv[1]
     fresh = '--fresh' in sys.argv
     variants = [a for a in sys.argv[2:] if not a.startswith('--')] or ['{}']
-    m, song, stems, n = stems_for(name, fresh)
-    for v in variants:
-        t0 = time.time()
-        ch = eval(v)
-        r = run(m, song, stems, n, ch)
-        print(json.dumps({'variant': v, **r, 's': round(time.time() - t0)}), flush=True)
+    from studio.lock import heavy
+    with heavy('tune ' + name):
+        m, song, stems, n = stems_for(name, fresh)
+        for v in variants:
+            t0 = time.time()
+            ch = eval(v)
+            r = run(m, song, stems, n, ch)
+            print(json.dumps({'variant': v, **r, 's': round(time.time() - t0)}), flush=True)

@@ -1,13 +1,15 @@
-# Frostbite Pass, candidate B (track frostbite-pass): jazz-funk over drum and bass, the Frostbite Pass tune (flute and
-# harmon-muted trumpet in unison, A-flat major) re-set at 172 bpm for the snowy village and the ice lake. A chopped live
-# breakbeat on the multi-mic kit (two-step kick, snare on 2 and 4 with ghost notes, sixteenth hats, jazz ride, tom
-# fills) over a code kick and clap, a sine sub with a Reese an octave up, a tine electric piano comping the jazz chords
-# in a syncopated funk rhythm, icy pads, a pluck arpeggio. The trumpet's break over F minor rides a Reese riff; the
-# breakdown plays the tune's opening in half time on the flute alone. Every note is written by hand here.
+# Frostbite Pass, candidate B (track frostbite-pass): jazz-funk over drum and bass, the Frostbite Pass tune (A-flat
+# major) re-set at 172 bpm for the snowy village and the ice lake: the flute leads with an open trumpet in unison under
+# it (the samba version's harmon-muted trumpet scored low on the production-quality ear in every role tried: unison, an
+# octave below, long notes only; the open horn scored above no horn at all; 28 Sept 2026). A chopped live breakbeat on
+# the multi-mic kit (two-step kick, snare on 2 and 4 with ghost notes, sixteenth hats, jazz ride, tom fills) over a code
+# kick and clap, a sine sub with a Reese an octave up, a tine electric piano comping the jazz chords in dotted liquid
+# pushes (funk stabs in the break), icy pads, a pluck arpeggio. The break over F minor rides a sub riff; the breakdown
+# plays the tune's opening in half time. Every note is written by hand here.
 #
 # Form (bars): intro 4 (electric piano, pads, the flute's teaser, a riser, the pickup bar) | loop 48:
 #   A 8 | A' 8 (the tune twice, the second ending home) | B 8 (the bridge: long flute notes over the ride)
-#   C 8 (the trumpet's break over F minor, a Reese riff, chopped breaks) | D 8 (breakdown: the tune in half time on the
+#   C 8 (the flute's break over F minor, a sub riff, chopped breaks) | D 8 (breakdown: the tune in half time on the
 #   flute, then the build) | A'' 8 (the tune with everything, ending on the pickup bar = the intro's last bar)
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,10 +18,10 @@ from studio.arrange import comp, pad, shift
 from studio import instruments as _I
 
 SLOT, CANDIDATE = 'frostbite-pass', 'b-jazz-dnb'
-STYLE = ('jazz-funk drum and bass: flute and harmon-muted trumpet melody, tine electric piano comping jazz chords, chopped live '
+STYLE = ('jazz-funk drum and bass: flute melody over an open trumpet in unison, tine electric piano comping jazz chords, chopped live '
          'breakbeat with ghost notes and jazz ride, code kick and clap, sine sub and Reese bass, icy pads, pluck arpeggio')
-FORM = ["intro 4 (electric piano, pads, flute teaser, riser, pickup bar)", 'A 8 the tune (flute and harmon trumpet)',
-        "A' 8 the tune, home cadence (ride)", 'B 8 bridge: long flute notes over the ride', 'C 8 harmon trumpet break over F minor, Reese riff, chopped breaks',
+FORM = ["intro 4 (electric piano, pads, flute teaser, riser, pickup bar)", 'A 8 the tune (flute and trumpet, dotted electric piano pushes)',
+        "A' 8 the tune, home cadence (ride)", 'B 8 bridge: long flute notes over the ride', "C 8 the flute's break over F minor, sub riff, funk stabs, chopped breaks",
         'D 8 breakdown: the tune in half time on the flute, then the build', "A'' 8 the tune with everything; pickup bar = the intro's last bar"]
 
 BPM, INTRO, LOOP = 172, 4, 48
@@ -105,7 +107,7 @@ def compose():
     s = Song('Frostbite Pass (jazz-funk drum and bass)', 'frostbite-pass', BPM, 'A-flat major', INTRO, LOOP, seed=23)
     P = {}
     P['flute'] = s.part('flute', 'flute_vib', lag_ms=3, jitter_ms=4, mono=True)
-    P['tpt'] = s.part('tpt', 'trumpet_harmon', lag_ms=4, jitter_ms=4, mono=True)
+    P['tpt'] = s.part('tpt', 'trumpet', lag_ms=4, jitter_ms=4, mono=True)
     P['ep'] = s.part('ep', 'fb_ep', lag_ms=2, jitter_ms=3, swing=0.53, swing_unit=0.25)
     P['pad'] = s.part('pad', 'fb_pad', jitter_ms=2)
     P['arp'] = s.part('arp', 'fb_arp', jitter_ms=1)
@@ -134,8 +136,8 @@ def compose():
         return target - 1 if (target - 1) % 12 in SCALE else target - 2
 
     def melody(notes, flute_up=True, flute=True, tpt=True, fv=1.0, tv=1.0):
-        """Flute and harmon trumpet in unison; the trumpet drops an octave above A5, the flute doubles an octave up
-        where the line sits low."""
+        """Flute and open trumpet in unison (the trumpet under the flute in the mix); the trumpet drops an octave above
+        A5, the flute doubles an octave up where the line sits low."""
         if flute:
             P['flute'].add([n.copy(p=n.p + 12 if (flute_up and n.p < 70) else n.p, v=n.v * fv) for n in notes])
         if tpt:
@@ -216,11 +218,14 @@ def compose():
         pr = [c for c in allp if at(bar0) - 1e-9 <= c[0] < at(bar0 + nbars) - 1e-9]
         P['ep'].add(comp(pr, pat, 56, 74, n=4, vel=vel, dur=dur, t0=at(bar0), t1=at(bar0 + nbars)))
 
+    def ep_tune(bar0, nbars, vel=0.55):
+        """The tune's comping: dotted liquid pushes (3-3-2), held (they scored above the funk stabs under the tune)."""
+        ep_comp(bar0, nbars, 'x.....x...x.....', vel=vel * 0.9, dur=0.9)
+
     def pads(bar0, nbars, vel=0.45, lo=62, hi=81):
         pr = [c for c in allp if at(bar0) - 1e-9 <= c[0] < at(bar0 + nbars) - 1e-9]
         P['pad'].add(pad(pr, lo, hi, n=4, vel=vel))
 
-    FUNK = 'x..x..x...x..x..'
 
     # ---------------------------------------------------------------- intro: electric piano, pads, the flute's teaser
     ep_comp(0, 3, 'x.....x...x.....', vel=0.42, dur=0.9)
@@ -254,7 +259,7 @@ def compose():
         sb = bass(bar0, 8)
         P['sub'].add(sb)
         P['reese'].add(shift(sb, 0, 12, vel=0.65))
-        ep_comp(bar0, 8, FUNK)
+        ep_tune(bar0, 8)
         pads(bar0, 8)
     beat(A0, 8)
     beat(A1, 8, hats=False, ride=True)
@@ -279,11 +284,13 @@ def compose():
     fill(B0 + 3, 'toms')
     fill(B0 + 7, 'chop')
 
-    # ---------------------------------------------------------------- C: the trumpet's break over F minor
-    P['tpt'].add(lines(SOLO_C, at(C0)))
+    # ---------------------------------------------------------------- C: the break over F minor (flute and trumpet)
+    P['flute'].add(lines(SOLO_C, at(C0)))
+    P['tpt'].add([n.copy(v=n.v * 0.9) for n in lines(SOLO_C, at(C0))])
     rc = lines(RIFF_C, at(C0))
     P['sub'].add(rc)
-    P['reese'].add(shift(rc, 0, 12, vel=0.9))
+    # the Reese holds each bar's root under the riff (the riff itself stays on the clean sub)
+    P['reese'].add([Note(at(C0 + b), 3.4, root(at(C0 + b)) + 12, 0.6) for b in range(8)])
     ep_comp(C0, 8, 'x..x..x.x..x..x.', vel=0.55)
     pads(C0, 8, vel=0.4)
     beat(C0, 8, chop=True)
@@ -322,7 +329,7 @@ def compose():
     sb = bass(A2, 7)
     P['sub'].add(sb)
     P['reese'].add(shift(sb, 0, 12, vel=0.7))
-    ep_comp(A2, 7, FUNK, vel=0.58)
+    ep_tune(A2, 7, vel=0.58)
     pads(A2, 7, vel=0.5)
     P['arp'].add(arp(A2, 7, vel=0.3))
     beat(A2, 7, bell=True, shaker=True)
@@ -335,10 +342,10 @@ def compose():
 def _instruments():
     from studio import modern, synths
     _I.RACK['fb_ep'] = lambda: synths.EPiano(gain_db=-3.0, release=0.3, bell=0.55, trem=(4.8, 0.3), chorus=True)
-    _I.RACK['fb_pad'] = lambda: modern.Pad(gain_db=-15, cutoff=3200, attack=0.5, release=1.2, voices=5, detune=14, air=0.04, tri=0.55)
+    _I.RACK['fb_pad'] = lambda: modern.Pad(gain_db=-15, cutoff=2400, attack=0.45, release=1.1, voices=5, detune=12, air=0.0, tri=0.6)
     _I.RACK['fb_arp'] = lambda: modern.Pluck(gain_db=-15, cutoff=1700, env_amt=4500, env_decay=0.06, decay=0.18, release=0.05, detune=9, res=0.1, square=0.4)
     _I.RACK['fb_sub'] = lambda: modern.SubBass(gain_db=-8, harm=0.2, release=0.05)
-    _I.RACK['fb_reese'] = lambda: modern.Reese(gain_db=-12, cutoff=650, lfo=0.3, detune=12, drive=2.2, sub=0.0, release=0.06, width=0.6)
+    _I.RACK['fb_reese'] = lambda: modern.Reese(gain_db=-12, cutoff=520, lfo=0.3, detune=10, drive=1.5, sub=0.0, release=0.06, width=0.5)
     _I.RACK['fb_edrums'] = lambda: modern.DrumSynth(kick_tune=46, kick_decay=0.24, snare_tune=210)
 
 
@@ -347,8 +354,8 @@ _instruments()
 MIX = {
     'tracks': {
         'flute': {'pan': -0.1, 'gain': 0.0, 'eq': [('hp', 250), ('peak', 3000, 1.0, 1.0), ('highshelf', 9000, 0.7, 1.5)], 'sends': {'hall': -12, 'room': -14}},
-        'tpt': {'pan': 0.12, 'gain': -1.0, 'eq': [('hp', 250), ('peak', 2000, 1.0, 1.0)], 'sends': {'hall': -12, 'room': -12}},
-        'ep': {'pan': -0.15, 'gain': -8.0, 'eq': [('hp', 140), ('peak', 350, 1.0, -2.0), ('highshelf', 5000, 0.7, 1.0)], 'sends': {'room': -12},
+        'tpt': {'pan': 0.12, 'gain': -6.0, 'eq': [('hp', 250), ('peak', 1500, 1.0, -1.5)], 'sends': {'hall': -12, 'room': -12}},
+        'ep': {'pan': -0.15, 'gain': -13.0, 'eq': [('hp', 140), ('peak', 350, 1.0, -2.0), ('highshelf', 5000, 0.7, 1.0)], 'sends': {'room': -12},
                'duck': {'by': 'edrums.kick', 'depth_db': 3.0, 'rel_ms': 150}},
         'pad': {'gain': -6.0, 'width': 1.6, 'eq': [('hp', 250), ('lp', 9000)], 'sends': {'hall': -12}, 'duck': {'by': 'edrums.kick', 'depth_db': 6.0, 'rel_ms': 200}},
         'arp': {'pan': 0.25, 'gain': -10.0, 'width': 1.5, 'eq': [('hp', 400)], 'sends': {'delay': -10}, 'duck': {'by': 'edrums.kick', 'depth_db': 4.0}},
@@ -384,25 +391,23 @@ MIX = {
 
 
 def shorts():
-    """Course-intro pieces: 6.0 s (the tune's first two bars and a ii-V run on flute and harmon trumpet over the
-    breakbeat, a held A-flat 6/9 landing at 4.19 s with a crash and an impact) and 2.5 s (a pentatonic run into the
-    A-flat 6/9 hit at 0.70 s)."""
+    """Course-intro pieces: 6.0 s (the tune's first two bars and a ii-V on the flute over the breakbeat, a held
+    A-flat 6/9 landing at 4.19 s with a crash and an impact) and 2.5 s (a tom fill into the A-flat 6/9 hit at 0.70 s,
+    the electric piano pushing it an eighth early)."""
     out = {}
     s = Song('Frostbite Pass (jazz-funk drum and bass) - course intro', 'frostbite-pass', BPM, 'A-flat major', 5, 0, seed=24, tail_bars=0)
-    s.about = "flute and harmon trumpet on the tune's first two bars and a ii-V run over the breakbeat, a held A-flat 6/9 with a crash and an impact"
+    s.about = "the flute on the tune's first two bars and a ii-V over the breakbeat, a held A-flat 6/9 with a crash and an impact"
     P = {}
     P['flute'] = s.part('flute', 'flute_vib', lag_ms=3, jitter_ms=4, mono=True)
-    P['tpt'] = s.part('tpt', 'trumpet_harmon', lag_ms=4, jitter_ms=4, mono=True)
     for k, i in (('ep', 'fb_ep'), ('pad', 'fb_pad'), ('sub', 'fb_sub'), ('reese', 'fb_reese'), ('edrums', 'fb_edrums'), ('arp', 'fb_arp')):
         P[k] = s.part(k, i, jitter_ms=1.5)
     P['drums'] = s.part('drums', 'kit', jitter_ms=2, swing=0.53, swing_unit=0.25)
     P['cym'] = s.part('cym', 'kit', jitter_ms=2, swing=0.53, swing_unit=0.25)
     pr = chords('Abmaj9 | Fm9 | Bbm9 Eb13 | Ab69', 0)
     pr[-1] = (pr[-1][0], 8.0, pr[-1][2])
-    mel = lines([TUNE_A[0], TUNE_A[1], "Db5:8 F5:8 Ab5:8 C6:8 Bb5:8 G5:8 F5:8 Eb5:8", "Ab5:1~", "Ab5:1"], 0)
+    mel = lines([TUNE_A[0], TUNE_A[1], "Db5:2 Eb5:4 G5:4", "Ab5:1~", "Ab5:1"], 0)
     P['flute'].add([n.copy(p=n.p + 12) if n.p < 70 else n for n in mel])
-    P['tpt'].add([n.copy(p=n.p - 12) if n.p > 81 else n for n in mel])
-    P['ep'].add(comp(pr[:4], 'x..x..x...x..x..', 56, 74, n=4, vel=0.55, dur=0.4, t0=0, t1=12) + [Note(12, 7.5, p, 0.55) for p in (60, 63, 65, 70)])
+    P['ep'].add(comp(pr[:4], 'x.....x...x.....', 56, 74, n=4, vel=0.5, dur=0.9, t0=0, t1=12) + [Note(12, 7.5, p, 0.55) for p in (60, 63, 65, 70)])
     P['pad'].add(pad(pr, 62, 81, n=4, vel=0.5))
     P['sub'].add(lines(["Ab1:2 r:8 Ab1:4.", "F1:2 r:8 F1:4.", "Bb1:2 Eb2:2", "Ab1:1~", "Ab1:1"], 0))
     P['reese'].add(lines(["Ab2:2 r:8 Ab2:4.", "F2:2 r:8 F2:4.", "Bb2:2 Eb3:2", "Ab2:1~", "Ab2:1"], 0))
@@ -418,22 +423,21 @@ def shorts():
     out['intro-6s'] = (s, 6.0, 12)
 
     s = Song('Frostbite Pass (jazz-funk drum and bass) - course intro short', 'frostbite-pass', BPM, 'A-flat major', 2, 0, seed=25, tail_bars=0)
-    s.about = 'flute and harmon trumpet run up the A-flat pentatonic over a snare roll into an A-flat 6/9 hit with a crash and an impact'
+    s.about = ('a breakbeat tom fill and a riser into an A-flat 6/9 hit: the electric piano pushes the chord an eighth early, '
+               'the flute slides in from the leading tone onto its top, a crash and an impact')
     P = {}
     P['flute'] = s.part('flute', 'flute_vib', lag_ms=3, jitter_ms=3, mono=True)
-    P['tpt'] = s.part('tpt', 'trumpet_harmon', lag_ms=4, jitter_ms=3, mono=True)
     for k, i in (('ep', 'fb_ep'), ('pad', 'fb_pad'), ('sub', 'fb_sub'), ('reese', 'fb_reese'), ('edrums', 'fb_edrums')):
         P[k] = s.part(k, i, jitter_ms=1.5)
     P['drums'] = s.part('drums', 'kit', jitter_ms=2)
     P['cym'] = s.part('cym', 'kit', jitter_ms=2)
-    mel = lines(["Bb4:8 C5:8 Eb5:8 F5:8 Ab5:2~", "Ab5:1"], 0)
-    P['flute'].add(mel)
-    P['tpt'].add(mel)
-    P['ep'].add(lines(["r:2 [C4 Eb4 F4 Bb4]:2", "r:1"], 0) + [Note(2, 5.5, p, 0.55) for p in (60, 63, 65, 70)])
+    P['flute'].add(lines(["r:4 r:8 G5:8 Ab5:2~", "Ab5:1"], 0))
+    P['ep'].add([Note(1.5, 6.0, p, 0.55) for p in (60, 63, 65, 70)])
     P['pad'].add([Note(2, 5.5, p, 0.5) for p in (63, 65, 70, 72)])
     P['sub'].add(lines(["r:2 Ab1:2~", "Ab1:1"], 0))
     P['reese'].add(lines(["r:2 Ab2:2~", "Ab2:1"], 0))
-    P['drums'].add([Note(0.25 * k, 0.25, 'snare', 0.45 + 0.06 * k) for k in range(8)] + [Note(2, 1, 'kick', 1.0)])
+    P['drums'].add([Note(0, 0.25, 'kick', 0.9), Note(0.5, 0.25, 'snare', 0.7), Note(0.75, 0.25, 'snare2', 0.35), Note(1.0, 0.25, 'snare', 0.8),
+                    Note(1.25, 0.25, 'tomh', 0.7), Note(1.5, 0.25, 'tomh', 0.75), Note(1.75, 0.25, 'toml', 0.85), Note(2, 1, 'kick', 1.0)])
     P['edrums'].add([Note(0, 2.0, 'rise', 0.6), Note(2, 2.0, 'impact', 0.9), Note(2, 1, 'kick', 1.0)])
     P['cym'].add([Note(2, 1, 'crash', 0.9)])
     out['intro-2s'] = (s, 2.5, 2)

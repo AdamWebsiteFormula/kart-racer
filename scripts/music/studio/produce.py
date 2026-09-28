@@ -4,6 +4,7 @@ import json, os, shutil, time
 import numpy as np
 from . import dsp, export, instruments, mix, samples, synths, modern
 from .render import Ctx
+from .lock import heavy
 
 SR = dsp.SR
 OUT = os.path.expanduser(os.environ.get('RASCAL_MUSIC_OUT', '~/.cache/rascal-music/candidates'))
@@ -88,7 +89,7 @@ def wrap_check(y, a_s, b_s, fade=0.012):
     return {'preMatch': round(match, 3), 'levelDb': round(lvl, 2), 'fluxRatio': round(fr_w / (fr_f + 1e-9), 3)}
 
 
-def produce(mod, out_dir=None, tag='', analyze=True, only=None, write=True):
+def _produce(mod, out_dir=None, tag='', analyze=True, only=None, write=True):
     t0 = time.time()
     song = mod.compose()
     spec = mod.MIX
@@ -148,7 +149,7 @@ def produce(mod, out_dir=None, tag='', analyze=True, only=None, write=True):
     return res, y, stems
 
 
-def produce_shorts(mod, out_dir=None):
+def _produce_shorts(mod, out_dir=None):
     """The course-intro pieces (mod.shorts(): {name: (Song, seconds, cadence_beat)}): each rendered with the song's
     own instruments and mix, mastered with the song's own match EQ and gain (so it sits at the theme's level), cut
     to exactly `seconds` with the last chord fading out. Written next to the theme as <name>.mp3/.wav/.mid; their
@@ -188,3 +189,14 @@ def produce_shorts(mod, out_dir=None):
     nj['intros'] = intros
     json.dump(nj, open(nj_path, 'w'), indent=1)
     return intros
+
+
+def produce(mod, *a, **kw):
+    """Render, mix, master and write a song (waits for a free heavy-work slot: studio/lock.py)."""
+    with heavy(getattr(mod, '__name__', '')):
+        return _produce(mod, *a, **kw)
+
+
+def produce_shorts(mod, *a, **kw):
+    with heavy(getattr(mod, '__name__', '')):
+        return _produce_shorts(mod, *a, **kw)

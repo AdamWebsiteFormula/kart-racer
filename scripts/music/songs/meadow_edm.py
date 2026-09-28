@@ -237,9 +237,15 @@ def compose():
 
     # ---------------------------------------------------------------- V: the verse
     P['gtrlead'].add(lines(VERSE, at(V0)))
-    guitars(V0, 8, STRUM_VERSE, vel=0.62)
+    guitars(V0, 8, STRUM_VERSE, vel=0.55)
     P['piano'].add(comp(prog['V'], 'x.......x.......', 60, 74, n=4, vel=0.36))
-    P['pad'].add(pad(prog['V'][4:], 55, 69, n=4, vel=0.38))
+    P['pad'].add(pad(prog['V'], 55, 69, n=4, vel=0.36))
+    # a soft pluck arpeggio in eighths under the picked melody, up through the chord and back
+    for b in range(8):
+        for k in range(8):
+            tt = at(V0 + b) + 0.5 * k
+            tones = chord(tt).tones(67, 84)[:4]
+            P['pluck'].add(Note(tt, 0.4, tones[[0, 1, 2, 3, 2, 1, 2, 3][k] % len(tones)], 0.26 + 0.06 * (k % 2 == 0)))
     sub(V0, 8, vel=0.7)
     bass(V0, 8, pattern='x.x.x.x.x.x.x.x.', vel=0.62)
     for b in range(8):
@@ -427,10 +433,11 @@ def shorts():
         return P
 
     def land(P, t, beats):
-        P['lead'].add(Note(t, beats, 83, 0.85, art={'marc'}))
-        P['chords'].add([Note(t, beats, p, 0.7) for p in (67, 71, 74, 79)])
-        P['pad'].add([Note(t, beats, p, 0.6) for p in (55, 62, 67, 71)])
-        P['piano'].add([Note(t, beats, p, 0.7) for p in (43, 55, 62, 67, 71)])
+        """The landing: G add9 (the open fifth and the ninth on top, the third only in the pad), the lead on D."""
+        P['lead'].add(Note(t, beats, 86, 0.85, art={'marc'}))
+        P['chords'].add([Note(t, beats, p, 0.7) for p in (67, 69, 74, 79)])
+        P['pad'].add([Note(t, beats, p, 0.6) for p in (55, 62, 69, 71)])
+        P['piano'].add([Note(t, beats, p, 0.7) for p in (43, 55, 62, 69, 74)])
         P['sub'].add(Note(t, beats, 31, 0.85))
         P['bass'].add(Note(t, 1.0, 43, 0.85))
         P['edrums'].add([Note(t, 1, 'kick', 1.0), Note(t, 2, 'impact', 0.9)])

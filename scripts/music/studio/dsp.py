@@ -172,6 +172,38 @@ def eq(x, bands):
     return filt(x, np.vstack(sos))
 
 
+@njit(cache=True)
+def _svf_lp(x, g, k):
+    """Trapezoidal (zero-delay) state-variable low-pass with a per-sample coefficient g = tan(pi fc / fs)."""
+    n = x.shape[0]
+    y = np.empty(n, np.float32)
+    ic1 = 0.0
+    ic2 = 0.0
+    for i in range(n):
+        gi = g[i]
+        a1 = 1.0 / (1.0 + gi * (gi + k))
+        a2 = gi * a1
+        a3 = gi * a2
+        v3 = x[i] - ic2
+        v1 = a1 * ic1 + a2 * v3
+        v2 = ic2 + a2 * ic1 + a3 * v3
+        ic1 = 2.0 * v1 - ic1
+        ic2 = 2.0 * v2 - ic2
+        y[i] = v2
+    return y
+
+
+def sweep_lp(x, points, q=0.8):
+    """A low-pass whose cutoff moves through `points` [(seconds, Hz), ...] (log-interpolated): filter sweeps."""
+    ts = np.array([p[0] for p in points], np.float64)
+    fs = np.log(np.array([p[1] for p in points], np.float64))
+    t = np.arange(x.shape[1]) / SR
+    fc = np.exp(np.interp(t, ts, fs))
+    g = np.tan(np.pi * np.minimum(fc, 0.45 * SR) / SR)
+    k = 1.0 / q
+    return np.stack([_svf_lp(np.ascontiguousarray(x[c], np.float64), g, k) for c in range(x.shape[0])]).astype(np.float32)
+
+
 def hp2(x, f):
     """24 dB/oct high-pass (two biquads)."""
     return filt(x, np.vstack([biquad('hp', f, 0.54), biquad('hp', f, 1.31)]))

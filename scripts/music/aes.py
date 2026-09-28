@@ -1,27 +1,12 @@
 # A local ear for production quality, nothing played: Meta's Audiobox Aesthetics (fetched by get_aes.py) scores a
 # file on four axes, 1-10: PQ production quality, PC production complexity, CE content enjoyment, CU usefulness.
+# When the shared ear server (earserver.py) is up, a request goes there and this process loads no model (and not
+# even torch): several composers at once would otherwise each hold a copy and run the machine out of memory.
 #   python scripts/music/aes.py <file> [<file> ...]
 import json, os, sys, types
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, '.work', 'pylib'))
-try:
-    import tqdm.rich  # noqa: F401  (the package's download bar; not needed here)
-except Exception:
-    import tqdm
-    mod = types.ModuleType('tqdm.rich')
-    mod.tqdm = tqdm.tqdm
-    sys.modules['tqdm.rich'] = mod
-import soundfile as sf
-import torch
-from audiobox_aesthetics.infer import AesPredictor
 
 _P = {}
-
-
-def predictor():
-    if 'p' not in _P:
-        _P['p'] = AesPredictor(checkpoint_pth=None, batch_size=1)
-    return _P['p']
 
 
 def remote(route, payload):
@@ -42,10 +27,27 @@ def remote(route, payload):
     return out
 
 
+def predictor():
+    if 'p' not in _P:
+        sys.path.insert(0, os.path.join(HERE, '.work', 'pylib'))
+        try:
+            import tqdm.rich  # noqa: F401  (the package's download bar; not needed here)
+        except Exception:
+            import tqdm
+            mod = types.ModuleType('tqdm.rich')
+            mod.tqdm = tqdm.tqdm
+            sys.modules['tqdm.rich'] = mod
+        from audiobox_aesthetics.infer import AesPredictor
+        _P['p'] = AesPredictor(checkpoint_pth=None, batch_size=1)
+    return _P['p']
+
+
 def score(path, start=None, end=None):
     got = remote('/aes', {'path': os.path.abspath(path), 'start': start, 'end': end})
     if got is not None:
         return got
+    import soundfile as sf
+    import torch
     y, sr = sf.read(path, always_2d=True, dtype='float32')
     if start is not None:
         y = y[int(start * sr):int(end * sr)]

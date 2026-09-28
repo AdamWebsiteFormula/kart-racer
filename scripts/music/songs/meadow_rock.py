@@ -195,7 +195,7 @@ def compose():
     # ---------------------------------------------------------------- P: the build
     def build(bar0, lead=True):
         power(P['gtr1'], bar0, 4, 'x.x.x.x.x.x.x.x.', vel=0.72)
-        power(P['gtr2'], bar0, 4, 'x---------------', vel=0.72, high=True, detune=0.07)
+        power(P['gtr2'], bar0, 4, 'x.x.x.x.x.x.x.x.', vel=0.7, detune=0.07)
         P['organ'].add([n.copy(v=0.45 + 0.35 * (n.t - at(bar0)) / 16) for n in pad(prog['P'] if bar0 == P0 else prog["P'"], 57, 74, n=4, vel=1.0)])
         P['piano'].add([n.copy(v=0.35 + 0.3 * (n.t - at(bar0)) / 16) for n in comp(prog['P'] if bar0 == P0 else prog["P'"], 'x.x.x.x.x.x.x.x.', 62, 76, n=3, vel=1.0)])
         eighths(bar0, 4, vel=0.8, walk=False)
@@ -217,14 +217,14 @@ def compose():
         P['saw'].add(mel)
         n = len(bars)
         power(P['gtr1'], bar0, n, 'X.x.x.x.X.x.x.x.', vel=0.78)
-        power(P['gtr2'], bar0, n, 'X-------x-------', vel=0.74, high=True, detune=0.07)
+        power(P['gtr2'], bar0, n, 'X.x.x.x.X.x.x.x.', vel=0.75, detune=0.07)
         pr = [c for c in allp if at(bar0) - 1e-9 <= c[0] < at(bar0 + n) - 1e-9]
         P['organ'].add(pad(pr, 60, 76, n=4, vel=0.6))
         P['pad'].add(pad(pr, 55, 72, n=4, vel=0.5))
         P['piano'].add(comp(pr, 'x.x.x.x.x.x.x.x.', 62, 78, n=3, vel=0.5))
         for (st, d, ch) in pr:
             r = 26 + ((ch.root - 26) % 12)
-            P['piano'].add([Note(st + k, 0.9, r + 12, 0.55) for k in range(int(d))] + [Note(st + k, 0.9, r, 0.45) for k in range(int(d))])
+            P['piano'].add([Note(st + k, 0.9, r + 12, 0.5) for k in range(int(d))])
         eighths(bar0, n, vel=0.85)
         for b in range(n):
             chorus_beat(bar0 + b)
@@ -235,7 +235,7 @@ def compose():
     # ---------------------------------------------------------------- S: the solo
     P['lead'].add(bends(lines(SOLO, at(S0))))
     power(P['gtr1'], S0, 8, 'X.x.x.x.X.x.x.x.', vel=0.72)
-    power(P['gtr2'], S0, 8, 'X.m.m.x.m.m.x.m.', vel=0.66, high=True, detune=0.07)
+    power(P['gtr2'], S0, 8, 'X.x.x.x.X.x.x.x.', vel=0.7, detune=0.07)
     P['organ'].add(pad(prog['S'], 57, 74, n=4, vel=0.55))
     P['pad'].add(pad(prog['S'], 55, 72, n=4, vel=0.4))
     eighths(S0, 8, vel=0.82)
@@ -258,7 +258,8 @@ def _instruments():
     from studio import modern, synths
     _I.RACK['hr_saw'] = lambda: modern.Supersaw(voices=7, detune=16, spread=0.6, cutoff=3000, env_amt=3000, env_decay=0.3, res=0.1,
                                                   attack=0.01, decay=0.5, sustain=0.8, release=0.25, gain_db=-12, vib=(5.2, 0.12, 0.3))
-    _I.RACK['hr_organ'] = lambda: synths.Organ(drawbars='888600000', click=0.2, drive_db=9.0, leslie='slow', gain_db=-8.0)
+    # the keys pad (a soft synth string pad where a tonewheel organ was: the organ scored low alone)
+    _I.RACK['hr_organ'] = lambda: modern.Pad(gain_db=-15, cutoff=2600, attack=0.06, release=0.5, voices=5, detune=10, air=0.02, tri=0.35)
     _I.RACK['hr_pad'] = lambda: modern.Pad(gain_db=-17, cutoff=2200, attack=0.3, release=0.8, voices=5, detune=12, air=0.02)
     _I.get.cache_clear()
 
@@ -267,26 +268,28 @@ _instruments()
 
 MIX = {
     'tracks': {
-        'gtr1': {'pan': -0.7, 'gain': -8.0, 'amp': {'drive_db': 20.0, 'tone': 0.5}, 'eq': [('hp', 90), ('peak', 3000, 1.0, 1.0)], 'sends': {'room': -14}},
-        'gtr2': {'pan': 0.7, 'gain': -8.0, 'amp': {'drive_db': 20.0, 'tone': 1.0}, 'eq': [('hp', 110), ('peak', 3000, 1.0, 1.0)], 'sends': {'room': -14}},
-        'lead': {'pan': 0.1, 'gain': -4.0, 'amp': {'drive_db': 18.0, 'tone': 1.5}, 'eq': [('hp', 150), ('peak', 2500, 1.0, 1.5)],
+        # moderate drive (the clean samples through a hot amp scored low): crunch, not fizz
+        'gtr1': {'pan': -0.7, 'gain': -8.0, 'amp': {'drive_db': 14.0, 'tone': 0.5}, 'eq': [('hp', 90), ('peak', 3000, 1.0, 1.0)], 'sends': {'room': -14}},
+        'gtr2': {'pan': 0.7, 'gain': -8.0, 'amp': {'drive_db': 14.0, 'tone': 1.0}, 'eq': [('hp', 110), ('peak', 3000, 1.0, 1.0)], 'sends': {'room': -14}},
+        'lead': {'pan': 0.1, 'gain': -4.0, 'amp': {'drive_db': 14.0, 'tone': 1.5}, 'eq': [('hp', 150), ('peak', 2500, 1.0, 1.5)],
                  'sends': {'delay': -11, 'hall': -12}},
         'saw': {'pan': -0.1, 'gain': -9.0, 'width': 1.4, 'eq': [('hp', 300), ('lp', 9000)], 'sends': {'hall': -11, 'delay': -14}},
         'bass': {'gain': -1.0, 'eq': [('hp', 35), ('peak', 90, 1.0, 2.0), ('peak', 250, 1.0, -2.0), ('peak', 1500, 1.2, 2.0)],
                  'comp': {'thr': -20, 'ratio': 4, 'att_ms': 8, 'rel_ms': 100}, 'sat': 3.0},
-        'organ': {'pan': -0.25, 'gain': -15.0, 'width': 1.3, 'eq': [('hp', 180), ('lp', 7000)], 'sends': {'room': -10}},
+        'organ': {'pan': -0.25, 'gain': -9.0, 'width': 1.3, 'eq': [('hp', 180), ('lp', 7000)], 'sends': {'room': -10}},
         'piano': {'pan': 0.25, 'gain': -7.0, 'eq': [('hp', 90), ('peak', 300, 1.0, -2.0), ('peak', 3000, 1.0, 2.0)],
                   'comp': {'thr': -20, 'ratio': 3, 'att_ms': 8, 'rel_ms': 100}, 'sends': {'room': -12}},
         'pad': {'gain': -8.0, 'width': 1.5, 'eq': [('hp', 250), ('lp', 7000)], 'sends': {'hall': -10}},
-        'tamb': {'pan': 0.45, 'gain': -13.0, 'eq': [('hp', 3000)], 'sends': {'room': -10}},
+        'tamb': {'pan': 0.45, 'gain': -9.0, 'eq': [('hp', 3000)], 'sends': {'room': -10}},
         'fx.kick': {'gain': -30.0}, 'fx.snare': {'gain': -30.0}, 'fx.hats': {'gain': -30.0},
         'fx.fx': {'gain': -12.0, 'width': 1.5, 'sends': {'hall': -10}},
-        'drums.kick': {'bus': 'drums', 'gain': 2.0, 'eq': [('hp', 35), ('peak', 60, 1.0, 3.0), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 3.0)],
+        # the kit bright and open, the kick's boom tamed (the first mix was dark and heavy at 60-120 Hz)
+        'drums.kick': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 40), ('peak', 60, 1.0, 0.0), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 4.0)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 6, 'rel_ms': 80}},
-        'drums.snare': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 90), ('peak', 200, 1.0, 2.5), ('peak', 900, 1.5, -2.0), ('highshelf', 6000, 0.7, 3.0)],
+        'drums.snare': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 90), ('peak', 200, 1.0, 2.0), ('peak', 900, 1.5, -2.0), ('highshelf', 6000, 0.7, 5.0)],
                         'comp': {'thr': -18, 'ratio': 4, 'att_ms': 6, 'rel_ms': 90}, 'sends': {'plate': -14}},
-        'drums.oh': {'bus': 'drums', 'gain': -2.0, 'eq': [('hp', 300), ('highshelf', 8000, 0.7, 2.5)]},
-        'drums.room': {'bus': 'drums', 'gain': -6.0, 'eq': [('hp', 120)], 'comp': {'thr': -26, 'ratio': 6, 'att_ms': 2, 'rel_ms': 120}},
+        'drums.oh': {'bus': 'drums', 'gain': 2.0, 'eq': [('hp', 300), ('highshelf', 7000, 0.7, 4.0)]},
+        'drums.room': {'bus': 'drums', 'gain': -9.0, 'eq': [('hp', 120)], 'comp': {'thr': -26, 'ratio': 6, 'att_ms': 2, 'rel_ms': 120}},
     },
     'buses': {
         'drums': {'gain': 0.0, 'comp': {'thr': -14, 'ratio': 3, 'att_ms': 10, 'rel_ms': 110, 'mix': 0.6}, 'sat': 2.0},

@@ -5,9 +5,9 @@
 # The hook's signature is a leap up a fifth (F to C) falling back by step, in a dotted 3-3-2 rhythm; at the end a
 # flute and a lower supersaw double it. Every note is written by hand here; studio/ only plays and mixes it.
 #
-# Form (bars): intro 4 (pads, electric piano, the hook's opening on the piano, a riser, the pickup bar) | loop 48:
+# Form (bars): intro 4 (pads, electric piano, the hook's call three times on the piano, a riser, the pickup bar) | loop 48:
 #   A 16 (the drop: the hook twice, the second time turning to C7b9) | B 8 (the ice lake: long lead notes over a
-#   rolling Reese, busier chords, the ride) | C 8 (breakdown: the hook re-harmonized on the piano, then the build)
+#   rolling bass, busier chords, the ride) | C 8 (breakdown: the hook's call in half time, then the build)
 #   A' 16 (the hook with everything; its last bar is the pickup bar = the intro's last bar)
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,7 +20,7 @@ STYLE = ('liquid drum and bass: chopped live breakbeat (two-step kick, snare on 
          'ride, tom fills) layered with a code kick and clap, sine sub and Reese bass, tine electric piano chords, icy pads, '
          'pluck arpeggio, high strings, supersaw lead doubled by flute')
 FORM = ['intro 4 (pads, electric piano, the hook on the piano, riser, pickup bar)', 'A 16 the drop: the hook twice (supersaw lead)',
-        'B 8 the ice lake: long lead notes over a rolling Reese, ride', 'C 8 breakdown: the hook on the piano over new chords, then the build',
+        'B 8 the ice lake: long lead notes over a rolling bass, ride', "C 8 breakdown: the hook's call in half time over new chords, then the build",
         "A' 16 the hook with everything (flute and low supersaw doubling, arpeggio, strings); pickup bar = the intro's last bar"]
 
 BPM, INTRO, LOOP = 174, 4, 48
@@ -36,14 +36,14 @@ PROG = {
 }
 SECTIONS = [('intro', INTRO), ('A', 16), ('B', 8), ('C', 8), ("A'", 16)]
 
-HOOK = [
+HOOK = [  # a two-bar call (the leap) and answer (a turn around G), the call repeated note for note over D-flat
     "F5:8. C6:8. Ab5:8~ Ab5:4 G5:8 F5:8",
-    "G5:8. Ab5:8. Eb5:8~ Eb5:4 r:8 C5:8",
-    "F5:8. C6:8. Ab5:8~ Ab5:4 Bb5:8 C6:8",
-    "Bb5:8. Ab5:8. F5:8~ F5:2",
+    "G5:8. Ab5:8. G5:8~ G5:4 F5:8 Eb5:8",
+    "F5:8. C6:8. Ab5:8~ Ab5:4 G5:8 F5:8",
+    "Eb5:8. F5:8. C5:8~ C5:2",
     "F5:8. Db6:8. C6:8~ C6:4 Bb5:8 Ab5:8",
-    "Bb5:8. C6:8. F5:8~ F5:4 r:8 G5:8",
-    "G5:8. Bb5:8. C6:8~ C6:4 Bb5:8 Ab5:8",
+    "Bb5:8. C6:8. Bb5:8~ Bb5:4 Ab5:8 F5:8",
+    "G5:8. Bb5:8. C6:8~ C6:4 Bb5:8 G5:8",
     "Bb5:8. G5:8. F5:8 E5:2",
 ]
 HOOK_TURN = [  # the hook's second ending: over G half-diminished and C7b9, into the ice lake
@@ -59,6 +59,7 @@ LAKE_BASS = [
     "F1:4. F1:8 r:8 F1:8 C2:8 F1:8", "Bb1:4. Bb1:8 r:8 Bb1:8 F1:8 Bb1:8", "Eb2:4. Eb2:8 r:8 Eb2:8 Bb1:8 Eb2:8",
     "Ab1:4. Ab1:8 r:8 Ab1:8 Eb2:8 Ab1:8", "G1:4. G1:8 C2:4. C2:8",
 ]
+BREAK = ["F5:4. C6:4. Ab5:4", "G5:2. Eb5:4", "F5:4. Db6:4. C6:4", "Ab5:2. G5:4"]  # the call in half time (breakdown)
 PICKUP = HOOK[7]
 
 
@@ -147,7 +148,7 @@ def compose():
                            grid(GHOSTS[odd], 'snare2', t0, vels={'g': 0.3}))
             P['edrums'].add(grid(KICKS[odd], 'kick', t0, vels={'x': 0.85}))
             if clap:
-                P['edrums'].add(grid('....x.......x...', 'clap', t0, vels={'x': 0.6}))
+                P['edrums'].add(grid('....x.......x...', 'clap', t0, vels={'x': 0.6}) + grid('....x.......x...', 'snare', t0, vels={'x': 0.75}))
             if hats:
                 P['cym'].add(grid(HATS[odd], 'hhc', t0, vels={'x': 0.52, 'g': 0.3}))
                 if odd:
@@ -167,7 +168,7 @@ def compose():
         a, b = t0 + 4.0 - span, t0 + 4.0
         for k in ('drums', 'cym', 'shaker'):
             P[k].notes = [n for n in P[k].notes if not (a - 1e-6 <= n.t < b - 1e-6 and n.p != 'kick')]
-        P['edrums'].notes = [n for n in P['edrums'].notes if not (a - 1e-6 <= n.t < b - 1e-6 and n.p == 'clap')]
+        P['edrums'].notes = [n for n in P['edrums'].notes if not (a - 1e-6 <= n.t < b - 1e-6 and n.p in ('clap', 'snare'))]
         if kind == 'snare':
             P['drums'].add([Note(a + 0.25 * k, 0.25, 'snare', 0.55 + 0.12 * k) for k in range(4)])
         elif kind == 'toms':
@@ -187,7 +188,7 @@ def compose():
     # ---------------------------------------------------------------- intro: pads, electric piano, the hook on the piano
     P['pad'].add([n.copy(v=n.v * (0.6 + 0.4 * n.t / 12)) for n in pad(prog['intro'][:3], 60, 79, n=4, vel=0.5)])
     P['ep'].add(comp(prog['intro'][:3], 'x-------..x-----', 55, 72, n=4, vel=0.45))
-    P['piano'].add(shift(lines(HOOK[:3], at(0)), 0, -12, vel=0.75))
+    P['piano'].add(shift(lines([HOOK[0], HOOK[2], HOOK[4]], at(0)), 0, -12, vel=0.75))
     P['sub'].add([Note(at(1), 3.8, 37, 0.5), Note(at(2), 3.8, 34, 0.6)])
     P['cym'].add([Note(at(2) + 0.25 * k, 0.25, 'hhc', (0.2 + 0.25 * k / 16) * (1.0 if k % 2 == 0 else 0.6)) for k in range(16)])
     P['edrums'].add([Note(at(1), 8.0, 'rise', 0.7)])
@@ -202,7 +203,7 @@ def compose():
         P['drums'].add(grid('x.........x.....', 'kick', t0, vels={'x': 0.92}) + grid('....X...........', 'snare', t0, vels={'X': 0.95}) +
                        [Note(t0 + 2.0 + 0.25 * k, 0.25, 'snare', 0.42 + 0.07 * k) for k in range(8)])
         P['edrums'].add(grid('x.........x.....', 'kick', t0, vels={'x': 0.85}) + grid('....x...........', 'clap', t0, vels={'x': 0.6}) +
-                        [Note(t0, 2.0, 'impact', 0.55), Note(t0 + 2.0, 2.0, 'rise', 0.6)])
+                        grid('....x...........', 'snare', t0, vels={'x': 0.75}) + [Note(t0, 2.0, 'impact', 0.55), Note(t0 + 2.0, 2.0, 'rise', 0.6)])
         P['cym'].add([Note(t0, 1.0, 'crash', 0.75)] + grid('..xgxgxg........', 'hhc', t0, vels={'x': 0.5, 'g': 0.3}))
     pickup(INTRO - 1)
     pickup(END - 1)
@@ -237,16 +238,15 @@ def compose():
     fill(B0 + 3, 'toms')
     fill(B0 + 7, 'rush')
 
-    # ---------------------------------------------------------------- C: breakdown, then the build
-    P['piano'].add(lines([HOOK[0], "G5:8. Bb5:8. Eb5:8~ Eb5:4 r:8 C5:8", HOOK[2], HOOK[3]], at(C0)))
+    # ---------------------------------------------------------------- C: breakdown (the hook's call in half time), then the build
+    P['lead'].add([n.copy(v=0.5) for n in lines(BREAK, at(C0))])
     P['ep'].add(comp(prog['C'][:4], 'x---------------', 55, 72, n=4, vel=0.42))
     P['pad'].add(pad(prog['C'], 60, 79, n=4, vel=0.55))
     P['str'].add(pad(prog['C'], 72, 86, n=2, vel=0.4))
     for b in range(4):
         P['sub'].add([Note(at(C0 + b), 3.8, root(at(C0 + b)), 0.6)])
     for b in range(2, 4):
-        P['cym'].add(grid('x.x.x.x.x.x.x.x.', 'hhc', at(C0 + b), vels={'x': 0.3}))
-        P['shaker'].add(grid('x.x.x.x.x.x.x.x.', 'LShaker_Shake1D', at(C0 + b), vels={'x': 0.35}))
+        P['cym'].add(grid('x.x.x.x.x.x.x.x.', 'ride', at(C0 + b), vels={'x': 0.3}))
     # the build: the hook's second half on the lead, opening up; kick on the beat, the snare rolling faster
     P['lead'].add([n.copy(v=0.45 + 0.4 * (n.t - at(C0 + 4)) / 16) for n in lines(HOOK[4:], at(C0 + 4))])
     P['ep'].add(comp(prog['C'][4:], 'x.......x.......', 55, 72, n=4, vel=0.5))
@@ -282,6 +282,8 @@ def compose():
     hit(A2 + 8, impact=False)
     fill(A2 + 7, 'snare')
     fill(A2 + 11, 'toms')
+    P['mid'] = s.part('mid', 'fa_mid', jitter_ms=1)
+    P['mid'].notes = list(P['reese'].notes)
     return s
 
 
@@ -291,7 +293,8 @@ def _instruments():
                                                    attack=0.004, decay=0.5, sustain=0.75, release=0.2, gain_db=-11, vib=(5.0, 0.12, 0.3))
     _I.RACK['fa_lead_lo'] = lambda: modern.Supersaw(voices=5, detune=12, spread=0.8, cutoff=1800, env_amt=2500, env_decay=0.25, release=0.18, gain_db=-15)
     _I.RACK['fa_ep'] = lambda: synths.EPiano(gain_db=-3.0, release=0.35, bell=0.45, trem=(4.6, 0.25), chorus=True)
-    _I.RACK['fa_pad'] = lambda: modern.Pad(gain_db=-15, cutoff=3200, attack=0.5, release=1.2, voices=5, detune=14, air=0.04, tri=0.55)
+    _I.RACK['fa_pad'] = lambda: modern.Pad(gain_db=-15, cutoff=2400, attack=0.45, release=1.1, voices=5, detune=12, air=0.0, tri=0.6)
+    _I.RACK['fa_mid'] = lambda: synths.SynthBass(gain_db=-10, cutoff=300, env_amt=1500, decay=0.13, res=0.12, sub=0.0, release=0.05, drive=1.3)
     _I.RACK['fa_arp'] = lambda: modern.Pluck(gain_db=-15, cutoff=1600, env_amt=4500, env_decay=0.07, decay=0.2, release=0.05, detune=9, res=0.1, square=0.4)
     _I.RACK['fa_sub'] = lambda: modern.SubBass(gain_db=-8, harm=0.2, release=0.05)
     _I.RACK['fa_reese'] = lambda: modern.Reese(gain_db=-12, cutoff=650, lfo=0.3, detune=12, drive=2.2, sub=0.0, release=0.06, width=0.6)
@@ -313,6 +316,7 @@ MIX = {
         'str': {'pan': 0.2, 'gain': -9.0, 'eq': [('hp', 400), ('highshelf', 7000, 0.7, 1.5)], 'sends': {'hall': -10}},
         'sub': {'gain': 0.0, 'mono': True, 'eq': [('hp', 28), ('lp', 180)], 'duck': {'by': 'edrums.kick', 'depth_db': 5.0, 'rel_ms': 110}},
         'reese': {'gain': -6.0, 'eq': [('hp', 110), ('peak', 250, 1.0, -2.0), ('lp', 4000)], 'duck': {'by': 'edrums.kick', 'depth_db': 5.0, 'rel_ms': 110}},
+        'mid': {'gain': -60.0, 'eq': [('hp', 90), ('peak', 250, 1.0, -1.5), ('lp', 3500)], 'duck': {'by': 'edrums.kick', 'depth_db': 5.0, 'rel_ms': 110}},
         'drums.kick': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 35), ('peak', 60, 1.0, 2.0), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 3.0)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 6, 'rel_ms': 80}},
         'drums.snare': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 100), ('peak', 200, 1.0, 2.0), ('peak', 900, 1.5, -2.0), ('highshelf', 6000, 0.7, 3.0)],

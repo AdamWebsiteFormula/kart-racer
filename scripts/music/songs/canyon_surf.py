@@ -29,7 +29,7 @@ A0, B0, C0, A2 = 4, 20, 36, 44
 PROG = {
     'intro': 'Em | Em | C B7 | Em % % % B7 % % %',
     'A': 'Em | Em | C | C | Am | Am | B7 | B7 | Em | Em | C | D | Am | B7 | Em | Em',
-    'B': 'Am | D7 | G | C | F#m7b5 | B7 | Em | Em | Am | D7 | G | Cmaj7 | Am | B7 | Em | Em',
+    'B': 'Am | D | G | C | Am7 | B7 | Em | Em | Am | D | G | C | Am | B7 | Em | Em',
     'C': 'Em | Em | Em | Em | C | C | B7 | B7',
     "A'": 'Em | Em | C | C | Am | B7 | Em | Em % % % B7 % % %',
 }
@@ -50,7 +50,7 @@ TWANG = [  # the second melody, on the low twang guitar (the draft's trumpet lin
 ]
 WAIL = ["r:1", "B5:1", "r:1", "C6:1", "r:1", "C6:2 B5:2", "B5:1", "B5:4 r:2."]   # the break's tremolo wail
 RIFF_C = "E2:8> E2:8' G2:8> E2:8' A2:8> E2:8' Bb2:8> B2:8>"
-PICKUP = "E5:8^ r:8 r:4 B4:16 C5:16 C#5:16 D5:16 D#5:8 r:8"   # the lead's bar that ends the intro and the loop
+PICKUP = "E5:8^ r:8 r:4 E4:16 G4:16 A4:16 B4:16 D5:8 r:8"   # the lead's bar that ends the intro and the loop (a pentatonic run)
 STRUM = 0.012
 
 
@@ -128,6 +128,8 @@ def compose():
     P['bass'] = s.part('bass', 'ebass', lag_ms=1, jitter_ms=3, vel_jitter=0.05, mono=True)
     P['drums'] = s.part('drums', 'kit', jitter_ms=3.0, vel_jitter=0.05)
     P['edrums'] = s.part('edrums', 'surf_edrums', jitter_ms=1.0, vel_jitter=0.03)
+    P['shaker'] = s.part('shaker', 'shaker', jitter_ms=4)
+    P['tamb'] = s.part('tamb', 'tamb', jitter_ms=4)
 
     prog = {}
     t = 0.0
@@ -264,6 +266,13 @@ def compose():
     drums(A2, PUNK, 7)
     P['drums'].add(grid('x...............', 'crash', at(A2)) + grid('x...............', 'crash', at(A2 + 4)))
     P['edrums'].add([Note(at(A2), 2, 'impact', 0.5)])
+    # the percussion overdubs: a sixteenth shaker under the driving sections, the tambourine on the backbeat
+    for bar in list(range(A0 + 8, A0 + 16)) + list(range(B0 + 8, B0 + 16)) + list(range(C0, C0 + 8)) + list(range(A2, A2 + 7)):
+        P['shaker'].add(grid('x.x.x.x.x.x.x.x.', 'LShaker_Shake1D', at(bar), vels={'x': 0.5}) +
+                        grid('.x.x.x.x.x.x.x.x', 'LShaker_Shake1U', at(bar), vels={'x': 0.34}))
+        P['tamb'].add(grid('....x.......x...', 'Tamb1_Shake', at(bar), vels={'x': 0.55}))
+    for bar in list(range(A0, A0 + 8)) + list(range(B0, B0 + 8)):
+        P['tamb'].add(grid('....x.......x...', 'Tamb1_Shake', at(bar), vels={'x': 0.45}))
     # a drummer's fill at the end of each four-bar phrase that has none written
     for bar, style in [(A0 + 3, 'toms'), (A0 + 7, 'down'), (A0 + 11, 'toms'), (B0 + 3, 'snare'), (B0 + 7, 'toms'),
                        (B0 + 11, 'toms'), (C0 + 3, 'toms'), (A2 + 3, 'down')]:
@@ -294,14 +303,17 @@ MIX = {
                  'eq': [('hp', 90), ('peak', 380, 1.0, -2.5), ('lp', 5500), ('lp', 7000)]},
         'bass': {'gain': -1.0, 'eq': [('hp', 35), ('peak', 85, 1.0, 2.0), ('peak', 260, 1.0, -2.5), ('peak', 1100, 1.2, 2.5)],
                  'comp': {'thr': -20, 'ratio': 4, 'att_ms': 6, 'rel_ms': 90}, 'sat': 4.0},
-        'drums.kick': {'bus': 'drums', 'gain': 1.0, 'eq': [('hp', 35), ('peak', 60, 1.0, 3.0), ('peak', 330, 1.2, -4.0), ('peak', 3500, 1.0, 3.0)],
+        # the kit bright and open (the first mix was dark: the overheads, shaker and tambourine carry the top)
+        'drums.kick': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 40), ('peak', 60, 1.0, 0.0), ('peak', 330, 1.2, -4.0), ('peak', 3500, 1.0, 4.0)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 6, 'rel_ms': 80}},
-        'drums.snare': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 100), ('peak', 200, 1.0, 2.5), ('peak', 900, 1.4, -2.0), ('highshelf', 6000, 0.7, 2.5)],
+        'drums.snare': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 100), ('peak', 200, 1.0, 2.0), ('peak', 900, 1.4, -2.0), ('highshelf', 6000, 0.7, 5.0)],
                         'comp': {'thr': -18, 'ratio': 4, 'att_ms': 6, 'rel_ms': 90}, 'sends': {'plate': -14}},
-        'drums.oh': {'bus': 'drums', 'gain': -2.0, 'eq': [('hp', 200), ('highshelf', 9000, 0.7, 2.0)]},
+        'drums.oh': {'bus': 'drums', 'gain': 2.0, 'eq': [('hp', 300), ('highshelf', 7000, 0.7, 4.0)]},
         'drums.room': {'bus': 'drums', 'gain': -8.0, 'eq': [('hp', 110)], 'comp': {'thr': -28, 'ratio': 6, 'att_ms': 2, 'rel_ms': 120}},
-        'edrums.kick': {'bus': 'drums', 'gain': -9.0, 'eq': [('hp', 30), ('lp', 2000)]},
+        'edrums.kick': {'bus': 'drums', 'gain': -12.0, 'eq': [('hp', 30), ('lp', 2000)]},
         'edrums.fx': {'gain': -12.0, 'width': 1.4, 'eq': [('hp', 60)]},
+        'shaker': {'pan': -0.4, 'gain': -13.0, 'eq': [('hp', 2500)]},
+        'tamb': {'pan': 0.45, 'gain': -11.0, 'eq': [('hp', 3000)], 'sends': {'room': -12}},
     },
     'buses': {
         'gtrs': {'gain': 0.0, 'comp': {'thr': -16, 'ratio': 2, 'att_ms': 20, 'rel_ms': 120}},
@@ -330,16 +342,16 @@ def shorts():
     P['bass'] = s.part('bass', 'ebass', lag_ms=1, jitter_ms=3, mono=True)
     P['drums'] = s.part('drums', 'kit', jitter_ms=3.0)
     P['edrums'] = s.part('edrums', 'surf_edrums', jitter_ms=1.0)
-    P['lead'].add(trem(lines([TUNE[0], TUNE[1], "D#5:4 F#5:4 A5:4 B5:4", "E5:1"], 0)))
+    P['lead'].add(trem(lines([TUNE[0], TUNE[1], "D#5:4 F#5:4 A5:4 B5:4"], 0) + [Note(12, 5.5, 76, 0.68)]))
     rh = []
     for b, r in ((0, 40), (1, 40)):
         for k in range(8):
             acc = k in (0, 3, 6)
             rh.append(Note(4 * b + 0.5 * k, 0.45 if acc else 0.4, r, 0.84 if acc else 0.6, {'acc'} if acc else {'stac'}))
-    rh += lines(["B2:4.> B2:4.> B2:4>", "E2:1>"], 8)
+    rh += lines(["B2:4.> B2:4.> B2:4>"], 8) + [Note(12, 5.5, 40, 0.84, {"acc"})]
     P['gtrL'].add(gtr(rh)); P['gtrR'].add(gtr(rh, 0.97, detune=0.05))
     P['bass'].add(lines(["E1:8 E1:8 E1:8 E1:8 E1:8 E1:8 E1:8 E1:8", "E1:8 E1:8 E1:8 E1:8 G1:8 G1:8 A1:8 A#1:8",
-                         "B1:4. B1:4. B1:4", "E1:1"], 0))
+                         "B1:4. B1:4. B1:4"], 0) + [Note(12, 5.5, 28, 0.8)])
     P['drums'].add(grid('x.......x..x....|x.......x..x....|x.....x.....x...|x...............', 'kick', 0) +
                    grid('....X.......X...|....X.......X...|..........x.xxXX|................', 'snare', 0, vels={'x': 0.7}) +
                    grid('y.h.y.h.y.h.y.h.|y.h.y.h.y.h.y.h.|................|................', 'toml', 0, vels={'y': 0.55, 'h': 0.48}) +
@@ -349,20 +361,23 @@ def shorts():
     out['intro-6s'] = (s, 6.0, 12)
 
     s = Song('Mesa Rush (surf rock) - course intro short', 'canyon-rush', BPM, 'E minor', 2, 0, seed=39, tail_bars=0)
-    s.about = "the pickup's chromatic run on the tremolo lead over a tom fill into an E hit with the band"
+    s.about = ("a pentatonic run up the tremolo lead over a tom fill into an E minor chord the band holds to the end, the lead "
+               "tremolo-picking E and G on top with a whammy shimmer")
     P = {}
     P['lead'] = s.part('lead', 'guitar', jitter_ms=2)
+    P['lead2'] = s.part('lead2', 'guitar', lag_ms=2, jitter_ms=3)
     P['gtrL'] = s.part('gtrL', 'guitar', jitter_ms=2.5)
     P['gtrR'] = s.part('gtrR', 'guitar', lag_ms=2, jitter_ms=3)
     P['bass'] = s.part('bass', 'ebass', jitter_ms=2, mono=True)
     P['drums'] = s.part('drums', 'kit', jitter_ms=2.5)
     P['edrums'] = s.part('edrums', 'surf_edrums', jitter_ms=1.0)
-    P['lead'].add(trem(lines(["B4:16 C5:16 C#5:16 D5:16 D#5:4 E5:2", "r:1"], 0)))
-    hit = lines(["r:2 E2:2>", "r:1"], 0)
+    P['lead'].add(trem(lines(["E4:16 G4:16 A4:16 B4:16 D5:4 E5:2~", "E5:1"], 0)))
+    P['lead2'].add(trem(lines(["r:2 G4:2~", "G4:1"], 0), soft=0.75))
+    hit = lines(["r:2 E2:2>~", "E2:1"], 0)
     P['gtrL'].add(gtr(hit)); P['gtrR'].add(gtr(hit, 0.97, detune=0.05))
-    P['bass'].add(lines(["B1:8 B1:8 B1:8 B1:8 E1:2>", "r:1"], 0))
-    P['drums'].add(grid('xxxxxxxx........', 'tomh', 0, vels={'x': 0.6}) + grid('....xxxx........', 'toml', 0, vels={'x': 0.7}) +
-                   grid('........x.......', 'crash', 0) + grid('........x.......', 'kick', 0))
+    P['bass'].add(lines(["B1:8 B1:8 B1:8 B1:8 E1:2>~", "E1:1"], 0))
+    P['drums'].add(grid('xxxx............', 'tomh', 0, vels={'x': 0.6}) + grid('....xxxx........', 'toml', 0, vels={'x': 0.7}) +
+                   grid('........x.......', 'crash', 0) + grid('........x.......', 'kick', 0) + grid('........x.......', 'snare', 0, vels={'x': 0.9}))
     P['edrums'].add([Note(2, 1, 'kick', 0.9), Note(2, 2, 'impact', 0.6)])
     out['intro-2s'] = (s, 2.5, 2)
     return out

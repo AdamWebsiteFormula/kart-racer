@@ -8,11 +8,19 @@
 #   python scripts/music/screen.py <file> [<file> ...]   (prints one JSON line per file)
 import json, os, sys
 import numpy as np
-import librosa, torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import ear
 import aes
-from studio import dsp
+# torch, librosa and the models load only when this process computes (no ear server up): see _local()
+torch = librosa = ear = dsp = None
+
+
+def _local():
+    global torch, librosa, ear, dsp
+    if ear is None:
+        import torch as _t, librosa as _l
+        import ear as _e
+        from studio import dsp as _d
+        torch, librosa, ear, dsp = _t, _l, _e, _d
 
 BAD = ['Music for children', 'Funny music', 'Lullaby', 'Christmas music', 'Jingle (music)', 'Jingle bell']
 COOL = 'cool driving electronic rock racing music'
@@ -61,6 +69,7 @@ def screen(path):
     got = aes.remote('/screen', {'path': os.path.abspath(path)})
     if got is not None:
         return got
+    _local()
     y, _ = librosa.load(path, sr=44100, mono=False)
     if y.ndim == 1:
         y = np.stack([y, y])

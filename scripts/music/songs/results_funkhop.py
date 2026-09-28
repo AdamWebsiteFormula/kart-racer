@@ -196,10 +196,12 @@ def compose():
 
     # ---------------------------------------------------------------- B: the horn shout
     sh = lines(SHOUT, at(B0))
-    P['tpt'].add(sh)
-    P['alto'].add(shift(sh, 0, -12))
-    P['tbn'].add([n.copy(p=n.p - 24) for n in sh if n.p - 24 >= 44])
-    P['synth'].add(shift(sh, 0, 0, vel=0.8))
+    P['synth'].add(sh)
+    P['gtr'].add(octaves(sh, vel=0.7))
+    # the horns only punch the riff's accents (short, under the synth), never carry the line
+    for n in sh:
+        if 'marc' in n.art:
+            stab(n.t, chord(n.t + 0.01), d=0.25, v=0.7)
     for k, bar in enumerate((B0 + 1, B0 + 3, B0 + 5)):
         P['gtr'].add(lines([ANSWER[k]], at(bar)))
     P['bass'].add(lines(BASS_B, at(B0)))
@@ -248,19 +250,19 @@ _instruments()
 
 MIX = {
     'tracks': {
-        'lead': {'pan': 0.0, 'gain': -2.0, 'eq': [('hp', 220), ('peak', 2500, 1.0, 1.0)], 'sends': {'plate': -12, 'delay': -14}},
-        'gtr': {'pan': 0.3, 'gain': -4.0, 'eq': [('hp', 120), ('peak', 250, 1.0, -2.0), ('peak', 2500, 1.0, 1.5)], 'sends': {'room': -10, 'plate': -16}},
-        'synth': {'pan': 0.0, 'gain': -9.0, 'width': 1.3, 'eq': [('hp', 400), ('lp', 8000)], 'sends': {'plate': -12}},
-        'tpt': {'bus': 'horns', 'pan': -0.15, 'gain': 0.0, 'eq': [('hp', 200)], 'sends': {'plate': -14}},
-        'alto': {'bus': 'horns', 'pan': 0.2, 'gain': -2.0, 'eq': [('hp', 150)], 'sends': {'plate': -14}},
-        'tbn': {'bus': 'horns', 'pan': -0.05, 'gain': -3.0, 'eq': [('hp', 80), ('peak', 350, 1.0, -1.5)], 'sends': {'plate': -15}},
-        'keys': {'pan': -0.25, 'gain': -4.0, 'eq': [('hp', 120), ('peak', 300, 1.0, -2.0)], 'sends': {'room': -12}},
+        'lead': {'pan': 0.0, 'gain': -2.0, 'eq': [('hp', 220), ('peak', 2500, 1.0, 1.0)], 'sends': {'delay': -14}},
+        'gtr': {'pan': 0.3, 'gain': -4.0, 'eq': [('hp', 120), ('peak', 250, 1.0, -2.0), ('peak', 2500, 1.0, 1.5)]},
+        'synth': {'pan': 0.0, 'gain': -3.0, 'width': 1.3, 'eq': [('hp', 300), ('lp', 8000)], 'sends': {'delay': -14}},
+        'tpt': {'bus': 'horns', 'pan': -0.15, 'gain': 0.0, 'eq': [('hp', 200)]},
+        'alto': {'bus': 'horns', 'pan': 0.2, 'gain': -2.0, 'eq': [('hp', 150)]},
+        'tbn': {'bus': 'horns', 'pan': -0.05, 'gain': -3.0, 'eq': [('hp', 80), ('peak', 350, 1.0, -1.5)]},
+        'keys': {'pan': -0.25, 'gain': -4.0, 'eq': [('hp', 120), ('peak', 300, 1.0, -2.0)]},
         'bass': {'gain': 0.0, 'eq': [('hp', 32), ('peak', 80, 1.0, 2.0), ('peak', 250, 1.0, -2.5), ('peak', 1200, 1.2, 2.0)],
                  'comp': {'thr': -20, 'ratio': 4, 'att_ms': 8, 'rel_ms': 100}, 'sat': 3.0, 'duck': {'by': 'edrums.kick', 'depth_db': 2.0}},
         'drums.kick': {'bus': 'drums', 'gain': 1.0, 'eq': [('hp', 35), ('peak', 60, 1.0, 2.5), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 2.0)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 6, 'rel_ms': 80}},
         'drums.snare': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 100), ('peak', 200, 1.0, 2.0), ('peak', 900, 1.5, -2.0), ('highshelf', 6000, 0.7, 3.0)],
-                        'comp': {'thr': -18, 'ratio': 3, 'att_ms': 8, 'rel_ms': 100}, 'sends': {'room': -12}},
+                        'comp': {'thr': -18, 'ratio': 3, 'att_ms': 8, 'rel_ms': 100}},
         'drums.oh': {'bus': 'drums', 'gain': -2.0, 'eq': [('hp', 300), ('highshelf', 8000, 0.7, 2.0)]},
         'drums.room': {'bus': 'drums', 'gain': -8.0, 'eq': [('hp', 120)], 'comp': {'thr': -26, 'ratio': 6, 'att_ms': 2, 'rel_ms': 120}},
         'edrums.kick': {'bus': 'drums', 'gain': -6.0, 'eq': [('peak', 55, 1.0, 1.5), ('peak', 300, 1.2, -3.0)]},
@@ -273,8 +275,6 @@ MIX = {
         'drums': {'gain': 0.0, 'comp': {'thr': -14, 'ratio': 3, 'att_ms': 10, 'rel_ms': 100, 'mix': 0.6}, 'sat': 2.5},
     },
     'fx': {
-        'room': {'ir': '00.9s Recording Room-OST', 'predelay': 8, 'hp': 400, 'lp': 9000, 'gain': -5.0},
-        'plate': {'ir': '2.3s_Nice Plate', 'predelay': 20, 'hp': 450, 'lp': 10000, 'gain': -6.0},
         'delay': {'kind': 'delay', 'time': 60 / BPM * 0.75, 'fb': 0.28, 'lp': 4500, 'hp': 500, 'pingpong': True, 'gain': -7.0},
     },
     'master': {'comp': {'thr': -16, 'ratio': 2, 'att_ms': 30, 'rel_ms': 200, 'knee': 8}, 'lufs': -12.0, 'ceiling': -1.0, 'clip': 1.5},
