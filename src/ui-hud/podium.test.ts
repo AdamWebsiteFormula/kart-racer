@@ -161,6 +161,14 @@ describe('the podium screen', () => {
     expect(scr.querySelector('.podium-head')?.textContent).toBe('2nd in the cup!');
     expect([...scr.querySelectorAll('.podium-place .nm')].map((e) => e.textContent)).toEqual(['Pip (you)', 'Momo', 'Nova']);
     expect(scr.querySelector('.dim'), 'no dim: the ceremony shows through').toBeNull();
+    // the ceremony's hero shots light the card of the racer on screen, one at a time (game/podium.ts focus)
+    const lit = () => [...scr.querySelectorAll('.podium-place.focus .nm')].map((e) => e.textContent);
+    ui.podiumFocus(3);
+    expect(lit()).toEqual(['Nova']);
+    ui.podiumFocus(1);
+    expect(lit()).toEqual(['Momo']);
+    ui.podiumFocus(0);
+    expect(lit()).toEqual([]);
     expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
     press(); // the second half of a double press
     expect(ui.app.screen).toBe('podium');

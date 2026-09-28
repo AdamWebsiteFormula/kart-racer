@@ -9,7 +9,7 @@ import { isShared } from '../art-pipeline/index.ts';
 import type { TrackSample } from '../kart-controller/types.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { BLOCK, platePlace, Podium, PODIUM, PODIUM_REACTIONS, podiumSpot, type PodiumFx } from './podium.ts';
+import { BLOCK, platePlace, Podium, PODIUM, PODIUM_REACTIONS, podiumShot, podiumSpot, type PodiumFx } from './podium.ts';
 
 const DEFS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 const TOP = [{ racerId: 'boulder', archetype: 'heavy' as const }, { racerId: 'pip', archetype: 'light' as const, look: { paint: 'pip-alt' } }, { racerId: 'otto', archetype: 'medium' as const }];
@@ -30,8 +30,39 @@ describe('where the podium stands', () => {
     expect(dot(sp.front, s.tangent)).toBeLessThan(-0.95);
     const halfWide = (3 * PODIUM.width + 2 * PODIUM.gap) / 2 + 0.4;
     expect(halfWide).toBeLessThan(s.halfWidth - 1);
-    // and the camera's arc in front of it stays within the road's walls
-    expect(PODIUM.radius * Math.sin(PODIUM.arc)).toBeLessThan((s.wall ?? s.halfWidth) - 0.5);
+    // and the camera's arc in front of it stays within the road's walls, the wide shots' and every hero shot's
+    const wall = (s.wall ?? s.halfWidth) - 0.5, across = PODIUM.width + PODIUM.gap;
+    expect((PODIUM.radius + PODIUM.push / 2) * Math.sin(PODIUM.arc)).toBeLessThan(wall);
+    for (const d of PODIUM.heroDist) for (const a of PODIUM.heroSwing) expect(across + d * Math.sin(a)).toBeLessThan(wall);
+    for (const d of PODIUM.winnerDist) expect(d * Math.sin(PODIUM.winnerSwing)).toBeLessThan(wall);
+  });
+});
+
+describe('the ceremony\'s shots (podiumShot): Mario Kart World\'s order', () => {
+  it('the opening crane, then a hero shot of 3rd, 2nd and the winner in turn, then the wide shot, and round again; fewer racers, fewer hero shots', () => {
+    const seq = (n: number, reduced = false) => {
+      const out: string[] = [];
+      for (let t = 0; t < 40; t += 0.05) {
+        const s = podiumShot(t, n, reduced), key = s.kind === 'hero' ? `hero${s.view + 1}` : s.kind;
+        if (out[out.length - 1] !== key) out.push(key);
+        expect(s.u).toBeGreaterThanOrEqual(0);
+        expect(s.u).toBeLessThan(1);
+        expect(s.start).toBeLessThanOrEqual(t + 1e-9);
+      }
+      return out;
+    };
+    expect(seq(3).slice(0, 9)).toEqual(['crane', 'hero3', 'hero2', 'hero1', 'wide', 'hero3', 'hero2', 'hero1', 'wide']);
+    expect(seq(2).slice(0, 5)).toEqual(['crane', 'hero2', 'hero1', 'wide', 'hero2']);
+    expect(seq(1).slice(0, 4)).toEqual(['crane', 'hero1', 'wide', 'hero1']);
+    // each shot as long as PODIUM says: the winner's the longest
+    const at = (t: number) => podiumShot(t, 3, false);
+    expect(at(PODIUM.crane + 0.01).view).toBe(2);
+    expect(at(PODIUM.crane + PODIUM.hero[2] + 0.01).view).toBe(1);
+    expect(at(PODIUM.crane + PODIUM.hero[2] + PODIUM.hero[1] + 0.01).view).toBe(0);
+    expect(at(PODIUM.crane + PODIUM.hero[2] + PODIUM.hero[1] + PODIUM.hero[0] + 0.01).kind).toBe('wide');
+    // reduced motion: still shots cut in turn every PODIUM.cut seconds, the wide one first
+    expect(seq(3, true).slice(0, 5)).toEqual(['wide', 'hero3', 'hero2', 'hero1', 'wide']);
+    expect(podiumShot(PODIUM.cut * 1.5, 3, true).view).toBe(2);
   });
 });
 
@@ -144,32 +175,53 @@ describe('the podium', () => {
     p.dispose();
   });
 
-  it('the camera cranes down and in, then sweeps slowly across the front, above the road', () => {
+  it('the camera works as Mario Kart World\'s ceremony does: it cranes down, then a moving close shot of 3rd, 2nd and the winner in turn, each celebrating as the camera comes to them, then sweeps across all three; never still, in front of the podium, above the road', () => {
     const p = new Podium(track, TOP, 'harbour');
     const sp = p.spot;
+    const rel = (x: readonly number[]) => ({ out: dot([x[0] - sp.middle[0], 0, x[2] - sp.middle[2]], sp.front), across: dot([x[0] - sp.middle[0], 0, x[2] - sp.middle[2]], sp.right), up: x[1] - sp.middle[1] });
     p.start();
     p.update(1 / 60, false, null);
-    const at = () => ({ out: dot([p.pos[0] - sp.middle[0], 0, p.pos[2] - sp.middle[2]], sp.front), across: dot([p.pos[0] - sp.middle[0], 0, p.pos[2] - sp.middle[2]], sp.right), up: p.pos[1] - sp.middle[1] });
-    const start = at();
-    expect(start.out).toBeCloseTo(PODIUM.craneFrom[0], 0);
+    const start = rel(p.pos);
+    expect(Math.hypot(start.out, start.across)).toBeCloseTo(PODIUM.craneFrom[0], 0);
     expect(start.up).toBeCloseTo(PODIUM.craneFrom[1], 0);
-    let widest = 0, last = start, step = 0;
-    for (let i = 0; i < 60 * 30; i++) {
+    const focus: number[] = [];
+    let last = [...p.pos], shot = `${p.shot.kind}${p.shot.view}`, still = 0, jump = 0, wideFrom = NaN, wideTo = NaN;
+    for (let i = 0; i < 60 * 34; i++) {
       p.update(1 / 60, false, null);
-      const a = at();
-      expect(a.out, 'in front of the podium').toBeGreaterThan(PODIUM.radius * Math.cos(PODIUM.arc) - 0.1);
-      expect(a.up).toBeGreaterThan(PODIUM.height - 0.01);
-      if (p.time > PODIUM.crane) widest = Math.max(widest, Math.abs(a.across));
-      step = Math.max(step, Math.hypot(a.out - last.out, a.across - last.across, a.up - last.up));
-      last = a;
+      const now = `${p.shot.kind}${p.shot.view}`, a = rel(p.pos), step = Math.hypot(p.pos[0] - last[0], p.pos[1] - last[1], p.pos[2] - last[2]);
+      if (focus[focus.length - 1] !== p.focus) focus.push(p.focus);
+      expect(a.out, 'in front of the podium').toBeGreaterThan(PODIUM.depth / 2 + 1.5);
+      expect(a.up, 'above the road').toBeGreaterThan(1.2);
+      if (now === shot) {
+        // within a shot the camera glides: it moves every frame, never jumps
+        if (step < 0.002) still++;
+        jump = Math.max(jump, step);
+      } else if (p.shot.kind === 'hero') {
+        // a cut to a hero shot: its racer starts their move right after it, with the camera on them
+        const v = p.views[p.shot.view];
+        for (let k = 0; k < 12; k++) p.update(1 / 60, false, null);
+        expect(v.anim.reacting).toBe(PODIUM_REACTIONS[p.shot.view]);
+        expect(v.anim.reactionTime).toBeLessThan(0.12);
+        const b = p.views[p.shot.view].root.position;
+        expect(Math.hypot(p.pos[0] - b.x, p.pos[2] - b.z), 'close on them').toBeLessThan(5.2);
+        expect(Math.hypot(p.look[0] - b.x, p.look[2] - b.z), 'looking at them').toBeLessThan(0.01);
+        expect(p.fov).toBe(PODIUM.heroFov);
+      }
+      if (p.shot.kind === 'wide' && p.shot.round === 0) { if (Number.isNaN(wideFrom)) wideFrom = a.across; wideTo = a.across; }
+      shot = now;
+      last = [...p.pos];
     }
-    expect(widest).toBeGreaterThan(PODIUM.radius * Math.sin(PODIUM.arc) * 0.9);
-    expect(step, 'smooth: no cut').toBeLessThan(0.15);
-    expect(p.look[1] - sp.middle[1]).toBeCloseTo(PODIUM.aim, 6);
+    // 0 through the crane, then 3rd, 2nd, 1st lit in turn (the overlay's card), 0 through the wide shot, round again
+    expect(focus.slice(0, 6)).toEqual([0, 3, 2, 1, 0, 3]);
+    expect(still, 'never still').toBe(0);
+    expect(jump, 'no jump within a shot').toBeLessThan(0.15);
+    // the first wide shot sweeps from one side of the podium to the other
+    expect(wideFrom * wideTo).toBeLessThan(0);
+    expect(Math.abs(wideFrom - wideTo)).toBeGreaterThan(PODIUM.radius * Math.sin(PODIUM.arc));
     p.dispose();
   });
 
-  it('reduced motion: still shots cut in turn (wide, then the winner close), the cup there from the start, fewer fireworks', () => {
+  it('reduced motion: still shots cut in turn (wide, 3rd, 2nd, 1st, each close and still), the cup there from the start, fewer fireworks', () => {
     const p = new Podium(track, TOP, 'harbour');
     let fireworks = 0, calm = 0;
     const fx: PodiumFx = { firework: (_x, _y, _z, _h, reduced) => { fireworks++; if (reduced) calm++; }, confettiRain: () => {} };
@@ -177,13 +229,18 @@ describe('the podium', () => {
     p.update(1 / 60, true, fx);
     expect((p.group.getObjectByName('podium-cup') as Mesh).scale.x).toBe(1);
     const wide = [...p.pos];
-    for (let i = 0; i < 60 * 4; i++) p.update(1 / 60, true, fx);
+    for (let i = 0; i < 60 * (PODIUM.cut - 0.5); i++) p.update(1 / 60, true, fx);
     expect(p.pos).toEqual(wide);
-    for (let i = 0; i < 60 * 2; i++) p.update(1 / 60, true, fx);
-    const close = Math.hypot(p.pos[0] - p.spot.middle[0], p.pos[2] - p.spot.middle[2]);
-    expect(close).toBeLessThan(PODIUM.radius - 2);
+    for (const v of [2, 1, 0]) {
+      for (let i = 0; i < 60; i++) p.update(1 / 60, true, fx);
+      expect(p.focus).toBe(v + 1);
+      const b = p.views[v].root.position, still = [...p.pos];
+      expect(Math.hypot(p.pos[0] - b.x, p.pos[2] - b.z)).toBeLessThan(5.2);
+      for (let i = 0; i < 60 * (PODIUM.cut - 1); i++) p.update(1 / 60, true, fx);
+      expect(p.pos, 'a still').toEqual(still);
+    }
     expect(fireworks).toBe(calm);
-    expect(fireworks).toBeLessThan(6 / PODIUM.firework);
+    expect(fireworks).toBeLessThan((4 * PODIUM.cut) / PODIUM.firework);
     p.dispose();
   });
 
