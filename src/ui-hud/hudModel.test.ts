@@ -118,7 +118,7 @@ describe('hud model', () => {
 
   it('item slots: held and next, flicker with the roll\'s own time, charges only above one, empty after a Fog', () => {
     const k = kart();
-    k.item = { held: 'tripleFizz', charges: 3, rouletteRemaining: 0, next: 'x', nextCharges: 1, nextRouletteRemaining: 1 };
+    k.item = { held: 'tripleFizz', charges: 3, rouletteRemaining: 0, next: 'x', nextCharges: 1, nextRouletteRemaining: 1, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     const a = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
     expect([a.held.state, a.held.label, a.held.charges]).toEqual(['ready', 'Triple Fizz', '×3']);
     expect(a.next.state).toBe('rolling');
@@ -127,7 +127,7 @@ describe('hud model', () => {
     k.item.nextRouletteRemaining = 0.8;
     const b = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
     expect(b.next.label).not.toBe(a.next.label);
-    k.item = { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
+    k.item = { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     const c = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
     expect([c.held.state, c.next.state]).toEqual(['empty', 'empty']);
   });

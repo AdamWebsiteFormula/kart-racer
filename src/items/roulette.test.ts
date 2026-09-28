@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { ITEMS_CONFIG, ITEM_TABLE } from './data.ts';
 import { next, seedFor, weightedPick } from './rng.ts';
-import { weightsFor } from './roulette.ts';
+import { ITEM_SLOTS as AI_ITEM_SLOTS } from '../ai-driver/items.ts';
+import { ITEM_SLOTS, weightsFor } from './roulette.ts';
 import { give, go, kart, placeAt, press, seconds, setup, tick, toFeature } from './__tests__/harness.ts';
 
 describe('roll', () => {
@@ -67,7 +68,9 @@ describe('roll', () => {
     expect(weightsFor(ITEMS_CONFIG, eight.rm.state, eight.rm.consts, eight.track, 8).fogBank).toBe(ITEM_TABLE[7].fogBank);
   });
 
-  it('a balloon rolls into the first free slot; a third balloon gives nothing; the next moves up on use', () => {
+  it('a balloon rolls into the first free slot of three; a fourth gives nothing; the others move up on use (design §8, 28 Sept 2026)', () => {
+    expect(ITEM_SLOTS).toBe(3);
+    expect(AI_ITEM_SLOTS, 'the AI counts the same slots').toBe(ITEM_SLOTS);
     const h = setup({ n: 2 });
     go(h);
     const s = kart(h, 0);
@@ -78,8 +81,9 @@ describe('roll', () => {
     expect(s.item.rouletteRemaining).toBeCloseTo(ITEMS_CONFIG.rouletteSeconds, 5);
     const held = s.item.held;
     expect(press(h, 0).some((e) => e.type === 'itemRefused' && e.reason === 'roulette')).toBe(true);
+    placeAt(h.track, s, 0.02, 0); // away from the row, so the balloon coming back is not popped again
     const evs = tick(h, seconds(ITEMS_CONFIG.rouletteSeconds) + 1);
-    expect(h.log.some((e) => e.type === 'itemReady' && e.itemId === held)).toBe(true);
+    expect(h.log.some((e) => e.type === 'itemReady' && e.itemId === held && e.slot === 0)).toBe(true);
     expect(evs.length).toBe(0);
     // a second balloon fills the next slot, rolling on its own timer
     toFeature(h, 0, 'pickup', 1);
@@ -88,19 +92,51 @@ describe('roll', () => {
     expect(s.item.next).not.toBe('none');
     expect(s.item.nextRouletteRemaining).toBeGreaterThan(0);
     const nextId = s.item.next;
-    expect(h.log.filter((e) => e.type === 'roulette').map((e) => (e as { slot: number }).slot)).toEqual([0, 1]);
-    // a third balloon while both slots are taken gives nothing
+    expect(s.item.third).toBe('none');
+    // a third balloon (the first one back) fills the third slot while the second still rolls
     placeAt(h.track, s, 0.02, 0);
-    tick(h, seconds(ITEMS_CONFIG.rouletteSeconds) + 1);
+    tick(h, seconds(0.6));
     toFeature(h, 0, 'pickup', 0);
     tick(h);
-    expect(h.log.filter((e) => e.type === 'roulette').length).toBe(2);
-    // using the held item promotes the next one
+    expect(s.item.third).not.toBe('none');
+    expect(s.item.thirdRouletteRemaining).toBeGreaterThan(0);
+    const thirdId = s.item.third;
+    expect(h.log.filter((e) => e.type === 'roulette').map((e) => (e as { slot: number }).slot)).toEqual([0, 1, 2]);
+    tick(h, seconds(ITEMS_CONFIG.rouletteSeconds) + 1);
+    expect(h.log.filter((e) => e.type === 'itemReady').map((e) => (e as { slot: number }).slot)).toEqual([0, 1, 2]);
+    // a fourth balloon while all three are taken pops, and gives nothing
+    placeAt(h.track, s, 0.02, 0);
+    tick(h, seconds(0.6));
+    toFeature(h, 0, 'pickup', 0);
+    const before = h.race.length;
+    tick(h);
+    expect(h.race.slice(before).some((e) => e.type === 'pickup')).toBe(true);
+    expect(h.log.filter((e) => e.type === 'roulette').length).toBe(3);
+    // using the held item moves the other two up, and the third slot is free again
     s.item.charges = 1;
     placeAt(h.track, s, 0.02, 0);
     press(h, 0);
-    expect(s.item.held).toBe(nextId);
-    expect(s.item.next).toBe('none');
+    expect([s.item.held, s.item.next, s.item.third]).toEqual([nextId, thirdId, 'none']);
+    s.item.charges = 1;
+    press(h, 0);
+    expect([s.item.held, s.item.next, s.item.third]).toEqual([thirdId, 'none', 'none']);
+  });
+
+  it('the items behind move up with their charges and their roulettes', () => {
+    const h = setup({ n: 1 });
+    go(h);
+    const s = kart(h, 0);
+    placeAt(h.track, s, 0.1, 0);
+    give(h, 0, 'fizzPop');
+    give(h, 0, 'tripleFizz', 1);
+    give(h, 0, 'pogoSpring', 2);
+    s.item.thirdRouletteRemaining = 1.2;
+    press(h, 0);
+    expect(s.item).toMatchObject({ held: 'tripleFizz', charges: 3, rouletteRemaining: 0, next: 'pogoSpring', nextCharges: 2, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 });
+    expect(s.item.nextRouletteRemaining).toBeGreaterThan(1.1);
+    // the rolling item lands in the slot it has moved up to
+    tick(h, seconds(1.2));
+    expect(h.log.filter((e) => e.type === 'itemReady')).toEqual([{ type: 'itemReady', racerId: 'k0', itemId: 'pogoSpring', slot: 1 }]);
   });
 
   it('a rolling next slot never blocks the held item, and a promoted item keeps rolling', () => {

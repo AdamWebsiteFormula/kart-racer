@@ -10,6 +10,7 @@ import { BUILDER } from '../track-builder/constants.ts';
 import type { Track } from '../track-builder/track.ts';
 import type { ActiveHazard } from '../track-builder/types.ts';
 import { AI } from './constants.ts';
+import { ITEM_SLOTS, slotsTaken } from './items.ts';
 import { clamp } from './line.ts';
 import type { LineInfo, Scratch } from './types.ts';
 import * as dmath from '../sim-math/dmath.ts';
@@ -132,9 +133,7 @@ export function applyAvoid(s: KartState, ctx: AvoidContext, line: LineInfo, skil
       if (j < 0 || ctx.coinStates[j].respawnRemaining > 0) continue;
       kind = 1;
     } else if (f.kind === 'pickup') {
-      const heldFull = s.item.held !== 'none' || s.item.rouletteRemaining > 0;
-      const nextFull = s.item.next !== 'none' || s.item.nextRouletteRemaining > 0;
-      if (heldFull && nextFull) continue; // two slots: seek while either is free
+      if (slotsTaken(s) >= ITEM_SLOTS) continue; // three slots (design §8, 28 Sept 2026): seek while any is free
       const j = i < ctx.pickupOf.length ? ctx.pickupOf[i] : -1;
       if (j < 0 || ctx.pickupStates[j].respawnRemaining > 0) continue;
       kind = 2;

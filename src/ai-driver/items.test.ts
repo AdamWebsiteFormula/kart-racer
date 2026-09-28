@@ -146,6 +146,55 @@ describe('items', () => {
     s.grounded = true;
   });
 
+  it('three slots (28 Sept 2026): a hand is never fired in one burst; one of the same kind moved up waits a beat, a new kind its whole carry', () => {
+    const s = kartAt(track, 0.1);
+    const m = memory(PROFILES.hard);
+    const c = ctx(s, [other(s, 20)]);
+    s.item = { ...s.item, held: 'ball', charges: 1, rouletteRemaining: 0, next: 'ball', nextCharges: 1, third: 'kite', thirdCharges: 1 };
+    /** Ticks until the AI uses its first slot (a tap, or letting go of what it trailed), at most `secs`. */
+    const useIn = (secs: number): number => {
+      for (let i = 0; i < Math.round(secs / SIM_DT); i++) {
+        const was = m.itemTrailing;
+        const down = decideItem(s, m, PROFILES.hard, fakeLine(0), c, SIM_DT);
+        if ((down && !m.itemTrailing) || (!down && was && !m.itemTrailing)) return i;
+      }
+      return Infinity;
+    };
+    const beat = Math.round(AI.items.followSeconds / SIM_DT), carry = Math.round(AI.items.holdMin / SIM_DT);
+    expect(useIn(AI.items.holdMin + 2)).toBeGreaterThanOrEqual(carry);
+    // the throw spent it and the two behind moved up (the sim's promoteNext): the same kind in front again. It goes a
+    // beat later, not at once (a burst) and not a whole carry later (the hand was carried: a second shot breaks a shield)
+    s.item = { ...s.item, next: 'kite', third: 'none', thirdCharges: 0 };
+    const second = useIn(AI.items.holdMin + 2);
+    expect(second).toBeGreaterThanOrEqual(beat);
+    expect(second).toBeLessThan(carry);
+    // a new kind moved up (the kite) waits its whole carry, as it always has
+    s.item = { ...s.item, held: 'kite', next: 'none', nextCharges: 0 };
+    expect(useIn(AI.items.holdMin + 2)).toBeGreaterThanOrEqual(carry);
+  });
+
+  it('a speed item never goes over a boost of its own: a Triple Fizz is three boosts one after another, not one refreshed twice', () => {
+    const s = kartAt(track, 0.1);
+    const m = memory(PROFILES.hard);
+    s.item.held = 'lolly'; s.item.charges = 3;
+    // far behind: at once, even in a bend
+    const c = ctx(s, [], AI.items.speedItemGap + 1);
+    decideItem(s, m, PROFILES.hard, fakeLine(0.8), c, SIM_DT);
+    let pressed = false;
+    for (let i = 0; i < 120 && !pressed; i++) pressed = decideItem(s, m, PROFILES.hard, fakeLine(0.8), c, SIM_DT);
+    expect(pressed).toBe(true);
+    // the sim spends a charge and starts the item boost
+    s.item.charges = 2;
+    s.boost.source = 'item'; s.boost.remaining = 1.5; s.boost.multiplier = 1.4;
+    for (let i = 0; i < 120; i++) expect(decideItem(s, m, PROFILES.hard, fakeLine(0.8), c, SIM_DT)).toBe(false);
+    // waiting under a trick's boost counts as its own too
+    s.boost.source = 'trick'; s.boostQueue.source = 'item'; s.boostQueue.remaining = 0.5; s.boostQueue.multiplier = 1.4;
+    for (let i = 0; i < 10; i++) expect(decideItem(s, m, PROFILES.hard, fakeLine(0.8), c, SIM_DT)).toBe(false);
+    // it ends: the next one goes
+    s.boost.source = 'none'; s.boost.remaining = 0; s.boostQueue.source = 'none'; s.boostQueue.remaining = 0;
+    expect(decideItem(s, m, PROFILES.hard, fakeLine(0.8), c, SIM_DT)).toBe(true);
+  });
+
   it('keeps a ball behind as a shield while a shot homes in, and throws it once a kart is in its sights', () => {
     const s = kartAt(track, 0.1);
     const m = memory(PROFILES.hard);

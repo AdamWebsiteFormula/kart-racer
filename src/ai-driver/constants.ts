@@ -27,6 +27,7 @@ export interface AiConstants {
     forwardRange: number; forwardCone: number; homingRange: number; rearRange: number;
     defenceRadius: number; holdMax: number; holdMin: number; speedItemGap: number; straightTurn: number;
     anchorMin: number; anchorMax: number; anchorAlign: number; runnerRange: number; springRange: number; equaliserMinRank: number;
+    followSeconds: number;
   };
   autopilot: { skill: number; power: number };
   profiles: Record<AiDifficulty, AiProfile>;

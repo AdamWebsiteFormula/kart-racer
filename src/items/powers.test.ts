@@ -386,16 +386,53 @@ describe('hold to trail', () => {
 });
 
 describe('double balloons', () => {
-  it('a gold double balloon fills both slots at once', () => {
+  /** Pop the gold double balloon under kart 0 holding `held` (0 to 3 items); the slots its roulettes rolled in. */
+  function popDouble(held: string[]): { slots: number[]; h: H } {
     const def = structuredClone(OVAL);
     def.pickups = [{ t: 0.3, lateral: 0, double: true }];
     const h = setup({ n: 1, def });
     go(h);
+    held.forEach((id, k) => give(h, 0, id, k as 0 | 1 | 2));
     toFeature(h, 0, 'pickup', 0);
-    const ev = tick(h);
-    expect(ev.filter((e) => e.type === 'roulette').map((e) => (e.type === 'roulette' ? e.slot : -1))).toEqual([0, 1]);
+    const slots = tick(h).flatMap((e) => (e.type === 'roulette' ? [e.slot] : []));
+    return { slots, h };
+  }
+
+  it('a gold double balloon fills two slots at once, as Mario Kart World\'s Double Item Box gives two (design §8)', () => {
+    const { slots, h } = popDouble([]);
+    expect(slots).toEqual([0, 1]);
     const s = kart(h, 0);
     expect(s.item.held).not.toBe('none');
     expect(s.item.next).not.toBe('none');
+    expect(s.item.third).toBe('none');
+  });
+
+  it('holding one item, it fills the other two; holding two, only the last; holding three, nothing', () => {
+    expect(popDouble(['bubble']).slots).toEqual([1, 2]);
+    expect(popDouble(['bubble', 'oilCan']).slots).toEqual([2]);
+    const full = popDouble(['bubble', 'oilCan', 'fizzPop']);
+    expect(full.slots).toEqual([]);
+    expect(full.h.race.some((e) => e.type === 'pickup')).toBe(true); // it popped all the same
+  });
+});
+
+describe('a big power stays in the first slot (design §8; Mario Kart World\'s Mega Mushroom)', () => {
+  it('while a Strike Ball rolls, balloons fill the two slots behind it and a third balloon gives nothing; they move up when it ends', () => {
+    const h = setup({ n: 1 });
+    go(h);
+    const s = kart(h, 0);
+    give(h, 0, 'strikeBall');
+    press(h, 0);
+    expect(s.item.held).toBe('strikeBall');
+    expect(s.item.charges).toBe(0);
+    give(h, 0, 'fizzPop', 1);
+    give(h, 0, 'bubble', 2);
+    // every slot taken: a balloon under the rolling ball gives nothing, and the items behind it cannot be used
+    toFeature(h, 0, 'pickup', 0);
+    tick(h);
+    expect(count(h.log, 'roulette')).toBe(0);
+    expect(press(h, 0).some((e) => e.type === 'itemRefused' && e.reason === 'inUse')).toBe(true);
+    expect(until(h, 'powerEnd', 6)).toBe(true);
+    expect([s.item.held, s.item.next, s.item.third]).toEqual(['fizzPop', 'bubble', 'none']);
   });
 });

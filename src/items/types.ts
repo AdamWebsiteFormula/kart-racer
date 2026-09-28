@@ -167,9 +167,10 @@ export interface ItemsState {
 
 export type RefuseReason = 'roulette' | 'spinning' | 'intangible' | 'notRacing' | 'noItem' | 'inFlight' | 'position' | 'inUse' | 'noTarget';
 
+/** `slot`: the item slot, 0 the first (the one used), 1 and 2 behind it (design §8: three slots). */
 export type ItemEvent =
-  | { type: 'roulette'; racerId: string; itemId: string; seconds: number; slot: 0 | 1 }
-  | { type: 'itemReady'; racerId: string; itemId: string; slot: 0 | 1 }
+  | { type: 'roulette'; racerId: string; itemId: string; seconds: number; slot: number }
+  | { type: 'itemReady'; racerId: string; itemId: string; slot: number }
   | { type: 'itemUsed'; racerId: string; itemId: string; chargesLeft: number }
   | { type: 'itemRefused'; racerId: string; itemId: string; reason: RefuseReason }
   | { type: 'itemLost'; racerId: string; itemId: string }

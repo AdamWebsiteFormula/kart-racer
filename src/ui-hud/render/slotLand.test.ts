@@ -49,7 +49,7 @@ describe('the roulette slows to its stop', () => {
 
   it('each new roll starts on another face, and the two slots never show one item', () => {
     const m = newHudMemory(), k = kart();
-    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: S, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
+    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: S, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     feedHud(m, [], [roll(0)], 'p', 1);
     const first = hudModel(race, k, 5, 10, m, 1, defs, 0).held.label;
     feedHud(m, [], [roll(0)], 'p', 5);
@@ -66,7 +66,7 @@ describe('the roulette slows to its stop', () => {
 describe('a Double balloon\'s two items land one after the other', () => {
   it('the sim has both ready on one tick: the held lands, the next rolls on one face more for UI.slotStaggerMs, then lands', () => {
     const m = newHudMemory(), k = kart();
-    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 1 / 120, next: 'tripleFizz', nextCharges: 3, nextRouletteRemaining: 1 / 120 };
+    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 1 / 120, next: 'tripleFizz', nextCharges: 3, nextRouletteRemaining: 1 / 120, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     const before = hudModel(race, k, 5, 10, m, 10, defs, 0);
     expect([before.held.state, before.next.state]).toEqual(['rolling', 'rolling']);
     k.item.rouletteRemaining = 0; k.item.nextRouletteRemaining = 0;
@@ -81,7 +81,7 @@ describe('a Double balloon\'s two items land one after the other', () => {
 
   it('a single balloon\'s roll into the next slot lands at once; a Fog Bank during the wait empties the slot', () => {
     const m = newHudMemory(), k = kart();
-    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 0, next: 'oilCan', nextCharges: 1, nextRouletteRemaining: 0 };
+    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 0, next: 'oilCan', nextCharges: 1, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     feedHud(m, [], [ready(1, 'oilCan')], 'p', 3);
     expect(hudModel(race, k, 5, 10, m, 3, defs, 0).next.state).toBe('ready');
     feedHud(m, [], [ready(0), ready(1, 'oilCan')], 'p', 4);
@@ -104,7 +104,7 @@ describe('the landing on screen (render/hud.ts, ui.css)', () => {
     expect(held.querySelector('.gloss')).not.toBeNull();
     const m = newHudMemory(), k = kart();
     const draw = (t = 1) => v.render(hudModel(race, k, 5, 10, m, t, defs, 0));
-    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 0.5, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
+    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 0.5, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     draw();
     expect(held.classList.contains('land')).toBe(false);
     k.item.rouletteRemaining = 0;
@@ -119,7 +119,7 @@ describe('the landing on screen (render/hud.ts, ui.css)', () => {
     draw();
     expect(held.classList.contains('land')).toBe(false);
     // the next item moves up (the held one used): no roll stopped, no landing
-    k.item = { held: 'oilCan', charges: 1, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
+    k.item = { held: 'oilCan', charges: 1, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     draw();
     expect(held.classList.contains('land')).toBe(false);
     // a roll in the next slot lands there
@@ -129,11 +129,11 @@ describe('the landing on screen (render/hud.ts, ui.css)', () => {
     draw();
     expect(next.classList.contains('land')).toBe(true);
     // a Fog Bank empties a rolling slot: nothing lands
-    k.item = { held: 'none', charges: 0, rouletteRemaining: 0.4, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
+    k.item = { held: 'none', charges: 0, rouletteRemaining: 0.4, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     k.item.held = 'airHorn'; k.item.charges = 1;
     draw();
     held.classList.remove('land');
-    k.item = { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
+    k.item = { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     draw();
     expect(held.classList.contains('land')).toBe(false);
   });
@@ -143,7 +143,7 @@ describe('the landing on screen (render/hud.ts, ui.css)', () => {
     const v = new HudView(document.body);
     const [held, next] = [...v.root.querySelectorAll<HTMLElement>('.slot')];
     const m = newHudMemory(), k = kart();
-    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 0.2, next: 'tripleFizz', nextCharges: 3, nextRouletteRemaining: 0.2 };
+    k.item = { held: 'beachBall', charges: 1, rouletteRemaining: 0.2, next: 'tripleFizz', nextCharges: 3, nextRouletteRemaining: 0.2, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     v.render(hudModel(race, k, 5, 10, m, 20, defs, 0));
     k.item.rouletteRemaining = 0; k.item.nextRouletteRemaining = 0;
     feedHud(m, [], [ready(0), ready(1, 'tripleFizz')], 'p', 20.2);
