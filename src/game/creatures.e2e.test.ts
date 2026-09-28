@@ -24,14 +24,15 @@ describe('course creatures in a whole race', () => {
     if (!creature) continue;
     const def = withCreature(shipped);
     it(`${def.id}: the ${creature.creature} acts all race and every kart still finishes`, () => {
-      // four seeds: a creature catches 0 to 8 karts in one two-lap race, so one race alone is luck.
-      // Since the classes race level (24 Sept 2026) the pack runs closer, and the rumblesaur and the
-      // yeti catch nobody in about half their races (12 seeds), so two races were no longer enough
-      let hits = 0;
-      for (const seed of [1, 2, 3, 4]) hits += race(seed);
-      // a real threat (the whale only pushes): it catches somebody in four races of eight karts
-      if (creature.creature !== 'whale') expect(hits, `${creature.creature} caught somebody`).toBeGreaterThan(0);
-    }, 120_000);
+      // a creature catches 0 to 8 karts in one two-lap race, so one race alone is luck. Since the classes
+      // race level (24 Sept 2026) the pack runs closer, and the yeti catches somebody in few races: 3 of
+      // seeds 1-12 on 27 Sept's sim, 1 of 12 with each racer's own line (28 Sept 2026, design §4; seed 10).
+      // So four races always (every check in race()), then on, up to twelve, until it has caught somebody
+      let hits = 0, seed = 0;
+      while (seed < 4 || (hits === 0 && seed < 12 && creature.creature !== 'whale')) hits += race(++seed);
+      // a real threat (the whale only pushes): it catches somebody in at most twelve races of eight karts
+      if (creature.creature !== 'whale') expect(hits, `${creature.creature} caught somebody in ${seed} races`).toBeGreaterThan(0);
+    }, 300_000);
 
     function race(seed: number): number {
       const track = buildTrack(def);

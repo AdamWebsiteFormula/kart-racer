@@ -1,13 +1,14 @@
 // Any racer in any kart (design §5): the kart table and the combine rule. The unit gate of the plan
 // (docs/plans/kart-combos.md §3): every pair inside the bounds; whole steps, limits, balance; racers
-// in their own karts identical to the classes as they were, value for value; twins; the mass spread.
+// in their own karts on their own line (their class as it was plus their own touch, design §4), value
+// for value; no two racers on one line (Adam, 28 Sept 2026); twins; the mass spread.
 import { describe, expect, it } from 'vitest';
 import schema from '../../docs/schemas/kart.schema.json';
 import { CAST } from '../ui-hud/data/cast.ts';
 import { ROSTER } from '../game/racers.ts';
 import { BASE, makeConstants, type KartConstants } from './constants.ts';
 import {
-  ARCHETYPES, COMBO_BOUNDS, KART_IDS, KART_LIMITS, KART_PACE, KART_STEPS, KARTS, RACER_CLASSES, STAT_KEYS,
+  ARCHETYPES, COMBO_BOUNDS, KART_IDS, KART_LIMITS, KART_PACE, KART_STEPS, KARTS, RACER_CLASSES, RACER_STATS, STAT_KEYS,
   comboStats, isKartId, kartById, kartFor, kartPace, ownKartOf, racerClassOf,
 } from './karts.ts';
 import type { Archetype, SpeedClass } from './types.ts';
@@ -24,9 +25,10 @@ const LEGACY_CLASSES = {
   heavy: { speed: 0.01, accel: -0.12, handling: -0.10, weight: 0.18, hook: 'hardBump' },
 } as const;
 
-/** makeConstants as it was before karts: the class alone. */
-function legacy(archetype: Archetype, cc: SpeedClass): Record<string, unknown> {
-  const s = LEGACY_CLASSES[archetype];
+/** makeConstants as it was before karts: the class alone; with `racerId`, the class plus that racer's own touch (their line). */
+function legacy(archetype: Archetype, cc: SpeedClass, racerId?: string): Record<string, unknown> {
+  const c = LEGACY_CLASSES[archetype], me = racerId ? RACER_STATS[racerId] : undefined;
+  const s = me ? { speed: c.speed + me.speed, accel: c.accel + me.accel, handling: c.handling + me.handling, weight: c.weight + me.weight, hook: c.hook } : c;
   const ccScale = BASE.speedClasses[String(cc) as '50' | '100' | '150'];
   return {
     ...structuredClone(BASE), archetype, cc, stats: s, baseTopSpeed: BASE.topSpeed,
@@ -101,14 +103,14 @@ describe('the kart table (design §5)', () => {
     }
   });
 
-  it('a racer in their own kart handles exactly as their class did (8 racers × 3 classes × 3 cc, value for value)', () => {
+  it('a racer in their own kart handles exactly as their line: the class as it was plus their own touch (8 racers × 3 classes × 3 cc, value for value)', () => {
     for (const r of RACERS) for (const a of CLASSES) for (const cc of CCS) {
-      const was = legacy(a, cc);
+      const was = legacy(a, cc, r);
       const own = ownKartOf(r) as string;
       sameHandling(makeConstants(a, cc, r), was, `${r} as ${a} ${cc}cc`);
       sameHandling(makeConstants(a, cc, r, own), was, `${r} in ${own} as ${a} ${cc}cc`);
       sameHandling(makeConstants(a, cc, r, 'no-such-kart'), was, `${r} in an unknown kart as ${a} ${cc}cc`);
-      sameHandling(makeConstants(a, cc), was, `no racer as ${a} ${cc}cc`);
+      sameHandling(makeConstants(a, cc), legacy(a, cc), `no racer as ${a} ${cc}cc`);
       expect(makeConstants(a, cc, r).kartId).toBe(own);
       expect(makeConstants(a, cc, r, 'no-such-kart').kartId).toBe(own);
     }
@@ -121,6 +123,33 @@ describe('the kart table (design §5)', () => {
         sameHandling(makeConstants(a, cc, r, t.id), makeConstants(a, cc, r, t.twinOf), `${r} in ${t.id} ${cc}cc`);
         expect(makeConstants(a, cc, r, t.id).kartId).toBe(t.id);
       }
+    }
+  });
+
+  it("each racer's own touch (design §4): whole steps, at most one a stat, balanced, weight untouched; Juniper the medium class exactly", () => {
+    expect(Object.keys(RACER_STATS)).toEqual(RACERS);
+    for (const r of RACERS) {
+      const me = RACER_STATS[r];
+      for (const s of STAT_KEYS) {
+        const n = me[s] / KART_STEPS[s];
+        expect(Math.abs(n - Math.round(n)), `${r} ${s} ${me[s]} is whole steps`).toBeLessThan(1e-9);
+        expect(Math.abs(Math.round(n)), `${r} ${s} at most one step`).toBeLessThanOrEqual(1);
+      }
+      expect(me.weight, `${r}: weight is the class's`).toBe(0);
+      expect(Math.abs(kartPace(me)), `${r} predicted lap effect ${(1000 * kartPace(me)).toFixed(2)} per mille`).toBeLessThanOrEqual(KART_PACE.balance + EPS);
+    }
+    for (const s of STAT_KEYS) expect(Object.is(comboStats('juniper')[s], ARCHETYPES.medium[s]), `juniper ${s}`).toBe(true);
+    expect(Object.isFrozen(RACER_STATS)).toBe(true);
+  });
+
+  it('no two racers share a line (Adam, 28 Sept 2026: "No 2 racers should have the exact same stat"): in their own karts, and side by side in every kart, on speed, accel and handling', () => {
+    // to the step: a total is whole steps of each stat, so rounding to a step's hundredth parts no near-equal sums
+    const line = (r: string, k?: string) => { const t = comboStats(r, k); return STAT_KEYS.filter((s) => s !== 'weight').map((s) => Math.round((100 * t[s]) / KART_STEPS[s])).join(' '); };
+    const own = RACERS.map((r) => line(r));
+    expect(new Set(own).size, `own karts: ${own.join(' | ')}`).toBe(RACERS.length);
+    for (const k of KART_IDS) {
+      const side = RACERS.map((r) => line(r, k));
+      expect(new Set(side).size, `all in ${k}: ${side.join(' | ')}`).toBe(RACERS.length);
     }
   });
 

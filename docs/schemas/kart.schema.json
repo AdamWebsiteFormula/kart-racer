@@ -165,13 +165,28 @@
       "items": { "$ref": "#/$defs/unlockable" }
     },
     "racerClasses": {
-      "description": "Each racer's class (design §4). The class sets the racer's stats, and the racer's own kart (karts[].owner) is the zero a chosen kart is measured from. The racers' names, colors and art live in the game (src/game/racers.ts, src/ui-hud/data/cast.ts); kart-controller karts.test.ts keeps the three in step.",
+      "description": "Each racer's class (design §4). The class and the racer's own touch (racerStats) set the racer's stats, and the racer's own kart (karts[].owner) is the zero a chosen kart is measured from. The racers' names, colors and art live in the game (src/game/racers.ts, src/ui-hud/data/cast.ts); kart-controller karts.test.ts keeps the three in step.",
       "type": "object",
       "additionalProperties": { "type": "string", "enum": ["light", "medium", "heavy"] },
       "default": { "pip": "light", "momo": "light", "nova": "light", "juniper": "medium", "otto": "medium", "sprocket": "medium", "boulder": "heavy", "gus": "heavy" }
     },
+    "racerStats": {
+      "description": "Each racer's own touch on their class (design §4; Adam, 28 Sept 2026: \"No 2 racers should have the exact same stat\"): fractions of the base in whole kartSteps, at most one step a stat, balanced by kartPace (one stat traded for another of equal lap-time value), weight untouched. A racer's line is their class plus their touch: what they drive in their own kart. No two racers share a line, in their own karts or side by side in any one kart, on speed, accel and handling (kart-controller karts.test.ts). Juniper, the all-rounder, has none: she is the medium class exactly.",
+      "type": "object",
+      "additionalProperties": { "type": "object", "required": ["speed", "accel", "handling", "weight"], "properties": { "speed": { "type": "number" }, "accel": { "type": "number" }, "handling": { "type": "number" }, "weight": { "type": "number" } } },
+      "default": {
+        "pip": { "speed": 0, "accel": 0.06, "handling": -0.06, "weight": 0 },
+        "momo": { "speed": 0, "accel": -0.06, "handling": 0.06, "weight": 0 },
+        "nova": { "speed": 0.005, "accel": -0.06, "handling": 0, "weight": 0 },
+        "juniper": { "speed": 0, "accel": 0, "handling": 0, "weight": 0 },
+        "otto": { "speed": -0.005, "accel": 0, "handling": 0.06, "weight": 0 },
+        "sprocket": { "speed": 0, "accel": 0.06, "handling": -0.06, "weight": 0 },
+        "boulder": { "speed": 0, "accel": -0.06, "handling": 0.06, "weight": 0 },
+        "gus": { "speed": 0.005, "accel": 0, "handling": -0.06, "weight": 0 }
+      }
+    },
     "karts": {
-      "description": "The ten karts (design §5; Adam, 25 Sept 2026, option B: any racer in any kart, like Mario Kart World). Each racer's signature kart (owner) and two unlockable twins (twinOf: the stats of that kart, so an unlock changes the look, never the speed; a twin carries no numbers of its own). The numbers are fractions of the base in whole kartSteps, at most kartLimits steps each, and balanced (kartPace): a kart trades one stat for another of equal lap-time value. Combine (src/kart-controller/karts.ts), in exactly this order: total = archetypes[the racer's class] + (this kart − the racer's own kart), so a racer in their own kart (or its twin) gets their class to the last bit. Then topSpeed = base.topSpeed × speedClasses[cc] × (1 + speed), accel = base.accel × (1 + accel), steerRate = base.steerRate × (1 + handling) (the grip turn and the drift turn), mass = 1 + weight (the dash, Bubble and Strike Ball bonuses on top, as ever). An unknown kart is the racer's own; an unknown racer takes the class alone. No hidden stats: no terrain stats, no mini-turbo stat. The balance gate (src/game/combos.e2e.test.ts) may move a kart one step toward neutral; these are the final numbers.",
+      "description": "The ten karts (design §5; Adam, 25 Sept 2026, option B: any racer in any kart, like Mario Kart World). Each racer's signature kart (owner) and two unlockable twins (twinOf: the stats of that kart, so an unlock changes the look, never the speed; a twin carries no numbers of its own). The numbers are fractions of the base in whole kartSteps, at most kartLimits steps each, and balanced (kartPace): a kart trades one stat for another of equal lap-time value. Combine (src/kart-controller/karts.ts), in exactly this order: line = archetypes[the racer's class] + racerStats[the racer], then total = line + (this kart − the racer's own kart), so a racer in their own kart (or its twin) gets their line to the last bit. Then topSpeed = base.topSpeed × speedClasses[cc] × (1 + speed), accel = base.accel × (1 + accel), steerRate = base.steerRate × (1 + handling) (the grip turn and the drift turn), mass = 1 + weight (the dash, Bubble and Strike Ball bonuses on top, as ever). An unknown kart is the racer's own; an unknown racer takes the class alone. No hidden stats: no terrain stats, no mini-turbo stat. The balance gate (src/game/combos.e2e.test.ts) may move a kart one step toward neutral; these are the final numbers.",
       "type": "array", "minItems": 10, "maxItems": 10,
       "items": { "$ref": "#/$defs/kart" },
       "default": [
