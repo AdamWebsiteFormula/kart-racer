@@ -1,6 +1,27 @@
-# Handoff (26 Sept 2026)
+# Handoff (28 Sept 2026)
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
+
+## Live at 28 Sept 2026, 12:36 EDT: round 4 (read this first; the sections below are older)
+
+main bad8b6a is live (Deploy run 151 green). Checked from a cloud session at 15:40 EDT: the live page serves index-DTMsISR1.js and index-thuL9OBv.css, the same names a local `vite build --base=/kart-racer/` of bad8b6a makes, and it opens on the new start screen. Round 4 is Adam's 28 Sept feedback plus the fresh-eyes review's last nits:
+- "So corny!": no STRIKE! word on the Strike Ball's burst (512da25).
+- "Why on earth is there so much voice narration throughout?": the racers speak at Mario Kart World's moments (picked, a rocket start, every hit, the finish; a trick or a gloat now and then; never a pass, a boost, a lap or a sorry; a rival only when the player's item hits them): 18.4 -> 8.3 lines a race (14d3b24; the census tool, cddd4f2).
+- "The game should have music playing here" (the title): a start screen, "Press any key", whose press starts the title music; the song's file comes down while it waits (76813d7, e287a8d).
+- "This part should just show the characters, not the karts" (the Racer screen): each racer standing alone, idling in their own temper, with a flourish on show and on a pick; the tiles rendered from the 3D models (6ee0dc7, 0a2121b, 71bb084).
+- "The balloons, after they are selected, just appear without any animation. Looks cheap.": a popped balloon blows up again out of its knot with a little sparkle (43cf1d2); the roulette slows to its stop and the item lands in its slot with a bounce, a ring and a shine (f7bceee).
+- The review's nits: the podium shot as MKW's (the crane, then 3rd, 2nd and the winner in close shots, the wide sweep; the overlay lights the card of the racer on screen), boost speed lines only on the screen's lower sides, pickup balloons floating on their ribbons, a light rail wherever a course limit stands with nothing on it. Also Frostbite's final lap back under 100 draws (the items in one batch), Nova's and Pip's sad finishes readable, no buried or floating pines.
+
+**Score core unchanged:** `npm run build:function` on bad8b6a still makes core-afee84082edffa47, so submit-score v21 stays (no redeploy).
+**Checked on bad8b6a (cloud, 28 Sept):** verify green (2152 tests, 1 skipped; bundle 579 KB gzipped). A silent check in muted headless Chromium on ?mute (0 audio contexts, 0 page errors): the start screen and its press (the title took its menu 14 ms after the key; the logo at the top left, five bands); the Racer screen (Pip, Momo, Nova, Juniper each standing alone, feet and name on one line); a stepped race on Lighthouse Loop, two balloons caught blowing back up (small and pale at 0.05 s, whole and pink at 0.15 s, red by 0.3 s, a sparkle round it) and the item landing held still by still (the bright drop, the ring, the x3 badge, the shine, settled by 0.7 s), draw calls up to 90; the podium's crane, 3rd, 2nd, winner and wide shots.
+
+**Open:**
+- Nova's rocket-start line (0 of 6 takes passed; a direction change is next). Big Gus's overtake line no longer matters: since the cut, no racer speaks on a pass.
+- Paid sound packs (Adam: "not yet").
+- Stats by rider: two racers of one class show the same bars (not raised with Adam yet).
+- Gemini credit: check AI Studio's Usage page before the next Gemini job (28 Sept notes below).
+
+**Cloud sessions:** the container's network policy blocks adamwebsiteformula.github.io, so check the live site through Firecrawl (its credits are low) or by comparing a local build's bundle names. scripts/headless/cdp.mjs points at the Mac's Chrome; in the cloud use Playwright's Chromium (/opt/pw-browsers/chromium) with --mute-audio, ?mute and software GL. Software GL draws a frame in 1-2.5 s, so stop the page's loop and step it (kart.step), skipping the draw to fast-forward (swap kart.post.render for a no-op, then put it back); hold a CSS animation still by still with getAnimations(), pause() and currentTime; stills at a device pixel ratio of 2 come out pink there (not the game). There is no .env.local in the cloud: no Gemini, ElevenLabs or Freesound keys.
 
 ## Live at 28 Sept 2026, 09:00 EDT
 
