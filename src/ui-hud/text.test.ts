@@ -186,7 +186,9 @@ describe('the credits', () => {
     expect(art).toContain(`Item art (${count('public/art/items', '.webp')})`);
     expect(art).toContain(`ground textures (${count('public/textures', '.webp')})`);
     expect(art).toContain(`Racer 3D models (${count('public/models', '.glb')})`);
-    expect(art).toContain(`scenery 3D models (${count('public/models/props', '.glb')})`);
+    // the scenery files are counted over their rows (the far landmarks of 27 Sept 2026 have their own)
+    const scenery = [...art.matchAll(/(?:scenery|landmark) 3D models \((\d+)\)/g)].reduce((n, m) => n + Number(m[1]), 0);
+    expect(scenery).toBe(count('public/models/props', '.glb'));
     const works = parseCredits(md).flatMap((s) => s.rows.map((r) => `${r.work} ${r.author}`)).join('\n');
     for (const tool of ['Claude Code', 'Higgsfield', 'ElevenLabs', 'Supabase']) expect(works).toContain(tool);
   });

@@ -3,7 +3,7 @@
 // visible mesh (and every shadow caster again, for the shadow pass) is an upper bound. The post
 // chain and the effects in use get the rest of the 100 (docs/sops/performance.md). Live on an
 // M4 Pro the whole frame measured 51 to 74 draw calls.
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { PerspectiveCamera, Scene, type InstancedMesh, type Mesh, type Object3D } from 'three';
 import { RaceSession } from '../game/session.ts';
 import type { RaceConfig } from '../race-manager/types.ts';
@@ -11,8 +11,15 @@ import type { TrackDefinition } from '../track-builder/types.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
 import { Vfx } from '../vfx-juice/vfx.ts';
 import { DEFAULT_LOOK, setLook } from '../art-pipeline/look.ts';
+import { VISTA_PIECES } from '../art-pipeline/vista.ts';
+import { adoptPropFiles } from '../art-pipeline/__tests__/propFiles.ts';
 
 const TRACKS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
+
+// The far vista's big pieces are counted at their real size: their model files (27 Sept 2026) stand in
+// for the code-built pieces here as they do in a browser. (The older scenery files are still stood in
+// for by their code-built models, as the racers are.)
+beforeAll(async () => { await adoptPropFiles(Object.values(VISTA_PIECES).flat()); }, 60_000);
 
 /** The SOP's ceiling is 100 a frame; the scene and its shadow pass may use this much of it. */
 const SCENE_AND_SHADOW_DRAWS = 80;

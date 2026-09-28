@@ -11,12 +11,17 @@
 // - what rides with the ring round the camera (a moon's halo) its own additive mesh.
 // Laid out from the track's middle, `deg` degrees round from straight ahead of the start line
 // (positive to the driver's right), `d` metres out; Mirror mode reflects the angles.
+// A big piece can come from a model file instead (27 Sept 2026, review: "the big shapes are primitives";
+// Adam: "the game feels very cheap"): each replaceable piece has a name (PIECES), glb.ts PropModels fits
+// its file (public/models/props.json, made with image-to-3D) onto the code-built piece's box, and the
+// vista stands it where the piece stood, one draw per model (VistaParts.models); without the file, or
+// before it arrives, the piece stays code-built.
 import {
-  AdditiveBlending, BufferAttribute, BufferGeometry, Matrix4, Mesh, NormalBlending, Quaternion,
-  ShaderMaterial, UniformsLib, UniformsUtils, Vector3,
+  AdditiveBlending, Box3, BufferAttribute, BufferGeometry, InstancedMesh, Matrix4, Mesh, NormalBlending, Quaternion,
+  ShaderMaterial, UniformsLib, UniformsUtils, Vector3, type Material,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { VistaContext, VistaParts } from '../track-builder/mesh/index.ts';
+import type { VistaContext, VistaParts, VistaPiece } from '../track-builder/mesh/index.ts';
 import { decorGeometry } from './decor.ts';
 import { HAZE } from './look.ts';
 import { ModelBuilder, type Paint, type V3 } from './model.ts';
@@ -321,8 +326,20 @@ export function flierAt(f: Flier, time: number, trig: Float32Array): V3 | null {
   return [ax + f.dir[0] * f.dir[3] * k, ay + f.dir[1] * f.dir[3] * k, az + f.dir[2] * f.dir[3] * k];
 }
 
+/** A model file standing in for a named piece: its geometry fitted onto the code-built piece's box (glb.ts), and its own material; both shared, never disposed by a scene. */
+export interface PieceFile { geometry: BufferGeometry; material: Material }
+
+/** Where a piece stands: its place, its turn, the model file drawn there (if any), and a point of the piece's own frame in the world. */
+export interface Placed { p: V3; yaw: number; file?: PieceFile; toWorld(local: V3): V3 }
+
 class Vista {
   readonly solids: BufferGeometry[] = [];
+  /** each still set-piece's name, one per `solids` entry (VistaParts.pieces, for the checks) */
+  private readonly names: string[] = [];
+  /** the model files standing in for pieces, and where (VistaParts.models) */
+  private readonly placements: { name: string; file: PieceFile; matrix: Matrix4 }[] = [];
+  /** the model file for a named piece, when it is in */
+  private readonly files: (name: string) => PieceFile | undefined;
   readonly movers: BufferGeometry[] = [];
   readonly glows: BufferGeometry[] = [];
   readonly ringGlows: BufferGeometry[] = [];
@@ -341,8 +358,9 @@ class Vista {
   quiet = false;
   nightTo = 0;
   private lastClock = NaN;
-  constructor(ctx: VistaContext) {
+  constructor(ctx: VistaContext, files: (name: string) => PieceFile | undefined = () => undefined) {
     this.ctx = ctx;
+    this.files = files;
     this.floor = Number.isFinite(ctx.groundY) ? ctx.groundY : ctx.roadMinY;
   }
   /** A new trigger slot. */
@@ -406,20 +424,78 @@ class Vista {
   }
   /** Beyond the farthest road by `extra` metres. */
   out(extra: number): number { return this.ctx.radius + extra; }
-  solid(g: BufferGeometry, deg: number, d: number, y = 0, scale: number | V3 = 1, turn = 0): V3 {
+  /** A still set-piece `name`, already placed in the world. */
+  add(name: string, g: BufferGeometry): void {
+    this.solids.push(g);
+    this.names.push(name);
+  }
+  solid(name: string, g: BufferGeometry, deg: number, d: number, y = 0, scale: number | V3 = 1, turn = 0): V3 {
     const p = this.at(deg, d, y);
-    this.solids.push(placed(g, p, this.facing(deg) + turn, scale));
+    this.add(name, placed(g, p, this.facing(deg) + turn, scale));
     return p;
+  }
+  /**
+   * A named piece (PIECES) where `solid` would stand it: its model file when that is in (fitted onto the
+   * code-built piece's box, so it takes the same place and height), else the code-built piece (`built`,
+   * or the registered one).
+   */
+  piece(name: string, deg: number, d: number, y = 0, scale: number | V3 = 1, turn = 0, built?: () => BufferGeometry): Placed {
+    const p = this.at(deg, d, y), yaw = this.facing(deg) + turn, s: V3 = typeof scale === 'number' ? [scale, scale, scale] : scale;
+    const matrix = new Matrix4().compose(P.set(...p), Q.setFromAxisAngle(UP, yaw), S.set(...s));
+    const toWorld = (local: V3): V3 => { const w = new Vector3(...local).applyMatrix4(matrix); return [w.x, w.y, w.z]; };
+    const file = this.files(name);
+    if (file) {
+      this.placements.push({ name, file, matrix });
+      return { p, yaw, file, toWorld };
+    }
+    const g = built ? built() : vistaPiece(name);
+    if (g) this.add(name, placed(g, p, yaw, scale));
+    return { p, yaw, toWorld };
   }
   parts(): VistaParts {
     const sun = this.ctx.sun;
     const out: VistaParts = {
-      world: [], ring: [], landmark: this.landmark,
+      world: [], ring: [], models: [], landmark: this.landmark,
       tick: (cam, clock, detail) => this.tick(cam, clock, detail),
       shift: (sky) => this.shift(sky, WATER_CLOCK.value),
       life: { fliers: this.fliers, trig: this.life.uTrig.value, flierAt },
     };
-    if (this.solids.length) out.solid = mergeGeometries(this.solids, false) ?? undefined;
+    if (this.solids.length) {
+      out.solid = mergeGeometries(this.solids, false) ?? undefined;
+      // which vertices of the merged solid are which piece (merged in order)
+      const pieces: VistaPiece[] = [];
+      let start = 0;
+      this.solids.forEach((g, i) => { const count = g.getAttribute('position').count; pieces.push({ name: this.names[i], start, count }); start += count; });
+      out.pieces = pieces;
+    }
+    // the model files: one draw each, however many places it stands in (shared geometry and material)
+    const byName = new Map<string, { file: PieceFile; at: Matrix4[] }>();
+    for (const pl of this.placements) {
+      const e = byName.get(pl.name) ?? { file: pl.file, at: [] };
+      e.at.push(pl.matrix);
+      byName.set(pl.name, e);
+    }
+    for (const [name, { file, at }] of byName) {
+      let m: Mesh;
+      if (at.length === 1) {
+        m = new Mesh(file.geometry, file.material);
+        m.applyMatrix4(at[0]);
+      } else {
+        const im = new InstancedMesh(file.geometry, file.material, at.length);
+        at.forEach((a, i) => im.setMatrixAt(i, a));
+        im.instanceMatrix.needsUpdate = true;
+        im.computeBoundingSphere();
+        m = im;
+      }
+      m.name = 'vista-model';
+      m.userData.piece = name;
+      // shared with every race that stands this piece (the file's own): a finished race must not dispose it
+      m.userData.sharedMaterial = true;
+      m.castShadow = false;
+      m.receiveShadow = false;
+      m.updateMatrixWorld(true);
+      out.models!.push(m);
+    }
     const mesh = (list: BufferGeometry[], glow: boolean, name: string, fog = true): Mesh | null => {
       if (!list.length) return null;
       const g = mergeGeometries(list, false);
@@ -617,9 +693,9 @@ function blimp(band: Paint): BufferGeometry {
 
 // ================================================================ Lighthouse Loop: a sea horizon with islands
 
-function harbour(v: Vista): void {
-  // the landmark ahead of the start: a dormant volcano island with a beach, a skirt of palms and a wisp of smoke
-  const volcano = model((m) => {
+/** Lighthouse Loop's landmark: a dormant volcano island with a beach and a skirt of palms (code-built). */
+function volcanoIsland(): BufferGeometry {
+  return model((m) => {
     m.ball([80, 5, 66], SAND, [0, 0, 0], undefined, 16, false);
     m.ball([70, 20, 58], '#3f9a44', [0, 0, 0], undefined, 16, false);
     m.cone(58, 32, '#358a3e', [0, 27, 0], undefined, 16, false);
@@ -630,9 +706,24 @@ function harbour(v: Vista): void {
     for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2 + 0.5; m.ball([6, 16, 6], '#3f9a44', [Math.cos(a) * 30, 44, Math.sin(a) * 30], [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5], 6, false); }
     for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2 + 0.2; palm(m, Math.cos(a) * 62, Math.sin(a) * 50, 9 + (k % 3) * 2, 0.1 + (k % 2) * 0.12); }
   });
-  const vp = v.solid(volcano, -12, v.out(230), 0, 1.15);
-  v.landmark = [vp[0], vp[1] + 97, vp[2]];
-  for (let k = 0; k < 8; k++) v.glows.push(mover(spark(8, [0.85, 0.82, 0.86]), [vp[0], vp[1] + 99, vp[2]], 0, [MOVE.rise, k / 8, 0.05, 70]));
+}
+
+/** Lighthouse Loop's sea stacks off the cliffs: three banded rock columns with green tops (code-built). */
+function seaStacks(): BufferGeometry {
+  return model((m) => {
+    column(m, 0, 0, 7, 34, ['#b8a07c', '#a88f6c', '#c2ab86', '#a88f6c'], '#6ab04c', 7);
+    column(m, 16, 10, 5, 22, ['#b8a07c', '#c2ab86', '#a88f6c'], '#6ab04c', 7);
+    column(m, -12, 14, 4, 15, ['#c2ab86', '#a88f6c'], '#6ab04c', 7);
+  });
+}
+
+function harbour(v: Vista): void {
+  // the landmark ahead of the start: a dormant volcano island with a beach, a skirt of palms and a wisp of smoke
+  const vol = v.piece('vista-volcano', -12, v.out(230), 0, 1.15), vp = vol.p;
+  // a model's crater is wherever its own top is (the code-built one's stands on its axis)
+  const crater = vol.file ? vol.toWorld(topOf(vol.file.geometry)) : [vp[0], vp[1] + 97, vp[2]] as V3;
+  v.landmark = [crater[0], crater[1] + (vol.file ? 2 : 0), crater[2]];
+  for (let k = 0; k < 8; k++) v.glows.push(mover(spark(8, [0.85, 0.82, 0.86]), [crater[0], crater[1] + 2, crater[2]], 0, [MOVE.rise, k / 8, 0.05, 70]));
 
   // a rocky headland with a lighthouse and its keeper's cottage
   const headland = model((m) => {
@@ -645,7 +736,7 @@ function harbour(v: Vista): void {
     m.box([7, 4, 5], WHITE, [9, 30, 4]);
     m.cone(4.8, 3, CORAL, [9, 33.4, 4], [0, Math.PI / 4, 0], 4, false);
   });
-  v.solid(headland, 62, v.out(150));
+  v.solid('vista-headland', headland, 62, v.out(150));
 
   // a hillside town climbing a far slope: pastel houses in steps, a clock tower at the top
   const town = model((m) => {
@@ -669,7 +760,7 @@ function harbour(v: Vista): void {
     m.cone(4.2, 7, CORAL, [4, 32 + 18 + 3.5, -8], [0, Math.PI / 4, 0], 4, false);
     m.cyl(1.6, 1.6, 0.4, SUN, [4, 32 + 15, -5.4], [Math.PI / 2, 0, 0], 10, false);
   });
-  v.solid(town, -75, v.out(170));
+  v.solid('vista-town', town, -75, v.out(170));
 
   // a long bay bridge on coral towers, its cables sagging between them
   const bridge = model((m) => {
@@ -698,16 +789,11 @@ function harbour(v: Vista): void {
       m.ball([30, 5, 26], '#62a64a', [s * 172, 15, 0], undefined, 10, false);
     }
   });
-  v.solid(bridge, 168, v.out(190));
+  v.solid('vista-bridge', bridge, 168, v.out(190));
 
   // sea stacks off the cliffs
-  const stacks = model((m) => {
-    column(m, 0, 0, 7, 34, ['#b8a07c', '#a88f6c', '#c2ab86', '#a88f6c'], '#6ab04c', 7);
-    column(m, 16, 10, 5, 22, ['#b8a07c', '#c2ab86', '#a88f6c'], '#6ab04c', 7);
-    column(m, -12, 14, 4, 15, ['#c2ab86', '#a88f6c'], '#6ab04c', 7);
-  });
-  v.solid(stacks, 105, v.out(110));
-  v.solid(stacks, -140, v.out(130), 0, 1.3, 1.1);
+  v.piece('vista-stacks', 105, v.out(110));
+  v.piece('vista-stacks', -140, v.out(130), 0, 1.3, 1.1);
 
   // sailboats: slow circles out on the bay
   const sails: Paint[] = [CORAL, TEAL, SUN, '#7fc8ff', '#ff9ec7', CORAL];
@@ -747,9 +833,9 @@ function harbour(v: Vista): void {
 
 // ================================================================ Windmill Run: hills and a valley
 
-function meadow(v: Vista): void {
-  // the landmark ahead of the start: one giant lone tree on a knoll, a round door in its root
-  const tree = model((m) => {
+/** Windmill Run's landmark: one giant lone tree on a knoll, a round door in its root (code-built). */
+function giantTree(): BufferGeometry {
+  return model((m) => {
     m.ball([46, 10, 40], '#6fb24a', [0, 0, 0], undefined, 12, false);
     m.cone(9, 10, '#7a5230', [0, 9, 0], undefined, 9, false);
     m.cyl(4.2, 6, 36, '#7a5230', [0, 26, 0], [0, 0, 0.03], 9, false);
@@ -758,7 +844,11 @@ function meadow(v: Vista): void {
     leaves.forEach(([x, y, z, r], i) => m.ball([r, r * 0.8, r], ['#2f7a34', '#3f9a3e', '#4fae48'][i % 3], [x, y, z], undefined, 9, false));
     m.cyl(2.2, 2.2, 0.4, '#5a3a22', [0, 13, 5.6], [Math.PI / 2 - 0.1, 0, 0], 10, false);
   });
-  const tp0 = v.solid(tree, 8, v.out(120), 0, 1.35);
+}
+
+function meadow(v: Vista): void {
+  // the landmark ahead of the start: one giant lone tree on a knoll, a round door in its root
+  const tp0 = v.piece('vista-tree', 8, v.out(120), 0, 1.35).p;
   v.landmark = [tp0[0], tp0[1] + 80, tp0[2]];
 
   // green hills, each with a windmill on its crest (its sails turn: movers)
@@ -776,7 +866,7 @@ function meadow(v: Vista): void {
   });
   for (const [deg, d, s] of [[-58, 130, 1], [70, 150, 1.15], [172, 140, 0.95], [-120, 160, 1.1]] as const) {
     const p = v.at(deg, v.out(d)), yaw = v.facing(deg);
-    v.solids.push(placed(hill, p, yaw, s));
+    v.add('vista-hill', placed(hill, p, yaw, s));
     const hub: V3 = [p[0] + Math.sin(yaw) * 3.8 * s, p[1] + 29 * s, p[2] + Math.cos(yaw) * 3.8 * s];
     v.movers.push(mover(placed(sails, [0, 0, 0], 0, s), hub, yaw, [MOVE.spinZ, deg, 0.6, 0]));
   }
@@ -796,9 +886,9 @@ function meadow(v: Vista): void {
     river.box([24, 0.2, len + 2], '#8fcf6a', [mid[0], mid[1] - 0.12, mid[2]], [0, yaw, 0], false);
     if (i % 2 === 0) v.glows.push(mover(model((m) => m.box([10, 0.1, len * 0.8], [0.5, 0.9, 1.2], [0, 0, 0], undefined, false)), [mid[0], mid[1] + 0.25, mid[2]], yaw, [MOVE.shimmer, i * 0.37, 0.25, 0.9], [0, 0, 1, 0.08]));
   }
-  v.solids.push(river.build());
+  v.add('vista-river', river.build());
   const [bdeg, bp] = water[11], byaw = v.facing(bdeg);
-  v.solids.push(placed(model((m) => {
+  v.add('vista-river-bridge', placed(model((m) => {
     m.box([34, 2, 7], '#b9b3ad', [0, 7, 0]);
     for (const x of [-10, 0, 10]) m.cyl(4.2, 4.2, 7, '#a8a29c', [x, 3.5, 0], [Math.PI / 2, 0, 0], 10, false);
     for (const x of [-16, 16]) m.box([3, 6, 7], '#a8a29c', [x, 3, 0], undefined, false);
@@ -831,8 +921,8 @@ function meadow(v: Vista): void {
       for (let k = 0; k < 7; k++) bushClump(m, x, 0, -42 + k * 14, i * 7 + k);
     }
   });
-  v.solid(fields, -30, v.out(115), -0.2);
-  v.solid(fields, 125, v.out(105), -0.2, [0.8, 1, 1.2], 0.6);
+  v.solid('vista-fields', fields, -30, v.out(115), -0.2);
+  v.solid('vista-fields', fields, 125, v.out(105), -0.2, [0.8, 1, 1.2], 0.6);
 
   // (no hot-air balloons: our pickups are balloons, and a balloon in the sky read as an item)
 
@@ -890,19 +980,33 @@ function meadow(v: Vista): void {
 
 const CLAY = '#c65a3a', CREAM = '#ebb98c', RUST = '#a8462c', RED = '#d9774f';
 
-function canyon(v: Vista): void {
-  // the landmark ahead of the start: a far cinder cone, its crater glowing, a lava seam, dust rising
-  const volcano = model((m) => {
+/** The glow of a cinder cone's crater (colours past white: the bloom lights it). */
+const LAVA: Paint = [2.4, 0.7, 0.18];
+
+/** Mesa Rush's landmark: a far cinder cone, its crater glowing, a lava seam down its face (code-built). */
+function cinderCone(): BufferGeometry {
+  return model((m) => {
     m.cone(96, 26, '#8a5642', [0, 13, 0], undefined, 16, false);
     m.cone(74, 70, '#5b3b33', [0, 38, 0], undefined, 16, false);
     m.cyl(17, 19, 4, '#3b2420', [0, 72, 0], undefined, 14, false);
-    m.ball([15, 1.2, 15], [2.4, 0.7, 0.18], [0, 73.6, 0], undefined, 12, false);
+    m.ball([15, 1.2, 15], LAVA, [0, 73.6, 0], undefined, 12, false);
     for (let i = 0; i < 5; i++) m.box([2.4 - i * 0.3, 0.6, 14], [2.2, 0.55, 0.12], [8 + i * 7.2, 66 - i * 9.8, 12 + i * 6], [0.62, 0.55, 0], false);
     for (const [x, z, r] of [[50, -30, 10], [-44, 40, 12], [60, 44, 8]] as const) m.rock(r, '#6e4638', [x, r * 0.4, z], [0.4, 0.2, 0.7]);
   });
-  const vp = v.solid(volcano, 4, v.out(215));
-  v.landmark = [vp[0], vp[1] + 74, vp[2]];
-  for (let k = 0; k < 7; k++) v.glows.push(mover(spark(11, [0.3, 0.19, 0.12]), [vp[0], vp[1] + 76, vp[2]], 0, [MOVE.rise, k / 7, 0.045, 80]));
+}
+
+function canyon(v: Vista): void {
+  // the landmark ahead of the start: a far cinder cone, its crater glowing, a lava seam, dust rising
+  const cone = v.piece('vista-cinder-cone', 4, v.out(215)), vp = cone.p;
+  let crater: V3 = [vp[0], vp[1] + 74, vp[2]];
+  if (cone.file) {
+    // a model's crater glows too: a disc of lava just under its own rim (its lava seam is in its paint)
+    const c = craterOf(cone.file.geometry);
+    crater = cone.toWorld([c.top[0], c.top[1] - c.depth * 1.8, c.top[2]]);
+    v.add('vista-cinder-glow', placed(model((m) => m.ball([c.r * 0.6, 1.2, c.r * 0.6], LAVA, [0, 0, 0], undefined, 12, false)), crater, cone.yaw));
+  }
+  v.landmark = crater;
+  for (let k = 0; k < 7; k++) v.glows.push(mover(spark(11, [0.3, 0.19, 0.12]), [crater[0], crater[1] + 2, crater[2]], 0, [MOVE.rise, k / 7, 0.045, 80]));
 
   // a timber train trestle between two buttes, a little train running across it
   const trestle = model((m) => {
@@ -916,7 +1020,7 @@ function canyon(v: Vista): void {
       if (i < 8) for (const z of [-2.4, 2.4]) { rodY(m, [x, 2, z], [x + 9, 40, z], 0.22, '#7a5236'); rodY(m, [x + 9, 2, z], [x, 40, z], 0.22, '#7a5236'); }
     }
   });
-  const tp = v.solid(trestle, -52, v.out(150)), tyaw = v.facing(-52);
+  const tp = v.solid('vista-trestle', trestle, -52, v.out(150)), tyaw = v.facing(-52);
   const train = model((m) => {
     m.box([2.4, 2.6, 7], '#2e3a4a', [0, 1.8, 3.8]);
     m.cyl(1.1, 1.1, 5, '#3c4b5c', [0, 2.2, 5.2], [Math.PI / 2, 0, 0], 8, false);
@@ -941,7 +1045,7 @@ function canyon(v: Vista): void {
       rodY(m, [-18 + 36 * u0, 39.3 - 6 * 4 * u0 * (1 - u0), z], [-18 + 36 * u1, 39.3 - 6 * 4 * u1 * (1 - u1), z], 0.15, '#d9c08a');
     }
   });
-  v.solid(rope, 58, v.out(120));
+  v.solid('vista-rope-bridge', rope, 58, v.out(120));
 
   // the mouth of a deep far gorge: two great banded walls with a river running out between them
   const gorge = model((m) => {
@@ -954,7 +1058,7 @@ function canyon(v: Vista): void {
     m.box([16, 0.4, 170], '#4aa8e0', [0, 0.25, 0], undefined, false);
     m.box([26, 0.3, 170], '#d9a56d', [0, 0.1, 0], undefined, false);
   });
-  const gp = v.solid(gorge, 130, v.out(170)), gyaw = v.facing(130);
+  const gp = v.solid('vista-gorge', gorge, 130, v.out(170)), gyaw = v.facing(130);
   v.glows.push(mover(model((m) => m.box([8, 0.1, 160], [0.55, 0.95, 1.3], [0, 0, 0], undefined, false)), [gp[0], gp[1] + 0.5, gp[2]], gyaw, [MOVE.shimmer, 0, 0.3, 0.9], [0, 0, 1, 0.05]));
 
   // clusters of tall buttes framing the far corners
@@ -963,22 +1067,22 @@ function canyon(v: Vista): void {
     column(m, 38, 16, 14, 48, [RUST, CREAM, CLAY, CREAM, RED], CLAY, 9);
     column(m, -30, 22, 11, 38, [CLAY, CREAM, RUST, CREAM], RUST, 8);
   });
-  v.solid(buttes, -118, v.out(170));
-  v.solid(buttes, 178, v.out(190), 0, 1.15, 2.1);
+  v.solid('vista-buttes', buttes, -118, v.out(170));
+  v.solid('vista-buttes', buttes, 178, v.out(190), 0, 1.15, 2.1);
   // pterosaurs of our own circling high over the far buttes, gliding with a slow beat now and then
   const pt = pterosaur();
   for (const [deg, d, h, r, ph] of [[-118, 170, 88, 40, 0], [178, 190, 76, 34, 2.1], [88, 230, 96, 44, 4.2]] as const) {
     const c = v.at(deg, v.out(d), h);
     v.flier('pterosaur', 'orbit', pt, c, 0, [MOVE.orbit, ph, 8 / r, r], [-0.3, 0, 0, 0], [0.9, 0.34, ROOT.pterosaur], -1, c);
   }
-  v.solid(buttes, 88, v.out(230), 0, 0.9, 0.7);
+  v.solid('vista-buttes', buttes, 88, v.out(230), 0, 0.9, 0.7);
 }
 
 // ================================================================ Frostbite Pass: a glacier peak and a village
 
-function frost(v: Vista): void {
-  // the signature peak ahead of the start: rock shoulders, a snow cap, a glacier flowing down its face
-  const peak = model((m) => {
+/** Frostbite Pass's landmark: rock shoulders, a snow cap, a glacier flowing down its face toward the road (+Z) (code-built). */
+function glacierPeak(): BufferGeometry {
+  return model((m) => {
     m.cone(150, 110, '#56627a', [0, 55, 0], undefined, 12, false);
     m.cone(92, 120, '#66728c', [8, 120, -6], [0.02, 0.3, -0.03], 11, false);
     m.cone(44, 64, '#f7faff', [10, 170, -8], [0.02, 0.3, -0.03], 11, false);
@@ -991,10 +1095,20 @@ function frost(v: Vista): void {
     m.ball([14, 5, 60], '#dff5fc', [4, 88, 52], [0.55, 0, 0], 8, false);
     for (let i = 0; i < 5; i++) m.box([30 - i * 3, 0.8, 1.2], '#7fb8d6', [4, 40 + i * 12, 128 - i * 18], [0.5, 0, 0], false);
   });
-  const pk = v.solid(peak, 6, v.out(330));
-  v.landmark = [pk[0], pk[1] + 200, pk[2]];
+}
+
+/** The eagles' circle round Frostbite's peak: its radius, and how far over the peak's foot it rides (the code-built peak's). */
+const EAGLE_RING = Object.freeze({ radius: 78, up: 150, clear: 20 });
+
+function frost(v: Vista): void {
+  // the signature peak ahead of the start: rock shoulders, a snow cap, a glacier flowing down its face
+  const peak = v.piece('vista-peak', 6, v.out(330)), pk = peak.p;
+  v.landmark = peak.file ? peak.toWorld(topOf(peak.file.geometry)) : [pk[0], pk[1] + 200, pk[2]];
   // a pair of dark eagles gliding round the peak, far from the Yeti's ledge; the blizzard sends them off
-  const ea = eagle(), eg = v.trigger('shift'), ec: V3 = [pk[0], pk[1] + 150, pk[2]];
+  // (round a model's own shape: the ring rises until the mountain inside it keeps `clear` metres off it)
+  let up: number = EAGLE_RING.up;
+  if (peak.file) while (up < 260 && reachAbove(peak.file.geometry, up - 12) > EAGLE_RING.radius - EAGLE_RING.clear) up += 5;
+  const ea = eagle(), eg = v.trigger('shift'), ec: V3 = [pk[0], pk[1] + up, pk[2]];
   for (const [ph, lift] of [[0, 0], [0.42, 4]] as const) {
     v.flier('eagle', 'orbit', ea, [ec[0], ec[1] + lift, ec[2]], 0, [MOVE.orbit, ph, 7 / 78, 78], [-0.22, 0, 0, 0], [1.1, 0.3, ROOT.eagle], eg, ec);
   }
@@ -1011,13 +1125,13 @@ function frost(v: Vista): void {
       m.cone(h * 0.12, h * 0.25, '#f6faff', [x, y + h * 0.9, z], undefined, 5, false);
     }
   });
-  v.solid(ridge, 150, v.out(190));
-  v.solid(ridge, -128, v.out(210), 0, [1.2, 0.9, 1], 0.4);
-  v.solid(ridge, 205, v.out(230), 0, 0.9, -0.3);
+  v.solid('vista-ridge', ridge, 150, v.out(190));
+  v.solid('vista-ridge', ridge, -128, v.out(210), 0, [1.2, 0.9, 1], 0.4);
+  v.solid('vista-ridge', ridge, 205, v.out(230), 0, 0.9, -0.3);
 
   // a far frozen-waterfall cliff: the roadside set-piece, three times over
   const falls = decorGeometry('frozen-falls')?.body;
-  if (falls) v.solid(falls, -48, v.out(160), 0, 3.2, Math.PI / 2);
+  if (falls) v.solid('vista-falls', falls, -48, v.out(160), 0, 3.2, Math.PI / 2);
 
   // a village on a snowy hill, its windows lit, a church spire
   const village = model((m) => {
@@ -1040,10 +1154,12 @@ function frost(v: Vista): void {
     m.cone(3.6, 10, '#35506e', [2, 40, -6], [0, Math.PI / 4, 0], 4, false);
     m.box([1.4, 2, 0.2], WARM_GLOW, [2, 31, -3.4], undefined, false);
   });
-  const vg = v.solid(village, 62, v.out(150));
+  const vg = v.solid('vista-village', village, 62, v.out(150));
 
-  // a cable car line from the village up toward the peak's shoulder; two cabins ride it
-  const top = v.at(6, v.out(330) - 72, 86), low: V3 = [vg[0], vg[1] + 30, vg[2]];
+  // a cable car line from the village up toward the peak's shoulder; two cabins ride it (to a model's own
+  // slope 72 m in front of its middle, where the code-built one's shoulder stands at 86 m)
+  const shoulder = peak.file ? heightAt(peak.file.geometry, 0, 72) : NaN;
+  const top = Number.isFinite(shoulder) ? peak.toWorld([0, shoulder + 4, 72]) : v.at(6, v.out(330) - 72, 86), low: V3 = [vg[0], vg[1] + 30, vg[2]];
   const dx = top[0] - low[0], dy = top[1] - low[1], dz = top[2] - low[2], len = Math.hypot(dx, dy, dz);
   const line = new ModelBuilder();
   for (const side of [-1.6, 1.6]) {
@@ -1056,7 +1172,7 @@ function frost(v: Vista): void {
     line.box([6, 1, 1.4], '#4d6a88', [x, y + 0.5, z], [0, Math.atan2(dx, dz) + Math.PI / 2, 0], false);
   }
   line.box([10, 6, 8], '#8c96a8', [top[0], top[1] - 2, top[2]]);
-  v.solids.push(line.build());
+  v.add('vista-cable-line', line.build());
   const cabin = model((m) => {
     m.box([3.2, 2.6, 2.6], '#e8384f', [0, -4.2, 0]);
     m.box([3.3, 0.9, 2.7], [1.4, 1.8, 2.2], [0, -3.8, 0], undefined, false);
@@ -1077,7 +1193,7 @@ function boardwalk(v: Vista): void {
     for (let i = 0; i < 6; i++) m.cyl(5.3 - i * 0.3, 5.3 - i * 0.3, 1.1, [2.2, 1.7, 0.7], [0, 12.5 + i * 9, 0], undefined, 10, false);
     m.cone(3.6, 8, '#ff2e97', [0, 70, 0], undefined, 8, false);
   });
-  const ip = v.solid(island, -22, v.out(200));
+  const ip = v.solid('vista-island-tower', island, -22, v.out(200));
   v.landmark = [ip[0], ip[1] + 74, ip[2]];
   v.glows.push(mover(spark(2.4, [3, 0.4, 1.4]), [ip[0], ip[1] + 75, ip[2]], 0, [MOVE.blink, 0, 0.8, 0]));
 
@@ -1088,7 +1204,7 @@ function boardwalk(v: Vista): void {
     m.cyl(2, 2, 3, WARM_GLOW, [0, 35.5, 0], undefined, 8, false);
     m.cone(2.8, 3, '#2e5aa8', [0, 38.6, 0], undefined, 10, false);
   });
-  const lp = v.solid(point, 72, v.out(150));
+  const lp = v.solid('vista-point', point, 72, v.out(150));
   const beam = model((m) => {
     // two long wedges of light, opposite ways
     for (const s of [1, -1]) m.cone(11, 160, [2.4, 2.2, 1.4], [0, 0, s * 80], [-s * Math.PI / 2, 0, 0], 6, false);
@@ -1105,7 +1221,7 @@ function boardwalk(v: Vista): void {
       m.cyl(0.25, 0.25, 12, '#8a8ab0', [x, h + 6, z], undefined, 4, false);
     }
   });
-  const tp = v.solid(towers, 172, v.out(230), 0, 1, 0);
+  const tp = v.solid('vista-towers', towers, 172, v.out(230), 0, 1, 0);
   for (const [dx, h] of [[-70, 96], [-20, 120], [30, 104]] as const) {
     const yaw = v.facing(172), off: V3 = [Math.cos(yaw) * dx, 0, -Math.sin(yaw) * dx];
     v.glows.push(mover(spark(1.6, [3, 0.2, 0.3]), [tp[0] + off[0], tp[1] + h + 12, tp[2] + off[2]], 0, [MOVE.blink, dx * 0.1, 0.6, 0]));
@@ -1138,11 +1254,14 @@ function boardwalk(v: Vista): void {
 
 // ================================================================ Skyline Circuit: floating islands in the clouds
 
-function skyline(v: Vista): void {
-  // floating islands with waterfalls pouring off into the clouds (Adam, 25 Sept 2026: "look too
-  // plain"; a squashed ball read as a flat green pancake at range, so its top now has real hummocks
-  // and a visible rock lip, and its trees stand taller so they break the silhouette, not just the texture)
-  const island = (trees: number) => model((m) => {
+/**
+ * Skyline Circuit's floating island (code-built): a grassy top with hummocks and trees, a rock lip, a
+ * long cone of earth and stone under it, a stream at its front edge (+Z) where its waterfall pours off
+ * (Adam, 25 Sept 2026: "look too plain"; a squashed ball read as a flat green pancake at range, so its
+ * top has real hummocks and a visible rock lip, and its trees stand taller so they break the silhouette).
+ */
+function skyIsland(trees: number): BufferGeometry {
+  return model((m) => {
     m.ball([30, 9, 24], '#7cc85a', [0, -1, 0], undefined, 12, false);
     for (const [hx, hz, hr, hh, c] of [[-10, 6, 11, 5, '#6fbd4f'], [12, -4, 9, 4.4, '#86d066'], [1, 12, 8, 3.6, '#6fbd4f'], [-6, -13, 7, 3, '#86d066']] as const) {
       m.ball([hr, hh, hr], c, [hx, 3.6 + hh * 0.35, hz], undefined, 8, false);
@@ -1160,12 +1279,19 @@ function skyline(v: Vista): void {
     }
     m.box([4.5, 1.2, 1.4], '#4aa8e0', [0, 3.6, 22.6], undefined, false);
   });
+}
+
+function skyline(v: Vista): void {
+  // floating islands with waterfalls pouring off into the clouds
   const fall = model((m) => m.box([4, 70, 0.4], [1.1, 1.5, 1.8], [0, -35, 0], undefined, false));
   const mist = spark(6, [0.5, 0.55, 0.6]);
   const spots: [number, number, number, number, number][] = [[-8, 130, 36, 1, 4], [-62, 110, 96, 0.8, 3], [66, 150, 30, 1.2, 5], [140, 120, 80, 0.9, 3], [-142, 140, 60, 1.1, 4], [205, 170, 110, 0.85, 3]];
+  // a model's waterfall pours off the front of its own rim (the code-built one's stream stands 23 m out)
+  let lip: V3 | null = null;
   for (const [deg, d, y, s, trees] of spots) {
-    const p = v.solid(island(trees), deg, v.out(d), y, s), yaw = v.facing(deg);
-    const edge: V3 = [p[0] + Math.sin(yaw) * 23 * s, p[1] + 3 * s, p[2] + Math.cos(yaw) * 23 * s];
+    const isl = v.piece('vista-sky-island', deg, v.out(d), y, s, 0, () => skyIsland(trees)), p = isl.p, yaw = isl.yaw;
+    if (isl.file) lip ??= frontRim(isl.file.geometry);
+    const edge: V3 = isl.file && lip ? isl.toWorld(lip) : [p[0] + Math.sin(yaw) * 23 * s, p[1] + 3 * s, p[2] + Math.cos(yaw) * 23 * s];
     v.glows.push(mover(fall, edge, yaw, [MOVE.shimmer, deg, 0.5, 0.8], [0, 1, 0, 0.04]));
     for (let k = 0; k < 3; k++) v.glows.push(mover(mist, [edge[0], edge[1] - 62, edge[2]], 0, [MOVE.rise, k / 3, 0.18, 10]));
   }
@@ -1183,7 +1309,7 @@ function skyline(v: Vista): void {
       m.cyl(r * 1.02, r * 1.02, 1.4, WARM_GLOW, [x, 8 + h * 0.6, z], undefined, 10, false);
     }
   });
-  const cp = v.solid(city, 8, v.out(300), 70);
+  const cp = v.solid('vista-sky-city', city, 8, v.out(300), 70);
   v.landmark = [cp[0], cp[1] + 55, cp[2]];
 
   // three airships cruising in wide circles, never nearer the road than 120 m; their windows light
@@ -1204,11 +1330,120 @@ function rodY(m: ModelBuilder, a: V3, b: V3, r: number, colour: Paint): void {
 
 const BUILDERS: Readonly<Record<string, (v: Vista) => void>> = Object.freeze({ harbour, meadow, canyon, frost, boardwalk, skyline });
 
-/** A track's far vista, or null for a biome with none. */
-export function buildVista(ctx: VistaContext): VistaParts | null {
+// ---------------------------------------------------------------- the pieces a model file may replace
+
+/**
+ * Each replaceable piece's biome and its code-built model (its own frame: +Z toward the track's middle,
+ * standing on y 0). `grounded`: it stands on the vista's floor (the land, the sea), so what the code-built
+ * one sinks under it (a knoll's lower half, an island's hidden skirt) is not part of the box a model file
+ * is fitted onto; a floating piece is fitted whole.
+ */
+const PIECES: Readonly<Record<string, { biome: string; build: () => BufferGeometry; grounded: boolean }>> = Object.freeze({
+  'vista-volcano': { biome: 'harbour', build: volcanoIsland, grounded: true },
+  'vista-stacks': { biome: 'harbour', build: seaStacks, grounded: true },
+  'vista-tree': { biome: 'meadow', build: giantTree, grounded: true },
+  'vista-cinder-cone': { biome: 'canyon', build: cinderCone, grounded: true },
+  'vista-peak': { biome: 'frost', build: glacierPeak, grounded: true },
+  // (its spots have three to five trees: the box is the four-tree one's, all but the same)
+  'vista-sky-island': { biome: 'skyline', build: () => skyIsland(4), grounded: false },
+});
+
+/** The names of the pieces a model file may replace, by biome (glb.ts trackProps: a track's scene asks for its own). */
+export const VISTA_PIECES: Readonly<Record<string, readonly string[]>> = Object.freeze(
+  Object.entries(PIECES).reduce<Record<string, string[]>>((o, [name, { biome }]) => { (o[biome] ??= []).push(name); return o; }, {}),
+);
+
+const BUILT = new Map<string, BufferGeometry>();
+
+/** A replaceable piece's code-built model (built once and shared: never dispose it), bounds computed; null for an unknown name. The box its model file is fitted onto (glb.ts). */
+export function vistaPiece(name: string): BufferGeometry | null {
+  const p = Object.hasOwn(PIECES, name) ? PIECES[name] : undefined;
+  if (!p) return null;
+  let g = BUILT.get(name);
+  if (!g) {
+    g = p.build();
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+    BUILT.set(name, g);
+  }
+  return g;
+}
+
+/** The box a piece's model file is fitted onto (glb.ts PropModels): the code-built piece's, above the floor when it stands on it; null for an unknown name. */
+export function vistaPieceBox(name: string): Box3 | null {
+  const g = vistaPiece(name);
+  if (!g) return null;
+  const b = g.boundingBox!.clone();
+  if (PIECES[name].grounded) b.min.y = Math.max(0, b.min.y);
+  return b;
+}
+
+/**
+ * A model's top, in its own frame: the middle of every vertex within `band` of its highest point (a
+ * volcano's crater rim averages to the crater's middle, a peak to its tip). Pure.
+ */
+export function topOf(g: BufferGeometry, band = 0.03): V3 {
+  g.computeBoundingBox();
+  const b = g.boundingBox!, pos = g.getAttribute('position'), cut = b.max.y - (b.max.y - b.min.y) * band;
+  let x = 0, z = 0, n = 0;
+  for (let i = 0; i < pos.count; i++) if (pos.getY(i) >= cut) { x += pos.getX(i); z += pos.getZ(i); n++; }
+  return n ? [x / n, b.max.y, z / n] : [(b.min.x + b.max.x) / 2, b.max.y, (b.min.z + b.max.z) / 2];
+}
+
+/** A volcano model's crater, in its own frame: its top (topOf), the rim's mean radius round it, and how far under the rim its lava lies (a share of its height). Pure. */
+export function craterOf(g: BufferGeometry, band = 0.04): { top: V3; r: number; depth: number } {
+  const top = topOf(g, band), b = g.boundingBox!, pos = g.getAttribute('position'), h = b.max.y - b.min.y, cut = b.max.y - h * band;
+  let sum = 0, n = 0;
+  for (let i = 0; i < pos.count; i++) if (pos.getY(i) >= cut) { sum += Math.hypot(pos.getX(i) - top[0], pos.getZ(i) - top[2]); n++; }
+  return { top, r: n ? sum / n : h * 0.1, depth: h * band };
+}
+
+/** The highest surface of `g` straight over (x, z) in its own frame (the top of every triangle over that spot), or -Infinity where none is. Pure. */
+export function heightAt(g: BufferGeometry, x: number, z: number): number {
+  const pos = g.getAttribute('position'), idx = g.index, n = idx ? idx.count : pos.count;
+  let best = -Infinity;
+  for (let t = 0; t < n; t += 3) {
+    const a = idx ? idx.getX(t) : t, b = idx ? idx.getX(t + 1) : t + 1, c = idx ? idx.getX(t + 2) : t + 2;
+    const ax = pos.getX(a), az = pos.getZ(a), bx = pos.getX(b), bz = pos.getZ(b), cx = pos.getX(c), cz = pos.getZ(c);
+    // barycentric weights of (x, z) in the triangle as seen from above
+    const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+    if (Math.abs(d) < 1e-12) continue;
+    const u = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / d, w = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / d;
+    if (u < 0 || w < 0 || u + w > 1) continue;
+    best = Math.max(best, u * pos.getY(a) + w * pos.getY(b) + (1 - u - w) * pos.getY(c));
+  }
+  return best;
+}
+
+/** How far out from its own upright axis `g` reaches at or above height `y` (its own frame). Pure. */
+export function reachAbove(g: BufferGeometry, y: number): number {
+  const pos = g.getAttribute('position');
+  let r = 0;
+  for (let i = 0; i < pos.count; i++) if (pos.getY(i) >= y) r = Math.max(r, Math.hypot(pos.getX(i), pos.getZ(i)));
+  return r;
+}
+
+/**
+ * A floating island model's lip at its front (+Z, toward the track's middle), in its own frame: its
+ * front-most point in its upper `band` of height (the rock rim under the grass: the trees stand inside
+ * it), where a waterfall pours off. Pure.
+ */
+export function frontRim(g: BufferGeometry, band = 0.4): V3 {
+  g.computeBoundingBox();
+  const b = g.boundingBox!, pos = g.getAttribute('position'), cut = b.max.y - (b.max.y - b.min.y) * band;
+  let best: V3 | null = null;
+  for (let i = 0; i < pos.count; i++) if (pos.getY(i) >= cut && (!best || pos.getZ(i) > best[2])) best = [pos.getX(i), pos.getY(i), pos.getZ(i)];
+  return best ?? [0, b.max.y, b.max.z];
+}
+
+/**
+ * A track's far vista, or null for a biome with none. `files`: the model file for a named piece, when
+ * it is in (art-pipeline index.ts: PROP_MODELS through the track's assets), which then stands in its place.
+ */
+export function buildVista(ctx: VistaContext, files?: (name: string) => PieceFile | undefined): VistaParts | null {
   const b = BUILDERS[ctx.biome];
   if (!b) return null;
-  const v = new Vista(ctx);
+  const v = new Vista(ctx, files);
   b(v);
   return v.parts();
 }

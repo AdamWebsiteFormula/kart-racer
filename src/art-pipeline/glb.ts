@@ -11,6 +11,7 @@ import { paintFor, repaintPixels, type PaintRule } from './paints.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { decorGeometry } from './decor.ts';
 import { PBR } from './look.ts';
+import { vistaPieceBox, VISTA_PIECES } from './vista.ts';
 import type { V3 } from './model.ts';
 import { MODEL_WHEELS, rigKart } from './rig.ts';
 import { buildComboTemplate, buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
@@ -510,15 +511,22 @@ export function fitToBox(g: BufferGeometry, target: Box3, by: 'height' | 'width'
  * hazards' creatures and props. Pure; the names with no model file are the caller's to skip. A track
  * can load just these first (main.ts: the title's track before the rest).
  */
-export function trackProps(def: Pick<TrackDefinition, 'landmark' | 'environment' | 'hazards'>): string[] {
+export function trackProps(def: Pick<TrackDefinition, 'landmark' | 'environment' | 'hazards'> & { biome?: string }): string[] {
   const out = new Set<string>();
   if (def.landmark) out.add(def.landmark);
+  // the far vista's big pieces (vista.ts): a model file may stand in for any of them
+  for (const n of (def.biome ? VISTA_PIECES[def.biome] : undefined) ?? []) out.add(n);
   for (const d of def.environment?.decor ?? []) out.add(d.asset);
   for (const h of def.hazards ?? []) {
     if (h.creature) out.add(h.creature);
     if (h.asset) out.add(h.asset);
   }
   return [...out];
+}
+
+/** The box of the code-built model a prop file replaces (a decor model, or one of the far vista's big pieces), or null for a name with none. */
+function propTarget(name: string): Box3 | null {
+  return decorGeometry(name)?.body.boundingBox ?? vistaPieceBox(name);
 }
 
 /**
@@ -563,29 +571,39 @@ export class PropModels {
   }
 
   private async loadOne(name: string, spec: ModelSpec): Promise<void> {
-    const target = decorGeometry(name)?.body.boundingBox;
-    if (!target) return;
+    if (!propTarget(name)) return;
     try {
       const gltf = await (this.loader ??= new GLTFLoader()).loadAsync(`${this.base}${spec.url}`);
-      let mesh: Mesh | undefined;
-      gltf.scene.traverse((o) => { if (!mesh && (o as Mesh).isMesh) mesh = o as Mesh; });
-      if (!mesh) return;
-      const geometry = smoothed(bakedGeometry(mesh));
-      geometry.rotateY(spec.yaw ?? 0);
-      fitToBox(geometry, target, spec.fit);
-      const material = mesh.material as Material;
-      material.userData.shared = true;
-      const std = material as MeshStandardMaterial;
-      if (std.isMeshStandardMaterial) {
-        // an AI export's untouched glTF metallicFactor defaults to 1 (the format's own spec default,
-        // not the tool's choice): chrome, not this cartoon world's matte, non-metal props (look.ts PBR,
-        // the same roughness and metalness every other world surface renders with)
-        std.metalness = PBR.metalness;
-        std.roughness = PBR.roughness;
-      }
-      if (spec.glow && std.isMeshStandardMaterial) { std.emissiveMap = std.map; std.emissive.set(0xffffff); std.emissiveIntensity = spec.glow; }
-      this.ready.set(name, { geometry, material });
+      this.adopt(name, spec, gltf.scene);
     } catch { /* a broken file leaves that prop code-built */ }
+  }
+
+  /**
+   * A model file's scene (as GLTFLoader gives it) taken in as the prop `name`: smoothed, turned by the
+   * spec's yaw and fitted onto the code-built model it replaces. False when there is none to fit it to,
+   * or no mesh in it. The loader's own step; tests hand it a file parsed from disk.
+   */
+  adopt(name: string, spec: ModelSpec, scene: Object3D): boolean {
+    const target = propTarget(name);
+    let mesh: Mesh | undefined;
+    scene.traverse((o) => { if (!mesh && (o as Mesh).isMesh) mesh = o as Mesh; });
+    if (!target || !mesh) return false;
+    const geometry = smoothed(bakedGeometry(mesh));
+    geometry.rotateY(spec.yaw ?? 0);
+    fitToBox(geometry, target, spec.fit);
+    const material = mesh.material as Material;
+    material.userData.shared = true;
+    const std = material as MeshStandardMaterial;
+    if (std.isMeshStandardMaterial) {
+      // an AI export's untouched glTF metallicFactor defaults to 1 (the format's own spec default,
+      // not the tool's choice): chrome, not this cartoon world's matte, non-metal props (look.ts PBR,
+      // the same roughness and metalness every other world surface renders with)
+      std.metalness = PBR.metalness;
+      std.roughness = PBR.roughness;
+    }
+    if (spec.glow && std.isMeshStandardMaterial) { std.emissiveMap = std.map; std.emissive.set(0xffffff); std.emissiveIntensity = spec.glow; }
+    this.ready.set(name, { geometry, material });
+    return true;
   }
 
   get(name: string): { geometry: BufferGeometry; material: Material } | undefined { return this.ready.get(name); }
