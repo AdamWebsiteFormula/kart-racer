@@ -47,20 +47,22 @@ export interface HudMemory {
    * none; a new player learns the keys once, then the strip stays out of the way, never in lap 1)
    */
   strip: boolean;
-  /** each item slot's first roulette face (held, next): each new roll starts on another item, so no two look alike */
-  faces: [number, number];
+  /** each item slot's first roulette face (held, next, ...): each new roll starts on another item, so no two look alike */
+  faces: number[];
   /** the player's rolls this race (each moves the next roll's first face on) */
   rolls: number;
   /**
-   * a Double balloon's two items land one after the other (Adam, 28 Sept 2026): the sim has both ready on one
-   * tick, and the next slot rolls on until this clock time (UI.slotStaggerMs later), then lands; -1 none
+   * slots whose rolls stop on one tick land one after the other (a Double balloon's two items; Adam, 28 Sept 2026):
+   * the first lands on the tick, and each slot after it rolls on until this clock time (UI.slotStaggerMs apart),
+   * then lands; -1 none. One per slot (UI.itemSlots)
    */
-  nextHoldUntil: number;
+  holdUntil: number[];
 }
 
 /** A race's HUD memory; `firstRace`: the player's first race of the session (its countdown shows the controls strip). */
 export const newHudMemory = (firstRace = false): HudMemory => ({
-  banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, strip: firstRace, faces: [0, 0], rolls: 0, nextHoldUntil: -1,
+  banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, strip: firstRace,
+  faces: new Array<number>(UI.itemSlots).fill(0), rolls: 0, holdUntil: new Array<number>(UI.itemSlots).fill(-1),
 });
 /** How many faces on each new roll starts from the last one's first (coprime with the 13 items: every start in turn) */
 const FACE_STEP = 5;
@@ -100,16 +102,16 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
       default: break;
     }
   }
-  let landed = 0;
+  const landed: number[] = [];
   for (const e of items) {
     // (no STRIKE! word on the Strike Ball's burst: Adam, 28 Sept 2026, "So corny"; the pins, confetti, flash and crash sound say it)
     if (e.type === 'hit' && e.racerId === playerId) m.flashUntil = clock + UI.flashMs / 1000;
     if (e.type === 'fog' && e.victims.includes(playerId)) m.flashUntil = clock + UI.flashMs / 1000;
     if (e.type === 'roulette' && e.racerId === playerId) m.faces[e.slot] = ++m.rolls * FACE_STEP;
-    if (e.type === 'itemReady' && e.racerId === playerId) landed |= e.slot === 0 ? 1 : 2;
+    if (e.type === 'itemReady' && e.racerId === playerId && !landed.includes(e.slot)) landed.push(e.slot);
   }
-  // both slots' rolls stopped on one tick (a Double balloon): the first lands now, the second a beat after it
-  if (landed === 3) m.nextHoldUntil = clock + UI.slotStaggerMs / 1000;
+  // rolls that stopped on one tick (a Double balloon): the first slot lands now, each after it a beat after the one before
+  landed.sort((a, b) => a - b).forEach((s, k) => { if (k > 0) m.holdUntil[s] = clock + (k * UI.slotStaggerMs) / 1000; });
 }
 
 /** The place numeral's color (ui.css `.place[data-tier]`): gold, silver and bronze for 1st to 3rd, the pack's yellow-orange behind them */
@@ -133,6 +135,9 @@ export interface HudVM {
   /** two digits (05), as the coin pill shows them */
   coins: string;
   coinsFull: boolean;
+  /** every item slot, UI.itemSlots of them in order: the held item (the one used), then the ones to come */
+  slots: readonly ItemSlotVM[];
+  /** slots[0] and slots[1] by name */
   held: ItemSlotVM;
   next: ItemSlotVM;
   /** `skip`: show the prompt to go on to the results (SKIP_PROMPTS) */
@@ -236,16 +241,31 @@ function slot(id: string, charges: number, roulette: number, defs: readonly Def[
   return { state, itemId: id, label: d?.name ?? id, charges: charges > 1 && !ONE_OF.has(id) ? `×${charges}` : '' };
 }
 
+const EMPTY_SLOT: ItemSlotVM = Object.freeze({ state: 'empty', itemId: '', label: '', charges: '' });
+
 /**
- * The two slots. `holdNext`: seconds the next slot still rolls on (a Double's second item, HudMemory.nextHoldUntil);
- * `faces`: each slot's first roulette face (HudMemory.faces; the next's three on, so the two never show one item).
+ * The item state's third slot, read once the sim has one (Adam, 28 Sept 2026: "Yes, 3 item slots."; the gameplay
+ * branch adds it beside `next`, named as the first two are). Until then the third slot is empty.
  */
-export function itemSlots(p: KartState, defs: readonly Def[], holdNext = 0, trailing = false, faces: readonly [number, number] = [0, 0]): { held: ItemSlotVM; next: ItemSlotVM } {
-  const it = p.item;
-  return {
-    held: slot(it.held, it.charges, it.rouletteRemaining, defs, faces[0], 0, trailing),
-    next: slot(it.next, it.nextCharges, it.nextRouletteRemaining, defs, faces[1] + 3, holdNext),
-  };
+type ThirdSlot = { third?: string; thirdCharges?: number; thirdRouletteRemaining?: number };
+
+/**
+ * The item slots, UI.itemSlots of them: the held item first, then the ones to come. `hold`: seconds each slot still
+ * rolls on (a Double's later item, HudMemory.holdUntil); `faces`: each slot's first roulette face (HudMemory.faces;
+ * each later slot three more on, so two never show one item). `trailing`: the held item is held behind the kart.
+ */
+export function itemSlots(p: KartState, defs: readonly Def[], hold: readonly number[] = [], trailing = false, faces: readonly number[] = []): { held: ItemSlotVM; next: ItemSlotVM; slots: readonly ItemSlotVM[] } {
+  const it = p.item as KartState['item'] & ThirdSlot;
+  const sim: readonly (readonly [string, number, number])[] = [
+    [it.held, it.charges, it.rouletteRemaining],
+    [it.next, it.nextCharges, it.nextRouletteRemaining],
+    [it.third ?? 'none', it.thirdCharges ?? 0, it.thirdRouletteRemaining ?? 0],
+  ];
+  const slots = Array.from({ length: UI.itemSlots }, (_, k) => {
+    const [id, charges, roll] = sim[k] ?? ['none', 0, 0];
+    return slot(id, charges, roll, defs, (faces[k] ?? 0) + 3 * k, hold[k] ?? 0, k === 0 && trailing);
+  });
+  return { held: slots[0] ?? EMPTY_SLOT, next: slots[1] ?? EMPTY_SLOT, slots };
 }
 
 /**
@@ -277,7 +297,7 @@ export function hudModel(
     const cut = KNOCKOUT_CUT_LINES[state.knockout.segment] ?? KNOCKOUT_CUT_LINES[KNOCKOUT_CUT_LINES.length - 1];
     knockout = final ? { text: 'Only 1st wins', danger: rank > 1 } : { text: `${ordinal(cut)} or better goes through`, danger: rank > cut };
   }
-  const slots = itemSlots(player, defs, Math.max(0, m.nextHoldUntil - clock), trailing, m.faces);
+  const slots = itemSlots(player, defs, m.holdUntil.map((until) => Math.max(0, until - clock)), trailing, m.faces);
   // a solo run: one racer (a Time Trial's ghost is no racer)
   let racers = 0;
   for (const k of state.karts ?? []) if (!k.isGhost) racers++;
@@ -296,6 +316,7 @@ export function hudModel(
     flourish: m.flourishUntil > clock,
     coins: twoDigits(player.coins),
     coinsFull: player.coins >= coinCap,
+    slots: slots.slots,
     held: slots.held,
     next: slots.next,
     // a solo run's finish names no place ("1st" of one), as its HUD and results show none

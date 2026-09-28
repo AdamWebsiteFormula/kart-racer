@@ -92,7 +92,7 @@ describe('a Double balloon\'s two items land one after the other', () => {
     // someone else's Double is nothing to the player's HUD
     const m2 = newHudMemory();
     feedHud(m2, [], [ready(0, 'beachBall', 'x'), ready(1, 'oilCan', 'x')], 'p', 1);
-    expect(m2.nextHoldUntil).toBe(-1);
+    expect(m2.holdUntil.every((t) => t === -1)).toBe(true);
   });
 });
 

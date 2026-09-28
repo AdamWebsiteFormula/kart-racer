@@ -3,17 +3,27 @@ import type { Minimap } from '../../track-builder/minimap.ts';
 import { UI } from '../constants.ts';
 import { castCard } from '../data/cast.ts';
 import { CONTROLS_STRIP, SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
-import { iconFor, iconMarkup, medalSvg, wheelSvg } from '../icons.ts';
+import { glowFor, iconFor, iconMarkup, medalSvg, wheelSvg } from '../icons.ts';
 import { gearSvg } from '../gearIcon.ts';
 import { medalLabel } from '../screens/menus.ts';
 import { outlineKey, type MinimapDot } from '../minimap.ts';
 import { RACE } from '../../race-manager/constants.ts';
 import { letters } from './banner.ts';
-import { Attr, clear, Flag, h, Markup, replay, TextField } from './dom.ts';
+import { Attr, clear, Flag, h, Markup, replay, StyleVar, TextField } from './dom.ts';
 
 /** The slot's landing animations (ui.css): the last to end takes the `land` class off (reduced motion runs only the fade) */
 const LAND_ENDS: ReadonlySet<string> = new Set(['slot-shine', 'slot-fade']);
 
+const EMPTY_SLOT: ItemSlotVM = Object.freeze({ state: 'empty', itemId: '', label: '', charges: '' });
+
+/** each slot's name for screen readers, by its place in the row (the held item, then the ones to come) */
+const SLOT_NAMES: readonly string[] = ['Item', 'Next item', 'Item after next'];
+
+/**
+ * One item slot (28 Sept 2026, Adam: "The bubbles that show the items look super goofy instead of something cool"):
+ * a plate of slanted glass (ui.css .slot-glass) lit in the item's color (`--glow`, icons.ts glowFor), the item's art
+ * upright over it, its charges on a chip; the first slot big, the ones to come smaller (`.next`).
+ */
 class SlotView {
   readonly root: HTMLElement;
   private state: Attr;
@@ -21,35 +31,43 @@ class SlotView {
   private glyph: TextField;
   private charges: TextField;
   private label: Attr;
-  private readonly size: number;
+  private glow: StyleVar;
+  private readonly name: string;
   /** the state last drawn: a roll that stops (rolling to an item) lands it */
   private shown = '';
-  constructor(parent: HTMLElement, next: boolean) {
-    this.root = h('div', next ? 'slot next' : 'slot', parent);
+  /** `index`: the slot's place in the row, 0 the held item */
+  constructor(parent: HTMLElement, index: number) {
+    this.root = h('div', index > 0 ? 'slot next' : 'slot', parent);
     this.root.setAttribute('role', 'img'); // an icon: its aria-label (below) is its name
-    if (next) h('span', 'tag', this.root, 'NEXT');
+    this.name = SLOT_NAMES[index] ?? SLOT_NAMES[SLOT_NAMES.length - 1];
+    if (index === 1) h('span', 'tag', this.root, 'NEXT');
+    // the glass, its rim and glow (ui.css .slot-glass); the item sits upright over it
+    h('span', 'slot-glass', this.root);
     const ic = h('span', 'ic', this.root);
     this.icon = new Markup(ic);
     this.glyph = new TextField(h('span', 'glyph', this.root));
     this.charges = new TextField(h('span', 'charges', this.root));
-    // the shine that crosses the balloon as an item lands in it (ui.css .gloss)
+    // the shine that crosses the glass as an item lands (ui.css .gloss)
     h('span', 'gloss', this.root);
     this.state = new Attr(this.root, 'data-state');
     this.label = new Attr(this.root, 'aria-label');
-    this.size = next ? 44 : 72;
+    this.glow = new StyleVar(this.root, '--glow');
     // landed and settled: the class goes, so nothing replays it (a HUD shown again restarts what an animation holds)
     this.root.addEventListener('animationend', (e) => { if (LAND_ENDS.has(e.animationName)) this.root.classList.remove('land'); });
   }
   render(s: ItemSlotVM): void {
-    // the roulette stopped on an item: it lands in the balloon (Adam, 28 Sept 2026: "just appear without any animation")
+    // the roulette stopped on an item: it lands in its slot (Adam, 28 Sept 2026: "just appear without any animation")
     if (this.shown === 'rolling' && s.state !== 'rolling' && s.state !== 'empty') replay(this.root, 'land');
     this.shown = s.state;
     this.state.set(s.state);
-    this.icon.set(s.itemId ? iconMarkup(s.itemId, this.size) : '');
+    // (the art's size is the slot's, from the stylesheet: the attributes are only its first layout)
+    this.icon.set(s.itemId ? iconMarkup(s.itemId, 80) : '');
     this.glyph.set(iconFor(s.itemId)?.glyph ?? '');
     this.charges.set(s.charges);
-    this.label.set(s.state === 'ready' ? `Item: ${s.label} ${s.charges}`.trim() : s.state === 'trailing' ? `Item: ${s.label}, held behind you`
-      : s.state === 'active' ? `Item: ${s.label} running` : s.state === 'rolling' ? 'Item: rolling' : 'Item: empty');
+    this.glow.set(glowFor(s.itemId));
+    const n = this.name;
+    this.label.set(s.state === 'ready' ? `${n}: ${s.label} ${s.charges}`.trim() : s.state === 'trailing' ? `${n}: ${s.label}, held behind you`
+      : s.state === 'active' ? `${n}: ${s.label} running` : s.state === 'rolling' ? `${n}: rolling` : `${n}: empty`);
   }
 }
 
@@ -227,8 +245,8 @@ export class HudView {
   /** the HUD has nothing to focus */
   readonly buttons = new Map<string, HTMLElement>();
   readonly minimap: MinimapView;
-  private held: SlotView;
-  private next: SlotView;
+  /** the item slots, UI.itemSlots of them: the held item's, then the ones to come */
+  private itemSlots: SlotView[];
   private timer: TextField;
   private ko: HTMLElement;
   private koText: TextField;
@@ -297,8 +315,7 @@ export class HudView {
     this.root.setAttribute('aria-label', 'Race');
     const tl = h('div', 'tl', this.root);
     this.slots = tl;
-    this.held = new SlotView(tl, false);
-    this.next = new SlotView(tl, true);
+    this.itemSlots = Array.from({ length: UI.itemSlots }, (_, k) => new SlotView(tl, k));
 
     const tc = h('div', 'tc', this.root);
     this.timer = new TextField(h('div', 'timer', tc));
@@ -401,8 +418,7 @@ export class HudView {
     // the stylesheet's display beats the hidden attribute, so hide by style
     const show = vm.items ? '' : 'none';
     if (this.slots.style.display !== show) this.slots.style.display = show;
-    this.held.render(vm.held);
-    this.next.render(vm.next);
+    this.itemSlots.forEach((v, k) => v.render(vm.slots[k] ?? EMPTY_SLOT));
     this.timer.set(vm.timer);
     this.koShown.set(vm.knockout === null);
     this.koText.set(vm.knockout?.text ?? '');
