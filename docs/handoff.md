@@ -2,6 +2,10 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
+## Live at 28 Sept 2026, 09:00 EDT
+
+main 512da25 is live (Deploy green, live bundle and voice.json checked): the voices (147 lines), no STRIKE! word on the Strike Ball (Adam: "So corny!"), round 3 (the course limit stretch by stretch as MKW measured, four image-to-3D landmarks), with submit-score v21 (core-afee84082edffa47, CLIENT_VERSION 8). Running: a small builder for Frostbite's final-lap draw calls (101) and Nova's disappointed finish. Open: Big Gus's overtake and Nova's start voice lines; paid sound packs (Adam: "not yet").
+
 ## State at 28 Sept 2026, morning (read this first; the sections below are older)
 
 **Voices committed on main, NOT pushed** (35b6683; the `rascal-voice-lines-finish` run, then Adam in chat): public/audio/voice.json and 147 MP3s (2.1 MB): Pip 23, Juniper 23, Sprocket 25, Boulder 22, Momo 17, Otto 16, Nova 12, Big Gus 9. With the list in the build, the Settings Voices row shows. Checked: verify green (2088 tests, bundle 564 KB), silent check in headless muted Chrome (8 racers, 147 files all 200, Voices row, 0 audio contexts, 0 page errors). One push of main ships them, with Adam's OK.
