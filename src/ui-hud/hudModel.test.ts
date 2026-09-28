@@ -120,7 +120,7 @@ describe('hud model', () => {
     const k = kart();
     k.item = { held: 'tripleFizz', charges: 3, rouletteRemaining: 0, next: 'x', nextCharges: 1, nextRouletteRemaining: 1 };
     const a = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
-    expect([a.held.state, a.held.label, a.held.charges]).toEqual(['ready', 'Triple Fizz', '×3']);
+    expect([a.held.state, a.held.label, a.held.charges]).toEqual(['ready', 'Triple Nitro', '×3']);
     expect(a.next.state).toBe('rolling');
     // the clock alone moves nothing (a pause holds the roll); the roll's time does
     expect(hudModel(race(), k, 4, 10, newHudMemory(), 5, defs, 5000).next.label).toBe(a.next.label);

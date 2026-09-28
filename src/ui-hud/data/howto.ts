@@ -22,19 +22,19 @@ export const AUTO_GAS_NOTE = '(automatic from GO)';
 
 /** One line per item, in the order the game lists them (items/data.ts). */
 export const ITEM_LINES: Readonly<Record<string, string>> = Object.freeze({
-  beachBall: 'Throw it ahead. It bounces off the sides three times.',
-  homingKite: 'Flies after the racer in front of you.',
+  beachBall: 'Fire a laser bolt ahead. It bounces off the sides three times.',
+  homingKite: 'Locks on to the racer in front of you and chases them down.',
   oilCan: 'Leave a slick behind you. Whoever drives in slows to half speed.',
-  decoyBalloon: 'Looks just like a real balloon, but spins out whoever grabs it.',
-  airHorn: 'A blast all around you: clears items and spins racers nearby.',
-  bubble: 'A shield that stops one hit, for up to 8 seconds.',
+  decoyBalloon: 'Looks just like a real balloon, but spins out whoever grabs it. Watch for a red light.',
+  airHorn: 'An energy pulse all around you: clears items and spins racers nearby.',
+  bubble: 'A force field that stops one hit, for up to 8 seconds.',
   fizzPop: 'One big burst of speed, even off the road.',
   tripleFizz: 'Three bursts of speed, and faster drift sparks.',
-  fogBank: 'Slows everyone ahead and takes their items. Works from 5th place back.',
-  strikeBall: 'Become a bowling ball: roll on your own and knock racers flying.',
-  pogoSpring: 'Boing over trouble. Press again in the air to slam down.',
-  grappleAnchor: 'Hook the racer ahead, reel in, then slingshot past.',
-  windUpMouse: 'Scurries ahead and bumps up to three racers.',
+  fogBank: 'Shorts out everyone ahead: they slow down and lose their items. Works from 5th place back.',
+  strikeBall: 'Become a jet: fly on your own, knock racers aside and end with a sonic boom.',
+  pogoSpring: 'Blast up over trouble. Press again in the air to dive back down.',
+  grappleAnchor: 'Lock on to the racer ahead, reel in, then slingshot past.',
+  windUpMouse: 'Zips ahead, weaving, and bumps up to three racers.',
 });
 
 /** The key to the Item labels setting (Settings), under the items: each item's letter as its slot shows it (icons.ts glyph). */
