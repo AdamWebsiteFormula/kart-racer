@@ -465,14 +465,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
    gantry's own lights, half its size (sweep, 24 Sept 2026); under the start lamps now (.lamps), bigger still */
 .banner[data-kind='countdown'], .banner[data-kind='go'] { top: 30%; }
 .banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, min(15vw, 28vh), 236px); letter-spacing: 0.05em; }
-/* each kind's colors: the count, FINISH! and the shift's label in the sun, GO! in the grass, FINAL LAP and STRIKE! in coral */
+/* each kind's colors: the count, FINISH! and the shift's label in the sun, GO! in the grass, FINAL LAP in coral */
 .banner[data-kind='go'] .big { --face: linear-gradient(180deg, #f5ffe6 14%, #c8f77c 42%, #7fd63f 43%, #4db52e 66%, #2c9432 84%); --side: #15612a; }
-.banner[data-kind='finalLap'] .big, .banner[data-kind='strike'] .big { --face: linear-gradient(180deg, #fff4ef 14%, #ffc4b5 42%, #ff7b67 43%, #f5534f 66%, #d8344a 84%); --side: #871b35; }
+.banner[data-kind='finalLap'] .big { --face: linear-gradient(180deg, #fff4ef 14%, #ffc4b5 42%, #ff7b67 43%, #f5534f 66%, #d8344a 84%); --side: #871b35; }
 .banner[data-kind='wrongWay'] .big { --face: linear-gradient(180deg, #ffffff 14%, #ffbaba 42%, #ff4d4d 43%, #e52d2d 66%, #b81f2c 84%); --side: #6c1020; font-size: clamp(48px, 7vw, 96px); animation: pulse 0.6s ease-in-out infinite; }
 .banner[data-kind='shift'] .big { font-size: clamp(40px, 6vw, 80px); }
-.banner[data-kind='strike'] .big { font-size: clamp(64px, 10vw, 136px); }
-.banner[data-kind='strike'].show .big { animation: strike-shake 0.5s 0.32s ease-in-out; }
-@keyframes strike-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg) scale(1.06); } 60% { transform: rotate(4deg); } }
 /* FINISH! over a checkered sash of our own start line's squares, swept in behind the letters */
 .banner[data-kind='finish'] .chs { isolation: isolate; }
 .banner[data-kind='finish'] .chs::before {

@@ -29,8 +29,8 @@ export const CONTROLS_STRIP = Object.freeze({
 /** The driving assists on in this race (Settings; game/assist.ts): Auto-accelerate, and Steering assist and whether it turned the wheel on the last tick. */
 export interface HudAssist { autoAccelerate: boolean; steering: boolean; working: boolean }
 
-export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'shift' | 'finish' | 'strike';
-const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, strike: 2, wrongWay: 2, finalLap: 3, shift: 3, finish: 4 };
+export type BannerKind = 'countdown' | 'go' | 'wrongWay' | 'finalLap' | 'shift' | 'finish';
+const PRIORITY: Readonly<Record<BannerKind, number>> = { countdown: 1, go: 1, wrongWay: 2, finalLap: 3, shift: 3, finish: 4 };
 
 export interface HudMemory {
   /** `skip`: the finish banner's prompt to go on to the results shows under it */
@@ -87,7 +87,7 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
     }
   }
   for (const e of items) {
-    if (e.type === 'burst' && e.racerId === playerId) show(m, 'strike', 'STRIKE!', '', clock + 1.2, clock);
+    // (no STRIKE! word on the Strike Ball's burst: Adam, 28 Sept 2026, "So corny"; the pins, confetti, flash and crash sound say it)
     if (e.type === 'hit' && e.racerId === playerId) m.flashUntil = clock + UI.flashMs / 1000;
     if (e.type === 'fog' && e.victims.includes(playerId)) m.flashUntil = clock + UI.flashMs / 1000;
   }
