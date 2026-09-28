@@ -4,6 +4,7 @@
 // thin Web Audio.
 import { AUDIO } from './constants.ts';
 import { engineCutoff } from './engine.ts';
+import { isIntroKey } from './introCue.ts';
 import type { Bark } from './types.ts';
 
 export interface Manifest {
@@ -17,6 +18,8 @@ export interface Cut {
   start: number; end: number; gain: number;
   /** where a loop wraps (a crossfade is baked in before loopEnd); a one-shot has none */
   loopStart?: number; loopEnd?: number;
+  /** a song's or intro piece's bar grid: its first beat (buffer seconds) and its bar (seconds), for a cue cut on a bar line (introCue.ts) */
+  beat0?: number; bar?: number;
 }
 export interface Sample extends Cut { buffer: AudioBuffer }
 
@@ -405,7 +408,23 @@ export function cutSong(b: AudioBuffer, bpm: number, loop?: readonly [number, nu
   const p = loopPoints(env, bpm);
   const [a, z] = loop ?? [p.start, p.end];
   const w = bakeLoop(chs, b.sampleRate, a, Math.min(z, b.duration - TAIL), AUDIO.songFade);
-  return { buffer: b, start: Math.min(p.start, w.start), end: w.end, loopStart: w.start, loopEnd: w.end, gain: peakSafe(levelGain(songLevel(chs, b.sampleRate, w.start, w.end), SONG_K, 3), samplePeak(chs)) };
+  return {
+    buffer: b, start: Math.min(p.start, w.start), end: w.end, loopStart: w.start, loopEnd: w.end, beat0: p.start, bar: p.bar,
+    gain: peakSafe(levelGain(songLevel(chs, b.sampleRate, w.start, w.end), SONG_K, 3), samplePeak(chs)),
+  };
+}
+
+/**
+ * A course's intro piece (introCue.ts; the manifest's `intro:<trackId>`): a one-shot, played once from its first
+ * sound to the end of its ring (its edges shaped as a sound effect's are), levelled as a song is so it sits with the
+ * race songs; its bar grid from its first sound at the manifest's tempo (a piece starts on its downbeat).
+ */
+export function cutIntro(b: AudioBuffer, bpm: number): Sample {
+  const chs = channels(b), rate = b.sampleRate;
+  removeDc(chs);
+  const start = onset(chs, rate);
+  const end = shapeEdges(chs, rate, start);
+  return { buffer: b, start, end, beat0: start, bar: 240 / bpm, gain: peakSafe(levelGain(songLevel(chs, rate, start, end), SONG_K, 3), samplePeak(chs)) };
 }
 
 /**
@@ -445,7 +464,8 @@ const RACE_SONGS_KEPT = 2;
  * and finish stings). A sound not in yet plays on the synth (or, for a loop, waits), as before.
  */
 export const SFX_TIERS: readonly (readonly string[])[] = Object.freeze([
-  ['uiMove', 'uiConfirm', 'uiBack'],
+  // the menus' clicks, and the pick's whoosh (a race picked: AUDIO.sting, 28 Sept 2026)
+  ['uiMove', 'uiConfirm', 'uiBack', 'slipstream'],
   ['count', 'go', 'engine-idle', 'engine-mid', 'engine-high', 'drift', 'sparks', 'hop', 'land', 'tierUp', 'tierUp2', 'tierUp3',
     'boost1', 'boost2', 'boost3', 'boostStart', 'boostPad'],
   ['balloon', 'rouletteTick', 'itemReady', 'coin', 'throw', 'kite', 'drop', 'shieldUp', 'shieldPop', 'shieldEnd', 'airHorn', 'fog', 'fizz',
@@ -453,8 +473,11 @@ export const SFX_TIERS: readonly (readonly string[])[] = Object.freeze([
     'pop', 'denied', 'bump', 'wall', 'gainPlace', 'losePlace'],
 ]);
 const TIER_OF: ReadonlyMap<string, number> = new Map(SFX_TIERS.flatMap((ids, tier) => ids.map((id) => [id, tier] as const)));
-/** A sound effect's turn (SFX_TIERS): the hit yelps go with the hits, everything unlisted last. */
-export const sfxTier = (id: string): number => TIER_OF.get(id) ?? (id.startsWith('yelp:') ? 2 : SFX_TIERS.length);
+/**
+ * A sound effect's turn (SFX_TIERS): the hit yelps go with the hits, the pick's sting (AUDIO.sting.id, the music lab's
+ * when the manifest names it) with the menus' clicks, everything unlisted last.
+ */
+export const sfxTier = (id: string): number => TIER_OF.get(id) ?? (id.startsWith('yelp:') ? 2 : id === AUDIO.sting.id ? 0 : SFX_TIERS.length);
 /** The turn a song is fetched at: one is only asked for when it is wanted now (the title on the first key press, a race's as it loads). */
 export const SONG_TIER = 0;
 /** The racers' voice lines come down after every sound effect: a line not in yet is simply not said. */
@@ -670,16 +693,19 @@ export class SampleBank {
         this.files.delete(key);
         const b = bytes ? await ctx.decodeAudioData(bytes).catch(() => null) : null;
         this.inHand.delete(key);
-        const s = b ? cutSong(b, m.bpm, m.loop) : null;
+        // a course's intro piece plays once (introCue.ts); a song loops
+        const s = b ? (isIntroKey(key) ? cutIntro(b, m.bpm) : cutSong(b, m.bpm, m.loop)) : null;
         if (s && this.songs.get(key) === mine) this.ready.add(key);
         return s;
       }).catch(() => null);
       p = mine;
       this.songs.set(key, p);
       // a decoded song is tens of MB: title and results stay (every race comes back to them), and the
-      // two most recent race songs (a Grand Prix's next track, a retry)
-      const race = [...this.songs.keys()].filter((k) => !KEEP_SONGS.has(k));
-      for (let i = 0; i < race.length - RACE_SONGS_KEPT; i++) { this.songs.delete(race[i]); this.ready.delete(race[i]); }
+      // two most recent race songs (a Grand Prix's next track, a retry); the intro pieces, small, the two most recent too
+      const keys = [...this.songs.keys()];
+      for (const kept of [keys.filter((k) => !KEEP_SONGS.has(k) && !isIntroKey(k)), keys.filter(isIntroKey)]) {
+        for (let i = 0; i < kept.length - RACE_SONGS_KEPT; i++) { this.songs.delete(kept[i]); this.ready.delete(kept[i]); }
+      }
     } else {
       this.songs.delete(key);
       this.songs.set(key, p);

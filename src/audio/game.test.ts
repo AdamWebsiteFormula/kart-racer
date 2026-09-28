@@ -122,8 +122,11 @@ describe('the finish line (the sting plays alone, then the results song)', () =>
   it('the synth song stops at the line too, and its results song books no note before the sting ends', () => {
     const { audio, ctx } = game(false);
     audio.newRace('raceSunrise', 'harbour-loop', 8);
-    const inner = audio as unknown as { seq: { take(until: number): { time: number }[] } | null };
-    expect(inner.seq).not.toBeNull();
+    const inner = audio as unknown as { seq: { take(until: number): { time: number }[]; drums: boolean } | null };
+    // silent till the go, the synth's song too (28 Sept 2026: the countdown has only its beeps), then from its top, drums and all
+    expect(inner.seq).toBeNull();
+    audio.tick([{ type: 'go' }], [], L);
+    expect(inner.seq?.drums).toBe(true);
     ctx.currentTime = 40;
     audio.tick([finish(2)], [], L);
     expect(inner.seq).toBeNull();

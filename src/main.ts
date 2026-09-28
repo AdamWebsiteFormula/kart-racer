@@ -7,7 +7,7 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
-import { AudioBus, finishLine, GameAudio, SampleBank, songForTrack, themeForTrack, type Listener } from './audio/index.ts';
+import { AudioBus, finishLine, GameAudio, isIntroKey, SampleBank, songForTrack, themeForTrack, type Listener } from './audio/index.ts';
 import { silence, StandInContext } from './audio/standIn.ts';
 import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
@@ -279,12 +279,15 @@ const RANK = Object.freeze({
 const SOUND_RANK = [RANK.clicks, RANK.racers, RANK.items, RANK.rest] as const;
 // every sound file waits its turn in the same line as the models (on the first key press all 102 and the
 // title song used to be asked for at once): a song takes a whole turn, a sound effect half of one; the title
-// song on the start screen the whole line (it comes down alone). Tagged, so a race start can move them: its
-// first seconds' sounds forward, the title song back (raceLine)
+// song on the start screen the whole line (it comes down alone); a course's intro piece (small, and wanted as the
+// course intro's flight begins: audio/introCue.ts) half a turn with the race's own models. Tagged, so a race start
+// can move them: its first seconds' sounds forward, the title song back (raceLine)
 audio.bank.schedule = (job, tier, song) => song
   ? (song === 'title' && attract
     ? files.add(job, RANK.titleSong, files.limit, 'song:title')
-    : files.add(job, song === 'title' ? RANK.rest : song === 'results' ? RANK.screens : RANK.raceNext, 1, `song:${song}`))
+    : isIntroKey(song)
+      ? files.add(job, RANK.race, 0.5, `song:${song}`)
+      : files.add(job, song === 'title' ? RANK.rest : song === 'results' ? RANK.screens : RANK.raceNext, 1, `song:${song}`))
   : files.add(job, SOUND_RANK[Math.min(tier, SOUND_RANK.length - 1)], 0.5, `sfx:${tier}`);
 /**
  * The line as a race or the menus want it: a race wants its racers' models, then its song and first
@@ -452,6 +455,9 @@ const host: UiHost = {
     // the course intro before the countdown: a short one in Time Trial and the Daily (game/intro.ts); from the
     // results, a short one on to the next track and none for the same race again (as the pause's Restart)
     const intro = p.intro === 'none' ? null : p.intro ?? (p.mode === 'timeTrial' || p.mode === 'daily' ? 'short' : 'full');
+    // a race picked, with a course to fly: the pick's sting over the menu's confirm (Mario Kart World's start press;
+    // audio.raceChosen). Not for the same race again, a restart or a series' next race
+    if (intro) audio.raceChosen();
     load(series ? withMirror(nextRace(series)!) : configFor(p), false, intro);
   },
   nextRace() {
@@ -464,7 +470,8 @@ const host: UiHost = {
     if (session) load(restartConfig(session.config, [...TRACKS.keys()]), false);
   },
   quitRace() { startAttract(); },
-  skipIntro() { intro?.skip(); },
+  // the intro's music fades out fast with it (audio/introCue.ts), as the countdown comes at once
+  skipIntro() { if (intro) { intro.skip(); audio.introOver(); } },
   skipToResults() {
     // over the line and pressed on: the rest of the field is cut off now (projected times), no 12 s wait
     if (!session || attract || !session.player || session.player.finishTick === undefined) return;
@@ -719,6 +726,8 @@ function introCamera(reduced: boolean): void {
 
 /** The course intro is over (played through or skipped): the chase camera takes over from the rest pose the flight landed on, the HUD comes back and the countdown starts. */
 function endIntro(): void {
+  // its music is silent by now (it ends a breath before the countdown); anything left fades out fast
+  audio.introOver();
   const s = session;
   if (intro && s?.player) chase.reset(s.player, intro.plan.rest);
   intro = null;
@@ -916,7 +925,13 @@ function step(now: number): void {
   const running = !ui.paused && (!document.hidden || devStepping);
   if (intro) {
     if (running && !warmed) {
-      if (!intro.moving) { intro.moving = true; ui.introPhase('show'); } else intro.advance(frameDt);
+      if (!intro.moving) {
+        intro.moving = true;
+        ui.introPhase('show');
+        // its music from the flight's first frame (audio/introCue.ts: the course's own intro piece, else the first bars of
+        // its race song), silent a breath before the countdown; none for a flight skipped before it began
+        if (!intro.flightOver) audio.courseIntro(intro.plan.duration);
+      } else intro.advance(frameDt);
       if (import.meta.env.DEV && devIntroAt !== null) intro.time = Math.min(devIntroAt, intro.plan.duration - 1e-3);
       if (intro.cardLeaving) ui.introPhase('out');
     }

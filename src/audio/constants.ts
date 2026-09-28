@@ -79,6 +79,20 @@ export const AUDIO = Object.freeze({
   /** the race song fades this fast when the player crosses the line, so the finish sting plays alone */
   finishFade: 0.25,
   /**
+   * The course intro's music (introCue.ts; Adam, 28 Sept 2026: "There should be music when clicking to start a new race
+   * that happens before the race begins, like Mario Kart World does"). It plays under the flight and is silent `breath`
+   * before the countdown's first beep (World's opening piece ends on a held chord as its flyover ends; its countdown has
+   * only the beeps). A cue longer than its room fades out over `fadeBeats` beats (`fadeMin` to `fadeMax` seconds) that
+   * end on a bar line of its own, with at least `minFull` at full level before the fade; a skip fades it in `skipFade`.
+   * A recording that lands with less than `minPlay` of its room left does not start.
+   */
+  intro: Object.freeze({ breath: 0.4, fadeBeats: 2, fadeMin: 0.6, fadeMax: 1.2, minFull: 0.4, skipFade: 0.15, minPlay: 1.2 }),
+  /**
+   * A race picked (World's start press: a falling whoosh over its confirm as the menu music stops): the manifest's `pick`
+   * sting when the music lab's is in, else the slipstream's falling whoosh; each at this gain (over its mix level).
+   */
+  sting: Object.freeze({ id: 'pick', gain: 1, standIn: 'slipstream', standInGain: 0.7 }),
+  /**
    * A song's recording due within `songWait` of its start is waited for, with no synth stand-in (28 Sept 2026: a
    * synth flash, then the switch to the recording, sounds cheap; the title's file comes down while the start screen
    * waits, so after the press only its decode is left). One waited for that has still not started `songGiveUp` after

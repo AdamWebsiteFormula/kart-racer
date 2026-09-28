@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AUDIO } from './constants.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
 import {
-  bakeLoop, bandRate, bandWeights, barLength, cutSfx, ENGINE_BANDS, envelope, FANFARE_SECONDS, kWeight, leadIn, LEVELS, levelGain, loopPhase, loopPoints, meanRms,
+  bakeLoop, bandRate, bandWeights, barLength, cutIntro, cutSfx, cutSong, ENGINE_BANDS, envelope, FANFARE_SECONDS, kWeight, leadIn, LEVELS, levelGain, loopPhase, loopPoints, meanRms,
   evenLoop, cutDb, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, SFX_TIERS, sfxTier, shapeEdges, SONG_TIER, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
 } from './samples.ts';
 import { LoadQueue } from '../performance/loadQueue.ts';
@@ -198,6 +198,29 @@ describe('sample analysis', () => {
     expect(Math.round(bars) % 4).toBe(0);
     expect(end).toBeLessThanOrEqual(36);
     expect(end).toBeGreaterThan(30);
+  });
+
+  it('a song carries its bar grid (its first beat, its measured bar), and a course\'s intro piece plays once, levelled as a song', () => {
+    // a song: 40 s of a 150 BPM beat after half a second of silence (a real song's first beat and bar, as loopPoints finds them)
+    const rate = 8000, env = beatEnv(150, 40, { silence: 0.5, fadeFrom: 36 });
+    const d = new Float32Array(env.length * rate * HOP);
+    for (let i = 0; i < d.length; i++) d[i] = env[Math.floor(i / (rate * HOP))] * Math.sin((2 * Math.PI * 220 * i) / rate);
+    const s = cutSong({ duration: d.length / rate, sampleRate: rate, numberOfChannels: 1, getChannelData: () => d } as unknown as AudioBuffer, 150);
+    expect(s.beat0).toBeCloseTo(0.5, 1);
+    expect(s.bar).toBeCloseTo(1.6, 2);
+    // a piece: 50 ms of silence, 4 s of a chord, a 1 s ring dying away, then silence
+    const n = Math.round(6 * rate), p = new Float32Array(n);
+    for (let i = Math.round(0.05 * rate); i < n; i++) {
+      const t = i / rate, env2 = t < 4.05 ? 0.3 : t < 5.05 ? 0.3 * Math.pow(10, (-70 * (t - 4.05)) / 20) : 0;
+      p[i] = env2 * (Math.sin(2 * Math.PI * 262 * t) + Math.sin(2 * Math.PI * 330 * t)) / 2;
+    }
+    const q = cutIntro({ duration: 6, sampleRate: rate, numberOfChannels: 1, getChannelData: () => p } as unknown as AudioBuffer, 150);
+    expect(q.start).toBeCloseTo(0.05, 2);
+    expect(q.end, 'to the end of its ring (60 dB under its peak)').toBeGreaterThan(4.8);
+    expect(q.end).toBeLessThan(4.95);
+    expect([q.beat0, q.bar, q.loopStart, q.loopEnd]).toEqual([q.start, 1.6, undefined, undefined]);
+    // levelled on its loudness as heard, as the race songs are, so the intro sits with them
+    expect(q.gain * songLevel([p], rate, q.start, q.end)).toBeCloseTo(LEVELS.song, 3);
   });
 
   it('crossfades the engine loops at equal power and keeps rates sane', () => {
@@ -399,6 +422,26 @@ describe('sample bank', () => {
     expect(bank.get('engine-mid')!.loopEnd).toBeCloseTo(0.1, 6);
   });
 
+  it('a course\'s intro piece (intro:<trackId>) decodes as a one-shot and is kept apart from the race songs', async () => {
+    const music: Record<string, { url: string; bpm: number }> = {};
+    for (const k of ['race-harbour', 'race-meadow', 'race-frost', 'intro:harbour-loop', 'intro:meadow-run', 'intro:frostbite-pass']) music[k] = { url: `audio/music/${k}.mp3`, bpm: 150 };
+    const f = (async () => ({ ok: true, json: async () => ({ sfx: {}, music }), arrayBuffer: async () => new ArrayBuffer(8) })) as unknown as typeof fetch;
+    const rate = 8000, d = Float32Array.from({ length: 6 * rate }, (_, i) => 0.3 * Math.sin((2 * Math.PI * 220 * i) / rate));
+    const ctx = { decodeAudioData: async () => ({ duration: 6, sampleRate: rate, numberOfChannels: 1, getChannelData: () => d.slice() }) as unknown as AudioBuffer } as unknown as BaseAudioContext;
+    const bank = new SampleBank('/', f);
+    await bank.load(ctx);
+    const piece = (await bank.song(ctx, 'intro:harbour-loop'))!, race = (await bank.song(ctx, 'race-harbour'))!;
+    expect([piece.loopStart, piece.bar]).toEqual([undefined, 1.6]);
+    expect(race.loopStart, 'a song loops').toBeDefined();
+    // two race songs and two intro pieces are kept, each its own two most recent: a new intro never drops a race song
+    await bank.song(ctx, 'intro:meadow-run');
+    await bank.song(ctx, 'intro:frostbite-pass');
+    await bank.song(ctx, 'race-meadow');
+    expect(['race-harbour', 'race-meadow', 'intro:harbour-loop', 'intro:meadow-run', 'intro:frostbite-pass'].map((k) => bank.isReady(k))).toEqual([true, true, false, true, true]);
+    await bank.song(ctx, 'race-frost');
+    expect(['race-harbour', 'race-meadow', 'race-frost'].map((k) => bank.isReady(k))).toEqual([false, true, true]);
+  });
+
   it('asks for every file through its schedule, in turn: the menus\' clicks, the race start, the items and hits, the rest; songs when asked', async () => {
     const ids = ['roar', 'hit', 'uiBack', 'yelp:pip', 'engine-mid', 'horn:gus', 'go', 'balloon', 'uiMove', 'road-wood', 'count', 'drift'];
     const manifest = { sfx: Object.fromEntries(ids.map((id) => [id, { url: `audio/sfx/${id}.mp3` }])), music: { title: { url: 'audio/music/title.mp3', bpm: 128 }, 'race-meadow': { url: 'audio/music/race-meadow.mp3', bpm: 146 } } };
@@ -435,7 +478,9 @@ describe('sample bank', () => {
   it('every sound the game ships has a turn: the menus\' first, then the race start (countdown, go, engines, drift, boosts), the items and hits, the rest', () => {
     const ids = Object.keys(MANIFEST.sfx);
     for (const tier of SFX_TIERS) for (const id of tier) expect(ids, `${id} is a shipped sound`).toContain(id);
-    expect(SFX_TIERS[0]).toEqual(['uiMove', 'uiConfirm', 'uiBack']);
+    // the menus' clicks and the pick's whoosh; the music lab's pick sting, when the manifest names it, with them
+    expect(SFX_TIERS[0]).toEqual(['uiMove', 'uiConfirm', 'uiBack', 'slipstream']);
+    expect(sfxTier('pick')).toBe(0);
     for (const id of ['count', 'go', 'engine-idle', 'engine-mid', 'engine-high', 'drift', 'boost1', 'boost2', 'boost3', 'boostStart']) expect(sfxTier(id), id).toBe(1);
     for (const id of ['balloon', 'rouletteTick', 'itemReady', 'throw', 'hit', 'spin', 'hitConfirm', 'yelp:gus']) expect(sfxTier(id), id).toBe(2);
     for (const id of ['roar', 'krakenRise', 'honk', 'whaleSong', 'geyser', 'horn:pip', 'road-wood', 'finish', 'shift']) expect(sfxTier(id), id).toBe(3);
