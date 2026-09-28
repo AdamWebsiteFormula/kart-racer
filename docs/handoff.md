@@ -2,6 +2,12 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
+## State at 27 Sept 2026, evening (read this first; the sections below are older)
+
+**Pushed** main 6cabc13 (round 2, from the fresh-eyes review docs/research/mkw-gap-review-2026-09-27.md on branch worktree-agent-adaba84c7d987b86f): the chase camera frames the kart like MKW (50-52.5 degree view, 5.6 m back, 2.5 m up; kart ~240 px of 1600 at speed; scripts/headless/chase-look.mjs measures it), kart parts trimmed and small racers seated higher so every racer shows; dimensional countdown/GO!/FINAL LAP/FINISH! banners, a start-lamp board synced to the gantry, glass end screens; contact bursts, wall sparks and hit stars (vfx-juice/contact.ts); Mesa Rush's mine lit on laps 1-2; roadside banks and edge props at the 12 m limit plus road variation (`?noedge` turns the edge off); rivals' pipe flames in one draw (flameBatch.ts), stall smoke, close disappointed-finish framing, PBR Classic/Buggy pictures, the Mode hero fade. Gate 2059 tests; score core unchanged (core-84787ebc941ca90b, submit-score v20 stays); start draw calls 61-94.
+**Still open:** the review's item 3 (primitive landmarks: a volcano of cones, drum towers; better models would use ~60 of 202 Higgsfield credits: asked Adam) and item 7 (voices: reschedule `rascal-voice-lines-finish`: asked); Adam asked whether the edge scenery may come closer than 12 m (a sim change: the course limit); Nova's disappointed finish reads weakly from behind her pod; the paid sound packs; the Boardwalk shift's rare 1-pixel NaN (bloom guard holds).
+**Merges refused by the classifier:** twice a builder's `git merge` or `git diff` was refused; each time Adam's explicit sentence let the main session do it. Plan for it: ask him first.
+
 ## State at 27 Sept 2026, 14:25 EDT (read this first; the sections below are older)
 
 **Live** (main f7b9933, Deploy green, live bundle checked; submit-score v20 with core-84787ebc941ca90b, probed): Adam's 26 Sept list ("the game feels very cheap") is done, all research-backed (sources in each SOP's 26-27 Sept Decisions):
