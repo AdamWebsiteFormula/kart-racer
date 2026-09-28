@@ -12,7 +12,7 @@ import { silence, StandInContext } from './audio/standIn.ts';
 import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
-import { Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
+import { BALLOON_SPARKLE, Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
 import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isPbr, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, ROAD_WET, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
@@ -965,6 +965,13 @@ function step(now: number): void {
   const liveDt = ui.paused || document.hidden ? 0 : frameDt;
   if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced, nowS);
   const pl = cur.player;
+  // a popped balloon back on the road, blowing up again (track-builder balloonBack.ts): a little sparkle round it, if the
+  // lens (where it was drawn from last frame) is near enough to see one
+  const back = cur.trackScene.balloonsBack, reach = BALLOON_SPARKLE.reach * BALLOON_SPARKLE.reach, lens = camera.position;
+  for (let i = 0; i + 2 < back.length; i += 3) {
+    const dx = back[i] - lens.x, dy = back[i + 1] - lens.y, dz = back[i + 2] - lens.z;
+    if (dx * dx + dy * dy + dz * dz < reach) vfx.balloonBack(back[i], back[i + 1], back[i + 2], reduced);
+  }
   // (no speed lines, lens or FOV kicks over the celebration; the podium's hidden field makes no sparks or dust)
   vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced, cur.revs, ceremony ? undefined : cur.views);
   if (!attract && !celebrating && !ceremony) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));

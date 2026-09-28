@@ -18,6 +18,7 @@ import { hashString, mulberry32, Occupancy, pastCourse, placeDecor, pushTransfor
 import { DRESSING_SLICES, mergeInstances, sliceOf, type MergeItem } from './merge.ts';
 import { CREATURE_GHOST, CreatureView } from './creatures.ts';
 import { NearGhost } from './ghost.ts';
+import { BalloonBack, balloonBackGeometry, patchBalloonBack } from './balloonBack.ts';
 import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
 import { bakeTrackShading, type BakeReceiver } from './bake.ts';
@@ -176,6 +177,12 @@ export interface TrackScene {
   /** move hazards to their position at race time `time`; pass race-manager's activeHazards list to avoid computing it twice */
   update(time: number, active?: readonly ActiveHazard[], live?: LiveFeatures): void;
   /**
+   * The balloons that came back on the last update (a popped one blowing up again: balloonBack.ts): where
+   * each one's body is, x, y, z after one another, for the little sparkle round it (vfx-juice). Emptied
+   * every update.
+   */
+  readonly balloonsBack: readonly number[];
+  /**
    * How much the balloons and coins light themselves (the sky's SkyLight.glow, 0 by day); update()
    * eases to it with the lights and pulses it gently. `snap` jumps there (a new race).
    */
@@ -216,8 +223,11 @@ export const PICKUP_GHOST = Object.freeze({ race: [2, 4.4] as const, closeUp: [2
 const PICKUP_GHOSTED = ['balloons', 'coins'] as const;
 const LENS_EYE = new Vector3();
 
-/** Race-manager timers, by feature index within its kind; a feature with respawnRemaining > 0 is hidden. */
-export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[]; coins?: readonly { respawnRemaining: number }[] }
+/**
+ * Race-manager timers, by feature index within its kind; a feature with respawnRemaining > 0 is hidden.
+ * `reduced`: reduced motion (a balloon coming back fades in rather than blowing up: balloonBack.ts).
+ */
+export interface LiveFeatures { pickups?: readonly { respawnRemaining: number }[]; coins?: readonly { respawnRemaining: number }[]; reduced?: boolean }
 
 /**
  * The speed gears (the track's `coins`, drawn as gears: art-pipeline gear.ts; Adam, 26 Sept 2026) turn on
@@ -979,6 +989,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const featureSlots = new Map<string, { slots: number[]; mats: Float32Array }>();
   // one uniform for every balloon and coin material, so a rebuilt instancer keeps the night glow
   const pickupGlow = { value: 0 };
+  // a popped balloon blows up again as it comes back (balloonBack.ts): the clock and shadow every balloon instancer shares
+  const balloonBack = new BalloonBack();
   let glowTo = 0, glowNow = 0, glowTime = 0;
   let jumpMeshes: Mesh[] = [];
   /** the jumps a Final Lap Shift adds that its stage draws (it raises them: shiftStage.ts), left out of the merged ramps */
@@ -1000,8 +1012,14 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
         m.userData.sharedMaterial = false;
         m.castShadow = false;
       } else {
-        m = instancer(name, geometryFor(assets, geo), colour, mats, undefined, undefined, false);
+        // a balloon instancer draws its own copy of the balloon, with each copy's time back (balloonBack.ts)
+        const balloon = kind === 'pickup';
+        const g = balloon ? balloonBackGeometry(geometryFor(assets, geo), mats.length / 16) : geometryFor(assets, geo);
+        if (balloon) OWNED.add(g);
+        m = instancer(name, g, colour, mats, undefined, undefined, false);
         if (!m.userData.sharedMaterial) {
+          // (first: the lens ghost's copies take the patches made before it)
+          if (balloon) { patchBalloonBack(m.material as Material, balloonBack.uniforms); m.customDepthMaterial = balloonBack.depth; }
           selfLit(m.material as MeshToonMaterial, pickupGlow);
           // near the lens a balloon or a coin fades out as a clean ghost, not a stipple (ghost.ts, TrackScene.lens)
           new NearGhost(m, PICKUP_GHOST.race[0], PICKUP_GHOST.race[1]);
@@ -1175,7 +1193,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     pickupGlow.value = glowNow * (1 + PICKUP_PULSE * Math.sin((time / PICKUP_PULSE_S) * Math.PI * 2));
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); assets.look?.(group); }
+    // the balloons float on their ribbons (floatBalloons: the matrices, hidden while one is away), and one
+    // just back swells out of its knot in its own shader (balloonBack: the matrices untouched)
     floatBalloons(time, live?.pickups);
+    const bf = featureSlots.get('balloons');
+    balloonBack.update(time, live?.pickups, instancers.get('balloons'), bf?.slots, bf?.mats, live?.reduced === true);
     turnGears(time, live?.coins);
     hazardCounts.fill(0);
     for (const h of active) {
@@ -1606,6 +1628,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,
+    balloonsBack: balloonBack.came,
     setPickupGlow: (amount, snap = false) => {
       glowTo = amount;
       if (snap) { glowNow = amount; pickupGlow.value = amount; }
@@ -1641,6 +1664,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       for (const c of chunks) c.mesh.geometry.dispose();
       creatures?.dispose();
       vents?.dispose();
+      balloonBack.dispose();
       if (roadMaterial.map && roadMaterial.map !== assets.roadMap) roadMaterial.map.dispose();
       roadMaterial.dispose(); // shared by every chunk: once
       group.clear();

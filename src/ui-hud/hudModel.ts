@@ -1,6 +1,7 @@
 // The race HUD as data. Events drive the transient things (banner, flash, flourish) through a
 // small memory; state drives the steady readouts. Pure: the caller passes the clock.
 import type { KartState } from '../kart-controller/types.ts';
+import { ITEMS_CONFIG } from '../items/data.ts';
 import type { ItemEvent } from '../items/types.ts';
 import { KNOCKOUT_CUT_LINES, RACE } from '../race-manager/constants.ts';
 import { STEP_TICKS } from '../race-manager/countdown.ts';
@@ -46,10 +47,23 @@ export interface HudMemory {
    * none; a new player learns the keys once, then the strip stays out of the way, never in lap 1)
    */
   strip: boolean;
+  /** each item slot's first roulette face (held, next): each new roll starts on another item, so no two look alike */
+  faces: [number, number];
+  /** the player's rolls this race (each moves the next roll's first face on) */
+  rolls: number;
+  /**
+   * a Double balloon's two items land one after the other (Adam, 28 Sept 2026): the sim has both ready on one
+   * tick, and the next slot rolls on until this clock time (UI.slotStaggerMs later), then lands; -1 none
+   */
+  nextHoldUntil: number;
 }
 
 /** A race's HUD memory; `firstRace`: the player's first race of the session (its countdown shows the controls strip). */
-export const newHudMemory = (firstRace = false): HudMemory => ({ banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, strip: firstRace });
+export const newHudMemory = (firstRace = false): HudMemory => ({
+  banner: null, flashUntil: -1, flourishUntil: -1, wrongWay: false, shiftLabel: '', finalLap: false, strip: firstRace, faces: [0, 0], rolls: 0, nextHoldUntil: -1,
+});
+/** How many faces on each new roll starts from the last one's first (coprime with the 13 items: every start in turn) */
+const FACE_STEP = 5;
 
 function show(m: HudMemory, kind: BannerKind, text: string, sub: string, until: number, clock: number, skip = false): void {
   const cur = m.banner && m.banner.until > clock ? m.banner : null;
@@ -86,11 +100,16 @@ export function feedHud(m: HudMemory, race: readonly RaceEvent[], items: readonl
       default: break;
     }
   }
+  let landed = 0;
   for (const e of items) {
     // (no STRIKE! word on the Strike Ball's burst: Adam, 28 Sept 2026, "So corny"; the pins, confetti, flash and crash sound say it)
     if (e.type === 'hit' && e.racerId === playerId) m.flashUntil = clock + UI.flashMs / 1000;
     if (e.type === 'fog' && e.victims.includes(playerId)) m.flashUntil = clock + UI.flashMs / 1000;
+    if (e.type === 'roulette' && e.racerId === playerId) m.faces[e.slot] = ++m.rolls * FACE_STEP;
+    if (e.type === 'itemReady' && e.racerId === playerId) landed |= e.slot === 0 ? 1 : 2;
   }
+  // both slots' rolls stopped on one tick (a Double balloon): the first lands now, the second a beat after it
+  if (landed === 3) m.nextHoldUntil = clock + UI.slotStaggerMs / 1000;
 }
 
 /** The place numeral's color (ui.css `.place[data-tier]`): gold, silver and bronze for 1st to 3rd, the pack's yellow-orange behind them */
@@ -184,26 +203,48 @@ export function lapSplits(lapTicks: readonly number[], goTick: number): readonly
 
 type Def = { id: string; name: string };
 
+/**
+ * The roulette's face (how many items it has flicked through) with `left` seconds of its `seconds` roll to go
+ * (design §8: "1.5 s of flicking item art with ticks, slowing, then a chime"). The faces come UI.rouletteFlickerMs
+ * apart as it starts and slow to UI.rouletteSlowMs apart as it stops, on the same curve as the ticks (audio
+ * voices.ts rouletteGap: the gap grows with the square of the time gone), so the stop reads before the item
+ * lands: the count is the integral of 1 / gap, counted back from the stop (the last face gets its whole beat).
+ * The roll's own time, so a pause holds it. Never less at less left.
+ */
+export function rouletteFace(left: number, seconds: number = ITEMS_CONFIG.rouletteSeconds): number {
+  const fast = UI.rouletteFlickerMs / 1000, k = UI.rouletteSlowMs / 1000 - fast;
+  const flicks = (gone: number) => (seconds / Math.sqrt(fast * k)) * Math.atan((Math.min(seconds, Math.max(0, gone)) / seconds) * Math.sqrt(k / fast));
+  // counted back from the stop, so the last face shows its whole slow beat before the item lands
+  const all = flicks(seconds);
+  return Math.floor(all) - Math.floor(all - flicks(seconds - left) + 1e-9);
+}
+
 /** Items whose charges are not more of the item: a Pogo Spring's second charge is its slam (items/use.ts), so no ×2 */
 const ONE_OF: ReadonlySet<string> = new Set(['pogoSpring']);
 
-function slot(id: string, charges: number, roulette: number, defs: readonly Def[], nowMs: number, trailing = false): ItemSlotVM {
-  if (roulette > 0) {
-    const d = defs[Math.floor(nowMs / UI.rouletteFlickerMs) % Math.max(1, defs.length)];
+/** `face`: the slot's first roulette face; `hold`: seconds it rolls on after the sim's roll (a Double's second item) */
+function slot(id: string, charges: number, roulette: number, defs: readonly Def[], face: number, hold = 0, trailing = false): ItemSlotVM {
+  const empty = id === 'none' || !id;
+  if (roulette > 0 || (hold > 0 && !empty)) {
+    // held on past its stop: one face more, then it lands
+    const d = defs[(face + rouletteFace(roulette) + (roulette > 0 ? 0 : 1)) % Math.max(1, defs.length)];
     return { state: 'rolling', itemId: d?.id ?? '', label: d?.name ?? '?', charges: '' };
   }
-  if (id === 'none' || !id) return { state: 'empty', itemId: '', label: '', charges: '' };
+  if (empty) return { state: 'empty', itemId: '', label: '', charges: '' };
   const d = defs.find((x) => x.id === id);
   const state = charges <= 0 ? 'active' : trailing ? 'trailing' : 'ready';
   return { state, itemId: id, label: d?.name ?? id, charges: charges > 1 && !ONE_OF.has(id) ? `×${charges}` : '' };
 }
 
-export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number, trailing = false): { held: ItemSlotVM; next: ItemSlotVM } {
+/**
+ * The two slots. `holdNext`: seconds the next slot still rolls on (a Double's second item, HudMemory.nextHoldUntil);
+ * `faces`: each slot's first roulette face (HudMemory.faces; the next's three on, so the two never show one item).
+ */
+export function itemSlots(p: KartState, defs: readonly Def[], holdNext = 0, trailing = false, faces: readonly [number, number] = [0, 0]): { held: ItemSlotVM; next: ItemSlotVM } {
   const it = p.item;
   return {
-    held: slot(it.held, it.charges, it.rouletteRemaining, defs, nowMs, trailing),
-    // offset so the two slots never flicker in step
-    next: slot(it.next, it.nextCharges, it.nextRouletteRemaining, defs, nowMs + UI.rouletteFlickerMs * 3),
+    held: slot(it.held, it.charges, it.rouletteRemaining, defs, faces[0], 0, trailing),
+    next: slot(it.next, it.nextCharges, it.nextRouletteRemaining, defs, faces[1] + 3, holdNext),
   };
 }
 
@@ -212,11 +253,12 @@ export function itemSlots(p: KartState, defs: readonly Def[], nowMs: number, tra
  * so the numeral never flickers; it changes on the same frame positionChange fires. `medalTimes`: a
 
  * Time Trial's track's, for the medal its finish wins; `bestSplitsMs`: its best run's time at each lap line.
- * `assist`: the driving assists on (none if absent).
+ * `assist`: the driving assists on (none if absent). `_nowMs` is no longer read (the roulette flicks on the
+ * roll's own time since 28 Sept 2026, rouletteFace); it stays for the callers.
  */
 export function hudModel(
   state: RaceState, player: KartState, shownRank: number, coinCap: number, m: HudMemory, clock: number,
-  defs: readonly Def[], nowMs: number, trailing = false, medalTimes?: MedalTimes, bestSplitsMs?: readonly number[], assist?: HudAssist,
+  defs: readonly Def[], _nowMs: number, trailing = false, medalTimes?: MedalTimes, bestSplitsMs?: readonly number[], assist?: HudAssist,
 ): HudVM {
   const rank = shownRank > 0 ? shownRank : player.rank;
   const lap = Math.min(Math.max(player.lap, 1), state.lapsTotal);
@@ -235,7 +277,7 @@ export function hudModel(
     const cut = KNOCKOUT_CUT_LINES[state.knockout.segment] ?? KNOCKOUT_CUT_LINES[KNOCKOUT_CUT_LINES.length - 1];
     knockout = final ? { text: 'Only 1st wins', danger: rank > 1 } : { text: `${ordinal(cut)} or better goes through`, danger: rank > cut };
   }
-  const slots = itemSlots(player, defs, nowMs, trailing);
+  const slots = itemSlots(player, defs, Math.max(0, m.nextHoldUntil - clock), trailing, m.faces);
   // a solo run: one racer (a Time Trial's ghost is no racer)
   let racers = 0;
   for (const k of state.karts ?? []) if (!k.isGhost) racers++;

@@ -116,13 +116,16 @@ describe('hud model', () => {
     expect(hudModel(race(), kart(), 4, 10, m, 0.2, defs, 0).flash).toBe(false);
   });
 
-  it('item slots: held and next, flicker with the clock, charges only above one, empty after a Fog', () => {
+  it('item slots: held and next, flicker with the roll\'s own time, charges only above one, empty after a Fog', () => {
     const k = kart();
     k.item = { held: 'tripleFizz', charges: 3, rouletteRemaining: 0, next: 'x', nextCharges: 1, nextRouletteRemaining: 1 };
     const a = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
     expect([a.held.state, a.held.label, a.held.charges]).toEqual(['ready', 'Triple Fizz', '×3']);
     expect(a.next.state).toBe('rolling');
-    const b = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, UI.rouletteFlickerMs);
+    // the clock alone moves nothing (a pause holds the roll); the roll's time does
+    expect(hudModel(race(), k, 4, 10, newHudMemory(), 5, defs, 5000).next.label).toBe(a.next.label);
+    k.item.nextRouletteRemaining = 0.8;
+    const b = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
     expect(b.next.label).not.toBe(a.next.label);
     k.item = { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
     const c = hudModel(race(), k, 4, 10, newHudMemory(), 0, defs, 0);
