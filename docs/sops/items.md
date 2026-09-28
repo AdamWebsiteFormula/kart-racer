@@ -141,6 +141,7 @@ Balloon meshes, item icons and the roulette animation (ui-hud, art-pipeline); hi
 - 2026-09-24 (items audit): where two roads cross at one level (Boardwalk's arcade alley crosses the main road twice), a shot, drop and kart on different roads touch when they overlap and stand within `crossHitHeight` 1.5 m of each other in height; a road passing over another is further apart than that.
 - 2026-09-24 (items audit): the crab warns: for the last 0.6 s of each wait a row of 5 shadows across the road marks the path it is about to scuttle, darkening from its own side.
 - 2026-09-25: A held item never hides the kart that holds it from its own chase camera (game/itemsView.ts; camera.test.ts checks the sight lines to the body and the driver's head): the Beach Ball trails at 0.55 scale on the road (full size, 1.2 m across, it covered the kart all lap), the Decoy Balloon at 0.45, low (its body stood 1 to 2.6 m high). Thrown or dropped, both are full size. Visual only: the sim's shapes are unchanged.
+- 2026-09-27 (track-builder Decisions the same day: the course limit per side, stretch by stretch): a Kite chasing its kart onto the sand is held inside each side's own limit, and a Beach Ball bounces off the limit on the side it is on (`wallOn`); the item-off-course check reads it too. The hairpin shot test (projectiles.test.ts) moves its shots to the grass a kart can still reach there: the review's -18 and -21 m on Meadow's hairpin lie past the tighter inside limit now.
 
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
