@@ -11,26 +11,31 @@
 // (as the next race rebuilds the track), which compiled the same shaders all over again. A custom
 // shader (ShaderMaterial) is also known to three by its source's id, dropped with its last
 // material, so each one keeps a stand-in copy of its material alive as well.
-import { BufferGeometry, InstancedMesh, Mesh, Scene, WebGLRenderTarget, type Camera, type Light, type Material, type Object3D, type ShaderMaterial, type Texture, type ToneMapping, type WebGLRenderer } from 'three';
+import { BufferGeometry, InstancedMesh, Mesh, Scene, WebGLRenderTarget, type BatchedMesh, type Camera, type Light, type Material, type Object3D, type ShaderMaterial, type Texture, type ToneMapping, type WebGLRenderer } from 'three';
 
 /**
  * Put every object under `root` on show for one draw: hidden objects visible (lights excepted: a
- * light changes every shader's key), frustum culling off (the shadow pass culls by the same flag)
- * and every empty instance pool one instance long. Returns the undo, which restores exactly.
+ * light changes every shader's key), frustum culling off (the shadow pass culls by the same flag),
+ * every empty instance pool one instance long and every batch with none on show its first. Returns
+ * the undo, which restores exactly.
  */
 export function exposeAll(root: Object3D): () => void {
-  const hidden: Object3D[] = [], culled: Object3D[] = [], empty: InstancedMesh[] = [];
+  const hidden: Object3D[] = [], culled: Object3D[] = [], empty: InstancedMesh[] = [], unshown: BatchedMesh[] = [];
   root.traverse((o) => {
     if ((o as Light).isLight) return;
     if (!o.visible) { o.visible = true; hidden.push(o); }
     if (o.frustumCulled) { o.frustumCulled = false; culled.push(o); }
     const im = o as InstancedMesh;
     if (im.isInstancedMesh && im.count === 0) { im.count = 1; empty.push(im); }
+    // a batch with no copy on show (game/itemsView.ts, the items out of play) shows its first for the draw
+    const bm = o as BatchedMesh;
+    if (bm.isBatchedMesh && bm.instanceCount > 0 && !bm.getVisibleAt(0)) { bm.setVisibleAt(0, true); unshown.push(bm); }
   });
   return () => {
     for (const o of hidden) o.visible = false;
     for (const o of culled) o.frustumCulled = true;
     for (const im of empty) im.count = 0;
+    for (const bm of unshown) bm.setVisibleAt(0, false);
   };
 }
 
