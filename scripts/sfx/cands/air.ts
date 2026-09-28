@@ -50,13 +50,13 @@ const throwA = takes('throwA', 3, (k) => ({ id: 'throw', brief: THROW,
   layers: [fs(SWISH, 0, [hit([0, 2, 7][k], 0.45), { op: 'pitch', st: 1 + ST[k] }]), pomf(-9, k)],
   master: [{ op: 'hp', hz: 120 }, ROOM(0.08), ...END(0.45)] }));
 const throwB = takes('throwB', 3, (k) => ({ id: 'throw', brief: THROW,
-  why: "B, whoosh-by: a real short whoosh (DJT4NN3R, CC0) sent past the ear left to right (Doppler, a quick pan), a real rod swish (florianreichelt, CC0) on its front for the snap, and a rubber ball's light bounce (SomeoneCool15, CC0) pitched up for the ball.",
+  why: "B, whip past: a real swipe (qubodup, 'Swipe Whoosh', CC0) sent past the ear left to right (Doppler, a quick pan), a real rod swish (florianreichelt, CC0) on its front for the snap, and a rubber ball's light bounce (SomeoneCool15, CC0) pitched up for the ball. (The first B, a low whoosh sent past, read as a door slam to AST: remade.)",
   layers: [
-    fs(SHORTLOW, 0, [{ op: 'trim', from: 0.05, to: 0.55 }, { op: 'pitch', st: 2 + ST[k] }, { op: 'doppler', speed: 25, dist: 2, at: 0.12, pan: 0.6 }]),
-    fs(QUICK, -6, [{ op: 'trim', from: 0.15, to: 0.35 }, { op: 'pitch', st: ST[k] }]),
+    fs(SWIPE, 0, [{ op: 'trim', to: 0.4 }, { op: 'pitch', st: 2 + ST[k] }, { op: 'doppler', speed: 20, dist: 1.5, at: 0.08, pan: 0.6 }]),
+    fs(QUICK, -5, [{ op: 'trim', from: 0.15, to: 0.35 }, { op: 'pitch', st: ST[k] }]),
     fs(423778, -13, [hit([0, 2, 5][k], 0.15, -16, 0.2), { op: 'pitch', st: 6 }, { op: 'lp', hz: 3000 }], 0.01),
   ],
-  master: [{ op: 'hp', hz: 120 }, ROOM(0.08), ...END(0.5)] }));
+  master: [{ op: 'hp', hz: 150 }, ROOM(0.08), ...END(0.45)] }));
 const throwC = takes('throwC', 3, (k) => ({ id: 'throw', brief: THROW,
   why: "C, zippy: a real swish (qubodup, CC0) with a quick air 'zip' rising under it (band-passed noise sweeping 0.7 to 4 kHz), and the ball's rubbery push; brighter and snappier than A.",
   layers: [
@@ -77,9 +77,9 @@ const trickA = takes('trickA', 3, (k) => ({ id: 'trick', brief: TRICK,
   ],
   master: [{ op: 'hp', hz: 150 }, ROOM(0.12), ...END(0.6)] }));
 const trickB = takes('trickB', 3, (k) => ({ id: 'trick', brief: TRICK,
-  why: "B, tumble: a big real whoosh (Nic3_one, 'Powerfull Whooshes 2', CC0) chopped at 14 Hz so it tumbles (the kart spinning through the air), and a quick xylophone flourish up G6, B6, D7 (VSCO-2 CE) as it lands the trick.",
+  why: "B, tumble: a real arm swish (hz37, CC0) chopped at 14 Hz so it tumbles (the kart spinning through the air), and a quick xylophone flourish up G6, B6, D7 (VSCO-2 CE) as it lands the trick. (The first B, a big whoosh, had a thud AST heard as a door: remade.)",
   layers: [
-    fs(POWER, 0, [hit([2, 3, 4][k], 0.6, -14, 0.6), { op: 'trim', from: 0.05 }, { op: 'fade', in: 0.02 }, { op: 'pitch', st: 3 + ST[k] }, { op: 'flutter', depth: 0.55, rate: 14, seed: 3 + k }]),
+    fs(SWISH, 0, [hit([2, 7, 9][k], 0.45), { op: 'pitch', st: 3 + ST[k] }, { op: 'flutter', depth: 0.55, rate: 14, seed: 3 + k }]),
     note('G6x', 0.12, 0.2, -12), note('B6x', 0.17, 0.2, -12.5), note('D7x', 0.22, 0.3, -13),
   ],
   master: [{ op: 'hp', hz: 150 }, ROOM(0.12), ...END(0.6)] }));
@@ -126,9 +126,9 @@ const kiteB: Recipe[] = [{ id: 'kite', name: 'kiteB', brief: KITE,
     fs(FLUTTER, -2, [{ op: 'trim', from: 0.1, to: 1.0 }, { op: 'bend', st: [[0, 2], [0.9, 5]] }, { op: 'hp', hz: 200 }, { op: 'env', pts: [[0, 0], [0.1, 1], [0.6, 0.7], [0.9, 0]] }, { op: 'doppler', speed: 12, dist: 2, at: 0.1, pan: 0.5 }], 0.42)],
   master: [{ op: 'hp', hz: 100 }, ROOM(0.12), ...END(1.3, 0.35)] }];
 const kiteC: Recipe[] = [{ id: 'kite', name: 'kiteC', brief: KITE,
-  why: "C, paper and a homing trill: real paper fluttering (mickdow, CC0) and real fabric flapping (IENBA, CC0) under it, lifted by the smooth whoosh, and a soft glockenspiel trill rising G, B, D, G (VSCO-2 CE) as it locks on.",
-  layers: [fs(PAPER, 0, [{ op: 'trim', from: 0.1, to: 1.2 }, { op: 'hp', hz: 300 }, { op: 'env', pts: [[0, 0.5], [0.2, 1], [1.0, 0]] }]),
-    fs(FABRIC, -6, [{ op: 'trim', from: 1.0, to: 2.1 }, { op: 'pitch', st: 3 }, { op: 'env', pts: [[0, 0], [0.2, 1], [1.0, 0]] }]),
+  why: "C, flutter and a homing trill: the real light flutter (TurboFool, CC0) a tone up, real fabric flapping (IENBA, CC0) under it, lifted by the smooth whoosh (ch_ase, CC0), and a soft glockenspiel trill rising G, B, D, G (VSCO-2 CE) as it locks on. (The first C's paper crinkle read as breaking: remade.)",
+  layers: [fs(FLUTTER, 0, [{ op: 'trim', from: 0.1, to: 1.2 }, { op: 'pitch', st: 2 }, { op: 'hp', hz: 200 }, { op: 'env', pts: [[0, 0.5], [0.2, 1], [1.0, 0]] }]),
+    fs(FABRIC, -7, [{ op: 'trim', from: 1.0, to: 2.1 }, { op: 'pitch', st: 3 }, { op: 'env', pts: [[0, 0], [0.2, 1], [1.0, 0]] }]),
     fs(LIFT, -8, [{ op: 'trim', from: 0.2, to: 1.3 }, { op: 'pitch', st: 3 }]),
     note('G6g', 0.3, 0.3, -16), note('B6g', 0.37, 0.3, -16.5), note('D7g', 0.44, 0.3, -17), note('G7g', 0.51, 0.45, -17.5)],
   master: [{ op: 'hp', hz: 120 }, ROOM(0.14), ...END(1.2, 0.4)] }];
@@ -142,12 +142,14 @@ const fogA: Recipe[] = [{ id: 'fog', name: 'fogA', brief: FOG,
     syn('whoosh', { seconds: 1.0, hz: [[0, 200], [0.4, 400], [1.0, 250]], q: 0.8, env: [[0, 0], [0.1, 1], [1.0, 0]], seed: 71, color: 'brown' }, -8)],
   master: [{ op: 'hp', hz: 60 }, ROOM(0.15, 0.5), ...END(1.5, 0.45)] }];
 const fogB: Recipe[] = [{ id: 'fog', name: 'fogB', brief: FOG,
-  why: "B, smoke bomb: a real smoke-bomb puff and hiss (vckhaze, CC0) with a real poof (Planman, CC0) doubling its front, pitched down a little for size, the hiss widened as it rolls out.",
-  layers: [fs(BOMB, 0, [{ op: 'trim', to: 1.2 }, { op: 'pitch', st: -2 }, { op: 'width', amount: 1.5 }]), fs(POOF, -4, [{ op: 'trim', from: 0.2, to: 0.6 }, { op: 'pitch', st: -4 }])],
+  why: "B, hiss and billow: a real smoke bomb's hiss (vckhaze, CC0) without its bang, a real air release (brunoboselli, CC0) widened as the cloud rolls out, and a soft low swell under it. (The first B kept the smoke bomb's bang, heard as a door slam: remade.)",
+  layers: [fs(BOMB, 0, [{ op: 'trim', from: 0.14, to: 1.3 }, { op: 'fade', in: 0.06 }, { op: 'pitch', st: -2 }, { op: 'width', amount: 1.5 }]),
+    fs(RELEASE, -5, [{ op: 'trim', from: 0.05, to: 1.3 }, { op: 'lp', hz: 6000 }, { op: 'env', pts: [[0, 0], [0.1, 1], [0.5, 0.5], [1.25, 0]] }, { op: 'width', amount: 1.6 }], 0.02),
+    syn('whoosh', { seconds: 0.9, hz: [[0, 180], [0.3, 350], [0.9, 220]], q: 0.8, env: [[0, 0], [0.12, 1], [0.9, 0]], seed: 73, color: 'brown' }, -9)],
   master: [{ op: 'hp', hz: 60 }, { op: 'highshelf', hz: 6000, db: -3 }, ROOM(0.15, 0.5), ...END(1.3, 0.45)] }];
 const fogC: Recipe[] = [{ id: 'fog', name: 'fogC', brief: FOG,
-  why: "C, soft cloud: a real poof (Planman, CC0) and a real soft air-release swish (mbezzola, CC0) as the cloud billows out, and a real maraca's shake (VSCO-2 CE) 16 dB under it for the fine mist settling.",
-  layers: [fs(POOF, 0, [{ op: 'trim', from: 0.2, to: 0.7 }, { op: 'pitch', st: -5 }]), fs(SOFTREL, -3, [{ op: 'trim', to: 1.4 }, { op: 'fade', in: 0.04 }], 0.04),
+  why: "C, soft cloud: a real poof (Planman, CC0) and a real air release (mcpable, 'Slips air release v1', CC0) as the cloud billows out, and a real maraca's shake (VSCO-2 CE) 16 dB under it for the fine mist settling. (The first C's soft swish read to AST as breathing: remade.)",
+  layers: [fs(POOF, 0, [{ op: 'trim', from: 0.2, to: 0.7 }, { op: 'pitch', st: -5 }]), fs(131934, -3, [{ op: 'trim', to: 1.4 }, { op: 'fade', in: 0.04, out: 0.5 }, { op: 'lp', hz: 7000 }], 0.04),
     vs('VSCO 1 Percussion/varWood/maraca_shake.wav', -16, [{ op: 'trim', to: 1.0 }, { op: 'hp', hz: 3000 }, { op: 'fade', in: 0.2, out: 0.5 }], 0.25)],
   master: [{ op: 'hp', hz: 60 }, ROOM(0.15, 0.5), ...END(1.4, 0.45)] }];
 

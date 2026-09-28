@@ -9,6 +9,7 @@
 //     dirt bike and the shipped high loop (scripts/sfx/enginefit.py), finished with a smooth match EQ.
 //   C "hybrid": A with B under it, 9 dB down: the real firings carry it, the model adds the two-stroke's pipe ring
 //     and rasp.
+//   D "smaller kart": A's firings read 25% faster (their resonances 4 semitones up), a small engine, not a dirt bike.
 // Every loop: a short on-board room (ground and bodywork reflections), gentle warmth, a limiter.
 import type { Fx, Layer, Recipe } from '../types.ts';
 
@@ -26,11 +27,11 @@ const POOL = {
   rev: { fs: DIRT, from: 23.0, to: 28.0, f: 37.0 },
 };
 
-const grains = (band: Band, coast: boolean, seconds: number, seed: number): Layer => {
+const grains = (band: Band, coast: boolean, seconds: number, seed: number, size = 1): Layer => {
   const rpm = BANDS[band];
   const pool = band === 'idle' ? POOL.idle : POOL.rev;
   return {
-    src: { synth: 'grains', args: { seconds, rpm, seed, hold: 1.6, jitter: band === 'idle' ? 0.02 : 0.01, ampVar: band === 'idle' ? 0.14 : 0.08, spread: 4, skip: coast ? 0.3 : 0, ...pool } },
+    src: { synth: 'grains', args: { seconds, rpm, seed, hold: 1.6, jitter: band === 'idle' ? 0.02 : 0.01, ampVar: band === 'idle' ? 0.14 : 0.08, spread: 4, skip: coast ? 0.3 : 0, size, ...pool } },
     fx: [{ op: 'normalize', db: 0 }],
   };
 };
@@ -76,6 +77,8 @@ for (const band of ['idle', 'mid', 'high'] as const) {
       layers: [grains(band, coast, secs, 11)], master: MASTER(band, coast) });
     recipes.push({ id, name: `engB-${tag}`, brief: BRIEF, why: why('B, the physical two-stroke model:', band, coast), loop: L,
       layers: [piston(band, coast, secs, 5)], master: MASTER(band, coast) });
+    recipes.push({ id, name: `engD-${tag}`, brief: BRIEF, why: why('D, a smaller kart (the real firings of A read 25% faster, their resonances 4 semitones up: a small engine, not the dirt bike):', band, coast), loop: L,
+      layers: [grains(band, coast, secs, 11, 1.25)], master: MASTER(band, coast) });
     recipes.push({ id, name: `engC-${tag}`, brief: BRIEF, why: why('C, hybrid (the real firings, the model 9 dB under them):', band, coast), loop: L,
       layers: [grains(band, coast, secs, 11), { ...piston(band, coast, secs, 5), fx: [{ op: 'normalize', db: 0 }, { op: 'gain', db: -9 }] }], master: MASTER(band, coast) });
   }

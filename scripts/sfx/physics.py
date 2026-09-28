@@ -487,7 +487,8 @@ def syn_grains(a):
     rpm]] / 60 x `cyl` a second, each held for `hold` cycles and faded, picked at random (never the same twice
     running), their level spread kept within `spread` dB of the median, with `jitter` (0..0.05) timing wobble and
     `skip` (0..1) the share of weak firings (coasting); a
-    second pool (`fs2`, `from2`, `to2`, `f2`) crossfades in by `mix2` [[t, 0..1]]. Mono engine, both channels; seed."""
+    second pool (`fs2`, `from2`, `to2`, `f2`) crossfades in by `mix2` [[t, 0..1]]; `size` above 1 a smaller engine.
+    Mono engine, both channels; seed."""
     import dsp as _dsp
     n = int(a['seconds'] * SR)
     rng = np.random.default_rng(int(a.get('seed', 1)))
@@ -519,6 +520,12 @@ def syn_grains(a):
 
     P1 = pool({'freesound': int(a['fs'])}, a['from'], a['to'], a['f'])
     P2 = pool({'freesound': int(a['fs2'])}, a['from2'], a['to2'], a['f2']) if 'fs2' in a else None
+    # `size` above 1: a smaller engine (each firing read faster: its resonances higher), as the live engine's size does
+    size = float(a.get('size', 1.0))
+    if size != 1.0:
+        import soxr
+        P1 = [soxr.resample(g, SR * size, SR) for g in P1]
+        P2 = [soxr.resample(g, SR * size, SR) for g in P2] if P2 else None
     mix2 = _curve(a.get('mix2', 0.0), n)
     out = np.zeros(n + int(0.2 * SR))
     t = 0.0

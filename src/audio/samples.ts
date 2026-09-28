@@ -592,9 +592,11 @@ export class SampleBank {
   pick(id: string, r: number): Sample | undefined {
     const all = this.takes.get(id);
     if (!all) return this.sfx.get(id);
-    const last = this.lastTake.get(id);
-    const others = last ? all.filter((s) => s !== last) : all;
-    const s = others[Math.min(others.length - 1, Math.floor(Math.max(0, r) * others.length))];
+    // one of the others at random, with no array made (a race plays several sounds a second)
+    const last = this.lastTake.get(id), li = last ? all.indexOf(last) : -1, n = li >= 0 ? all.length - 1 : all.length;
+    let k = Math.min(n - 1, Math.floor(Math.max(0, r) * n));
+    if (li >= 0 && k >= li) k++;
+    const s = all[k];
     this.lastTake.set(id, s);
     return s;
   }

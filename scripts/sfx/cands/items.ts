@@ -141,8 +141,8 @@ const boingB: Recipe[] = [{ id: 'boing', name: 'boingB', brief: BOING,
     fs(95600, -3, [{ op: 'trim', from: 0.07, to: 0.6 }, { op: 'fade', in: 0.002, out: 0.2 }])],
   master: [{ op: 'hp', hz: 80 }, ROOM(0.12, 0.3), ...END(1.0, 0.3)] }];
 const boingC: Recipe[] = [{ id: 'boing', name: 'boingC', brief: BOING,
-  why: "C, a big elastic: a real elastic band plucked (dsebeste, CC0) pitched down for a big spring, a real spring's wobble (EagleStealthTeam, CC0) and a quick rising whoosh.",
-  layers: [fs(355041, 0, [hit(3, 0.9, -18, 0.4), { op: 'pitch', st: -3 }]), fs(238866, -6, [{ op: 'trim', to: 0.9 }, { op: 'fade', out: 0.3 }]),
+  why: "C, a big coil: a real cartoon spring's bounce (Denis Chapon, 'Cartoon_Spring_Bouncing', CC0) with a real flexatone's wobble under it (VSCO-2 CE), and a quick rising whoosh. (The first C, an elastic band plucked, read as a bang: remade.)",
+  layers: [fs(109435, 0, [hit(6, 0.95, -18, 0.4), { op: 'pitch', st: -1 }]), vs('VSCO 1 Percussion/varMetal/various/flexatone2.wav', -9, [hit(0, 0.8, -20, 0.4), { op: 'fade', out: 0.3 }]),
     syn('whoosh', { seconds: 0.6, hz: [[0, 500], [0.5, 3000]], q: 1.1, env: [[0, 0], [0.12, 1], [0.6, 0]], seed: 19 }, -12, [], 0.05)],
   master: [{ op: 'hp', hz: 80 }, ROOM(0.12, 0.3), ...END(1.0, 0.3)] }];
 

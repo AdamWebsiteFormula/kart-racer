@@ -4,7 +4,7 @@
 // (measured pitches: scripts/sfx/tune.py) in the menus' G major, the title song's key, as the menu tick already is.
 // No two-note rising fourth anywhere (the famous coin's figure: docs/sops/audio.md, 27 Sept).
 import type { Fx, Recipe } from '../types.ts';
-import { END, fs, held, hit, ke, ROOM, takes, tone, vs } from './kit.ts';
+import { END, fs, held, hit, ke, ROOM, syn, takes, tone, vs } from './kit.ts';
 
 const M = 'Marimba', X = 'Xylo', G = 'Glock', H = 'Strings/Harp', TP = 'Brass/Trumpet/stac', HN = 'Brass/F Horn/stac', TB = 'Brass/Tenor Trombone/stac';
 /** sustained brass (VSCO-2 CE): a held chord's body under the staccato attack */
@@ -82,7 +82,7 @@ const backC: Recipe[] = [{ id: 'uiBack', name: 'backC', brief: BACK,
 
 // ---------------------------------------------------------------- count and go (a matched pair per candidate: the countdown on D, the go on G)
 const COUNT = 'One countdown beep before the start of a race in a polished cartoon kart racing game (Mario Kart World quality): 3, 2, 1, one each second, heard by everyone: a clean, rounded, confident musical tone with a crisp attack and a short ring. No voice.';
-const GO = 'GO at the start of a race in a polished cartoon kart racing game (Mario Kart World quality): the tone an octave and a fourth above the countdown resolves to the home chord, a bright punchy start hit with a cymbal, big, clean and exciting; the race music comes in right after. No voice.';
+const GO = 'GO at the start of a race in a polished cartoon kart racing game (Mario Kart World quality): the go tone, a fourth above the countdown's, resolves to the home chord, a bright punchy start hit with a cymbal, big, clean and exciting; the race music comes in right after. No voice.';
 const countA: Recipe[] = [{ id: 'count', name: 'countA', brief: COUNT,
   why: "A, mallet bell: a marimba D6 doubled by a glockenspiel D6 an octave of sparkle above it and a soft xylophone D5 body (VSCO-2 CE), rounded and bright; the countdown sits on D, the dominant, so the go on G resolves it (pair with goA).",
   layers: [tone(M, 'D6', 0, 0.4, -1), tone(G, 'D6', 0, 0.5, -8), tone(X, 'D5', 0, 0.3, -9)],
@@ -113,6 +113,22 @@ const goC: Recipe[] = [{ id: 'go', name: 'goC', brief: GO,
     ...['G3', 'B3', 'D4', 'G4', 'B4', 'D5'].map((n, i) => tone(H, n, i * 0.02, 0.9, -5 - i * 0.3)),
     vs(CRASH, -8, [{ op: 'trim', to: 1.4 }, { op: 'fade', out: 0.8 }, { op: 'hp', hz: 300 }], 0.005)],
   master: [hall(0.16, 1.0), ...END(1.4, 0.55)] }];
+
+/**
+ * D: the classic countdown beep made well: a pure, rounded tone (a sine with a touch of its octave and twelfth, a 3 ms
+ * attack, a short bell-like ring) with a glockenspiel's strike for the attack and a small FM shimmer on top. The count on
+ * D6 (1175 Hz), the go on G6 a fourth up, with its chord, a brass stab and a cymbal (pair with goD).
+ */
+const beep = (hz: number, len: number, db: number, at = 0) => syn('tone', { seconds: len, wave: 'sine', hz, harmonics: [[2, 0.14], [3, 0.05]], env: [[0, 0], [0.003, 1], [len * 0.35, 0.7], [len, 0]] }, db, [], at);
+const countD: Recipe[] = [{ id: 'count', name: 'countD', brief: COUNT,
+  why: "D, the classic beep made well: a pure rounded tone on D6 (a sine with a touch of its octave and twelfth, 3 ms attack, a short bell-like ring: synthesis), a glockenspiel D6 strike for its attack and a soft FM shimmer (VSCO-2 CE, synthesis) (pair with goD).",
+  layers: [beep(1174.66, 0.32, 0), tone(G, 'D6', 0, 0.3, -12), syn('fm', { seconds: 0.25, hz: 1174.66, ratio: 3.5, index: [[0, 1.2], [0.2, 0]], env: [[0, 0], [0.002, 1], [0.25, 0]] }, -18)],
+  master: [hall(0.08, 0.5), ...END(0.4)] }];
+const goD: Recipe[] = [{ id: 'go', name: 'goD', brief: GO,
+  why: "D, the pair of countD: the same pure tone a fourth up on G6, held longer, over a G major chord of marimba and glockenspiel, a real brass stab (VSCO-2 CE trumpets and horns) and a real crash cymbal.",
+  layers: [beep(1567.98, 0.9, 0), beep(783.99, 0.9, -8), tone(G, 'G6', 0, 1.0, -9), tone(M, 'G5', 0, 0.7, -8), tone(M, 'B5', 0, 0.7, -9), tone(M, 'D6', 0, 0.7, -10),
+    held(TP, 'G5', 0, 0.3, -9), held(HN, 'D4', 0, 0.3, -11), vs(CRASH, -9, [{ op: 'trim', to: 1.3 }, { op: 'fade', out: 0.8 }, { op: 'hp', hz: 300 }], 0.005)],
+  master: [hall(0.12, 0.9), ...END(1.3, 0.55)] }];
 
 // ---------------------------------------------------------------- lap and finalLap
 const LAP = 'The player starts a new lap (not the last) in a polished cartoon kart racing game (Mario Kart World quality): a quick, friendly, bright musical marker, once or twice a race. No voice.';
@@ -157,4 +173,4 @@ const finalC: Recipe[] = [{ id: 'finalLap', name: 'finalC', brief: FINAL,
   master: [hall(0.2, 1.2), ...END(2.1, 0.5)] }];
 
 export const RECIPES: readonly Recipe[] = [...tickA, ...tickB, ...tickC, ...readyA, ...readyB, ...readyC, ...confA, ...confB, ...confC, ...backA, ...backB, ...backC,
-  ...countA, ...goA, ...countB, ...goB, ...countC, ...goC, ...lapA, ...lapB, ...lapC, ...finalA, ...finalB, ...finalC];
+  ...countA, ...goA, ...countB, ...goB, ...countC, ...goC, ...countD, ...goD, ...lapA, ...lapB, ...lapC, ...finalA, ...finalB, ...finalC];

@@ -15,6 +15,8 @@ import { engineCutoff } from '../../../src/audio/engine.ts';
 const TAG = process.env.TAG ?? 'current';
 const DIR = process.env.LIVE_GRAINS ?? `${process.env.HOME}/.cache/rascal-sfx/candidates/engine/live`;
 const FS = 44100;
+/** a smaller, buzzier kart: every size and rpm scaled (LIVE_SIZE 1.25, LIVE_RPM 1.15), for a second demo */
+const SIZE = Number(process.env.LIVE_SIZE ?? 1), RPMX = Number(process.env.LIVE_RPM ?? 1), NAME = process.env.LIVE_NAME ?? 'live';
 
 it(`live engine ${TAG}`, () => {
   const ctl = JSON.parse(fs.readFileSync(`${OUT}/${TAG}-ctl.json`, 'utf8')) as { rows: number[][] };
@@ -25,16 +27,16 @@ it(`live engine ${TAG}`, () => {
   const rows = ctl.rows, end = rows[rows.length - 1][0] + 0.05, N = Math.ceil(end * FS);
   const out = new Float32Array(N), blk = new Float32Array(128);
   // the game's low-pass after the engine (a biquad, Q 0.7), its cutoff and the level eased toward each frame's as setTargetAtTime does
-  let x1 = 0, x2 = 0, y1 = 0, y2 = 0, level = 0, cut = 2500, r = 0, load = 1, rpmS = -1, size = 1;
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0, level = 0, cut = 2500, r = 0, load = 1, rpmS = -1, size = SIZE;
   for (let a = 0; a < N; a += 128) {
     const t = a / FS;
     while (r + 1 < rows.length && rows[r + 1][0] <= t) r++;
     const [, rpm, lv, , pitch, bright, limit, drive] = rows[r];
     // the params eased as liveEngine.ts sets them (setTargetAtTime: rpm 0.03 s, load 0.05 s, size 0.1 s)
     const e = (tc: number) => 1 - Math.exp(-128 / (tc * FS));
-    rpmS = rpmS < 0 ? rpm * pitch : rpmS + (rpm * pitch - rpmS) * e(0.03);
+    rpmS = rpmS < 0 ? rpm * pitch * RPMX : rpmS + (rpm * pitch * RPMX - rpmS) * e(0.03);
     load += ((drive ?? 1) - load) * e(0.05);
-    size += (Math.sqrt(pitch) - size) * e(0.1);
+    size += (Math.sqrt(pitch) * SIZE - size) * e(0.1);
     engine.render(blk, 0, 128, { rpm: rpmS, load, limit, size });
     const k = 1 - Math.exp(-128 / (0.05 * FS));
     level += (lv - level) * k;
@@ -47,5 +49,5 @@ it(`live engine ${TAG}`, () => {
       out[a + i] = y;
     }
   }
-  writeWav(`${OUT}/${TAG}-live-engine.wav`, [out], FS, fs);
+  writeWav(`${OUT}/${TAG}-${NAME}-engine.wav`, [out], FS, fs);
 }, 600_000);

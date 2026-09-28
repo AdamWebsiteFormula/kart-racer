@@ -117,10 +117,12 @@ const bumpC = takes('bumpC', 4, (k) => ({ id: 'bump', brief: BUMP,
 
 // ---------------------------------------------------------------- wall (a padded barrier)
 const WALL = 'A go-kart bumps a padded track barrier in a polished cartoon kart racing game (Mario Kart World quality): one deep, dull, cushioned whump of rubber and padding, then a short rubbery scrape as it slides off; soft and bouncy, never a crash. No voice.';
-// the rubber sliding off the padding: a short real tire squeal (johnnydekk, CC0) pitched down to a rubbery rub (a band-passed brick scrape read as a sigh to AST)
-const scrape = (db: number, at: number, k: number): Layer => fs(SQUEAL, db, [hit([3, 9, 12][k], 0.2, -14, 0.3), { op: 'pitch', st: -7 }, { op: 'bp', hz: 900, q: 0.9 }, { op: 'env', pts: [[0, 0], [0.02, 1], [0.1, 0.5], [0.2, 0]] }], at);
+// the rubber sliding off the padding: a short rubbery scrub (pink noise band-passed at 1.3 kHz, a fast grainy flutter
+// over it). A tire squeal pitched down (the first try) read as a sigh and a grunt to AST: no pitched layer here.
+const scrape = (db: number, at: number, k: number): Layer => syn('noise', { seconds: 0.22, color: 'pink', seed: 101 + k, env: [[0, 0], [0.02, 1], [0.09, 0.55], [0.22, 0]] }, db,
+  [{ op: 'bp', hz: 1300 + 150 * k, q: 1.1 }, { op: 'flutter', depth: 0.7, rate: 90, seed: 7 + k }], at);
 const wallA = takes('wallA', 3, (k) => ({ id: 'wall', brief: WALL,
-  why: "A, tire wall: a real rubber tire's thump (DDT197, CC0) with a real cushion's whump (mincedbeats, CC0) under it for the padding, and a short rubbery rub (a real tire squeal pitched down, johnnydekk, CC0) as the kart slides off; three takes.",
+  why: "A, tire wall: a real rubber tire's thump (DDT197, CC0) with a real cushion's whump (mincedbeats, CC0) under it for the padding, and a short rubbery scrub (band-passed noise with a grainy flutter) as the kart slides off; three takes.",
   layers: [
     fs(TIRE_PUNCH, 0, [hit([0, 3, 5][k], 0.4), { op: 'pitch', st: -2 + ST[k] }]),
     fs(CUSHION, -2, [hit([0, 2, 4][k], 0.5, -20, 0.6), { op: 'lp', hz: 1800 }]),
