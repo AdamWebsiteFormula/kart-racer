@@ -193,7 +193,7 @@ describe('the landing in the stylesheet', () => {
   it('reduced motion: a quick fade of UI.slotFadeMs, no bounce, ring, shine or badge pop', () => {
     expect(css).toContain(`:root[data-reduced-motion='on'] .slot.land .ic { animation: slot-fade ${UI.slotFadeMs}ms ease-out !important; }`);
     const rule = css.match(/(:root\[data-reduced-motion='on'\] \.slot\.land,[\s\S]*?)\{ animation: none !important; \}/)?.[1] ?? '';
-    for (const sel of ['.slot.land,', '.slot.land::before', '.slot.land .gloss::before', '.slot.land .charges']) expect(rule, sel).toContain(sel);
+    for (const sel of ['.slot.land,', '.slot.land::before', '.slot.land .gloss::before', '.slot.land .pips', '.slot.land .key']) expect(rule, sel).toContain(sel);
     expect(UI.slotFadeMs).toBeLessThanOrEqual(200);
   });
 });

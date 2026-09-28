@@ -119,8 +119,15 @@ export type PositionTier = 'gold' | 'silver' | 'bronze' | 'pack';
 const PODIUM_TIERS: readonly PositionTier[] = ['gold', 'silver', 'bronze'];
 export const positionTier = (rank: number): PositionTier => PODIUM_TIERS[rank - 1] ?? 'pack';
 
-/** ready: use it; active: a power running from this slot (Strike Ball); trailing: held behind the kart */
-export interface ItemSlotVM { state: 'empty' | 'rolling' | 'ready' | 'active' | 'trailing'; itemId: string; label: string; charges: string }
+/**
+ * ready: use it; active: a power running from this slot (Strike Ball); trailing: held behind the kart. `charges`: the
+ * words for more than one (×3, for screen readers); `uses`: an item of more than one use as pips on the slot, `left` of
+ * `of` lit (render/hud.ts), null for an item of one (and the Pogo Spring, whose second charge is its slam)
+ */
+export interface ItemSlotVM {
+  state: 'empty' | 'rolling' | 'ready' | 'active' | 'trailing'; itemId: string; label: string; charges: string;
+  uses: { left: number; of: number } | null;
+}
 
 export interface HudVM {
   timer: string;
@@ -206,7 +213,8 @@ export function lapSplits(lapTicks: readonly number[], goTick: number): readonly
   return ms.map((m, k) => ({ lap: k + 1, time: formatMs(m), best: k === best }));
 }
 
-type Def = { id: string; name: string };
+/** an item as the HUD reads it: the game passes the item definitions (ITEMS_CONFIG.items), whose charges are its uses */
+type Def = { id: string; name: string; behaviour?: { charges?: number } };
 
 /**
  * The roulette's face (how many items it has flicked through) with `left` seconds of its `seconds` roll to go
@@ -233,15 +241,18 @@ function slot(id: string, charges: number, roulette: number, defs: readonly Def[
   if (roulette > 0 || (hold > 0 && !empty)) {
     // held on past its stop: one face more, then it lands
     const d = defs[(face + rouletteFace(roulette) + (roulette > 0 ? 0 : 1)) % Math.max(1, defs.length)];
-    return { state: 'rolling', itemId: d?.id ?? '', label: d?.name ?? '?', charges: '' };
+    return { state: 'rolling', itemId: d?.id ?? '', label: d?.name ?? '?', charges: '', uses: null };
   }
-  if (empty) return { state: 'empty', itemId: '', label: '', charges: '' };
+  if (empty) return EMPTY_SLOT;
   const d = defs.find((x) => x.id === id);
   const state = charges <= 0 ? 'active' : trailing ? 'trailing' : 'ready';
-  return { state, itemId: id, label: d?.name ?? id, charges: charges > 1 && !ONE_OF.has(id) ? `×${charges}` : '' };
+  // its uses as pips: those left of the item's own (a Triple Fizz used once: 2 of 3)
+  const of = Math.max(charges, d?.behaviour?.charges ?? 0);
+  const uses = charges > 0 && of > 1 && !ONE_OF.has(id) ? { left: charges, of } : null;
+  return { state, itemId: id, label: d?.name ?? id, charges: charges > 1 && !ONE_OF.has(id) ? `×${charges}` : '', uses };
 }
 
-const EMPTY_SLOT: ItemSlotVM = Object.freeze({ state: 'empty', itemId: '', label: '', charges: '' });
+const EMPTY_SLOT: ItemSlotVM = Object.freeze({ state: 'empty', itemId: '', label: '', charges: '', uses: null });
 
 /**
  * The item state's third slot, read once the sim has one (Adam, 28 Sept 2026: "Yes, 3 item slots."; the gameplay

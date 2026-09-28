@@ -293,11 +293,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
    own color glowing up inside (--glow, set per item by render/hud.ts from icons.ts glowFor) and lighting the rim once
    it is in; the item's art upright over the glass, big, under a soft shadow. The first slot is the held item's (the
    one used), the ones to come follow it in a row, smaller (UI.itemSlots; three since Adam's "Yes, 3 item slots.",
-   28 Sept 2026). Empty: thin hatched glass and a faint rim, so an empty slot recedes and a full one lights up.
+   28 Sept 2026), smaller and dimmer (as Mario Kart World's next item). Empty: thin hatched glass and a faint rim, so
+   an empty slot recedes and a full one lights up. The rim is a line of 1.5 to 2 px, never an outline.
    Studied beside Mario Kart World's rounded squares of smoky glass, hidden while empty (ngiIINHSiJc 266 s), and Sonic
    Racing CrossWorlds' round frames tinted by the item's role (DY7f-C74gI0 762 and 1522 s): ours are neither; the
-   slant and the cut corners are the house's own. The words on it (NEXT, ×3) keep to --display and --body, so either
-   type direction (?type=a, ?type=b) sets them. */
+   slant and the cut corners are the house's own. The words on it (NEXT, the key) keep to --body, so the type sets them. */
 .hud .tl { position: absolute; top: calc(18px + var(--safe-t)); left: calc(26px + var(--safe-l)); display: flex; align-items: flex-start; gap: 16px; }
 .slot {
   --size: 104px;
@@ -313,7 +313,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   width: var(--size); height: var(--size);
   display: flex; align-items: center; justify-content: center;
 }
-.slot.next { --size: 64px; --corners: 10px 2px 10px 2px; margin-top: 12px; }
+.slot.next { --size: 64px; --corners: 10px 2px 10px 2px; margin-top: 12px; opacity: 0.84; }
 /* the glass: deep ink-blue, a gloss across its top half, the item's color rising from the foot; a fine light rim,
    brighter along the top, a hairline of ink round it and a soft shadow under it, so it reads over snow and night */
 .slot .slot-glass {
@@ -341,11 +341,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .slot[data-state='rolling'] .slot-glass { box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.85), inset 0 3px 0 rgb(255 255 255 / 0.5), 0 0 0 1px rgb(8 10 34 / 0.5), 0 0 14px 1px rgb(255 255 255 / 0.3), 0 8px 18px rgb(8 10 34 / 0.35); }
 /* an item in: the rim takes its color and a glow round the glass */
 .slot:is([data-state='ready'], [data-state='trailing'], [data-state='active']) .slot-glass {
-  box-shadow: inset 0 0 0 2.5px color-mix(in srgb, var(--glow) 62%, #fff), inset 0 4px 0 rgb(255 255 255 / 0.5), 0 0 0 1px rgb(8 10 34 / 0.55), 0 0 22px 3px color-mix(in srgb, var(--glow-lit) 70%, transparent), 0 8px 18px rgb(8 10 34 / 0.35);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--glow) 62%, #fff), inset 0 4px 0 rgb(255 255 255 / 0.45), 0 0 0 1px rgb(8 10 34 / 0.55), 0 0 18px 1px color-mix(in srgb, var(--glow-lit) 75%, transparent), 0 8px 18px rgb(8 10 34 / 0.35);
 }
 /* held behind the kart: the item tips back, and the glass is lit along its foot until you let go */
 .slot[data-state='trailing'] .slot-glass {
-  box-shadow: inset 0 0 0 2.5px color-mix(in srgb, var(--glow) 62%, #fff), inset 0 -6px 0 color-mix(in srgb, var(--glow) 55%, #fff), 0 0 0 1px rgb(8 10 34 / 0.55), 0 0 22px 3px color-mix(in srgb, var(--glow-lit) 70%, transparent), 0 8px 18px rgb(8 10 34 / 0.35);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--glow) 62%, #fff), inset 0 -6px 0 color-mix(in srgb, var(--glow) 55%, #fff), 0 0 0 1px rgb(8 10 34 / 0.55), 0 0 18px 1px color-mix(in srgb, var(--glow-lit) 75%, transparent), 0 8px 18px rgb(8 10 34 / 0.35);
 }
 /* a power running from the slot (Strike Ball): the glass throbs in its color until it stops */
 .slot[data-state='active'] .slot-glass::after { animation: slot-live 0.5s ease-in-out infinite alternate; }
@@ -359,13 +359,23 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .slot[data-state='ready'] .ic { transform: scale(1); }
 .slot[data-state='active'] .ic { transform: scale(1.06); }
 .slot[data-state='trailing'] .ic { transform: rotate(-16deg) translate(-4px, 6px) scale(0.92); }
-/* the Item labels setting's letter, on a white chip in the corner */
-.slot .glyph { position: absolute; z-index: 2; bottom: 6px; right: 10px; display: none; padding: 2px 5px 3px; border-radius: 5px; background: #fff; color: var(--ink); font: 700 13px/1 var(--body); box-shadow: 0 2px 6px rgb(8 10 34 / 0.4); }
+/* the Item labels setting's letter, on a white chip in the top corner (clear of the pips at the foot) */
+.slot .glyph { position: absolute; z-index: 2; top: 6px; right: 5px; display: none; padding: 2px 5px 3px; border-radius: 5px; background: #fff; color: var(--ink); font: 700 13px/1 var(--body); box-shadow: 0 2px 6px rgb(8 10 34 / 0.4); }
 :root[data-icon-labels='on'] .slot:is([data-state='ready'], [data-state='trailing'], [data-state='active']) .glyph { display: block; }
-/* the charges (×3) on a dark chip at the top corner, ringed in the item's color */
-.slot .charges { position: absolute; z-index: 2; top: -8px; right: -14px; padding: 4px 7px 5px; border-radius: 8px; background: rgb(10 13 40 / 0.9); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--glow) 55%, #fff), 0 3px 8px rgb(8 10 34 / 0.45); font: 400 19px/1 var(--display); color: #fff; }
-.slot .charges:empty { display: none; }
-.slot.next .charges { top: -7px; right: -12px; padding: 3px 5px 4px; border-radius: 6px; font-size: 14px; }
+/* an item of more than one use (a Triple Fizz): a pip for each on a tab across the glass's foot, leaning with it, the
+   ones left lit in the item's color (hudModel ItemSlotVM.uses; screen readers hear ×3 in the slot's name) */
+.slot .pips { position: absolute; z-index: 2; right: 16px; bottom: -7px; display: flex; gap: 3px; padding: 3px 5px; border-radius: 2px 5px 2px 5px; background: rgb(10 13 40 / 0.9); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.45), 0 2px 6px rgb(8 10 34 / 0.4); transform: skewX(var(--slant)); }
+.slot .pips:empty { display: none; }
+.slot .pips i { display: block; width: 14px; height: 6px; border-radius: 1px; background: rgb(255 255 255 / 0.2); }
+.slot .pips i.on { background: color-mix(in srgb, var(--glow) 30%, #fff); box-shadow: 0 0 6px color-mix(in srgb, var(--glow-lit) 85%, transparent); }
+.slot.next .pips { right: 10px; bottom: -5px; gap: 2px; padding: 2px 4px; }
+.slot.next .pips i { width: 8px; height: 4px; }
+.slot.next .glyph { top: 3px; right: 2px; padding: 1px 4px 2px; font-size: 11px; }
+/* the key that uses the held item, as How to Play names it (render/hud.ts; E on the keys, X on a pad), a white key on
+   the top edge of its glass while there is an item to use; none on a touch screen, whose ITEM button is on screen */
+.slot .key { position: absolute; z-index: 2; top: -9px; left: 16px; display: none; min-width: 21px; padding: 3px 6px 4px; border-radius: 5px; background: #fff; color: rgb(10 13 40); font: 700 12px/1 var(--body); text-align: center; box-shadow: 0 2px 0 rgb(8 10 34 / 0.5), 0 4px 10px rgb(8 10 34 / 0.35); transform: skewX(var(--slant)); }
+.slot:is([data-state='ready'], [data-state='trailing']) .key { display: block; }
+:root[data-touch='on'] .slot .key { display: none; }
 /* NEXT on a tab of the glass across the top edge of the slot after the held one, leaning with it */
 .slot .tag { position: absolute; z-index: 2; top: -9px; left: 6px; padding: 3px 7px 3px 8px; border-radius: 3px 6px 3px 6px; background: rgb(10 13 40 / 0.9); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.5), 0 2px 6px rgb(8 10 34 / 0.4); color: #fff; font: 700 9px/1 var(--body); letter-spacing: 0.16em; transform: skewX(var(--slant)); }
 /* The roulette stops and the item lands (Adam, 28 Sept 2026: "just appear without any animation. Looks cheap.";
@@ -380,11 +390,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .slot .gloss::before { content: ''; position: absolute; inset: -20% -70%; background: linear-gradient(100deg, transparent 40%, rgb(255 255 255 / 0.85) 50%, transparent 60%); opacity: 0; transform: translateX(-70%); }
 .slot[data-state='rolling'] .gloss::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 34%, rgb(255 255 255 / 0.14) 47%, rgb(255 255 255 / 0.5) 50%, transparent 52.5%); animation: slot-scan 380ms linear infinite; }
 @keyframes slot-scan { from { transform: translateY(-64%); } to { transform: translateY(64%); } }
+/* held behind the kart: under the glass's lit foot a chevron points back (down the screen, behind the kart), bobbing */
+.slot[data-state='trailing']::after { content: ''; position: absolute; left: 50%; bottom: -14px; width: 12px; height: 12px; border: solid color-mix(in srgb, var(--glow) 30%, #fff); border-width: 0 3.5px 3.5px 0; border-radius: 0 0 2px 0; transform: translateX(-50%) rotate(45deg); filter: drop-shadow(0 0 1.5px rgb(8 10 34 / 0.9)) drop-shadow(0 0 4px color-mix(in srgb, var(--glow-lit) 80%, transparent)); animation: slot-held 560ms ease-in-out infinite alternate; }
+@keyframes slot-held { to { transform: translateX(-50%) translateY(3px) rotate(45deg); } }
 .slot.land { animation: slot-catch var(--t-land) var(--out); }
 .slot.land .ic { animation: slot-drop var(--t-land) linear; }
 .slot.land::before { animation: slot-ring var(--t-land) var(--out); }
 .slot.land .gloss::before { animation: slot-shine 380ms ease-in-out 120ms; }
-.slot.land .charges { animation: slot-badge 300ms var(--pop) 120ms backwards; }
+.slot.land .pips, .slot.land .key { animation: slot-badge 300ms var(--pop) 120ms backwards; }
 .slot.land .slot-glass::after { animation: slot-flare var(--t-land) var(--out); }
 /* falls in bright (0 to 17 %), lands squashed, springs up stretched, settles to the slot's own look (no 100 %: it ends on the state's transform) */
 @keyframes slot-drop {
@@ -398,14 +411,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 @keyframes slot-catch { 0%, 15% { transform: none; } 28% { transform: translateY(3px) scale(1.06, 0.94); } 50% { transform: translateY(-2px) scale(0.97, 1.03); } 72% { transform: scale(1.01, 0.99); } }
 @keyframes slot-ring { 0%, 12% { opacity: 0; transform: skewX(var(--slant)) scale(0.94); } 20% { opacity: 1; transform: skewX(var(--slant)) scale(1.02); } 100% { opacity: 0; transform: skewX(var(--slant)) scale(1.45); } }
 @keyframes slot-shine { 0% { opacity: 1; transform: translateX(-70%); } 100% { opacity: 1; transform: translateX(70%); } }
-@keyframes slot-badge { from { opacity: 0; transform: scale(0.3); } }
+@keyframes slot-badge { from { opacity: 0; transform: skewX(var(--slant)) scale(0.3); } }
 @keyframes slot-flare { 0% { opacity: 0; } 16% { opacity: 0.95; } 100% { opacity: 0; } }
 @keyframes slot-fade { from { opacity: 0; } }
 :root[data-reduced-motion='on'] .slot.land .ic { animation: slot-fade 160ms ease-out !important; }
 :root[data-reduced-motion='on'] .slot.land, :root[data-reduced-motion='on'] .slot.land::before,
-:root[data-reduced-motion='on'] .slot.land .gloss::before, :root[data-reduced-motion='on'] .slot.land .charges,
+:root[data-reduced-motion='on'] .slot.land .gloss::before, :root[data-reduced-motion='on'] .slot.land .pips, :root[data-reduced-motion='on'] .slot.land .key,
 :root[data-reduced-motion='on'] .slot.land .slot-glass::after, :root[data-reduced-motion='on'] .slot .gloss::after,
-:root[data-reduced-motion='on'] .slot[data-state='active'] .slot-glass::after { animation: none !important; }
+:root[data-reduced-motion='on'] .slot[data-state='active'] .slot-glass::after, :root[data-reduced-motion='on'] .slot[data-state='trailing']::after { animation: none !important; }
 /* (reduced motion: a running power glows steady) */
 :root[data-reduced-motion='on'] .slot[data-state='active'] .slot-glass::after { opacity: 0.4; }
 

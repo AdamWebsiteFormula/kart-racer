@@ -2,6 +2,7 @@
 import type { Minimap } from '../../track-builder/minimap.ts';
 import { UI } from '../constants.ts';
 import { castCard } from '../data/cast.ts';
+import { CONTROLS } from '../data/howto.ts';
 import { CONTROLS_STRIP, SKIP_PROMPTS, type HudVM, type ItemSlotVM } from '../hudModel.ts';
 import { glowFor, iconFor, iconMarkup, medalSvg, wheelSvg } from '../icons.ts';
 import { gearSvg } from '../gearIcon.ts';
@@ -14,7 +15,13 @@ import { Attr, clear, Flag, h, Markup, replay, StyleVar, TextField } from './dom
 /** The slot's landing animations (ui.css): the last to end takes the `land` class off (reduced motion runs only the fade) */
 const LAND_ENDS: ReadonlySet<string> = new Set(['slot-shine', 'slot-fade']);
 
-const EMPTY_SLOT: ItemSlotVM = Object.freeze({ state: 'empty', itemId: '', label: '', charges: '' });
+const EMPTY_SLOT: ItemSlotVM = Object.freeze({ state: 'empty', itemId: '', label: '', charges: '', uses: null });
+
+/** the button that uses an item, as How to Play names it (data/howto.ts CONTROLS): its first key, and a pad's button */
+const USE_ITEM = (() => {
+  const row = CONTROLS.find((c) => c.action.startsWith('Use item'));
+  return { keys: row?.keys.split(' or ')[0] ?? 'E', pad: row?.pad ?? 'X' };
+})();
 
 /** each slot's name for screen readers, by its place in the row (the held item, then the ones to come) */
 const SLOT_NAMES: readonly string[] = ['Item', 'Next item', 'Item after next'];
@@ -22,14 +29,18 @@ const SLOT_NAMES: readonly string[] = ['Item', 'Next item', 'Item after next'];
 /**
  * One item slot (28 Sept 2026, Adam: "The bubbles that show the items look super goofy instead of something cool"):
  * a plate of slanted glass (ui.css .slot-glass) lit in the item's color (`--glow`, icons.ts glowFor), the item's art
- * upright over it, its charges on a chip; the first slot big, the ones to come smaller (`.next`).
+ * upright over it, an item of more than one use its uses as pips; the first slot big, with the key that uses it, and
+ * the ones to come smaller and dimmer (`.next`).
  */
 class SlotView {
   readonly root: HTMLElement;
   private state: Attr;
   private icon: Markup;
   private glyph: TextField;
-  private charges: TextField;
+  /** an item of more than one use: a pip for each, the ones left lit (drawn again only when they change) */
+  private pips: HTMLElement;
+  /** the pips drawn (left × 100 + of; 0 none): a number, so a steady frame makes no string */
+  private pipsKey = 0;
   private label: Attr;
   private glow: StyleVar;
   private readonly name: string;
@@ -41,12 +52,19 @@ class SlotView {
     this.root.setAttribute('role', 'img'); // an icon: its aria-label (below) is its name
     this.name = SLOT_NAMES[index] ?? SLOT_NAMES[SLOT_NAMES.length - 1];
     if (index === 1) h('span', 'tag', this.root, 'NEXT');
+    if (index === 0) {
+      // the button that uses it, as How to Play names it: a key, or a pad's button once one is used (ui.css shows one,
+      // and none on a touch screen, whose ITEM button is on screen)
+      const key = h('span', 'key', this.root);
+      h('span', 'only-keys', key, USE_ITEM.keys);
+      h('span', 'only-pad', key, USE_ITEM.pad);
+    }
     // the glass, its rim and glow (ui.css .slot-glass); the item sits upright over it
     h('span', 'slot-glass', this.root);
     const ic = h('span', 'ic', this.root);
     this.icon = new Markup(ic);
     this.glyph = new TextField(h('span', 'glyph', this.root));
-    this.charges = new TextField(h('span', 'charges', this.root));
+    this.pips = h('span', 'pips', this.root);
     // the shine that crosses the glass as an item lands (ui.css .gloss)
     h('span', 'gloss', this.root);
     this.state = new Attr(this.root, 'data-state');
@@ -63,7 +81,12 @@ class SlotView {
     // (the art's size is the slot's, from the stylesheet: the attributes are only its first layout)
     this.icon.set(s.itemId ? iconMarkup(s.itemId, 80) : '');
     this.glyph.set(iconFor(s.itemId)?.glyph ?? '');
-    this.charges.set(s.charges);
+    const uses = s.uses ? s.uses.left * 100 + s.uses.of : 0;
+    if (uses !== this.pipsKey) {
+      this.pipsKey = uses;
+      clear(this.pips);
+      for (let k = 0; k < (s.uses?.of ?? 0); k++) h('i', k < (s.uses?.left ?? 0) ? 'on' : '', this.pips);
+    }
     this.glow.set(glowFor(s.itemId));
     const n = this.name;
     this.label.set(s.state === 'ready' ? `${n}: ${s.label} ${s.charges}`.trim() : s.state === 'trailing' ? `${n}: ${s.label}, held behind you`
