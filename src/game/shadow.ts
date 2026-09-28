@@ -17,6 +17,21 @@ export const SUN_SHADOW = Object.freeze({
   normalBias: 0.06,
   /** depth, as a share of `far` (−0.0001 × 400 m = 4 cm) */
   bias: -0.0001,
+  /**
+   * How much of the sun a cast shadow takes away (three's LightShadow.intensity; 1 took all of it). The second
+   * MKW gap review (28 Sept 2026, item 5) found ours near-black and hard. Measured the same way on both (a shadow's
+   * core against the same road lit, display values, docs/sops/performance.md): Mario Kart World's kart shadows sit
+   * at 0.39 to 0.55 of the lit road (OSU-aguh1AY 1:11, 2:44, 1:29:15), cool gray (R 0.41-0.45, G 0.52-0.58,
+   * B 0.60-0.65 of the lit road's); ours took 0.17 to 0.30, deep navy (R 0.2, G 0.3, B 0.5). At 0.8 they sit at
+   * 0.42 to 0.50 on the day tracks, R 0.43-0.51, G 0.47-0.51, B 0.55-0.64: the sky and its bounce fill them as
+   * MKW's are filled. The karts keep their grounding from the contact shade under the wheels (contactShadow.ts).
+   */
+  intensity: 0.8,
+  /**
+   * Texels of PCF blur (three r185's Vogel-disk PCF: five hardware 2x2 taps spread over this radius): 2 texels
+   * is 12 cm, a soft edge that still holds the shape of a flag or a wheel (1, three's default, read hard)
+   */
+  radius: 2,
 });
 
 /** One shadow texel, metres. */
@@ -30,4 +45,6 @@ export function setSunShadow(sun: DirectionalLight): void {
   Object.assign(sun.shadow.camera, { left: -s.extent, right: s.extent, top: s.extent, bottom: -s.extent, far: s.far });
   sun.shadow.normalBias = s.normalBias;
   sun.shadow.bias = s.bias;
+  sun.shadow.intensity = s.intensity;
+  sun.shadow.radius = s.radius;
 }

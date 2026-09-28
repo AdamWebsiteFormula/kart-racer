@@ -92,9 +92,20 @@ export const DRIVER_ANIM = Object.freeze({
   wobble: 0.3,
   /** seconds after the spin ends before the hands are back on the wheel */
   recover: 0.35,
-  /** a trick: arms up and the body twists this much, over this long */
-  trickTwist: 0.55,
-  trickSeconds: 0.7,
+  /**
+   * A trick: the racer's own flourish (FLOURISH) over the kart's stunt (anim.ts, stunt.ts), by how far through
+   * the stunt it is: the hands leave the wheel over `trickOff` of it and are back on over `trickBack`, so they
+   * hold the wheel as the kart lands; the body leans back `trickLean` (rad) and the head looks up `trickLook`;
+   * the chest twists `trickTwist` one way and back
+   */
+  trickOff: [0.02, 0.16] as readonly [number, number],
+  trickBack: [0.56, 0.8] as readonly [number, number],
+  trickLean: -0.16,
+  trickLook: -0.25,
+  trickTwist: 0.3,
+  /** a hummingbird's wings (Pip's flourish): the forearms flutter this much at this rate (Hz) */
+  flutter: 0.35,
+  flutterHz: 9,
   /** an item used: a throw forward, a toss back or a raise, this long */
   throwSeconds: 0.72,
   /** shoulders up this much (rad) at a full shrug */
@@ -256,6 +267,67 @@ export function itemArm(kind: ItemGesture, t: number, out: ArmPose, T = DRIVER_A
     set(out.upper, AIM.pumpHigh); set(out.fore, AIM.pumpHighFore);
   }
   return off;
+}
+
+/**
+ * A racer's own flourish in a trick, in character (design §4), G-rated; the kart's stunt under it is its own
+ * (stunt.ts). Mario Kart World gives each racer their own trick animations ("a quick animation unique to them",
+ * gamerant.com; five each, mariowiki.com/Jump_Boost): arms out, a fist up, a wave, a pose.
+ */
+export type Flourish = 'wings' | 'fist' | 'star' | 'pump' | 'wave' | 'robot' | 'flex' | 'raise';
+export const FLOURISH: Readonly<Record<string, Flourish>> = Object.freeze({
+  /** a hummingbird courier: both wings out, fluttering */
+  pip: 'wings',
+  /** deadpan, competent: one fist straight up */
+  momo: 'fist',
+  /** dreamy: both arms up and out, a star */
+  nova: 'star',
+  /** a cheerful rule-follower, secretly fierce: a fist pump */
+  juniper: 'pump',
+  /** laid-back, waves at everyone */
+  otto: 'wave',
+  /** a literal wind-up toy: both arms straight up, stiff */
+  sprocket: 'robot',
+  /** a gentle giant: both arms up in a strongman's flex */
+  boulder: 'flex',
+  /** a booming chef: one arm high, the other out wide */
+  gus: 'raise',
+});
+/** The flourishes' aims (the torso's frame, the right arm's; the left mirrors x). */
+const FLOURISH_AIM = Object.freeze({
+  wide: [-0.95, 0.28, 0.12] as const,
+  vee: [-0.62, 0.77, 0.14] as const, veeFore: [-0.56, 0.82, 0.1] as const,
+  stiff: [-0.12, 0.99, 0.06] as const, stiffFore: [-0.06, 1, 0.03] as const,
+  flex: [-0.97, 0.12, 0.2] as const, flexFore: [-0.12, 0.98, 0.16] as const,
+  out: [-0.9, 0.35, 0.25] as const, outFore: [-0.85, 0.48, 0.22] as const,
+});
+
+/**
+ * The arms for a racer's flourish `t` s into its trick, the right arm's aims for both (the caller mirrors the
+ * left): `wheel` 0 on an arm that leaves the wheel for it, 1 on one that keeps it. Pure.
+ */
+export function flourishArms(kind: Flourish, t: number, R: ArmPose, L: ArmPose): void {
+  onWheel(R); onWheel(L);
+  switch (kind) {
+    case 'wings': {
+      const f = DRIVER_ANIM.flutter * Math.sin(TAU * DRIVER_ANIM.flutterHz * t);
+      for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.wide); X.fore[0] = -0.9; X.fore[1] = 0.42 + f; X.fore[2] = 0.1; normalize(X.fore); X.wheel = 0; }
+      break;
+    }
+    case 'fist': upArm(R); break;
+    case 'star': for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.vee); set(X.fore, FLOURISH_AIM.veeFore); X.wheel = 0; } break;
+    case 'pump': pumpArm(R, t, -Math.PI / 2, 3.2); break;
+    case 'wave': waveArm(R, t, 2.6); break;
+    case 'robot': for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.stiff); set(X.fore, FLOURISH_AIM.stiffFore); X.wheel = 0; } break;
+    case 'flex': for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.flex); set(X.fore, FLOURISH_AIM.flexFore); X.wheel = 0; } break;
+    case 'raise': upArm(R); set(L.upper, FLOURISH_AIM.out); set(L.fore, FLOURISH_AIM.outFore); L.wheel = 0; break;
+  }
+}
+
+/** How far off the wheel a flourish is, `u` (0..1) through its stunt: off early, back on the wheel before the landing. Pure. */
+export function flourishWeight(u: number, T: DriverAnimTuning = DRIVER_ANIM): number {
+  if (!(u >= 0) || u > 1) return 0;
+  return sstep(T.trickOff[0], T.trickOff[1], u) * (1 - sstep(T.trickBack[0], T.trickBack[1], u));
 }
 
 /** Hands on the wheel (the aims are only a fallback: the IK decides). */
@@ -472,8 +544,6 @@ export class DriverAnim {
   private airVy = 0;
   private wasSpinning = false;
   private spinEnded = -10;
-  private lastTrick = false;
-  private trickAt = -10;
   /** the item gesture playing (null: none) and when it started */
   private gesture: ItemGesture | null = null;
   private gestureAt = -10;
@@ -534,9 +604,10 @@ export class DriverAnim {
     if (this.wasSpinning && !spinning) this.spinEnded = now;
     this.wasSpinning = spinning;
     const grounded = s.grounded;
-    const trick = s.airborne.trickQueued;
-    if (trick && !this.lastTrick) this.trickAt = now;
-    this.lastTrick = trick;
+    // a trick: the racer's own flourish over the kart's stunt (anim.ts), none under a finish reaction or a hit
+    const flourish = anim.stuntKind && !reaction && !spinning ? FLOURISH[s.racerId] ?? 'fist' : null;
+    const su = flourish ? anim.stuntProgress : -1;
+    const fk = flourish ? flourishWeight(su, t) : 0;
 
     // --- where the eyes go: the camera, a look back, a rival, an idle glance, or ahead (the springs' look)
     let want = Number.NaN, wantPitch = 0;
@@ -597,18 +668,17 @@ export class DriverAnim {
       twistT = clamp(total - clamp(total, -t.headMax, t.headMax), -t.twistMax, t.twistMax);
       yawT = clamp(total - twistT, -t.headMax, t.headMax) - base;
     }
-    // a trick twists the body over and back
-    const tt = now - this.trickAt;
-    if (tt < t.trickSeconds) twistT += t.trickTwist * Math.sin((TAU * tt) / t.trickSeconds) * (reaction ? 0 : 1);
+    // a trick twists the chest one way and back over the stunt
+    if (flourish) twistT += t.trickTwist * Math.sin(TAU * su);
     stepLimited(this.yaw, yawT, t.headSpring, dt, t.headSpeed);
     // a SAD_EARLY racer's head bows on into their hands while they hold it (SAD_BOW)
     const bowed = down && reaction === 'deflated' && SAD_EARLY.has(s.racerId) && rt >= sadHandFrom(reaction, true) && rt < SAD_BEATS.deflated.up[0];
-    stepSpring(this.pitch, (Number.isNaN(want) ? 0 : wantPitch) + (bowed ? SAD_BOW : 0), t.pitchSpring, dt);
+    stepSpring(this.pitch, (Number.isNaN(want) ? 0 : wantPitch) + (bowed ? SAD_BOW : 0) + t.trickLook * fk, t.pitchSpring, dt);
     stepLimited(this.twist, clamp(twistT, -t.twistMax - t.trickTwist, t.twistMax + t.trickTwist), t.twistSpring, dt, t.twistSpeed);
 
     // --- the spine: forward on the gas, back on a boost, folding over on a landing
     const boostK = s.boost.remaining > 0 && s.boost.multiplier > 1 ? (s.boost.multiplier - 1) / 0.3 : 0;
-    const spineT = down ? down.spine : grounded && !spinning && !reaction ? clamp(input.throttle, 0, 1) * t.throttleLean - boostK * t.boostLean : 0;
+    const spineT = (down ? down.spine : grounded && !spinning && !reaction ? clamp(input.throttle, 0, 1) * t.throttleLean - boostK * t.boostLean : 0) + t.trickLean * fk;
     if (grounded && !this.wasGrounded) this.spine.v += t.landFold * Math.min(12, Math.max(0, -this.airVy));
     if (!grounded) this.airVy = s.verticalVelocity;
     this.wasGrounded = grounded;
@@ -640,11 +710,12 @@ export class DriverAnim {
       normalize(R.fore); normalize(L.fore); mirror(L);
       R.wheel = L.wheel = 1 - k;
       curr.headRoll += t.wobble * k * Math.sin(TAU * t.wobbleHz * now);
-    } else if (tt < t.trickSeconds) {
-      const k = hump(tt, 0, t.trickSeconds);
-      set(R.upper, AIM.up); set(R.fore, AIM.upFore);
-      set(L.upper, AIM.up); set(L.fore, AIM.upFore); mirror(L);
-      R.wheel = L.wheel = 1 - Math.min(1, k * 1.6);
+    } else if (flourish && fk > 0) {
+      // the racer's own flourish, off the wheel as the stunt starts and back on it before the landing
+      flourishArms(flourish, su * anim.stuntSeconds, R, L);
+      mirror(L);
+      R.wheel = 1 - fk * (1 - R.wheel);
+      L.wheel = 1 - fk * (1 - L.wheel);
     } else if (this.gesture && ga < t.throwSeconds) {
       R.wheel = 1 - itemArm(this.gesture, ga, R);
     } else this.gesture = null;
