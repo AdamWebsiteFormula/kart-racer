@@ -27,8 +27,13 @@ export interface ModelSpec {
   yaw?: number;
   /** a lamp: its own colours glow this strongly (its bright glass passes the bloom, its dark post stays dark) */
   glow?: number;
-  /** a prop: match the code-built model's height (default) or its widest side (a flat cloud bank) */
-  fit?: 'height' | 'width';
+  /**
+   * a prop: match the code-built model's height (default), its widest side (a flat cloud bank), or its
+   * whole box, each axis on its own (a wall whose file is longer for its height than the code-built one)
+   */
+  fit?: 'height' | 'width' | 'box';
+  /** false: casts no real-time shadow (a big prop where the draw budget has no room for one; the baked shading still shades the ground round it) */
+  shadow?: boolean;
 }
 export type ModelManifest = Record<string, ModelSpec>;
 
@@ -491,15 +496,17 @@ export function repairZeroNormals(g: BufferGeometry): number {
 /**
  * Fit a geometry onto the box of the code-built model it replaces: the same height (or the same
  * widest side), centred on the same spot, standing on the same floor, so every placement and
- * clearance stays true. One uniform scale. Pure.
+ * clearance stays true. One uniform scale; `box` scales each axis onto the target's own. Pure.
  */
-export function fitToBox(g: BufferGeometry, target: Box3, by: 'height' | 'width' = 'height'): BufferGeometry {
+export function fitToBox(g: BufferGeometry, target: Box3, by: 'height' | 'width' | 'box' = 'height'): BufferGeometry {
   g.computeBoundingBox();
   const b = g.boundingBox!;
   const wide = (x: Box3) => Math.max(x.max.x - x.min.x, x.max.z - x.min.z);
   const s = by === 'width' ? wide(target) / Math.max(1e-6, wide(b)) : (target.max.y - target.min.y) / Math.max(1e-6, b.max.y - b.min.y);
+  const axis = (lo: 'x' | 'z') => (target.max[lo] - target.min[lo]) / Math.max(1e-6, b.max[lo] - b.min[lo]);
   g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
-  g.scale(s, s, s);
+  if (by === 'box') g.scale(axis('x'), s, axis('z'));
+  else g.scale(s, s, s);
   g.translate((target.min.x + target.max.x) / 2, target.min.y, (target.min.z + target.max.z) / 2);
   g.computeBoundingBox();
   g.computeBoundingSphere();
@@ -593,6 +600,8 @@ export class PropModels {
     fitToBox(geometry, target, spec.fit);
     const material = mesh.material as Material;
     material.userData.shared = true;
+    // (a prop the draw budget has no room to shadow: the scene reads this when it lays the prop's copies)
+    if (spec.shadow === false) material.userData.castShadow = false;
     const std = material as MeshStandardMaterial;
     if (std.isMeshStandardMaterial) {
       // an AI export's untouched glTF metallicFactor defaults to 1 (the format's own spec default,
