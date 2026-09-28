@@ -2,11 +2,18 @@
 # and notes.json into ~/.cache/rascal-music/candidates/<track>/. Nothing is played.
 import json, os, shutil, time
 import numpy as np
-from . import dsp, export, instruments, mix, samples
+from . import dsp, export, instruments, mix, samples, synths, modern
 from .render import Ctx
 
 SR = dsp.SR
 OUT = os.path.expanduser(os.environ.get('RASCAL_MUSIC_OUT', '~/.cache/rascal-music/candidates'))
+
+
+def cand_dir(mod, track):
+    """Where a candidate's files go: candidates/<slot>/<candidate>/ (a slot is a track id, 'title' or 'results')."""
+    slot = getattr(mod, 'SLOT', track)
+    cand = getattr(mod, 'CANDIDATE', None)
+    return os.path.join(OUT, slot, cand) if cand else os.path.join(OUT, slot)
 
 
 def render_stems(song, notes, only=None):
@@ -96,7 +103,7 @@ def produce(mod, out_dir=None, tag='', analyze=True, only=None, write=True):
            'seconds': round(y.shape[1] / SR, 3), 'master': mrep, 'wrap': wrap_check(y, a_s, b_s)}
     if not write:
         return res, y, stems
-    d = out_dir or os.path.join(OUT, song.track)
+    d = out_dir or cand_dir(mod, song.track)
     os.makedirs(d, exist_ok=True)
     base = os.path.join(d, f'{song.track}{tag}')
     export.write_wav(base + '.wav', y)
@@ -112,6 +119,7 @@ def produce(mod, out_dir=None, tag='', analyze=True, only=None, write=True):
     libs = sorted({os.path.relpath(p, samples.ROOT).split(os.sep)[0] for p in used})
     sources = json.load(open(os.path.join(samples.ROOT, 'SOURCES.json')))
     notes_json = {
+        'slot': getattr(mod, 'SLOT', song.track), 'candidate': getattr(mod, 'CANDIDATE', None),
         **{k: res[k] for k in ('title', 'track', 'key', 'bpm', 'bars', 'introBars', 'loopBars', 'loop', 'seconds')},
         'manifest': {'bpm': song.bpm, 'loop': [round(a_s, 2), round(b_s, 2)]},
         'style': getattr(mod, 'STYLE', ''),
@@ -123,13 +131,60 @@ def produce(mod, out_dir=None, tag='', analyze=True, only=None, write=True):
         'sampleFilesUsed': len(used),
         'impulseResponses': [os.path.relpath(p, '/Library/Audio/Impulse Responses') for p in irs],
         'appleContent': 'Space Designer impulse responses from Final Cut Pro / Logic sample content (Apple: may be used in your own original soundtracks, support.apple.com/101851)' if irs else None,
-        'synthesized': sorted({p.inst for p in song.parts.values() if p.inst in ('organ', 'epiano', 'clav', 'synthbass', 'lead', 'calliope', 'riser')}),
+        'synthesized': sorted({p.inst for p in song.parts.values() if isinstance(instruments.get(p.inst), (synths._Poly, modern.DrumSynth))}),
         'rendered': time.strftime('%Y-%m-%d %H:%M'),
     }
-    json.dump(notes_json, open(os.path.join(d, 'notes.json' if not tag else f'notes{tag}.json'), 'w'), indent=1)
+    nj_path = os.path.join(d, 'notes.json' if not tag else f'notes{tag}.json')
+    if os.path.exists(nj_path):
+        old = json.load(open(nj_path))
+        if 'intros' in old:
+            notes_json['intros'] = old['intros']
+    json.dump(notes_json, open(nj_path, 'w'), indent=1)
     with open(os.path.join(d, f'samples-used{tag}.txt'), 'w') as f:
         f.write('\n'.join(os.path.relpath(p, samples.ROOT) for p in used) + '\n')
         f.write('\n'.join('IR: ' + p for p in irs) + '\n')
     print(json.dumps({k: res[k] for k in ('track', 'seconds', 'loop', 'master', 'wrap', 'mp3')}), flush=True)
     print(f'done in {time.time() - t0:.0f} s -> {base}.mp3', flush=True)
     return res, y, stems
+
+
+def produce_shorts(mod, out_dir=None):
+    """The course-intro pieces (mod.shorts(): {name: (Song, seconds, cadence_beat)}): each rendered with the song's
+    own instruments and mix, mastered with the song's own match EQ and gain (so it sits at the theme's level), cut
+    to exactly `seconds` with the last chord fading out. Written next to the theme as <name>.mp3/.wav/.mid; their
+    notes go into notes.json under 'intros'."""
+    track = mod.compose().track
+    d = out_dir or cand_dir(mod, track)
+    nj_path = os.path.join(d, 'notes.json')
+    nj = json.load(open(nj_path))
+    spec = dict(mod.MIX.get('master', {}))
+    spec['fixed_match'] = nj['master']['matchEq']
+    spec['fixed_gain'] = nj['master']['gainDb']
+    intros = {}
+    for name, (song, seconds, cadence_beat) in mod.shorts().items():
+        notes = song.finalize()
+        stems, n = render_stems(song, notes)
+        bus, _, _ = mix.mixdown(stems, mod.MIX, n)
+        y, rep = mix.master(bus, spec)
+        N = int(round(seconds * SR))
+        y = y[:, :N].copy()
+        if y.shape[1] < N:
+            y = np.pad(y, ((0, 0), (0, N - y.shape[1])))
+        # the held chord fades out over the end (cos^2), so the file ends in silence exactly at `seconds`
+        fade = int(min(1.2, 0.35 * seconds) * SR)
+        y[:, -fade:] *= np.cos(np.linspace(0, np.pi / 2, fade, dtype=np.float32))[None, :] ** 2
+        a = np.abs(y).max(0)
+        first = int(np.flatnonzero(a > 10 ** (-50 / 20))[0]) if a.max() > 0 else 0
+        base = os.path.join(d, name)
+        export.write_wav(base + '.wav', y)
+        mp3 = export.write_mp3(base + '.mp3', y)
+        insts = {nm: p.inst for nm, p in song.parts.items()}
+        export.write_midi(base + '.mid', song, notes, insts)
+        cad = cadence_beat * 60 / song.bpm
+        intros[name] = {'file': name + '.mp3', 'seconds': round(N / SR, 3), 'bpm': song.bpm, 'key': song.key,
+                        'cadenceAt': round(cad, 3), 'fadeFrom': round((N - fade) / SR, 3), 'firstSoundAt': round(first / SR, 4),
+                        'lufs': round(dsp.lufs(y), 2), 'truePeak': round(dsp.true_peak_db(y), 2), 'mp3': mp3, 'what': getattr(song, 'about', '')}
+        print(name, json.dumps(intros[name]), flush=True)
+    nj['intros'] = intros
+    json.dump(nj, open(nj_path, 'w'), indent=1)
+    return intros

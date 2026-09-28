@@ -1,19 +1,20 @@
-# Lighthouse Loop (track harbour-loop): big-band funk for a sunny seaside town. B-flat major, 144 bpm.
-# A live horn section (two trumpets, alto, tenor and baritone saxes, trombone) over a tight funk rhythm section
-# (drums, fingered bass, hollow-body guitar chanks, tonewheel organ), congas and tambourine, a glockenspiel
-# sparkle on the hook. Every note below is written by hand; studio/ only plays and mixes it.
+# Lighthouse Loop, candidate A (track harbour-loop): funk-rock with a horn section, for a sunny seaside town.
+# B-flat major, 144 bpm. The band plays tight and dry: big funk drums, fingered bass, clean funk guitar scratching
+# sixteenths, a tonewheel organ; two trumpets, alto and tenor saxes and two trombones punch the hook and the stabs.
+# Every note is written by hand here; studio/ only plays and mixes it.
 #
-# Form (bars): intro 4 (a teaser of the hook as band hits, then the pickup bar) | loop 40:
-#   A 8 (the hook: trumpet and alto in unison, the low horns answer) | A' 8 (the hook harmonized, glockenspiel)
-#   B 8 (sax soli over E-flat, organ and trombone pads) | C 8 (the break: a low-brass riff in unison with the bass,
+# Form (bars): intro 4 (a teaser of the hook as band hits + the pickup bar) | loop 40:
+#   A 8 (the hook: trumpet and alto in unison, the trombones answer) | A' 8 (the hook harmonized)
+#   B 8 (the saxes over E-flat, organ and trombone pads) | C 8 (the break: a low riff in unison with the bass,
 #   trumpet shout hits) | A'' 8 (the shout chorus, ending on the pickup bar that also ends the intro)
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from studio.score import Song, seq, grid, chords, Note
 from studio.arrange import drum_fill, harmonize, comp, pad, shift, window, voicing_under
 
-STYLE = 'big-band funk: live horn section (2 trumpets, alto, tenor, baritone sax, trombone), funk drums, fingered bass, guitar chanks, organ, congas, glockenspiel'
-FORM = ['intro 4 (hook teaser as band hits + pickup bar)', 'A 8 hook in unison', "A' 8 hook harmonized + glockenspiel",
+SLOT, CANDIDATE = 'harbour-loop', 'a-funk-rock'
+STYLE = 'funk-rock with a horn section: big dry funk drums, fingered bass, clean funk guitar, organ, two trumpets, alto and tenor saxes, two trombones as punches'
+FORM = ['intro 4 (hook teaser as band hits + pickup bar)', 'A 8 hook in unison', "A' 8 hook harmonized",
         'B 8 sax soli in E-flat', 'C 8 break: low-brass riff + trumpet shouts', "A'' 8 shout chorus, pickup bar (= intro's last bar)"]
 
 BPM, INTRO, LOOP = 144, 4, 40
@@ -93,7 +94,7 @@ def at(bar):
 
 
 def compose():
-    s = Song('Lighthouse Loop', 'harbour-loop', BPM, 'B-flat major', INTRO, LOOP, seed=11)
+    s = Song('Lighthouse Loop (funk-rock)', 'harbour-loop', BPM, 'B-flat major', INTRO, LOOP, seed=11)
     # players: humanize amounts per instrument (horns a hair behind the beat, the rhythm section tight)
     P = {}
     P['tpt1'] = s.part('tpt1', 'trumpet', lag_ms=4, jitter_ms=5, mono=True)
@@ -101,12 +102,12 @@ def compose():
     P['alto'] = s.part('alto', 'alto', lag_ms=5, jitter_ms=6, mono=True)
     P['tenor'] = s.part('tenor', 'alto', lag_ms=6, jitter_ms=6, mono=True)
     P['tbn'] = s.part('tbn', 'trombone', lag_ms=7, jitter_ms=6, mono=True)
-    P['bari'] = s.part('bari', 'bari', lag_ms=5, jitter_ms=5, mono=True)
+    P['bari'] = s.part('bari', 'trombone', lag_ms=5, jitter_ms=5, mono=True)  # trombone 2 (was the baritone sax)
     P['drums'] = s.part('drums', 'kit', lag_ms=0, jitter_ms=3.5, vel_jitter=0.06, swing=0.54, swing_unit=0.25)
     P['bass'] = s.part('bass', 'ebass', lag_ms=2, jitter_ms=3, swing=0.54, swing_unit=0.25, mono=True)
     P['gtr'] = s.part('gtr', 'guitar', lag_ms=3, jitter_ms=4, swing=0.54, swing_unit=0.25)
     P['organ'] = s.part('organ', 'organ_harbour', lag_ms=0, jitter_ms=3)
-    P['glock'] = s.part('glock', 'glock', lag_ms=2, jitter_ms=3)
+
     P['conga'] = s.part('conga', 'conga', lag_ms=2, jitter_ms=5, swing=0.54, swing_unit=0.25)
     P['tamb'] = s.part('tamb', 'tamb', lag_ms=1, jitter_ms=4, swing=0.54, swing_unit=0.25)
 
@@ -144,7 +145,6 @@ def compose():
     v = harmonize(a2_lead, allprog, 4, drop2=True, key=(10, 'major'))
     P['tpt1'].add(v[0]); P['tpt2'].add(v[1]); P['alto'].add(v[2]); P['tbn'].add(v[3])
     P['tenor'].add([n.copy(p=n.p - 12 if n.p - 12 >= 49 else n.p) for n in v[1]])
-    P['glock'].add([n.copy(p=n.p + 12, v=n.v * 0.8, d=min(n.d, 0.5)) for n in hook(A1)])
 
     # B: sax soli (alto lead, tenor and bari under it), trombone pad on the guide tones
     soli = lines(B_SOLI, at(B0))
@@ -196,7 +196,6 @@ def compose():
     v = harmonize(a3, allprog, 4, drop2=True, key=(10, 'major'))
     P['tpt1'].add(v[0]); P['tpt2'].add(v[1]); P['alto'].add(v[2]); P['tbn'].add(v[3])
     P['tenor'].add([n.copy(p=n.p - 12 if n.p - 12 >= 49 else n.p) for n in v[1]])
-    P['glock'].add([n.copy(p=n.p + 12, v=n.v * 0.85, d=min(n.d, 0.5)) for n in hook(A2)])
     P['bari'].add(shift([n for n in v[3] if n.d >= 0.5], 0, -12))
 
     # intro: the teaser lead harmonized as band hits
@@ -284,7 +283,7 @@ def compose():
     def chanks(bar0, nbars, pattern='..x...x...x...x.'):
         pr = [c for c in allprog if at(bar0) - 1e-9 <= c[0] < at(bar0 + nbars) - 1e-9]
         P['gtr'].add([n.copy(art=n.art | {'stac'}) for n in comp(pr, pattern, 62, 76, n=3, vel=0.62, dur=0.2, t0=at(bar0), t1=at(bar0 + nbars))])
-    chanks(A0, 7); chanks(A1, 8); chanks(C0, 7, '..x..x.x..x..x.x'); chanks(A2, 7)
+    chanks(A0, 7, '..x..x.x..x..x.x'); chanks(A1, 8, 'x.x.xx.x.xx.x.xx'); chanks(C0, 7, '..x..x.x..x..x.x'); chanks(A2, 7, 'x.x.xx.x.xx.x.xx')
     chanks(B0, 8, '....x.......x...')
 
     # organ: pads in A and B, stabs in C
@@ -314,12 +313,12 @@ def shorts():
     (the pickup run into a band hit at 0.8 s)."""
     out = {}
     # 6.0 s: the hook's first two bars, a quick ii-V, the held tonic chord
-    s = Song('Lighthouse Loop - course intro', 'harbour-loop', BPM, 'B-flat major', 3, 0, seed=12, tail_bars=0)
+    s = Song('Lighthouse Loop (funk-rock) - course intro', 'harbour-loop', BPM, 'B-flat major', 3, 0, seed=12, tail_bars=0)
     s.about = "the hook's first two bars with the full band, a ii-V lick, a held B-flat 6/9 chord"
     P = {k: s.part(k, i, lag_ms=l, jitter_ms=j, mono=m) for k, i, l, j, m in (
         ('tpt1', 'trumpet', 4, 5, True), ('tpt2', 'trumpet', 6, 6, True), ('alto', 'alto', 5, 6, True), ('tenor', 'alto', 6, 6, True),
-        ('tbn', 'trombone', 7, 6, True), ('bari', 'bari', 5, 5, True), ('bass', 'ebass', 2, 3, True), ('organ', 'organ_harbour', 0, 3, False),
-        ('glock', 'glock', 2, 3, False), ('gtr', 'guitar', 3, 4, False), ('tamb', 'tamb', 1, 4, False))}
+        ('tbn', 'trombone', 7, 6, True), ('bari', 'trombone', 5, 5, True), ('bass', 'ebass', 2, 3, True), ('organ', 'organ_harbour', 0, 3, False),
+        ('gtr', 'guitar', 3, 4, False), ('tamb', 'tamb', 1, 4, False))}
     P['drums'] = s.part('drums', 'kit', jitter_ms=3.5, vel_jitter=0.06, swing=0.54, swing_unit=0.25)
     pr = chords('Bb69 | Ebmaj9 | Cm7 F13 Bb69 Bb69', 0)
     lead = lines([HOOK[0], HOOK[1], "Eb5:8 D5:8 C5:8 A4:8 D5:2^"], 0)
@@ -327,7 +326,6 @@ def shorts():
     P['tpt1'].add(v[0]); P['tpt2'].add(v[1]); P['alto'].add(v[2]); P['tbn'].add(v[3])
     P['tenor'].add([n.copy(p=n.p - 12 if n.p - 12 >= 49 else n.p) for n in v[1]])
     P['bari'].add(lines(["r:1", "r:1", "r:2 Bb2:2^"], 0))
-    P['glock'].add([n.copy(p=n.p + 12, v=n.v * 0.8, d=min(n.d, 0.5)) for n in lead[:-1]] + [Note(10, 2, 86, 0.6), Note(10, 2, 89, 0.55)])
     P['bass'].add(lines([BASS_A[0], BASS_A[1], "C2:8 C2:8 F2:8 F1:8 Bb1:2^"], 0))
     P['organ'].add(pad(pr, 55, 72, n=4, vel=0.5))
     P['gtr'].add([n.copy(art=n.art | {'stac'}) for n in comp(pr[:2], '..x...x...x...x.', 62, 76, n=3, vel=0.62, dur=0.2, t0=0, t1=8)])
@@ -338,12 +336,11 @@ def shorts():
                    grid('x...............|................|........x.......', 'crash', 0))
     out['intro-6s'] = (s, 6.0, 10)
     # 2.5 s: the pickup run into a band hit
-    s = Song('Lighthouse Loop - course intro short', 'harbour-loop', BPM, 'B-flat major', 2, 0, seed=13, tail_bars=0)
+    s = Song('Lighthouse Loop (funk-rock) - course intro short', 'harbour-loop', BPM, 'B-flat major', 2, 0, seed=13, tail_bars=0)
     s.about = 'the pickup run (trumpets and alto) over a snare roll into a B-flat 6/9 band hit'
     P = {k: s.part(k, i, lag_ms=l, jitter_ms=j, mono=m) for k, i, l, j, m in (
         ('tpt1', 'trumpet', 4, 5, True), ('tpt2', 'trumpet', 6, 6, True), ('alto', 'alto', 5, 6, True), ('tenor', 'alto', 6, 6, True),
-        ('tbn', 'trombone', 7, 6, True), ('bari', 'bari', 5, 5, True), ('bass', 'ebass', 2, 3, True), ('organ', 'organ_harbour', 0, 3, False),
-        ('glock', 'glock', 2, 3, False))}
+        ('tbn', 'trombone', 7, 6, True), ('bari', 'trombone', 5, 5, True), ('bass', 'ebass', 2, 3, True), ('organ', 'organ_harbour', 0, 3, False))}
     P['drums'] = s.part('drums', 'kit', jitter_ms=3, vel_jitter=0.05)
     run = lines(["F4:16 G4:16 A4:16 Bb4:16 C5:16 D5:16 Eb5:16 E5:16 r:2"], 0)
     P['tpt1'].add(run); P['alto'].add(shift(run, 0, -12)); P['tpt2'].add(shift(run, 0, -3))
@@ -353,7 +350,6 @@ def shorts():
     P['bari'].add(Note(2.0, 1.5, 46, 0.9, {'acc'}))
     P['bass'].add(lines(["C2:8 D2:8 E2:8 F2:8 Bb1:2^"], 0))
     P['organ'].add(lines(["r:2 [Bb3 D4 G4 C5]:2"], 0))
-    P['glock'].add([Note(2.0, 1.5, 86, 0.6), Note(2.0, 1.5, 89, 0.55)])
     P['drums'].add(grid('xxxxxxxx........', 'snare', 0, vels={'x': 0.55}) + grid('........x.......', 'crash', 0) + grid('........x.......', 'kick', 0))
     out['intro-2s'] = (s, 2.5, 2)
     return out
@@ -376,7 +372,7 @@ MIX = {
         'alto': {'bus': 'horns', 'pan': 0.22, 'gain': -2.0, 'eq': [('hp', 150), ('peak', 1800, 1.0, 1.0)], 'sends': {'plate': -14, 'room': -12}},
         'tenor': {'bus': 'horns', 'pan': 0.38, 'gain': -4.5, 'eq': [('hp', 110)], 'sends': {'plate': -15, 'room': -12}},
         'tbn': {'bus': 'horns', 'pan': -0.05, 'gain': -2.5, 'eq': [('hp', 80), ('peak', 350, 1.0, -1.5)], 'sends': {'plate': -15, 'room': -12}},
-        'bari': {'bus': 'horns', 'pan': 0.12, 'gain': -4.0, 'eq': [('hp', 60), ('peak', 250, 1.0, -2.0)], 'sends': {'room': -14}},
+        'bari': {'bus': 'horns', 'pan': 0.15, 'gain': -4.0, 'eq': [('hp', 60), ('peak', 300, 1.0, -2.0)], 'sends': {'room': -14}},
         'drums.kick': {'bus': 'drums', 'gain': 2.0, 'eq': [('hp', 35), ('peak', 60, 1.0, 3.0), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 3.0)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 6, 'rel_ms': 80}},
         'drums.snare': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 90), ('peak', 200, 1.0, 2.0), ('peak', 900, 1.5, -2.0), ('highshelf', 6000, 0.7, 3.0)],
@@ -385,9 +381,8 @@ MIX = {
         'drums.room': {'bus': 'drums', 'gain': -9.0, 'eq': [('hp', 120)], 'comp': {'thr': -26, 'ratio': 6, 'att_ms': 2, 'rel_ms': 120}},
         'bass': {'gain': 0.0, 'eq': [('hp', 32), ('peak', 90, 1.0, 2.0), ('peak', 250, 1.0, -2.5), ('peak', 1200, 1.2, 2.0)],
                  'comp': {'thr': -20, 'ratio': 4, 'att_ms': 10, 'rel_ms': 120}, 'sat': 3.0},
-        'gtr': {'pan': 0.45, 'gain': -9.0, 'eq': [('hp', 300), ('peak', 2500, 1.0, 2.0)], 'sends': {'room': -10}},
+        'gtr': {'pan': 0.45, 'gain': -6.0, 'eq': [('hp', 250), ('peak', 2500, 1.0, 2.5)], 'comp': {'thr': -20, 'ratio': 3, 'att_ms': 3, 'rel_ms': 60}, 'sends': {'room': -14}},
         'organ': {'pan': -0.1, 'gain': -19.0, 'width': 1.3, 'eq': [('hp', 220), ('lp', 7000)], 'sends': {'room': -8}},
-        'glock': {'pan': 0.3, 'gain': -12.0, 'eq': [('hp', 800)], 'sends': {'plate': -8}},
         'conga': {'pan': -0.4, 'gain': -9.0, 'eq': [('hp', 100)], 'sends': {'room': -10}},
         'tamb': {'pan': 0.5, 'gain': -14.0, 'eq': [('hp', 3000)], 'sends': {'room': -10}},
     },
@@ -397,7 +392,7 @@ MIX = {
     },
     'fx': {
         'room': {'ir': '00.9s Recording Room-OST', 'predelay': 8, 'hp': 400, 'lp': 9000, 'gain': -4.0},
-        'plate': {'ir': '1.3s_Horn Chamber', 'predelay': 18, 'hp': 450, 'lp': 10000, 'gain': -5.0},
+        'plate': {'ir': '1.3s_Horn Chamber', 'predelay': 18, 'hp': 450, 'lp': 10000, 'gain': -60.0},
     },
     'master': {'eq': [('hp', 28), ('peak', 180, 0.8, -0.5), ('highshelf', 10000, 0.7, 1.0)], 'comp': {'thr': -16, 'ratio': 2, 'att_ms': 30, 'rel_ms': 200, 'knee': 8},
                'lufs': -12.0, 'ceiling': -1.0, 'clip': 1.5},

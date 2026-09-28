@@ -9,7 +9,7 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from studio.score import Song, seq, grid, chords, Note
-from studio.arrange import harmonize, comp, pad, shift
+from studio.arrange import drum_fill, harmonize, comp, pad, shift
 
 STYLE = 'jazz samba with bells: flute and harmon-muted trumpet melody, electric piano, upright bass, samba drums, shaker, agogo, triangle, sleigh bells, glockenspiel, strings, harp'
 FORM = ['intro 4 (bells + electric piano, groove, pickup bar)', 'A 8 tune', "A' 8 tune, home cadence", 'B 8 bridge with strings and glockenspiel',
@@ -50,18 +50,17 @@ TUNE_B = [
 SOLO_C = [
     "r:8 C5:8 Eb5:8 F5:8 Ab5:8 G5:8 F5:8 Eb5:8", "D5:4 F5:8 G5:8~ G5:4 r:4",
     "r:8 Ab5:8 G5:8 F5:8 Eb5:8 C5:8 Ab4:8 C5:8", "D5:2. r:4",
-    "r:8 F5:8 Ab5:8 C6:8 Bb5:8 Ab5:8 F5:8 Eb5:8", "E5:4 G5:4 Bb5:4 Eb5:4",
+    "r:8 F5:8 Ab5:8 Bb5:8 Ab5:8 F5:8 Eb5:8 Db5:8", "E5:4 G5:4 Bb5:4 Eb5:4",
     "Ab5:2. G5:4", "F5:8 D5:8 Bb4:8 G4:8 C5:8 Db5:8 D5:8 Eb5:8",
 ]
 PICKUP = "Ab5:4^ r:4 r:8 G4:8 Ab4:8 Bb4:8"
 
 
 def lines(parts, t0):
-    out = []
-    for k, s in enumerate(parts):
-        ns, _ = seq(s, t0 + 4 * k)
-        out += ns
-    return out
+    """Notes of consecutive one-bar lines from beat t0, read as one line (ties carry across bar lines, and every
+    bar is checked to be four beats long)."""
+    ns, _ = seq(' | '.join(parts), t0)
+    return ns
 
 
 def at(bar):
@@ -92,6 +91,7 @@ def compose():
         prog[name] = chords(PROG[name], t)
         t += 4 * bars
     allp = sum(prog.values(), [])
+    s.prog = allp
 
     def melody(notes, flute_up=True):
         """Flute and harmon trumpet in unison; the trumpet drops an octave above A5, the flute doubles an octave up
@@ -130,7 +130,8 @@ def compose():
             ch2 = [c for c in allp if c[0] - 1e-9 <= t0 + 2.01 < c[0] + c[1] - 1e-9][0][2]
             r1 = 32 + ((ch1.bass - 32) % 12)
             r2 = 32 + ((ch2.bass - 32) % 12)
-            f1 = r1 + 7 if r1 + 7 <= 45 else r1 - 5
+            fifth = next((i for i in ch1.ivs if i in (6, 7, 8)), 7)  # the chord's own fifth (a #5 chord gets its #5)
+            f1 = r1 + fifth if r1 + fifth <= 45 else r1 + fifth - 12
             if ch2 is ch1:
                 out += [Note(t0, 1.4, r1, 0.8), Note(t0 + 1.5, 1.9, f1, 0.7), Note(t0 + 3.5, 0.45, r1, 0.62)]
             else:
@@ -206,7 +207,65 @@ def compose():
     P['vln'].add(pad(prog["A''"][:7], 65, 77, n=2, vel=0.45))
     P['vla'].add(pad(prog["A''"][:7], 55, 65, n=2, vel=0.45))
     P['drums'].add(grid('x...............', 'crash', at(A2)) + grid('x...............', 'crash', at(A2 + 4)))
+    # a drummer's fill at the end of each four-bar phrase that has none written
+    for bar, style in [(A0 + 3, 'half'), (A1 + 3, 'half'), (B0 + 3, 'flams'), (C0 + 3, 'snare'), (A2 + 3, 'half')]:
+        drum_fill(P['drums'], bar, style, beats=1)
     return s
+
+
+def shorts():
+    """Course-intro pieces: 6.0 s (the tune's first bar and a ii-V run, a held A-flat 6/9 at 3.5 s with bells ringing)
+    and 2.5 s (a glockenspiel arpeggio and sleigh bells into the A-flat chord at 0.9 s)."""
+    out = {}
+    s = Song('Frostbite Pass - course intro', 'frostbite-pass', BPM, 'A-flat major', 3, 0, seed=42, tail_bars=0)
+    s.about = "flute and harmon trumpet on the tune's first bar and a ii-V run over the samba groove, a held A-flat 6/9 with bells"
+    P = {}
+    P['flute'] = s.part('flute', 'flute_vib', lag_ms=3, jitter_ms=5, mono=True)
+    P['tpt'] = s.part('tpt', 'trumpet_harmon', lag_ms=5, jitter_ms=5, mono=True)
+    P['ep'] = s.part('ep', 'epiano_frost', lag_ms=2, jitter_ms=4)
+    P['bass'] = s.part('bass', 'upright', jitter_ms=4)
+    P['drums'] = s.part('drums', 'kit', jitter_ms=3.5, vel_jitter=0.07, swing=0.53, swing_unit=0.25)
+    P['shaker'] = s.part('shaker', 'shaker', jitter_ms=4, swing=0.53, swing_unit=0.25)
+    P['sleigh'] = s.part('sleigh', 'sleigh', jitter_ms=4)
+    P['glock'] = s.part('glock', 'glock', jitter_ms=3)
+    P['vln'] = s.part('vln', 'violins', lag_ms=8, jitter_ms=6)
+    P['harp'] = s.part('harp', 'harp', jitter_ms=2)
+    pr = chords('Abmaj9 | Bbm9 Eb13 | Ab69', 0)
+    mel = lines([TUNE_A[0], "Db5:8 F5:8 Ab5:8 C6:8 Bb5:8 G5:8 F5:8 Eb5:8", "Ab5:2 r:2"], 0)
+    P['flute'].add([n.copy(p=n.p + 12) if n.p < 70 else n for n in mel])
+    P['tpt'].add([n.copy(p=n.p - 12) if n.p > 81 else n for n in mel])
+    P['ep'].add(comp(pr[:3], 'x..x..x...x..x..', 58, 74, n=4, vel=0.55, dur=0.4, t0=0, t1=8) + lines(["r:1", "r:1", "[C4 Eb4 F4 Bb4]:2"], 0))
+    P['bass'].add(lines(["Ab1:4. Eb2:8~ Eb2:4. Ab1:8", "Bb1:4. F2:8 Eb2:4. Bb1:8", "Ab1:2^ r:2"], 0))
+    P['vln'].add(lines(["r:1", "r:1", "[C5 Eb5 G5]:2"], 0))
+    P['glock'].add([Note(8 + 0.25 * k, 0.5, p, 0.5 - 0.03 * k) for k, p in enumerate([80, 84, 87, 91, 92, 96])])
+    P['harp'].add([Note(8 + k / 12, 1.0, p, 0.45) for k, p in enumerate([44, 51, 56, 60, 63, 68, 72, 75])])
+    for b in range(2):
+        P['drums'].add(grid('x..xx..xx..xx..x', 'kick', 4 * b, vels={'x': 0.62}) + grid('x..x..x...x..x..', 'xstick', 4 * b, vels={'x': 0.6}) +
+                       grid('ggxgggxgggxgggxg', 'hhc', 4 * b, vels={'x': 0.5, 'g': 0.3}))
+        P['shaker'].add(grid('xgxgxgxgxgxgxgxg', 'LShaker_Shake1D', 4 * b, vels={'x': 0.48, 'g': 0.32}))
+    P['sleigh'].add(grid('x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.........', 'Sleighbells_Hit', 0, vels={'x': 0.4}))
+    P['drums'].add(grid('x...............', 'crash', 8) + grid('x...............', 'kick', 8))
+    out['intro-6s'] = (s, 6.0, 8)
+
+    s = Song('Frostbite Pass - course intro short', 'frostbite-pass', BPM, 'A-flat major', 2, 0, seed=43, tail_bars=0)
+    s.about = 'a glockenspiel arpeggio over sleigh bells into an A-flat 6/9 chord'
+    P = {}
+    P['glock'] = s.part('glock', 'glock', jitter_ms=2)
+    P['sleigh'] = s.part('sleigh', 'sleigh', jitter_ms=3)
+    P['ep'] = s.part('ep', 'epiano_frost', jitter_ms=3)
+    P['flute'] = s.part('flute', 'flute_vib', lag_ms=3, jitter_ms=4, mono=True)
+    P['bass'] = s.part('bass', 'upright', jitter_ms=3)
+    P['drums'] = s.part('drums', 'kit', jitter_ms=3)
+    P['harp'] = s.part('harp', 'harp', jitter_ms=2)
+    P['glock'].add(lines(["Eb6:8 C6:8 Ab5:8 Eb6:8 [C6 Ab6]:2", "r:1"], 0))
+    P['sleigh'].add(grid('x.x.x.x.x.......', 'Sleighbells_Hit', 0, vels={'x': 0.45}))
+    P['ep'].add(lines(["r:2 [C4 Eb4 F4 Bb4]:2", "r:1"], 0))
+    P['flute'].add(lines(["r:2 Ab5:2", "r:1"], 0))
+    P['bass'].add(lines(["r:2 Ab1:2", "r:1"], 0))
+    P['harp'].add([Note(2 + k / 16, 1.0, p, 0.42) for k, p in enumerate([56, 60, 63, 68, 72, 75])])
+    P['drums'].add(grid('........x.......', 'crash', 0) + grid('........x.......', 'kick', 0))
+    out['intro-2s'] = (s, 2.5, 2)
+    return out
 
 
 def _ep():

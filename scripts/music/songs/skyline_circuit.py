@@ -11,7 +11,7 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from studio.score import Song, seq, grid, chords, Note
-from studio.arrange import harmonize, comp, pad, shift
+from studio.arrange import drum_fill, harmonize, comp, pad, shift
 
 STYLE = 'orchestral-funk anthem: strings, horns, trumpets, trombones, tuba, timpani, cymbals, harp, glockenspiel, chimes, funk drums, bass, guitar'
 FORM = ['intro 4 (timpani, brass fanfare, pickup bar)', 'A 8 anthem (horns + violins)', "A' 8 answer, trumpets on top",
@@ -23,11 +23,11 @@ A0, A1, B0, C0, A2 = 4, 12, 20, 28, 36
 
 PROG = {
     'intro': 'Eb | Cbmaj7 | Ab Bb | Eb Bb7',
-    'A': 'Eb | Bb/D | Cm7 | Abmaj7 | Eb/G | Ab | Fm7 | Bb7sus4 Bb7',
+    'A': 'Eb | Bb/D | Cm7 | Abmaj7 | Eb/G | Ab | Fm9 | Bb7sus4 Bb7',
     "A'": 'Eb | Bb/D | Cm7 | Abmaj7 | Fm7 | G7 | Cm7 F7 | Dm7b5 G7',
-    'B': 'Cm | Cm | Ab | Ab | Fm | G7 | Cm | Ab7 Db7',
+    'B': 'Cm | Cm | Abmaj7 | Abmaj7 | Fm | G7 | Cm | Ab7 Db7',
     'C': 'Gbmaj7 | Ebm7 | Cbmaj7 | Db7 | Gbmaj7 | Bbm7 | Cbmaj7 | Abm7 Bb7',
-    "A''": 'Eb | Bb/D | Cm7 | Abmaj7 | Eb/G | Ab | Fm7 | Bb7sus4 Bb7 | Ab Bb | Gm7 Cm7 | Fm7 Bb7sus4 | Eb Bb7',
+    "A''": 'Eb | Bb/D | Cm7 | Abmaj7 | Eb/G | Ab | Fm9 | Bb7sus4 Bb7 | Ab Bb | Gm7 Cm7 | Fm7 Bb7sus4 | Eb Bb7',
 }
 
 ANTHEM = [
@@ -64,11 +64,10 @@ FANFARE = ["r:1", "r:2 F5:8t G5:8t Ab5:8t Bb5:4", "C6:2 Bb5:8t Ab5:8t G5:8t F5:4
 
 
 def lines(parts, t0):
-    out = []
-    for k, s in enumerate(parts):
-        ns, _ = seq(s, t0 + 4 * k)
-        out += ns
-    return out
+    """Notes of consecutive one-bar lines from beat t0, read as one line (ties carry across bar lines, and every
+    bar is checked to be four beats long)."""
+    ns, _ = seq(' | '.join(parts), t0)
+    return ns
 
 
 def at(bar):
@@ -100,6 +99,7 @@ def compose():
         prog[name] = chords(PROG[name], t)
         t += 4 * bars
     allp = sum(prog.values(), [])
+    s.prog = allp
 
     def funk(bar0, nbars, heavy=False):
         for b in range(nbars):
@@ -276,7 +276,68 @@ def compose():
     for bar in (A2, A2 + 4, A2 + 8):
         hit(bar, 0, 0.95)
     P['chimes'].add([Note(at(A2), 3, 75, 0.6), Note(at(A2 + 8), 3, 68, 0.6)])
+    # a drummer's fill at the end of each four-bar phrase that has none written
+    for bar, style in [(A0 + 3, 'toms'), (A1 + 3, 'snare'), (B0 + 3, 'down'), (A2 + 3, 'toms'), (A2 + 7, 'rush')]:
+        drum_fill(P['drums'], bar, style, beats=1)
     return s
+
+
+def shorts():
+    """Course-intro pieces: 6.0 s (a timpani roll, the anthem's triplet fanfare, a held E-flat major chord with
+    orchestra, cymbal and chimes at 3.1 s) and 2.5 s (the triplet run into an E-flat hit at 0.8 s)."""
+    out = {}
+    s = Song('Skyline Circuit - course intro', 'skyline-circuit', BPM, 'E-flat major', 3, 0, seed=68, tail_bars=0)
+    s.about = "a timpani roll and the anthem's triplet fanfare into a held E-flat major chord with the whole orchestra"
+    P = {}
+    for name, inst, lag in (('tpt1', 'trumpet', 4), ('tpt2', 'trumpet', 6), ('horns', 'horn', 8), ('tbn', 'trombone', 7), ('tuba', 'tuba', 6)):
+        P[name] = s.part(name, inst, lag_ms=lag, jitter_ms=4, mono=(name in ('tpt1', 'tpt2', 'tuba')))
+    for name, inst in (('vln', 'violins'), ('vln2', 'violins'), ('vla', 'violas'), ('vc', 'celli'), ('timp', 'timpani'), ('cym', 'cymbals'),
+                       ('bd', 'bassdrum'), ('harp', 'harp'), ('glock', 'glock'), ('chimes', 'chimes')):
+        P[name] = s.part(name, inst, lag_ms=5 if name.startswith('v') else 0, jitter_ms=4)
+    P['drums'] = s.part('drums', 'kit', jitter_ms=3)
+    P['bass'] = s.part('bass', 'ebass', jitter_ms=3, mono=True)
+    P['timp'].add([Note(0.25 * k, 0.25, 34, 0.35 + 0.05 * k) for k in range(8)])
+    P['cym'].add([Note(0, 2.0, 'swell', 0.75)])
+    fan = lines(["r:2 F5:8t G5:8t Ab5:8t Bb5:4", "C6:2 Bb5:8t Ab5:8t G5:8t F5:4", "G5:2 r:2"], 0)
+    pr = chords('Eb | Ab Bb | Eb', 0)
+    hv = harmonize(fan, pr, 3, drop2=False, key=(3, 'major'))
+    P['tpt1'].add(hv[0]); P['tpt2'].add(hv[1]); P['horns'].add(shift(hv[2], 0, -12))
+    P['vln'].add(shift(fan, 0, 12, vel=0.75)); P['vln2'].add(fan)
+    P['horns'].add(lines(["r:1", "[Eb4 Ab4 C5]:2 [D4 F4 Bb4]:2", "[Eb4 G4 Bb4]:2"], 0))
+    P['tbn'].add(lines(["r:1", "[Ab3 C4]:2 [Bb3 D4]:2", "[G3 Bb3]:2"], 0))
+    P['tuba'].add(lines(["Eb2:1", "Ab1:2 Bb1:2", "Eb1:2"], 0))
+    P['vla'].add(lines(["r:1", "[Eb4 Ab4]:2 [F4 Bb4]:2", "[Eb4 G4]:2"], 0))
+    P['vc'].add(lines(["Eb3:1", "Ab2:2 Bb2:2", "Eb2:2"], 0))
+    P['bass'].add(lines(["r:1", "Ab1:2 Bb1:2", "Eb1:2^"], 0))
+    P['timp'].add([Note(8, 1, 39, 0.95), Note(8, 1, 34, 0.8)])
+    P['cym'].add([Note(8, 2, 'clash', 0.95)]); P['bd'].add([Note(8, 1, 'hit', 0.9)])
+    P['chimes'].add([Note(8, 2, 75, 0.65), Note(8, 2, 70, 0.55)])
+    P['glock'].add([Note(8, 1, 91, 0.55), Note(8.25, 1, 94, 0.5)])
+    P['harp'].add([Note(7 + k / 12, 1.0, p, 0.5) for k, p in enumerate([51, 55, 58, 63, 67, 70, 75, 79, 82, 87, 91, 94])])
+    P['drums'].add(grid('................|x.....x.x.x.x...|x...............', 'kick', 0) +
+                   grid('................|....x..x.xxxxxxx|................', 'snare', 0, vels={'x': 0.7}) +
+                   grid('................|................|x...............', 'crash', 0))
+    out['intro-6s'] = (s, 6.0, 8)
+
+    s = Song('Skyline Circuit - course intro short', 'skyline-circuit', BPM, 'E-flat major', 2, 0, seed=69, tail_bars=0)
+    s.about = "the anthem's triplet run into an E-flat major hit with timpani, cymbal and chimes"
+    P = {}
+    for name, inst, lag in (('tpt1', 'trumpet', 4), ('tpt2', 'trumpet', 6), ('horns', 'horn', 8), ('tbn', 'trombone', 7), ('tuba', 'tuba', 6)):
+        P[name] = s.part(name, inst, lag_ms=lag, jitter_ms=3, mono=(name in ('tpt1', 'tpt2', 'tuba')))
+    for name, inst in (('vln', 'violins'), ('vla', 'violas'), ('vc', 'celli'), ('timp', 'timpani'), ('cym', 'cymbals'), ('bd', 'bassdrum'), ('chimes', 'chimes')):
+        P[name] = s.part(name, inst, jitter_ms=3)
+    run = lines(["F4:8t G4:8t Ab4:8t Bb4:8t C5:8t D5:8t r:2", "r:1"], 0)
+    P['vln'].add(run + shift(run, 0, 12)); P['horns'].add(shift(run, 0, -12))
+    for p, part in ((79, 'tpt1'), (75, 'tpt2'), (70, 'tbn')):
+        P[part].add([Note(2, 1.6, p if part != 'tbn' else p - 12, 0.9, {'acc'})])
+    P['horns'].add([Note(2, 1.6, p, 0.85) for p in (63, 67, 70)])
+    P['vln'].add([Note(2, 1.8, p, 0.8) for p in (79, 87)]); P['vla'].add([Note(2, 1.8, 70, 0.7)]); P['vc'].add([Note(2, 1.8, 39, 0.8)])
+    P['tuba'].add([Note(2, 1.6, 27, 0.85)])
+    P['timp'].add([Note(1.5 + 0.125 * k, 0.125, 34, 0.5 + 0.1 * k) for k in range(4)] + [Note(2, 1, 39, 0.95)])
+    P['cym'].add([Note(2, 2, 'clash', 0.9)]); P['bd'].add([Note(2, 1, 'hit', 0.85)])
+    P['chimes'].add([Note(2, 2, 75, 0.6)])
+    out['intro-2s'] = (s, 2.5, 2)
+    return out
 
 
 MIX = {

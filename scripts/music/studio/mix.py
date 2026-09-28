@@ -11,6 +11,9 @@ SR = dsp.SR
 def chain(x, spec, key=None):
     """One channel strip. spec keys: eq, comp, sat, width, pan, gain, gate, chorus, delay_ins."""
     y = x
+    if spec.get('amp'):
+        from .modern import amp
+        y = amp(y, **spec['amp'])
     if spec.get('hp'):
         y = dsp.hp2(y, spec['hp'])
     if spec.get('eq'):
@@ -114,6 +117,13 @@ def mixdown(stems, spec, n):
     for f, fs in fx_spec.items():
         if fs.get('kind', 'reverb') == 'delay':
             y = dsp.delay(sends[f], fs['time'], fb=fs.get('fb', 0.3), lp=fs.get('lp', 5000), hp=fs.get('hp', 300), pingpong=fs.get('pingpong', False))
+        elif fs.get('kind') == 'gated':
+            from .modern import gated_ir
+            from scipy.signal import fftconvolve
+            h = gated_ir(fs.get('length', 0.26))
+            src = sends[f]
+            y = np.stack([fftconvolve(src[c], h[c])[:n] for c in range(2)]).astype(np.float32)
+            y = dsp.eq(y, [('hp', fs.get('hp', 250)), ('lp', fs.get('lp', 9000))])
         else:
             y = dsp.reverb(sends[f], fs['ir'], predelay_ms=fs.get('predelay', 0), hp=fs.get('hp', 250), lp=fs.get('lp', 9000), decay_scale=fs.get('decay', 1.0), width_=fs.get('width', 1.0))
         y = chain(y, {k: v for k, v in fs.items() if k in ('eq', 'comp', 'gain', 'width')})
@@ -165,7 +175,14 @@ def master(x, spec):
     into a true-peak limiter."""
     y = x
     rep = {}
-    if spec.get('match', True):
+    if spec.get('fixed_match') is not None:
+        # a short piece from the same song: the song's own match EQ, not one fitted to a few seconds
+        g = spec['fixed_match']
+        bands = [('lowshelf', 60, 0.7, g[0])] + [('peak', float(np.sqrt(a * b)), 1.1, gg) for (a, b), gg in zip(BANDS[1:-1], g[1:-1])] + \
+            [('highshelf', 8000, 0.7, g[-1])]
+        y = dsp.eq(y, bands)
+        rep['matchEq'] = g
+    elif spec.get('match', True):
         y, rep['matchEq'] = match_eq(y, spec.get('target'), spec.get('match_amount', 0.8), spec.get('match_max', 7.0))
     if spec.get('eq'):
         y = dsp.eq(y, spec['eq'])
@@ -176,6 +193,13 @@ def master(x, spec):
     target, ceil = spec.get('lufs', -12.0), spec.get('ceiling', -1.0)
     g = 0.0
     out = y
+    if spec.get('fixed_gain') is not None:
+        z = y * dsp.undb(spec['fixed_gain'])
+        if spec.get('clip'):
+            z = dsp.softclip(z * dsp.undb(spec['clip']), -0.1) * dsp.undb(-spec['clip'])
+        out, _ = dsp.limit(z, ceil)
+        rep.update({'lufs': round(dsp.lufs(out), 2), 'truePeak': round(dsp.true_peak_db(out), 2), 'gainDb': spec['fixed_gain']})
+        return out, rep
     for _ in range(4):
         z = y * dsp.undb(g)
         if spec.get('clip'):

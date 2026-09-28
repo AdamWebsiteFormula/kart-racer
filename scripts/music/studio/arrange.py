@@ -28,6 +28,32 @@ def tremolo(notes, step=0.25, soft=0.78, keep_first=True):
     return out
 
 
+FILLS = {
+    # the last beat (or two) of a phrase: piece -> step pattern over those beats (16ths)
+    'snare': {'snare': '....xxXX', 'kick': 'x.......'},
+    'toms': {'snare': '....x...', 'tomh': '.....x..', 'toml': '......xX', 'kick': 'x.......'},
+    'flams': {'flam': '....x.x.', 'kick': 'x.......'},
+    'rush': {'snare': 'xxxxxxXX', 'kick': 'x...x...'},
+    'down': {'snare': '....x.x.', 'tomh': '.....x..', 'toml': '.......x', 'kick': 'x.......'},
+    'half': {'snare': '......xX', 'kick': 'x...x...'},
+}
+
+
+def drum_fill(part, bar, style='snare', vel=0.75, beats=2, clear=('hhc', 'hho', 'hhh', 'snare', 'ride', 'rim', 'xstick', 'tomh', 'toml')):
+    """Replace the last `beats` beats of `bar` in a kit part with a fill (the grooves' hats and snare there removed)."""
+    from .score import grid
+    t0 = 4.0 * bar + 4.0 - beats
+    t1 = 4.0 * (bar + 1)
+    part.notes = [n for n in part.notes if not (t0 - 1e-6 <= n.t < t1 - 1e-6 and n.p in clear)]
+    for piece, pat in FILLS[style].items():
+        pat = pat[-4 * beats:] if len(pat) >= 4 * beats else pat.rjust(4 * beats, '.')
+        for k, ch in enumerate(pat):
+            if ch in 'xX':
+                v = vel * (0.75 + 0.25 * k / max(1, len(pat) - 1)) * (1.1 if ch == 'X' else 1.0)
+                part.notes.append(Note(t0 + 0.25 * k, 0.25, piece, min(1.0, v)))
+    return part
+
+
 def window(notes, a, b):
     return [n for n in notes if a - 1e-9 <= n.t < b - 1e-9]
 
@@ -77,9 +103,10 @@ def voicing_under(lead, ch: Chord, n=4, drop2=True, scale=None, prev=None):
     return notes
 
 
-def harmonize(lead_notes, prog, n=4, drop2=True, parallel_short=0.26, key=None):
-    """Voices for a lead line: [voice1 (the lead), voice2, ...]. Notes shorter than `parallel_short` beats that are
-    not chord tones move in parallel with the previous voicing (diatonic when `key` = (tonic, scale) is given)."""
+def harmonize(lead_notes, prog, n=4, drop2=True, parallel_short=0.51, key=None):
+    """Voices for a lead line: [voice1 (the lead), voice2, ...]. A short passing note (under `parallel_short` beats,
+    not in the chord) moves the voicing in parallel, diatonically when `key` = (tonic, scale) is given. A note held
+    across a chord change keeps sounding on top while the voices under it move to the new chord."""
     voices = [[] for _ in range(n)]
     last = None
     for m in sorted(lead_notes, key=lambda x: x.t):
@@ -95,8 +122,23 @@ def harmonize(lead_notes, prog, n=4, drop2=True, parallel_short=0.26, key=None):
                 vs = [v + d for v in last]
         else:
             vs = voicing_under(m.p, ch, n, drop2)
-        for i in range(n):
-            voices[i].append(m.copy(p=vs[i]))
+        voices[0].append(m.copy(p=vs[0]))
+        # the chord changes under a held note: split the lower voices there and re-voice them
+        cuts = [s for (s, d_, c) in prog if m.t + 0.01 < s < m.t + m.d - 0.01]
+        seg_start, seg_vs = m.t, vs
+        ends = cuts + [m.t + m.d]
+        for k, tc in enumerate(ends):
+            art = set(m.art)
+            if k < len(ends) - 1:
+                art -= {'fall', 'doit', 'shake'}
+            if k > 0:
+                art -= {'scoop', 'bend', 'acc', 'marc'}
+            for i in range(1, n):
+                voices[i].append(m.copy(t=seg_start, d=tc - seg_start, p=seg_vs[i], art=frozenset(art)))
+            if tc < m.t + m.d - 0.01:
+                ch2 = chord_at(prog, tc + 0.01)
+                seg_vs = voicing_under(m.p, ch2, n, drop2)
+                seg_start = tc
         last = vs
     return voices
 

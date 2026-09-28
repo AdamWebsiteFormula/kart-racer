@@ -10,7 +10,7 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from studio.score import Song, seq, grid, chords, Note
-from studio.arrange import harmonize, comp, pad, shift, tremolo
+from studio.arrange import drum_fill, harmonize, comp, pad, shift, tremolo
 
 STYLE = 'surf rock with mariachi-style trumpets: tremolo-picked lead guitar with spring reverb, rhythm guitar, bass, surf drums on the toms, two trumpets in thirds, trombone, tambourine'
 FORM = ['intro 4 (tom roll, guitar slide, hits, pickup bar)', 'A 16 lead guitar tune (tremolo picked)', 'B 16 trumpets in thirds, western melody',
@@ -44,11 +44,10 @@ RIFF_C = "E2:8 E2:8 G2:8 E2:8 A2:8 E2:8 Bb2:8 B2:8"
 
 
 def lines(parts, t0):
-    out = []
-    for k, s in enumerate(parts):
-        ns, _ = seq(s, t0 + 4 * k)
-        out += ns
-    return out
+    """Notes of consecutive one-bar lines from beat t0, read as one line (ties carry across bar lines, and every
+    bar is checked to be four beats long)."""
+    ns, _ = seq(' | '.join(parts), t0)
+    return ns
 
 
 def at(bar):
@@ -74,6 +73,7 @@ def compose():
         prog[name] = chords(PROG[name], t)
         t += 4 * bars
     allp = sum(prog.values(), [])
+    s.prog = allp
 
     # ---------------------------------------------------------------- intro
     P['drums'].add(grid('................|................|x.......x.......', 'kick', at(0)) +
@@ -115,7 +115,7 @@ def compose():
             for k in range(8):
                 tt = at(bar0 + b) + 0.5 * k
                 ch = [c for c in allp if c[0] - 1e-9 <= tt + 0.01 < c[0] + c[1] - 1e-9][0][2]
-                r = 40 + ((ch.bass - 40) % 12)
+                r = 28 + ((ch.bass - 28) % 12)
                 p = r + (12 if k in (3, 7) and b % 2 else 0)
                 out.append(Note(tt, 0.45, p, vel + (0.1 if k % 2 == 0 else 0)))
         return out
@@ -130,8 +130,8 @@ def compose():
     P['drums'].add(grid('x...............', 'crash', at(A0)) + grid('x...............', 'crash', at(A0 + 8)) +
                    grid('x.......xxxxxxxx', 'snare', at(A0 + 15), vels={'x': 0.7}))
     # trumpets answer the long notes of the tune in the second half
-    P['tpt1'].add(lines(["r:1", "r:2 r:8 E5:8 F#5:8 G5:8", "r:1", "r:2 r:8 A5:8 B5:8 C6:8", "r:1", "r:1", "r:2 E6:4!fall r:4"], at(A0 + 8)))
-    P['tpt2'].add(lines(["r:1", "r:2 r:8 C5:8 D5:8 E5:8", "r:1", "r:2 r:8 F#5:8 G5:8 A5:8", "r:1", "r:1", "r:2 B5:4!fall r:4"], at(A0 + 8)))
+    P['tpt1'].add(lines(["r:1", "r:2 r:8 E5:8 F#5:8 G5:8", "r:1", "r:2 r:8 A5:8 B5:8 C6:8", "r:1", "r:1", "r:2 E5:4!fall r:4"], at(A0 + 8)))
+    P['tpt2'].add(lines(["r:1", "r:2 r:8 C5:8 D5:8 E5:8", "r:1", "r:2 r:8 F#5:8 G5:8 A5:8", "r:1", "r:1", "r:2 B4:4!fall r:4"], at(A0 + 8)))
     P['organ'].add(pad(prog['A'], 59, 71, n=3, vel=0.4))
 
     # ---------------------------------------------------------------- B: the trumpets' western melody in thirds
@@ -187,7 +187,63 @@ def compose():
         P['tamb'].add(grid('....x.......x...', 'Tamb1_Shake', at(bar), vels={'x': 0.6}))
     P['drums'].add(grid('x...............', 'crash', at(A2)) + grid('x...............', 'crash', at(A2 + 4)))
     P['organ'].add(pad(prog["A'"][:6], 59, 71, n=3, vel=0.4))
+    # a drummer's fill at the end of each four-bar phrase that has none written
+    for bar, style in [(A0 + 3, 'toms'), (A0 + 7, 'down'), (A0 + 11, 'toms'), (B0 + 3, 'snare'), (B0 + 7, 'flams'), (B0 + 11, 'toms'), (A2 + 3, 'down')]:
+        drum_fill(P['drums'], bar, style, beats=1)
     return s
+
+
+def shorts():
+    """Course-intro pieces: 6.0 s (the tune's first two bars tremolo-picked over the surf beat, a B7 hit, a held
+    E minor chord at 4.1 s) and 2.5 s (the surf slide and a tom fill into an E minor hit at 1.4 s)."""
+    out = {}
+    s = Song('Mesa Rush - course intro', 'canyon-rush', BPM, 'E minor', 4, 0, seed=38, tail_bars=0)
+    s.about = "the lead guitar's first two bars over the surf beat, trumpet hits on B7, a held E minor chord"
+    P = {}
+    P['lead'] = s.part('lead', 'guitar', jitter_ms=3, vel_jitter=0.06)
+    P['rhy'] = s.part('rhy', 'guitar', lag_ms=2, jitter_ms=4)
+    P['bass'] = s.part('bass', 'ebass', lag_ms=1, jitter_ms=3, mono=True)
+    P['drums'] = s.part('drums', 'kit', jitter_ms=3.5, vel_jitter=0.06)
+    P['tpt1'] = s.part('tpt1', 'trumpet', lag_ms=4, jitter_ms=5, mono=True)
+    P['tpt2'] = s.part('tpt2', 'trumpet', lag_ms=7, jitter_ms=6, mono=True)
+    P['tbn'] = s.part('tbn', 'trombone', lag_ms=6, jitter_ms=6, mono=True)
+    P['tamb'] = s.part('tamb', 'tamb', jitter_ms=4)
+    pr = chords('Em | Em | B7 | Em', 0)
+    P['lead'].add(tremolo(lines([TUNE[0], TUNE[1], "D#5:4 F#5:4 A5:4 B5:4", "E5:2 r:2"], 0), 0.25))
+    P['rhy'].add([n.copy(art=n.art | {'stac'}) for n in comp(pr[:3], 'x.xxx.xxx.xxx.xx', 52, 67, n=4, vel=0.5, dur=0.2, t0=0, t1=12)])
+    P['rhy'].add(lines(["r:1", "r:1", "r:1", "[E3 B3 E4 G4]:2^"], 0))
+    P['bass'].add(lines(["E2:8 E2:8 E2:8 E2:8 E2:8 E2:8 E2:8 E2:8", "E2:8 E2:8 E2:8 E2:8 G2:8 G2:8 A2:8 A#2:8",
+                         "B1:8 B1:8 B1:8 B1:8 B1:8 B1:8 B1:8 B1:8", "E1:2^ r:2"], 0))
+    P['tpt1'].add(lines(["r:1", "r:1", "F#5:4^ r:8 F#5:8^ A5:4^ r:4", "G5:2!vib r:2"], 0))
+    P['tpt2'].add(lines(["r:1", "r:1", "D#5:4^ r:8 D#5:8^ F#5:4^ r:4", "E5:2!vib r:2"], 0))
+    P['tbn'].add(lines(["r:1", "r:1", "B2:4^ r:8 B2:8^ B2:4^ r:4", "E3:2 r:2"], 0))
+    for b in range(2):
+        P['drums'].add(grid('x.......x..x....', 'kick', 4 * b) + grid('....X.......X...', 'snare', 4 * b) +
+                       grid('x.x.x.x.x.x.x.x.', 'toml', 4 * b, vels={'x': 0.45}) + grid('x.x.x.x.x.x.x.x.', 'hhc', 4 * b, vels={'x': 0.35}))
+        P['tamb'].add(grid('....x.......x...', 'Tamb1_Shake', 4 * b, vels={'x': 0.6}))
+    P['drums'].add(grid('x...............', 'crash', 0) + grid('x.......x.......', 'kick', 8) + grid('x.......xxxxxxxx', 'snare', 8, vels={'x': 0.7}) +
+                   grid('x...............', 'crash', 12) + grid('x...............', 'kick', 12))
+    out['intro-6s'] = (s, 6.0, 12)
+
+    s = Song('Mesa Rush - course intro short', 'canyon-rush', BPM, 'E minor', 2, 0, seed=39, tail_bars=0)
+    s.about = 'the surf slide down the low string, a tom fill, an E minor hit with the trumpets'
+    P = {}
+    P['lead'] = s.part('lead', 'guitar', jitter_ms=2)
+    P['rhy'] = s.part('rhy', 'guitar', jitter_ms=3)
+    P['bass'] = s.part('bass', 'ebass', jitter_ms=3, mono=True)
+    P['drums'] = s.part('drums', 'kit', jitter_ms=3)
+    P['tpt1'] = s.part('tpt1', 'trumpet', lag_ms=4, jitter_ms=4, mono=True)
+    P['tpt2'] = s.part('tpt2', 'trumpet', lag_ms=6, jitter_ms=4, mono=True)
+    P['tbn'] = s.part('tbn', 'trombone', lag_ms=6, jitter_ms=4, mono=True)
+    P['lead'].add([Note(0, 2.0, 52, 0.95, {'fall'}, {'fall_st': 19, 'fall_len': 0.55})])
+    P['lead'].add(tremolo([Note(4, 1.5, 76, 0.8)], 0.25))
+    P['rhy'].add(lines(["r:1", "[E3 B3 E4 G4]:2^ r:2"], 0))
+    P['bass'].add(lines(["r:2 B1:8 B1:8 B1:8 B1:8", "E1:2^ r:2"], 0))
+    P['tpt1'].add(lines(["r:1", "G5:2^!vib r:2"], 0)); P['tpt2'].add(lines(["r:1", "E5:2^!vib r:2"], 0)); P['tbn'].add(lines(["r:1", "B3:2^ r:2"], 0))
+    P['drums'].add(grid('........x.x.x.x.|x...............', 'tomh', 0, vels={'x': 0.65}) + grid('.........x.x.x.x|................', 'toml', 0, vels={'x': 0.7}) +
+                   grid('................|x...............', 'crash', 0) + grid('................|x...............', 'kick', 0))
+    out['intro-2s'] = (s, 2.5, 4)
+    return out
 
 
 def _combo():

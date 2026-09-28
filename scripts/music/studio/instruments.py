@@ -207,7 +207,19 @@ RACK = {
     'lead': lambda: synths.Lead(),
     'calliope': lambda: synths.Calliope(),
     'riser': lambda: synths.Riser(),
+    'supersaw': lambda: _modern().Supersaw(),
+    'reese': lambda: _modern().Reese(),
+    'sub': lambda: _modern().SubBass(),
+    'pluck': lambda: _modern().Pluck(),
+    'pad': lambda: _modern().Pad(),
+    'bell': lambda: _modern().Bell(),
+    'edrums': lambda: _modern().DrumSynth(),
 }
+
+
+def _modern():
+    from . import modern
+    return modern
 
 
 def custom(name, factory):

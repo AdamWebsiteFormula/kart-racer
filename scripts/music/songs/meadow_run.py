@@ -11,7 +11,7 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from studio.score import Song, seq, grid, chords, Note
-from studio.arrange import harmonize, comp, pad, shift
+from studio.arrange import drum_fill, harmonize, comp, pad, shift
 from studio.theory import Chord
 
 STYLE = 'bluegrass-funk: fiddle lead, banjo rolls, upright bass, guitar chops, funk drums, small horn section, clarinet, xylophone, cowbell'
@@ -89,11 +89,10 @@ ROLLS = {  # 8 eighths per bar; 1-4 are strings (1 highest), 5 the drone
 
 
 def lines(parts, t0):
-    out = []
-    for k, s in enumerate(parts):
-        ns, _ = seq(s, t0 + 4 * k)
-        out += ns
-    return out
+    """Notes of consecutive one-bar lines from beat t0, read as one line (ties carry across bar lines, and every
+    bar is checked to be four beats long)."""
+    ns, _ = seq(' | '.join(parts), t0)
+    return ns
 
 
 def at(bar):
@@ -138,6 +137,7 @@ def compose():
         prog[name] = chords(PROG[name], t)
         t += 4 * bars
     allp = sum(prog.values(), [])
+    s.prog = allp
 
     # ---------------------------------------------------------------- intro: the banjo alone, then the band
     P['banjo'].add(roll(allp, 0, 3, 'forward'))
@@ -211,7 +211,7 @@ def compose():
         semis = {0: 0, 1: 0, 2: 5, 3: 5, 4: 0, 5: 0, 6: 7, 7: 7}[b]
         r = shift(lines([RIFF_G], at(B0 + b)), 0, semis)
         P['bass'].add(r)
-        P['banjo'].add([n.copy(p=n.p + 24, v=0.6, art=n.art | {'stac'}) for n in r])
+        P['banjo'].add([n.copy(p=n.p + 12, v=0.6, art=n.art | {'stac'}) for n in r])
     P['clar'].add(lines(CLAR_B, at(B0)))
     # horn stabs on the upbeats in B's first half
     stab_prog = prog['B'][:8]
@@ -261,7 +261,7 @@ def compose():
     hv = harmonize([n for n in hi], allp, 3, drop2=False, key=(2, 'major'))
     P['tpt1'].add(shift(hv[0], 0, -12))
     P['tpt2'].add(shift(hv[1], 0, -12))
-    P['tbn'].add(shift(hv[2], 0, -24))
+    P['tbn'].add(shift(hv[2], 0, -12))
     P['xylo'].add([n.copy(p=n.p + 12 if n.p < 84 else n.p, v=0.55, d=0.3) for n in hi if n.d >= 0.9])
     P['banjo'].add(roll(allp, A2, 7, 'forward'))
     P['bass'].add(two_beat(A2, 7, allp))
@@ -271,7 +271,63 @@ def compose():
                        grid('x.x.x.x.x.x.x.x.', 'hhc', at(A2 + b), vels={'x': 0.5}))
         P['shaker'].add(grid('x.x.x.x.x.x.x.x.', 'LShaker_Shake1D', at(A2 + b), vels={'x': 0.45}))
     P['drums'].add(grid('x...............', 'crash', at(A2)) + grid('x...............', 'crash', at(A2 + 4)))
+    # a drummer's fill at the end of each four-bar phrase that has none written
+    for bar, style in [(A0 + 3, 'snare'), (A0 + 7, 'toms'), (A0 + 11, 'flams'), (B0 + 3, 'down'), (B0 + 11, 'snare'), (A2 + 3, 'toms')]:
+        drum_fill(P['drums'], bar, style, beats=1)
     return s
+
+
+def shorts():
+    """Course-intro pieces from the fiddle tune: 6.0 s (three bars of the tune over banjo rolls, a D chord at 4.3 s,
+    held) and 2.5 s (a banjo roll and a fiddle run up into a D chord at 1.4 s)."""
+    out = {}
+    s = Song('Windmill Run - course intro', 'meadow-run', BPM, 'D major', 4, 0, seed=24, tail_bars=0)
+    s.about = "the fiddle tune's first bars over banjo rolls and the train beat, landing on a held D chord"
+    P = {}
+    P['fiddle'] = s.part('fiddle', 'fiddle', lag_ms=3, jitter_ms=5, mono=True, swing=0.53)
+    P['banjo'] = s.part('banjo', 'banjo', lag_ms=-2, jitter_ms=4, vel_jitter=0.07, swing=0.53)
+    P['bass'] = s.part('bass', 'upright', jitter_ms=4, swing=0.53)
+    P['gtr'] = s.part('gtr', 'guitar', lag_ms=2, jitter_ms=4, swing=0.53)
+    P['drums'] = s.part('drums', 'kit', jitter_ms=3.5, vel_jitter=0.06, swing=0.53)
+    P['tpt1'] = s.part('tpt1', 'trumpet', lag_ms=5, jitter_ms=5, mono=True)
+    P['tpt2'] = s.part('tpt2', 'trumpet', lag_ms=6, jitter_ms=6, mono=True)
+    P['tbn'] = s.part('tbn', 'trombone', lag_ms=7, jitter_ms=6, mono=True)
+    P['shaker'] = s.part('shaker', 'shaker', jitter_ms=5, swing=0.53)
+    pr = chords('D | G | D A | D', 0)
+    P['fiddle'].add(lines([TUNE_LOW[0], TUNE_LOW[1], TUNE_LOW[6], "[A4 D5]:2^ r:2"], 0))
+    P['banjo'].add(roll(pr, 0, 3, 'forward') + [Note(12 + 0.06 * k, 1.5, p, 0.7) for k, p in enumerate([50, 57, 62, 66, 69])])
+    P['bass'].add(lines(["D2:4 r:4 A1:4 r:4", "G1:4 r:4 D2:4 r:4", "D2:4 r:4 A1:4 C#2:4", "D2:2^ r:2"], 0))
+    P['gtr'].add([n.copy(art=n.art | {'stac'}) for n in comp(pr[:4], '....x.......x...', 55, 67, n=3, vel=0.6, dur=0.18, t0=0, t1=12)])
+    P['gtr'].add(lines(["r:1", "r:1", "r:1", "[D3 A3 D4 F#4]:2"], 0))
+    P['tpt1'].add(lines(["r:1", "r:1", "r:1", "F#5:2^"], 0)); P['tpt2'].add(lines(["r:1", "r:1", "r:1", "D5:2^"], 0))
+    P['tbn'].add(lines(["r:1", "r:1", "r:1", "A3:2^"], 0))
+    for b in range(3):
+        P['drums'].add(grid('x......xx.......', 'kick', 4 * b) + grid('ggggXgggggggXggg', 'snare', 4 * b, vels={'g': 0.28, 'X': 0.95}) +
+                       grid('x.x.x.x.x.x.x.x.', 'hhc', 4 * b, vels={'x': 0.45}))
+        P['shaker'].add(grid('x.x.x.x.x.x.x.x.', 'LShaker_Shake1D', 4 * b, vels={'x': 0.45}))
+    P['drums'].add(grid('x...............', 'crash', 0) + grid('x...............', 'kick', 12) + grid('x...............', 'crash', 12))
+    out['intro-6s'] = (s, 6.0, 12)
+
+    s = Song('Windmill Run - course intro short', 'meadow-run', BPM, 'D major', 2, 0, seed=25, tail_bars=0)
+    s.about = 'a banjo roll, the fiddle running up the scale, a D chord hit'
+    P = {}
+    P['fiddle'] = s.part('fiddle', 'fiddle', lag_ms=3, jitter_ms=4, mono=True)
+    P['banjo'] = s.part('banjo', 'banjo', lag_ms=-2, jitter_ms=4, vel_jitter=0.07)
+    P['bass'] = s.part('bass', 'upright', jitter_ms=4)
+    P['drums'] = s.part('drums', 'kit', jitter_ms=3)
+    P['tpt1'] = s.part('tpt1', 'trumpet', lag_ms=5, jitter_ms=5, mono=True)
+    P['tbn'] = s.part('tbn', 'trombone', lag_ms=7, jitter_ms=6, mono=True)
+    P['gtr'] = s.part('gtr', 'guitar', jitter_ms=3)
+    pr = chords('D | D', 0)
+    P['banjo'].add(roll(pr, 0, 1, 'forward') + [Note(4 + 0.05 * k, 1.5, p, 0.72) for k, p in enumerate([50, 57, 62, 66, 69])])
+    P['fiddle'].add(lines(["r:2 A4:16 B4:16 C#5:16 D5:16 E5:16 F#5:16 G5:16 G#5:16", "[A5 D6]:2^ r:2"], 0))
+    P['bass'].add(lines(["D2:4 r:4 A1:4 C#2:4", "D2:2^ r:2"], 0))
+    P['tpt1'].add(lines(["r:1", "F#5:2^"], 0)); P['tbn'].add(lines(["r:1", "D4:2^"], 0))
+    P['gtr'].add(lines(["r:1", "[D3 A3 D4 F#4]:2"], 0))
+    P['drums'].add(grid('x.......x.......|x...............', 'kick', 0) + grid('........xxxxxxxx|................', 'snare', 0, vels={'x': 0.6}) +
+                   grid('................|x...............', 'crash', 0))
+    out['intro-2s'] = (s, 2.5, 4)
+    return out
 
 
 MIX = {
