@@ -31,6 +31,13 @@ const column = (entries: Entry[], twoByTwo: boolean): FocusModel => {
 };
 
 /**
+ * The start screen's prompt (design §12, 28 Sept 2026: Mario Kart World's title says "Press L + R to start"), in the
+ * words of the input in hand: any key on a keyboard, any button once a pad is used, a tap on a touch screen (the
+ * stylesheet shows one: `data-input` and `(pointer: coarse)`).
+ */
+export const START_PROMPT = Object.freeze({ keys: 'Press any key', pad: 'Press any button', touch: 'Tap to start' });
+
+/**
  * The title's menu: one band under another down the left, as Mario Kart World's main menu sets its own (design §12,
  * 26 Sept 2026); on a phone on its side too, the logo beside them (menus.css), so the focus runs up and down everywhere.
  */

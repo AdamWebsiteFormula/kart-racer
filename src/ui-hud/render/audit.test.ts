@@ -222,6 +222,7 @@ describe('unlocks in the UI (design §10)', () => {
     const again = new UiRoot(document.body, host(), null);
     again.save.unlocked.skins = ['sprocket-alt'];
     again.dispatch({ type: 'boot' });
+    again.dispatch({ type: 'press' }); // past the start screen
     (document.querySelector('#ui .title.on [data-id="unlocks"]') as HTMLElement).click();
     expect(again.app.overlays).toEqual(['unlocks']);
     const rows = [...document.querySelectorAll('#ui .unlocks.on .unlock')];

@@ -34,10 +34,17 @@ export interface AppState {
   kartId?: string;
   /** the ship switch (UI.kartPick): on, the Racer screen goes on to the Kart screen; off, straight on, everyone in their own kart */
   kartPick?: boolean;
+  /**
+   * The start screen has been pressed through (any key, a pad's button, a click or a tap: the press that lets the
+   * browser start the sound; design §12, 28 Sept 2026): from then on the title shows its menu. Absent: the start screen.
+   */
+  pressed?: boolean;
 }
 
 export type AppAction =
   | { type: 'boot' }
+  /** the start screen's press: the title's menu comes in (the host starts the title music from the same press) */
+  | { type: 'press' }
   | { type: 'start' }
   | { type: 'pickMode'; mode: RaceMode }
   | { type: 'pickRacer'; racerId: string }

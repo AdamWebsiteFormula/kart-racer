@@ -591,6 +591,23 @@ describe('the title, Mode, Cup and Track screens (menus.css; design §12, 26 Sep
         for (let i = 0; i < style.length; i++) expect(['opacity', 'transform'], `${r.name} ${style[i]}`).toContain(style[i]);
       }
     }
-    expect(names.sort()).toEqual(['band-sheen', 'medal-stick', 'say-in', 'shot-in']);
+    // (band-in and start-pulse: the start screen's, 28 Sept 2026)
+    expect(names.sort()).toEqual(['band-in', 'band-sheen', 'medal-stick', 'say-in', 'shot-in', 'start-pulse']);
+  });
+
+  it('the start screen: the logo big at the top middle, the prompt at the foot in the words of the input in hand, the menu sliding in from the left after the press (design §12, 28 Sept 2026)', () => {
+    expect(mvalue('.title.start .stage', 'align-items')).toBe('center');
+    expect(mvalue('.title.start .logo-box', 'transform')).toMatch(/^scale\(1\.\d+\)$/);
+    expect(mvalue('.start-prompt', 'position')).toBe('absolute');
+    expect(mvalue('.start-prompt', 'animation')).toMatch(/^start-pulse /);
+    // one set of words shows: a keyboard's; a pad's once one is used; a tap's on a touch screen (unless a pad is in use)
+    expect(mvalue('.start-prompt > span', 'display')).toBe('none');
+    expect(mvalue('.start-prompt > .only-keys', 'display')).toBe('inline');
+    expect(mvalue(":root[data-input='pad'] .start-prompt > .only-pad", 'display')).toBe('inline');
+    expect(mvalue(":root:not([data-input='pad']) .start-prompt > .tap", 'display', '(pointer: coarse)')).toBe('inline');
+    expect(mvalue(":root:not([data-input='pad']) .start-prompt > .only-keys", 'display', '(pointer: coarse)')).toBe('none');
+    // after the press: no drop-in replay for the logo (it glides), the bands slide in on their own stagger, never held after
+    expect(mvalue('.title.woke .logo', 'animation')).toBe('none');
+    expect(mvalue('#ui .title.woke .menu > .band.enter', 'animation')).toMatch(/^band-in .* backwards$/);
   });
 });

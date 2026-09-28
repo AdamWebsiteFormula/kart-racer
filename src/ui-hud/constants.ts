@@ -10,6 +10,14 @@ export const UI = Object.freeze({
   staggerRosterMs: 40,
   /** a screen change's transition (ui.css `--t-wipe`): the screen coming slides in over this; keys, clicks and the pad wait it out (dropped, never queued) */
   wipeMs: 240,
+  /**
+   * The start screen's press (design §12, 28 Sept 2026): the logo glides from where it stood big to its place over the
+   * menu in `startGlideMs`, and the bands slide in from the left, the first `startBandMs` after the press, each next
+   * `startBandStaggerMs` after the one before (menus.css `band-in`); input waits UI.wipeMs, as for a screen change.
+   */
+  startGlideMs: 480,
+  startBandMs: 90,
+  startBandStaggerMs: 55,
   /** the screen going leaves faster than the one coming arrives (ui.css `--t-wipe-out`) */
   wipeOutMs: 150,
   /** a racer card the pointer rests on this long is the one on show (the garage dresses it); one it only passes over on the way to the rows below is not */
