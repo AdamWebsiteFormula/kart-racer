@@ -17,7 +17,8 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the far vista', (_id, 
   it('stands out past every road, casts no shadow, and adds at most three draws', () => {
     const track = buildTrack(def), scene = buildTrackScene(track, trackAssets(def.biome));
     const parts: Mesh[] = [];
-    scene.group.traverse((o) => { if (o.name === 'vista' || o.name.startsWith('vista-')) parts.push(o as Mesh); });
+    // (a piece from a model file is a draw of its own, checked in vistaModels.test.ts)
+    scene.group.traverse((o) => { if ((o.name === 'vista' || o.name.startsWith('vista-')) && o.name !== 'vista-model') parts.push(o as Mesh); });
     const world = parts.filter((m) => m.name !== 'vista-ring-glow');
     expect(world.length).toBeGreaterThanOrEqual(2);
     expect(world.length).toBeLessThanOrEqual(3);
@@ -54,7 +55,8 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the far vista', (_id, 
     const scene = buildTrackScene(buildTrack(def), trackAssets(def.biome));
     let geos = 0, mats = 0, n = 0;
     scene.group.traverse((o) => {
-      if (o.name !== 'vista' && !o.name.startsWith('vista-')) return;
+      // (a piece from a model file shares the file's geometry and material with every race: vistaModels.test.ts)
+      if ((o.name !== 'vista' && !o.name.startsWith('vista-')) || o.name === 'vista-model') return;
       n++;
       const m = o as Mesh;
       m.geometry.addEventListener('dispose', () => geos++);

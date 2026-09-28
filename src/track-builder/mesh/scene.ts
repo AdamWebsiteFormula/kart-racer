@@ -125,10 +125,21 @@ export interface VistaContext {
   pastCourse?: (x: number, z: number) => number;
 }
 
+/** A still set-piece of the far vista, for the checks: its name and which vertices of `VistaParts.solid` are its own. */
+export interface VistaPiece { name: string; start: number; count: number }
+
 /** A far vista's parts. */
 export interface VistaParts {
   /** the still set-pieces as one vertex-coloured world-space geometry: the scene draws it toon-lit and fogged, casting no shadow */
   solid?: BufferGeometry;
+  /** which vertices of `solid` are which named piece (for the checks) */
+  pieces?: readonly VistaPiece[];
+  /**
+   * set-pieces from model files, placed (one draw each, instanced where one stands in several places): their
+   * geometry and material are the file's own, shared with every race, never disposed by the scene; hazed
+   * like `solid`, casting no shadow
+   */
+  models?: Mesh[];
   /** meshes in world space with their own materials (movers, glows) */
   world?: Mesh[];
   /** meshes that ride round the camera with the far ring (a moon, sun rays) */
@@ -1241,6 +1252,13 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       group.add(m);
     }
     for (const m of vista?.world ?? []) { OWNED.add(m.geometry); group.add(m); }
+    // the set-pieces from model files: hazed like the rest of the vista (their material is shared, so once)
+    for (const m of vista?.models ?? []) {
+      const mat = m.material as Material;
+      if (mat.userData.vistaHaze === undefined) { lessHaze(mat, VISTA_HAZE); mat.userData.vistaHaze = VISTA_HAZE; }
+      m.userData.sharedMaterial = true;
+      group.add(m);
+    }
     if (vista?.ring?.length) {
       if (!horizon) { horizon = new Group(); horizon.name = 'horizon'; group.add(horizon); }
       for (const m of vista.ring) { OWNED.add(m.geometry); horizon.add(m); }

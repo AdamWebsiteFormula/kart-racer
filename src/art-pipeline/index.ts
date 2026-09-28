@@ -7,7 +7,7 @@ import { coastMaterial, FROST_LAKE, groundMaterial, roadDetail, roadGrain, roadW
 import { SEA_TIDE } from './waterWaves.ts';
 import { RIPPLE_GLSL, rippleTexture } from './waterRipples.ts';
 import { toonRamp } from './toon.ts';
-import { buildVista } from './vista.ts';
+import { buildVista, VISTA_PIECES } from './vista.ts';
 import { withCrowd } from './crowd.ts';
 import { applyLook, isPbr } from './look.ts';
 import { grassMaterial, tuftGeometry } from './grass.ts';
@@ -41,7 +41,8 @@ const tuftTemplate = () => (tuft ??= tuftGeometry());
 export function trackAssets(biome?: string): TrackAssets {
   const { geometries } = trackAssetsFor();
   const materials: Record<string, Material> = {};
-  for (const name of Object.keys(geometries)) {
+  // (and the far vista's big pieces that have a model file: vista.ts VISTA_PIECES)
+  for (const name of [...Object.keys(geometries), ...(biome ? VISTA_PIECES[biome] ?? [] : [])]) {
     const file = PROP_MODELS.get(name);
     if (file) { geometries[name] = file.geometry; materials[name] = file.material; }
   }
@@ -63,5 +64,12 @@ export function trackAssets(biome?: string): TrackAssets {
   // what lines each land track's edge past the course limit, and the cover inside it (edges.ts); `?noedge` in
   // the address leaves it off, for a side-by-side look at the same build
   const edge = new URLSearchParams(globalThis.location?.search ?? '').has('noedge') ? undefined : edgeKit(biome);
-  return { geometries, materials, gradientMap: toonRamp(), vista: (ctx) => withCrowd(buildVista(ctx), ctx), ...surfaces, ...pbr, ...(edge ? { edge } : {}) };
+  const out: TrackAssets = { geometries, materials, gradientMap: toonRamp(), ...surfaces, ...pbr, ...(edge ? { edge } : {}) };
+  // the vista's big pieces from their model files, looked up through the assets as every other model is
+  const file = (name: string) => {
+    const geometry = out.geometries?.[name], material = out.materials?.[name];
+    return geometry && material ? { geometry, material } : undefined;
+  };
+  out.vista = (ctx) => withCrowd(buildVista(ctx, file), ctx);
+  return out;
 }
