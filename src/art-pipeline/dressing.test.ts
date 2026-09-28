@@ -2,7 +2,7 @@
 // and far, most of it baked into the track's merged dressing (track-builder mesh/merge.ts). Real art
 // (trackAssets), so footprints, rows and spans are the game's own.
 import { describe, expect, it } from 'vitest';
-import { BoxGeometry, BufferAttribute, Matrix4, ShaderChunk, ShaderLib, Vector3, type BufferGeometry, type Material, type Mesh, type WebGLRenderer } from 'three';
+import { BoxGeometry, BufferAttribute, Matrix4, PerspectiveCamera, ShaderChunk, ShaderLib, Vector3, type BufferGeometry, type InstancedMesh, type Material, type Mesh, type WebGLRenderer } from 'three';
 import { SUN_LIGHTS } from '../track-builder/mesh/glow.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrack } from '../track-builder/track.ts';
@@ -114,6 +114,41 @@ describe.each(dense.map((d) => [d.id, d] as const))('%s at Mario Kart World dens
     // never more than this far past the road's edge to the nearest roadside piece, anywhere on the lap
     expect(worst, `gap at t ${where.toFixed(3)}`).toBeLessThan(26);
     for (const n of farPerQuarter) expect(n).toBeGreaterThan(40);
+  });
+
+  it('every decor instancer draws its own placement\'s copies where it stands (lifted onto a bank that runs under them), an asset in two bands too (28 Sept 2026: the lift went by name, so Frostbite Pass\'s roadside pines sank into the banks and its far pines floated)', () => {
+    const inGroup: InstancedMesh[] = [];
+    scene.group.traverse((o) => { if ((o as InstancedMesh).isInstancedMesh && o.name.startsWith('decor:')) inGroup.push(o as InstancedMesh); });
+    // the scene's map holds every one (an asset's second band as decor:<asset>#2)
+    const inMap = [...scene.instancers.entries()].filter(([k]) => k.startsWith('decor:')).map(([, m]) => m);
+    expect(inMap.length).toBe(inGroup.length);
+    expect(new Set(inMap)).toEqual(new Set(inGroup));
+    // this track draws an asset in two bands (Frostbite Pass's pines and chalets, Mesa Rush's rocks), and a bank runs under some of their copies
+    const twice = [...new Set(inGroup.map((m) => m.name))].filter((n) => inGroup.filter((m) => m.name === n).length > 1);
+    expect(twice.length).toBeGreaterThan(0);
+    const banked = scene.decor.filter((p) => twice.includes(`decor:${p.asset}`)).reduce((n, p) => {
+      for (let i = 0; i < p.count; i++) if (scene.edge!.bankAt(p.matrices[i * 16 + 12], p.matrices[i * 16 + 14]) > 0.5) n++;
+      return n;
+    }, 0);
+    expect(banked).toBeGreaterThan(0);
+    // each instancer's copies are exactly one placement's (lifted: the merged dressing is built from the same), as
+    // placed and as the Low tier puts them back from its own copy
+    const same = (m: InstancedMesh, p: (typeof scene.decor)[number]) => {
+      if (m.count !== p.count) return false;
+      const a = m.instanceMatrix.array as Float32Array;
+      for (let j = 0; j < p.count * 16; j++) if (Math.abs(a[j] - p.matrices[j]) > 1e-5) return false;
+      return true;
+    };
+    const eye = new PerspectiveCamera(60, 16 / 9, 0.3, 1400);
+    eye.position.set(lut.px[0], lut.py[0] + 3, lut.pz[0]);
+    eye.updateMatrixWorld();
+    for (const pass of ['as placed', 'back from the Low tier']) {
+      if (pass !== 'as placed') { scene.cull(eye, true, 800); scene.cull(eye, false); }
+      for (const m of inGroup) {
+        const mine = scene.decor.filter((p) => `decor:${p.asset}` === m.name && same(m, p));
+        expect(mine.length, `${pass}: ${m.name}, ${m.count} copies`).toBe(1);
+      }
+    }
   });
 
   it('disposes every merged slice: geometry and material', () => {

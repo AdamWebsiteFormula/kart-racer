@@ -244,8 +244,6 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
   const claims = new Claims();
   const bankParts: BufferGeometry[] = [];
   const placed = new Map<string, { g: BufferGeometry; m: number[] }>();
-  /** per side (0: -1, 1: +1), per station: the bank's crest height laid there (0: none) */
-  const bankH = [new Float32Array(N), new Float32Array(N)];
   const sideIx = (s: number) => (s < 0 ? 0 : 1);
   const station = (k: number) => {
     const t = (((k % N) + N) % N) / N, j = main.idx(Math.round(t * main.step));
@@ -343,14 +341,18 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
     }
   }
 
-  /** The bank's height at (x, z) (0 off every bank): its nearest station and how far past the limit. */
+  /**
+   * The bank's height over the land at (x, z) (0 off every bank), as it is drawn: its own triangles' top there
+   * (topSampler, made once every run is laid), less the land's. (28 Sept 2026: it was the profile at the nearest
+   * station's distance out, but the bank is flat triangles between stations, and on a snowbank's steep inner face
+   * that missed the drawn bank by up to 0.4 m: a pine lifted by it floated.)
+   */
+  let bankTop: ((x: number, z: number) => number) | null = null;
   const bankHeightAt = (x: number, z: number): number => {
-    if (!kit.bank) return 0;
-    let best = 0, bd = Infinity;
-    for (let k = 0; k < N; k += 4) { const c = station(k), d = (c.x - x) ** 2 + (c.z - z) ** 2; if (d < bd) { bd = d; best = k; } }
-    for (let k = best - 4; k <= best + 4; k++) { const c = station(k), d = (c.x - x) ** 2 + (c.z - z) ** 2; if (d < bd) { bd = d; best = ((k % N) + N) % N; } }
-    const c = station(best), lat = (x - c.x) * c.rx + (z - c.z) * c.rz;
-    return profileAt(kit.bank.profile, Math.abs(lat) - limitOf(c, lat)) * bankH[sideIx(lat)][best];
+    if (!kit.bank || !bankParts.length) return 0;
+    bankTop ??= topSampler(bankParts);
+    const y = bankTop(x, z);
+    return y === -Infinity ? 0 : Math.max(0, y - ctx.groundAt(x, z));
   };
 
   // ---- clusters: the outside of each sharp bend, and both sides of each jump on the main line
@@ -421,7 +423,6 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
       const [h0, h1] = kit.bank.height;
       for (let i = 0; i < n; i++) {
         H[i] = (h0 + (h1 - h0) * wobble(noiseSeed + si * 31, k0 + i, 9)) * ease(i * ds, TAPER);
-        bankH[si][(k0 + i) % N] = H[i];
       }
       bankParts.push(bankGeometry(k0, n, s, kit.bank.profile, H));
     }
@@ -571,6 +572,59 @@ function stripIndex(n: number, per: number, segs: number, stride: 1 | 2, s: numb
     }
   }
   return idx;
+}
+
+/** Metres a side of topSampler's grid cells. */
+const TOP_CELL = 2;
+
+/**
+ * The top of `parts` (world-space, indexed triangles, as the banks are laid) at (x, z): the highest of their
+ * triangles over that point, -Infinity where none is. Triangles are filed by the grid cells their footprint
+ * touches, so a sample looks at a handful. Reads the geometries once, as they are now.
+ */
+export function topSampler(parts: readonly BufferGeometry[]): (x: number, z: number) => number {
+  const tris: number[] = [];
+  let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+  for (const g of parts) {
+    const p = g.getAttribute('position'), idx = g.index;
+    const n = idx ? idx.count : p.count;
+    for (let t = 0; t + 2 < n; t += 3) {
+      for (let q = 0; q < 3; q++) {
+        const v = idx ? idx.getX(t + q) : t + q, x = p.getX(v), z = p.getZ(v);
+        tris.push(x, p.getY(v), z);
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+      }
+    }
+  }
+  if (!tris.length) return () => -Infinity;
+  const nx = Math.floor((maxX - minX) / TOP_CELL) + 1, nz = Math.floor((maxZ - minZ) / TOP_CELL) + 1;
+  const cells = new Map<number, number[]>();
+  for (let t = 0; t < tris.length; t += 9) {
+    const x0 = Math.min(tris[t], tris[t + 3], tris[t + 6]), x1 = Math.max(tris[t], tris[t + 3], tris[t + 6]);
+    const z0 = Math.min(tris[t + 2], tris[t + 5], tris[t + 8]), z1 = Math.max(tris[t + 2], tris[t + 5], tris[t + 8]);
+    for (let i = Math.floor((x0 - minX) / TOP_CELL); i <= Math.floor((x1 - minX) / TOP_CELL); i++) {
+      for (let k = Math.floor((z0 - minZ) / TOP_CELL); k <= Math.floor((z1 - minZ) / TOP_CELL); k++) {
+        const key = i * nz + k, list = cells.get(key);
+        if (list) list.push(t); else cells.set(key, [t]);
+      }
+    }
+  }
+  return (x, z) => {
+    const i = Math.floor((x - minX) / TOP_CELL), k = Math.floor((z - minZ) / TOP_CELL);
+    if (i < 0 || k < 0 || i >= nx || k >= nz) return -Infinity;
+    let best = -Infinity;
+    for (const t of cells.get(i * nz + k) ?? []) {
+      const ax = tris[t], ay = tris[t + 1], az = tris[t + 2], bx = tris[t + 3], by = tris[t + 4], bz = tris[t + 5], cx = tris[t + 6], cy = tris[t + 7], cz = tris[t + 8];
+      const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+      if (Math.abs(d) < 1e-12) continue;
+      const u = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / d, v = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / d, w = 1 - u - v;
+      if (u < -1e-7 || v < -1e-7 || w < -1e-7) continue;
+      const y = u * ay + v * by + w * cy;
+      if (y > best) best = y;
+    }
+    return best;
+  };
 }
 
 /** Every run's bank as one geometry (normals computed), or null. */
