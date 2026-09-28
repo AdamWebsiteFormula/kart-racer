@@ -74,10 +74,10 @@ const landB = takes('landB', 3, (k) => ({ id: 'land', brief: LAND,
   layers: [
     fs(THUD, -1, [{ op: 'trim', from: 0.24, to: 0.6 }, { op: 'pitch', st: ST[k] }, { op: 'lp', hz: 2500 }, { op: 'env', pts: [[0, 1], [0.07, 0.45], [0.26, 0]] }]),
     fs(BALL, -6, [hit([1, 3, 7][k], 0.25, -16), { op: 'pitch', st: -2 }]),
-    syn('modal', { seconds: 0.3, hz: 78, material: 'rubber', ring: 1.5, contact: 0.008, glide: [[0, 0], [0.12, -2]], seed: 3 + k }, -5),
+    syn('modal', { seconds: 0.2, hz: 92, material: 'rubber', ring: 1.0, contact: 0.006, glide: [[0, 0], [0.1, -2]], seed: 3 + k }, -9),
     chirp([4, 9, 15][k], -12, 0.02),
   ],
-  master: [{ op: 'hp', hz: 35 }, { op: 'sat', drive: 3, mix: 0.2, asym: 0.1 }, ROOM(0.1), ...END(0.36)] }));
+  master: [{ op: 'hp', hz: 50 }, { op: 'transient', attack: 3, sustain: -4 }, ROOM(0.1), ...END(0.32)] }));
 const landC = takes('landC', 3, (k) => ({ id: 'land', brief: LAND,
   why: "C, cartoon bomp: a rubber mode bank that sags 4 semitones as it squashes (physics.py: the landing 'bomp'), a real tire punch (DDT197, CC0) for the contact, the tail of a real spring wobble (EagleStealthTeam, 'Springy Bounce', CC0) 16 dB under, and a chirp.",
   layers: [
@@ -117,9 +117,10 @@ const bumpC = takes('bumpC', 4, (k) => ({ id: 'bump', brief: BUMP,
 
 // ---------------------------------------------------------------- wall (a padded barrier)
 const WALL = 'A go-kart bumps a padded track barrier in a polished cartoon kart racing game (Mario Kart World quality): one deep, dull, cushioned whump of rubber and padding, then a short rubbery scrape as it slides off; soft and bouncy, never a crash. No voice.';
-const scrape = (db: number, at: number, k: number): Layer => vs('Miscellania Raw/Misc 1/brick_scrape.wav', db, [{ op: 'trim', from: 0.1 + 0.2 * k, to: 0.34 + 0.2 * k }, { op: 'bp', hz: 1400, q: 0.8 }, { op: 'env', pts: [[0, 0], [0.03, 1], [0.24, 0]] }], at);
+// the rubber sliding off the padding: a short real tire squeal (johnnydekk, CC0) pitched down to a rubbery rub (a band-passed brick scrape read as a sigh to AST)
+const scrape = (db: number, at: number, k: number): Layer => fs(SQUEAL, db, [hit([3, 9, 12][k], 0.2, -14, 0.3), { op: 'pitch', st: -7 }, { op: 'bp', hz: 900, q: 0.9 }, { op: 'env', pts: [[0, 0], [0.02, 1], [0.1, 0.5], [0.2, 0]] }], at);
 const wallA = takes('wallA', 3, (k) => ({ id: 'wall', brief: WALL,
-  why: "A, tire wall: a real rubber tire's thump (DDT197, CC0) with a real cushion's whump (mincedbeats, CC0) under it for the padding, and a short scrape from a real brick scrape (VSCO-2 CE, CC0) band-passed to a rubbery rasp as the kart slides off; three takes.",
+  why: "A, tire wall: a real rubber tire's thump (DDT197, CC0) with a real cushion's whump (mincedbeats, CC0) under it for the padding, and a short rubbery rub (a real tire squeal pitched down, johnnydekk, CC0) as the kart slides off; three takes.",
   layers: [
     fs(TIRE_PUNCH, 0, [hit([0, 3, 5][k], 0.4), { op: 'pitch', st: -2 + ST[k] }]),
     fs(CUSHION, -2, [hit([0, 2, 4][k], 0.5, -20, 0.6), { op: 'lp', hz: 1800 }]),
