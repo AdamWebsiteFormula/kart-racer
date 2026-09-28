@@ -72,6 +72,18 @@ function box(b: Buf, c: Vec3, x: Vec3, y: Vec3, z: Vec3, colour: Rgb): void {
   quad(b, p(-1, -1, -1), p(1, -1, -1), p(1, -1, 1), p(-1, -1, 1), colour);
 }
 
+/**
+ * Where the gantry stands (for what hangs on it: raceDressing.ts): the start line's middle `o`, the road's way `f`
+ * (level), the pillars' distance out `span`, the beam's top and underside (world y), the lamp board's half-width.
+ */
+export function gantryFrame(track: Track): { o: Vec3; f: Vec3; span: number; beamTop: number; beamUnder: number; lampHalf: number } {
+  const c = track.sample(track.startT, 0), hw = c.halfWidth, h = Math.hypot(c.tangent[0], c.tangent[2]) || 1;
+  const f: Vec3 = [c.tangent[0] / h, 0, c.tangent[2] / h];
+  const span = Math.max(hw + BUILDER.kerbWidth, c.wallLeft ?? c.wall ?? hw, c.wallRight ?? c.wall ?? hw) + OUT;
+  const beamY = c.position[1] + CLEAR;
+  return { o: c.position, f, span, beamTop: beamY + BEAM + 0.16, beamUnder: beamY - 0.16, lampHalf: ((COUNTDOWN_STEPS - 1) * LAMP.gap) / 2 + LAMP.radius + 0.3 };
+}
+
 export function buildStartGantry(track: Track, palette: TrackPalette, gradientMap: Texture | null): Mesh {
   const b: Buf = { pos: [], col: [], idx: [] };
   const t0 = track.startT, L = track.length;

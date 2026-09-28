@@ -162,6 +162,8 @@ export interface DecorPlacement {
   /** metres a piece reaches across the ground from its centre at scale 1 (a row piece: across the road, not along it) */
   footprint: number;
   layout: 'scatter' | 'row' | 'span';
+  /** worked out but never drawn, and standing nowhere: another dressing takes its place (the race dressing's arrow boards, raceDressing.ts) */
+  hidden?: boolean;
 }
 
 /** A model's reach at scale 1: `across` (local X, away from the road for a row piece) and `along` (local Z). */

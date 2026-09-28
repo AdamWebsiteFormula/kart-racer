@@ -3,18 +3,23 @@
 // so it glows through the bloom at night as well as by day, however dark the scene light is.
 import { ShaderChunk, type Material, type MeshToonMaterial } from 'three';
 
-export function glowFromVertexColours(m: MeshToonMaterial): void {
+/**
+ * `fromMap`: a material whose map paints the lamps (the race dressing's sign atlas, raceDressing.ts: a neon sign's
+ * face is a card over white vertex colours past 1) glows in its painted colours, not its vertex colour's white; where
+ * the map is plain white (every other prop) it is exactly as before.
+ */
+export function glowFromVertexColours(m: MeshToonMaterial, fromMap = false): void {
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev.call(m, shader, renderer);
     shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       #ifdef USE_COLOR
         float lamp = step(1.001, max(vColor.r, max(vColor.g, vColor.b)));
-        totalEmissiveRadiance += vColor.rgb * lamp * 0.9;
+        totalEmissiveRadiance += ${fromMap ? 'diffuseColor.rgb' : 'vColor.rgb'} * lamp * 0.9;
       #endif`);
   };
   const key = m.customProgramCacheKey.bind(m);
-  m.customProgramCacheKey = () => `${key()}|glow`;
+  m.customProgramCacheKey = () => `${key()}|glow${fromMap ? '-map' : ''}`;
 }
 
 /**

@@ -4,6 +4,7 @@
 // Origins on the ground. Row pieces (fences, lamp posts, corner signs, the ski lift, cliff walls, rails)
 // run along local Z with local -X facing the road; spans (bunting, the rock arch) stand across the road
 // with their legs at x = ±SPAN_HALF, which placeDecor stretches to the road's width.
+import { PlaneGeometry } from 'three';
 import type { ModelBuilder, Paint, V3 } from './model.ts';
 
 type Build = (m: ModelBuilder) => void;
@@ -38,14 +39,22 @@ function fir(m: ModelBuilder, x: number, z: number, h: number, tiers: number, sh
   m.cone(h * 0.05, h * 0.1, SNOW, [x, h * 0.95, z], undefined, 5, false);
 }
 
-/** Hanging diamond bunting from (-w, y) to (w, y) along X, sagging `sag` at the middle, flags in `colours`. */
+/** One face of a bunting flag: a square of cloth, turned into a diamond where it hangs. */
+const FLAG_FACE = new PlaneGeometry(0.62, 0.62);
+
+/**
+ * Hanging diamond bunting from (-w, y) to (w, y) along X, sagging `sag` at the middle, flags in `colours`. Each flag
+ * is its two faces of cloth, four triangles (28 Sept 2026: a thin box drew twelve, most of them edges 5 cm wide that
+ * never show; the race dressing's triangles on Frostbite Pass were paid for with them).
+ */
 function bunting(m: ModelBuilder, w: number, y: number, sag: number, colours: readonly Paint[], flags: number): void {
   const at = (u: number): V3 => [-w + 2 * w * u, y - sag * 4 * u * (1 - u), 0];
   const segs = 10;
   for (let i = 0; i < segs; i++) rod(m, at(i / segs), at((i + 1) / segs), 0.04, '#fffaf0');
   for (let i = 1; i < flags; i++) {
-    const p = at(i / flags);
-    m.box([0.62, 0.62, 0.05], colours[i % colours.length], [p[0], p[1] - 0.42, 0], [0, 0, Math.PI / 4], false);
+    const p = at(i / flags), c = colours[i % colours.length];
+    m.part(FLAG_FACE, c, [p[0], p[1] - 0.42, 0.012], [0, 0, Math.PI / 4]);
+    m.part(FLAG_FACE, c, [p[0], p[1] - 0.42, -0.012], [0, Math.PI, Math.PI / 4]);
   }
 }
 

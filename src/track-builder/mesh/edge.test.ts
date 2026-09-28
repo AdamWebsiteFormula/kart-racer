@@ -157,12 +157,15 @@ describe.each(LAND.map((d) => [d.id, d] as const))('%s: the course edge', (_id, 
     const standing: { x: number; z: number; r: number }[] = [];
     for (const p of e.pieces) if (p.kind !== 'cover') standing.push({ x: p.x, z: p.z, r: p.r });
     for (const d of scene.decor) {
-      if (d.band === 'verge' || d.band === 'sky') continue;
+      // (a placement another dressing takes the place of stands nowhere: the old corner signs, raceDressing.ts)
+      if (d.band === 'verge' || d.band === 'sky' || d.hidden) continue;
       for (let i = 0; i < d.count; i++) {
         const m = d.matrices, o = i * 16, s = Math.hypot(m[o], m[o + 1], m[o + 2]);
         if (s > 0) standing.push({ x: m[o + 12], z: m[o + 14], r: d.footprint * s });
       }
     }
+    // the race dressing's arrow boards, flags, sponsor boards and banners' poles
+    for (const p of scene.race?.pieces ?? []) if (p.kind !== 'banner' && p.kind !== 'gantry') standing.push({ x: p.x, z: p.z, r: p.kind === 'flag' ? 0.5 : 1.5 });
     for (const c of crowdOf(scene)) standing.push({ x: c.at[0], z: c.at[2], r: 0.5 });
     for (const st of standsOf(scene)) {
       // a stand or a rope line: its half-sizes across the road (its local Z) and along it (local X)

@@ -12,9 +12,11 @@ const M = new Matrix4(), N = new Matrix3(), V = new Vector3();
 /**
  * One indexed geometry holding every copy of every item, positions and normals moved by each
  * matrix, colours kept. Items must carry position, normal and color (ModelBuilder output); null
- * when there is nothing to merge.
+ * when there is nothing to merge. With `white` (the race dressing's atlas: raceDressing.ts), the
+ * result also carries texture coordinates: a sign's own (a card marked `userData.atlas`),
+ * else that spot of plain white, so its vertex colours show as they are.
  */
-export function mergeInstances(items: readonly MergeItem[]): BufferGeometry | null {
+export function mergeInstances(items: readonly MergeItem[], white?: readonly [number, number]): BufferGeometry | null {
   let verts = 0, tris = 0;
   for (const it of items) {
     verts += it.geometry.getAttribute('position').count * it.count;
@@ -22,10 +24,13 @@ export function mergeInstances(items: readonly MergeItem[]): BufferGeometry | nu
   }
   if (verts === 0) return null;
   const pos = new Float32Array(verts * 3), nor = new Float32Array(verts * 3), col = new Float32Array(verts * 3);
+  const uvs = white ? new Float32Array(verts * 2) : null;
   const index = new Uint32Array(tris);
   let v = 0, k = 0;
   for (const it of items) {
     const g = it.geometry, p = g.getAttribute('position'), n = g.getAttribute('normal'), c = g.getAttribute('color'), idx = g.index;
+    // (only a sign's own card samples the atlas: userData.atlas, raceDressing.ts; any other uv means something else)
+    const uv = uvs && g.userData.atlas ? g.getAttribute('uv') : undefined;
     for (let i = 0; i < it.count; i++) {
       M.fromArray(it.matrices, i * 16);
       N.getNormalMatrix(M);
@@ -35,6 +40,7 @@ export function mergeInstances(items: readonly MergeItem[]): BufferGeometry | nu
         V.fromBufferAttribute(n, j).applyMatrix3(N).normalize();
         nor[(v + j) * 3] = V.x; nor[(v + j) * 3 + 1] = V.y; nor[(v + j) * 3 + 2] = V.z;
         col[(v + j) * 3] = c.getX(j); col[(v + j) * 3 + 1] = c.getY(j); col[(v + j) * 3 + 2] = c.getZ(j);
+        if (uvs && white) { uvs[(v + j) * 2] = uv ? uv.getX(j) : white[0]; uvs[(v + j) * 2 + 1] = uv ? uv.getY(j) : white[1]; }
       }
       if (idx) for (let j = 0; j < idx.count; j++) index[k++] = v + idx.getX(j);
       else for (let j = 0; j < p.count; j++) index[k++] = v + j;
@@ -45,6 +51,7 @@ export function mergeInstances(items: readonly MergeItem[]): BufferGeometry | nu
   out.setAttribute('position', new BufferAttribute(pos, 3));
   out.setAttribute('normal', new BufferAttribute(nor, 3));
   out.setAttribute('color', new BufferAttribute(col, 3));
+  if (uvs) out.setAttribute('uv', new BufferAttribute(uvs, 2));
   out.setIndex(new BufferAttribute(index, 1));
   out.computeBoundingBox();
   out.computeBoundingSphere();
