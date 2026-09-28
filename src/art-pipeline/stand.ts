@@ -20,32 +20,37 @@ import { turnAbout, twoBoneIk, type RiggedTemplate } from './rigged.ts';
 export type Flourish = 'hop' | 'point' | 'twirl' | 'salute' | 'wave' | 'cheer' | 'bow' | 'laugh';
 
 /**
- * A racer's temper standing: its flourish; the bounce in its knees (Hz, m); the weight shifting side to side
- * (m, at half the bounce's rate); and how far its arms come down from the A-pose toward its sides (0..1: a
- * round belly or a wide stone chest keeps them further out).
+ * How a racer holds its arms standing: `relaxed` down at its sides (from the A-pose, by `armDrop`), `ready` fists
+ * up at the chest (MKW's Mario waits so, bouncing on his toes), `hips` hands on its hips.
  */
-export interface StandTemper { move: Flourish; bounceHz: number; bounce: number; sway: number; armDrop: number }
+export type Stance = 'relaxed' | 'ready' | 'hips';
+/**
+ * A racer's temper standing: its flourish; how it holds its arms; the bounce in its knees (Hz, m); the weight
+ * shifting side to side (m, at half the bounce's rate); and how far its arms come down from the A-pose toward its
+ * sides when relaxed (0..1: a round belly or a wide stone chest keeps them further out).
+ */
+export interface StandTemper { move: Flourish; stance: Stance; bounceHz: number; bounce: number; sway: number; armDrop: number }
 
 /** Each racer's (ui-hud data/cast.ts personalities). */
 export const STAND_TEMPERS: Readonly<Record<string, StandTemper>> = Object.freeze({
-  // fast-talking, never stops moving
-  pip: { move: 'hop', bounceHz: 1.6, bounce: 0.018, sway: 0.012, armDrop: 0.62 },
+  // fast-talking, never stops moving: up on its toes, wings up, as MKW's Mario waits
+  pip: { move: 'hop', stance: 'ready', bounceHz: 1.6, bounce: 0.018, sway: 0.012, armDrop: 0.62 },
   // deadpan, competent
-  momo: { move: 'point', bounceHz: 0.55, bounce: 0.005, sway: 0.008, armDrop: 0.72 },
+  momo: { move: 'point', stance: 'relaxed', bounceHz: 0.55, bounce: 0.005, sway: 0.008, armDrop: 0.72 },
   // dreamy, drawn to the lights
-  nova: { move: 'twirl', bounceHz: 0.5, bounce: 0.01, sway: 0.016, armDrop: 0.55 },
-  // cheerful rule-follower
-  juniper: { move: 'salute', bounceHz: 1.1, bounce: 0.012, sway: 0.01, armDrop: 0.68 },
+  nova: { move: 'twirl', stance: 'relaxed', bounceHz: 0.5, bounce: 0.01, sway: 0.016, armDrop: 0.55 },
+  // cheerful rule-follower, secretly fierce: hands on her hips
+  juniper: { move: 'salute', stance: 'hips', bounceHz: 1.1, bounce: 0.012, sway: 0.01, armDrop: 0.68 },
   // laid-back, waves at everyone
-  otto: { move: 'wave', bounceHz: 0.75, bounce: 0.01, sway: 0.016, armDrop: 0.64 },
-  // literal: a tin toy's tick
-  sprocket: { move: 'cheer', bounceHz: 1.0, bounce: 0.01, sway: 0.006, armDrop: 0.6 },
+  otto: { move: 'wave', stance: 'relaxed', bounceHz: 0.75, bounce: 0.01, sway: 0.016, armDrop: 0.64 },
+  // literal: a tin toy's tick, fists up
+  sprocket: { move: 'cheer', stance: 'ready', bounceHz: 1.0, bounce: 0.01, sway: 0.006, armDrop: 0.6 },
   // gentle giant
-  boulder: { move: 'bow', bounceHz: 0.45, bounce: 0.008, sway: 0.012, armDrop: 0.45 },
-  // booming laugh
-  gus: { move: 'laugh', bounceHz: 0.7, bounce: 0.012, sway: 0.014, armDrop: 0.4 },
+  boulder: { move: 'bow', stance: 'relaxed', bounceHz: 0.45, bounce: 0.008, sway: 0.012, armDrop: 0.45 },
+  // booming laugh: hands on his hips
+  gus: { move: 'laugh', stance: 'hips', bounceHz: 0.7, bounce: 0.012, sway: 0.014, armDrop: 0.4 },
 });
-const DEFAULT_TEMPER: StandTemper = { move: 'wave', bounceHz: 0.9, bounce: 0.01, sway: 0.012, armDrop: 0.6 };
+const DEFAULT_TEMPER: StandTemper = { move: 'wave', stance: 'relaxed', bounceHz: 0.9, bounce: 0.01, sway: 0.012, armDrop: 0.6 };
 export const temperOf = (racerId: string): StandTemper => STAND_TEMPERS[racerId] ?? DEFAULT_TEMPER;
 
 /** Every other tuning number (angles in radians, lengths in meters, the figure's frame: +Y up, +Z its front, +X its own left). */
@@ -67,7 +72,7 @@ export const STAND = Object.freeze({
   /** how far a hand reaches of the arm's length at rest (the elbow a little bent) */
   armReach: 0.94,
   /** s: each flourish's length */
-  seconds: Object.freeze({ hop: 1.0, point: 1.1, twirl: 1.3, salute: 1.25, wave: 1.35, cheer: 1.0, bow: 1.45, laugh: 1.35 } satisfies Record<Flourish, number>),
+  seconds: Object.freeze({ hop: 1.0, point: 1.1, twirl: 1.2, salute: 1.25, wave: 1.35, cheer: 1.0, bow: 1.45, laugh: 1.35 } satisfies Record<Flourish, number>),
 });
 
 // ---------------------------------------------------------------- the flourishes, as beats
@@ -120,10 +125,10 @@ export function beat(move: Flourish, u: number, legs: number): Beat {
       b.headPitch = 0.14 * hump(u, 0.34, 0.56);
       break;
     }
-    case 'twirl': { // dreamy: a turn on the spot, arms out, floating up a little
-      b.turn = TAU * sstep(0.12, 0.86, u);
-      b.lift = 0.04 * hump(u, 0.08, 0.92);
-      const w = env(u, 0.04, 0.2, 0.76, 0.96);
+    case 'twirl': { // dreamy: arms out, a turn on the spot, floating up a little; round to face you again before a pick moves on (UI.racerLockInMs)
+      b.turn = TAU * sstep(0.12, 0.55, u);
+      b.lift = 0.04 * hump(u, 0.08, 0.8);
+      const w = env(u, 0, 0.12, 0.62, 0.9);
       b.armL = reach('shoulder', 0.86, 0.22, 0.06, [0, -1, -0.3], w);
       b.armR = reach('shoulder', 0.86, 0.22, 0.06, [0, -1, -0.3], w);
       b.headRoll = 0.12 * w;
@@ -178,6 +183,15 @@ export function beat(move: Flourish, u: number, legs: number): Beat {
   }
   return b;
 }
+
+/** Each stance's hands (Reach, weight 1); `relaxed`: none (down toward the sides from the A-pose, by the temper's armDrop). */
+const STANCES: Readonly<Record<Stance, Reach | null>> = Object.freeze({
+  relaxed: null,
+  // fists up in front of the chest, elbows down and out
+  ready: { ref: 'shoulder', out: 0.14, up: -0.36, fwd: 0.52, pole: [1, -1, -0.5], w: 1 },
+  // hands on the hips, elbows out to the sides
+  hips: { ref: 'hips', out: 0.42, up: 0.2, fwd: 0.04, pole: [1, 0, -0.35], w: 1 },
+});
 
 // ---------------------------------------------------------------- the standing figure
 const SPINE = ['Spine02', 'Spine01', 'Spine'] as const;
@@ -359,23 +373,18 @@ export class StandingRacer {
       turnAbout(head, ax(X, qHead), this.look.pitch * 0.6);
       if (f.headRoll) turnAbout(head, ax(Z, qHead), f.headRoll);
     }
-    // the arms: down toward the sides from the A (a bent elbow, swinging a little with the bounce), or a flourish's reach
+    // the arms: the racer's stance (down toward the sides from the A, fists up at the chest, or hands on the hips),
+    // swinging a little with the bounce; or a flourish's reach over it
     const headAt = head ? new Vector3().setFromMatrixPosition(head.matrixWorld) : null;
     const hipsAt = hips ? new Vector3().setFromMatrixPosition(hips.matrixWorld) : null;
+    const swing = live ? Math.sin(TAU * T.bounceHz * t) : 0;
     for (let i = 0; i < ARMS.length; i++) {
       const [sh, el, wr, side] = ARMS[i];
       const a = this.bone.get(sh), e = this.bone.get(el), h = this.bone.get(wr);
       if (!a || !e || !h) continue;
       const S = new Vector3().setFromMatrixPosition(a.matrixWorld), L = this.armLen[i];
-      const rest = this.armDir[i];
-      const down = new Vector3(0.18 * side, -1, 0.12).normalize();
-      const idleDir = rest.clone().lerp(down, T.armDrop).normalize()
-        .applyAxisAngle(X, live ? 0.05 * Math.sin(TAU * T.bounceHz * t + i) : 0)
-        .applyQuaternion(qChest);
-      let target = S.clone().addScaledVector(idleDir, L * STAND.armReach);
-      let pole = ax(new Vector3(0.45 * side, -0.25, -1), qChest);
-      const r = i === 0 ? f.armL : f.armR;
-      if (r && r.w > 0) {
+      /** where a reach puts the hand, and the elbow's way */
+      const aim = (r: Reach): { at: Vector3; pole: Vector3 } => {
         const from = r.ref === 'head' && headAt ? headAt : r.ref === 'hips' && hipsAt ? hipsAt : S;
         const unit = r.ref === 'head' ? this.headSize : L;
         let at2: Vector3;
@@ -385,8 +394,23 @@ export class StandingRacer {
           to.y += r.up;
           at2 = S.clone().addScaledVector(to.normalize(), L * r.out);
         } else at2 = from.clone().add(ax(new Vector3(r.out * side * unit, r.up * unit, r.fwd * unit), qChest));
-        target = target.lerp(at2, r.w);
-        pole = pole.lerp(ax(new Vector3(r.pole[0] * side, r.pole[1], r.pole[2]), qChest), r.w);
+        return { at: at2, pole: ax(new Vector3(r.pole[0] * side, r.pole[1], r.pole[2]), qChest) };
+      };
+      let target: Vector3, pole: Vector3;
+      const stance = STANCES[T.stance];
+      if (stance) {
+        ({ at: target, pole } = aim({ ...stance, up: stance.up + 0.04 * swing }));
+      } else {
+        const down = new Vector3(0.18 * side, -1, 0.12).normalize();
+        const idleDir = this.armDir[i].clone().lerp(down, T.armDrop).normalize().applyAxisAngle(X, 0.05 * Math.sin(TAU * T.bounceHz * t + i) * (live ? 1 : 0)).applyQuaternion(qChest);
+        target = S.clone().addScaledVector(idleDir, L * STAND.armReach);
+        pole = ax(new Vector3(0.45 * side, -0.25, -1), qChest);
+      }
+      const r = i === 0 ? f.armL : f.armR;
+      if (r && r.w > 0) {
+        const to = aim(r);
+        target = target.lerp(to.at, r.w);
+        pole = pole.lerp(to.pole, r.w);
       }
       twoBoneIk(a, e, h, target, pole);
     }

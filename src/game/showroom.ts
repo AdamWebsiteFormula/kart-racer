@@ -51,14 +51,16 @@ const DEFAULT_FRAME = Object.freeze({ y: 0.7, radius: 1.9 });
 export const POP_FROM = 0.86, POP_S = 0.34;
 /**
  * A racer standing (the Racer screen): turned this far toward the tiles on the screen's left (MKW's character
- * faces you, a little toward its grid), framed by FRAME_FILL's rule at STAND_FILL (a standing figure fills its
- * bounding sphere far more than a kart does: at the kart's fill its head and feet were cut off, and a fist
- * raised in a flourish needs the room), the camera nearly level with it (a gentle look down at the chest, not
- * the kart's high three-quarter), and a small contact shadow under its feet (half extents, m).
+ * faces you three-quarters, a little toward its grid); framed by its height, not a sphere (every racer's height
+ * fills STAND_FILL of its box, so the feet stand on one line and the name under them stays put whoever is on
+ * show: a fresh-eyes critique, 28 Sept 2026, saw Pip's feet 110 px above Otto's; the rest leaves room for a hand
+ * raised in a flourish); the camera nearly level with it (a gentle look down at the chest, not the kart's high
+ * three-quarter); and a small, soft contact shadow under its feet (half extents, m, and its share of the kart's
+ * darkness: MKW's characters have none, a hard one read as a disc they stood on).
  */
-export const STAND_YAW = -0.32, STAND_FILL = 0.9;
+export const STAND_YAW = -0.42, STAND_FILL = 0.88;
 const STAND_ELEVATION = 0.1;
-export const STAND_SHADOW = Object.freeze({ halfWidth: 0.42, halfLength: 0.34 });
+export const STAND_SHADOW = Object.freeze({ halfWidth: 0.38, halfLength: 0.3, strength: 0.5 });
 /** the camera eases to a new box (the stats panel opening, a window resized) at this rate a second (reduced motion: at once) */
 const FIT_RATE = 14;
 
@@ -257,7 +259,7 @@ export class Showroom {
     if (view) view.engine = false;
     const target = view ? view.root : root;
     this.stand.add(target);
-    this.kart = { key, racerId, root, view, standing, state, frame: this.frameOf(target), fresh: hello, at: -1, mats };
+    this.kart = { key, racerId, root, view, standing, state, frame: this.frameOf(target, !!standing), fresh: hello, at: -1, mats };
   }
 
   /** The racer on its feet picked: its flourish again (the Racer screen's lock-in; nothing for a kart on the stand). */
@@ -269,15 +271,18 @@ export class Showroom {
    * own un-rotated frame (so a rotation already under way does not skew it). Empty geometry (a
    * headless test) keeps the old fixed shot's numbers.
    */
-  private frameOf(target: Object3D): { y: number; radius: number } {
+  private frameOf(target: Object3D, standing = false): { y: number; radius: number } {
     const yaw = this.stand.rotation.y, scale = this.stand.scale.x;
     this.stand.rotation.y = 0;
     this.stand.scale.setScalar(1);
     this.stand.updateMatrixWorld(true);
-    const box = new Box3().setFromObject(target);
+    // a standing figure's own skinned pose (its bind is the A-pose); a kart's bind box
+    const box = new Box3().setFromObject(target, standing);
     this.stand.rotation.y = yaw;
     this.stand.scale.setScalar(scale);
     if (box.isEmpty()) return DEFAULT_FRAME;
+    // standing: framed by its height (feet to the top of its head), its middle at the box's
+    if (standing) { const h = Math.max(0.4, box.max.y - Math.max(0, box.min.y)); return { y: h / 2, radius: h / 2 }; }
     const sphere = box.getBoundingSphere(new Sphere());
     return { y: sphere.center.y, radius: Math.max(sphere.radius, 0.6) };
   }
@@ -365,7 +370,7 @@ export class Showroom {
         const glass = m.userData.fadeOpacity as number | undefined;
         if (glass !== undefined) m.opacity = glass * alpha; else m.blendAlpha = alpha;
       }
-      this.shadow.material.uniforms.fade.value = alpha;
+      this.shadow.material.uniforms.fade.value = alpha * (k.standing ? STAND_SHADOW.strength : 1);
       renderer.render(this.scene, this.camera);
     }
     renderer.autoClear = auto;

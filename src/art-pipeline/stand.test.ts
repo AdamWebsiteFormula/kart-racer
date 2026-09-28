@@ -76,21 +76,40 @@ describe('the racer standing alone', () => {
     expect(face(3)).toBeGreaterThan(face(-3) + 0.01);
   });
 
-  it('gives its flourish: Juniper salutes, her hand up at her brow at its height, and back down at its end', () => {
+  it('gives its flourish: Juniper salutes, her hand up at her brow at its height, and back to her hip at its end', () => {
     expect(temperOf('juniper').move).toBe('salute');
+    expect(temperOf('juniper').stance).toBe('hips');
     const f = new StandingRacer(juniper);
     const eye = new Vector3(0, 1, 5);
     f.update(0, eye, false);
     const hand = () => at(f.root.getObjectByName('RightHand')), head = () => at(f.root.getObjectByName('Head'));
-    const restGap = hand().distanceTo(head());
+    const shoulder = () => at(f.root.getObjectByName('RightArm'));
+    // at rest, a hand on her hip: well below her shoulder
+    expect(hand().y).toBeLessThan(shoulder().y - 0.1);
     f.flourish();
     expect(f.flourishing).toBe(true);
     const len = STAND.seconds.salute;
     for (let t = 0; t < len * 0.5; t += 1 / 30) f.update(1 / 30, eye, false);
-    expect(hand().distanceTo(head()), 'up at the brow (the wrist a hand short of it)').toBeLessThan(restGap * 0.55);
+    expect(hand().y, 'the hand up above the shoulder').toBeGreaterThan(shoulder().y);
+    expect(hand().distanceTo(head()), 'at the brow (the wrist a hand short of it)').toBeLessThan(0.25);
     for (let t = 0; t < len * 0.6; t += 1 / 30) f.update(1 / 30, eye, false);
     expect(f.flourishing).toBe(false);
-    expect(hand().distanceTo(head())).toBeGreaterThan(restGap * 0.8);
+    expect(hand().y).toBeLessThan(shoulder().y - 0.1);
+  });
+
+  it('holds its arms in its own stance: fists up at the chest (Pip, Sprocket), hands on the hips (Juniper, Big Gus), or down at the sides', () => {
+    expect(['pip', 'sprocket'].map((id) => temperOf(id).stance)).toEqual(['ready', 'ready']);
+    expect(['juniper', 'gus'].map((id) => temperOf(id).stance)).toEqual(['hips', 'hips']);
+    expect(['momo', 'nova', 'otto', 'boulder'].every((id) => temperOf(id).stance === 'relaxed')).toBe(true);
+    // Big Gus's hands on his hips: out beside him, at his waist, level with his hips or a little above
+    const f = new StandingRacer(gus);
+    f.update(0, new Vector3(0, 1, 5), true);
+    const hips = at(f.root.getObjectByName('Hips'));
+    for (const [n, side] of [['LeftHand', 1], ['RightHand', -1]] as const) {
+      const h = at(f.root.getObjectByName(n));
+      expect((h.x - hips.x) * side, n).toBeGreaterThan(0.1);
+      expect(h.y - hips.y, n).toBeGreaterThan(-0.1);
+    }
   });
 
   it('every flourish starts and ends at rest (no pop in or out), and a twirl comes round to face you again', () => {

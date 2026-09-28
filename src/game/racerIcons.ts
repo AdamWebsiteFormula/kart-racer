@@ -15,17 +15,23 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { RACER_MODELS } from '../art-pipeline/index.ts';
 import { makeStanding, temperOf, type Flourish } from '../art-pipeline/stand.ts';
 
-/** the picture's size (px, the tile's 4:5), the shot's turn from dead ahead toward the figure's left (MKW's face you a little from the side), its look-down angle and lens */
-export const TILE = Object.freeze({ w: 520, h: 650, yaw: (22 * Math.PI) / 180, pitch: (6 * Math.PI) / 180, fov: 22, margin: 0.07 });
+/**
+ * The picture's size (px, the tile's 4:5), the shot's turn from dead ahead toward the figure's left (MKW's face you a
+ * little from the side), its look-down angle and lens, the room left round it, and `cut`: the share of the figure
+ * below its shins left off the foot of the tile, so the racer fills it as MKW's tiles do (a fresh-eyes critique,
+ * 28 Sept 2026: whole figures filled half the tile's width and their faces a third)
+ */
+export const TILE = Object.freeze({ w: 520, h: 650, yaw: (22 * Math.PI) / 180, pitch: (6 * Math.PI) / 180, fov: 22, margin: 0.06, cut: 0.2 });
 
 export const RACERS = ['pip', 'momo', 'nova', 'juniper', 'otto', 'sprocket', 'boulder', 'gus'] as const;
 
 /** Each flourish's moment for a tile: its height, the face still toward you (a bow's tile is its hand to the chest before it bows; a twirl's, arms out before it turns). */
-export const TILE_AT: Readonly<Record<Flourish, number>> = Object.freeze({ hop: 0.47, point: 0.5, twirl: 0.14, salute: 0.5, wave: 0.46, cheer: 0.4, bow: 0.22, laugh: 0.5 });
+export const TILE_AT: Readonly<Record<Flourish, number>> = Object.freeze({ hop: 0.47, point: 0.5, twirl: 0.11, salute: 0.5, wave: 0.46, cheer: 0.4, bow: 0.22, laugh: 0.5 });
 
-/** Aim `camera` at `obj` from the tile's angle, near enough that its (skinned) box fills the picture but for the margin. */
+/** Aim `camera` at `obj` from the tile's angle, near enough that its (skinned) box, less its shins and feet (TILE.cut), fills the picture but for the margin. */
 function frame(camera: PerspectiveCamera, obj: Group): void {
   const box = new Box3().setFromObject(obj, true);
+  box.min.y += (box.max.y - box.min.y) * TILE.cut;
   const mid = box.getCenter(new Vector3());
   const dir = new Vector3(Math.sin(TILE.yaw) * Math.cos(TILE.pitch), Math.sin(TILE.pitch), Math.cos(TILE.yaw) * Math.cos(TILE.pitch));
   const corners: Vector3[] = [];
@@ -56,8 +62,12 @@ function studio(w: number, h: number): { renderer: WebGLRenderer; scene: Scene; 
   scene.environmentIntensity = 0.55;
   const key = new DirectionalLight(0xfff1dc, 2.6);
   key.position.set(4, 7, 6);
-  const rim = new DirectionalLight(0xd4e4ff, 1.3);
+  // a strong cool rim from behind, so a dark racer (Momo's charcoal, Boulder's stone) stands off its tile's glass
+  const rim = new DirectionalLight(0xd4e4ff, 2.4);
   rim.position.set(-5, 4, -6);
+  const rim2 = new DirectionalLight(0xfff0dc, 1.2);
+  rim2.position.set(6, 3, -5);
+  scene.add(rim2);
   scene.add(key, rim, new HemisphereLight(0xf2f7ff, 0x6c6a5e, 1.1), new AmbientLight(0xffffff, 0.25));
   const camera = new PerspectiveCamera(TILE.fov, w / h, 0.05, 200);
   return { renderer, scene, camera, done: () => { pmrem.dispose(); renderer.dispose(); } };

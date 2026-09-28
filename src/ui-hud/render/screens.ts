@@ -145,6 +145,13 @@ function standing(e: HTMLElement, r: GpRow, moves: boolean, count: boolean, arro
 }
 
 /** Relative luminance of a #rrggbb colour, 0 (black) to 1 (white). */
+/** A color's saturation (HSV, 0..1) from its hex. */
+export function saturation(hex: string): number {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, mx = Math.max(r, g, b);
+  return mx ? (mx - Math.min(r, g, b)) / mx : 0;
+}
+
 export function luminance(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
   const ch = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
@@ -313,8 +320,9 @@ export class RosterView implements ScreenView {
       delay(b, i * UI.staggerRosterMs);
       b.style.setProperty('--accent', c.accent);
       b.style.setProperty('--secondary', c.secondary);
-      // the glass is lit in the racer's color; a pale one (Sprocket's cream) would light nothing: the other one
-      b.style.setProperty('--glow', luminance(c.accent) > 0.6 ? c.secondary : c.accent);
+      // the glass is lit in the racer's color; a pale one (Sprocket's cream) or a gray one would light nothing, or
+      // light a gray racer on gray (Momo's charcoal, Boulder's slate: a fresh-eyes critique, 28 Sept 2026): the other one
+      b.style.setProperty('--glow', luminance(c.accent) > 0.6 || saturation(c.accent) < 0.25 ? c.secondary : c.accent);
       b.setAttribute('aria-label', `${c.name}, ${c.archetype.toLowerCase()} class. ${c.species} with a ${c.kart.toLowerCase()}. ${c.personality}. ${c.words}.`);
       // (the initial stands under the picture until it loads, or if it never does)
       h('span', 'tile-letter', b, c.name[0]).setAttribute('aria-hidden', 'true');

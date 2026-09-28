@@ -205,6 +205,11 @@
 /* ---------- the paint picker under the name (garage.ts: the racer's own colors, then each alt; a locked one grayed):
    the stats panel's dark glass, the chosen swatch ringed in white ---------- */
 .select-side .garage { justify-content: center; }
+/* the Racer screen keeps the paint row's room whether the racer on show has a paint or not, so the hero's box, their
+   feet and the name under them hold still from racer to racer (a fresh-eyes critique, 28 Sept 2026: Otto's name sat
+   100 px under Pip's) */
+.roster-screen .select-side > .garage { min-height: 96px; align-content: flex-start; }
+.roster-screen .select-side > .garage[hidden] { display: flex; visibility: hidden; }
 .select-side .btn.pick {
   padding: 6px 12px 6px 18px;
   border: 0;
@@ -224,7 +229,7 @@
   box-shadow: inset 0 0 0 3px #fff, 0 0 0 4px var(--sun), 0 0 0 7px var(--ink), 0 0 28px 8px rgb(255 210 63 / 0.5);
 }
 .select-side .pick-wrap { align-items: center; }
-.select-side .pick-hint { text-align: center; }
+.select-side .pick-hint { text-align: center; padding: 4px 12px 5px; border-radius: 999px; background: rgb(14 16 38 / 0.62); }
 
 /* ---------- the stats (the Stats button shows them): over the hero, both names, four bars ---------- */
 .stat-panel {
@@ -276,6 +281,9 @@
 /* ---------- the prompts along the bottom (MKW: the buttons and what they do, bottom right); Stats and Back are buttons ---------- */
 .select-stage .prompts { flex: none; margin-top: 0; align-items: center; justify-content: flex-end; gap: 8px 22px; }
 .prompts .prompt { display: inline-flex; align-items: center; font: 600 16px/1 var(--body); color: var(--paper); text-shadow: 0 2px 0 var(--ink); }
+/* the keys' names clean: no ink shadow of the prompt's under their ink letters (it closed the "c" of a small "Esc"
+   into "Ese": a fresh-eyes critique, 28 Sept 2026), a touch lighter and apart */
+.select-stage .prompts kbd { text-shadow: none; font-weight: 600; letter-spacing: 0.04em; }
 .prompts .prompt-btn {
   appearance: none;
   border: 0;
@@ -297,6 +305,7 @@
 
 /* ---------- a laptop window (1280x720, 1366x657): a little tighter ---------- */
 @media (max-height: 800px) {
+  .roster-screen .select-side > .garage { min-height: 66px; }
   .select-grid { padding: 8px 6px; }
   .tile.focused, .tile:focus-visible { transform: translateY(-3px) scale(1.05); }
   .nameplate .np-name { font-size: clamp(44px, 4.2vw, 66px); }
@@ -308,6 +317,8 @@
 /* ---------- no room for the hero beside the tiles (a narrow window, a tablet, a phone: UI.selectCompactQuery):
    the hero goes, the name and the stats sit under the tiles, the karts five across (their focus grid too) ---------- */
 @media (max-width: 1099px), (max-height: 619px) {
+  .roster-screen .select-side > .garage { min-height: 0; }
+  .roster-screen .select-side > .garage[hidden] { display: none; }
   .select-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; row-gap: 10px; container-type: normal; }
   .roster.select-grid, .kart-grid.select-grid { width: 100%; max-width: 760px; justify-self: center; }
   .kart-grid.select-grid.cols-5 { max-width: 980px; }
