@@ -48,8 +48,8 @@ class FakeCtx {
   addEventListener() { /* no events here */ }
 }
 
-/** A fake bank's voice side: no lines recorded (a test that wants some gives its own). */
-const NO_VOICES = { loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined };
+/** A fake bank's voice side: no lines recorded (a test that wants some gives its own); and one take a sound (`pick` is `get`). */
+const NO_VOICES = { loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined, livePools: () => null, pick(this: { get(id: string): Sample | undefined }, id: string) { return this.get(id); } };
 
 const SONG: Sample = { buffer: { duration: 40 } as AudioBuffer, start: 0.5, end: 32.5, gain: 1 };
 /** The recorded race and results songs, or none (the synth plays). */

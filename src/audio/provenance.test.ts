@@ -13,7 +13,7 @@ import type { Layer } from '../../scripts/sfx/types.ts';
 import { blast, bodyW, boom, chirp, EL, note, NOTES, TAKES, thump } from '../../scripts/sfx/parts.ts';
 
 const built = BUILT as Record<string, { recipe: string; sha256: string; seconds: number }>;
-const manifest = MANIFEST as { sfx: Record<string, { url: string; loop?: boolean }> };
+const manifest = MANIFEST as { sfx: Record<string, { url: string; loop?: boolean; alts?: string[] }> };
 const recipeIds = new Set(RECIPES.map((r) => r.id));
 const sfxIds = new Set(SFX.map((s) => s.id));
 
@@ -46,11 +46,21 @@ describe('sound provenance: one maker per sound', () => {
 
   it('the manifest lists every recipe sound at its own file, as a loop exactly when its recipe is one', () => {
     for (const r of RECIPES) {
+      // another take of a sound (`<id>~2`...: the game picks one at random) is listed under its sound's `alts`
+      if (r.id.includes('~')) {
+        const base = manifest.sfx[r.id.split('~')[0]];
+        expect(base, r.id).toBeDefined();
+        expect(base.alts ?? [], r.id).toContain(`audio/sfx/${fileFor(r.id)}`);
+        expect(r.loop, `${r.id}: a loop has no takes`).toBeUndefined();
+        continue;
+      }
       const m = manifest.sfx[r.id];
       expect(m, r.id).toBeDefined();
       expect(m.url, r.id).toBe(`audio/sfx/${fileFor(r.id)}`);
       expect(!!m.loop, r.id).toBe(r.loop !== undefined);
     }
+    // and every take the manifest lists is a recipe's
+    for (const [id, m] of Object.entries(manifest.sfx)) for (const url of m.alts ?? []) expect(RECIPES.some((r) => r.id.startsWith(`${id}~`) && url === `audio/sfx/${fileFor(r.id)}`), url).toBe(true);
   });
 
   it('every built file is the one its recipe makes (rebuild with scripts/sfx/build.py after any change)', async () => {
@@ -100,7 +110,7 @@ describe('sound provenance: one maker per sound', () => {
     for (const r of RECIPES) {
       expect(r.brief.length, r.id).toBeGreaterThan(40);
       expect(r.why.length, r.id).toBeGreaterThan(20);
-      expect(MOMENT[r.id]?.length, r.id).toBeGreaterThan(20);
+      expect(MOMENT[r.id.split('~')[0]]?.length, r.id).toBeGreaterThan(20);
       expect(r.brief, r.id).not.toMatch(/\b(crowds?|cheer(s|ing)?|chant\w*|shout\w*|sing(s|ing|ers?)?|sung|choir|vocal\w*|people|person|announcer|laugh\w*|scream\w*)\b/i);
     }
   });

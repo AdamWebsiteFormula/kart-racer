@@ -28,6 +28,7 @@ import { AudioBus } from '../../../src/audio/bus.ts';
 import { finishLine, type Listener } from '../../../src/audio/director.ts';
 import { songForTrack } from '../../../src/audio/music/patterns.ts';
 import { LoopEngine, SampleBank } from '../../../src/audio/samples.ts';
+import { engineDrive } from '../../../src/audio/engine.ts';
 
 const TRACK = process.env.TRACK ?? 'harbour-loop';
 const PLAYER = process.env.PLAYER ?? 'pip';
@@ -88,9 +89,10 @@ it(`engine ${TAG}`, async () => {
   audio.newRace(songForTrack(def.id), def.id, st.trackers[pi].shownRank, finishLine(config), true);
   // every value the game hands the player's engine, per frame (LoopEngine.set's arguments)
   const ctl: number[][] = [];
+  let drive = 0;
   const origSet = LoopEngine.prototype.set;
   LoopEngine.prototype.set = function (this: LoopEngine, ...a: Parameters<LoopEngine['set']>) {
-    if (this === (audio as any).loopPlayer) ctl.push([a[0], a[1], a[2], a[3] ?? 0, a[6] ?? 1, a[7] ?? 1, a[8] ?? 0]);
+    if (this === (audio as any).loopPlayer) ctl.push([a[0], a[1], a[2], a[3] ?? 0, a[6] ?? 1, a[7] ?? 1, a[8] ?? 0, drive]);
     return origSet.apply(this, a);
   };
   const seconds = GO + AFTER, maxQ = Math.ceil((seconds * FS) / QUANTUM), N = maxQ * QUANTUM;
@@ -115,6 +117,7 @@ it(`engine ${TAG}`, async () => {
     l.heading = k.heading;
     if (tick % 2 === 0) {
       setTag('engine');
+      drive = engineDrive(parts.inputs[pi].throttle, revs[pi]);
       audio.engines(k, parts.inputs[pi].throttle, topSpeed, st.karts, l, true, revs);
       setTag('misc');
     }
@@ -124,5 +127,5 @@ it(`engine ${TAG}`, async () => {
   clearInterval((audio as any).timer);
   writeWav(`${OUT}/${TAG}-engine.wav`, [mine], FS, fs);
   writeWav(`${OUT}/${TAG}-wheels.wav`, [wheels], FS, fs);
-  fs.writeFileSync(`${OUT}/${TAG}-ctl.json`, JSON.stringify({ fs: FS, keys: ['t', 'rpm', 'level', 'screech', 'pitch', 'bright', 'limit'], rows: ctl.map((r) => r.map((x) => +x.toFixed(5))) }));
+  fs.writeFileSync(`${OUT}/${TAG}-ctl.json`, JSON.stringify({ fs: FS, keys: ['t', 'rpm', 'level', 'screech', 'pitch', 'bright', 'limit', 'drive'], rows: ctl.map((r) => r.map((x) => +x.toFixed(5))) }));
 }, 1_800_000);

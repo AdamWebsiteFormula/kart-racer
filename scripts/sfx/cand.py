@@ -54,10 +54,13 @@ def write_mp3(path, x):
 
 
 def played(x, sid, loop):
-    """As the game plays it: cut and levelled (samples.ts cutSfx) at its mix level (MIX_DB); a loop tiled to a demo."""
+    """As the game plays it: cut and levelled (samples.ts cutSfx) at its mix level (MIX_DB); a loop tiled to a demo
+    (an ambience bed, which the game has no level for yet, sits 10 dB under a loop's level and plays its wrap twice)."""
     y = dsp.as_played(x, sid, loop)
+    if sid.startswith('ambience-'):
+        y = y * 10 ** (-10 / 20)
     if loop:
-        reps = int(math.ceil(DEMO_LOOP_SECONDS / (y.shape[-1] / dsp.SR)))
+        reps = max(2 if sid.startswith('ambience-') else 1, int(math.ceil(DEMO_LOOP_SECONDS / (y.shape[-1] / dsp.SR))))
         y = np.tile(y, (1, reps))
         k = int(0.3 * dsp.SR)  # a short fade at the demo's very end only
         y[:, -k:] *= np.cos(np.linspace(0, np.pi / 2, k)) ** 2

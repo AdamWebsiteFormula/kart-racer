@@ -445,6 +445,37 @@ describe('sample bank', () => {
     expect(counts.reduce((a, b) => a + b, 0)).toBe(ids.length);
   });
 
+  it('plays one of a sound\'s takes at random, never the same twice running (28 Sept 2026: a sound heard every few seconds never repeats exactly)', async () => {
+    const manifest = { sfx: { bump: { url: 'audio/sfx/bump.mp3', alts: ['audio/sfx/bump~2.mp3', 'audio/sfx/bump~3.mp3'] }, go: { url: 'audio/sfx/go.mp3' }, drift: { url: 'audio/sfx/drift.mp3', loop: true, alts: ['audio/sfx/drift~2.mp3'] } }, music: {} };
+    const fetched: string[] = [];
+    const f = (async (u: string) => { fetched.push(String(u)); return { ok: true, json: async () => manifest, arrayBuffer: async () => new ArrayBuffer(8) }; }) as unknown as typeof fetch;
+    // each file its own buffer, a different lead-in each, so the takes differ
+    let n = 0;
+    const ctx = { decodeAudioData: async () => {
+      const d = new Float32Array(4410), lead = 100 + 300 * n++;
+      for (let i = lead; i < d.length; i++) d[i] = i % 2 ? 0.4 : -0.4;
+      return { duration: 0.1, sampleRate: 44100, numberOfChannels: 1, getChannelData: () => d } as unknown as AudioBuffer;
+    } } as unknown as BaseAudioContext;
+    const bank = new SampleBank('/', f);
+    await bank.load(ctx);
+    expect(bank.takeCount('bump')).toBe(3);
+    expect(bank.takeCount('go')).toBe(1);
+    expect(bank.takeCount('nope')).toBe(0);
+    // a loop never has takes (its alts are not even fetched): one engine, one drift
+    expect(bank.takeCount('drift')).toBe(1);
+    expect(fetched.some((u) => u.includes('drift~2'))).toBe(false);
+    expect(bank.pick('go', 0.9)).toBe(bank.get('go'));
+    const starts = new Set<number>();
+    let last: Sample | undefined;
+    for (let i = 0; i < 60; i++) {
+      const s = bank.pick('bump', (i * 0.618034) % 1)!;
+      expect(s).not.toBe(last);
+      starts.add(s.start);
+      last = s;
+    }
+    expect(starts.size, 'every take is played').toBe(3);
+  });
+
   it('keeps title and results decoded always, and the two most recent race songs', async () => {
     const keys = ['title', 'results', 'race-a', 'race-b', 'race-c'];
     const manifest = { sfx: {}, music: Object.fromEntries(keys.map((k) => [k, { url: `audio/music/${k}.mp3`, bpm: 120 }])) };

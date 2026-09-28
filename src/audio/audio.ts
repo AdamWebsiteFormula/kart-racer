@@ -12,6 +12,7 @@ import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
 import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
+import { LiveEngine } from './liveEngine.ts';
 import { ENGINE_POP, noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
 import type { BarkCue, Cue, MusicCue, SfxId, SongId } from './types.ts';
 import { mergeCues, rouletteGap, Voices } from './voices.ts';
@@ -53,6 +54,8 @@ export class GameAudio {
   private player: EngineVoice | null = null;
   private ai: EngineVoice[] = [];
   private jitter = 0x9e3779b9;
+  /** the take picker's own stream (a sound with several takes: samples.ts pick), apart from the pitch jitter's */
+  private takeSeed = 0x2545f491;
   private lastHorn = false;
   private watching = false;
   /** context time the finish sting ends: the results song waits for it */
@@ -219,7 +222,9 @@ export class GameAudio {
       this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
       rate *= 1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter;
     }
-    const s = this.bank.get(id);
+    // one of the sound's takes at random, never the same twice running (samples.ts pick; one take: that one)
+    this.takeSeed = (this.takeSeed * 1664525 + 1013904223) >>> 0;
+    const s = this.bank.pick(id, this.takeSeed / 0x100000000);
     const seconds = (s ? s.end - s.start : patchSeconds(PATCHES[id])) / rate;
     if (!this.voices.admit(id, ctx.currentTime, seconds, PRIORITY.has(id))) return null;
     // the Final Lap Shift is the game's big moment: the music stays down under most of it
@@ -510,6 +515,21 @@ export class GameAudio {
     playPatch(ctx, dest, size >= AUDIO.engineRev.thumpFrom ? ENGINE_POP.thump : ENGINE_POP.crack, at, gain * size, pan, rate);
   }
 
+  /** the live engine, once it runs (the loops play until then, and wherever it cannot) */
+  private live: LiveEngine | null = null;
+  private liveTried = false;
+
+  /** Start the live engine: its worklet module loaded, the grain pools sent, then the player's engine switches to it. */
+  private async startLive(ctx: AudioContext): Promise<void> {
+    const pools = this.bank.livePools();
+    if (!pools) return;
+    const url = (await import('./liveEngineUrl.ts')).default;
+    const live = await LiveEngine.create(ctx, url, pools);
+    if (!live || !this.loopPlayer) return;
+    this.loopPlayer.useLive(live.node, ctx.currentTime);
+    this.live = live;
+  }
+
   /**
    * The recorded engine once its loops are decoded: three loops crossfaded by rpm and the drift
    * screech for the player, the mid loop panned for the nearest rivals. False: use the synth.
@@ -549,7 +569,12 @@ export class GameAudio {
     // the kart's class sets the engine's voice: light high and bright, heavy low and dark; off the road
     // (the grid, a standstill) the engine's own rev sets its rpm and loudness (engineRpm, engineDrive)
     const cv = classVoice(player.racerId), R = AUDIO.boostRev, pRev = revs?.[others.indexOf(player)];
-    this.loopPlayer.set(t, engineRpm(player.speed, topSpeed, boosting, pRev), L.base + L.throttle * engineDrive(throttle, pRev) + (boosting ? L.boost : 0) + R.gain * rev, screech * L.screech, 0, 0, cv.pitch * (1 + R.pitch * rev), cv.bright, limiterFlutter(pRev));
+    const rpm = engineRpm(player.speed, topSpeed, boosting, pRev), drive = engineDrive(throttle, pRev), pitch = cv.pitch * (1 + R.pitch * rev);
+    this.loopPlayer.set(t, rpm, L.base + L.throttle * drive + (boosting ? L.boost : 0) + R.gain * rev, screech * L.screech, 0, 0, pitch, cv.bright, limiterFlutter(pRev));
+    // the live engine (liveEngine.ts), when the manifest names its grain table and the browser runs it: it fires at the
+    // rpm (the class and the boost rev in it), a light kart's engine smaller, a heavy one's bigger (size)
+    if (!this.liveTried && this.bank.livePools()) { this.liveTried = true; void this.startLive(ctx); }
+    this.live?.set(t, { rpm: rpm * pitch, load: drive, limit: limiterFlutter(pRev), size: Math.sqrt(cv.pitch) });
     // under the wheels: this course's own surfaces (sand, snow, grass, ice, planks, the rail), and the drift sparks by tier
     const extras = this.extras;
     extras.clear();

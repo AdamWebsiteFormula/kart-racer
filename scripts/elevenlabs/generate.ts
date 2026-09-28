@@ -111,10 +111,16 @@ async function makeSong(key: string, s: SongSpec): Promise<string> {
 
 /** The runtime's list: only files that exist, so the game never asks for a missing one. */
 async function writeManifest(): Promise<void> {
-  const sfx: Record<string, { url: string; loop?: true }> = {};
+  const sfx: Record<string, { url: string; loop?: true; alts?: string[] }> = {};
   for (const s of SFX) if (existsSync(sfxPath(s))) sfx[s.id] = s.loop ? { url: `audio/sfx/${fileFor(s.id)}`, loop: true } : { url: `audio/sfx/${fileFor(s.id)}` };
   // the sounds built from recipes (scripts/sfx/build.py), each in its own file
-  for (const r of RECIPES) if (existsSync(new URL(`sfx/${fileFor(r.id)}`, OUT))) sfx[r.id] = r.loop ? { url: `audio/sfx/${fileFor(r.id)}`, loop: true } : { url: `audio/sfx/${fileFor(r.id)}` };
+  for (const r of RECIPES) if (!r.id.includes('~') && existsSync(new URL(`sfx/${fileFor(r.id)}`, OUT))) sfx[r.id] = r.loop ? { url: `audio/sfx/${fileFor(r.id)}`, loop: true } : { url: `audio/sfx/${fileFor(r.id)}` };
+  // a recipe sound's other takes (`<id>~2`, `<id>~3`...): the game plays one of them at random (samples.ts pick)
+  const takeNo = (id: string) => Number(id.split('~')[1]);
+  for (const r of RECIPES.filter((x) => x.id.includes('~')).sort((a, b) => takeNo(a.id) - takeNo(b.id))) {
+    const base = sfx[r.id.split('~')[0]];
+    if (base && existsSync(new URL(`sfx/${fileFor(r.id)}`, OUT))) (base.alts ??= []).push(`audio/sfx/${fileFor(r.id)}`);
+  }
   const music: Record<string, { url: string; bpm: number; loop?: readonly [number, number] }> = {};
   for (const s of SONGS) if (existsSync(songPath(s))) music[s.id] = { url: `audio/music/${fileFor(s.id)}`, bpm: s.bpm };
   // the Lyria songs (made outside this script) keep their place and their loop

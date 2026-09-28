@@ -4,12 +4,24 @@
 // thin Web Audio.
 import { AUDIO } from './constants.ts';
 import { engineCutoff } from './engine.ts';
+import type { GrainPool } from './engineCore.ts';
+import { splitGrains, type GrainMap } from './liveEngine.ts';
 import type { Bark } from './types.ts';
 
 export interface Manifest {
-  sfx: Record<string, { url: string; loop?: boolean }>;
+  /**
+   * `alts`: more takes of the same one-shot (a different recorded hit, a small pitch step), each a recipe of its own
+   * (`<id>~2`, `<id>~3`...: scripts/sfx); the game plays one at random each time, never the same twice running, so a
+   * sound heard every few seconds never repeats exactly (28 Sept 2026)
+   */
+  sfx: Record<string, { url: string; loop?: boolean; alts?: readonly string[] }>;
   /** `loop`: a song with an intro names its loop, bar-aligned seconds [start, end]: the intro plays once, then the loop (else the loop is found) */
   music: Record<string, { url: string; bpm: number; loop?: readonly [number, number] }>;
+  /**
+   * The live engine's grain table (engineCore.ts, liveEngine.ts; scripts/sfx/grains.py): its audio and its map. When
+   * named, the player's engine plays live once the table is in and the browser runs the AudioWorklet; else the loops.
+   */
+  engine?: { grains: string; map: string };
 }
 
 /** What the analysis found in one recording. Times are buffer seconds. */
@@ -486,6 +498,9 @@ export type AudioSchedule = <T>(job: () => Promise<T>, tier: number, song?: stri
 export class SampleBank {
   private manifest: Manifest | null = null;
   private readonly sfx = new Map<string, Sample>();
+  /** every take of a sound with more than one (its manifest `url` first, then its `alts` as they land), and the take played last */
+  private readonly takes = new Map<string, Sample[]>();
+  private readonly lastTake = new Map<string, Sample>();
   private readonly songs = new Map<string, Promise<Sample | null>>();
   /** each racer's lines by `racer:moment`, in take order; a moment is here only once all its takes are in */
   private readonly lines = new Map<string, Sample[]>();
@@ -518,13 +533,21 @@ export class SampleBank {
       const manifest = (await r.json()) as Manifest;
       this.manifest = manifest;
       this.onManifest?.();
+      // the live engine's grain table comes down with the engine loops (the race start's turn), beside the sounds
+      const live = manifest.engine ? this.loadLive(ctx, manifest.engine) : Promise.resolve();
       // asked for in turn order (a stable sort: the manifest's order within a turn)
       const ids = Object.keys(manifest.sfx).sort((a, b) => sfxTier(a) - sfxTier(b));
       await Promise.all(ids.map(async (id) => {
         const m = manifest.sfx[id];
         const b = await this.decode(ctx, m.url, sfxTier(id));
         if (b) this.sfx.set(id, cutSfx(b, !!m.loop, id));
+        // the other takes come down in the same turn, right after the first (a sound plays its first take until they are in)
+        if (!m.alts?.length || m.loop) return;
+        const alts = await Promise.all(m.alts.map((url) => this.decode(ctx, url, sfxTier(id))));
+        const all = [this.sfx.get(id), ...alts.map((a) => (a ? cutSfx(a, false, id) : undefined))].filter((s): s is Sample => !!s);
+        if (all.length > 1) this.takes.set(id, all);
       }));
+      await live;
       this.onLoaded?.();
     })().catch(() => undefined);
     return this.loading;
@@ -544,6 +567,37 @@ export class SampleBank {
   }
 
   get(id: string): Sample | undefined { return this.sfx.get(id); }
+
+  private pools: GrainPool[] | null = null;
+  /** The live engine's grain pools once its table is in (null: none named, or not in yet). */
+  livePools(): GrainPool[] | null { return this.pools; }
+
+  /** The grain table's map and audio, at the engine loops' turn, split into pools (liveEngine.ts splitGrains). Fails soft. */
+  private async loadLive(ctx: BaseAudioContext, e: { grains: string; map: string }): Promise<void> {
+    try {
+      const tier = sfxTier('engine-high');
+      const map = await this.schedule(async () => { const r = await this.get_(`${this.base}${e.map}`); return r.ok ? ((await r.json()) as GrainMap) : null; }, tier);
+      const b = map && (await this.decode(ctx, e.grains, tier));
+      if (map && b) this.pools = splitGrains(b.getChannelData(0), b.sampleRate, map);
+    } catch { /* the loops stay the engine */ }
+  }
+
+  /** How many takes of a sound are in (0 when none, 1 when it has no others yet). */
+  takeCount(id: string): number { return this.takes.get(id)?.length ?? (this.sfx.has(id) ? 1 : 0); }
+
+  /**
+   * The take of a sound to play now: one of its takes at random (`r` in [0, 1)), never the one played last; a
+   * sound with one take, that one (as `get`).
+   */
+  pick(id: string, r: number): Sample | undefined {
+    const all = this.takes.get(id);
+    if (!all) return this.sfx.get(id);
+    const last = this.lastTake.get(id);
+    const others = last ? all.filter((s) => s !== last) : all;
+    const s = others[Math.min(others.length - 1, Math.floor(Math.max(0, r) * others.length))];
+    this.lastTake.set(id, s);
+    return s;
+  }
 
   /**
    * Fetch the voice list, then every racer's lines at VOICE_TIER, each levelled like a sound effect
@@ -802,6 +856,20 @@ export class LoopEngine {
   /** Whether this engine plays the recorded off-road rumble (else the synth one stands in). */
   get hasRumble(): boolean { return this.rumble !== null; }
 
+  /** the live engine, once it plays in the loops' place (liveEngine.ts): its sound runs through this engine's level and low-pass */
+  private live = false;
+  /**
+   * Play `node` (the live engine) in the loops' place: it joins at the engine's level, before its low-pass; the loops
+   * go silent; the limiter's flutter stops chopping (the live engine cuts its own spark at the limiter).
+   */
+  useLive(node: AudioNode, t: number): void {
+    if (this.live) return;
+    this.live = true;
+    node.connect(this.out);
+    for (const b of this.bands) b.g.gain.setTargetAtTime(0, t, 0.05);
+  }
+  get isLive(): boolean { return this.live; }
+
   /**
    * Follow the rpm; `level` is the engine's loudness, `screech` the drift screech's, `rumble` the
    * off-road's, `pan` −1..1, `pitch` this racer's own pitch offset (racerPitch, class, boost rev),
@@ -810,13 +878,15 @@ export class LoopEngine {
    */
   set(t: number, rpm: number, level: number, screech = 0, pan = 0, rumble = 0, pitch = 1, bright = 1, limit = 0): void {
     const w = bandWeights(rpm), f = this.flutter, E = AUDIO.engineRev;
+    // live: the loops stay silent and the flutter still (the live engine follows the rpm and cuts its own spark)
+    const flutter = this.live ? 0 : limit;
     for (let i = 0; i < this.bands.length; i++) {
       const b = this.bands[i], rate = bandRate(rpm, b.band) * pitch;
       b.src.playbackRate.setTargetAtTime(rate, t, 0.03);
-      b.g.gain.setTargetAtTime((this.bands.length === 1 ? 1 : w[b.band]) * b.s.gain, t, 0.05);
-      f?.rateDepth[i].gain.setTargetAtTime(limit * E.flutterRate * rate, t, 0.04);
+      b.g.gain.setTargetAtTime(this.live ? 0 : (this.bands.length === 1 ? 1 : w[b.band]) * b.s.gain, t, 0.05);
+      f?.rateDepth[i].gain.setTargetAtTime(flutter * E.flutterRate * rate, t, 0.04);
     }
-    f?.chopDepth.gain.setTargetAtTime(limit * E.flutterChop, t, 0.04);
+    f?.chopDepth.gain.setTargetAtTime(flutter * E.flutterChop, t, 0.04);
     this.lp.frequency.setTargetAtTime(engineCutoff(rpm) * bright, t, 0.05);
     this.out.gain.setTargetAtTime(level, t, 0.05);
     this.pan?.pan.setTargetAtTime(pan, t, 0.1);
