@@ -5,10 +5,14 @@
 // colours with their places on the front, each in their own kart, paint and body and reacting
 // (kart-controller anim.ts: champion, cheer, bounce), a big gold cup of our own (a balloon on its
 // lid) popping up on a column behind the winner, confetti drifting down and fireworks over the
-// stands, the camera craning down and sweeping slowly across. Reduced motion: two still shots cut
-// in turn, the reactions small, fewer fireworks. Built at the series' last results and compiled
-// then (performance/warmup.ts precompile), so no frame stalls on it; main.ts hides the race's karts
-// and items while it shows. Render only: nothing here touches the sim.
+// stands. The camera works as Mario Kart World's ceremony does (28 Sept 2026; the fresh-eyes review:
+// "the podium is one wide, static shot"; MKW ngiIINHSiJc 15:26-15:50): it cranes down over the
+// podium, then gives each of the top three a moving close shot in turn, 3rd, 2nd, then the winner,
+// each celebrating as the camera comes to them (the overlay lights their place: podiumShot, `focus`),
+// then sweeps across all three, the cup and the fireworks, and round again. Reduced motion: still
+// shots cut in turn (wide, 3rd, 2nd, 1st), the reactions small, fewer fireworks. Built at the
+// series' last results and compiled then (performance/warmup.ts precompile), so no frame stalls on
+// it; main.ts hides the race's karts and items while it shows. Render only: nothing here touches the sim.
 import {
   BufferAttribute, CanvasTexture, CylinderGeometry, Group, LatheGeometry, Mesh, MeshStandardMaterial, MeshToonMaterial, PlaneGeometry, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector2,
   type BufferGeometry, type Material, type Object3D,
@@ -37,14 +41,26 @@ export const PODIUM = Object.freeze({
    * front showed 0.24 m between its trims, room for a 0.2 m plate; at 0.6 its 0.3 m plate reads from the ceremony camera)
    */
   width: 2.5, depth: 2.9, gap: 0.08, heights: [1.15, 0.8, 0.6] as const,
-  /** the cup: its column behind the winner (height, radius, metres back from the podium's middle), the cup's height, the pop-up (s after the start, s long) */
-  column: 2.8, columnRadius: 0.45, columnBack: 2.05, cup: 1.9, cupAt: 2.3, cupPop: 0.6,
-  /** the camera: circling radius and height over the road, aim height; its sweep either side (rad) and the sweep's period (s); the crane in (start radius, height, seconds); field of view */
-  radius: 8, height: 1.75, aim: 2.3, arc: 0.42, period: 24, craneFrom: [16, 7.5] as const, crane: 3.4, fov: 50,
-  /** reduced motion: the wide shot and the winner's close shot cut in turn every `cut` seconds */
-  cut: 5, close: 5.2, closeHeight: 2.1,
-  /** each place's reaction starts (3rd, then 2nd, then 1st) and plays again every `again` seconds */
-  reactAt: [0.25, 0.85, 1.5] as const, again: 7.5,
+  /** the cup: its column behind the winner (height, radius, metres back from the podium's middle), the cup's height, the pop-up (s after the start, s long: in the opening crane, so it stands in every shot after) */
+  column: 2.8, columnRadius: 0.45, columnBack: 2.05, cup: 1.9, cupAt: 1.2, cupPop: 0.6,
+  /** the wide shots: the camera's distance from the podium's middle, its height over the road, its aim's height; the sweep either side (rad); the opening crane (from distance, height; seconds); field of view */
+  radius: 8, height: 1.75, aim: 2.3, arc: 0.42, craneFrom: [16, 7.5] as const, crane: 2.6, fov: 50,
+  /** the wide shot after each round of hero shots: seconds, and how far it pushes in (m off radius, half either side) and comes down (m) as it sweeps across */
+  wide: 6.5, push: 1.4, sink: 0.7,
+  /** the hero shots (Mario Kart World's ceremony: each of the top three in turn, 3rd, 2nd, then the winner): seconds for 1st, 2nd, 3rd */
+  hero: [3.8, 3, 3] as const,
+  /**
+   * a hero shot of 2nd or 3rd: metres from the racer (from, to: it pushes in), height over its step's top (from, to),
+   * the swing round it (rad off straight in front, from its own side toward the middle: from, to), the aim's height over
+   * the step's top, the field of view
+   */
+  heroDist: [4.7, 3.9] as const, heroUp: [1.45, 1.85] as const, heroSwing: [0.62, 0.2] as const, heroAim: 1.2, heroFov: 42,
+  /** the winner's: from low, craning up as it swings across the front, the aim rising with it so the cup shows over them */
+  winnerDist: [5.2, 4.6] as const, winnerUp: [0.95, 1.7] as const, winnerSwing: 0.4, winnerAim: [1.1, 1.35] as const,
+  /** reduced motion: still shots cut in turn (wide, 3rd, 2nd, 1st) every `cut` seconds */
+  cut: 4,
+  /** in the opening crane and each wide shot, 3rd, 2nd, then 1st start their move at these seconds in; in a hero shot, its racer this long after the cut */
+  reactAt: [0.25, 0.85, 1.5] as const, heroReact: 0.12,
   /** confetti pieces a second over the podium, within `confettiRadius` of it */
   confetti: 46, confettiRadius: 5.5,
   /** a firework every `firework` seconds (±40 %), behind the podium and over the stands: metres back, across, up */
@@ -55,6 +71,42 @@ export const PODIUM = Object.freeze({
 
 /** Each place's reaction on its step: 1st, 2nd, 3rd. */
 export const PODIUM_REACTIONS: readonly Reaction[] = Object.freeze(['champion', 'cheer', 'bounce']);
+
+/** A moment of the ceremony: the shot on (the opening crane, a wide shot, or a hero shot of racer `view`: 0 the winner), how far into it (0..1), when it started (s) and which round of shots it is in. */
+export interface PodiumShot { kind: 'crane' | 'wide' | 'hero'; view: number; u: number; start: number; round: number }
+
+/**
+ * Which shot is on `t` seconds into the ceremony with `n` racers up (1 to 3), written into `out`. Mario Kart World's
+ * order (ngiIINHSiJc 15:26-15:50: fireworks over the course, then "3rd Donkey Kong", "2nd Chargin' Chuck" and
+ * "1st Luigi", each a moving close shot, then the three together): the opening crane, a hero shot of each in turn,
+ * 3rd, 2nd, then the winner, then the wide shot sweeping across all three, and round again from the hero shots.
+ * Reduced motion: still shots cut in turn every PODIUM.cut seconds, the wide one first. Pure.
+ */
+export function podiumShot(t: number, n: number, reduced: boolean, out: PodiumShot = { kind: 'crane', view: -1, u: 0, start: 0, round: 0 }): PodiumShot {
+  const P = PODIUM;
+  if (reduced) {
+    const k = Math.floor(Math.max(0, t) / P.cut), slot = k % (n + 1);
+    out.round = Math.floor(k / (n + 1));
+    out.start = k * P.cut;
+    out.u = (t - out.start) / P.cut;
+    out.kind = slot === 0 ? 'wide' : 'hero';
+    out.view = slot === 0 ? -1 : n - slot;
+    return out;
+  }
+  if (t < P.crane) { out.kind = 'crane'; out.view = -1; out.u = Math.max(0, t) / P.crane; out.start = 0; out.round = 0; return out; }
+  let heroes = 0;
+  for (let v = 0; v < n; v++) heroes += P.hero[v];
+  const cycle = heroes + P.wide, u = t - P.crane, round = Math.floor(u / cycle);
+  let at = u - round * cycle, start = P.crane + round * cycle;
+  out.round = round;
+  for (let v = n - 1; v >= 0; v--) {
+    if (at < P.hero[v]) { out.kind = 'hero'; out.view = v; out.u = at / P.hero[v]; out.start = start; return out; }
+    at -= P.hero[v];
+    start += P.hero[v];
+  }
+  out.kind = 'wide'; out.view = -1; out.u = at / P.wide; out.start = start;
+  return out;
+}
 
 /**
  * A block's trims (metres): the coloured top (`lip` thick, overhanging the front by `overhang`) and the
@@ -167,6 +219,9 @@ function balloonGeometry(height: number): BufferGeometry {
 }
 
 const smoother = (u: number): number => { const k = u < 0 ? 0 : u > 1 ? 1 : u; return k * k * k * (k * (k * 6 - 15) + 10); };
+/** 0 → 1, half linear and half smootherstep: a shot's camera already moving at its cut and still moving at the next */
+const ease = (u: number): number => ((u < 0 ? 0 : u > 1 ? 1 : u) + smoother(u)) / 2;
+const lerp = (a: number, b: number, k: number): number => a + (b - a) * k;
 /** 0 → 1 with a springy overshoot, over 0..1 */
 const popIn = (u: number): number => (u <= 0 ? 0 : u >= 1 ? 1 : 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2));
 
@@ -196,7 +251,13 @@ export class Podium {
   private nextFirework = 0;
   private nextCheer = 0;
   private confettiDebt = 0;
-  private reacted = [-1, -1, -1];
+  /** the shot on this frame (podiumShot), and the one before it (its start, kind and racer) */
+  readonly shot: PodiumShot = { kind: 'crane', view: -1, u: 0, start: 0, round: 0 };
+  private shotStart = -1;
+  private shotKind = '';
+  private shotView = -2;
+  /** when each racer (1st, 2nd, 3rd) starts their move next (s; -1: not due) */
+  private readonly due = [-1, -1, -1];
   private hue = 0;
 
   /** `top`: 1st, 2nd, 3rd; `biome`: the track's (its stands' colours); `crowd`: the track's grandstand crowd, cheered on through the ceremony */
@@ -301,7 +362,8 @@ export class Podium {
   private reset(): void {
     this.time = -1;
     this.cup.scale.setScalar(0.001);
-    this.reacted = [-1, -1, -1];
+    this.shotStart = -1; this.shotKind = ''; this.shotView = -2;
+    this.due.fill(-1);
     this.nextFirework = 0.4;
     this.nextCheer = 0;
     this.confettiDebt = 0;
@@ -323,19 +385,27 @@ export class Podium {
 
   get showing(): boolean { return this.time >= 0; }
 
+  /** The place (1 to 3) the camera is on in a hero shot (the overlay lights its card: ui-hud podiumFocus), else 0. */
+  get focus(): number { return this.time >= 0 && this.shot.kind === 'hero' ? this.shot.view + 1 : 0; }
+
   /**
-   * One rendered frame of the ceremony: `dt` real seconds. The racers react and bob, the cup pops up,
-   * confetti drifts down, fireworks go up over the stands, the crowd cheers, the camera cranes in and
-   * sweeps (reduced motion: still shots cut in turn). `clock` is the crowd's clock (WATER_CLOCK).
+   * One rendered frame of the ceremony: `dt` real seconds. The shot on (podiumShot) sets who celebrates:
+   * in the opening crane and each wide shot 3rd, 2nd, then the winner, a beat apart; in a hero shot its
+   * racer, just after the cut. The cup pops up, confetti drifts down, fireworks go up over the stands,
+   * the crowd cheers, the camera moves through the shots (reduced motion: still shots cut in turn).
+   * `clock` is the crowd's clock (WATER_CLOCK).
    */
   update(dt: number, reduced: boolean, fx: PodiumFx | null, clock = 0): void {
     if (this.time < 0) return;
-    const P = PODIUM, t = (this.time += dt), sp = this.spot;
-    // the racers: 3rd, then 2nd, then the winner; each again every so often
-    for (let i = 0; i < this.views.length; i++) {
-      const at = P.reactAt[2 - i] ?? 0;
-      const n = t < at ? -1 : Math.floor((t - at) / P.again);
-      if (n !== this.reacted[i]) { this.reacted[i] = n; if (n >= 0) this.views[i].anim.react(PODIUM_REACTIONS[i]); }
+    const P = PODIUM, t = (this.time += dt), sp = this.spot, n = this.views.length;
+    const shot = podiumShot(t, n, reduced, this.shot);
+    if (shot.start !== this.shotStart || shot.kind !== this.shotKind || shot.view !== this.shotView) {
+      this.shotStart = shot.start; this.shotKind = shot.kind; this.shotView = shot.view;
+      if (shot.kind === 'hero') this.due[shot.view] = shot.start + P.heroReact;
+      else for (let i = 0; i < n; i++) this.due[i] = shot.start + (P.reactAt[2 - i] ?? 0);
+    }
+    for (let i = 0; i < n; i++) {
+      if (this.due[i] >= 0 && t >= this.due[i]) { this.due[i] = -1; this.views[i].anim.react(PODIUM_REACTIONS[i]); }
       this.views[i].onTick(this.states[i], dt, NEUTRAL_INPUT);
       this.views[i].onFrame(1, this.states[i], 0, dt, reduced);
     }
@@ -355,31 +425,71 @@ export class Podium {
         this.nextFirework = t + P.firework * (reduced ? 2 : 1) * (0.6 + rnd() * 0.8);
       }
     }
-    this.camera(t, reduced);
+    this.camera(reduced);
   }
 
-  /** The camera: craning down and in, then sweeping slowly across the front; with reduced motion, still shots cut in turn. */
-  private camera(t: number, reduced: boolean): void {
-    const P = PODIUM, sp = this.spot, m = sp.middle;
-    let r: number, h: number, a: number, aimX = 0;
-    if (reduced) {
-      const close = Math.floor(t / P.cut) % 2 === 1;
-      r = close ? P.close : P.radius; h = close ? P.closeHeight : P.height; a = close ? 0.18 : 0;
+  /**
+   * The camera for this frame's shot (this.shot): the opening crane down and in (swinging round from one side
+   * as it comes), a hero shot on its racer, or the wide shot sweeping across all three from one side to the
+   * other as it pushes in and comes down (each round the other way). Reduced motion: every shot a still, its
+   * middle.
+   */
+  private camera(reduced: boolean): void {
+    const P = PODIUM, sp = this.spot, m = sp.middle, shot = this.shot;
+    if (shot.kind === 'hero') { this.hero(shot.view, reduced ? 0.5 : shot.u, shot.round); return; }
+    let r: number, h: number, a: number;
+    if (shot.kind === 'crane') {
+      const c = ease(shot.u);
+      r = lerp(P.craneFrom[0], P.radius, c);
+      h = lerp(P.craneFrom[1], P.height, c);
+      a = -0.3 * (1 - c);
+    } else if (reduced) {
+      r = P.radius; h = P.height; a = 0;
     } else {
-      const c = smoother(t / P.crane);
-      r = P.craneFrom[0] + (P.radius - P.craneFrom[0]) * c;
-      h = P.craneFrom[1] + (P.height - P.craneFrom[1]) * c;
-      // the sweep starts at the middle and swings either side
-      a = P.arc * Math.sin((2 * Math.PI * Math.max(0, t - P.crane * 0.5)) / P.period) * c;
+      const e = ease(shot.u), way = shot.round % 2 === 0 ? 1 : -1;
+      r = P.radius + P.push * (0.5 - e);
+      h = P.height + P.sink * (1 - e);
+      a = way * P.arc * (2 * e - 1);
     }
     const ca = Math.cos(a), sa = Math.sin(a);
     this.pos[0] = m[0] + (sp.front[0] * ca + sp.right[0] * sa) * r;
     this.pos[1] = m[1] + h;
     this.pos[2] = m[2] + (sp.front[2] * ca + sp.right[2] * sa) * r;
-    this.look[0] = m[0] + sp.right[0] * aimX;
+    this.look[0] = m[0];
     this.look[1] = m[1] + P.aim;
-    this.look[2] = m[2] + sp.right[2] * aimX;
+    this.look[2] = m[2];
     this.fov = P.fov;
+  }
+
+  /**
+   * A hero shot on racer `v` (0 the winner), `u` of the way through it: in front of their step, looking at
+   * them. 2nd and 3rd: from their own side swinging round toward the middle as it pushes in and rises a little;
+   * the winner: from low, craning up as it swings across the front (each round the other way), the aim rising
+   * with it so the cup on its column shows over them.
+   */
+  private hero(v: number, u: number, round: number): void {
+    const P = PODIUM, sp = this.spot, b = this.states[v].position, e = ease(u);
+    let swing: number, dist: number, up: number, aim: number;
+    if (v === 0) {
+      swing = (round % 2 === 0 ? 1 : -1) * P.winnerSwing * (2 * e - 1);
+      dist = lerp(P.winnerDist[0], P.winnerDist[1], e);
+      up = lerp(P.winnerUp[0], P.winnerUp[1], e);
+      aim = lerp(P.winnerAim[0], P.winnerAim[1], e);
+    } else {
+      // 2nd stands on the audience's left, 3rd on the right
+      swing = (v === 1 ? -1 : 1) * lerp(P.heroSwing[0], P.heroSwing[1], e);
+      dist = lerp(P.heroDist[0], P.heroDist[1], e);
+      up = lerp(P.heroUp[0], P.heroUp[1], e);
+      aim = P.heroAim;
+    }
+    const cs = Math.cos(swing), sn = Math.sin(swing);
+    this.pos[0] = b[0] + (sp.front[0] * cs + sp.right[0] * sn) * dist;
+    this.pos[1] = b[1] + up;
+    this.pos[2] = b[2] + (sp.front[2] * cs + sp.right[2] * sn) * dist;
+    this.look[0] = b[0];
+    this.look[1] = b[1] + aim;
+    this.look[2] = b[2];
+    this.fov = P.heroFov;
   }
 
   /** Free its own geometry, materials and texture, and the karts' own material copies (and a rigged one's bone texture). */

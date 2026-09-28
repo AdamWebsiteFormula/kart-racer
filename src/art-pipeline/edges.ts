@@ -241,6 +241,14 @@ export const EDGE_MODELS: Record<string, { build: Build }> = {
       m.box([0.14, 0.08, 3.9], SNOW, [0, 1.11, 0], undefined, false);
     },
   },
+  // the snow fence on the course limit between the runs (edge.ts rail): one post a piece, so a row of them stands a
+  // post every 4 m, and its two rails; a third of the triangles lighter than the runs' own (Frostbite Pass's frame budget)
+  'edge-snowrail': {
+    build: (m) => {
+      m.box([0.14, 1.3, 0.14], '#8a5a34', [0, 0.65, -1.95], undefined, false);
+      for (const y of [0.55, 1.0]) m.box([0.08, 0.14, 4.0], '#9a6538', [0, y, 0], undefined, false);
+    },
+  },
 };
 
 // ---------------------------------------------------------------- the kits
@@ -286,6 +294,9 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
     ],
     replaces: ['flowers'],
     solid: ['barn', 'water-tower', 'windpump', 'windmill-small'],
+    // the limit's own line where no run stands (a barn's yard, a stand's end, the start): a post-and-rail fence
+    rail: { asset: 'ranch-fence', every: 4, at: 0.45 },
+    relief: ['knoll'],
   },
   harbour: {
     bank: { profile: BERM, height: [0.9, 1.5] },
@@ -316,6 +327,8 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
     ],
     replaces: ['flowers'],
     solid: ['house', 'stall'],
+    // the limit's own line where no run stands (a house's garden, a stall, the start, the shore): a rope line on posts
+    rail: { asset: 'edge-ropefence', every: 4, at: 0.45 },
   },
   canyon: {
     bank: { profile: DUNE, height: [1.6, 3.0] },
@@ -331,6 +344,9 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
       { asset: 'edge-ripples', count: 60 },
     ],
     solid: ['adobe', 'water-tower', 'windpump', 'mine-track', 'cliff', 'minecart', 'mesa', 'arch', 'hoodoo'],
+    // the limit's own line where no run stands: the weathered ranch fence
+    rail: { asset: 'ranch-fence', every: 4, at: 0.45 },
+    relief: ['dune'],
   },
   frost: {
     bank: { profile: SNOWBANK, height: [1.3, 2.3] },
@@ -343,6 +359,9 @@ const KITS: Readonly<Record<string, EdgeKit>> = Object.freeze({
     clusters: { assets: ['edge-pines', 'edge-snowlump', 'edge-pines'], size: [2, 3], at: [2, 6.5] },
     drifts: [{ asset: 'edge-frostgrass', count: 90, scale: [0.8, 1.25] }],
     solid: ['chalet', 'cottage', 'cottage-teal', 'igloo', 'ski-lodge', 'jump-tower', 'crag', 'frozen-falls', 'ski-lift', 'frozen-pond'],
+    // the limit's own line where no run stands: a snow fence, one post a piece (the frame budget)
+    rail: { asset: 'edge-snowrail', every: 4, at: 0.45 },
+    relief: ['snowdrift'],
   },
 });
 

@@ -10,7 +10,7 @@ import { NearGhost } from './ghost.ts';
 import { insideCourse, insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
-import { buildTrackScene, GEAR_MOTION, isDrawn, PICKUP_GHOST } from './scene.ts';
+import { BALLOON_MOTION, balloonFloat, buildTrackScene, GEAR_MOTION, isDrawn, PICKUP_GHOST } from './scene.ts';
 import { trackAssetsFor } from '../../art-pipeline/decor.ts';
 import boardwalkJson from '../tracks/boardwalk-nights.json';
 import canyonJson from '../tracks/canyon-rush.json';
@@ -131,6 +131,59 @@ describe('the speed gears (the track\'s coins, drawn as gears: Adam, 26 Sept 202
     expect(a[0]).not.toBe(0);
     timers[1].respawnRemaining = 0;
     scene.update(2.1, [], { coins: timers });
+    expect(new Vector3(a[16], a[17], a[18]).length()).toBeCloseTo(1, 5);
+    scene.dispose();
+  });
+});
+
+describe('the pickup balloons float on their ribbons (review 27 Sept 2026: "they hang dead still by day")', () => {
+  it('each sways, nods, bobs and turns about the tie where its ribbon meets the road, on its own phase; never drifting; a popped one hidden', () => {
+    const scene = buildTrackScene(buildTrack(HARBOUR_LOOP));
+    const balloons = scene.instancers.get('balloons')!, n = HARBOUR_LOOP.pickups!.length;
+    const a = balloons.instanceMatrix.array as Float32Array;
+    const B = BALLOON_MOTION, tie = BUILDER.balloonHeight;
+    // where each was placed: its float at time 0 taken back off (balloonFloat is the float it is drawn with)
+    const local = new Matrix4(), twist = new Matrix4(), M = new Matrix4();
+    scene.update(0);
+    const placed = Array.from({ length: n }, (_, k) => M.fromArray(a, k * 16).multiply(balloonFloat(0, k * 2.399963, tie, local, twist).invert()).clone());
+    const at = (m: Matrix4, y: number) => new Vector3(0, y, 0).applyMatrix4(m);
+    let moved = 0;
+    for (const t of [0.4, 1.3, 2.9, 6.1]) {
+      scene.update(t);
+      for (let k = 0; k < n; k++) {
+        M.fromArray(a, k * 16);
+        // the tie stays on its spot on the road, up and down by no more than the bob
+        const tie0 = at(placed[k], -tie), tie1 = at(M, -tie);
+        expect(Math.hypot(tie1.x - tie0.x, tie1.z - tie0.z)).toBeLessThan(1e-4);
+        expect(Math.abs(tie1.y - tie0.y)).toBeLessThanOrEqual(B.bob + 1e-4);
+        // the balloon's middle stays close over it: the tilt about the tie and the bob, no more
+        const mid0 = at(placed[k], 0), mid1 = at(M, 0);
+        const reach = tie * Math.sin(Math.hypot(B.sway, B.nod)) + B.bob;
+        expect(mid1.distanceTo(mid0)).toBeLessThanOrEqual(reach + 1e-4);
+        moved = Math.max(moved, mid1.distanceTo(mid0));
+        // it leans off upright by no more than the sway and the nod together, and keeps its size
+        const up = new Vector3(a[k * 16 + 4], a[k * 16 + 5], a[k * 16 + 6]);
+        expect(up.length()).toBeCloseTo(1, 5);
+        expect(up.angleTo(new Vector3(0, 1, 0))).toBeLessThanOrEqual(Math.hypot(B.sway, B.nod) + 1e-4);
+      }
+    }
+    expect(moved, 'they move').toBeGreaterThan(0.05);
+    // a row is never in step: two neighbours stand differently at the same time
+    scene.update(1.7);
+    const mid = (k: number) => at(M.fromArray(a, k * 16), 0).sub(at(placed[k], 0));
+    expect(mid(0).distanceTo(mid(1))).toBeGreaterThan(0.01);
+    // the same time, the same picture (pictures only, on the scene's clock)
+    const once = Array.from(a.subarray(0, n * 16));
+    scene.update(0.2);
+    scene.update(1.7);
+    expect(Array.from(a.subarray(0, n * 16))).toEqual(once);
+    // popped: hidden until the race-manager's timer runs out, floating again after
+    const timers = Array.from({ length: n }, () => ({ respawnRemaining: 0 }));
+    timers[1].respawnRemaining = 2;
+    scene.update(2, [], { pickups: timers });
+    expect([a[16], a[16 + 5], a[16 + 10]]).toEqual([0, 0, 0]);
+    timers[1].respawnRemaining = 0;
+    scene.update(2.1, [], { pickups: timers });
     expect(new Vector3(a[16], a[17], a[18]).length()).toBeCloseTo(1, 5);
     scene.dispose();
   });
@@ -497,14 +550,18 @@ describe('Final Lap Shift swap and hazards', () => {
     expect((balloons.material as Material).customProgramCacheKey(), 'no stipple').not.toContain('|near');
     const at = new Vector3().setFromMatrixPosition(new Matrix4().fromArray(balloons.instanceMatrix.array, 0));
     const camera = new PerspectiveCamera();
-    // 4 m from a balloon's middle: outside a race's fade, inside the close-up's
-    camera.position.copy(at).add(new Vector3(0, 4, 0));
+    // 5.8 m from a balloon's middle (4.9 m from its skin): outside a race's fade, inside the close-up's
+    camera.position.copy(at).add(new Vector3(0, 5.8, 0));
     scene.lens(camera);
     expect(ghost.active).toBe(false);
     expect(ghost.range.value.toArray()).toEqual([...PICKUP_GHOST.race]);
     scene.lens(camera, true);
     expect(ghost.active).toBe(true);
     expect(ghost.range.value.toArray()).toEqual([...PICKUP_GHOST.closeUp]);
+    // 3 m from its middle, as the chase camera passes one it did not take: fading in a race too
+    camera.position.copy(at).add(new Vector3(0, 3, 0));
+    scene.lens(camera);
+    expect(ghost.active).toBe(true);
     scene.dispose();
   });
 

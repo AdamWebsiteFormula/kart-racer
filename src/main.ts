@@ -686,6 +686,8 @@ function podiumCamera(dt: number, reduced: boolean): void {
   p.update(dt, reduced, vfx, WATER_CLOCK.value);
   for (let k = 0; k < 3; k++) { camPos[k] = p.pos[k]; camLook[k] = p.look[k]; }
   camera.fov = p.fov;
+  // the overlay lights the card of the racer the camera is on (Mario Kart World's name under each hero shot)
+  ui.podiumFocus(p.focus);
 }
 
 // ---- cameras ----

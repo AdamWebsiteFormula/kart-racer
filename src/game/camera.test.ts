@@ -6,6 +6,7 @@ import { BASE } from '../kart-controller/constants.ts';
 import { wallOn, type Vec3 } from '../kart-controller/types.ts';
 import { BUILDER } from '../track-builder/constants.ts';
 import { buildTrackScene } from '../track-builder/mesh/index.ts';
+import { PICKUP_GHOST } from '../track-builder/mesh/scene.ts';
 import { SHOW } from '../track-builder/shiftShow.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
@@ -228,6 +229,29 @@ describe('chase framing: your kart as big as Mario Kart World\'s, at every speed
       expect(nearestKart(speed, side, 0)).toBeGreaterThan(CAM.kartFade);
       // half a length back beside you: at most its nearest corner thins (the dither drops under a third there)
       expect(nearestKart(speed, side, -KART_FIT.length / 2)).toBeGreaterThan(CAM.kartFade * 0.85);
+    }
+  });
+
+  it('a balloon or a gear your kart takes, beside or ahead of it, is whole: the pickups\' lens fade (PICKUP_GHOST.race) only reaches ones the camera passes', () => {
+    // race-manager pickups.ts takes one within its half width plus the kart's radius of the kart's middle (level);
+    // it stands balloonHeight (a balloon's middle) or coinRadius + 0.2 (a gear's) over the road
+    const pickups = [
+      { reach: BUILDER.balloonRadius + BASE.kartRadius, up: BUILDER.balloonHeight, r: BUILDER.balloonRadius },
+      { reach: BUILDER.coinRadius + BASE.kartRadius, up: BUILDER.coinRadius + 0.2, r: BUILDER.coinRadius },
+    ];
+    for (const speed of [0, CAM.topSpeed]) {
+      // the camera at its ideal pose, and pulled back by the strongest boost too (farther: never nearer)
+      const cam = idealPose([0, 0, 0], 0, speed, false).position;
+      for (const p of pickups) {
+        for (let a = -Math.PI / 2; a <= Math.PI / 2 + 1e-9; a += Math.PI / 24) {
+          const x = Math.sin(a) * p.reach, z = Math.cos(a) * p.reach;
+          const skin = Math.hypot(cam[0] - x, cam[1] - p.up, cam[2] - z) - p.r;
+          expect(skin, `a pickup taken at ${Math.round((a * 180) / Math.PI)}°`).toBeGreaterThan(PICKUP_GHOST.race[1] + 0.3);
+        }
+      }
+      // one the kart passes a metre and a half to its side is 2 to 3 m from the lens as the camera goes by it: faded
+      const passed = Math.hypot(1.5 + BUILDER.balloonRadius, cam[1] - BUILDER.balloonHeight) - BUILDER.balloonRadius;
+      expect(passed).toBeLessThan(PICKUP_GHOST.race[1]);
     }
   });
 

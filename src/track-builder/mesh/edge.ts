@@ -67,6 +67,14 @@ export interface EdgeKit {
    * where a bank is laid (a tree, a post, a fence, a cactus) stands on the bank instead (scene.ts lifts it)
    */
   solid?: readonly string[];
+  /**
+   * the limit's own line wherever no run stands on it (28 Sept 2026: a kart on Lighthouse Loop's lawn was stopped
+   * against nothing, where a house's garden broke the edge): a light fence of `asset` pieces one after another,
+   * `at` metres past the limit, round whatever already stands there (a house, a stand, the gantry's pillar)
+   */
+  rail?: EdgeRow;
+  /** ground relief (a dune, a knoll, a drift: low mounds half under the land) the rail may cross; every other solid prop it goes round */
+  relief?: readonly string[];
 }
 
 export interface EdgeContext {
@@ -84,6 +92,8 @@ export interface EdgeContext {
   occupied: Occupancy;
   /** the props a bank goes round (EdgeKit.solid, and any very wide one); every other prop in its way is lifted onto it */
   solid: Occupancy;
+  /** the props that stand up out of the land (every solid prop but the kit's ground relief): the rail goes round them (default: occupied) */
+  standing?: Occupancy;
   /** circles [x, z, r] to keep out of: the crowd, the start gantry, perched birds, the frozen lake */
   avoid: readonly (readonly [number, number, number])[];
   jumps: readonly TrackJump[];
@@ -93,14 +103,16 @@ export interface EdgeContext {
 }
 
 /** A placed piece: where, its footprint's radius (a row piece's: half its length along the road), and what it is part of. */
-export interface EdgePiece { asset: string; x: number; y: number; z: number; r: number; kind: 'edge' | 'cluster' | 'cover'; row?: boolean }
+export interface EdgePiece { asset: string; x: number; y: number; z: number; r: number; kind: 'edge' | 'cluster' | 'cover' | 'rail'; row?: boolean }
 export interface EdgePlacement {
   /** the bank: world-space geometry with the land's attributes (position, normal, uv, color, blend, curb), for the land's own mesh; null when none */
   bank: BufferGeometry | null;
-  /** sweeps, rows, dots, clusters and cover, for the merged dressing */
+  /** sweeps, rows, dots, clusters, cover and the rail, for the merged dressing */
   items: MergeItem[];
   /** each run: its side (-1, 1), the main line's t at its two ends, and its style's name */
   runs: { side: number; t0: number; t1: number; style: string }[];
+  /** each stretch the rail (EdgeKit.rail) was laid along between the runs: its side and the main line's t at its two ends */
+  rails: { side: number; t0: number; t1: number }[];
   /** every placed piece (not the sweeps) and its footprint, for the checks */
   pieces: EdgePiece[];
   /** stations (both sides) the edge could not take, by what was in its way: for the checks and for tuning */
@@ -129,6 +141,14 @@ const DRY = 0.8;
 const CLUSTER_APART = 55, CLUSTER_BEND = 0.55;
 /** Metres before and after a jump (and its run up) the cover keeps off (its skirts stand past the curb). */
 const COVER_CLEAR_JUMP = 6;
+/**
+ * The rail between the runs: the shortest stretch of the limit it lines (metres); metres a piece's middle keeps
+ * past every road's limit; metres either side of the start line it leaves to the gantry's pillar (which stands on
+ * the limit there: gantry.ts); metres under the road the land may fall before a piece is left out (a raised road).
+ */
+const RAIL_MIN = 3.5, RAIL_CLEAR = 0.25, RAIL_GANTRY = 2.6, RAIL_DROP = 1.5;
+/** Metres past the limit the rail stands where another road's land comes within R.at + RAIL_CLEAR of it (and that far from the other's). */
+const RAIL_NEAR = 0.22;
 
 const M4 = new Matrix4();
 
@@ -234,7 +254,8 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
   const pieces: EdgePiece[] = [];
   const blocked: Record<string, number> = {};
   const block = (why: string) => { blocked[why] = (blocked[why] ?? 0) + 1; };
-  if (!main.offroad) return { bank: null, items, runs, pieces, blocked, bankAt: () => 0 };
+  const rails: EdgePlacement['rails'] = [];
+  if (!main.offroad) return { bank: null, items, runs, rails, pieces, blocked, bankAt: () => 0 };
   const rng = mulberry32(hashString(`${ctx.seed}:edge`));
   const course = ctx.course ?? branches.list.map((b) => b.lut);
   const insideCourse = (_b: Branches, x: number, z: number, pad: number) => insideAny(course, x, z, pad);
@@ -408,8 +429,73 @@ export function placeEdge(ctx: EdgeContext): EdgePlacement {
     }
   }
 
+  // ---- the rail: the limit's own line wherever no run stands on it (a house's garden, a stand's end, the gantry's
+  // stretch, the shore, a short gap between runs), round whatever stands there already (a building, the crowd, the
+  // gantry's pillar, a cluster): where a limit stands, something stands with it, as on Mario Kart World's courses,
+  // whose verges end at a guardrail, a fence, a bank or a wall (design §6). 28 Sept 2026: a kart on Lighthouse Loop's
+  // lawn by the start was stopped against nothing, where the start's clear stretch and a house's broke the edge
+  if (kit.rail) {
+    const R = kit.rail, g = ctx.geometry(R.asset);
+    for (const s of g ? [-1, 1] : []) {
+      // the stations a run lines on this side
+      const free = new Uint8Array(N).fill(1);
+      for (const r of runs) {
+        if (r.side !== s) continue;
+        const k1 = Math.round(r.t1 * N);
+        for (let k = Math.round(r.t0 * N), q = 0; q <= N; k++, q++) { free[((k % N) + N) % N] = 0; if (((k - k1) % N + N) % N === 0) break; }
+      }
+      // no limit on an open edge (the claw), nor on a covered road or a tunnel's funnel (the rock stands there)
+      for (let k = 0; k < N; k++) if (free[k] && blockedNear(main, station(k).j, s, 0)) free[k] = 0;
+      for (const [k0, len] of freeStretches(free)) {
+        const span = len * ds;
+        if (span < RAIL_MIN) continue;
+        const count = Math.max(1, Math.round(span / R.every)), step = span / count;
+        let first = -1, last = -1;
+        /** the pieces laid, in order along the road (null: left out), put once all are known */
+        const laid: ({ x: number; y: number; z: number; yaw: number; long: number } | null)[] = [];
+        for (let q = 0; q < count; q++) {
+          const m0 = q * step, m1 = m0 + step, c = station(k0 + (m0 + m1) / 2 / ds);
+          // at R.at past the limit; where another road's land comes that close (a shortcut's approach, the final lap's
+          // road), on the line between the two, RAIL_NEAR past this one's limit, if the other's is as far again
+          let ax = 0, az = 0, bx = 0, bz = 0, x = 0, z = 0;
+          let why = '';
+          for (const [o, pad] of [[R.at, RAIL_CLEAR], [RAIL_NEAR, RAIL_NEAR]] as const) {
+            [ax, az] = at(k0 + m0 / ds, s, o); [bx, bz] = at(k0 + m1 / ds, s, o);
+            x = (ax + bx) / 2; z = (az + bz) / 2;
+            why = insideCourse(branches, x, z, pad) ? 'road' : '';
+            if (!why) break;
+          }
+          // (what it goes round, counted in `blocked` for the checks: rail-gantry, rail-road, rail-prop, rail-crowd, rail-edge, rail-sea, rail-drop)
+          const y = ctx.groundAt(x, z);
+          if (Math.abs(((c.t - ctx.startT + 1.5) % 1) - 0.5) * main.length < RAIL_GANTRY) why = 'gantry';
+          else if (why) { /* too near another road's land */ }
+          else if ((ctx.standing ?? ctx.occupied).hits(x, z, 0.7)) why = 'prop';
+          else if (avoided(x, z, 0.7)) why = 'crowd';
+          else if (claims.hits(x, z, 0.4)) why = 'edge';
+          else if (!dry(y)) why = 'sea';
+          else if (c.y - y > RAIL_DROP) why = 'drop';
+          if (why) { block(`rail-${why}`); laid.push(null); continue; }
+          const yaw = Math.atan2(bx - ax, bz - az) + (s > 0 ? 0 : Math.PI);
+          laid.push({ x, y: y - 0.05, z, yaw, long: Math.max(0.6, Math.min(1.5, Math.hypot(bx - ax, bz - az) / R.every)) });
+          if (first < 0) first = m0;
+          last = m1;
+        }
+        // a piece's own post stands at its local -Z end (a rail of one post a piece: edge-snowrail), which is its start
+        // along the road on the right and its end on the left; the piece at the open end of a row turns round, so the
+        // row ends on a post, not on its rails' bare ends (the joint it leaves bare is mid-row, where the rails run on)
+        for (let q = 0; q < laid.length; q++) {
+          const p = laid[q];
+          if (!p) continue;
+          const open = s > 0 ? !laid[q + 1] : !laid[q - 1];
+          put(R.asset, g!, p.x, p.y, p.z, p.yaw + (open && laid.length > 1 ? Math.PI : 0), 1, R.every / 2, 'rail', p.long, true);
+        }
+        if (first >= 0) rails.push({ side: s, t0: station(k0 + first / ds).t, t1: station(k0 + last / ds).t });
+      }
+    }
+  }
+
   for (const { g, m } of placed.values()) items.push({ geometry: g, matrices: Float32Array.from(m), count: m.length / 16 });
-  return { bank: mergeBank(bankParts), items, runs, pieces, blocked, bankAt: bankHeightAt };
+  return { bank: mergeBank(bankParts), items, runs, rails, pieces, blocked, bankAt: bankHeightAt };
 
   // ---------------------------------------------------------------- one run
 

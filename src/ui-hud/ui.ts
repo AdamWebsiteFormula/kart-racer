@@ -535,6 +535,11 @@ export class UiRoot {
     this.views.results.root.classList.toggle('beside', on);
   }
 
+  /** The podium ceremony's camera is on this place's racer (game/podium.ts `focus`: 1 to 3; 0 none): the overlay lights its card. */
+  podiumFocus(place: number): void {
+    if (this.app.screen === 'podium') this.views.podium.light(place);
+  }
+
   /**
    * The share of the window's width left free by the results beside the racer (Mario Kart World: the list on
    * the right, the racer on the left, still reacting), from the panel's laid-out left edge (transforms left out,
