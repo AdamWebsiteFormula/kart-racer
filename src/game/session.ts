@@ -75,7 +75,7 @@ export class RaceSession {
   private readonly parts: SimParts;
   /** each kart's view root, and the live pickups and coins, reused every frame (no garbage per frame) */
   private readonly roots: Object3D[];
-  private readonly live: { pickups: readonly { respawnRemaining: number }[]; coins: RaceSession['state']['coinStates'] } = { pickups: [], coins: [] };
+  private readonly live: { pickups: readonly { respawnRemaining: number }[]; coins: RaceSession['state']['coinStates']; reduced: boolean } = { pickups: [], coins: [], reduced: false };
   private readonly group = new Group();
   private readonly scene: Scene;
   /** the lights the race started under: the horizon ring was coloured for them */
@@ -241,6 +241,7 @@ export class RaceSession {
     const live = this.live;
     live.pickups = st.mode === 'timeTrial' ? (this.hiddenBalloons ??= st.pickupStates.map(() => ({ respawnRemaining: 1 }))) : st.pickupStates;
     live.coins = st.coinStates;
+    live.reduced = reduced; // a balloon coming back fades in rather than blowing up (track-builder balloonBack.ts)
     if (sceneTime === undefined) this.trackScene.update(st.time, this.manager.lastActiveHazards, live);
     else this.trackScene.update(sceneTime, undefined, live);
     // the Final Lap Shift's set piece (track-builder mesh/shiftStage.ts), from the shift's own tick; the

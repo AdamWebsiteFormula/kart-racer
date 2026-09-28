@@ -57,6 +57,18 @@ export const STRIKE_BURST = Object.freeze({ count: 140, ahead: 1.5, side: 9, for
 export const FIREWORK = Object.freeze({ count: 72, reducedCount: 30, speed: 8.5, size: 0.42, life: 1.3, gravity: 2.6, drag: 1.3, heat: 2.2 });
 /** Confetti drifting down over the podium: from `up` metres over it (plus up to `spread`), slower than the finish shower. */
 export const CONFETTI_RAIN = Object.freeze({ up: 7, spread: 2.5, size: 0.24, life: 3.6, gravity: 2.2, drag: 1.4 });
+/**
+ * A popped balloon coming back (Vfx.balloonBack; Adam, 28 Sept 2026: they "just appear without any animation"):
+ * `glints` sparks round its middle, `radius` metres out and up to `spread` above or below, flung on out at `out`
+ * m/s (rising `rise`), white-hot and gold by turns, shrinking as they go; and a soft gleam at its heart. Small
+ * and few: eight karts pop a whole row at once, and the row comes back together.
+ */
+export const BALLOON_SPARKLE = Object.freeze({
+  glints: 6, radius: 0.7, spread: 0.55, out: 1.4, rise: 0.4, size: 0.13, life: 0.36, lifeSpread: 0.12, drag: 2.4, grow: -0.7,
+  gold: Object.freeze([1.9, 1.55, 0.7]), gleam: 0.42, gleamLife: 0.16,
+  /** metres from the lens past which none is drawn (a glint there is under a pixel) */
+  reach: 60,
+});
 
 /** Visual-only randomness (never touches the sim). */
 let seed = 0x1234567;
@@ -281,6 +293,22 @@ export class Vfx {
         break;
       case 'firework': this.firework(x, y, z, hue, reduced, size); break;
     }
+  }
+
+  /**
+   * A popped balloon back on the road (track-builder mesh/balloonBack.ts: it blows up again out of its knot):
+   * a little sparkle round it as it swells, glints flung out from its middle at (x, y, z) and a soft gleam at
+   * its heart. None with reduced motion (the balloon only fades in).
+   */
+  balloonBack(x: number, y: number, z: number, reduced: boolean): void {
+    if (reduced) return;
+    const S = BALLOON_SPARKLE, turn = rnd() * Math.PI * 2;
+    for (let i = 0; i < S.glints; i++) {
+      const a = turn + (i / S.glints) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), up = sym() * S.spread;
+      this.spawn(this.glow, x + ca * S.radius, y + up, z + sa * S.radius, ca * S.out, up * S.out + S.rise, sa * S.out,
+        i % 2 ? WHITE_HOT : S.gold, S.size, S.life + rnd() * S.lifeSpread, 0, S.drag, S.grow);
+    }
+    this.spawn(this.glow, x, y, z, 0, 0, 0, WHITE_HOT, S.gleam, S.gleamLife, 0, 0, S.grow);
   }
 
   /** `n` pieces of confetti drifting down over (x, y, z), within `radius` metres of it. */
