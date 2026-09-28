@@ -38,23 +38,41 @@ export type Fx =
   /** a seamless loop tiled end to start up to `to` seconds (so a loop layer outlasts the wrap's crossfade) */
   | { op: 'repeat'; to: number }
   /** a random amplitude wobble (turbulence) */
-  | { op: 'flutter'; depth: number; rate?: number; seed?: number };
+  | { op: 'flutter'; depth: number; rate?: number; seed?: number }
+  /** a real room's impulse response (physics.py room_ir: image sources and a diffuse tail), `mix` 0..1 equal power */
+  | { op: 'room'; mix: number; size?: readonly number[]; absorb?: number; tail?: number; tailLevel?: number; pre?: number; hp?: number; lp?: number; seed?: number }
+  /** a transient shaper: dB on each onset (`attack`) and on what rings after (`sustain`) */
+  | { op: 'transient'; attack?: number; sustain?: number }
+  /** parallel saturation (`asym` for even harmonics); with `hz`, only above it, added (an exciter) */
+  | { op: 'sat'; drive?: number; mix?: number; asym?: number; hz?: number }
+  /** a soft gate: under `threshold` dB of the peak the level falls by `ratio` */
+  | { op: 'gate'; threshold?: number; ratio?: number; release?: number }
+  /** a pass-by: Doppler, distance and pan for a source going past at `speed` m/s, `dist` m away, closest at `at` s */
+  | { op: 'doppler'; speed?: number; dist?: number; at?: number; pan?: number }
+  /** a seamless loop `seconds` long cut from `from` (the material runs on past it for the wrap's crossfade) */
+  | { op: 'loopcut'; seconds: number; from?: number; xfade?: number };
 
-/** Code-made sound (dsp.py SYNTHS), seeded so it is the same every build. */
-export type Synth = 'noise' | 'whoosh' | 'tone' | 'fm' | 'crackle' | 'silence' | 'flame' | 'engine' | 'kart';
+/** Code-made sound (dsp.py SYNTHS, physics.py), seeded so it is the same every build. */
+export type Synth = 'noise' | 'whoosh' | 'tone' | 'fm' | 'crackle' | 'silence' | 'flame' | 'engine' | 'kart' | 'modal' | 'squeal' | 'piston';
 
 export type Source =
   /** a file in the approved packs (~/.cache/rascal-sfx/packs): kenney/* and vsco/* (CC0), cascadia/* (Racing Sound Pack, paid license) */
   | { pack: string }
   /** a file from this repo's history (the game's own ElevenLabs takes, used as a layer) */
   | { git: string; path: string }
-  | { synth: Synth; args: Readonly<Record<string, number | string | boolean | Curve | readonly number[]>> };
+  /** a CC0 recording on Freesound (its HQ preview through the API, freesound.py); scripts/sfx/freesound.json records it */
+  | { freesound: number }
+  /** Apple's Final Cut Pro sound library: only a minor, heavily processed ingredient (house rule, 28 Sept 2026) */
+  | { fcp: string }
+  | { synth: Synth; args: Readonly<Record<string, number | string | boolean | Curve | readonly number[] | readonly (readonly number[])[]>> };
 
 export interface Layer { src: Source; at?: number; fx?: readonly Fx[] }
 
 export interface Recipe {
   /** the game's sound id (src/audio/types.ts SfxId), or a new one listed in the report for wiring */
   id: string;
+  /** a candidate's own file name (no extension): candidates are built with --recipes and --out, never over the shipped file */
+  name?: string;
   /** what the sound should be, in plain words: the judge's brief (used for the shipped sound too, so the compare is fair) */
   brief: string;
   /** a loop: its exact length in seconds, made seamless (the material must run `xfade` longer) */

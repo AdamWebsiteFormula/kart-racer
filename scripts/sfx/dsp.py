@@ -33,12 +33,20 @@ def _read(data_or_path):
 
 
 def load(src):
-    """A layer's source: {pack: 'kenney/…'} (the approved packs) or {git: rev, path: 'public/…'} (a file from the repo's history)."""
+    """A layer's source: {pack: 'kenney/…'} (the approved packs), {git: rev, path: 'public/…'} (a file from the repo's
+    history), {freesound: id} (a CC0 recording's HQ preview, freesound.py) or {fcp: 'Folder/File.caf'} (Apple's Final
+    Cut Pro library: only a minor, heavily processed ingredient, fcp.py)."""
     if 'pack' in src:
         return _read(os.path.join(PACKS, src['pack']))
     if 'git' in src:
         b = subprocess.run(['git', '-C', REPO, 'show', f"{src['git']}:{src['path']}"], check=True, capture_output=True).stdout
         return _read(io.BytesIO(b))
+    if 'freesound' in src:
+        import freesound
+        return _read(freesound.fetch(int(src['freesound'])))
+    if 'fcp' in src:
+        import fcp
+        return _read(fcp.decoded(src['fcp']))
     raise ValueError(f'not a file source: {src}')
 
 
@@ -433,8 +441,11 @@ def syn_kart(a):
     return y / (np.abs(y).max() + 1e-12) * curve(a.get('env', 1.0), n) * 0.5
 
 
+import physics  # noqa: E402  (the physical models: a struck object, a tire's squeal, a two-stroke engine, a room)
+
 SYNTHS = {'noise': syn_noise, 'whoosh': syn_whoosh, 'tone': syn_tone, 'fm': syn_fm, 'crackle': syn_crackle, 'silence': syn_silence,
-          'flame': syn_flame, 'engine': syn_engine, 'kart': syn_kart}
+          'flame': syn_flame, 'engine': syn_engine, 'kart': syn_kart, 'modal': physics.syn_modal, 'squeal': physics.syn_squeal,
+          'piston': physics.syn_piston, 'grains': physics.syn_grains}
 
 
 # ------------------------------------------------------------------ processing
@@ -643,6 +654,19 @@ def fx(x, steps):
         elif op == 'repeat':  # a loop tiled end to start until it is `to` seconds long
             n = int(s['to'] * SR)
             x = np.tile(x, (1, int(math.ceil(n / x.shape[-1]))))[:, :n].copy()
+        elif op == 'room':  # a real room's impulse response (image sources and a diffuse tail)
+            x = physics.fx_room(x, s)
+        elif op == 'transient':  # attack and sustain, dB
+            x = physics.fx_transient(x, s)
+        elif op == 'sat':  # parallel saturation (an exciter with `hz`)
+            x = physics.fx_sat(x, s)
+        elif op == 'gate':
+            x = physics.fx_gate(x, s)
+        elif op == 'doppler':
+            x = physics.fx_doppler(x, s)
+        elif op == 'loopcut':  # a loop `seconds` long cut from `from`, its wrap crossfaded over `xfade` (the material runs on past it)
+            a = int(s.get('from', 0) * SR)
+            x = loopify(x[:, a:].copy(), s['seconds'], s.get('xfade', 0.06))
         elif op == 'flutter':  # random amplitude wobble: depth 0..1 at rate Hz
             rng = np.random.default_rng(int(s.get('seed', 5)))
             x = x * np.maximum(0, 1 + s['depth'] * _smooth_random(x.shape[-1], s.get('rate', 20), rng))

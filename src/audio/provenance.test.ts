@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import MANIFEST from '../../public/audio/manifest.json';
 import BUILT from '../../scripts/sfx/built.json';
+import FREESOUND from '../../scripts/sfx/freesound.json';
 import { fileFor, MOMENT, REPLACED, SFX } from '../../scripts/elevenlabs/catalog.ts';
 import { RECIPES } from '../../scripts/sfx/recipes.ts';
 import type { Layer } from '../../scripts/sfx/types.ts';
@@ -16,10 +17,21 @@ const manifest = MANIFEST as { sfx: Record<string, { url: string; loop?: boolean
 const recipeIds = new Set(RECIPES.map((r) => r.id));
 const sfxIds = new Set(SFX.map((s) => s.id));
 
-/** The approved sources (house rules, 26 Sept 2026): Kenney's packs and the VSCO-2 CE mallets (CC0), the Cascadia Racing Sound Pack (paid license). */
-const PACK = /^(kenney\/kenney_[a-z-]+\/Audio\/[\w -]+\.(ogg|wav)|vsco\/(Glock|Xylo|Marimba)\/[\w-]+\.wav|cascadia\/[\w ./-]+\.(wav|ogg|mp3|aif|aiff))$/;
+/**
+ * The approved sources (house rules, 26 and 28 Sept 2026): Kenney's packs and any VSCO-2 Community Edition file
+ * (CC0, kept at its repo path), the Cascadia Racing Sound Pack (paid license), CC0 recordings on Freesound (each
+ * recorded in scripts/sfx/freesound.json), and Apple's Final Cut Pro library only as a minor, processed ingredient.
+ */
+const PACK = /^(kenney\/kenney_[a-z-]+\/Audio\/[\w -]+\.(ogg|wav)|vsco\/[\w '#()./-]+\.wav|cascadia\/[\w ./-]+\.(wav|ogg|mp3|aif|aiff))$/;
 const GIT = /^[0-9a-f]{7,40}$/;
-const SYNTHS = new Set(['noise', 'whoosh', 'tone', 'fm', 'crackle', 'silence', 'flame', 'engine', 'kart']);
+const SYNTHS = new Set(['noise', 'whoosh', 'tone', 'fm', 'crackle', 'silence', 'flame', 'engine', 'kart', 'modal', 'squeal', 'piston', 'grains']);
+const SEEDED = ['noise', 'whoosh', 'crackle', 'flame', 'engine', 'kart', 'modal', 'squeal', 'piston', 'grains'];
+const freesound = FREESOUND as Record<string, { name: string; username: string; license: string; url: string }>;
+const FCP = /^[A-Z][\w &:.]+\/[\w .&'()-]+\.caf$/;
+/** What turns an FCP recording into an ingredient rather than itself: pitch, filters, reversal, a moving comb. */
+const PROCESS = new Set(['pitch', 'bend', 'sweep', 'lp', 'hp', 'bp', 'reverse', 'flanger', 'doppler']);
+/** A layer's level: its last gain after its normalize (every recipe layer ends normalize, gain). */
+const levelOf = (l: Layer) => { const g = [...(l.fx ?? [])].reverse().find((f) => f.op === 'gain'); return g && 'db' in g ? g.db : 0; };
 
 describe('sound provenance: one maker per sound', () => {
   it('every sound in the manifest is made by exactly one of the catalog and the recipes', () => {
@@ -62,11 +74,24 @@ describe('sound provenance: one maker per sound', () => {
         else if ('git' in src) {
           expect(src.git, r.id).toMatch(GIT);
           expect(src.path, r.id).toMatch(/^public\/audio\/sfx\/[\w-]+\.mp3$/);
+        } else if ('freesound' in src) {
+          const f = freesound[String(src.freesound)];
+          expect(f, `${r.id}: freesound ${src.freesound} not in scripts/sfx/freesound.json`).toBeDefined();
+          expect(f.license, `${r.id}: freesound ${src.freesound}`).toMatch(/Creative Commons 0|publicdomain\/zero/);
+        } else if ('fcp' in src) {
+          expect(src.fcp, r.id).toMatch(FCP);
         } else {
           expect(SYNTHS.has(src.synth), `${r.id}: ${src.synth}`).toBe(true);
-          const seeded = ['noise', 'whoosh', 'crackle', 'flame', 'engine', 'kart'].includes(src.synth);
-          if (seeded) expect(typeof src.args.seed, `${r.id}: ${src.synth} needs a seed`).toBe('number');
+          if (SEEDED.includes(src.synth)) expect(typeof src.args.seed, `${r.id}: ${src.synth} needs a seed`).toBe('number');
+          // a synth that plays a recording back (the engine's firings) names it: it is held to the same rules
+          for (const k of ['fs', 'fs2']) if (k in src.args) expect(freesound[String(src.args[k])], `${r.id}: freesound ${src.args[k]}`).toBeDefined();
         }
+      }
+      // Final Cut Pro: never the sound itself, only a minor, processed ingredient under a louder layer of another kind
+      for (const l of r.layers.filter((x) => 'fcp' in x.src)) {
+        expect((l.fx ?? []).some((f) => PROCESS.has(f.op)), `${r.id}: an FCP layer must be processed`).toBe(true);
+        const loudest = Math.max(...r.layers.filter((x) => !('fcp' in x.src)).map(levelOf));
+        expect(levelOf(l), `${r.id}: an FCP layer sits at least 6 dB under the recipe's own layers`).toBeLessThanOrEqual(loudest - 6);
       }
     }
   });
@@ -101,5 +126,10 @@ describe('sound provenance: one maker per sound', () => {
     if (packs.has('kenney')) expect(credits).toMatch(/Kenney.*CC0/);
     if (packs.has('vsco')) expect(credits).toMatch(/VSCO.*CC0/);
     if (packs.has('cascadia')) expect(credits).toMatch(/Cascadia/);
+    // Freesound (CC0: no credit owed, but every author is named as a courtesy) and the Final Cut Pro ingredients
+    const ids = RECIPES.flatMap((r) => r.layers.flatMap((l) => ('freesound' in l.src ? [l.src.freesound] : 'synth' in l.src ? [l.src.args.fs, l.src.args.fs2].filter((x) => x !== undefined) : [])));
+    if (ids.length) expect(credits).toMatch(/Freesound/);
+    for (const id of ids) expect(credits, `freesound ${id}: its author`).toContain(freesound[String(id)].username);
+    if (RECIPES.some((r) => r.layers.some((l) => 'fcp' in l.src))) expect(credits).toMatch(/Final Cut Pro/);
   });
 });

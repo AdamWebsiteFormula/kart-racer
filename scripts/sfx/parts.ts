@@ -1,7 +1,7 @@
 // The building blocks the recipes are written with: sources (a pack file, one of the game's own earlier
 // takes pinned to a commit), tuned mallet notes, and the processing that recurs. Pure data helpers: each
 // returns the plain objects build.py reads (types.ts), so a recipe prints the same JSON however it is written.
-import type { Fx, Layer } from './types.ts';
+import type { Fx, Layer, Source } from './types.ts';
 
 /** The commit whose ElevenLabs takes the recipes layer (origin/main, 26 Sept 2026): a take stays buildable after its file is replaced. */
 export const TAKES = '979e511';
@@ -12,6 +12,12 @@ export const KF = (f: string) => ({ pack: `kenney/kenney_interface-sounds/Audio/
 export const KC = (f: string) => ({ pack: `kenney/kenney_casino-audio/Audio/${f}` });
 export const KS = (f: string) => ({ pack: `kenney/kenney_sci-fi-sounds/Audio/${f}` });
 export const KU = (f: string) => ({ pack: `kenney/kenney_ui-audio/Audio/${f}` });
+/** Any VSCO-2 Community Edition file (CC0) by its path in github.com/sgossner/VSCO-2-CE (fetched whole, 28 Sept 2026). */
+export const VS = (path: string) => ({ pack: `vsco/${path}` });
+/** A CC0 recording on Freesound, by id (scripts/sfx/freesound.py; scripts/sfx/freesound.json records its author). */
+export const FS = (id: number) => ({ freesound: id });
+/** Apple's Final Cut Pro sound library: only ever a minor, heavily processed ingredient (house rule, 28 Sept 2026). */
+export const FCP = (path: string) => ({ fcp: path });
 // the VSCO-2 Community Edition mallets (CC0)
 const XY = (f: string) => ({ pack: `vsco/Xylo/Xylo_Medium_${f}_ff_01_far.wav` });
 const GL = (f: string) => ({ pack: `vsco/Glock/glock_medium_${f}.wav` });
@@ -44,6 +50,8 @@ export const cap = (len: number): Fx[] => [{ op: 'trim', to: len }, { op: 'fade'
 export const el = (id: string, db: number, fx: Fx[] = [], at = 0): Layer => ({ at, src: EL(id), fx: [...fx, ...lvl(db)] });
 /** A pack file as a layer. */
 export const pk = (src: { pack: string }, db: number, fx: Fx[] = [], at = 0): Layer => ({ at, src, fx: [...fx, ...lvl(db)] });
+/** Any source as a layer: processed by `fx`, then peak-normalized and set to `db`, from `at` seconds. */
+export const lay = (src: Source, db: number, fx: Fx[] = [], at = 0): Layer => ({ at, src, fx: [...fx, ...lvl(db)] });
 /** The last step of every recipe: a peak limiter at -1 dBFS. */
 export const OUT: Fx = { op: 'limit', ceiling: -1 };
 
