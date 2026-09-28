@@ -24,7 +24,7 @@ export { ModelBuilder } from './model.ts';
 export { DECOR_NAMES, decorGeometry } from './decor.ts';
 export { DAY_GRADE, DAY_LIGHT, fadeSky, lightOf, paintSky, preloadSky, SKIES, SKY_FADE, SKY_FADE_FOR, skyTint, type SkyLight, type SkyPreset } from './sky.ts';
 export { isShared, toonRamp, vertexToon } from './toon.ts';
-export { BUBBLE_CLOCK, bubbleMaterial, ITEM_MODEL_KINDS, itemGeometry, oilSlickMaterial, strikeBallMaterial } from './items.ts';
+export { BUBBLE_CLOCK, ENERGY_ITEM_KINDS, energyMaterial, ITEM_LOOK, ITEM_MODEL_KINDS, ITEM_PICKUP_GLOW, itemGeometry, itemMaterial, JET, oilSlickMaterial, SHIELD, shieldMaterial, SOLID_ITEM_KINDS } from './items.ts';
 
 export { preloadSurfaces, ROAD_LOOKS, ROAD_WET, roadWear, WATER_CLOCK, type RoadLook } from './surfaces.ts';
 export { applyLook, DEFAULT_LOOK, isPbr, look, lookFromSearch, LOOKS, PBR, setLook, SkyEnvironment, worldEnvironment, type Look } from './look.ts';

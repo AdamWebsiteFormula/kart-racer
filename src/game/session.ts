@@ -251,7 +251,7 @@ export class RaceSession {
       const fk = st.karts[this.playerIndex >= 0 ? this.playerIndex : this.leader()];
       stage.update(this.shiftAt < 0 ? -1 : st.time - this.shiftAt + alpha * SIM_DT, sceneTime ?? st.time, fk.position, fk.heading, reduced);
     }
-    this.itemsView.onFrame(this.items, st.karts, this.roots, alpha, st.time, frameDt, this.track);
+    this.itemsView.onFrame(this.items, st.karts, this.roots, alpha, st.time, frameDt, this.track, this.trackScene.pickupGlow());
     this.rescueView.onFrame(st.trackers, (i) => this.views[i].root.position, frameDt, st.time);
   }
 

@@ -13,9 +13,11 @@ import type { TrackDefinition } from '../track-builder/types.ts';
 import canyonJson from '../track-builder/tracks/canyon-rush.json';
 import { JUICE } from '../vfx-juice/juice.ts';
 import { CAM, carry, clampAboveSea, clampToRoad, fovFor, idealPose, kickedFov, seaLevel, smoothTo, surgeOffset } from './camera.ts';
-import { TRAIL_BACK, TRAIL_BALL_SCALE, TRAIL_DECOY_SCALE } from './itemsView.ts';
+import { JET_LOOK, TRAIL_BACK, TRAIL_MINE_SCALE, TRAIL_ORB_Y } from './itemsView.ts';
 
 const TRACKS = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
+/** Each held item as itemsView trails it at the top of its bob (its model, x, the height of its origin, its scale): the Laser Blaster's orb, the Oil Slick's canister, the Decoy Mine, the Seeker Drone. */
+const HELD = [['laserOrb', 0, TRAIL_ORB_Y + 0.05, 1], ['canister', -0.55, 0.05 + 0.05, 1], ['mine', 0, 0.98 * TRAIL_MINE_SCALE + 0.05, TRAIL_MINE_SCALE], ['drone', 0, 0.3 + 0.05, 1]] as const;
 
 describe('chase camera', () => {
   it('Canyon mine: over the road under it when looking back up the exit climb, under the timber beams looking forward', () => {
@@ -256,7 +258,6 @@ describe('chase framing: your kart as big as Mario Kart World\'s, at every speed
   });
 
   it('what your kart carries stays beyond CAM.nearFade (the item meshes are every kart\'s), so only rivals\' items dissolve', () => {
-    const nearest = (cam: Vec3, c: Vec3, r: number) => Math.hypot(cam[0] - c[0], cam[1] - c[1], cam[2] - c[2]) - r;
     /** The nearest vertex of item `name` placed at `c` (scaled `s`, any turn about y) to the camera. */
     const nearestItem = (cam: Vec3, name: string, c: Vec3, s = 1) => {
       const p = (itemGeometry(name) as BufferGeometry).getAttribute('position');
@@ -274,14 +275,12 @@ describe('chase framing: your kart as big as Mario Kart World\'s, at every speed
       for (let yaw = -Math.PI / 2; yaw <= Math.PI / 2; yaw += Math.PI / 36) {
         for (const lookBack of [false, true]) {
           const cam = idealPose([0, 0, 0], yaw, speed, lookBack).position;
-          // held items trailing behind it (itemsView: height with the bob, scale), the Triple Fizz orbit, the Strike Ball
-          for (const [name, x, y, s] of [['beachBall', 0, 0.6 * TRAIL_BALL_SCALE + 0.05, TRAIL_BALL_SCALE], ['oilCan', -0.55, 0.05, 1], ['decoyBalloon', 0, 0.98 * TRAIL_DECOY_SCALE + 0.05, TRAIL_DECOY_SCALE], ['windUpMouse', 0, 0.05, 1]] as const) {
-            check(nearestItem(cam, name, [x, y, -TRAIL_BACK], s), name);
-          }
+          // held items trailing behind it (itemsView: height with the bob, scale), the Triple Nitro orbit, Jet Mode's jet
+          for (const [name, x, y, s] of HELD) check(nearestItem(cam, name, [x, y, -TRAIL_BACK], s), name);
           for (let a = 0; a < 2 * Math.PI; a += Math.PI / 12) {
-            check(nearestItem(cam, 'fizzBottle', [Math.cos(a) * 1.55, 1.27, Math.sin(a) * 1.55], 0.95), 'fizz');
+            check(nearestItem(cam, 'nitro', [Math.cos(a) * 1.55, 1.27, Math.sin(a) * 1.55], 0.95), 'nitro');
           }
-          check(nearest(cam, [0, 1.2, 0], 1.3), 'strike ball');
+          for (const part of ['jetHull', 'jetFins', 'jetTrim', 'jetWingL', 'jetWingR']) check(nearestItem(cam, part, [0, JET_LOOK.hover + 0.05, 0], JET_LOOK.scale), part);
         }
       }
     }
@@ -290,10 +289,9 @@ describe('chase framing: your kart as big as Mario Kart World\'s, at every speed
   it('no held item hides the kart that holds it, or its driver, from its own chase camera (video review 25 Sept 2026)', () => {
     // each item as itemsView trails it (at the top of its bob): its model's box, scaled, against the sight
     // lines from the lens to the kart's body and to its driver's head where they pass the item
-    const held = [['beachBall', 0, 0.6 * TRAIL_BALL_SCALE + 0.05, TRAIL_BALL_SCALE], ['oilCan', -0.55, 0.05, 1], ['decoyBalloon', 0, 0.98 * TRAIL_DECOY_SCALE + 0.05, TRAIL_DECOY_SCALE], ['windUpMouse', 0, 0.05, 1]] as const;
     for (const speed of [0, CAM.topSpeed]) {
       const cam = idealPose([0, 0, 0], 0, speed, false).position;
-      for (const [name, x, y, s] of held) {
+      for (const [name, x, y, s] of HELD) {
         const g = itemGeometry(name) as BufferGeometry;
         g.computeBoundingBox();
         const b = g.boundingBox!, top = y + b.max.y * s, half = Math.max(-b.min.x, b.max.x) * s;
