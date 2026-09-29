@@ -8,10 +8,11 @@ import { AudioBus, type Volumes } from './bus.ts';
 import { AUDIO } from './constants.ts';
 import { direct, hornFor, resetDirector, type Listener } from './director.ts';
 import { boostRev, classVoice, engineDrive, engineHz, engineRpm, limiterFlutter, offroadAmount, racerPitch, sparkLayer, wheelSound } from './engine.ts';
+import { IntroCue, introPlan, introSources } from './introCue.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
-import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
+import { LoopEngine, mixLevel, playSample, SampleBank, SONG_AHEAD_TIER, SONG_NOW_TIER, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
 import { ENGINE_POP, noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
 import type { BarkCue, Cue, MusicCue, SfxId, SongId } from './types.ts';
 import { mergeCues, rouletteGap, Voices } from './voices.ts';
@@ -72,6 +73,9 @@ export class GameAudio {
   private readonly barker = new Barker();
   private barkVoice: Voice | null = null;
   private readonly takes: TakeCount = (racerId, bark) => this.bank.voiceCount(racerId, bark);
+  /** the course intro's music (introCue.ts), and a count that voids one still decoding when the intro ends first */
+  private introCue: IntroCue | null = null;
+  private introAsk = 0;
 
   constructor(bus = new AudioBus(), bank = new SampleBank()) {
     this.bus = bus;
@@ -129,6 +133,7 @@ export class GameAudio {
    * sounds cheap (Adam, 28 Sept 2026). One waited for that stalls gets the synth after AUDIO.songGiveUp.
    */
   play(song: SongId | null, key: string | null = song): void {
+    this.endIntro();
     this.wantSong = song;
     this.wantKey = key;
     this.awaitGo = false;
@@ -201,27 +206,92 @@ export class GameAudio {
 
   /**
    * Race start: fresh director memory, from the player's grid rank and the race's winning line
-   * (`finishLine`). A recorded race song decodes during the countdown and starts on the go; the
-   * synth one plays with its drums muted until the go.
+   * (`finishLine`). Silent till the go, as Mario Kart World is (28 Sept 2026): the course intro's music
+   * plays under the flight (`courseIntro`), the countdown has only its beeps, and the race song starts on
+   * the go, the synth's too. The race song and the course's intro piece decode meanwhile.
    */
   newRace(song: SongId, trackId?: string, gridRank?: number, finishLine?: number, balloons = true): void {
     resetDirector(gridRank, finishLine, balloons);
     this.barker.reset(gridRank ?? null, finishLine ?? AUDIO.podium);
+    this.endIntro();
     this.trackId = trackId ?? '';
     this.stingEnds = 0;
     this.songId = null;
-    const key = trackId ? themeForTrack(trackId) : song;
-    if (this.bank.hasSong(key)) {
-      this.seq = null;
-      this.stopSong();
-      this.wantSong = song;
-      this.wantKey = key;
-      this.awaitGo = true;
-      if (this.bus.ctx) void this.bank.song(this.bus.ctx, key);
-      return;
-    }
-    this.play(song, key);
-    if (this.seq) this.seq.drums = false;
+    this.seq = null;
+    this.stopSong();
+    this.wantSong = song;
+    this.wantKey = trackId ? themeForTrack(trackId) : song;
+    this.awaitGo = true;
+    const ctx = this.bus.ctx;
+    if (!ctx) return;
+    for (const key of trackId ? introSources(trackId, this.wantKey) : [this.wantKey]) if (this.bank.hasSong(key)) void this.bank.song(ctx, key);
+  }
+
+  /**
+   * A course is chosen, before its race loads (main.ts: the Track or Cup screen's pick, before the race is built; the
+   * Daily's at its pick on the Mode screen; a series' next course during the results, `ahead`): its music's files come
+   * down now, bytes only, the chosen course's alone (phones pay for data): its intro piece (`intro:<trackId>`) when the
+   * manifest lists one, and its race song. No context is made and nothing plays; a silent bus (?mute) fetches nothing.
+   * A pick's are wanted this moment (SONG_NOW_TIER: at once, not a turn in the line); `ahead`, well before its race,
+   * behind every file wanted now (the results song first: SONG_AHEAD_TIER).
+   */
+  courseChosen(trackId: string, ahead = false): void {
+    if (this.bus.silent) return;
+    for (const key of introSources(trackId, themeForTrack(trackId))) void this.bank.prefetch(key, ahead ? SONG_AHEAD_TIER : SONG_NOW_TIER);
+  }
+
+  /**
+   * A race picked with a course intro to fly (main.ts: not a restart, not a series' next race). Mario Kart World's
+   * start press rings a falling whoosh over its confirm as the menu music stops (muted footage, docs/sops/audio.md,
+   * 28 Sept 2026): the manifest's pick sting (AUDIO.sting.id, the music lab's) when it is in, else the slipstream's
+   * falling whoosh; the menu song fades now, at the press, not once the race is built (newRace, about 0.6 s later).
+   */
+  raceChosen(): void {
+    const ctx = this.bus.ctx;
+    if (!ctx || !this.bus.running) return;
+    const S = AUDIO.sting, s = this.bank.get(S.id);
+    if (s) playSample(ctx, this.bus.sfx!, s, ctx.currentTime + 0.005, S.gain * mixLevel(S.id), 0);
+    else this.sfx(S.standIn as SfxId, S.standInGain);
+    this.stopSong();
+    this.seq = null;
+    this.songId = null;
+    this.wantSong = null;
+    this.wantKey = null;
+  }
+
+  /**
+   * The course intro's flight begins (main.ts, game/intro.ts: `seconds` long, the countdown straight after it). Its
+   * music plays under it and is silent AUDIO.intro.breath before the countdown's first beep: the course's own intro
+   * piece (`intro:<trackId>`, the music lab's) when the manifest has one, else the first bars of its race song, faded
+   * out on a bar line (introPlan). A recording still coming down starts when it lands, if enough of the flight is left
+   * (AUDIO.intro.minPlay); no synth stands in (a synth flash and then a recording sounds cheap: Adam, 28 Sept 2026).
+   */
+  courseIntro(seconds: number): void {
+    const ctx = this.bus.ctx;
+    if (!ctx || !this.bus.running || !this.trackId) return;
+    const ask = ++this.introAsk, over = ctx.currentTime + seconds - AUDIO.intro.breath;
+    const key = introSources(this.trackId, themeForTrack(this.trackId)).find((k) => this.bank.hasSong(k));
+    if (!key) return;
+    void this.bank.song(ctx, key).then((s) => {
+      if (!s || ask !== this.introAsk || !this.bus.running) return;
+      const when = ctx.currentTime + 0.02, room = over - when;
+      const plan = room >= AUDIO.intro.minPlay ? introPlan(room, s.end - s.start, s.bar ?? 0, Math.max(0, (s.beat0 ?? s.start) - s.start)) : null;
+      if (!plan) return;
+      this.introCue ??= new IntroCue(ctx, this.bus.music!);
+      this.introCue.start(s, when, plan);
+    });
+  }
+
+  /**
+   * The flight is over, played through or skipped (any key or tap), and the countdown comes: the intro's music, if
+   * any still sounds, fades out fast (AUDIO.intro.skipFade), and one still decoding never starts.
+   */
+  introOver(): void { this.endIntro(); }
+
+  private endIntro(): void {
+    this.introAsk++;
+    const ctx = this.bus.ctx;
+    if (ctx) this.introCue?.stop(ctx.currentTime, AUDIO.intro.skipFade);
   }
 
   private pump(): void {
