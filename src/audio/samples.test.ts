@@ -3,7 +3,7 @@ import { AUDIO } from './constants.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
 import {
   bakeLoop, bandRate, bandWeights, barLength, cutIntro, cutSfx, cutSong, ENGINE_BANDS, envelope, FANFARE_SECONDS, kWeight, leadIn, LEVELS, levelGain, loopPhase, loopPoints, meanRms,
-  evenLoop, cutDb, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, SFX_TIERS, sfxTier, shapeEdges, SONG_TIER, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
+  evenLoop, cutDb, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, SFX_TIERS, sfxTier, shapeEdges, SONG_AHEAD_TIER, SONG_TIER, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
 } from './samples.ts';
 import { LoadQueue } from '../performance/loadQueue.ts';
 import MANIFEST from '../../public/audio/manifest.json';
@@ -525,6 +525,37 @@ describe('sample bank', () => {
     const off = new SampleBank('/', (() => Promise.reject(new Error('offline'))) as typeof fetch);
     await off.prefetch('title');
     expect([off.hasSong('title'), off.fetched('title'), off.readyIn('title')]).toEqual([false, false, Infinity]);
+  });
+
+  it('a chosen course\'s music (GameAudio.courseChosen): asked for in the caller\'s own turn once the list is in, well ahead at SONG_AHEAD_TIER, each file once', async () => {
+    const song = (name: string) => ({ url: `audio/music/${name}.mp3`, bpm: 146 });
+    const manifest = { sfx: {}, music: { 'race-meadow': song('race-meadow'), 'race-frost': song('race-frost'), 'intro:meadow-run': song('intro-meadow-run') } };
+    const fetched: string[] = [];
+    const f = (async (u: string) => {
+      fetched.push(String(u));
+      return { ok: true, json: async () => manifest, arrayBuffer: async () => new ArrayBuffer(16000) };
+    }) as unknown as typeof fetch;
+    const asked: { tier: number; song?: string }[] = [];
+    const bank = new SampleBank('/', f);
+    bank.schedule = (job, tier, key) => { asked.push({ tier, song: key }); return job(); };
+    // the list not in yet: it waits for it
+    const first = bank.prefetch('race-frost', SONG_AHEAD_TIER);
+    expect(fetched).toEqual(['/audio/manifest.json']);
+    await first;
+    expect(fetched).toEqual(['/audio/manifest.json', '/audio/music/race-frost.mp3']);
+    expect(asked).toEqual([{ tier: SONG_AHEAD_TIER, song: 'race-frost' }]);
+    // the list in: asked for in the caller's own turn, before anything it does next (a race picked: before the race is built)
+    void bank.prefetch('intro:meadow-run');
+    void bank.prefetch('race-meadow');
+    expect(fetched.slice(2)).toEqual(['/audio/music/intro-meadow-run.mp3', '/audio/music/race-meadow.mp3']);
+    expect(asked.slice(1)).toEqual([{ tier: SONG_TIER, song: 'intro:meadow-run' }, { tier: SONG_TIER, song: 'race-meadow' }]);
+    // a piece the list does not name: nothing; asked again, and asked for by the race as it loads: nothing more comes down
+    await bank.prefetch('intro:frostbite-pass');
+    await bank.prefetch('race-meadow');
+    const ctx = { decodeAudioData: async () => ({ duration: 1, sampleRate: 8000, numberOfChannels: 1, getChannelData: () => new Float32Array(8000) }) as unknown as AudioBuffer } as unknown as BaseAudioContext;
+    await bank.song(ctx, 'race-meadow');
+    await bank.prefetch('race-meadow');
+    expect(fetched).toEqual(['/audio/manifest.json', '/audio/music/race-frost.mp3', '/audio/music/intro-meadow-run.mp3', '/audio/music/race-meadow.mp3']);
   });
 
   it('while a song\'s file comes, readyIn is the rest of it at the speed it has come so far, plus a decode; its bytes arrive whole', async () => {

@@ -45,6 +45,9 @@ export class AudioBus {
     return new AudioBus(null);
   }
 
+  /** A bus that can never make a sound (?mute: `silent()`, or a page with no Web Audio): nothing is fetched for it ahead either. */
+  get silent(): boolean { return !this.Ctx; }
+
   /** Called on every user gesture until the context is running. Returns true once it is. */
   unlock(): boolean {
     if (!this.Ctx) return false;

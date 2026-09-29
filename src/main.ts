@@ -7,9 +7,9 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import creditsMarkdown from '../CREDITS.md?raw';
-import { AudioBus, finishLine, GameAudio, isIntroKey, SampleBank, songForTrack, themeForTrack, type Listener } from './audio/index.ts';
+import { AudioBus, finishLine, GameAudio, introKey, isIntroKey, SampleBank, SONG_AHEAD_TIER, SONG_NOW_TIER, songForTrack, themeForTrack, type Listener } from './audio/index.ts';
 import { silence, StandInContext } from './audio/standIn.ts';
-import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
+import { dailyConfig, dailySeed, dailyTrack, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } from './backend-leaderboard/rules.ts';
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { BALLOON_SPARKLE, Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
@@ -280,23 +280,33 @@ const SOUND_RANK = [RANK.clicks, RANK.racers, RANK.items, RANK.rest] as const;
 // every sound file waits its turn in the same line as the models (on the first key press all 102 and the
 // title song used to be asked for at once): a song takes a whole turn, a sound effect half of one; the title
 // song on the start screen the whole line (it comes down alone); a course's intro piece (small, and wanted as the
-// course intro's flight begins: audio/introCue.ts) half a turn with the race's own models. Tagged, so a race start
-// can move them: its first seconds' sounds forward, the title song back (raceLine)
-audio.bank.schedule = (job, tier, song) => song
-  ? (song === 'title' && attract
-    ? files.add(job, RANK.titleSong, files.limit, 'song:title')
-    : isIntroKey(song)
-      ? files.add(job, RANK.race, 0.5, `song:${song}`)
-      : files.add(job, song === 'title' ? RANK.rest : song === 'results' ? RANK.screens : RANK.raceNext, 1, `song:${song}`))
-  : files.add(job, SOUND_RANK[Math.min(tier, SOUND_RANK.length - 1)], 0.5, `sfx:${tier}`);
+// course intro's flight begins: audio/introCue.ts) half a turn with the race's own models; a course's music fetched
+// well ahead of its race (a series' next course during the results: SONG_AHEAD_TIER) with the next screens' files,
+// behind the results song. A picked course's music (SONG_NOW_TIER) takes no turn: it is fetched at once, while the
+// race is built (asked for at the pick at the line's front, it still waited behind a full line of background files
+// and the start sky's hold till 1.7 s past the pick on Fast 4G, 28 Sept 2026). Tagged, so a race start can move them:
+// its first seconds' sounds and its course's music forward, the title song back (raceLine)
+audio.bank.schedule = (job, tier, song) => {
+  if (!song) return files.add(job, SOUND_RANK[Math.min(tier, SOUND_RANK.length - 1)], 0.5, `sfx:${tier}`);
+  if (tier === SONG_NOW_TIER) return job();
+  if (song === 'title') return attract ? files.add(job, RANK.titleSong, files.limit, 'song:title') : files.add(job, RANK.rest, 1, 'song:title');
+  const weight = isIntroKey(song) ? 0.5 : 1;
+  if (tier === SONG_AHEAD_TIER) return files.add(job, RANK.screens, weight, `song:${song}`);
+  return files.add(job, isIntroKey(song) ? RANK.race : song === 'results' ? RANK.screens : RANK.raceNext, weight, `song:${song}`);
+};
 /**
  * The line as a race or the menus want it: a race wants its racers' models, then its song and first
  * seconds of sound, and the title song can wait; the menus want the title song back (a slow line's
- * files still waiting move; nothing running stops).
+ * files still waiting move; nothing running stops). `trackId`: the race's course, whose music, if still
+ * waiting from its choice (a series' next course, fetched behind the results), is wanted now.
  */
-function raceLine(racing: boolean): void {
+function raceLine(racing: boolean, trackId?: string): void {
   files.rerank('song:title', racing ? RANK.rest : RANK.titleSong);
   if (racing) files.rerank('sfx:1', RANK.raceNext);
+  if (racing && trackId) {
+    files.rerank(`song:${introKey(trackId)}`, RANK.race);
+    files.rerank(`song:${themeForTrack(trackId)}`, RANK.raceNext);
+  }
 }
 /** racerId → kart index for the current session (audio needs positions by racer) */
 const indexOf = new Map<string, number>();
@@ -384,7 +394,7 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   // racers whose model files were not in yet (a race picked early on a slow line) are asked for first; with a
   // course intro, each is swapped in as it lands and the countdown waits for them a little (upgradeKarts)
   dropUpgrade();
-  raceLine(!isAttract);
+  raceLine(!isAttract, def.id);
   const missing = isAttract ? [] : session.waitingForModels();
   if (missing.length) {
     // (with an intro, turns of their own at the front of the line, moved back once the countdown starts: endIntro;
@@ -455,10 +465,14 @@ const host: UiHost = {
     // the course intro before the countdown: a short one in Time Trial and the Daily (game/intro.ts); from the
     // results, a short one on to the next track and none for the same race again (as the pause's Restart)
     const intro = p.intro === 'none' ? null : p.intro ?? (p.mode === 'timeTrial' || p.mode === 'daily' ? 'short' : 'full');
+    const config = series ? withMirror(nextRace(series)!) : configFor(p);
+    // the course is chosen (the Track or Cup screen's pick): its music's files come down from now, bytes only, while
+    // the race is built (half a second to a second of script), not after it (audio.courseChosen)
+    audio.courseChosen(config.trackId);
     // a race picked, with a course to fly: the pick's sting over the menu's confirm (Mario Kart World's start press;
     // audio.raceChosen). Not for the same race again, a restart or a series' next race
     if (intro) audio.raceChosen();
-    load(series ? withMirror(nextRace(series)!) : configFor(p), false, intro);
+    load(config, false, intro);
   },
   nextRace() {
     const next = series ? nextRace(series) : undefined;
@@ -497,6 +511,9 @@ const host: UiHost = {
   screenChanged(app) {
     // the series' podium ceremony (game/podium.ts), after its standings or its cut
     if (app.screen === 'podium' && podium && !podium.showing) startPodium();
+    // the Daily's course (the day's) is chosen with it on the Mode screen: its music's files come down while the racer
+    // is picked (audio.courseChosen; each file once, so the next screens ask for nothing more)
+    if (app.mode === 'daily' && (app.screen === 'rosterSelect' || app.screen === 'kartSelect')) audio.courseChosen(dailyTrack(dailySeed(), [...TRACKS.keys()]));
     // leaving the race screens for the menus brings the attract race back (the results' Change track and Change racer too)
     if (!attract && (app.screen === 'modeSelect' || app.screen === 'title' || app.screen === 'rosterSelect' || app.screen === 'trackSelect')) startAttract();
   },
@@ -577,6 +594,8 @@ function raceOver(): void {
     if (top.length) buildPodium(top);
   }
   audio.play('results');
+  // a series' next course is known now: its music's files come down under the results, behind the results song
+  if (series && seriesHasNext) audio.courseChosen(nextRace(series)!.trackId, true);
   // Time Trial and Daily runs can go on the leaderboard: the whole input log, from tick 0
   const mode = session.config.mode;
   const mine = results.ranks.find((r) => r.racerId === player?.racerId);

@@ -12,7 +12,7 @@ import { IntroCue, introPlan, introSources } from './introCue.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
-import { LoopEngine, mixLevel, playSample, SampleBank, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
+import { LoopEngine, mixLevel, playSample, SampleBank, SONG_AHEAD_TIER, SONG_NOW_TIER, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
 import { ENGINE_POP, noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
 import type { BarkCue, Cue, MusicCue, SfxId, SongId } from './types.ts';
 import { mergeCues, rouletteGap, Voices } from './voices.ts';
@@ -225,6 +225,19 @@ export class GameAudio {
     const ctx = this.bus.ctx;
     if (!ctx) return;
     for (const key of trackId ? introSources(trackId, this.wantKey) : [this.wantKey]) if (this.bank.hasSong(key)) void this.bank.song(ctx, key);
+  }
+
+  /**
+   * A course is chosen, before its race loads (main.ts: the Track or Cup screen's pick, before the race is built; the
+   * Daily's at its pick on the Mode screen; a series' next course during the results, `ahead`): its music's files come
+   * down now, bytes only, the chosen course's alone (phones pay for data): its intro piece (`intro:<trackId>`) when the
+   * manifest lists one, and its race song. No context is made and nothing plays; a silent bus (?mute) fetches nothing.
+   * A pick's are wanted this moment (SONG_NOW_TIER: at once, not a turn in the line); `ahead`, well before its race,
+   * behind every file wanted now (the results song first: SONG_AHEAD_TIER).
+   */
+  courseChosen(trackId: string, ahead = false): void {
+    if (this.bus.silent) return;
+    for (const key of introSources(trackId, themeForTrack(trackId))) void this.bank.prefetch(key, ahead ? SONG_AHEAD_TIER : SONG_NOW_TIER);
   }
 
   /**

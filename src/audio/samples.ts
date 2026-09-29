@@ -480,6 +480,16 @@ const TIER_OF: ReadonlyMap<string, number> = new Map(SFX_TIERS.flatMap((ids, tie
 export const sfxTier = (id: string): number => TIER_OF.get(id) ?? (id.startsWith('yelp:') ? 2 : id === AUDIO.sting.id ? 0 : SFX_TIERS.length);
 /** The turn a song is fetched at: one is only asked for when it is wanted now (the title on the first key press, a race's as it loads). */
 export const SONG_TIER = 0;
+/**
+ * The turn of a song's file fetched well ahead of its moment (a series' next course's music during the results:
+ * GameAudio.courseChosen): behind every file wanted now, the results song first (main.ts moves it up as its race loads).
+ */
+export const SONG_AHEAD_TIER = 1;
+/**
+ * A song's file wanted this moment (a chosen course's music at its pick, the race about to be built: GameAudio.courseChosen):
+ * main.ts fetches it at once, never waiting a turn in the line behind the background files.
+ */
+export const SONG_NOW_TIER = -1;
 /** The racers' voice lines come down after every sound effect: a line not in yet is simply not said. */
 export const VOICE_TIER = SFX_TIERS.length + 1;
 
@@ -578,13 +588,18 @@ export class SampleBank {
 
   /**
    * The song `key`'s file, fetched ahead of its moment (the title's while the start screen waits for the first press;
-   * browsers refuse sound before one): its bytes only, at its turn in the line, and no audio context (none may start
-   * before the press, and ?mute never makes one). `song()` decodes them when the song is asked for, so the press
-   * waits for a decode, not a download. Safe to call again; fails soft.
+   * browsers refuse sound before one; a chosen course's music: GameAudio.courseChosen): its bytes only, at its turn in
+   * the line (`tier`: SONG_TIER; SONG_NOW_TIER at once; SONG_AHEAD_TIER well before its moment), and no audio context (none may start before
+   * the press, and ?mute never makes one). With the recordings' list in, it is asked for at once, in the caller's own
+   * turn (a race picked: before the race is built). `song()` decodes the bytes when the song is asked for, so its moment
+   * waits for a decode, not a download. Safe to call again (a file is fetched once); fails soft.
    */
-  async prefetch(key: string): Promise<void> {
-    const m = (await this.list())?.music[key];
-    if (m && !this.songs.has(key)) await this.file(key, m.url);
+  prefetch(key: string, tier = SONG_TIER): Promise<void> {
+    const ask = (l: Manifest | null): Promise<void> => {
+      const m = l?.music?.[key];
+      return m && !this.songs.has(key) ? this.file(key, m.url, tier).then(() => undefined) : Promise.resolve();
+    };
+    return this.manifest ? ask(this.manifest) : this.list().then(ask);
   }
 
   /** The file's bytes when its turn comes (the line is free again once they are in), then decoded. */
@@ -600,11 +615,11 @@ export class SampleBank {
     }
   }
 
-  /** The song `key`'s file, once, at its turn (SONG_TIER, the line knowing it for a song); how fast it comes is measured (readyIn). */
-  private file(key: string, url: string): Promise<ArrayBuffer | null> {
+  /** The song `key`'s file, once, at its turn (`tier`: SONG_TIER, SONG_NOW_TIER or SONG_AHEAD_TIER; the line knowing it for a song); how fast it comes is measured (readyIn). */
+  private file(key: string, url: string, tier = SONG_TIER): Promise<ArrayBuffer | null> {
     let f = this.files.get(key);
     if (!f) {
-      const mine = this.schedule(() => this.bytes(key, `${this.base}${url}`), SONG_TIER, key).catch(() => null);
+      const mine = this.schedule(() => this.bytes(key, `${this.base}${url}`), tier, key).catch(() => null);
       f = mine;
       this.files.set(key, f);
       void mine.then((b) => {
