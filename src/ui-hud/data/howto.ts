@@ -2,6 +2,11 @@
 // creatures (design §6; none since 25 Sept 2026) and the tricks worth knowing. US English, short and plain. text.test.ts
 // checks the numbers and colors here against the game's own (items, kart schema, touch buttons).
 
+import { UI } from '../constants.ts';
+
+/** a small count in words, as the tips say it */
+const COUNT_WORDS: readonly string[] = ['none', 'one', 'two', 'three', 'four', 'five'];
+
 /** `touch`: the phone and tablet controls, named as the on-screen buttons read (render/touch.ts); `gas`: the row Auto-accelerate changes */
 export const CONTROLS: readonly { action: string; keys: string; pad: string; touch: string; gas?: true }[] = Object.freeze([
   { action: 'Steer', keys: 'A / D or ← / →', pad: 'Left stick or D-pad', touch: 'Left pad' },
@@ -53,7 +58,8 @@ export const TIPS: readonly string[] = Object.freeze([
   'New to racing? In Settings, Steering assist keeps you on the road near the edges, and Auto-accelerate holds the gas for you from GO.',
   'Hold drift through a turn: the sparks go blue, orange, then purple. Let go for a boost.',
   'Press the gas the moment the 2 appears for a start boost. On a phone, put a thumb on the screen then.',
-  'Pop a balloon for an item. You can hold three. A gold pair of balloons gives you two at once.',
+  // as many as the HUD has slots (UI.itemSlots; Adam, 28 Sept 2026: "Yes, 3 item slots.")
+  `Pop a balloon for an item. You can hold ${COUNT_WORDS[UI.itemSlots] ?? UI.itemSlots}. A gold pair of balloons gives you two at once.`,
   // the speed pickups are gears (Adam, 26 Sept 2026: "not coins"); the sim still counts them as coins
   'Grab gears to tune up your kart: a little more top speed, up to 10. A hit spins you out and knocks 2 gears loose.',
   'Stay right behind a racer for 2 seconds: their slipstream gives you a boost.',

@@ -75,15 +75,21 @@ export const UI = Object.freeze({
   rouletteFlickerMs: 90,
   rouletteSlowMs: 220,
   /**
-   * The roulette stops and the item lands in its balloon slot (Adam, 28 Sept 2026: "just appear without any
+   * The roulette stops and the item lands in its slot (Adam, 28 Sept 2026: "just appear without any
    * animation. Looks cheap."): it drops in bright, squashes, springs back and settles over `slotLandMs` (ui.css
-   * `--t-land`), a ring flashing out off the balloon and a shine crossing it; reduced motion, a fade over
-   * `slotFadeMs`. A Double balloon's two items land one after the other: the second slot rolls on
-   * `slotStaggerMs` more (the sim has both ready at once; the second is not usable before the first anyway).
+   * `--t-land`), the glass flaring in the item's color, a ring flashing out off the frame and a shine crossing it;
+   * reduced motion, a fade over `slotFadeMs`. Slots whose rolls stop on one tick (a Double balloon's two items)
+   * land one after the other, `slotStaggerMs` apart (the sim has both ready at once; only the first is usable anyway).
    */
   slotLandMs: 480,
   slotFadeMs: 160,
   slotStaggerMs: 260,
+  /**
+   * How many item slots the HUD draws (Adam, 28 Sept 2026: "Yes, 3 item slots."): the held item's big plate, then the
+   * ones to come, smaller, in a row. The one number: the HUD, its view model and How to Play follow it. A slot the
+   * item state has no field for yet shows empty (hudModel itemSlots).
+   */
+  itemSlots: 3,
   /** a gamepad stick past this counts as a direction */
   stickDeadZone: 0.5,
   /** up or down past the first or last stop scrolls a tall panel this far (px) */

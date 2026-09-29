@@ -59,6 +59,21 @@ export function iconFor(itemId: string): ItemIcon | null {
   return ITEM_ICONS[itemId] ?? null;
 }
 
+/** the glow of a slot whose item's color is too dark to glow on the glass (the Oil Can's black): cool steel */
+const GLOW_STEEL = '#9db4d6';
+
+/**
+ * The color an item's HUD slot glows in (render/hud.ts `--glow`, ui.css .slot): the item's own icon color, so a
+ * reskinned item brings its glow with it; steel for one too dark to light the glass, and '' for none.
+ */
+export function glowFor(itemId: string): string {
+  const c = iconFor(itemId)?.colour;
+  if (!c) return '';
+  const n = parseInt(c.slice(1), 16);
+  const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  return lum < 0.2 ? GLOW_STEEL : c;
+}
+
 /** Inline SVG markup for an icon: a dark outline under the fill so it survives any background. */
 export function iconSvg(itemId: string, size = 48): string {
   const ic = iconFor(itemId);
