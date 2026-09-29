@@ -364,7 +364,8 @@
           "anchorAlign": { "type": "number", "description": "Grapple Anchor: only fired with the nose within this many rad of the road ahead and the nearest kart ahead within this bearing", "default": 0.35 },
           "runnerRange": { "type": "number", "description": "Wind-Up Mouse: send it when a kart is ahead within this (m)", "default": 60 },
           "springRange": { "type": "number", "description": "Pogo Spring: boing when a kart ahead is this close (m), and slam when one is inside this under you", "default": 7 },
-          "equaliserMinRank": { "type": "integer", "description": "The Fog Bank only works from this place back (item.schema minPosition); the AI waits until then", "default": 5 }
+          "equaliserMinRank": { "type": "integer", "description": "The Fog Bank only works from this place back (item.schema minPosition); the AI waits until then", "default": 5 },
+          "followSeconds": { "type": "number", "description": "seconds, on top of the reaction: an item of the same kind that moves up into the first slot behind one just spent waits this beat before it goes (three slots, 28 Sept 2026), so a hand is never fired in one burst, and a second shot can still break the shield the first one hit", "default": 0.6 }
         } },
         "autopilot": { "type": "object", "description": "a finished kart keeps rolling out of the way", "properties": {
           "skill": { "type": "number", "default": 0.5 }, "power": { "type": "number", "default": 0.6 }

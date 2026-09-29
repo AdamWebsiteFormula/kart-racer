@@ -6,7 +6,7 @@ import { cancelDrift } from '../kart-controller/drift.ts';
 import { isRiding } from '../kart-controller/powers.ts';
 import { applyHit } from '../kart-controller/step.ts';
 import type { HitKind, KartEvent, KartState, Vec3 } from '../kart-controller/types.ts';
-import { clearSlots } from './roulette.ts';
+import { clearSlots, heldItems } from './roulette.ts';
 import type { ItemDefinition, ItemEvent, ItemsState } from './types.ts';
 import * as dmath from '../sim-math/dmath.ts';
 
@@ -52,8 +52,7 @@ export function landHit(
     s.status.slowRemaining = Math.max(s.status.slowRemaining, fx.slowSeconds ?? 0);
   }
   if (fx.dropsItem && s.item.held !== 'none') {
-    events.push({ type: 'itemLost', racerId: s.racerId, itemId: s.item.held });
-    if (s.item.next !== 'none') events.push({ type: 'itemLost', racerId: s.racerId, itemId: s.item.next });
+    for (const id of heldItems(s)) events.push({ type: 'itemLost', racerId: s.racerId, itemId: id });
     clearSlots(s);
   }
   events.push({ type: 'hit', racerId: s.racerId, byRacerId, itemId: def.id, spun, coinsLost });
@@ -71,8 +70,7 @@ export function applyFog(karts: readonly KartState[], owner: number, def: ItemDe
     s.status.slowedTo = Math.min(s.status.slowRemaining > 0 ? s.status.slowedTo : 1, slowTo);
     s.status.slowRemaining = Math.max(s.status.slowRemaining, seconds);
     if (def.behaviour.stripsItem) {
-      if (s.item.held !== 'none') events.push({ type: 'itemLost', racerId: s.racerId, itemId: s.item.held });
-      if (s.item.next !== 'none') events.push({ type: 'itemLost', racerId: s.racerId, itemId: s.item.next });
+      for (const id of heldItems(s)) events.push({ type: 'itemLost', racerId: s.racerId, itemId: id });
       clearSlots(s);
     }
     victims.push(s.racerId);

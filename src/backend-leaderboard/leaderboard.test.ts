@@ -18,7 +18,8 @@ const IDS = Object.keys(TRACKS);
 
 /** A "client" run exactly as the game plays it: the shared sim tick, a scripted player, the race's own input log; in `kartId` (absent: the racer's own). */
 /** `hops`: the drift button tapped every 0.75 s, and again 6 ticks into each flight (hops on every slope, tricks off every jump and crest). */
-function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string, hops = false, drifts = false) {
+/** `drifts`: the drift button held 1.25 s of every 2; `hoard`: the item button is left alone until all three slots hold a ready item, then tapped every 0.5 s until they are spent (three slots, 28 Sept 2026). */
+function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string, hops = false, drifts = false, hoard = false) {
   const config = soloConfig(mode, trackId, racerId, seed, kartId);
   const track = buildTrack(TRACKS[trackId]);
   const manager = new RaceManager(track, config);
@@ -27,14 +28,17 @@ function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: numb
   const inputs = manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
   const parts = { manager, items, ai, inputs, playerIndex: 0, playerSlot: { ...NEUTRAL_INPUT } };
   const drive = lookAheadDriver(26, lane);
-  let wobble = 0;
+  let wobble = 0, spending = false;
   while (manager.state.phase !== 'finished' && manager.state.tick < 120 * 400) {
-    const i = drive(manager.state.karts[0], track);
+    const s = manager.state.karts[0];
+    const i = drive(s, track);
     wobble += 0.37; // unrounded analogue values, like a real stick
     const tick = manager.state.tick;
+    if (hoard && s.item.third !== 'none' && s.item.thirdRouletteRemaining <= 0) spending = true;
+    if (s.item.held === 'none') spending = false;
     // `drifts`: the button held 1.25 s of every 2, so the look-ahead's steering locks real drifts in the bends
     const drift = drifts ? tick % 240 < 150 : hops && (tick % 90 === 0 || tick % 90 === 6);
-    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991, drift });
+    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991, drift, item: spending && tick % 60 === 0 });
   }
   return { result: manager.results().ranks[0], log: manager.state.inputLog };
 }
@@ -85,7 +89,8 @@ describe('submission rules', () => {
     // so does a v6 game (26 Sept 2026: its hops and tricks replay differently on the v7 sim), and a v7 game
     // (27 Sept 2026: its course limit stood 12 m past every curb; v8 lays it stretch by stretch, track-builder limits.ts),
     // and a v8 game (28 Sept 2026: racers of a class shared their stats; v9 gives each racer a line of their own),
-    // and a v9 game (29 Sept 2026: its drifts turned the tighter arc; v10 turns the one measured on Mario Kart World)
+    // and a v9 game (29 Sept 2026: its drifts turned the tighter arc; v10 turns the one measured on Mario Kart World,
+    // and has three item slots, so a Daily's third balloon rolls an item)
     expect(CLIENT_VERSION).toBe('10');
     expect(checkSubmission({ ...noKart, clientVersion: '5' }, IDS)).toBe('please reload the game: new version');
     expect(checkSubmission({ ...good, clientVersion: '6' }, IDS)).toBe('please reload the game: new version');
@@ -238,6 +243,12 @@ describe('re-simulation (SOP gate)', () => {
     const d = clientRun(track, 'daily', 'otto', seed);
     expect(verifyRun(TRACKS[track], 'daily', 'otto', seed, encodeLog(d.log), d.result.timeMs)).toMatchObject({ ok: true });
   });
+  it('a daily run that fills all three item slots and spends them replays exactly (three slots, 28 Sept 2026)', () => {
+    const d = clientRun('harbour-loop', 'daily', 'otto', 20260931, 0, undefined, false, true);
+    expect(d.result.dnf).toBe(false);
+    expect(d.log.some((i) => i.item), 'it used its items').toBe(true);
+    expect(verifyRun(TRACKS['harbour-loop'], 'daily', 'otto', 20260931, encodeLog(d.log), d.result.timeMs)).toMatchObject({ ok: true, timeMs: d.result.timeMs });
+  });
 });
 
 describe('red-team hardening (2026-09-23)', () => {
@@ -322,6 +333,15 @@ describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => 
       expect(drifter.result.dnf, `${id} drifting`).toBe(false);
       const d = core.verifyRun(core.TRACKS[id], 'timeTrial', 'pip', 0, encodeLog(drifter.log), drifter.result.timeMs);
       expect(d, `${id}, drifting: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: drifter.result.timeMs });
+    }
+    // the Daily's items (three slots, 28 Sept 2026): the runs above are Time Trials, where items are inert, so an item
+    // rule changed without a rebuild slipped past them. Two Dailies that fill all three slots and spend them: on the
+    // two-slot core one finished 25 ms early and the other never finished.
+    for (const seed of [20260931, 20260920]) {
+      const daily = clientRun('harbour-loop', 'daily', 'otto', seed, 0, undefined, false, false, true);
+      expect(daily.result.dnf, `daily ${seed}`).toBe(false);
+      const d = core.verifyRun(core.TRACKS['harbour-loop'], 'daily', 'otto', seed, encodeLog(daily.log), daily.result.timeMs);
+      expect(d, `daily ${seed}, three item slots: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: daily.result.timeMs });
     }
   }, 120_000);
 });

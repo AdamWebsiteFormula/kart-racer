@@ -96,11 +96,13 @@ describe('avoid and seek', () => {
     const right = 4 / bl.halfWidth;
     expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, right)).toBeCloseTo(4);
     expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, 0)).toBeCloseTo(0); // another racer, another balloon
-    b.item.held = 'ball'; // one slot full: still seeks (two slots since items 2026-09-22)
+    b.item.held = 'ball'; // one slot full: still seeks (three slots since 28 Sept 2026)
     expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, right)).toBeCloseTo(4);
-    b.item.next = 'ball'; // both full: stops seeking
+    b.item.next = 'ball'; // two full: still seeks
+    expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, right)).toBeCloseTo(4);
+    b.item.third = 'kite'; b.item.thirdRouletteRemaining = 1; // the third rolling: all three taken, stops seeking
     expect(applyAvoid(b, ctx([b], []), bl, 1, 0, 3, right)).toBeCloseTo(3);
-    b.item.held = 'none'; b.item.next = 'none';
+    b.item.held = 'none'; b.item.next = 'none'; b.item.third = 'none'; b.item.thirdRouletteRemaining = 0;
     const cx = ctx([b], []);
     cx.pickupStates[1].respawnRemaining = 2; // popped: not there, so the other one
     expect(applyAvoid(b, cx, bl, 1, 0, 3, right)).toBeCloseTo(0);

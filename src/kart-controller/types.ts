@@ -74,8 +74,15 @@ export interface KartState {
     climb: number;
   };
   boost: { source: BoostSource; remaining: number; multiplier: number };
-  /** two slots (design §8): held is used first; next moves up when held runs out */
-  item: { held: string; charges: number; rouletteRemaining: number; next: string; nextCharges: number; nextRouletteRemaining: number };
+  /**
+   * three slots (design §8; Adam, 28 Sept 2026, "Yes, 3 item slots"): held is used first; when it runs out next
+   * moves up into it and third into next. Each slot rolls on its own timer.
+   */
+  item: {
+    held: string; charges: number; rouletteRemaining: number;
+    next: string; nextCharges: number; nextRouletteRemaining: number;
+    third: string; thirdCharges: number; thirdRouletteRemaining: number;
+  };
   status: {
     spinRemaining: number;
     shield: boolean;
@@ -151,7 +158,7 @@ export function createKartState(init: KartInit): KartState {
     drift: { active: false, phase: 'idle', direction: 0, charge: 0, tier: 0, hopSeconds: 0, yawK: 0, chargeMultiplier: 1, chargeMultiplierRemaining: 0 },
     airborne: { trickQueued: false, seconds: 0, realAir: false, lineY: 0, lineRate: 0, climb: 0 },
     boost: { source: 'none', remaining: 0, multiplier: 1 },
-    item: { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 },
+    item: { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 },
     status: {
       spinRemaining: 0, shield: false, slowedTo: 1, slowRemaining: 0, intangibleRemaining: 0,
       rideRemaining: 0, towRemaining: 0, towTarget: -1, falling: false, fallFromY: 0,

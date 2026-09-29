@@ -50,7 +50,7 @@ export function createMemory(seed: number, slot: number, racerId: string, profil
     rb: 1, skill: profile.skill, powerCap: profile.power,
     driftHold: 0, driftCooldown: 0, driftDir: 0, driftTier: 0, driftPlan: 0, driftPlanSide: 0, driftEndReason: 'none', trickRolled: false, trickDone: false,
     recovery: 'none', recoverTimer: 0, stuckSeconds: 0,
-    reactionRemaining: 0, lastItem: 'none', itemHold: 0, itemPressed: false, itemTrailing: false,
+    reactionRemaining: 0, lastItem: 'none', lastTaken: 0, itemHold: 0, itemPressed: false, itemTrailing: false,
     branchChoice: 0, lateral: 0, balloonPick: 0,
   };
   m.personality = override ? { ...override } : personalityFor(racerId, m);

@@ -3670,6 +3670,7 @@ var e = {
 "ult\":14},\"slamSpeed\":{\"type\":\"number\",\"description\":\"Pogo Spring: m/s straight down on the slam\",\"default\":30},\"fallCatchDepth\":{\"type\":\"number\",\"description\":\"Off an open edge: this far below the road the claw catches the kart mid-fall (race-manager rescue)\",\"default\":5},\"wallEndOvershoot\":{\"type\":\"number\",\"description\":\"A kart this far outside a wall's line (on an open shoulder where the barrier starts, or landing outside it) is eased back in, not snapped (metres; more than a kart radius, so an ordinary wall hit still snaps)\",\"default\":1.2},\"wallEndPushRate\":{\"type\":\"number\",\"description\":\"m/s at which that kart is eased back onto the road\",\"default\":10},\"loopSpeedFactor\":{\"type\":\"number\",\"description\":\"A loop-the-loop carries a kart round at its own speed, never slower than this fraction of top speed (design.md Track thrills): boost in and you fly round\",\"default\":0.8},\"hitCoinsLost\":{\"type\":\"integer\",\"description\":\"Mario Kart World lowered this from 3 to 2 for every racer.\",\"default\":2},\"speedClasses\":{\"description\":\"Top-speed scale per cc class\",\"type\":\"object\",\"required\":[\"50\",\"100\",\"150\"" +
 "],\"properties\":{\"50\":{\"type\":\"number\",\"default\":0.7},\"100\":{\"type\":\"number\",\"default\":0.85},\"150\":{\"type\":\"number\",\"default\":1.0}}}}},\"archetypes\":{\"description\":\"The three classes (design §4): multipliers on the shared base, a racer in their own kart. Why speed is only −1% / +1%: bug hunt 2, 24 Sept 2026 (design §4). Moved here from kart-controller constants.ts on 25 Sept 2026 with the same values; src/kart-controller/karts.ts reads them.\",\"type\":\"object\",\"required\":[\"light\",\"medium\",\"heavy\"],\"default\":{\"light\":{\"speed\":-0.01,\"accel\":0.12,\"handling\":0.12,\"weight\":-0.15,\"hook\":\"none\"},\"medium\":{\"speed\":0,\"accel\":0,\"handling\":0,\"weight\":0,\"hook\":\"none\"},\"heavy\":{\"speed\":0.01,\"accel\":-0.12,\"handling\":-0.10,\"weight\":0.18,\"hook\":\"hardBump\"}},\"additionalProperties\":{\"type\":\"object\",\"required\":[\"speed\",\"accel\",\"handling\",\"weight\",\"hook\"],\"properties\":{\"speed\":{\"type\":\"number\"},\"accel\":{\"type\":\"number\"},\"handling\":{\"type\":\"number\"},\"weight\":{\"type\":\"number\"},\"hook\":{\"type\":\"string\",\"enum\":[\"none\",\"hardBump\"],\"description\":\"Researched 8 Sept 202" +
 "6 against Mario Kart World. hardBump = heavy: every Mario Kart decides a bump by collision mass, and MKW's own Weight tooltip says weight 'affects collision between vehicles'. light and medium take none. A light 'fastCharge' hook was rejected: MK8DX's hidden Mini-Turbo stat is per character and kart part and does not track weight (Bowser is max, Wario is min). A medium 'keepCoins' hook was rejected as invented (design §4, 8 Sept 2026); the coin buffer that replaced it (base.coinShield) was switched off on 24 Sept 2026: in Mario Kart a hit always spins you.\"}}}},\"racers\":{\"type\":\"array\",\"minItems\":8,\"maxItems\":8,\"items\":{\"type\":\"object\",\"required\":[\"id\",\"name\",\"archetype\",\"accent\",\"secondary\",\"kartAsset\",\"headAsset\",\"horn\"],\"properties\":{\"id\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},\"archetype\":{\"type\":\"string\",\"enum\":[\"light\",\"medium\",\"heavy\"]},\"accent\":{\"type\":\"string\"},\"secondary\":{\"type\":\"string\"},\"kartAsset\":{\"type\":\"string\"},\"headAsset\":{\"type\":\"string\"},\"propAsset\":{\"type\":\"string\"},\"horn\":{\"type\":\"string\"},\"hitYelp\":{\"type\":\"string\"},\"aiPersonality\":{\"$ref\":\"#/$def" +
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 "s/aiPersonality\"},\"skins\":{\"description\":\"Alt palettes. All racers are available from the start; only skins unlock (design §10).\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/unlockable\"}}}}},\"bodies\":{\"description\":\"The old shared kart bodies' ids (classic, buggy), kept because the save's unlocked.bodies holds them. Since 25 Sept 2026 they are the karts Classic and Buggy (karts: twins of the Wind-Up Racer and the Scrap Buggy), picked on the kart screen, so an unlock changes the look, never the speed.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/unlockable\"}},\"racerClasses\":{\"description\":\"Each racer's class (design §4). The class and the racer's own touch (racerStats) set the racer's stats, and the racer's own kart (karts[].owner) is the zero a chosen kart is measured from. The racers' names, colors and art live in the game (src/game/racers.ts, src/ui-hud/data/cast.ts); kart-controller karts.test.ts keeps the three in step.\",\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\",\"enum\":[\"light\",\"medium\",\"heavy\"]},\"default\":{\"pip\":\"light\",\"momo\":\"light\",\"nova\":\"light\",\"juniper\":\"medium\",\"otto\":\"medium\",\"sprocke" +
 "t\":\"medium\",\"boulder\":\"heavy\",\"gus\":\"heavy\"}},\"racerStats\":{\"description\":\"Each racer's own touch on their class (design §4; Adam, 28 Sept 2026: \\\"No 2 racers should have the exact same stat\\\"): fractions of the base in whole kartSteps, at most one step a stat, balanced by kartPace (one stat traded for another of equal lap-time value), weight untouched. A racer's line is their class plus their touch: what they drive in their own kart. No two racers share a line, in their own karts or side by side in any one kart, on speed, accel and handling (kart-controller karts.test.ts). Juniper, the all-rounder, has none: she is the medium class exactly.\",\"type\":\"object\",\"additionalProperties\":{\"type\":\"object\",\"required\":[\"speed\",\"accel\",\"handling\",\"weight\"],\"properties\":{\"speed\":{\"type\":\"number\"},\"accel\":{\"type\":\"number\"},\"handling\":{\"type\":\"number\"},\"weight\":{\"type\":\"number\"}}},\"default\":{\"pip\":{\"speed\":0,\"accel\":0.06,\"handling\":-0.06,\"weight\":0},\"momo\":{\"speed\":0,\"accel\":-0.06,\"handling\":0.06,\"weight\":0},\"nova\":{\"speed\":0.005,\"accel\":-0.06,\"handling\":0,\"weight\":0},\"juniper\":{\"speed\":0,\"acc" +
 "el\":0,\"handling\":0,\"weight\":0},\"otto\":{\"speed\":-0.005,\"accel\":0,\"handling\":0.06,\"weight\":0},\"sprocket\":{\"speed\":0,\"accel\":0.06,\"handling\":-0.06,\"weight\":0},\"boulder\":{\"speed\":0,\"accel\":-0.06,\"handling\":0.06,\"weight\":0},\"gus\":{\"speed\":0.005,\"accel\":0,\"handling\":-0.06,\"weight\":0}}},\"karts\":{\"description\":\"The ten karts (design §5; Adam, 25 Sept 2026, option B: any racer in any kart, like Mario Kart World). Each racer's signature kart (owner) and two unlockable twins (twinOf: the stats of that kart, so an unlock changes the look, never the speed; a twin carries no numbers of its own). The numbers are fractions of the base in whole kartSteps, at most kartLimits steps each, and balanced (kartPace): a kart trades one stat for another of equal lap-time value. Combine (src/kart-controller/karts.ts), in exactly this order: line = archetypes[the racer's class] + racerStats[the racer], then total = line + (this kart − the racer's own kart), so a racer in their own kart (or its twin) gets their line to the last bit. Then topSpeed = base.topSpeed × speedClasses[cc] × (1 + speed), accel = base.accel × (1 + accel), steerRate = base.steerRate × (1 " +
@@ -3740,6 +3741,33 @@ var e = {
 "Kart World pays a sharp drifter more and the 100cc expert stand-in's lead grew from 1.3 to 2.9 s (gate 19 wants under 2.5).\",\"properties\":{\"easy\":{\"$ref\":\"#/$defs/aiProfile\",\"type\":\"object\",\"properties\":{\"skill\":{\"type\":\"number\",\"default\":0.35},\"power\":{\"type\":\"number\",\"default\":0.94},\"noise\":{\"type\":\"number\",\"default\":0.09},\"reactionMin\":{\"type\":\"number\",\"default\":0.8},\"reactionMax\":{\"type\":\"number\",\"default\":1.6},\"driftThreshold\":{\"type\":\"number\",\"default\":0.45},\"brakeAbove\":{\"type\":\"number\",\"default\":1.0},\"startPressMean\":{\"type\":\"number\",\"default\":2.0},\"startPressSpread\":{\"type\":\"number\",\"default\":1.6},\"shortcutSkill\":{\"type\":\"number\",\"default\":1.1},\"trickChance\":{\"type\":\"number\",\"default\":0.2},\"rbMin\":{\"type\":\"number\",\"default\":0.6}}},\"normal\":{\"$ref\":\"#/$defs/aiProfile\",\"type\":\"object\",\"properties\":{\"skill\":{\"type\":\"number\",\"default\":0.75},\"power\":{\"type\":\"number\",\"default\":1.0},\"noise\":{\"type\":\"number\",\"default\":0.045},\"reactionMin\":{\"type\":\"number\",\"default\":0.4},\"reactionMax\":{\"type\":\"number\",\"default\":0.9},\"dri" +
 "ftThreshold\":{\"type\":\"number\",\"default\":0.35},\"brakeAbove\":{\"type\":\"number\",\"default\":2.0},\"startPressMean\":{\"type\":\"number\",\"default\":2.0},\"startPressSpread\":{\"type\":\"number\",\"default\":0.8},\"shortcutSkill\":{\"type\":\"number\",\"default\":0.6},\"trickChance\":{\"type\":\"number\",\"default\":0.5},\"rbMin\":{\"type\":\"number\",\"default\":0.6}}},\"hard\":{\"$ref\":\"#/$defs/aiProfile\",\"type\":\"object\",\"properties\":{\"skill\":{\"type\":\"number\",\"default\":0.95},\"power\":{\"type\":\"number\",\"default\":1.0},\"noise\":{\"type\":\"number\",\"default\":0.015},\"reactionMin\":{\"type\":\"number\",\"default\":0.15},\"reactionMax\":{\"type\":\"number\",\"default\":0.4},\"driftThreshold\":{\"type\":\"number\",\"default\":0.3},\"brakeAbove\":{\"type\":\"number\",\"default\":3.0},\"startPressMean\":{\"type\":\"number\",\"default\":2.0},\"startPressSpread\":{\"type\":\"number\",\"default\":0.25},\"shortcutSkill\":{\"type\":\"number\",\"default\":0.3},\"trickChance\":{\"type\":\"number\",\"default\":0.95},\"rbMin\":{\"type\":\"number\",\"default\":0.85}}}}}}}}"),
 >>>>>>>> origin/mac/worktree-agent-ab173e7d2700b4f72:public/fn/core-3f4b1c55ab961a30.js
+========
+"s/aiPersonality\"},\"skins\":{\"description\":\"Alt palettes. All racers are available from the start; only skins unlock (design §10).\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/unlockable\"}}}}},\"bodies\":{\"description\":\"The old shared kart bodies' ids (classic, buggy), kept because the save's unlocked.bodies holds them. Since 25 Sept 2026 they are the karts Classic and Buggy (karts: twins of the Wind-Up Racer and the Scrap Buggy), picked on the kart screen, so an unlock changes the look, never the speed.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/unlockable\"}},\"racerClasses\":{\"description\":\"Each racer's class (design §4). The class sets the racer's stats, and the racer's own kart (karts[].owner) is the zero a chosen kart is measured from. The racers' names, colors and art live in the game (src/game/racers.ts, src/ui-hud/data/cast.ts); kart-controller karts.test.ts keeps the three in step.\",\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\",\"enum\":[\"light\",\"medium\",\"heavy\"]},\"default\":{\"pip\":\"light\",\"momo\":\"light\",\"nova\":\"light\",\"juniper\":\"medium\",\"otto\":\"medium\",\"sprocket\":\"medium\",\"boulder\":\"heavy\",\"" +
+"gus\":\"heavy\"}},\"karts\":{\"description\":\"The ten karts (design §5; Adam, 25 Sept 2026, option B: any racer in any kart, like Mario Kart World). Each racer's signature kart (owner) and two unlockable twins (twinOf: the stats of that kart, so an unlock changes the look, never the speed; a twin carries no numbers of its own). The numbers are fractions of the base in whole kartSteps, at most kartLimits steps each, and balanced (kartPace): a kart trades one stat for another of equal lap-time value. Combine (src/kart-controller/karts.ts), in exactly this order: total = archetypes[the racer's class] + (this kart − the racer's own kart), so a racer in their own kart (or its twin) gets their class to the last bit. Then topSpeed = base.topSpeed × speedClasses[cc] × (1 + speed), accel = base.accel × (1 + accel), steerRate = base.steerRate × (1 + handling) (the grip turn and the drift turn), mass = 1 + weight (the dash, Bubble and Strike Ball bonuses on top, as ever). An unknown kart is the racer's own; an unknown racer takes the class alone. No hidden stats: no terrain stats, no mini-turbo stat. The balance gate (src/game/combos.e2e.test.ts) may move a kart one step toward neutral; thes" +
+"e are the final numbers.\",\"type\":\"array\",\"minItems\":10,\"maxItems\":10,\"items\":{\"$ref\":\"#/$defs/kart\"},\"default\":[{\"id\":\"scooter\",\"name\":\"Parcel Scooter\",\"owner\":\"pip\",\"speed\":-0.005,\"accel\":0.06,\"handling\":0,\"weight\":-0.05},{\"id\":\"scrap\",\"name\":\"Scrap Buggy\",\"owner\":\"momo\",\"speed\":-0.010,\"accel\":0.06,\"handling\":0.06,\"weight\":-0.05},{\"id\":\"pod\",\"name\":\"Comet Pod\",\"owner\":\"nova\",\"speed\":-0.005,\"accel\":0,\"handling\":0.06,\"weight\":-0.05},{\"id\":\"wagon\",\"name\":\"Timber Wagon\",\"owner\":\"juniper\",\"speed\":0,\"accel\":0,\"handling\":0,\"weight\":0.05},{\"id\":\"skimmer\",\"name\":\"Wave Skimmer\",\"owner\":\"otto\",\"speed\":0,\"accel\":0.06,\"handling\":-0.06,\"weight\":0},{\"id\":\"windup\",\"name\":\"Wind-Up Racer\",\"owner\":\"sprocket\",\"speed\":0.005,\"accel\":0,\"handling\":-0.06,\"weight\":0},{\"id\":\"stomper\",\"name\":\"Stone Stomper\",\"owner\":\"boulder\",\"speed\":0.005,\"accel\":-0.06,\"handling\":0,\"weight\":0.05},{\"id\":\"snacktruck\",\"name\":\"Snack Truck\",\"owner\":\"gus\",\"speed\":0.010,\"accel\":-0.06,\"handling\":-0.06,\"weight\":0.05},{\"id\":\"classic\",\"name\":\"Classic\",\"" +
+"twinOf\":\"windup\"},{\"id\":\"buggy\",\"name\":\"Buggy\",\"twinOf\":\"scrap\"}]},\"kartSteps\":{\"description\":\"One step of each kart stat, about equal in lap time on our tracks (design §5: 1% top speed ≈ 12% accel ≈ 11% handling; weight only moves bumps). A kart's numbers are whole steps, and the stat screens show one chevron per step.\",\"type\":\"object\",\"required\":[\"speed\",\"accel\",\"handling\",\"weight\"],\"properties\":{\"speed\":{\"type\":\"number\",\"default\":0.005},\"accel\":{\"type\":\"number\",\"default\":0.06},\"handling\":{\"type\":\"number\",\"default\":0.06},\"weight\":{\"type\":\"number\",\"default\":0.05}}},\"kartLimits\":{\"description\":\"The most whole steps a kart's stat may sit from zero (design §5): two of speed, one of each of the others.\",\"type\":\"object\",\"required\":[\"speed\",\"accel\",\"handling\",\"weight\"],\"properties\":{\"speed\":{\"type\":\"integer\",\"default\":2},\"accel\":{\"type\":\"integer\",\"default\":1},\"handling\":{\"type\":\"integer\",\"default\":1},\"weight\":{\"type\":\"integer\",\"default\":1}}},\"comboBounds\":{\"description\":\"[low, high] for each stat's total over every racer-and-kart pair (kart-controller karts.tes" +
+"t.ts checks all of them). Also the ends of the stat bars on the racer and kart screens: bar = 0.08 + 0.92 × (total − low) / (high − low). The weight ends are the lightest and the heaviest class in their own karts (mass 0.85 to 1.18), so no pair bumps harder or softer than today's classes.\",\"type\":\"object\",\"required\":[\"speed\",\"accel\",\"handling\",\"weight\"],\"properties\":{\"speed\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"minItems\":2,\"maxItems\":2,\"default\":[-0.015,0.015]},\"accel\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"minItems\":2,\"maxItems\":2,\"default\":[-0.18,0.18]},\"handling\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"minItems\":2,\"maxItems\":2,\"default\":[-0.18,0.18]},\"weight\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"minItems\":2,\"maxItems\":2,\"default\":[-0.15,0.18]}}},\"kartPace\":{\"description\":\"The lap-time model a kart is balanced by (design §5; bug hunt 2, 24 Sept 2026: our tracks are fast and flowing, so top speed sets most of a lap): its predicted effect on lap pace is speed + accel / accel + handling / handling, and it must be within ±balance of zero. The real gate is src/game/combos.e" +
+"2e.test.ts, which drives every distinct total on all six tracks.\",\"type\":\"object\",\"required\":[\"accel\",\"handling\",\"balance\"],\"properties\":{\"accel\":{\"type\":\"number\",\"description\":\"An accel fraction this many times larger is worth the same lap time as a top-speed fraction.\",\"default\":12},\"handling\":{\"type\":\"number\",\"description\":\"A handling fraction this many times larger is worth the same lap time as a top-speed fraction.\",\"default\":11},\"balance\":{\"type\":\"number\",\"description\":\"The most a kart's predicted lap effect may sit from zero (a fraction: 0.001 = 0.1%).\",\"default\":0.001}}},\"ai\":{\"description\":\"AI driver constants (docs/sops/ai-driver.md Approach). Never set per race; the defaults are the only values. src/ai-driver/constants.ts reads them. Seconds, metres, radians; fractions are of top speed or half-width as named.\",\"type\":\"object\",\"properties\":{\"line\":{\"type\":\"object\",\"properties\":{\"lookAheadGain\":{\"type\":\"number\",\"description\":\"look-ahead L = clamp(speed × gain, min, max) metres (turbo-kart-rush)\",\"default\":0.9},\"lookAheadMin\":{\"type\":\"number\",\"default\":8},\"lookAheadMax\":{\"type\":\"" +
+"number\",\"default\":30},\"turnNearSeconds\":{\"type\":\"number\",\"description\":\"heading change measured this far ahead in seconds of travel\",\"default\":1.2},\"turnFarSeconds\":{\"type\":\"number\",\"default\":2.4},\"insideGain\":{\"type\":\"number\",\"description\":\"inside-corner bias = clamp(−sign(turn) × |turnNear| × gain, ±insideBiasMax) × halfWidth\",\"default\":0.5},\"insideBiasMax\":{\"type\":\"number\",\"default\":0.4},\"lateralMaxFraction\":{\"type\":\"number\",\"description\":\"lateral target clamp as a fraction of halfWidth\",\"default\":0.6},\"laneHalfFraction\":{\"type\":\"number\",\"description\":\"personality lateralBias spans ± this × halfWidth\",\"default\":0.45},\"edgeMargin\":{\"type\":\"number\",\"description\":\"metres kept from the road edge\",\"default\":1.4},\"aimClampMargin\":{\"type\":\"number\",\"default\":0.5},\"laneRate\":{\"type\":\"number\",\"description\":\"m/s the lateral target may move per second (smooths flickering nudges; fast enough to dodge)\",\"default\":10},\"narrowRoad\":{\"type\":\"number\",\"description\":\"halfWidth below this is narrow: centre line, no passing, no drifting, short look-ahead\",\"default\":5},\"narrowLookAhead\":{\"" +
+"type\":\"number\",\"description\":\"look-ahead scale on a narrow road or near a branch entry/exit (floor lookAheadMin)\",\"default\":0.5},\"narrowMargin\":{\"type\":\"number\",\"description\":\"corner-speed margin multiplier on a narrow road, where a slide has nowhere to go\",\"default\":0.75},\"outsideFraction\":{\"type\":\"number\",\"description\":\"before a drift-worthy bend, set up on the outside at this × halfWidth so the drift has room\",\"default\":0.2},\"branchCommitMetres\":{\"type\":\"number\",\"description\":\"a taken shortcut stays the aim this far past its entry; the kart is only moved onto the branch once it has left the main road\",\"default\":40},\"edgeLift\":{\"type\":\"number\",\"description\":\"metres inside the outside road edge (negative: past it, onto the curb) at which a grip-driving AI pointing off the road lifts; a racing line touches the edge at every exit, so only past it (the drift has outsideSlack; grip needed its own: review, 23 Sept 2026, Frostbite's moguls)\",\"default\":-0.4},\"edgeShed\":{\"type\":\"number\",\"description\":\"m/s under its present speed an AI lifting at the outside edge aims for\",\"default\":3},\"airMargin\":{\"type\":\"number\",\"" +
+"description\":\"share of the corner margin kept on a bend with bumps or a ramp ahead: airborne, a kart turns with only its air steer\",\"default\":0.7},\"trickBend\":{\"type\":\"number\",\"description\":\"rad (heading change over turnNearSeconds): over bumps on a bend sharper than this the AI does no tricks; each trick boost carries it faster into the next bump, where airborne it cannot turn (the Canyon dunes)\",\"default\":0.12},\"joinShare\":{\"type\":\"number\",\"description\":\"airborne on a shortcut, the heading step where its end meets the main road counts as a bend turned in this share of the metres left to the join (floor lookAheadMin), so the kart sheds speed before it lands at that angle (bug hunt 2, 24 Sept 2026, Canyon's mine exit). 0.25 and 0.5 measure the same (the brake is on either way); 1 lets more karts onto the sand\",\"default\":0.5},\"bendSeconds\":{\"type\":\"number\",\"description\":\"seconds of travel the AI scans ahead for how far the bend it is in keeps turning (LineInfo.bendAngle, bendMetres) and for the next bump or ramp (airMetres)\",\"default\":5},\"bendStep\":{\"type\":\"number\",\"description\":\"metres between the samples of that scan\",\"default\":" +
+"8},\"bendBack\":{\"type\":\"number\",\"description\":\"rad the road may turn back before the scan calls the bend over (an S-bend)\",\"default\":0.15},\"shortcutSure\":{\"type\":\"number\",\"description\":\"skill at or above which an open wide shortcut is always taken (side paths help: gate 16 proves each at least as fast for Hard); below it, a roll of the racer aggression. Narrow ones stay a catch-up (shortcutRb)\",\"default\":0.9},\"declineFraction\":{\"type\":\"number\",\"description\":\"after declining a shortcut, keep at least this × halfWidth on the far side of the fork\",\"default\":0.35},\"wanderAmpMin\":{\"type\":\"number\",\"default\":0.08},\"wanderAmpMax\":{\"type\":\"number\",\"default\":0.2},\"wanderPeriodMin\":{\"type\":\"number\",\"default\":3.3},\"wanderPeriodMax\":{\"type\":\"number\",\"default\":8.3}}},\"steer\":{\"type\":\"object\",\"properties\":{\"kP\":{\"type\":\"number\",\"default\":2.2},\"kD\":{\"type\":\"number\",\"default\":0.15},\"dErrMax\":{\"type\":\"number\",\"description\":\"rad/s clamp on the derivative term\",\"default\":6},\"offroadGain\":{\"type\":\"number\",\"description\":\"steer gain multiplier while off the road surface\",\"default\":1.3},\"noi" +
+"seSmoothing\":{\"type\":\"number\",\"description\":\"low-pass factor per tick on the seeded steering noise\",\"default\":0.05},\"kLat\":{\"type\":\"number\",\"description\":\"steer per metre of lateral error to the lane target; pure pursuit alone changes lanes too slowly to dodge\",\"default\":0.15},\"kLatMax\":{\"type\":\"number\",\"description\":\"clamp on the lateral term\",\"default\":0.6}}},\"avoid\":{\"type\":\"object\",\"properties\":{\"hazardLookAhead\":{\"type\":\"number\",\"description\":\"metres; a hazard is dodged from this far, or hazardSeconds of travel if that is further\",\"default\":25},\"hazardSeconds\":{\"type\":\"number\",\"description\":\"seconds of travel ahead a hazard that is not rolling is dodged from (24 Sept 2026: 25 m was 1 s at 150cc, too late to move a kart 3 m)\",\"default\":1.8},\"rollingLookAhead\":{\"type\":\"number\",\"description\":\"metres; a rolling hazard comes at you, so look further\",\"default\":45},\"hazardLateral\":{\"type\":\"number\",\"default\":2.2},\"dodgeClearance\":{\"type\":\"number\",\"default\":2.6},\"avoidLookAhead\":{\"type\":\"number\",\"description\":\"metres ahead another moving kart matters for passing and drafting\",\"defa" +
+"ult\":25},\"stoppedLookAhead\":{\"type\":\"number\",\"description\":\"metres ahead a slow, spinning or stopped kart is treated as a hazard\",\"default\":40},\"slowKartSpeed\":{\"type\":\"number\",\"description\":\"m/s; a kart slower than this ahead is an obstacle\",\"default\":4},\"stoppedClearance\":{\"type\":\"number\",\"description\":\"metres of lateral clearance kept from a stopped or spinning kart\",\"default\":3.0},\"crossRate\":{\"type\":\"number\",\"description\":\"m/s sideways: a pass never crosses the line of a slow kart it cannot get past at this rate before it reaches it, nor squeezes by with less than a kart's width (24 Sept 2026)\",\"default\":4},\"passDistance\":{\"type\":\"number\",\"default\":10},\"passClosing\":{\"type\":\"number\",\"description\":\"m/s closing speed that starts a pass\",\"default\":1},\"touchDistance\":{\"type\":\"number\",\"description\":\"metres behind a kart at which the AI pulls out instead of drafting into it\",\"default\":3.5},\"spawnBehind\":{\"type\":\"number\",\"description\":\"metres past the spawn spot of a rolling or falling hazard the berth is still kept\",\"default\":5},\"ringHop\":{\"type\":\"number\",\"description\":\"seconds of t" +
+"ravel before a shock wave along the ground (the Rumblesaur footstep ring) reaches the kart that it hops to clear it\",\"default\":0.1},\"ringSkill\":{\"type\":\"number\",\"description\":\"the least skill that hops shock waves\",\"default\":0.5},\"seekDistance\":{\"type\":\"number\",\"default\":40},\"seekLateral\":{\"type\":\"number\",\"description\":\"max metres off the line a pad, balloon or coin pulls the kart\",\"default\":2.5},\"seekSlope\":{\"type\":\"number\",\"description\":\"metres across the road a balloon may be per metre ahead and still be picked (at least seekLateral): the kart can steer to it in time\",\"default\":0.12},\"rowGap\":{\"type\":\"number\",\"description\":\"metres along the road within which balloons count as one row\",\"default\":2},\"claimWidth\":{\"type\":\"number\",\"description\":\"metres: a kart ahead, between us and a balloon row, this close across the road to a balloon will pop it first\",\"default\":1.6},\"claimCost\":{\"type\":\"number\",\"description\":\"metres added to a claimed balloon's distance from the racer's pick, so it goes for another in the row\",\"default\":4},\"pickSpread\":{\"type\":\"number\",\"description\":\"seeded spread added to" +
+" a racer's lateralBias for where across a balloon row it goes for, so the pack spreads over the row\",\"default\":0.7},\"padSkill\":{\"type\":\"number\",\"description\":\"min skill to aim for boost pads\",\"default\":0.3}}},\"drift\":{\"type\":\"object\",\"properties\":{\"maxHold\":{\"type\":\"number\",\"default\":4.5},\"cooldown\":{\"type\":\"number\",\"default\":0.6},\"abortCooldown\":{\"type\":\"number\",\"default\":1.6},\"hopCommit\":{\"type\":\"number\",\"description\":\"seconds after the hop the drift side is held no matter what\",\"default\":0.3},\"hopCommitStick\":{\"type\":\"number\",\"description\":\"stick toward the drift side through the hop: enough to lock the drift and keep the full charge, not the full swing\",\"default\":0.5},\"chargeSecondsAhead\":{\"type\":\"number\",\"description\":\"with the next tier this many seconds of full charge away, hold a half stick through the exit and take the swing\",\"default\":0.3},\"startYawFraction\":{\"type\":\"number\",\"description\":\"hop only when the road under the nose already asks for this fraction of a half-stick drift yaw\",\"default\":0.4},\"exitYawFraction\":{\"type\":\"number\",\"description\":\"with a tier banked, le" +
+"t go once the road under the nose asks for less than this fraction of the minimum drift yaw\",\"default\":0.5},\"overRotate\":{\"type\":\"number\",\"description\":\"rad of heading swung past the aim point before a drift lets go. The drift yaw is tighter than most bends, so a drift is a swing in and a straighten out; reachableTier() plans the tier from this.\",\"default\":0.6},\"aligned\":{\"type\":\"number\",\"description\":\"rad; release when the error and turnNear are both this small\",\"default\":0.08},\"alignedTurn\":{\"type\":\"number\",\"default\":0.15},\"edgeMargin\":{\"type\":\"number\",\"description\":\"metres from the inside edge that releases\",\"default\":1.2},\"outsideSlack\":{\"type\":\"number\",\"description\":\"metres past the outside road edge (onto the curb, still road) a drift may slide before the AI lets go; past the curb is off-road\",\"default\":0.3},\"aimGain\":{\"type\":\"number\",\"description\":\"rad/s of drift yaw asked per rad of error between the road ahead and where the kart is going (its velocity, not its nose: a drift slides, and holding the nose on the road slid the kart 3 m/s outward into the walls)\",\"default\":2},\"easeMin\":{\"type\":\"number\"" +
+",\"description\":\"rad/s; the least a drift is taken to turn its course back out with the stick out (on a bend gentler than the widest drift it cannot, and must not swing in fast)\",\"default\":0.05},\"swingStep\":{\"type\":\"number\",\"description\":\"seconds per step of swingIn(), the AI's forward run of a drift with the stick out\",\"default\":0.05},\"swingSeconds\":{\"type\":\"number\",\"description\":\"the longest that run looks ahead\",\"default\":3},\"wideLift\":{\"type\":\"number\",\"description\":\"rad; at full inward stick with the course running this far wide of the road the drift lifts (twice this: brakes), so a hairpin taken too fast is held\",\"default\":0.05},\"easePlan\":{\"type\":\"number\",\"description\":\"rad/s; a bend whose yaw is less than this over the widest drift yaw cannot be held in a drift (the course swung in cannot be taken back in time): only a single sweep across the road is planned there\",\"default\":0.07},\"sweepRoom\":{\"type\":\"number\",\"description\":\"the width of that sweep, as a fraction of halfWidth\",\"default\":1.2},\"latCourseMax\":{\"type\":\"number\",\"description\":\"rad; the most course the drift's lane term asks\",\"default\":0.15" +
+"},\"apexMargin\":{\"type\":\"number\",\"description\":\"metres inside the inside edge the drift aims its apex; while it has that room the stick stays at half or more (full charge)\",\"default\":2.2},\"wallMargin\":{\"type\":\"number\",\"description\":\"metres short of where the outside wall stops the kart (wall − kartRadius) that a drift lets go; on an open edge it is outsideSlack past the road\",\"default\":0.3},\"hopRoom\":{\"type\":\"number\",\"description\":\"a hop only with at least this many metres between the kart and the drift apex lane on the inside (halfWidth - apexMargin): the slide sweeps in and needs the room\",\"default\":1.5},\"hopAlign\":{\"type\":\"number\",\"description\":\"rad; no hop with the kart going (its course, the velocity) further than this off the road, in or out\",\"default\":0.12},\"hopMidBend\":{\"type\":\"number\",\"description\":\"rad the road under the nose turns over the hop and the loose lock (hopSeconds + driftYawLag) above which no hop starts: hop before a tight bend, not in it\",\"default\":0.2},\"snapRoom\":{\"type\":\"number\",\"description\":\"metres short of the inside release line (edgeMargin) inside which the stick is no longer pushed to" +
+" a half for the charge\",\"default\":0.8},\"planTop\":{\"type\":\"number\",\"description\":\"a drift is planned at no more than this × the class top speed (coins included, not a boost): the boost runs out mid-drift\",\"default\":1.1},\"exitLead\":{\"type\":\"number\",\"description\":\"seconds of travel before the bend stops turning at which a drift at its planned tier (short of the top tier) lets go, so the boost goes onto the exit\",\"default\":0.5},\"hopLead\":{\"type\":\"number\",\"description\":\"seconds of travel before the bend gets tight (LineInfo.bendStart) the AI hops: the hop does not turn and the drift locks loose, tightening over driftYawLag\",\"default\":0.6},\"airLead\":{\"type\":\"number\",\"description\":\"seconds of travel before the foot of a bump or a ramp a drift lets go (the boost fires on the road); a drift is planned to end there\",\"default\":0.4},\"minTier\":{\"type\":\"integer\",\"description\":\"a drift starts only when the bend lets it reach this tier (or the racer's target tier, if lower). 24 Sept 2026 (Adam: MKW-level drift reward): a blue mini-turbo now pays about 0.3 s, so 1 (was 2: a tier-1 boost barely paid for the hop)\",\"default\":1},\"useBySkil" +
+"l\":{\"type\":\"number\",\"description\":\"a racer drifts a bend with chance max(driftUse, skill × useBySkill) (driftUse 0 never drifts): a sharp driver drifts every bend, as Mario Kart World's hard CPUs do, whatever its personality\",\"default\":1},\"chainSeconds\":{\"type\":\"number\",\"description\":\"after a top-tier release, drift again at once (no wide set-up) while the bend goes on at least this many seconds of travel: chaining mini-turbos through a long sweeper, as in Mario Kart\",\"default\":1.6},\"hazardMiss\":{\"type\":\"number\",\"description\":\"metres off its dodge lane a drift may be with a hazard that stays put in its lane before it lets go\",\"default\":0.8},\"hazardSeconds\":{\"type\":\"number\",\"description\":\"no drift starts, and a drift lets go, with a hazard that stays put this many seconds of travel ahead within its clearance of the drift's lane: the slide cannot dodge\",\"default\":2.2},\"tierBySkill\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"description\":\"skill below [0] → tier 1, below [1] → tier 2, else 3\",\"default\":[0.5,0.8]}}},\"recover\":{\"type\":\"object\",\"properties\":{\"stuckSeconds\":{\"type\":\"number\",\"description\":\"the" +
+" AI's own stuck timer; the race-manager 6 s respawn is the backstop\",\"default\":1.5},\"reverseSeconds\":{\"type\":\"number\",\"default\":0.8},\"cooldownSeconds\":{\"type\":\"number\",\"default\":2.5}}},\"rubber\":{\"type\":\"object\",\"properties\":{\"min\":{\"type\":\"number\",\"default\":0.6},\"max\":{\"type\":\"number\",\"default\":1.4},\"deadZone\":{\"type\":\"number\",\"description\":\"metres of gap with no effect\",\"default\":20},\"scale\":{\"type\":\"number\",\"description\":\"metres; tanh scale beyond the dead zone. 60: a leader 100 m up the road is at rb 0.67 and has lost ~21 % power, so a player closes 100 m in ~25 s (test drive, 2026-09-21)\",\"default\":60},\"powerFrom\":{\"type\":\"number\",\"description\":\"rb below this cuts power (top-speed cap); above it only skill moves\",\"default\":0.85},\"skillGain\":{\"type\":\"number\",\"description\":\"skill += (rb − 1) × gain\",\"default\":1.25},\"shortcutRb\":{\"type\":\"number\",\"description\":\"rubber band at or above which a narrow shortcut is taken as a catch-up\",\"default\":1.15},\"fieldPaceSpread\":{\"type\":\"number\",\"description\":\"seeded per-race pace governor spread across the AI field, fraction of legal " +
+"top speed\",\"default\":0.075}}},\"items\":{\"type\":\"object\",\"properties\":{\"forwardRange\":{\"type\":\"number\",\"default\":45},\"forwardCone\":{\"type\":\"number\",\"description\":\"rad\",\"default\":0.2},\"homingRange\":{\"type\":\"number\",\"default\":90},\"rearRange\":{\"type\":\"number\",\"default\":15},\"defenceRadius\":{\"type\":\"number\",\"default\":6},\"holdMax\":{\"type\":\"number\",\"default\":8},\"holdMin\":{\"type\":\"number\",\"default\":5,\"description\":\"seconds an AI keeps a new item before an attack, a boost, a ride or the fog: only a threat, a tailgater, a close kart or the grass uses it sooner (24 Sept 2026: used at once, the slot sat empty 80% of the race; Mario Kart World racers carry an item most of the time)\"},\"speedItemGap\":{\"type\":\"number\",\"default\":80},\"straightTurn\":{\"type\":\"number\",\"description\":\"rad; |turnFar| below this is a straight\",\"default\":0.15},\"anchorMin\":{\"type\":\"number\",\"description\":\"Grapple Anchor: hook a kart ahead no closer than this (m), not worth it nearer\",\"default\":10},\"anchorMax\":{\"type\":\"number\",\"description\":\"Grapple Anchor: and no farther than this (m, under the item's 50 m reach)\"" +
+",\"default\":45},\"anchorAlign\":{\"type\":\"number\",\"description\":\"Grapple Anchor: only fired with the nose within this many rad of the road ahead and the nearest kart ahead within this bearing\",\"default\":0.35},\"runnerRange\":{\"type\":\"number\",\"description\":\"Wind-Up Mouse: send it when a kart is ahead within this (m)\",\"default\":60},\"springRange\":{\"type\":\"number\",\"description\":\"Pogo Spring: boing when a kart ahead is this close (m), and slam when one is inside this under you\",\"default\":7},\"equaliserMinRank\":{\"type\":\"integer\",\"description\":\"The Fog Bank only works from this place back (item.schema minPosition); the AI waits until then\",\"default\":5},\"followSeconds\":{\"type\":\"number\",\"description\":\"seconds, on top of the reaction: an item of the same kind that moves up into the first slot behind one just spent waits this beat before it goes (three slots, 28 Sept 2026), so a hand is never fired in one burst, and a second shot can still break the shield the first one hit\",\"default\":0.6}}},\"autopilot\":{\"type\":\"object\",\"description\":\"a finished kart keeps rolling out of the way\",\"properties\":{\"skill\":{\"type\":\"number\",\"" +
+"default\":0.5},\"power\":{\"type\":\"number\",\"default\":0.6}}},\"profiles\":{\"type\":\"object\",\"description\":\"Difficulty comes from the speed class: 50 easy, 100 normal, 150 hard (ai-driver Decisions 2026-09-21). 26 Sept 2026 (Adam: \\\"The races seem pretty easy\\\"): Normal races at the player's own top speed (power 0.98 to 1, skill 0.65 to 0.7) and Hard at its sharpest (skill 0.95 to 1), and a Hard racer ahead of the player is held back in sharpness only, never in power (rbMin 0.6 to 0.85, at or above rubber.powerFrom); Easy is as it was (ai-driver Decisions 2026-09-26, game/difficulty.e2e.test.ts).\",\"properties\":{\"easy\":{\"$ref\":\"#/$defs/aiProfile\",\"type\":\"object\",\"properties\":{\"skill\":{\"type\":\"number\",\"default\":0.35},\"power\":{\"type\":\"number\",\"default\":0.94},\"noise\":{\"type\":\"number\",\"default\":0.09},\"reactionMin\":{\"type\":\"number\",\"default\":0.8},\"reactionMax\":{\"type\":\"number\",\"default\":1.6},\"driftThreshold\":{\"type\":\"number\",\"default\":0.45},\"brakeAbove\":{\"type\":\"number\",\"default\":1.0},\"startPressMean\":{\"type\":\"number\",\"default\":2.0},\"startPressSpread\":{\"type\":\"number\",\"default\":1.6},\"shor" +
+"tcutSkill\":{\"type\":\"number\",\"default\":1.1},\"trickChance\":{\"type\":\"number\",\"default\":0.2},\"rbMin\":{\"type\":\"number\",\"default\":0.6}}},\"normal\":{\"$ref\":\"#/$defs/aiProfile\",\"type\":\"object\",\"properties\":{\"skill\":{\"type\":\"number\",\"default\":0.7},\"power\":{\"type\":\"number\",\"default\":1.0},\"noise\":{\"type\":\"number\",\"default\":0.045},\"reactionMin\":{\"type\":\"number\",\"default\":0.4},\"reactionMax\":{\"type\":\"number\",\"default\":0.9},\"driftThreshold\":{\"type\":\"number\",\"default\":0.35},\"brakeAbove\":{\"type\":\"number\",\"default\":2.0},\"startPressMean\":{\"type\":\"number\",\"default\":2.0},\"startPressSpread\":{\"type\":\"number\",\"default\":0.8},\"shortcutSkill\":{\"type\":\"number\",\"default\":0.6},\"trickChance\":{\"type\":\"number\",\"default\":0.5},\"rbMin\":{\"type\":\"number\",\"default\":0.6}}},\"hard\":{\"$ref\":\"#/$defs/aiProfile\",\"type\":\"object\",\"properties\":{\"skill\":{\"type\":\"number\",\"default\":0.95},\"power\":{\"type\":\"number\",\"default\":1.0},\"noise\":{\"type\":\"number\",\"default\":0.015},\"reactionMin\":{\"type\":\"number\",\"default\":0.15},\"reactionMax\":{\"type\":\"number\",\"default\"" +
+":0.4},\"driftThreshold\":{\"type\":\"number\",\"default\":0.3},\"brakeAbove\":{\"type\":\"number\",\"default\":3.0},\"startPressMean\":{\"type\":\"number\",\"default\":2.0},\"startPressSpread\":{\"type\":\"number\",\"default\":0.25},\"shortcutSkill\":{\"type\":\"number\",\"default\":0.3},\"trickChance\":{\"type\":\"number\",\"default\":0.95},\"rbMin\":{\"type\":\"number\",\"default\":0.85}}}}}}}}"),
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	$defs: {
 		kart: {
 			description: "One kart (see karts). An owned kart has an owner and its four numbers; a twin has twinOf and no numbers.",
@@ -4007,9 +4035,12 @@ var w = Object.freeze([
 		]
 	}
 <<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 ]), T = "9", E = 262144, D = (e = /* @__PURE__ */ new Date()) => e.getUTCHours() * 60 + e.getUTCMinutes();
 function O(e) {
 ========
+========
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 ]), C = "9", w = 262144, T = (e = /* @__PURE__ */ new Date()) => e.getUTCHours() * 60 + e.getUTCMinutes();
 function E(e) {
 >>>>>>>> origin/mac/worktree-agent-ab173e7d2700b4f72:public/fn/core-3f4b1c55ab961a30.js
@@ -4096,8 +4127,11 @@ function le(e, t, n = ee(), r = D()) {
 	if (typeof i.inputLog != "string" || i.inputLog.length === 0 || i.inputLog.length > 262144) return "input log missing or too large";
 	if (i.clientVersion !== "9") return "please reload the game: new version";
 <<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	if (!y(i.kartId)) return "unknown kart";
 ========
+========
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (!_(i.kartId)) return "unknown kart";
 >>>>>>>> origin/mac/worktree-agent-ab173e7d2700b4f72:public/fn/core-3f4b1c55ab961a30.js
 	if (i.mode === "daily") {
@@ -4227,6 +4261,7 @@ function nt(e, t, n) {
 	let d = -1 / o, f = Ce(d);
 	return f + d * (1 + f * u + f * c);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var rt = 3.141592653589793, it = .6366197723675814, at = 1.5707963267341256, ot = 6077100506506192e-26, st = 6077100506303966e-26, ct = 20222662487959506e-37, lt = 20222662487111665e-37, ut = 84784276603689e-45, dt = xe(1072243195, 4294967295), F = 0, ft = 0, pt = 1647099.3291652855, mt = 2 * rt;
 function ht(e) {
 	Math.abs(e) > pt && (e %= mt);
@@ -4262,24 +4297,73 @@ function _t(e) {
 	return nt(F, ft, t & 1 ? -1 : 1);
 }
 var vt = [
+========
+var tt = 3.141592653589793, nt = .6366197723675814, rt = 1.5707963267341256, it = 6077100506506192e-26, at = 6077100506303966e-26, ot = 20222662487959506e-37, st = 20222662487111665e-37, ct = 84784276603689e-45, lt = ye(1072243195, 4294967295), F = 0, I = 0, ut = 1647099.3291652855, dt = 2 * tt;
+function ft(e) {
+	Math.abs(e) > ut && (e %= dt);
+	let t = Math.round(e * nt), n = e - t * rt, r = t * it, i = n;
+	r = t * at, n = i - r, r = t * ot - (i - n - r), i = n, r = t * st, n = i - r, r = t * ct - (i - n - r), F = n - r, I = n - F - r;
+	let a = t % 4;
+	return a < 0 ? a + 4 : a;
+}
+function L(e) {
+	if (Math.abs(e) <= lt) return Math.abs(e) < Se ? e : Ie(e, 0, 0);
+	if (!(Math.abs(e) < Infinity)) return NaN;
+	switch (ft(e)) {
+		case 0: return Ie(F, I, 1);
+		case 1: return Le(F, I);
+		case 2: return -Ie(F, I, 1);
+		default: return -Le(F, I);
+	}
+}
+function pt(e) {
+	if (Math.abs(e) <= lt) return Le(e, 0);
+	if (!(Math.abs(e) < Infinity)) return NaN;
+	switch (ft(e)) {
+		case 0: return Le(F, I);
+		case 1: return -Ie(F, I, 1);
+		case 2: return -Le(F, I);
+		default: return Ie(F, I, 1);
+	}
+}
+function mt(e) {
+	if (Math.abs(e) <= lt) return Math.abs(e) < Se ? e : et(e, 0, 1);
+	if (!(Math.abs(e) < Infinity)) return NaN;
+	let t = ft(e);
+	return et(F, I, t & 1 ? -1 : 1);
+}
+var ht = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	.4636476090008061,
 	.7853981633974483,
 	.982793723247329,
 	1.5707963267948966
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 ], yt = [
+========
+], gt = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	22698777452961687e-33,
 	3061616997868383e-32,
 	13903311031230998e-33,
 	6123233995736766e-32
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 ], bt = .3333333333333293, xt = -.19999999999876483, St = .14285714272503466, Ct = -.11111110405462356, wt = .09090887133436507, Tt = -.0769187620504483, Et = .06661073137387531, Dt = -.058335701337905735, Ot = .049768779946159324, kt = -.036531572744216916, At = .016285820115365782, jt = 0x40000000000000000;
 function Mt(e) {
 	let t = Math.abs(e), n = e < 0;
 	if (t >= jt) return t === t ? e > 0 ? vt[3] + yt[3] : -vt[3] - yt[3] : e;
+========
+], _t = .3333333333333293, vt = -.19999999999876483, yt = .14285714272503466, bt = -.11111110405462356, xt = .09090887133436507, St = -.0769187620504483, Ct = .06661073137387531, wt = -.058335701337905735, Tt = .049768779946159324, Et = -.036531572744216916, Dt = .016285820115365782, Ot = 0x40000000000000000;
+function kt(e) {
+	let t = Math.abs(e), n = e < 0;
+	if (t >= Ot) return t === t ? e > 0 ? ht[3] + gt[3] : -ht[3] - gt[3] : e;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let r;
 	if (t < .4375) {
 		if (t < we) return e;
 		r = -1;
 	} else e = t, t < 1.1875 ? t < .6875 ? (r = 0, e = (2 * e - 1) / (2 + e)) : (r = 1, e = (e - 1) / (e + 1)) : t < 2.4375 ? (r = 2, e = (e - 1.5) / (1 + 1.5 * e)) : (r = 3, e = -1 / e);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let i = e * e, a = i * i, o = i * (bt + a * (St + a * (wt + a * (Et + a * (Ot + a * At))))), s = a * (xt + a * (Ct + a * (Tt + a * (Dt + a * kt))));
 	if (r < 0) return e - e * (o + s);
 	let c = vt[r] - (e * (o + s) - yt[r] - e);
@@ -4368,12 +4452,103 @@ function On(e) {
 	else if (t < Dn) return e;
 	else i = 0;
 	let o = .5 * e, s = e * o, c = 1 + s * (xn + s * (Sn + s * (Cn + s * (wn + s * Tn)))), l = 3 - c * o, u = s * ((c - l) / (6 - e * l));
+========
+	let i = e * e, a = i * i, o = i * (_t + a * (yt + a * (xt + a * (Ct + a * (Tt + a * Dt))))), s = a * (vt + a * (bt + a * (St + a * (wt + a * Et))));
+	if (r < 0) return e - e * (o + s);
+	let c = ht[r] - (e * (o + s) - gt[r] - e);
+	return n ? -c : c;
+}
+var At = 3.141592653589793, jt = 12246467991473532e-32, Mt = 1.5707963267948966, Nt = .7853981633974483, Pt = 0x1000000000000000, Ft = 8673617379884035e-34;
+function It(e, t) {
+	if (t !== t || e !== e) return NaN;
+	if (t === 1) return kt(e);
+	let n = +!!Ce(e) | (Ce(t) ? 2 : 0);
+	if (e === 0) return n < 2 ? e : n === 2 ? At : -3.141592653589793;
+	if (t === 0) return n & 1 ? -1.5707963267948966 : Mt;
+	if (t === Infinity || t === -Infinity) return e === Infinity || e === -Infinity ? [
+		Nt,
+		-.7853981633974483,
+		3 * Nt,
+		-3 * Nt
+	][n] : [
+		0,
+		-0,
+		At,
+		-3.141592653589793
+	][n];
+	if (e === Infinity || e === -Infinity) return n & 1 ? -1.5707963267948966 : Mt;
+	let r = Math.abs(e / t), i, a = n;
+	switch (r > Pt ? (i = 1.5707963267948966, a &= 1) : i = n & 2 && r < Ft ? 0 : kt(r), a) {
+		case 0: return i;
+		case 1: return -i;
+		case 2: return At - (i - jt);
+		default: return i - jt - At;
+	}
+}
+var Lt = 1.5707963267948966, Rt = 6123233995736766e-32, zt = .7853981633974483, Bt = .16666666666666666, Vt = -.3255658186224009, Ht = .20121253213486293, Ut = -.04005553450067941, Wt = .0007915349942898145, Gt = 3479331075960212e-20, Kt = -2.403394911734414, qt = 2.0209457602335057, Jt = -.6882839716054533, Yt = .07703815055590194, Xt = ye(1072640819, 0), Zt = 1.4901161193847656e-8, Qt = 6938893903907228e-33, $t = (e) => e * (Bt + e * (Vt + e * (Ht + e * (Ut + e * (Wt + e * Gt))))), en = (e) => 1 + e * (Kt + e * (qt + e * (Jt + e * Yt)));
+function tn(e) {
+	let t = Math.abs(e);
+	if (t >= 1) return t === 1 ? e * Lt + e * Rt : NaN;
+	if (t < .5) {
+		if (t < Zt) return e;
+		let n = e * e;
+		return e + e * ($t(n) / en(n));
+	}
+	let n = (1 - t) * .5, r = $t(n), i = en(n), a = Math.sqrt(n), o;
+	if (t >= Xt) o = Lt - (2 * (a + r / i * a) - Rt);
+	else {
+		let e = xe(a), t = (n - e * e) / (a + e);
+		o = zt - (2 * a * (r / i) - (Rt - 2 * t) - (zt - 2 * e));
+	}
+	return e > 0 ? o : -o;
+}
+function nn(e) {
+	let t = Math.abs(e);
+	if (t >= 1) return t === 1 ? e > 0 ? 0 : 3.141592653589793 : NaN;
+	if (t < .5) {
+		if (t <= Qt) return 1.5707963267948966;
+		let n = e * e;
+		return Lt - (e - (Rt - e * ($t(n) / en(n))));
+	}
+	if (e < 0) {
+		let t = (1 + e) * .5, n = Math.sqrt(t);
+		return At - 2 * (n + ($t(t) / en(t) * n - Rt));
+	}
+	let n = (1 - e) * .5, r = Math.sqrt(n), i = xe(r), a = (n - i * i) / (r + i);
+	return 2 * (i + ($t(n) / en(n) * r + a));
+}
+var rn = 709.782712893384, an = -745.1332191019411, on = .6931471803691238, sn = 19082149292705877e-26, cn = 1.4426950408889634, ln = .16666666666666602, un = -.0027777777777015593, dn = 6613756321437934e-20, fn = -16533902205465252e-22, pn = 4.1381367970572385e-8, mn = ye(1071001155, 0), hn = ye(1072734898, 0), gn = 3.725290298461914e-9;
+function _n(e) {
+	if (e !== e) return e;
+	if (e > rn) return Infinity;
+	if (e < an) return 0;
+	let t = Math.abs(e), n = 0, r = 0, i = 0;
+	if (t >= mn) t < hn ? e > 0 ? (n = e - on, r = sn, i = 1) : (n = e + on, r = -19082149292705877e-26, i = -1) : (i = Math.trunc(cn * e + (e < 0 ? -.5 : .5)), n = e - i * on, r = i * sn), e = n - r;
+	else if (t < gn) return 1 + e;
+	let a = e * e, o = e - a * (ln + a * (un + a * (dn + a * (fn + a * pn))));
+	return i === 0 ? 1 - (e * o / (o - 2) - e) : be(1 - (r - e * o / (2 - o) - n), i);
+}
+var vn = -.03333333333333313, yn = .0015873015872548146, bn = -793650757867488e-19, xn = 4008217827329362e-21, Sn = -2.0109921818362437e-7, Cn = ye(1078159482, 0), wn = 5551115123125783e-32;
+function Tn(e) {
+	if (e !== e) return e;
+	let t = Math.abs(e);
+	if (t >= Cn) {
+		if (e > rn) return Infinity;
+		if (e < 0) return -1;
+	}
+	let n, r, i, a = 0;
+	if (t >= mn) t < hn ? e > 0 ? (n = e - on, r = sn, i = 1) : (n = e + on, r = -19082149292705877e-26, i = -1) : (i = Math.trunc(cn * e + (e < 0 ? -.5 : .5)), n = e - i * on, r = i * sn), e = n - r, a = n - e - r;
+	else if (t < wn) return e;
+	else i = 0;
+	let o = .5 * e, s = e * o, c = 1 + s * (vn + s * (yn + s * (bn + s * (xn + s * Sn)))), l = 3 - c * o, u = s * ((c - l) / (6 - e * l));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (i === 0) return e - (e * u - s);
 	if (u = e * (u - a) - a, u -= s, i === -1) return .5 * (e - u) - .5;
 	if (i === 1) return e < -.25 ? -2 * (u - (e + .5)) : 1 + 2 * (e - u);
 	let d;
 	return i <= -2 || i > 56 ? (d = 1 - (u - e), Se(d, i) - 1) : (i < 20 ? (l = 1 - P[1022 - i], d = l - (u - e)) : (l = P[1022 - i], d = e - (u + l), d += 1), Se(d, i));
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var kn = 27755575615628914e-33;
 function An(e) {
 	if (e !== e) return e;
@@ -4383,20 +4558,35 @@ function An(e) {
 		if (t >= 1) n = 1 - 2 / (On(2 * t) + 2);
 		else {
 			let e = On(-2 * t);
+========
+var En = 27755575615628914e-33;
+function Dn(e) {
+	if (e !== e) return e;
+	let t = Math.abs(e), n;
+	if (t < 22) {
+		if (t < En) return e;
+		if (t >= 1) n = 1 - 2 / (Tn(2 * t) + 2);
+		else {
+			let e = Tn(-2 * t);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			n = -e / (e + 2);
 		}
 	} else n = 1;
 	return e < 0 ? -n : n;
 }
-function L(e, t) {
+function R(e, t) {
 	return Math.sqrt(e * e + t * t);
 }
-function R(e, t, n) {
+function z(e, t, n) {
 	return Math.sqrt(e * e + t * t + n * n);
 }
 //#endregion
 //#region src/kart-controller/types.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var jn = Object.freeze({
+========
+var On = Object.freeze({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	steer: 0,
 	throttle: 0,
 	brake: 0,
@@ -4405,7 +4595,11 @@ var jn = Object.freeze({
 	lookBack: !1,
 	horn: !1
 });
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Mn(e) {
+========
+function kn(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		racerId: e.racerId,
 		isPlayer: e.isPlayer ?? !1,
@@ -4457,7 +4651,10 @@ function Mn(e) {
 			rouletteRemaining: 0,
 			next: "none",
 			nextCharges: 0,
-			nextRouletteRemaining: 0
+			nextRouletteRemaining: 0,
+			third: "none",
+			thirdCharges: 0,
+			thirdRouletteRemaining: 0
 		},
 		status: {
 			spinRemaining: 0,
@@ -4498,6 +4695,7 @@ function Mn(e) {
 		]
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Nn(e, t) {
 	return (t < 0 ? e.wallLeft : e.wallRight) ?? e.wall ?? e.halfWidth;
 }
@@ -4517,12 +4715,34 @@ function Pn(e) {
 }
 function B(e) {
 	return zt(e[0], e[2]);
+========
+function An(e, t) {
+	return (t < 0 ? e.wallLeft : e.wallRight) ?? e.wall ?? e.halfWidth;
+}
+function B(e) {
+	return [
+		L(e),
+		0,
+		pt(e)
+	];
+}
+function jn(e) {
+	return [
+		pt(e),
+		0,
+		-L(e)
+	];
+}
+function V(e) {
+	return It(e[0], e[2]);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 }
 //#endregion
 //#region src/kart-controller/powers.ts
-function V(e) {
+function H(e) {
 	return e.status.rideRemaining > 0;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Fn(e) {
 	return e.status.towRemaining > 0 && e.status.towTarget >= 0;
 }
@@ -4530,11 +4750,21 @@ function In(e, t) {
 	return V(e) ? t.rideRadius : t.kartRadius;
 }
 function Ln(e, t, n, r) {
+========
+function Mn(e) {
+	return e.status.towRemaining > 0 && e.status.towTarget >= 0;
+}
+function Nn(e, t) {
+	return H(e) ? t.rideRadius : t.kartRadius;
+}
+function Pn(e, t, n, r) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let i = e.t + n.rideLookahead / t.length;
 	i -= Math.floor(i);
 	let a = t.sample(i, 0, e.branch).position;
 	return r[0] = a[0], r[1] = a[1], r[2] = a[2], r;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Rn(e, t, n, r, i) {
 	if ((t.t - e.t - Math.floor(t.t - e.t)) * n.length > r.towFollowRoad) return Ln(e, n, r, i);
 	let a = Pn(t.heading), o = (e.position[0] - t.position[0]) * a[0] + (e.position[2] - t.position[2]) * a[2] >= 0 ? 1 : -1;
@@ -4544,6 +4774,17 @@ function zn(e, t, n, r, i) {
 	let a = t[0] - e.position[0], o = t[2] - e.position[2];
 	if (a * a + o * o > 1e-6) {
 		let t = zt(a, o) - e.heading;
+========
+function Fn(e, t, n, r, i) {
+	if ((t.t - e.t - Math.floor(t.t - e.t)) * n.length > r.towFollowRoad) return Pn(e, n, r, i);
+	let a = jn(t.heading), o = (e.position[0] - t.position[0]) * a[0] + (e.position[2] - t.position[2]) * a[2] >= 0 ? 1 : -1;
+	return i[0] = t.position[0] + a[0] * o * r.towSideOffset, i[1] = t.position[1], i[2] = t.position[2] + a[2] * o * r.towSideOffset, i;
+}
+function In(e, t, n, r, i) {
+	let a = t[0] - e.position[0], o = t[2] - e.position[2];
+	if (a * a + o * o > 1e-6) {
+		let t = It(a, o) - e.heading;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (; t > Math.PI;) t -= 2 * Math.PI;
 		for (; t < -Math.PI;) t += 2 * Math.PI;
 		let n = r.pilotTurnRate * i;
@@ -4553,23 +4794,40 @@ function zn(e, t, n, r, i) {
 }
 //#endregion
 //#region src/kart-controller/collide.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Bn(e, t) {
 	return t.mass + (he(e) ? t.dashMassBonus : 0) + (e.status.shield ? t.shieldMassBonus : 0) + (V(e) ? t.rideMassBonus : 0);
 }
 function Vn(e) {
 	let t = z(e.heading), n = Pn(e.heading);
+========
+function Ln(e, t) {
+	return t.mass + (pe(e) ? t.dashMassBonus : 0) + (e.status.shield ? t.shieldMassBonus : 0) + (H(e) ? t.rideMassBonus : 0);
+}
+function Rn(e) {
+	let t = B(e.heading), n = jn(e.heading);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return [
 		t[0] * e.speed + n[0] * e.lateralVelocity,
 		0,
 		t[2] * e.speed + n[2] * e.lateralVelocity
 	];
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Hn(e, t) {
 	let n = z(e.heading), r = Pn(e.heading);
 	e.speed = t[0] * n[0] + t[2] * n[2], e.lateralVelocity = t[0] * r[0] + t[2] * r[2];
 }
 function Un(e, t, n, r, i, a, o, s = 0) {
 	let c = r - In(e, i);
+========
+function zn(e, t) {
+	let n = B(e.heading), r = jn(e.heading);
+	e.speed = t[0] * n[0] + t[2] * n[2], e.lateralVelocity = t[0] * r[0] + t[2] * r[2];
+}
+function Bn(e, t, n, r, i, a, o, s = 0) {
+	let c = r - Nn(e, i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (Math.abs(t) <= c) {
 		e.status.wallEasing = !1;
 		return;
@@ -4579,25 +4837,38 @@ function Un(e, t, n, r, i, a, o, s = 0) {
 	let u = Math.abs(t) - c;
 	u > i.wallEndOvershoot && (e.status.wallEasing = !0);
 	let d = e.status.wallEasing ? Math.min(u, i.wallEndPushRate * a) : u;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	d >= u && (e.status.wallEasing = !1), e.position[0] -= n[0] * d * l, e.position[2] -= n[2] * d * l, Wn(e, [
+========
+	d >= u && (e.status.wallEasing = !1), e.position[0] -= n[0] * d * l, e.position[2] -= n[2] * d * l, Vn(e, [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		n[0] * l,
 		0,
 		n[2] * l
 	], i, a, o);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Wn(e, t, n, r, i) {
 	let a = Vn(e), o = a[0] * t[0] + a[2] * t[2];
+========
+function Vn(e, t, n, r, i) {
+	let a = Rn(e), o = a[0] * t[0] + a[2] * t[2];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (o <= 0) return;
-	let s = L(a[0], a[2]);
+	let s = R(a[0], a[2]);
 	a[0] -= t[0] * o * (1 + n.wallRestitution), a[2] -= t[2] * o * (1 + n.wallRestitution);
 	let c = s > 0 ? o / s : 0, l = e.wallCooldown <= 0;
 	if (l && c > n.hardWallFraction) {
 		let e = 1 - n.wallScrub * (c - n.hardWallFraction) / (1 - n.hardWallFraction);
 		a[0] *= e, a[2] *= e;
 	}
-	let u = z(e.heading), d = a[0] * u[0] + a[2] * u[2];
+	let u = B(e.heading), d = a[0] * u[0] + a[2] * u[2];
 	if (l && c > n.hardWallFraction && d > 0) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let t = zt(a[0], a[2]) - e.heading;
+========
+		let t = It(a[0], a[2]) - e.heading;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (; t > Math.PI;) t -= 2 * Math.PI;
 		for (; t < -Math.PI;) t += 2 * Math.PI;
 		e.heading += t * n.wallDeflect;
@@ -4608,15 +4879,20 @@ function Wn(e, t, n, r, i) {
 				u[0] - t[0] * i,
 				0,
 				u[2] - t[2] * i
-			], o = L(a[0], a[2]);
+			], o = R(a[0], a[2]);
 			if (o > 1e-6) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let t = zt(a[0] / o, a[2] / o) - e.heading;
+========
+				let t = It(a[0] / o, a[2] / o) - e.heading;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				for (; t > Math.PI;) t -= 2 * Math.PI;
 				for (; t < -Math.PI;) t += 2 * Math.PI;
 				e.heading += Math.sign(t) * Math.min(Math.abs(t) * n.wallDeflect, n.wallDeflectRate * r);
 			}
 		}
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	Hn(e, a), l && (i.push({ type: "wall" }), e.wallCooldown = n.wallCooldownSeconds);
 }
 function Gn(e, t, n) {
@@ -4630,6 +4906,21 @@ function qn(e, t, n, r, i, a, o, s) {
 	let c = t.position[0] - e.position[0], l = t.position[2] - e.position[2], u = L(c, l), d = In(e, n) + In(t, r);
 	if (u >= d || u === 0) return !1;
 	let f = c / u, p = l / u, m = Bn(e, n), h = Bn(t, r), g = m + h, _ = Vn(e), v = Vn(t), y = (_[0] - v[0]) * f + (_[2] - v[2]) * p;
+========
+	zn(e, a), l && (i.push({ type: "wall" }), e.wallCooldown = n.wallCooldownSeconds);
+}
+function Hn(e, t, n) {
+	return Math.abs(e.position[1] - t.position[1]) < n.contactHeight;
+}
+function Un(e) {
+	return e.isGhost || e.status.intangibleRemaining > 0;
+}
+function Wn(e, t, n, r, i, a, o, s) {
+	if (Un(e) || Un(t) || !Hn(e, t, i)) return !1;
+	let c = t.position[0] - e.position[0], l = t.position[2] - e.position[2], u = R(c, l), d = Nn(e, n) + Nn(t, r);
+	if (u >= d || u === 0) return !1;
+	let f = c / u, p = l / u, m = Ln(e, n), h = Ln(t, r), g = m + h, _ = Rn(e), v = Rn(t), y = (_[0] - v[0]) * f + (_[2] - v[2]) * p;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	y > 0 && (_[0] -= f * y * (h / g), _[2] -= p * y * (h / g), v[0] += f * y * (m / g), v[2] += p * y * (m / g));
 	let b = Math.min(d - u, Math.max(i.bumpSeparateRate, y) * a);
 	e.position[0] -= f * b * (h / g), e.position[2] -= p * b * (h / g), t.position[0] += f * b * (m / g), t.position[2] += p * b * (m / g);
@@ -4638,7 +4929,11 @@ function qn(e, t, n, r, i, a, o, s) {
 		let e = i.bumpForce * (h / g), t = i.bumpForce * (m / g);
 		_[0] -= f * e, _[2] -= p * e, v[0] += f * t, v[2] += p * t;
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	return (y > 0 || x) && (Hn(e, _), Hn(t, v)), !x || (e.bumpCooldown = i.bumpCooldownSeconds, t.bumpCooldown = i.bumpCooldownSeconds, o.push({
+========
+	return (y > 0 || x) && (zn(e, _), zn(t, v)), !x || (e.bumpCooldown = i.bumpCooldownSeconds, t.bumpCooldown = i.bumpCooldownSeconds, o.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "bump",
 		otherId: t.racerId
 	}), s.push({
@@ -4648,6 +4943,7 @@ function qn(e, t, n, r, i, a, o, s) {
 }
 //#endregion
 //#region src/kart-controller/steer.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Jn(e, t, n) {
 	return e < t ? t : e > n ? n : e;
 }
@@ -4667,12 +4963,34 @@ function $n(e, t, n, r) {
 	if (e.drift.phase === "drifting") {
 		let t = Yn(n.driftSteerMin, n.driftSteerMax, e.drift.yawK);
 		return e.drift.direction * n.steerRate * t * Qn(e.speed, r, n);
+========
+function Gn(e, t, n) {
+	return e < t ? t : e > n ? n : e;
+}
+function Kn(e, t, n) {
+	return e + (t - e) * n;
+}
+function qn(e, t) {
+	return (1 + Gn(e * t, -1, 1)) / 2;
+}
+function Jn(e) {
+	return Gn(2 * e - 1, -1, 1);
+}
+function Yn(e, t, n) {
+	return t <= 0 ? 1 : (1 - n.steerFalloff * Math.min(1, Math.abs(e) / t)) / (1 - n.steerFalloff);
+}
+function Xn(e, t, n, r) {
+	if (e.drift.phase === "drifting") {
+		let t = Kn(n.driftSteerMin, n.driftSteerMax, e.drift.yawK);
+		return e.drift.direction * n.steerRate * t * Yn(e.speed, r, n);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	let i = Math.abs(e.speed);
 	if (i <= 0 || r <= 0) return 0;
 	let a = Math.min(1, i / (n.steerLowSpeed * r)) * (1 - n.steerFalloff * Math.min(1, i / r)), o = e.grounded ? 1 : n.airSteer, s = t.steer * n.steerRate * a * o;
 	return e.speed < 0 ? -s : s;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function er(e, t) {
 	if (t === 0) return;
 	let n = gt(t), r = I(t), i = e.speed, a = e.lateralVelocity;
@@ -4692,31 +5010,68 @@ function nr(e, t, n, r, i, a) {
 //#endregion
 //#region src/kart-controller/drift.ts
 function rr(e, t, n = Infinity) {
+========
+function Zn(e, t) {
+	if (t === 0) return;
+	let n = pt(t), r = L(t), i = e.speed, a = e.lateralVelocity;
+	e.heading += t, e.speed = i * n + a * r, e.lateralVelocity = a * n - i * r;
+}
+function Qn(e, t, n) {
+	e.lateralVelocity -= e.lateralVelocity * Math.min(1, t * n);
+}
+function $n(e, t, n, r, i, a) {
+	if (e.drift.phase === "drifting") {
+		let r = 1 - _n(-a / n.driftYawLag);
+		e.drift.yawK += (qn(t.steer, e.drift.direction) - e.drift.yawK) * r;
+	}
+	let o = Xn(e, t, n, r) * a;
+	return Zn(e, o), Qn(e, i, a), o;
+}
+//#endregion
+//#region src/kart-controller/drift.ts
+function er(e, t, n = Infinity) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let r = 0;
 	for (let n of t) e >= n && r++;
 	return Math.min(r, n);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ir(e) {
 	return !e.grounded && (e.airborne.fromJumpId !== void 0 || e.airborne.realAir);
 }
 function ar(e, t) {
+========
+function tr(e) {
+	return !e.grounded && (e.airborne.fromJumpId !== void 0 || e.airborne.realAir);
+}
+function nr(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	e.airborne.trickQueued || (e.airborne.trickQueued = !0, e.trickBuffer = 0, t.push({ type: "trick" }));
 }
-function H(e) {
+function U(e) {
 	e.drift.active = !1, e.drift.phase = "idle", e.drift.direction = 0, e.drift.charge = 0, e.drift.tier = 0, e.drift.hopSeconds = 0;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function or(e, t, n) {
+========
+function rr(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let r = e.drift;
 	r.phase = "drifting", r.active = !0, r.direction = t, r.charge = 0, r.tier = 0, r.yawK = 0, n.push({
 		type: "driftStart",
 		direction: t
 	});
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function sr(e, t, n) {
+========
+function ir(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let r = e.drift.tier;
 	n.push({
 		type: "driftEnd",
 		tier: r
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	}), r > 0 && ve(e, "drift", t.boostMultiplier, t.boostSeconds[r - 1], n), H(e);
 }
 function cr(e, t, n, r, i, a, o = {}) {
@@ -4726,30 +5081,54 @@ function cr(e, t, n, r, i, a, o = {}) {
 	switch (s && ir(e) ? ar(e, a) : s && (e.trickBuffer = n.trickBufferSeconds), c.phase) {
 		case "idle":
 			s && e.grounded && e.speed >= n.driftMinSpeed * r ? (c.phase = "hopping", c.hopSeconds = 0, e.verticalVelocity = n.hopVelocity, e.grounded = !1, a.push({ type: "hop" })) : !s && t.drift && e.grounded && Math.abs(t.steer) >= n.driftLateSteer && e.speed >= n.driftMinSpeed * r && or(e, Math.sign(t.steer), a);
+========
+	}), r > 0 && ge(e, "drift", t.boostMultiplier, t.boostSeconds[r - 1], n), U(e);
+}
+function ar(e, t, n, r, i, a, o = {}) {
+	let s = t.drift && !e.prevDrift;
+	e.prevDrift = t.drift;
+	let c = e.drift;
+	switch (s && tr(e) ? nr(e, a) : s && (e.trickBuffer = n.trickBufferSeconds), c.phase) {
+		case "idle":
+			s && e.grounded && e.speed >= n.driftMinSpeed * r ? (c.phase = "hopping", c.hopSeconds = 0, e.verticalVelocity = n.hopVelocity, e.grounded = !1, a.push({ type: "hop" })) : !s && t.drift && e.grounded && Math.abs(t.steer) >= n.driftLateSteer && e.speed >= n.driftMinSpeed * r && rr(e, Math.sign(t.steer), a);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			return;
 		case "hopping":
 			if (c.hopSeconds += i, !e.grounded) {
-				c.hopSeconds > n.hopSeconds * n.hopLandWindow && H(e);
+				c.hopSeconds > n.hopSeconds * n.hopLandWindow && U(e);
 				return;
 			}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			t.drift && t.steer !== 0 && e.speed >= n.driftMinSpeed * r ? or(e, Math.sign(t.steer), a) : H(e);
+========
+			t.drift && t.steer !== 0 && e.speed >= n.driftMinSpeed * r ? rr(e, Math.sign(t.steer), a) : U(e);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			return;
 		case "drifting": {
 			if (e.speed < n.driftKeepSpeed * r) {
-				H(e);
+				U(e);
 				return;
 			}
 			if (!e.grounded && e.airborne.seconds > n.driftAirCancelSeconds) {
-				H(e);
+				U(e);
 				return;
 			}
 			if (!t.drift) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				sr(e, n, a);
 				return;
 			}
 			let s = Xn(t.steer, c.direction) >= .5 ? n.chargeFull : n.chargeNeutral, l = c.chargeMultiplierRemaining > 0 ? c.chargeMultiplier : 1;
 			c.charge += s * i * 60 * l;
 			let u = rr(c.charge, n.driftTiers, o.maxDriftTier ?? n.driftTiers.length);
+========
+				ir(e, n, a);
+				return;
+			}
+			let s = qn(t.steer, c.direction) >= .5 ? n.chargeFull : n.chargeNeutral, l = c.chargeMultiplierRemaining > 0 ? c.chargeMultiplier : 1;
+			c.charge += s * i * 60 * l;
+			let u = er(c.charge, n.driftTiers, o.maxDriftTier ?? n.driftTiers.length);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			u !== c.tier && (c.tier = u, a.push({
 				type: "driftTierUp",
 				tier: u
@@ -4760,6 +5139,7 @@ function cr(e, t, n, r, i, a, o = {}) {
 }
 //#endregion
 //#region src/kart-controller/loop.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var lr = Math.PI * 2;
 function ur(e) {
 	return e.status.loopIndex >= 0;
@@ -4777,6 +5157,25 @@ function pr(e, t, n) {
 }
 function mr(e, t) {
 	let n = e.sample(t.t, 0, 0), r = L(n.tangent[0], n.tangent[2]) || 1, i = n.tangent[0] / r, a = n.tangent[2] / r;
+========
+var or = Math.PI * 2;
+function sr(e) {
+	return e.status.loopIndex >= 0;
+}
+function cr(e) {
+	return e.approach + or * e.radius + e.exit;
+}
+var lr = (e) => {
+	let t = Math.max(0, Math.min(1, e));
+	return t * t * (3 - 2 * t);
+};
+function ur(e, t, n) {
+	let r = -e.shift / 2 + Math.max(-1, Math.min(1, t / n)) * e.spread;
+	return [r, r + e.shift];
+}
+function dr(e, t) {
+	let n = e.sample(t.t, 0, 0), r = R(n.tangent[0], n.tangent[2]) || 1, i = n.tangent[0] / r, a = n.tangent[2] / r;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		origin: [...n.position],
 		forward: [
@@ -4792,17 +5191,26 @@ function mr(e, t) {
 		halfWidth: n.halfWidth
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function hr(e, t, n) {
+========
+function fr(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let r = e.sample(t, n, 0);
 	return {
 		position: [
 			r.position[0],
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			r.position[1] + wr(e, t, 0, n, r.halfWidth),
+========
+			r.position[1] + xr(e, t, 0, n, r.halfWidth),
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			r.position[2]
 		],
 		tangent: r.tangent
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function gr(e, t, n, r, i = 0) {
 	let a = e.length, o = mr(e, t), [s, c] = pr(t, n, o.halfWidth), l = lr * t.radius;
 	if (r < t.approach) {
@@ -4810,55 +5218,93 @@ function gr(e, t, n, r, i = 0) {
 		return {
 			position: f.position,
 			heading: B(f.tangent) + Mt(d),
+========
+function pr(e, t, n, r, i = 0) {
+	let a = e.length, o = dr(e, t), [s, c] = ur(t, n, o.halfWidth), l = or * t.radius;
+	if (r < t.approach) {
+		let o = t.t + (r - t.approach) / a, c = Math.max(1e-6, t.approach - i), l = Math.max(0, Math.min(1, (r - i) / c)), u = n + (s - n) * lr(l), d = (s - n) * 6 * l * (1 - l) / c, f = fr(e, o, u);
+		return {
+			position: f.position,
+			heading: V(f.tangent) + kt(d),
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			angle: 0,
 			t: o
 		};
 	}
 	if (r < t.approach + l) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let e = (r - t.approach) / t.radius, n = s + (c - s) * (e / lr), i = t.radius * I(e), a = t.radius * (1 - gt(e)), l = o.origin;
+========
+		let e = (r - t.approach) / t.radius, n = s + (c - s) * (e / or), i = t.radius * L(e), a = t.radius * (1 - pt(e)), l = o.origin;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		return {
 			position: [
 				l[0] + o.right[0] * n + o.forward[0] * i,
 				l[1] + a,
 				l[2] + o.right[2] * n + o.forward[2] * i
 			],
-			heading: B(o.forward),
+			heading: V(o.forward),
 			angle: e,
 			t: t.t
 		};
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let u = t.t + Math.min(r - t.approach - l, t.exit) / a, d = hr(e, u, c);
+========
+	let u = t.t + Math.min(r - t.approach - l, t.exit) / a, d = fr(e, u, c);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		position: d.position,
-		heading: B(d.tangent),
+		heading: V(d.tangent),
 		angle: 0,
 		t: u
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function _r(e, t, n, r, i, a, o = 0) {
 	let s = e.status;
 	s.loopIndex = t, s.loopS = o, s.loopS0 = o, s.loopLat0 = r, s.loopSpeed = Math.max(Math.abs(e.speed), i.topSpeed * i.loopSpeedFactor), s.loopAngle = 0, s.intangibleRemaining = Math.max(s.intangibleRemaining, (dr(n) - o) / s.loopSpeed + .2), H(e), a.push({
+========
+function mr(e, t, n, r, i, a, o = 0) {
+	let s = e.status;
+	s.loopIndex = t, s.loopS = o, s.loopS0 = o, s.loopLat0 = r, s.loopSpeed = Math.max(Math.abs(e.speed), i.topSpeed * i.loopSpeedFactor), s.loopAngle = 0, s.intangibleRemaining = Math.max(s.intangibleRemaining, (cr(n) - o) / s.loopSpeed + .2), U(e), a.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "loop",
 		phase: "start"
 	});
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function vr(e, t, n, r, i) {
+========
+function hr(e, t, n, r, i) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let a = e.status, o = t.loops?.[a.loopIndex];
 	if (!o) {
 		a.loopIndex = -1, a.loopAngle = 0;
 		return;
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let s = dr(o);
 	a.loopS = Math.min(s, a.loopS + a.loopSpeed * r);
 	let c = gr(t, o, a.loopLat0, a.loopS, a.loopS0);
 	e.position[0] = c.position[0], e.position[1] = c.position[1], e.position[2] = c.position[2], e.heading = c.heading, e.t = (c.t % 1 + 1) % 1, e.branch = 0, e.distanceAlong = e.t * t.length, e.speed = a.loopSpeed, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !0, a.loopAngle = c.angle, !(a.loopS < s) && (a.loopIndex = -1, a.loopAngle = 0, ve(e, "pad", n.padMultiplier, n.padSeconds, i), i.push({
+========
+	let s = cr(o);
+	a.loopS = Math.min(s, a.loopS + a.loopSpeed * r);
+	let c = pr(t, o, a.loopLat0, a.loopS, a.loopS0);
+	e.position[0] = c.position[0], e.position[1] = c.position[1], e.position[2] = c.position[2], e.heading = c.heading, e.t = (c.t % 1 + 1) % 1, e.branch = 0, e.distanceAlong = e.t * t.length, e.speed = a.loopSpeed, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !0, a.loopAngle = c.angle, !(a.loopS < s) && (a.loopIndex = -1, a.loopAngle = 0, ge(e, "pad", n.padMultiplier, n.padSeconds, i), i.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "loop",
 		phase: "end"
 	}));
 }
 //#endregion
 //#region src/kart-controller/ground.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function yr(e, t, n, r = 0) {
+========
+function gr(e, t, n, r = 0) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let i = e.sample(t, 0, r), a = [
 		i.tangent[2],
 		0,
@@ -4869,6 +5315,7 @@ function yr(e, t, n, r = 0) {
 		right: a
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var br = (e) => (e % 1 + 1) % 1;
 function xr(e, t, n) {
 	let r = br(t - e);
@@ -4880,20 +5327,45 @@ function Sr(e, t, n, r) {
 	if (e === "hump") {
 		if (Math.abs(r) >= t / 2) return 0;
 		let e = gt(Math.PI * r / t);
+========
+var _r = (e) => (e % 1 + 1) % 1;
+function vr(e, t, n) {
+	let r = _r(t - e);
+	if (r === 0 || r > .5) return !1;
+	let i = _r(n - e);
+	return i > 0 && i <= r;
+}
+function yr(e, t, n, r) {
+	if (e === "hump") {
+		if (Math.abs(r) >= t / 2) return 0;
+		let e = pt(Math.PI * r / t);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		return n * e * e;
 	}
 	return r >= 0 && r < t ? n * (1 - r / t) : 0;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Cr(e, t, n) {
+========
+function br(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (!e) return 1;
 	let r = (n - Math.abs(t)) / e;
 	return r >= 1 ? 1 : r <= 0 ? 0 : r * r * (3 - 2 * r);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function wr(e, t, n, r = 0, i = Infinity, a = 0) {
 	let o = 0, s = e.length;
 	for (let c of e.jumps) {
 		if (!c.rise || !c.run || (c.branch ?? 0) !== n) continue;
 		let e = Cr(c.edge, r, i);
+========
+function xr(e, t, n, r = 0, i = Infinity, a = 0) {
+	let o = 0, s = e.length;
+	for (let c of e.jumps) {
+		if (!c.rise || !c.run || (c.branch ?? 0) !== n) continue;
+		let e = br(c.edge, r, i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		if (!c.edge && Math.abs(r) > i) {
 			let t = c.skirt && !(a & (r < 0 ? 1 : 2)) ? 1 - (Math.abs(r) - i) / c.skirt : 0;
 			if (t <= 0) continue;
@@ -4901,11 +5373,16 @@ function wr(e, t, n, r = 0, i = Infinity, a = 0) {
 		}
 		let l = (c.t - t) * s;
 		l > s / 2 ? l -= s : l < -s / 2 && (l += s);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let u = Sr(c.shape, c.run, c.rise, l) * e;
+========
+		let u = yr(c.shape, c.run, c.rise, l) * e;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		u > o && (o = u);
 	}
 	return o;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Tr(e, t, n, r) {
 	for (let i of e.jumps) if (i.shape !== "hump" && i.rise && (i.branch ?? 0) === n && Math.abs(br(i.t - t + .5) - .5) * e.length < r) return !0;
 	return !1;
@@ -4922,83 +5399,156 @@ function kr(e, t, n, r, i, a, o) {
 	let s = a.normal, c = s[0], l = s[1], u = s[2], d = t.jumps.length ? wr(t, n + Or / t.length, r, i, a.halfWidth, a.open ?? 0) : 0;
 	if (o > 0 || d > 0) {
 		let e = (d - o) / Or, t = a.tangent;
+========
+function Sr(e, t, n, r) {
+	for (let i of e.jumps) if (i.shape !== "hump" && i.rise && (i.branch ?? 0) === n && Math.abs(_r(i.t - t + .5) - .5) * e.length < r) return !0;
+	return !1;
+}
+function Cr(e, t, n) {
+	let r = _r(e - t);
+	return r === 0 || r > .5 ? !1 : _r(n - t) < r;
+}
+function wr(e, t, n, r, i) {
+	for (let a of e.jumps) if (a.shape !== "hump" && a.rise && (a.branch ?? 0) === r && Cr(t, n, a.t) && Math.abs(i) <= e.sample(a.t, 0, r).halfWidth + (a.skirt ?? 0) / 2) return a;
+}
+var Tr = .25;
+function Er(e, t, n, r, i, a, o) {
+	let s = a.normal, c = s[0], l = s[1], u = s[2], d = t.jumps.length ? xr(t, n + Tr / t.length, r, i, a.halfWidth, a.open ?? 0) : 0;
+	if (o > 0 || d > 0) {
+		let e = (d - o) / Tr, t = a.tangent;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		c -= t[0] * e, l -= t[1] * e, u -= t[2] * e;
 	}
-	let f = R(c, l, u) || 1;
+	let f = z(c, l, u) || 1;
 	e[0] = c / f, e[1] = l / f, e[2] = u / f;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ar(e, t, n, r, i, a, o, s, c, l, u) {
+========
+function Dr(e, t, n, r, i, a, o, s, c, l, u) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let d = [
 		r,
 		i,
 		a
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	], f = t.sample(c, yr(t, c, d, l).lateral, l), p = [
+========
+	], f = t.sample(c, gr(t, c, d, l).lateral, l), p = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		r - o * u,
 		i,
 		a - s * u
 	], m = t.nearest(p, {
 		t: c,
 		branch: l
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	}, n.tSearchWindow), h = yr(t, m.t, p, m.branch).lateral, g = t.sample(m.t, h, m.branch), _ = !g.overCliff && !f.overCliff;
 	return e.airborne.lineY = i, e.airborne.lineRate = _ ? (i - g.groundY - wr(t, m.t, m.branch, h, g.halfWidth, g.open ?? 0)) / u : 0, e.airborne.realAir = !1, _ ? (f.groundY - g.groundY) / u : 0;
 }
 function jr(e, t, n, r, i) {
 	let a = z(e.heading), o = Pn(e.heading), s = a[0] * e.speed + o[0] * e.lateralVelocity, c = a[2] * e.speed + o[2] * e.lateralVelocity, l = e.position[0], u = e.position[1], d = e.position[2], f = e.branch;
+========
+	}, n.tSearchWindow), h = gr(t, m.t, p, m.branch).lateral, g = t.sample(m.t, h, m.branch), _ = !g.overCliff && !f.overCliff;
+	return e.airborne.lineY = i, e.airborne.lineRate = _ ? (i - g.groundY - xr(t, m.t, m.branch, h, g.halfWidth, g.open ?? 0)) / u : 0, e.airborne.realAir = !1, _ ? (f.groundY - g.groundY) / u : 0;
+}
+function Or(e, t, n, r, i) {
+	let a = B(e.heading), o = jn(e.heading), s = a[0] * e.speed + o[0] * e.lateralVelocity, c = a[2] * e.speed + o[2] * e.lateralVelocity, l = e.position[0], u = e.position[1], d = e.position[2], f = e.branch;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	e.position[0] += s * r, e.position[2] += c * r;
 	let p = e.t, m = t.nearest(e.position, {
 		t: e.t,
 		branch: e.branch
 	}, n.tSearchWindow);
 	e.t = m.t, e.branch = m.branch;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let { lateral: h, right: g } = yr(t, e.t, e.position, e.branch), _ = e.grounded && Tr(t, e.t, e.branch, n.lipZone) ? t.nearest([
+========
+	let { lateral: h, right: g } = gr(t, e.t, e.position, e.branch), _ = e.grounded && Sr(t, e.t, e.branch, n.lipZone) ? t.nearest([
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		l,
 		e.position[1],
 		d
 	], {
 		t: p,
 		branch: f
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	}, n.tSearchWindow).t : p, v = e.grounded ? Dr(t, _, e.t, e.branch, h) : void 0;
+========
+	}, n.tSearchWindow).t : p, v = e.grounded ? wr(t, _, e.t, e.branch, h) : void 0;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (v) {
-		let a = t.sample(v.t, 0, e.branch).tangent, o = L(a[0], a[2]) || 1, s = [
+		let a = t.sample(v.t, 0, e.branch).tangent, o = R(a[0], a[2]) || 1, s = [
 			-a[0] / o,
 			0,
 			-a[2] / o
 		], c = e.position[0] - l, u = e.position[2] - d, p = c * s[0] + u * s[2];
 		e.position[0] = l + c - s[0] * p, e.position[2] = d + u - s[2] * p, e.branch = f;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let m = t.length, y = (e) => (br(e - v.t + .5) - .5) * m;
+========
+		let m = t.length, y = (e) => (_r(e - v.t + .5) - .5) * m;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		e.t = t.nearest(e.position, {
 			t: _,
 			branch: f
 		}, n.tSearchWindow).t;
 		let b = y(_) - y(e.t);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		b > 0 && (e.position[0] -= s[0] * b, e.position[2] -= s[2] * b, e.t = _), {lateral: h, right: g} = yr(t, e.t, e.position, e.branch);
 		let x = t.sample(e.t, h, e.branch), S = h < 0 ? -1 : 1;
 		if (Math.abs(h) >= Nn(x, h) - In(e, n) && !((x.open ?? 0) & (S < 0 ? 1 : 2))) {
+========
+		b > 0 && (e.position[0] -= s[0] * b, e.position[2] -= s[2] * b, e.t = _), {lateral: h, right: g} = gr(t, e.t, e.position, e.branch);
+		let x = t.sample(e.t, h, e.branch), S = h < 0 ? -1 : 1;
+		if (Math.abs(h) >= An(x, h) - Nn(e, n) && !((x.open ?? 0) & (S < 0 ? 1 : 2))) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			s[0] += g[0] * S, s[2] += g[2] * S;
-			let e = L(s[0], s[2]);
+			let e = R(s[0], s[2]);
 			s[0] /= e, s[2] /= e;
 		}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		Wn(e, s, n, r, i);
+========
+		Vn(e, s, n, r, i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	e.distanceAlong = e.t * t.length;
 	let y = t.sample(e.t, h, e.branch), b = e.grounded, x = !1;
 	if (!e.grounded && e.airborne.seconds === 0 && e.drift.phase === "hopping" && e.drift.hopSeconds === 0) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let i = Ar(e, t, n, l, u, d, s, c, p, f, r);
 		e.verticalVelocity += i, e.airborne.climb = i, x = !0;
 	}
 	if (e.grounded || e.drift.phase === "hopping") {
 		for (let n of t.jumps) if ((n.branch ?? 0) === e.branch && xr(p, e.t, n.t) && Math.abs(h) <= y.halfWidth) {
+========
+		let i = Dr(e, t, n, l, u, d, s, c, p, f, r);
+		e.verticalVelocity += i, e.airborne.climb = i, x = !0;
+	}
+	if (e.grounded || e.drift.phase === "hopping") {
+		for (let n of t.jumps) if ((n.branch ?? 0) === e.branch && vr(p, e.t, n.t) && Math.abs(h) <= y.halfWidth) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			let t = e.drift.phase === "hopping";
 			e.verticalVelocity = Math.max(e.verticalVelocity, n.launch), e.grounded = !1, e.airborne.fromJumpId = n.id, e.airborne.seconds = 0, e.airborne.climb = 0, x = !1, i.push({
 				type: "launched",
 				jumpId: n.id
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			}), (e.trickBuffer > 0 || t) && ar(e, i), e.trickBuffer = 0;
+========
+			}), (e.trickBuffer > 0 || t) && nr(e, i), e.trickBuffer = 0;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			break;
 		}
 	}
 	if (e.grounded) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		for (let r of t.boostPads) if ((r.branch ?? 0) === e.branch && xr(p, e.t, r.t) && Math.abs(h - r.lateral) <= r.halfWidth) {
 			ve(e, "pad", n.padMultiplier, n.padSeconds, i);
+========
+		for (let r of t.boostPads) if ((r.branch ?? 0) === e.branch && vr(p, e.t, r.t) && Math.abs(h - r.lateral) <= r.halfWidth) {
+			ge(e, "pad", n.padMultiplier, n.padSeconds, i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			break;
 		}
 	}
@@ -5006,9 +5556,15 @@ function jr(e, t, n, r, i) {
 	e.verticalVelocity -= n.gravity * r, e.position[1] += e.verticalVelocity * r;
 	let C = e.position[1];
 	y.overCliff && !e.status.falling ? (e.status.falling = !0, e.status.fallFromY = y.groundY) : e.status.falling && !y.overCliff && Math.abs(y.groundY - e.status.fallFromY) < n.groundCatch && C >= y.groundY - n.groundCatch && (e.status.falling = !1);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let w = e.status.falling ? 0 : wr(t, e.t, e.branch, h, y.halfWidth, y.open ?? 0), T = e.status.falling ? -Infinity : y.groundY + w, E = e.verticalVelocity - (e.grounded ? 0 : e.airborne.climb) <= n.groundLaunchVy, D = !b && C < T - Math.max(Math.abs(e.verticalVelocity) * r + n.groundStick, n.groundCatch);
 	if (C < T && !D && (e.position[1] = T, E && (e.verticalVelocity = 0)), C <= T + n.groundStick && E && !D ? (e.position[1] = T, e.verticalVelocity = 0, e.grounded = !0) : e.grounded = !1, e.grounded) {
 		if (e.surface = y.surface, e.gripScale = y.gripScale, kr(e.groundNormal, t, e.t, e.branch, h, y, w), y.surface === "boost" && (S !== "boost" || !b) && ve(e, "pad", n.padMultiplier, n.padSeconds, i), !b) {
+========
+	let w = e.status.falling ? 0 : xr(t, e.t, e.branch, h, y.halfWidth, y.open ?? 0), T = e.status.falling ? -Infinity : y.groundY + w, E = e.verticalVelocity - (e.grounded ? 0 : e.airborne.climb) <= n.groundLaunchVy, D = !b && C < T - Math.max(Math.abs(e.verticalVelocity) * r + n.groundStick, n.groundCatch);
+	if (C < T && !D && (e.position[1] = T, E && (e.verticalVelocity = 0)), C <= T + n.groundStick && E && !D ? (e.position[1] = T, e.verticalVelocity = 0, e.grounded = !0) : e.grounded = !1, e.grounded) {
+		if (e.surface = y.surface, e.gripScale = y.gripScale, Er(e.groundNormal, t, e.t, e.branch, h, y, w), y.surface === "boost" && (S !== "boost" || !b) && ge(e, "pad", n.padMultiplier, n.padSeconds, i), !b) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			let t = e.airborne.trickQueued;
 			i.push({
 				type: "landed",
@@ -5016,6 +5572,7 @@ function jr(e, t, n, r, i) {
 				trick: t
 			}), t && ve(e, "trick", n.trickMultiplier, n.trickSeconds, i), e.airborne.fromJumpId = void 0, e.airborne.trickQueued = !1, e.airborne.seconds = 0, e.airborne.realAir = !1, e.airborne.climb = 0;
 		}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	} else e.airborne.seconds === 0 && !x && (Ar(e, t, n, l, u, d, s, c, p, f, r), e.airborne.climb = 0), e.airborne.seconds += r, !e.airborne.realAir && Number.isFinite(T) && e.airborne.lineY + e.airborne.lineRate * e.airborne.seconds - T >= n.trickDrop && (e.airborne.realAir = !0, e.trickBuffer > 0 && ar(e, i));
 	let O = br(e.t - p);
 	if (e.grounded && e.branch === 0 && t.loops && !e.status.falling && O > 0 && O < .5) {
@@ -5024,6 +5581,16 @@ function jr(e, t, n, r, i) {
 			let o = t.loops[a], s = br(e.t - (o.t - o.approach / r)) * r;
 			if (s < o.approach) {
 				_r(e, a, o, h, n, i, s);
+========
+	} else e.airborne.seconds === 0 && !x && (Dr(e, t, n, l, u, d, s, c, p, f, r), e.airborne.climb = 0), e.airborne.seconds += r, !e.airborne.realAir && Number.isFinite(T) && e.airborne.lineY + e.airborne.lineRate * e.airborne.seconds - T >= n.trickDrop && (e.airborne.realAir = !0, e.trickBuffer > 0 && nr(e, i));
+	let O = _r(e.t - p);
+	if (e.grounded && e.branch === 0 && t.loops && !e.status.falling && O > 0 && O < .5) {
+		let r = t.length;
+		for (let a = 0; a < t.loops.length; a++) {
+			let o = t.loops[a], s = _r(e.t - (o.t - o.approach / r)) * r;
+			if (s < o.approach) {
+				mr(e, a, o, h, n, i, s);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				break;
 			}
 		}
@@ -5036,15 +5603,26 @@ function jr(e, t, n, r, i) {
 }
 //#endregion
 //#region src/kart-controller/slipstream.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Mr(e, t, n) {
 	if (t === e || t.isGhost || e.isGhost || !Gn(e, t, n)) return !1;
 	let r = z(t.heading), i = Pn(t.heading), a = e.position[0] - t.position[0], o = e.position[2] - t.position[2], s = a * r[0] + o * r[2], c = a * i[0] + o * i[2];
+========
+function kr(e, t, n) {
+	if (t === e || t.isGhost || e.isGhost || !Hn(e, t, n)) return !1;
+	let r = B(t.heading), i = jn(t.heading), a = e.position[0] - t.position[0], o = e.position[2] - t.position[2], s = a * r[0] + o * r[2], c = a * i[0] + o * i[2];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (s >= 0 || s < -n.slipstreamLength || Math.abs(c) > n.slipstreamHalfWidth) return !1;
-	let l = z(e.heading);
+	let l = B(e.heading);
 	return l[0] * r[0] + l[2] * r[2] < n.slipstreamSameWayDot ? !1 : t.speed > 0 && e.speed > 0;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Nr(e, t, n, r, i) {
 	if (!t.some((t) => Mr(e, t, n))) {
+========
+function Ar(e, t, n, r, i) {
+	if (!t.some((t) => kr(e, t, n))) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		e.slipstreamSeconds = 0;
 		return;
 	}
@@ -5052,8 +5630,13 @@ function Nr(e, t, n, r, i) {
 }
 //#endregion
 //#region src/kart-controller/speed.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Pr(e, t) {
 	let n = Math.min(e.coins, t.coinCap), r = t.topSpeed * (1 + n * t.coinBonusEach), i = he(e), a = r;
+========
+function jr(e, t) {
+	let n = Math.min(e.coins, t.coinCap), r = t.topSpeed * (1 + n * t.coinBonusEach), i = pe(e), a = r;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	i && (a *= e.boost.multiplier), e.status.slowRemaining > 0 && (a = Math.min(a, r * e.status.slowedTo));
 	let o = i && t.boostIgnoresSurfaceCap || !e.grounded && t.airborneIgnoresSurfaceCap, s = t.surfaceSpeed[e.surface] ?? 1, c = r;
 	return o || (a = Math.min(a, r * s), c = r * s), {
@@ -5062,11 +5645,19 @@ function Pr(e, t) {
 		target: a
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Fr(e, t, n) {
 	let r = t > 0 ? Math.min(1, Math.max(0, e) / t) : 1;
 	return n.accel * (n.accelLaunch - n.accelTaper * r * r);
 }
 function Ir(e, t, n, r, i) {
+========
+function Mr(e, t, n) {
+	let r = t > 0 ? Math.min(1, Math.max(0, e) / t) : 1;
+	return n.accel * (n.accelLaunch - n.accelTaper * r * r);
+}
+function Nr(e, t, n, r, i) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let a = e.speed, o = t.brake > 0 && t.throttle <= 0;
 	if (a > n) {
 		e.speed = o ? Math.max(0, a - Math.max(r.overSpeedDecel, r.brake * t.brake) * i) : Math.max(n, a - r.overSpeedDecel * i);
@@ -5077,11 +5668,16 @@ function Ir(e, t, n, r, i) {
 		return;
 	}
 	if (t.throttle > 0) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		e.speed = Math.min(n, a + Fr(a, n, r) * t.throttle * i);
+========
+		e.speed = Math.min(n, a + Mr(a, n, r) * t.throttle * i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		return;
 	}
 	a > 0 ? e.speed = Math.max(0, a - r.coastDecel * i) : a < 0 && (e.speed = Math.min(0, a + r.coastDecel * i));
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Lr = 1 / 120, Rr = 1e-9;
 function zr(e, t) {
 	let n = e - t;
@@ -5095,19 +5691,43 @@ var Vr = [
 	0,
 	0
 ], Hr = [
+========
+var Pr = 1 / 120, Fr = 1e-9;
+function Ir(e, t) {
+	let n = e - t;
+	return n > Fr ? n : 0;
+}
+function Lr(e, t) {
+	ve(e, t), e.status.spinRemaining = Ir(e.status.spinRemaining, t), e.status.slowRemaining = Ir(e.status.slowRemaining, t), e.status.slowRemaining === 0 && (e.status.slowedTo = 1), e.status.intangibleRemaining = Ir(e.status.intangibleRemaining, t), e.drift.chargeMultiplierRemaining = Ir(e.drift.chargeMultiplierRemaining, t), e.drift.chargeMultiplierRemaining === 0 && (e.drift.chargeMultiplier = 1), e.wallCooldown = Ir(e.wallCooldown, t), e.bumpCooldown = Ir(e.bumpCooldown, t), e.trickBuffer = Ir(e.trickBuffer, t), e.status.rideRemaining = Ir(e.status.rideRemaining, t), e.status.towRemaining = Ir(e.status.towRemaining, t), e.status.towRemaining === 0 && (e.status.towTarget = -1);
+}
+var Rr = [
+	0,
+	0,
+	0
+], zr = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	0,
 	0,
 	0
 ];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ur(e, t, n, r, i, a = {}, o) {
 	let s = [], c = e.status.spinRemaining > 0;
 	if (Br(e, i), e.status.held) return e.prevDrift = t.drift, s;
 	if (ur(e)) return e.prevDrift = t.drift, vr(e, n, r, i, s), s;
 	let l = c ? jn : t;
+========
+function Br(e, t, n, r, i, a = {}, o) {
+	let s = [], c = e.status.spinRemaining > 0;
+	if (Lr(e, i), e.status.held) return e.prevDrift = t.drift, s;
+	if (sr(e)) return e.prevDrift = t.drift, hr(e, n, r, i, s), s;
+	let l = c ? On : t;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (c) {
 		e.prevDrift = t.drift;
 		let n = e.status.spinRemaining;
 		e.speed = n > 0 ? e.speed * (n / (n + i)) : 0;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	} else if (V(e) || Fn(e) && o) {
 		e.prevDrift = t.drift;
 		let a = Pr(e, r).base;
@@ -5135,13 +5755,46 @@ function Gr(e, t, n, r) {
 	e.coins -= a;
 	let o;
 	t.coinShield.enabled && i ? (e.status.slowedTo = t.coinShield.slowedTo, e.status.slowRemaining = t.coinShield.slowSeconds, o = !1) : (e.status.spinRemaining = t.hitSpinSeconds, o = !0), H(e), ye(e), e.status.towRemaining = 0, e.status.towTarget = -1, r.push({
+========
+	} else if (H(e) || Mn(e) && o) {
+		e.prevDrift = t.drift;
+		let a = jr(e, r).base;
+		H(e) ? In(e, Pn(e, n, r, Rr), a * r.rideSpeedMultiplier, r, i) : In(e, o, a * r.towSpeedMultiplier, r, i), U(e);
+	} else {
+		let t = jr(e, r);
+		Nr(e, l, t.target, r, i);
+		let n = de(r, e.surface), o = (e.drift.phase === "drifting" ? Math.min(n, r.gripDrift) : n) * e.gripScale * (e.grounded ? 1 : r.airGrip);
+		$n(e, l, r, t.base, o, i), ar(e, l, r, t.base, i, s, a);
+	}
+	let u = Or(e, n, r, i, s);
+	return e.status.falling || Bn(e, u.lateral, u.right, An(u.sample, u.lateral), r, i, s, u.sample.open ?? 0), s;
+}
+function Vr(e, t, n, r, i, a = {}) {
+	let o = e.map((o, s) => {
+		let c = o.status.towTarget, l = Mn(o) && c < e.length ? Fn(o, e[c], n, r[s], zr) : void 0;
+		return Br(o, t[s], n, r[s], i, a, l);
+	});
+	for (let t = 0; t < e.length; t++) for (let n = t + 1; n < e.length; n++) sr(e[t]) || sr(e[n]) || e[t].status.held || e[n].status.held || Wn(e[t], e[n], r[t], r[n], r[t], i, o[t], o[n]);
+	for (let t = 0; t < e.length; t++) !sr(e[t]) && !e[t].status.held && Ar(e[t], e, r[t], i, o[t]);
+	return o;
+}
+function Hr(e, t, n, r) {
+	let i = e.coins > 0, a = Math.min(e.coins, t.hitCoinsLost);
+	e.coins -= a;
+	let o;
+	t.coinShield.enabled && i ? (e.status.slowedTo = t.coinShield.slowedTo, e.status.slowRemaining = t.coinShield.slowSeconds, o = !1) : (e.status.spinRemaining = t.hitSpinSeconds, o = !0), U(e), _e(e), e.status.towRemaining = 0, e.status.towTarget = -1, r.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "hit",
 		kind: n,
 		spun: o,
 		coinsLost: a
 	});
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Kr(e, t, n, r) {
+========
+function Ur(e, t, n, r) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return Math.abs(n - t.startBoostCentreSeconds) > t.startBoostWindowSeconds / 2 ? !1 : (e.boost.source = "start", e.boost.multiplier = t.startBoostMultiplier, e.boost.remaining = t.startBoostSeconds, r.push({
 		type: "boostStart",
 		source: "start",
@@ -5149,7 +5802,11 @@ function Kr(e, t, n, r) {
 		seconds: t.startBoostSeconds
 	}), !0);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var qr = {
+========
+var Wr = {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	$schema: "https://json-schema.org/draft/2020-12/schema",
 	$id: "track.schema.json",
 	title: "TrackDefinition",
@@ -5188,7 +5845,11 @@ var qr = {
 "},\"loopApproach\":{\"type\":\"number\",\"default\":24,\"description\":\"metres before the foot a kart is caught and eased into the entry lane\"},\"loopExit\":{\"type\":\"number\",\"default\":6,\"description\":\"metres after the foot a kart is set down in the exit lane\"},\"loopWidth\":{\"type\":\"number\",\"default\":6,\"description\":\"width of the ring's track, metres\"},\"humpEdge\":{\"type\":\"number\",\"default\":1.6,\"description\":\"metres over which a trick bump rounds off to the road at each kerb\"},\"balloonHeight\":{\"type\":\"number\",\"default\":1.2},\"balloonRadius\":{\"type\":\"number\",\"default\":0.9},\"pierLift\":{\"type\":\"number\",\"default\":1.1,\"description\":\"A pier's deck stands this far above the sea (level with a sea track's coast)\"},\"coinRadius\":{\"type\":\"number\",\"default\":0.5},\"hazardRadius\":{\"type\":\"number\",\"default\":1.2},\"ventRadius\":{\"type\":\"number\",\"default\":2.2,\"description\":\"a launch vent's mouth, metres (design.md Track thrills)\"},\"ventWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a vent glows and bubbles this long before it erupts\"},\"ventEruptSeconds\":{\"type\":\"number\",\"default\":1.5,\"" +
 "description\":\"how long a vent erupts; a kart on it then is thrown up\"},\"ventLaunch\":{\"type\":\"number\",\"default\":14,\"description\":\"m/s up a vent throws a kart, about 4 m high (a ramp is 5 to 6)\"},\"fallingActiveSeconds\":{\"type\":\"number\",\"default\":0.5},\"fallingWarnSeconds\":{\"type\":\"number\",\"default\":1.0,\"description\":\"a falling hazard drops this long before it lands (and can hit), its shadow growing on the spot\"},\"fallingHeight\":{\"type\":\"number\",\"default\":14,\"description\":\"metres above the road a falling hazard drops from\"},\"gustWindow\":{\"type\":\"number\",\"default\":6,\"description\":\"metres along the road a gust acts over\"},\"decorBands\":{\"type\":\"object\",\"properties\":{\"roadside\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[8,14]},\"roadsideOffroad\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[13,19],\"description\":\"the roadside band on an off-road track: just past the course limit, so the scenery lines the course\"},\"verge\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[2.5,11],\"description\":\"metres past the curb for an off-road track's ground cover: past a " +
 "ramp's skirt (rampSkirt), inside the course limit (offroadReach)\"},\"far\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[30,120]},\"sky\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[25,60]}}},\"lapTimeWarn\":{\"type\":\"array\",\"items\":{\"type\":\"number\"},\"default\":[40,65],\"description\":\"seconds; estimated lap outside this warns\"},\"trackDrawCallBudget\":{\"type\":\"integer\",\"default\":40}}}}")
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 }, Jr = {
+========
+}, Gr = {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	$schema: "https://json-schema.org/draft/2020-12/schema",
 	$id: "race-state.schema.json",
 	title: "RaceState",
@@ -5392,14 +6053,17 @@ var qr = {
 					},
 					item: {
 						type: "object",
-						description: "Two slots (design §8): the held item is used first; next moves up when it runs out. Each slot rolls on its own timer.",
+						description: "Three slots (design §8; Adam, 28 Sept 2026: \"Yes, 3 item slots\"): the held item is used first; when it runs out next moves up into it and third into next. Each slot rolls on its own timer.",
 						properties: {
 							held: { type: "string" },
 							charges: { type: "integer" },
 							rouletteRemaining: { type: "number" },
 							next: { type: "string" },
 							nextCharges: { type: "integer" },
-							nextRouletteRemaining: { type: "number" }
+							nextRouletteRemaining: { type: "number" },
+							third: { type: "string" },
+							thirdCharges: { type: "integer" },
+							thirdRouletteRemaining: { type: "number" }
 						}
 					},
 					status: {
@@ -5620,6 +6284,7 @@ var qr = {
 };
 //#endregion
 //#region src/track-builder/constants.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Yr(e) {
 	let t = {};
 	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = Yr(r.properties));
@@ -5635,6 +6300,23 @@ function Qr(e, t, n, r, i, a, o, s, c) {
 	l *= a, u *= a, s[c] = t, s[c + 1] = l, s[c + 2] = -3 * t + 3 * n - 2 * l - u, s[c + 3] = 2 * t - 2 * n + l + u;
 }
 var $r = class {
+========
+function Kr(e) {
+	let t = {};
+	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = Kr(r.properties));
+	return t;
+}
+var W = Object.freeze(Kr(Wr.properties.builder.properties)), qr = o.properties.base.properties.kartRadius.default;
+o.properties.base.properties.tSearchWindow.default, Gr.properties.constants.properties.countdownSteps.default, Gr.properties.constants.properties.countdownStepSeconds.default;
+//#endregion
+//#region src/track-builder/spline.ts
+var Jr = 1e-4;
+function Yr(e, t, n, r, i, a, o, s, c) {
+	let l = (t - e) / i - (n - e) / (i + a) + (n - t) / a, u = (n - t) / a - (r - t) / (a + o) + (r - n) / o;
+	l *= a, u *= a, s[c] = t, s[c + 1] = l, s[c + 2] = -3 * t + 3 * n - 2 * l - u, s[c + 3] = 2 * t - 2 * n + l + u;
+}
+var Xr = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	closed = !0;
 	count;
 	c;
@@ -5643,6 +6325,7 @@ var $r = class {
 		let t = e.length;
 		this.count = t, this.c = new Float64Array(t * 12);
 		for (let n = 0; n < t; n++) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let r = e[(n - 1 + t) % t], i = e[n], a = e[(n + 1) % t], o = e[(n + 2) % t], s = Math.sqrt(Math.sqrt(ti(r, i))), c = Math.sqrt(Math.sqrt(ti(i, a))), l = Math.sqrt(Math.sqrt(ti(a, o)));
 			c < Zr && (c = 1), s < Zr && (s = c), l < Zr && (l = c);
 			let u = n * 12;
@@ -5651,6 +6334,16 @@ var $r = class {
 	}
 	segmentOf(e) {
 		let t = this.count, n = ni(e) * t;
+========
+			let r = e[(n - 1 + t) % t], i = e[n], a = e[(n + 1) % t], o = e[(n + 2) % t], s = Math.sqrt(Math.sqrt(Qr(r, i))), c = Math.sqrt(Math.sqrt(Qr(i, a))), l = Math.sqrt(Math.sqrt(Qr(a, o)));
+			c < Jr && (c = 1), s < Jr && (s = c), l < Jr && (l = c);
+			let u = n * 12;
+			Yr(r.x, i.x, a.x, o.x, s, c, l, this.c, u), Yr(r.y, i.y, a.y, o.y, s, c, l, this.c, u + 4), Yr(r.z, i.z, a.z, o.z, s, c, l, this.c, u + 8);
+		}
+	}
+	segmentOf(e) {
+		let t = this.count, n = $r(e) * t;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		return {
 			index: Math.floor(n) % t,
 			local: n - Math.floor(n)
@@ -5683,10 +6376,14 @@ var $r = class {
 		];
 		this.pointAt(0, n);
 		let i = 0;
-		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += R(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
+		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += z(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
 		return t;
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 }, ei = class {
+========
+}, Zr = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	closed = !1;
 	count;
 	c;
@@ -5702,10 +6399,17 @@ var $r = class {
 			z: 2 * e.z - t.z
 		});
 		for (let i = 0; i < n; i++) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let n = i === 0 ? r(e[0], e[1]) : e[i - 1], a = e[i], o = e[i + 1], s = i + 2 < t ? e[i + 2] : r(e[t - 1], e[t - 2]), c = Math.sqrt(Math.sqrt(ti(n, a))), l = Math.sqrt(Math.sqrt(ti(a, o))), u = Math.sqrt(Math.sqrt(ti(o, s)));
 			l < Zr && (l = 1), c < Zr && (c = l), u < Zr && (u = l);
 			let d = i * 12;
 			Qr(n.x, a.x, o.x, s.x, c, l, u, this.c, d), Qr(n.y, a.y, o.y, s.y, c, l, u, this.c, d + 4), Qr(n.z, a.z, o.z, s.z, c, l, u, this.c, d + 8);
+========
+			let n = i === 0 ? r(e[0], e[1]) : e[i - 1], a = e[i], o = e[i + 1], s = i + 2 < t ? e[i + 2] : r(e[t - 1], e[t - 2]), c = Math.sqrt(Math.sqrt(Qr(n, a))), l = Math.sqrt(Math.sqrt(Qr(a, o))), u = Math.sqrt(Math.sqrt(Qr(o, s)));
+			l < Jr && (l = 1), c < Jr && (c = l), u < Jr && (u = l);
+			let d = i * 12;
+			Yr(n.x, a.x, o.x, s.x, c, l, u, this.c, d), Yr(n.y, a.y, o.y, s.y, c, l, u, this.c, d + 4), Yr(n.z, a.z, o.z, s.z, c, l, u, this.c, d + 8);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		}
 	}
 	segmentOf(e) {
@@ -5735,21 +6439,33 @@ var $r = class {
 		];
 		this.pointAt(0, n);
 		let i = 0;
-		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += R(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
+		for (let a = 1; a <= e; a++) this.pointAt(a / e, r), i += z(r[0] - n[0], r[1] - n[1], r[2] - n[2]), t[a] = i, n[0] = r[0], n[1] = r[1], n[2] = r[2];
 		return t;
 	}
 };
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ti(e, t) {
 	let n = e.x - t.x, r = e.y - t.y, i = e.z - t.z;
 	return n * n + r * r + i * i;
 }
 function ni(e) {
+========
+function Qr(e, t) {
+	let n = e.x - t.x, r = e.y - t.y, i = e.z - t.z;
+	return n * n + r * r + i * i;
+}
+function $r(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let t = e % 1;
 	return t < 0 ? t + 1 : t;
 }
 //#endregion
 //#region src/track-builder/types.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var ri = Object.freeze([
+========
+var ei = Object.freeze([
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	"road",
 	"dirt",
 	"mud",
@@ -5757,16 +6473,25 @@ var ri = Object.freeze([
 	"boost",
 	"rail"
 ]);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ii(e) {
 	let t = ri.indexOf(e ?? "road");
+========
+function ti(e) {
+	let t = ei.indexOf(e ?? "road");
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return t < 0 ? 0 : t;
 }
 //#endregion
 //#region src/track-builder/lut.ts
-var W = (e) => {
+var G = (e) => {
 	let t = e % 1;
 	return t < 0 ? t + 1 : t;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 }, ai = (e) => e < 0 ? 0 : e > 1 ? 1 : e, oi = Math.PI / 180, si = {
+========
+}, ni = (e) => e < 0 ? 0 : e > 1 ? 1 : e, ri = Math.PI / 180, ii = {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	top: 0,
 	edge: 0,
 	next: 0,
@@ -5774,7 +6499,11 @@ var W = (e) => {
 	cover: NaN,
 	lip: NaN,
 	pieces: 0
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 }, ci = class {
+========
+}, ai = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	n;
 	closed;
 	step;
@@ -5805,8 +6534,13 @@ var W = (e) => {
 	minY;
 	maxY;
 	constructor(e, t = {}) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let n = t.samples ?? U.lutSamples, r = t.divisions ?? U.arcDivisions, i = t.closed ?? !0, a = i ? new $r(e) : new ei(e);
 		this.spline = a, this.n = n, this.closed = i, this.step = i ? n : n - 1, this.px = new Float64Array(n), this.py = new Float64Array(n), this.pz = new Float64Array(n), this.tx = new Float64Array(n), this.ty = new Float64Array(n), this.tz = new Float64Array(n), this.rx = new Float64Array(n), this.rz = new Float64Array(n), this.bank = new Float64Array(n), this.hw = new Float64Array(n), this.surface = new Uint8Array(n), this.open = new Uint8Array(n), this.seg = new Uint16Array(n), this.grip = new Float64Array(n).fill(1), this.covered = new Uint8Array(n), this.reachL = new Float32Array(n).fill(U.offroadReach), this.reachR = new Float32Array(n).fill(U.offroadReach), this.landAbove = new Float32Array(n).fill(NaN), this.bore = new Float32Array(n).fill(NaN);
+========
+		let n = t.samples ?? W.lutSamples, r = t.divisions ?? W.arcDivisions, i = t.closed ?? !0, a = i ? new Xr(e) : new Zr(e);
+		this.spline = a, this.n = n, this.closed = i, this.step = i ? n : n - 1, this.px = new Float64Array(n), this.py = new Float64Array(n), this.pz = new Float64Array(n), this.tx = new Float64Array(n), this.ty = new Float64Array(n), this.tz = new Float64Array(n), this.rx = new Float64Array(n), this.rz = new Float64Array(n), this.bank = new Float64Array(n), this.hw = new Float64Array(n), this.surface = new Uint8Array(n), this.open = new Uint8Array(n), this.seg = new Uint16Array(n), this.grip = new Float64Array(n).fill(1), this.covered = new Uint8Array(n), this.reachL = new Float32Array(n).fill(W.offroadReach), this.reachR = new Float32Array(n).fill(W.offroadReach), this.landAbove = new Float32Array(n).fill(NaN), this.bore = new Float32Array(n).fill(NaN);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let o = a.walkArcLength(r), s = o[r];
 		this.length = s;
 		let c = [
@@ -5820,17 +6554,22 @@ var W = (e) => {
 			let i = o[l + 1] - o[l], p = i > 0 ? (n - o[l]) / i : 0, m = (l + p) / r;
 			a.pointAt(m, c), this.px[t] = c[0], this.py[t] = c[1], this.pz[t] = c[2], c[1] < u && (u = c[1]), c[1] > d && (d = c[1]);
 			let { index: h, local: g } = a.segmentOf(m), _ = e[h], v = e[(h + 1) % f], y = g * g * (3 - 2 * g);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			this.seg[t] = h, this.surface[t] = ii(_.surface), this.hw[t] = _.halfWidth + (v.halfWidth - _.halfWidth) * y;
 			let b = (_.bank ?? 0) * oi, x = (v.bank ?? 0) * oi;
+========
+			this.seg[t] = h, this.surface[t] = ti(_.surface), this.hw[t] = _.halfWidth + (v.halfWidth - _.halfWidth) * y;
+			let b = (_.bank ?? 0) * ri, x = (v.bank ?? 0) * ri;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			this.bank[t] = b + (x - b) * y;
 		}
 		this.minY = u, this.maxY = d, this.refreshFrames();
 	}
 	refreshFrames() {
 		for (let e = 0; e < this.n; e++) {
-			let t = this.idx(e + 1), n = this.idx(e - 1), r = this.px[t] - this.px[n], i = this.py[t] - this.py[n], a = this.pz[t] - this.pz[n], o = R(r, i, a) || 1;
+			let t = this.idx(e + 1), n = this.idx(e - 1), r = this.px[t] - this.px[n], i = this.py[t] - this.py[n], a = this.pz[t] - this.pz[n], o = z(r, i, a) || 1;
 			r /= o, i /= o, a /= o, this.tx[e] = r, this.ty[e] = i, this.tz[e] = a;
-			let s = L(r, a) || 1;
+			let s = R(r, a) || 1;
 			this.rx[e] = a / s, this.rz[e] = -r / s;
 		}
 	}
@@ -5839,7 +6578,11 @@ var W = (e) => {
 		return this.closed ? (e % t + t) % t : e < 0 ? 0 : e >= t ? t - 1 : e;
 	}
 	norm(e) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		return this.closed ? W(e) : ai(e);
+========
+		return this.closed ? G(e) : ni(e);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	sample(e, t) {
 		return this.sampleInto(e, t, {
@@ -5865,44 +6608,57 @@ var W = (e) => {
 		});
 	}
 	sampleInto(e, t, n) {
-		let r = this.norm(e) * this.step, i = Math.floor(r), a = this.idx(i), o = this.idx(i + 1), s = r - i, c = 1 - s, l = this.tx[a] * c + this.tx[o] * s, u = this.ty[a] * c + this.ty[o] * s, d = this.tz[a] * c + this.tz[o] * s, f = R(l, u, d) || 1;
+		let r = this.norm(e) * this.step, i = Math.floor(r), a = this.idx(i), o = this.idx(i + 1), s = r - i, c = 1 - s, l = this.tx[a] * c + this.tx[o] * s, u = this.ty[a] * c + this.ty[o] * s, d = this.tz[a] * c + this.tz[o] * s, f = z(l, u, d) || 1;
 		l /= f, u /= f, d /= f;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let p = L(l, d) || 1, m = d / p, h = -l / p, g = this.bank[a] * c + this.bank[o] * s, _ = -t * _t(g), v = this.px[a] * c + this.px[o] * s + m * t, y = this.py[a] * c + this.py[o] * s + _, b = this.pz[a] * c + this.pz[o] * s + h * t, x = m, S = -_t(g), C = h, w = u * C - d * S, T = d * x - l * C, E = l * S - u * x, D = R(w, T, E) || 1;
 		w /= D, T /= D, E /= D;
 		let O = n.position, ee = n.tangent, k = n.normal;
 		O[0] = v, O[1] = y, O[2] = b, ee[0] = l, ee[1] = u, ee[2] = d, k[0] = w, k[1] = T, k[2] = E, n.groundY = y, n.halfWidth = this.hw[a] * c + this.hw[o] * s, n.surface = ri[this.surface[a]], n.gripScale = this.grip[a] * c + this.grip[o] * s;
+========
+		let p = R(l, d) || 1, m = d / p, h = -l / p, g = this.bank[a] * c + this.bank[o] * s, _ = -t * mt(g), v = this.px[a] * c + this.px[o] * s + m * t, y = this.py[a] * c + this.py[o] * s + _, b = this.pz[a] * c + this.pz[o] * s + h * t, x = m, S = -mt(g), C = h, w = u * C - d * S, T = d * x - l * C, E = l * S - u * x, D = z(w, T, E) || 1;
+		w /= D, T /= D, E /= D;
+		let O = n.position, ee = n.tangent, k = n.normal;
+		O[0] = v, O[1] = y, O[2] = b, ee[0] = l, ee[1] = u, ee[2] = d, k[0] = w, k[1] = T, k[2] = E, n.groundY = y, n.halfWidth = this.hw[a] * c + this.hw[o] * s, n.surface = ei[this.surface[a]], n.gripScale = this.grip[a] * c + this.grip[o] * s;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let te = this.open[a];
 		n.open = te, n.overCliff = !1;
 		let A = !!(te & (t < 0 ? 1 : 2)), ne = (this.covered[a] | this.covered[o]) !== 0;
 		if ((A || this.offroad) && !ne) {
 			let e = Math.abs(t) - n.halfWidth;
-			if (e > U.kerbWidth) {
+			if (e > W.kerbWidth) {
 				if (n.surface = "dirt", A) {
-					let t = U.shoulderDrop * Math.min(1, (e - U.kerbWidth) / U.shoulderWidth);
+					let t = W.shoulderDrop * Math.min(1, (e - W.kerbWidth) / W.shoulderWidth);
 					n.groundY -= t, O[1] -= t;
 				} else {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 					let r = y + Math.sign(t) * (e - U.kerbWidth) * _t(g) - U.offroadDrop, i = !1;
 					if (this.land) {
 						let e = this.land.query(v, b, si);
+========
+					let r = y + Math.sign(t) * (e - W.kerbWidth) * mt(g) - W.offroadDrop, i = !1;
+					if (this.land) {
+						let e = this.land.query(v, b, ii);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 						e.pieces > 0 && (r = e.top, i = e.pieces > 1);
 					}
 					r < this.floorY && (r = this.floorY);
-					let a = Math.min(1, (e - U.kerbWidth) / .5), o = y + (r - y) * a;
+					let a = Math.min(1, (e - W.kerbWidth) / .5), o = y + (r - y) * a;
 					if (n.groundY = o, O[1] = o, a >= 1) {
 						let e = 0, t = 0;
 						if (i && this.land) {
 							let n = Math.max(this.floorY, this.land.top(v + .5, b)), i = Math.max(this.floorY, this.land.top(v, b + .5));
 							e = (n - r) / .5, t = (i - r) / .5, k[0] = -e, k[1] = 1, k[2] = -t;
 						} else k[0] = u * h, k[1] = d * m - l * h, k[2] = -u * m;
-						let n = R(k[0], k[1], k[2]) || 1;
+						let n = z(k[0], k[1], k[2]) || 1;
 						k[0] /= n, k[1] /= n, k[2] /= n;
 					}
 				}
 			}
-			A && (n.overCliff = e > U.kerbWidth + U.shoulderWidth);
+			A && (n.overCliff = e > W.kerbWidth + W.shoulderWidth);
 		}
 		let j = n.halfWidth, M = n.halfWidth;
-		return ne ? (j = n.halfWidth + U.kerbWidth, M = j) : this.offroad && (j = n.halfWidth + U.kerbWidth + (this.reachL[a] * c + this.reachL[o] * s), M = n.halfWidth + U.kerbWidth + (this.reachR[a] * c + this.reachR[o] * s)), n.wallLeft = j, n.wallRight = M, n.wall = t < 0 ? j : t > 0 ? M : j < M ? j : M, n;
+		return ne ? (j = n.halfWidth + W.kerbWidth, M = j) : this.offroad && (j = n.halfWidth + W.kerbWidth + (this.reachL[a] * c + this.reachL[o] * s), M = n.halfWidth + W.kerbWidth + (this.reachR[a] * c + this.reachR[o] * s)), n.wallLeft = j, n.wallRight = M, n.wall = t < 0 ? j : t > 0 ? M : j < M ? j : M, n;
 	}
 	dist2XZ(e, t, n) {
 		let r = this.px[e] - t, i = this.pz[e] - n;
@@ -5921,7 +6677,7 @@ var W = (e) => {
 		return this.refine(s, c, a, 0, o, !1);
 	}
 	nearestTGlobal(e) {
-		let t = this.n, n = U.globalSearchStep, [r, i, a] = e, o = 0, s = Infinity;
+		let t = this.n, n = W.globalSearchStep, [r, i, a] = e, o = 0, s = Infinity;
 		for (let e = 0; e < t; e += n) {
 			let t = this.dist2XYZ(e, r, i, a);
 			t < s && (s = t, o = e);
@@ -5956,16 +6712,25 @@ var W = (e) => {
 		return c * c + l * l + u * u;
 	}
 };
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function li(e, t) {
 	return new ci(e, t);
+========
+function oi(e, t) {
+	return new ai(e, t);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 }
 //#endregion
 //#region src/track-builder/branches.ts
-function G(e, t) {
-	let n = W(e - t);
+function K(e, t) {
+	let n = G(e - t);
 	return n > .5 ? n - 1 : n;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var ui = class {
+========
+var si = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	index;
 	id;
 	openOnLaps;
@@ -5978,7 +6743,7 @@ var ui = class {
 	forcedOpen;
 	lapOpen = !0;
 	constructor(e, t, n, r, i, a = []) {
-		this.index = e, this.id = t, this.lut = n, this.entryT = r, this.exitT = i, this.span = e === 0 ? 1 : W(i - r), this.openOnLaps = a, this.entryPoint = e === 0 ? [
+		this.index = e, this.id = t, this.lut = n, this.entryT = r, this.exitT = i, this.span = e === 0 ? 1 : G(i - r), this.openOnLaps = a, this.entryPoint = e === 0 ? [
 			n.px[0],
 			n.py[0],
 			n.pz[0]
@@ -5994,12 +6759,12 @@ var ui = class {
 		this.lapOpen = this.openOnLaps.length === 0 || this.openOnLaps.includes(e);
 	}
 	toLocal(e) {
-		if (this.isMain) return W(e);
-		let t = G(e, this.entryT) / this.span;
+		if (this.isMain) return G(e);
+		let t = K(e, this.entryT) / this.span;
 		return t < 0 ? 0 : t > 1 ? 1 : t;
 	}
 	toMain(e) {
-		return this.isMain ? W(e) : W(this.entryT + e * this.span);
+		return this.isMain ? G(e) : G(this.entryT + e * this.span);
 	}
 	sample(e, t) {
 		return this.lut.sample(this.toLocal(e), t);
@@ -6009,7 +6774,7 @@ var ui = class {
 	}
 	overlaps(e, t) {
 		if (this.isMain) return !0;
-		let n = G(e, this.entryT);
+		let n = K(e, this.entryT);
 		return n + t >= 0 && n - t <= this.span;
 	}
 	nearestLocal(e, t, n) {
@@ -6030,7 +6795,11 @@ var ui = class {
 		};
 	}
 	settle(e, t, n) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		for (let r = 0; r < di; r++) {
+========
+		for (let r = 0; r < ci; r++) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			let r = this.nearestLocal(e, t, n).t;
 			if (r === t) break;
 			t = r;
@@ -6053,6 +6822,7 @@ var ui = class {
 			d2: this.lut.dist2At(t, e)
 		};
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 }, di = 3;
 function fi(e, t) {
 	return Math.max(64, Math.round(U.lutSamples * e / t));
@@ -6070,6 +6840,25 @@ function pi(e, t, n, r = t.controlPoints) {
 	return mi(a, n, W(t.entryT), W(t.exitT)), new ui(e, t.id, a, W(t.entryT), W(t.exitT), t.openOnLaps ?? []);
 }
 function mi(e, t, n, r) {
+========
+}, ci = 3;
+function li(e, t) {
+	return Math.max(64, Math.round(W.lutSamples * e / t));
+}
+function ui(e, t, n, r = t.controlPoints) {
+	let i = oi(r, {
+		closed: !1,
+		samples: 64,
+		divisions: 256
+	}), a = oi(r, {
+		closed: !1,
+		samples: li(i.length, n.length),
+		divisions: Math.max(256, Math.round(W.arcDivisions * i.length / n.length))
+	});
+	return di(a, n, G(t.entryT), G(t.exitT)), new si(e, t.id, a, G(t.entryT), G(t.exitT), t.openOnLaps ?? []);
+}
+function di(e, t, n, r) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let i = e.length / e.step;
 	for (let a of [!0, !1]) {
 		let o = t.idx(Math.round((a ? n : r) * t.step)), s = -1;
@@ -6079,17 +6868,25 @@ function mi(e, t, n, r) {
 				let n = t.idx(o + e), r = t.px[n] - c, i = t.pz[n] - l, a = r * r + i * i;
 				a < u && (u = a, d = n);
 			}
-			let f = o = d, p = (c - t.px[f]) * t.rx[f] + (l - t.pz[f]) * t.rz[f], m = e.rx[r] * t.rx[f] + e.rz[r] * t.rz[f], h = Math.abs(p) - (t.hw[f] + U.kerbWidth) - (e.hw[r] + U.kerbWidth) * Math.abs(m);
+			let f = o = d, p = (c - t.px[f]) * t.rx[f] + (l - t.pz[f]) * t.rz[f], m = e.rx[r] * t.rx[f] + e.rz[r] * t.rz[f], h = Math.abs(p) - (t.hw[f] + W.kerbWidth) - (e.hw[r] + W.kerbWidth) * Math.abs(m);
 			s < 0 && h > -1 && (s = n * i);
 			let g = s < 0 ? 0 : Math.min(1, (n * i - s) / 30), _ = 1 - g * g * (3 - 2 * g);
 			if (_ <= 0) break;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let v = t.hw[f] + U.kerbWidth, y = Math.max(-v, Math.min(v, p)), b = L(t.tx[f], t.tz[f]) || 1, x = t.ty[f] / b, S = (e.rx[r] * t.tx[f] + e.rz[r] * t.tz[f]) / b, C = ((c - t.px[f]) * t.tx[f] + (l - t.pz[f]) * t.tz[f]) / b, w = t.py[f] + C * x - y * _t(t.bank[f]), T = Math.max(0, Math.min(1, 1 - (Math.abs(p) - v) / e.hw[r])), E = Mt(_t(t.bank[f]) * m * T - x * S);
+========
+			let v = t.hw[f] + W.kerbWidth, y = Math.max(-v, Math.min(v, p)), b = R(t.tx[f], t.tz[f]) || 1, x = t.ty[f] / b, S = (e.rx[r] * t.tx[f] + e.rz[r] * t.tz[f]) / b, C = ((c - t.px[f]) * t.tx[f] + (l - t.pz[f]) * t.tz[f]) / b, w = t.py[f] + C * x - y * mt(t.bank[f]), T = Math.max(0, Math.min(1, 1 - (Math.abs(p) - v) / e.hw[r])), E = kt(mt(t.bank[f]) * m * T - x * S);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			e.py[r] += (w - e.py[r]) * _, e.bank[r] += (E - e.bank[r]) * _;
 		}
 	}
 	e.refreshFrames();
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var hi = class {
+========
+var fi = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	list;
 	constructor(e) {
 		this.list = e;
@@ -6112,7 +6909,7 @@ var hi = class {
 	resolve(e, t) {
 		let n = this.list[t] ?? this.main;
 		if (!n.isMain) {
-			let t = G(e, n.entryT);
+			let t = K(e, n.entryT);
 			if (t < 0 || t > n.span) return this.main;
 		}
 		return n;
@@ -6121,11 +6918,11 @@ var hi = class {
 		let r = this.list[t.branch] ?? this.main;
 		!r.open && !r.overlaps(t.t, 0) && (r = this.main);
 		let i = r.nearestLocal(e, t.t, n), a = r.index, o = Math.sqrt(i.d2), s = i.t, c = r.halfWidthAt(s);
-		if (o <= c - U.branchLeaveMargin) return {
+		if (o <= c - W.branchLeaveMargin) return {
 			t: s,
 			branch: r.index
 		};
-		let l = U.branchHysteresis, u = o - c;
+		let l = W.branchHysteresis, u = o - c;
 		for (let i of this.list) {
 			if (i === r || !i.open || !i.overlaps(t.t, n)) continue;
 			let o = i.nearestLocal(e, t.t, n), c = Math.sqrt(o.d2) - i.halfWidthAt(o.t);
@@ -6141,7 +6938,7 @@ var hi = class {
 		for (let r of this.list) {
 			if (r.isMain || !r.open) continue;
 			let i = r.nearestGlobal(e);
-			i.d2 < n.d2 - U.branchHysteresis * U.branchHysteresis && (n = i, t = r.index);
+			i.d2 < n.d2 - W.branchHysteresis * W.branchHysteresis && (n = i, t = r.index);
 		}
 		return {
 			t: n.t,
@@ -6151,6 +6948,7 @@ var hi = class {
 };
 //#endregion
 //#region src/ai-driver/constants.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function gi(e) {
 	let t = {};
 	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = gi(r.properties));
@@ -6166,10 +6964,28 @@ function yi(e) {
 }
 function bi(e) {
 	let [t, n] = K.drift.tierBySkill;
+========
+function pi(e) {
+	let t = {};
+	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = pi(r.properties));
+	return t;
+}
+function mi(e) {
+	if (e && typeof e == "object") for (let t of Object.values(e)) mi(t);
+	return Object.freeze(e);
+}
+var q = mi(pi(o.properties.ai.properties)), hi = q.profiles;
+function gi(e) {
+	return e === 50 ? "easy" : e === 100 ? "normal" : "hard";
+}
+function _i(e) {
+	let [t, n] = q.drift.tierBySkill;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return e < t ? 1 : e < n ? 2 : 3;
 }
 //#endregion
 //#region src/ai-driver/rng.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function xi(e, t) {
 	return (Math.imul(e | 0, 2654435761) ^ Math.imul(t + 1, 2246822519)) >>> 0;
 }
@@ -6238,11 +7054,82 @@ function Li(e, t) {
 	return e > 0 ? Math.max(e, t * K.drift.useBySkill) : 0;
 }
 function Ri(e, t, n, r, i) {
+========
+function vi(e, t) {
+	return (Math.imul(e | 0, 2654435761) ^ Math.imul(t + 1, 2246822519)) >>> 0;
+}
+function yi(e) {
+	return e + 1831565813 >>> 0;
+}
+function bi(e) {
+	let t = e;
+	return t = Math.imul(t ^ t >>> 15, t | 1), t ^= t + Math.imul(t ^ t >>> 7, t | 61), (t ^ t >>> 14) >>> 0;
+}
+function xi(e) {
+	return e.rng = yi(e.rng), bi(e.rng);
+}
+function Si(e) {
+	return e.driftRng = yi(e.driftRng), bi(e.driftRng) / 4294967296;
+}
+function Ci(e, t, n) {
+	return bi((e ^ Math.imul(t + 1, 2654435761) ^ Math.imul(n + 1, 2246822519)) >>> 0) / 4294967296;
+}
+function wi(e) {
+	return xi(e) / 4294967296;
+}
+function J(e, t, n) {
+	return t + (n - t) * wi(e);
+}
+//#endregion
+//#region src/ai-driver/drift.ts
+function Ti(e, t) {
+	let n = e - t;
+	return n > 1e-9 ? n : 0;
+}
+function Ei(e, t) {
+	return e.steerRate * (e.driftSteerMin + (e.driftSteerMax - e.driftSteerMin) * t);
+}
+function Di(e, t) {
+	return Math.max(1, Math.min(Math.abs(e.speed), t.topSpeed * q.drift.planTop));
+}
+function Oi(e) {
+	return Math.min(_i(e), q.drift.minTier);
+}
+function ki(e, t, n) {
+	let r = q.drift, i = Di(e, t), a = Number.isFinite(n.bendMetres), o = a ? Math.max(0, n.bendStart - i * r.hopLead) : 0, s = Math.min(a ? n.bendMetres : Infinity, n.airMetres - i * r.airLead), c = Math.min(r.maxHold, (s - o) / i) - t.hopSeconds;
+	if (!(c > 0)) return 0;
+	let l = a && n.bendMetres > o ? n.bendAngle * i / (n.bendMetres - o + 1e-9) : Math.abs(n.turnNear) / q.line.turnNearSeconds, u = Ei(t, 0), d = Ei(t, .5), f = e.drift.chargeMultiplierRemaining > 0 ? e.drift.chargeMultiplier : 1;
+	if (l - u < r.easePlan) {
+		let e = Math.sqrt(2 * n.halfWidth * r.sweepRoom / (i * Math.max(.001, d - l)));
+		return er(t.chargeFull * 60 * f * Math.min(c, e), t.driftTiers);
+	}
+	let p = Y((l - u) / (d - u), 0, 1);
+	return er((t.chargeFull * p + t.chargeNeutral * (1 - p)) * 60 * f * c, t.driftTiers);
+}
+function Ai(e, t, n, r, i = n.skill) {
+	let a = r.turnNear, o = r.turnFar;
+	return Math.abs(o) <= n.driftThreshold || Math.abs(a) <= n.driftThreshold * .5 || Math.sign(a) !== Math.sign(o) || r.hazardInLane || r.bendHalfWidth < q.line.narrowRoad ? !1 : ki(e, t, r) >= Oi(i);
+}
+function ji(e, t, n, r) {
+	return Ai(e, t, n, r) && r.bendStart <= Math.abs(e.speed) * q.drift.hopLead;
+}
+function Mi(e, t, n, r) {
+	return Ai(e, t, n, r) ? Math.abs(r.turnNear) / q.line.turnNearSeconds < Ei(t, .5) : !1;
+}
+function Ni(e, t) {
+	return Number.isFinite(t.bendMetres) && t.bendMetres > Math.max(1, Math.abs(e.speed)) * q.drift.chainSeconds;
+}
+function Pi(e, t) {
+	return e > 0 ? Math.max(e, t * q.drift.useBySkill) : 0;
+}
+function Fi(e, t, n, r, i) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (n.driftDir !== 0) return;
 	let a = i.turnFar;
 	if (n.driftPlan !== 0) {
 		if (Math.abs(a) <= r.driftThreshold || Math.sign(a) !== n.driftPlanSide) n.driftPlan = 0;
 		else {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let r = i.turnShort * n.driftPlanSide * Math.abs(e.speed) * (t.hopSeconds + t.driftYawLag) / K.line.lookAheadMin > K.drift.hopMidBend;
 			n.driftPlan === 1 && r && n.driftCooldown === 0 && (n.driftPlan = Ii(e, i) ? 2 : -1);
 			return;
@@ -6253,15 +7140,32 @@ function Ri(e, t, n, r, i) {
 function zi(e, t, n, r, i, a, o, s) {
 	let c = K.drift;
 	if (n.driftCooldown = Oi(n.driftCooldown, s), o.drift = !1, n.driftDir === 0) {
+========
+			let r = i.turnShort * n.driftPlanSide * Math.abs(e.speed) * (t.hopSeconds + t.driftYawLag) / q.line.lookAheadMin > q.drift.hopMidBend;
+			n.driftPlan === 1 && r && n.driftCooldown === 0 && (n.driftPlan = Ni(e, i) ? 2 : -1);
+			return;
+		}
+	}
+	i.narrow || i.nearNarrowBranch || !Ai(e, t, r, i, n.skill) || (n.driftPlan = Si(n) < Pi(n.personality.driftUse, n.skill) ? 1 : -1, n.driftPlanSide = Math.sign(a));
+}
+function Ii(e, t, n, r, i, a, o, s) {
+	let c = q.drift;
+	if (n.driftCooldown = Ti(n.driftCooldown, s), o.drift = !1, n.driftDir === 0) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		if (n.driftCooldown > 0 || !e.grounded || e.drift.phase !== "idle" || i.narrow || i.nearNarrowBranch || i.airAhead || i.hazardInLane || e.speed < t.driftMinSpeed * a) return;
 		let s = i.turnNear, l = i.turnFar;
 		if (!(Math.abs(l) > r.driftThreshold && Math.abs(s) > r.driftThreshold * .5 && Math.sign(s) === Math.sign(l)) || i.bendStart > Math.abs(e.speed) * c.hopLead || i.myLat * Math.sign(l) > i.halfWidth - c.apexMargin - c.hopRoom) return;
 		let u = Math.sign(l), d = Math.abs(e.speed), f = i.turnShort * u;
 		if (Math.abs(i.course) > c.hopAlign) return;
-		let p = Math.abs(f) / K.line.lookAheadMin * d * (t.hopSeconds + t.driftYawLag);
+		let p = Math.abs(f) / q.line.lookAheadMin * d * (t.hopSeconds + t.driftYawLag);
 		if (f > 0 ? p > c.hopMidBend : p > c.hopMidBend * .5) return;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let m = Math.min(bi(n.skill), Mi(e, t, i));
 		if (m < ji(n.skill) || n.driftPlan < 1) return;
+========
+		let m = Math.min(_i(n.skill), ki(e, t, i));
+		if (m < Oi(n.skill) || n.driftPlan < 1) return;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		n.driftDir = s > 0 ? 1 : -1, n.driftTier = m, n.driftHold = 0, o.drift = !0, o.steer = n.driftDir;
 		return;
 	}
@@ -6269,13 +7173,18 @@ function zi(e, t, n, r, i, a, o, s) {
 	n.driftHold += s, o.drift = !0;
 	let u = t.hopSeconds * t.hopLandWindow + s;
 	if (e.drift.phase === "idle" && n.driftHold > u) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		Vi(n, c.abortCooldown, o, "abort");
+========
+		Ri(n, c.abortCooldown, o, "abort");
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		return;
 	}
 	if (n.driftHold <= c.hopCommit || e.drift.phase !== "drifting") {
 		o.steer = l * c.hopCommitStick;
 		return;
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	n.driftTier = Math.max(n.driftTier, Math.min(bi(n.skill), Mi(e, t, i)));
 	let d = Math.max(Math.abs(e.speed), 1), f = Qn(e.speed, a, t), p = i.turnNear * l / K.line.turnNearSeconds, m = i.myLat * l, h = i.course * l, g = i.dodging || i.hazardInLane ? n.lateral * l : Math.max(0, i.halfWidth - c.apexMargin), _ = t.driftYawLag + 1 / t.gripDrift, v = h + (ki(t, e.drift.yawK) * f - p) * _, y = Math.max(c.easeMin, p - ki(t, 0) * f), b = g - m - d * h * _, x = Math.sign(b) * Math.min(c.latCourseMax, Math.sqrt(2 * y * Math.abs(b) / d)), S = J(((p + c.aimGain * (x - v)) / (t.steerRate * f) - t.driftSteerMin) / (t.driftSteerMax - t.driftSteerMin), 0, 1);
 	if (S < .5 && e.drift.tier < n.driftTier) {
@@ -6288,6 +7197,20 @@ function zi(e, t, n, r, i, a, o, s) {
 }
 function Bi(e, t, n, r, i, a, o, s) {
 	let c = K.drift, l = c.swingStep, u = 1 - bn(-l / t.driftYawLag), d = e.drift.yawK, f = -zt(e.lateralVelocity, r) * n, p = o, m = s, h = o;
+========
+	n.driftTier = Math.max(n.driftTier, Math.min(_i(n.skill), ki(e, t, i)));
+	let d = Math.max(Math.abs(e.speed), 1), f = Yn(e.speed, a, t), p = i.turnNear * l / q.line.turnNearSeconds, m = i.myLat * l, h = i.course * l, g = i.dodging || i.hazardInLane ? n.lateral * l : Math.max(0, i.halfWidth - c.apexMargin), _ = t.driftYawLag + 1 / t.gripDrift, v = h + (Ei(t, e.drift.yawK) * f - p) * _, y = Math.max(c.easeMin, p - Ei(t, 0) * f), b = g - m - d * h * _, x = Math.sign(b) * Math.min(c.latCourseMax, Math.sqrt(2 * y * Math.abs(b) / d)), S = Y(((p + c.aimGain * (x - v)) / (t.steerRate * f) - t.driftSteerMin) / (t.driftSteerMax - t.driftSteerMin), 0, 1);
+	if (S < .5 && e.drift.tier < n.driftTier) {
+		let n = Li(e, t, l, d, f, p, m, h), r = e.drift.chargeMultiplierRemaining > 0 ? e.drift.chargeMultiplier : 1, a = (t.driftTiers[Math.min(e.drift.tier, t.driftTiers.length - 1)] - e.drift.charge) / (t.chargeFull * 60 * r) <= c.chargeSecondsAhead && n < i.halfWidth - c.edgeMargin - c.snapRoom;
+		(n < g || a) && (S = .5);
+	}
+	o.steer = l * Jn(S), S >= 1 && h < -c.wideLift && (o.throttle = 0, h < -2 * c.wideLift && (o.brake = 1));
+	let C = i.open & (l > 0 ? 1 : 2) ? i.halfWidth + c.outsideSlack : Math.min(i.halfWidth + c.outsideSlack, (l > 0 ? i.wallLeft : i.wallRight) - t.kartRadius - c.wallMargin), w = Math.sign(i.turnNear === 0 ? i.turnFar : i.turnNear) !== l || i.bendMetres < d * c.exitLead, T = e.wallCooldown > 0 && e.wallCooldown > t.wallCooldownSeconds - n.driftHold, E = i.roadErr, D = e.drift.tier, O = D >= n.driftTier && D >= _i(n.skill) ? "tier" : w && (D >= 1 || n.driftHold > c.hopCommit + t.driftYawLag) ? "aligned" : T ? "wall" : E * l < -c.overRotate ? "over" : D >= 1 && Math.abs(E) < c.aligned && i.kappaShort * Math.abs(e.speed) < c.exitYawFraction * Ei(t, 0) ? "aligned" : m > i.halfWidth - c.edgeMargin || -m > C ? "edge" : n.driftHold > c.maxHold ? "hold" : i.hazardInLane && Math.abs(n.lateral - i.myLat) > c.hazardMiss ? "hazard" : i.airMetres < d * c.airLead ? "air" : "none";
+	O !== "none" && (Ri(n, D === 0 ? c.abortCooldown : c.cooldown, o, O), O === "tier" && Ni(e, i) && (n.driftPlan = 2, n.driftPlanSide = l));
+}
+function Li(e, t, n, r, i, a, o, s) {
+	let c = q.drift, l = c.swingStep, u = 1 - _n(-l / t.driftYawLag), d = e.drift.yawK, f = -It(e.lateralVelocity, r) * n, p = o, m = s, h = o;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let e = 0; e < c.swingSeconds; e += l) {
 		d -= d * u;
 		let e = t.steerRate * (t.driftSteerMin + (t.driftSteerMax - t.driftSteerMin) * d) * i;
@@ -6295,6 +7218,7 @@ function Bi(e, t, n, r, i, a, o, s) {
 	}
 	return h;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Vi(e, t, n, r) {
 	e.driftDir = 0, e.driftPlan = -1, e.driftHold = 0, e.driftCooldown = t, e.driftEndReason = r, n.drift = !1;
 }
@@ -6304,6 +7228,17 @@ function Hi(e, t, n, r, i) {
 		return;
 	}
 	if (t.driftDir === 0 && (t.trickRolled || (t.trickRolled = !0, t.trickDone = Di(t) >= n.trickChance, i && i.airAhead && Math.abs(i.turnNear) > K.line.trickBend && (t.trickDone = !0)), !t.trickDone)) {
+========
+function Ri(e, t, n, r) {
+	e.driftDir = 0, e.driftPlan = -1, e.driftHold = 0, e.driftCooldown = t, e.driftEndReason = r, n.drift = !1;
+}
+function zi(e, t, n, r, i) {
+	if (!tr(e)) {
+		t.trickRolled = !1, t.trickDone = !1;
+		return;
+	}
+	if (t.driftDir === 0 && (t.trickRolled || (t.trickRolled = !0, t.trickDone = wi(t) >= n.trickChance, i && i.airAhead && Math.abs(i.turnNear) > q.line.trickBend && (t.trickDone = !0)), !t.trickDone)) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		if (e.prevDrift) {
 			r.drift = !1;
 			return;
@@ -6313,14 +7248,19 @@ function Hi(e, t, n, r, i) {
 }
 //#endregion
 //#region src/ai-driver/line.ts
-function J(e, t, n) {
+function Y(e, t, n) {
 	return e < t ? t : e > n ? n : e;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ui(e) {
+========
+function Bi(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (; e > Math.PI;) e -= 2 * Math.PI;
 	for (; e < -Math.PI;) e += 2 * Math.PI;
 	return e;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Wi(e) {
 	let t = K.line;
 	return J(Math.abs(e) * t.lookAheadGain, t.lookAheadMin, t.lookAheadMax);
@@ -6336,39 +7276,76 @@ function Ji(e, t, n, r, i, a) {
 	let u = B(r.here.tangent);
 	i.turnNear = Ui(B(r.near.tangent) - u), i.turnFar = Ui(B(r.far.tangent) - u), i.probeNear = l * o.turnNearSeconds, t.sampleInto(W(e.t + o.lookAheadMin / s), 0, c, r.short);
 	let d = B(r.short.tangent), f = Ui(d - u);
+========
+function Vi(e) {
+	let t = q.line;
+	return Y(Math.abs(e) * t.lookAheadGain, t.lookAheadMin, t.lookAheadMax);
+}
+var Hi = 5, Ui = /* @__PURE__ */ new WeakMap();
+function Wi(e) {
+	let t = Ui.get(e);
+	return t || (t = e.branches.list.map((e, t) => t > 0 && e.lut.sample(.5, 0).halfWidth < q.line.narrowRoad), Ui.set(e, t)), t;
+}
+function Gi(e, t, n, r, i, a) {
+	let o = q.line, s = t.length, c = n.branchChoice > 0 ? n.branchChoice : e.branch, l = Math.max(Math.abs(e.speed), Hi);
+	t.sampleInto(e.t, 0, e.branch, r.here), t.sampleInto(G(e.t + l * o.turnNearSeconds / s), 0, c, r.near), t.sampleInto(G(e.t + l * o.turnFarSeconds / s), 0, c, r.far);
+	let u = V(r.here.tangent);
+	i.turnNear = Bi(V(r.near.tangent) - u), i.turnFar = Bi(V(r.far.tangent) - u), i.probeNear = l * o.turnNearSeconds, t.sampleInto(G(e.t + o.lookAheadMin / s), 0, c, r.short);
+	let d = V(r.short.tangent), f = Bi(d - u);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (i.kappaShort = Math.abs(f) / o.lookAheadMin, i.turnShort = f, i.kappa = Math.max(i.kappaShort, Math.abs(i.turnNear) / i.probeNear), e.branch !== 0 && !e.grounded) {
-		let n = t.branches.list[e.branch], a = G(n.exitT, e.t) * s;
+		let n = t.branches.list[e.branch], a = K(n.exitT, e.t) * s;
 		if (a > 0) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let s = B(t.sampleInto(n.exitT, 0, e.branch, r.tmp).tangent), c = Math.abs(Ui(B(t.sampleInto(n.exitT, 0, 0, r.tmp).tangent) - s));
 			i.kappa = Math.max(i.kappa, c / Math.max(o.joinShare * a, o.lookAheadMin));
 		}
 	}
 	i.roadErr = Ui(d - e.heading), i.course = Ui(e.heading + zt(e.lateralVelocity, Math.max(1, Math.abs(e.speed))) - u), i.halfWidth = r.here.halfWidth, i.wallLeft = Nn(r.here, -1), i.wallRight = Nn(r.here, 1), i.open = r.here.open ?? 0, i.narrow = r.here.halfWidth < o.narrowRoad, i.airAhead = !1, i.airMetres = Infinity;
+========
+			let s = V(t.sampleInto(n.exitT, 0, e.branch, r.tmp).tangent), c = Math.abs(Bi(V(t.sampleInto(n.exitT, 0, 0, r.tmp).tangent) - s));
+			i.kappa = Math.max(i.kappa, c / Math.max(o.joinShare * a, o.lookAheadMin));
+		}
+	}
+	i.roadErr = Bi(d - e.heading), i.course = Bi(e.heading + It(e.lateralVelocity, Math.max(1, Math.abs(e.speed))) - u), i.halfWidth = r.here.halfWidth, i.wallLeft = An(r.here, -1), i.wallRight = An(r.here, 1), i.open = r.here.open ?? 0, i.narrow = r.here.halfWidth < o.narrowRoad, i.airAhead = !1, i.airMetres = Infinity;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let n of t.jumps) {
 		if (!n.rise || (n.branch ?? 0) !== c) continue;
-		let t = W(n.t - e.t) * s;
+		let t = G(n.t - e.t) * s;
 		t < i.probeNear + (n.run ?? 0) && (i.airAhead = !0), i.airMetres = Math.min(i.airMetres, Math.max(0, t - (n.run ?? 0)));
 	}
 	let p = Math.sign(i.turnNear === 0 ? i.turnFar : i.turnNear), m = 0, h = 0, g = 0;
 	i.bendStart = Infinity;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let _ = a ? K.drift.startYawFraction * ki(a, .5) / Math.min(l, a.topSpeed * K.drift.planTop) : Infinity;
 	i.bendHalfWidth = r.here.halfWidth, i.kappaShort >= _ && (i.bendStart = 0);
 	let v = l * o.bendSeconds;
 	if (p !== 0) for (let n = o.bendStep; n <= v; n += o.bendStep) {
 		let a = Ui(B(t.sampleInto(W(e.t + n / s), 0, c, r.tmp).tangent) - u) * p;
+========
+	let _ = a ? q.drift.startYawFraction * Ei(a, .5) / Math.min(l, a.topSpeed * q.drift.planTop) : Infinity;
+	i.bendHalfWidth = r.here.halfWidth, i.kappaShort >= _ && (i.bendStart = 0);
+	let v = l * o.bendSeconds;
+	if (p !== 0) for (let n = o.bendStep; n <= v; n += o.bendStep) {
+		let a = Bi(V(t.sampleInto(G(e.t + n / s), 0, c, r.tmp).tangent) - u) * p;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		if (i.bendStart === Infinity && (a - g) / o.bendStep >= _ && (i.bendStart = n - o.bendStep / 2, i.bendHalfWidth = r.tmp.halfWidth), g = a, a > m + .001) m = a, h = n;
 		else if (a < m - o.bendBack) break;
 	}
 	i.bendAngle = m, i.bendMetres = h;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let y = Wi(e.speed), b = e.branch !== 0 || n.branchChoice > 0, x = qi(t), S = e.branch !== 0 && x[e.branch] || n.branchChoice > 0 && x[n.branchChoice];
+========
+	let y = Vi(e.speed), b = e.branch !== 0 || n.branchChoice > 0, x = Wi(t), S = e.branch !== 0 && x[e.branch] || n.branchChoice > 0 && x[n.branchChoice];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	i.branchAhead = 0, i.branchSide = 0;
 	let C = t.branches.list;
 	for (let n = 1; n < C.length; n++) {
 		let a = C[n];
 		if (!a.open) continue;
-		let o = G(a.entryT, e.t) * s, c = G(a.exitT, e.t) * s;
+		let o = K(a.entryT, e.t) * s, c = K(a.exitT, e.t) * s;
 		if ((o > -y && o < y || c > -y && c < y) && (b = !0, x[n] && (S = !0)), e.branch === 0 && o > 0 && o < y && i.branchAhead === 0) {
-			let e = W(a.entryT + a.span * .25), o = t.sampleInto(e, 0, n, r.tmp).position, s = t.sampleInto(e, 0, 0, r.ahead), c = (o[0] - s.position[0]) * s.tangent[2] - (o[2] - s.position[2]) * s.tangent[0];
+			let e = G(a.entryT + a.span * .25), o = t.sampleInto(e, 0, n, r.tmp).position, s = t.sampleInto(e, 0, 0, r.ahead), c = (o[0] - s.position[0]) * s.tangent[2] - (o[2] - s.position[2]) * s.tangent[0];
 			i.branchAhead = n, i.branchSide = c > .3 ? 1 : c < -.3 ? -1 : 0;
 		}
 	}
@@ -6376,6 +7353,7 @@ function Ji(e, t, n, r, i, a) {
 	let w = r.here.tangent, T = r.here.position;
 	return i.myLat = (e.position[0] - T[0]) * w[2] - (e.position[2] - T[2]) * w[0], i;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Yi(e, t, n, r, i, a) {
 	let o = K.line;
 	if (e.branch !== 0 || i.narrow || n.branchChoice > 0 || e.surface === "dirt" || e.surface === "mud") return 0;
@@ -6385,6 +7363,17 @@ function Yi(e, t, n, r, i, a) {
 	return J(c + l + u, -d, d);
 }
 function Xi(e, t, n, r, i, a) {
+========
+function Ki(e, t, n, r, i, a) {
+	let o = q.line;
+	if (e.branch !== 0 || i.narrow || n.branchChoice > 0 || e.surface === "dirt" || e.surface === "mud") return 0;
+	let s = i.halfWidth, c = n.personality.lateralBias * o.laneHalfFraction * s;
+	if (n.driftDir === 0 && n.driftPlan === 1 && Mi(e, t, r, i)) return -Math.sign(i.turnFar) * o.outsideFraction * s;
+	let l = Y(i.turnNear * o.insideGain, -o.insideBiasMax, o.insideBiasMax) * s, u = n.wanderAmp * L(2 * Math.PI * a / n.wanderPeriod + n.wanderPhase), d = o.lateralMaxFraction * s;
+	return Y(c + l + u, -d, d);
+}
+function qi(e, t, n, r, i, a) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (e.branch !== 0) {
 		n.branchChoice = 0;
 		return;
@@ -6396,22 +7385,110 @@ function Xi(e, t, n, r, i, a) {
 			n.branchChoice = 0;
 			return;
 		}
-		let r = G(t.entryT, e.t) * s;
-		(n.branchChoice > 0 ? r < -K.line.branchCommitMetres : r < 0) && (n.branchChoice = 0);
+		let r = K(t.entryT, e.t) * s;
+		(n.branchChoice > 0 ? r < -q.line.branchCommitMetres : r < 0) && (n.branchChoice = 0);
 		return;
 	}
 	for (let t = 1; t < o.length; t++) {
 		let c = o[t];
 		if (!c.open) continue;
-		let l = G(c.entryT, e.t) * s;
+		let l = K(c.entryT, e.t) * s;
 		if (l <= 0 || l > 2 * i.L) continue;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let u = c.lut.sample(.5, 0).halfWidth < K.line.narrowRoad, d = n.skill >= r.shortcutSkill;
 		n.branchChoice = (a === void 0 ? d && (n.rb >= K.rubber.shortcutRb || !u && (n.skill >= K.line.shortcutSure || Ei(n.seed, t, e.lap) < n.personality.aggression)) : c.id === a) ? t : -t;
+========
+		let u = c.lut.sample(.5, 0).halfWidth < q.line.narrowRoad, d = n.skill >= r.shortcutSkill;
+		n.branchChoice = (a === void 0 ? d && (n.rb >= q.rubber.shortcutRb || !u && (n.skill >= q.line.shortcutSure || Ci(n.seed, t, e.lap) < n.personality.aggression)) : c.id === a) ? t : -t;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		return;
 	}
 }
 //#endregion
+//#region src/ai-driver/items.ts
+function Ji(e, t) {
+	return Bi(It(t.position[0] - e.position[0], t.position[2] - e.position[2]) - e.heading);
+}
+function Yi(e, t) {
+	return R(e.position[0] - t.position[0], e.position[2] - t.position[2]);
+}
+var Xi = /* @__PURE__ */ new Set([
+	"forward",
+	"rearDrop",
+	"deception",
+	"runner"
+]);
+function Zi(e) {
+	let t = e.item;
+	return +(t.held !== "none" || t.rouletteRemaining > 0) + +(t.next !== "none" || t.nextRouletteRemaining > 0) + +(t.third !== "none" || t.thirdRouletteRemaining > 0);
+}
+function Qi(e) {
+	return e.boost.source === "item" && e.boost.remaining > 0 || e.boostQueue.source === "item" && e.boostQueue.remaining > 0;
+}
+function $i(e, t, n, r, i, a) {
+	let o = e.item.held, s = Zi(e), c = o !== "none" && o === t.lastItem && s < t.lastTaken;
+	if (t.lastTaken = s, o !== t.lastItem) return t.lastItem = o, t.itemHold = 0, t.itemPressed = t.itemTrailing = !1, t.reactionRemaining = o === "none" ? 0 : J(t, n.reactionMin, n.reactionMax) * (1 - t.skill), !1;
+	if (c) return t.itemPressed = t.itemTrailing = !1, t.reactionRemaining = q.items.followSeconds + J(t, n.reactionMin, n.reactionMax) * (1 - t.skill), !1;
+	if (o === "none" || e.item.rouletteRemaining > 0 || e.item.charges <= 0) return t.itemPressed = t.itemTrailing = !1, !1;
+	if (t.itemHold += a, t.reactionRemaining > 0) return t.reactionRemaining -= a, !1;
+	let l = i.roles[o];
+	if (!l) return !1;
+	if (t.itemPressed && !t.itemTrailing) return t.itemPressed = !1, !1;
+	let u = q.items, d = Infinity, f = Infinity, p = Infinity, m = Infinity, h = 0, g = B(e.heading);
+	for (let t of i.karts) {
+		if (t === e || t.isGhost || t.finishTick !== void 0) continue;
+		let n = Yi(e, t);
+		m = Math.min(m, n);
+		let r = t.position[0] - e.position[0], i = t.position[2] - e.position[2];
+		r * g[0] + i * g[2] > 0 ? (n < d && (h = Ji(e, t)), d = Math.min(d, n), Math.abs(Ji(e, t)) < u.forwardCone && (f = Math.min(f, n))) : p = Math.min(p, n);
+	}
+	let _ = Math.abs(r.turnFar) < u.straightTurn, v = e.surface === "dirt" || e.surface === "mud", y = t.itemHold >= u.holdMin, b;
+	switch (l) {
+		case "forward":
+			b = y && f <= u.forwardRange;
+			break;
+		case "homing":
+			b = y && d <= u.homingRange;
+			break;
+		case "rearDrop":
+		case "deception":
+			b = p <= u.rearRange * .5 || t.itemHold >= u.holdMax;
+			break;
+		case "defenceArea":
+			b = m <= u.defenceRadius || i.threatened;
+			break;
+		case "defenceHeld":
+			b = i.threatened || p <= u.rearRange;
+			break;
+		case "speed":
+			b = !Qi(e) && (y && _ || v || i.gap > u.speedItemGap);
+			break;
+		case "ride":
+			b = y;
+			break;
+		case "jump":
+			b = e.grounded ? i.threatened || d <= u.springRange || t.itemHold >= u.holdMax : m <= u.springRange;
+			break;
+		case "tether":
+			b = y && d >= u.anchorMin && d <= u.anchorMax && Math.abs(r.roadErr) < u.anchorAlign && Math.abs(h) < u.anchorAlign;
+			break;
+		case "runner":
+			b = y && d <= u.runnerRange;
+			break;
+		case "equaliser":
+			b = y && e.rank >= u.equaliserMinRank;
+			break;
+		case "chaos": b = !0;
+	}
+	if (Xi.has(l)) {
+		if (!b) return t.itemTrailing = t.itemPressed = !0, !0;
+		if (t.itemTrailing) return t.itemTrailing = t.itemPressed = !1, !1;
+	}
+	return b && (t.itemPressed = !0), b;
+}
+//#endregion
 //#region src/ai-driver/avoid.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Zi(e, t, n, r) {
 	let i = e.track.sampleInto(t, 0, n, e.sc.tmp), a = i.tangent, o = i.position;
 	return (r[0] - o[0]) * a[2] - (r[2] - o[2]) * a[0];
@@ -6424,11 +7501,26 @@ function $i(e, t, n, r) {
 }
 var ea = [], ta = [], na = [], ra = [], ia = [], aa = [], oa = 1e-6;
 function sa(e, t, n, r, i, a, o) {
+========
+function ea(e, t, n, r) {
+	let i = e.track.sampleInto(t, 0, n, e.sc.tmp), a = i.tangent, o = i.position;
+	return (r[0] - o[0]) * a[2] - (r[2] - o[2]) * a[0];
+}
+function ta(e, t) {
+	return e > .05 ? -1 : e < -.05 || t >= e ? 1 : -1;
+}
+function na(e, t, n, r) {
+	return Math.abs(e - t) >= n ? e : t + ta(t, r) * n;
+}
+var ra = [], ia = [], aa = [], oa = [], sa = [], ca = [], la = 1e-6;
+function ua(e, t, n, r, i, a, o) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let s = e, c = -1, l = !0, u = Infinity, d = !0, f = 2 * N.kartRadius, p = i * (i - 1) >> 1, m = 2 * (i + a + 1);
 	for (let h = 0; h < m + p; h++) {
 		let p;
 		if (h < m) {
 			let e = h >> 1, t = h & 1 ? 1 : -1;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			p = J(e < i ? ea[e] + t * r : e < i + a ? ia[e - i] + t * aa[e - i] : t * n, -n, n);
 		} else {
 			let e = h - m, t = 0;
@@ -6451,6 +7543,30 @@ function ca(e, t, n, r, i, a, o = 0) {
 		if (r === e || r.isGhost || r.branch !== e.branch) continue;
 		let i = G(r.t, e.t) * u;
 		i <= 0 || i > s.seekDistance || (na[g] = i, ra[g++] = Zi(t, r.t, r.branch, r.position));
+========
+			p = Y(e < i ? ra[e] + t * r : e < i + a ? sa[e - i] + t * ca[e - i] : t * n, -n, n);
+		} else {
+			let e = h - m, t = 0;
+			for (; e >= i - 1 - t;) e -= i - 1 - t, t++;
+			p = Y((ra[t] + ra[t + 1 + e]) / 2, -n, n);
+		}
+		let g = r, _ = !1, v = !1;
+		for (let e = 0; e < i; e++) g = Math.min(g, Math.abs(p - ra[e])), (ra[e] - t) * (ra[e] - p) < 0 && Math.abs(ra[e] - t) + f > ia[e] / Math.max(1, o) * q.avoid.crossRate && (v = !0);
+		g < f && (v = !0);
+		for (let e = 0; e < a; e++) Math.abs(p - sa[e]) < ca[e] - la && (_ = !0);
+		let y = Math.abs(p - e) + Math.abs(p - t);
+		(v === d ? g > c + la || g > c - la && (_ === l ? y < u : !_) : !v) && (s = p, c = g, l = _, u = y, d = v);
+	}
+	return s;
+}
+function da(e, t, n, r, i, a, o = 0) {
+	let s = q.avoid, { track: c, karts: l } = t, u = c.length, d = n.halfWidth, f = N.kartRadius, p = Math.max(.5, d - f - .2), m = Math.min(s.stoppedClearance, p), h = Math.min(2 * f + .3, p), g = 0;
+	for (let n = 0; n < l.length; n++) {
+		let r = l[n];
+		if (r === e || r.isGhost || r.branch !== e.branch) continue;
+		let i = K(r.t, e.t) * u;
+		i <= 0 || i > s.seekDistance || (aa[g] = i, oa[g++] = ea(t, r.t, r.branch, r.position));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	let _ = c.features, v = Infinity, y = a, b = 0, x = Infinity, S = Infinity, C = a;
 	for (let i = 0; i < _.length; i++) {
@@ -6463,21 +7579,24 @@ function ca(e, t, n, r, i, a, o = 0) {
 			if (n < 0 || t.coinStates[n].respawnRemaining > 0) continue;
 			l = 1;
 		} else if (c.kind === "pickup") {
-			let n = e.item.held !== "none" || e.item.rouletteRemaining > 0, r = e.item.next !== "none" || e.item.nextRouletteRemaining > 0;
-			if (n && r) continue;
-			let a = i < t.pickupOf.length ? t.pickupOf[i] : -1;
-			if (a < 0 || t.pickupStates[a].respawnRemaining > 0) continue;
+			if (Zi(e) >= 3) continue;
+			let n = i < t.pickupOf.length ? t.pickupOf[i] : -1;
+			if (n < 0 || t.pickupStates[n].respawnRemaining > 0) continue;
 			l = 2;
 		} else if (c.kind === "boostPad") {
 			if (r < s.padSkill) continue;
 			l = 3;
 		} else continue;
-		let p = G(c.t, e.t) * u;
+		let p = K(c.t, e.t) * u;
 		if (!(p <= 0 || p > s.seekDistance)) {
 			if (l === 2) {
 				if (Math.abs(c.lateral - n.myLat) > Math.max(s.seekLateral, p * s.seekSlope) || Math.abs(c.lateral) > d - f) continue;
 				let e = !1;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				for (let t = 0; t < g; t++) if (na[t] < p && Math.abs(ra[t] - c.lateral) < s.claimWidth) {
+========
+				for (let t = 0; t < g; t++) if (aa[t] < p && Math.abs(oa[t] - c.lateral) < s.claimWidth) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 					e = !0;
 					break;
 				}
@@ -6493,21 +7612,30 @@ function ca(e, t, n, r, i, a, o = 0) {
 	for (let r = 0; r < l.length; r++) {
 		let i = l[r];
 		if (i === e || i.isGhost) continue;
-		let o = G(i.t, e.t) * u;
+		let o = K(i.t, e.t) * u;
 		if (o <= 0 || o > s.stoppedLookAhead || i.branch !== e.branch) continue;
 		if (i.speed < s.slowKartSpeed || i.status.spinRemaining > 0 || i.status.intangibleRemaining > 0 || i.finishTick !== void 0) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			ta[w] = o, ea[w++] = Zi(t, i.t, i.branch, i.position);
 			continue;
 		}
 		if (o > s.avoidLookAhead) continue;
 		let c = Zi(t, i.t, i.branch, i.position);
 		n.narrow || n.nearBranch || o > s.passDistance || (e.speed - i.speed > s.passClosing || o < s.touchDistance ? a = $i(a, c, h, n.myLat) : x === Infinity && o <= N.slipstreamLength && Math.abs(a - c) < N.slipstreamHalfWidth && (a = c));
+========
+			ia[w] = o, ra[w++] = ea(t, i.t, i.branch, i.position);
+			continue;
+		}
+		if (o > s.avoidLookAhead) continue;
+		let c = ea(t, i.t, i.branch, i.position);
+		n.narrow || n.nearBranch || o > s.passDistance || (e.speed - i.speed > s.passClosing || o < s.touchDistance ? a = na(a, c, h, n.myLat) : x === Infinity && o <= N.slipstreamLength && Math.abs(a - c) < N.slipstreamHalfWidth && (a = c));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	if (i < 0 && n.branchAhead === -i && n.branchSide !== 0) {
-		let e = K.line.declineFraction * d;
+		let e = q.line.declineFraction * d;
 		a * -n.branchSide < e && (a = -n.branchSide * e);
 	}
-	let T = Math.abs(e.speed), E = Math.max(s.hazardLookAhead, T * s.hazardSeconds), D = T * K.drift.hazardSeconds, O = Math.sign(n.turnNear) * Math.max(0, d - K.drift.apexMargin), ee = Math.min(n.myLat, O), k = Math.max(n.myLat, O);
+	let T = Math.abs(e.speed), E = Math.max(s.hazardLookAhead, T * s.hazardSeconds), D = T * q.drift.hazardSeconds, O = Math.sign(n.turnNear) * Math.max(0, d - q.drift.apexMargin), ee = Math.min(n.myLat, O), k = Math.max(n.myLat, O);
 	n.hazardInLane = !1, n.dodging = !1, n.hopRing = !1;
 	let te = a, A = 0, ne = t.hazards;
 	if (ne.length) {
@@ -6516,21 +7644,29 @@ function ca(e, t, n, r, i, a, o = 0) {
 			let o = ne[i];
 			if (o.type === "gust" || o.type === "vent") continue;
 			if (o.ground) {
-				L(o.position[0] - e.position[0], o.position[2] - e.position[2]) - o.radius - f < T * s.ringHop && (n.hopRing = !0);
+				R(o.position[0] - e.position[0], o.position[2] - e.position[2]) - o.radius - f < T * s.ringHop && (n.hopRing = !0);
 				continue;
 			}
-			let l = o.type === "static" || o.type === "falling", m = o.type === "rolling" ? s.rollingLookAhead : l ? E : s.hazardLookAhead, h = c.nearestT(o.position, e.t, r), g = G(h, e.t) * u;
+			let l = o.type === "static" || o.type === "falling", m = o.type === "rolling" ? s.rollingLookAhead : l ? E : s.hazardLookAhead, h = c.nearestT(o.position, e.t, r), g = K(h, e.t) * u;
 			if (g <= 0 || g > (l ? Math.max(m, D) : m)) continue;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let _ = Zi(t, h, 0, o.position);
 			if (Math.abs(_) > d + o.radius) continue;
 			let v = Math.min(s.dodgeClearance + o.radius, p);
 			l && _ > ee - v && _ < k + v && (n.hazardInLane = !0), !(g > m) && (a = $i(a, _, v, n.myLat), l && (ia[A] = _, aa[A++] = v));
+========
+			let _ = ea(t, h, 0, o.position);
+			if (Math.abs(_) > d + o.radius) continue;
+			let v = Math.min(s.dodgeClearance + o.radius, p);
+			l && _ > ee - v && _ < k + v && (n.hazardInLane = !0), !(g > m) && (a = na(a, _, v, n.myLat), l && (sa[A] = _, ca[A++] = v));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		}
 	}
 	let j = c.def.hazards;
 	if (j) for (let t = 0; t < j.length; t++) {
 		let r = j[t];
 		if (r.type !== "rolling" && r.type !== "falling") continue;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let i = G(r.t, e.t) * u, o = Math.min(s.dodgeClearance + U.hazardRadius, p);
 		r.type === "rolling" && i > 0 && i - (r.speed ?? 0) * (r.period ?? 1) < s.stoppedLookAhead && (ia[A] = r.lateral ?? 0, aa[A++] = o), r.type === "falling" && i > 0 && i < D && (r.lateral ?? 0) > ee - o && (r.lateral ?? 0) < k + o && (n.hazardInLane = !0), !(i < -s.spawnBehind || i > s.hazardLookAhead) && (a = $i(a, r.lateral ?? 0, o, n.myLat), ia[A] = r.lateral ?? 0, aa[A++] = o);
 	}
@@ -6616,6 +7752,19 @@ function fa(e, t, n, r, i, a) {
 //#endregion
 //#region src/ai-driver/personalities.ts
 var pa = Object.freeze({
+========
+		let i = K(r.t, e.t) * u, o = Math.min(s.dodgeClearance + W.hazardRadius, p);
+		r.type === "rolling" && i > 0 && i - (r.speed ?? 0) * (r.period ?? 1) < s.stoppedLookAhead && (sa[A] = r.lateral ?? 0, ca[A++] = o), r.type === "falling" && i > 0 && i < D && (r.lateral ?? 0) > ee - o && (r.lateral ?? 0) < k + o && (n.hazardInLane = !0), !(i < -s.spawnBehind || i > s.hazardLookAhead) && (a = na(a, r.lateral ?? 0, o, n.myLat), sa[A] = r.lateral ?? 0, ca[A++] = o);
+	}
+	let M = Math.max(0, Math.min(d - q.line.edgeMargin, d - f - .3));
+	Math.abs(a - te) > la && (n.dodging = !0), a = Y(a, -M, M);
+	for (let e = 0; e < w; e++) if (Math.abs(a - ra[e]) < m - la) return n.dodging = !0, ua(a, n.myLat, M, m, w, A, T);
+	return a;
+}
+//#endregion
+//#region src/ai-driver/personalities.ts
+var fa = Object.freeze({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	pip: {
 		lateralBias: -.2,
 		aggression: .7,
@@ -6657,16 +7806,22 @@ var pa = Object.freeze({
 		driftUse: .5
 	}
 });
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ma(e, t) {
 	let n = pa[e];
+========
+function pa(e, t) {
+	let n = fa[e];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return n ? { ...n } : {
-		lateralBias: q(t, -.5, .5),
-		aggression: q(t, .3, .7),
-		driftUse: q(t, .5, .9)
+		lateralBias: J(t, -.5, .5),
+		aggression: J(t, .3, .7),
+		driftUse: J(t, .5, .9)
 	};
 }
 //#endregion
 //#region src/ai-driver/rubber.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ha(e, t = K.rubber.min) {
 	let n = K.rubber, r = Math.abs(e);
 	if (r <= n.deadZone) return 1;
@@ -6682,6 +7837,23 @@ function _a(e, t) {
 	return e.power * (n < 1 ? n : 1);
 }
 var va = {
+========
+function ma(e, t = q.rubber.min) {
+	let n = q.rubber, r = Math.abs(e);
+	if (r <= n.deadZone) return 1;
+	let i = Dn((r - n.deadZone) / n.scale), a = t > n.min ? t : n.min;
+	return e > 0 ? 1 + (n.max - 1) * i : 1 - (1 - a) * i;
+}
+function ha(e, t) {
+	let n = e.skill + (t - 1) * q.rubber.skillGain;
+	return n < 0 ? 0 : n > 1 ? 1 : n;
+}
+function ga(e, t) {
+	let n = t / q.rubber.powerFrom;
+	return e.power * (n < 1 ? n : 1);
+}
+var _a = {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	$schema: "https://json-schema.org/draft/2020-12/schema",
 	$id: "cups.schema.json",
 	title: "Cups, Knockout sets and Grand Prix scoring",
@@ -6784,6 +7956,7 @@ var va = {
 };
 //#endregion
 //#region src/race-manager/constants.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ya(e) {
 	let t = {};
 	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = ya(r.properties));
@@ -6791,20 +7964,37 @@ function ya(e) {
 }
 var Y = Object.freeze(ya(Jr.properties.constants.properties));
 Object.freeze([...va.properties.gpPointsByRank.default]), Object.freeze([...va.properties.knockoutSets.items.properties.cutLines.default]), va.properties.knockoutSets.items.properties.lapsPerSegment.default, Object.freeze([
+========
+function va(e) {
+	let t = {};
+	for (let [n, r] of Object.entries(e)) "default" in r ? t[n] = structuredClone(r.default) : r.type === "object" && r.properties && (t[n] = va(r.properties));
+	return t;
+}
+var X = Object.freeze(va(Gr.properties.constants.properties));
+Object.freeze([..._a.properties.gpPointsByRank.default]), Object.freeze([..._a.properties.knockoutSets.items.properties.cutLines.default]), _a.properties.knockoutSets.items.properties.lapsPerSegment.default, Object.freeze([
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	.6,
 	.8,
 	1
 ]);
 //#endregion
 //#region src/ai-driver/speed.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ba(e) {
 	return .55 + .35 * e;
 }
 function xa(e, t, n, r, i) {
+========
+function ya(e) {
+	return .55 + .35 * e;
+}
+function ba(e, t, n, r, i) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (e <= 1e-6) return Infinity;
 	let a = n.steerRate * r * (i ? n.driftSteerMax / (1 - n.steerFalloff) : 1);
 	return a / (e + a * n.steerFalloff / t);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Sa(e, t, n, r, i, a) {
 	let o = Pr(e, t), s = o.target, c = e.drift.phase === "drifting" || i, l = ba(n.skill) * (r.narrow ? K.line.narrowMargin : 1) * (r.airAhead && !c ? K.line.airMargin : 1), u = xa(r.kappa, o.base, t, l, c);
 	a.legal = s, a.corner = u, a.target = Math.min(n.powerCap * n.fieldPace * s, Math.max(u, Ca));
@@ -6814,6 +8004,17 @@ function Sa(e, t, n, r, i, a) {
 var Ca = 4;
 function wa(e, t, n, r) {
 	if (r.brake = 0, e.speed <= Y.stuckSpeed) {
+========
+function xa(e, t, n, r, i, a) {
+	let o = jr(e, t), s = o.target, c = e.drift.phase === "drifting" || i, l = ya(n.skill) * (r.narrow ? q.line.narrowMargin : 1) * (r.airAhead && !c ? q.line.airMargin : 1), u = ba(r.kappa, o.base, t, l, c);
+	a.legal = s, a.corner = u, a.target = Math.min(n.powerCap * n.fieldPace * s, Math.max(u, Sa));
+	let d = Math.sign(r.turnNear);
+	return !c && d !== 0 && e.grounded && r.halfWidth - r.myLat * -d < q.line.edgeLift && r.roadErr * d > 0 && (a.target = Math.min(a.target, Math.max(Sa, e.speed - q.line.edgeShed))), a;
+}
+var Sa = 4;
+function Ca(e, t, n, r) {
+	if (r.brake = 0, e.speed <= X.stuckSpeed) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		r.throttle = 1;
 		return;
 	}
@@ -6825,6 +8026,7 @@ function wa(e, t, n, r) {
 }
 //#endregion
 //#region src/ai-driver/steer.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ta(e, t) {
 	return Ui(zt(t[0] - e.position[0], t[2] - e.position[2]) - e.heading);
 }
@@ -6843,6 +8045,26 @@ function Da(e, t, n, r) {
 //#endregion
 //#region src/ai-driver/types.ts
 function Oa() {
+========
+function wa(e, t) {
+	return Bi(It(t[0] - e.position[0], t[2] - e.position[2]) - e.heading);
+}
+function Ta(e, t, n, r, i, a, o) {
+	let s = q.steer, c = wa(e, t), l = Y((c - n.prevErr) / o, -s.dErrMax, s.dErrMax);
+	n.prevErr = c, n.noise += (J(n, -r, r) - n.noise) * s.noiseSmoothing;
+	let u = Y(s.kLat * a, -s.kLatMax, s.kLatMax);
+	return Y((s.kP * c + s.kD * l + u) * i + n.noise, -1, 1);
+}
+//#endregion
+//#region src/ai-driver/recover.ts
+function Ea(e, t, n, r) {
+	let i = q.recover;
+	return t.recovery === "reverse" ? (t.recoverTimer -= r, n.throttle = 0, n.brake = 1, n.drift = !1, n.steer = t.prevErr > 0 ? -1 : 1, t.recoverTimer <= 1e-9 && (t.recovery = "cooldown", t.recoverTimer = i.cooldownSeconds), !0) : t.recovery === "cooldown" ? (t.recoverTimer -= r, t.recoverTimer <= 1e-9 && (t.recovery = "none", t.recoverTimer = 0), t.stuckSeconds = 0, !1) : (t.stuckSeconds = e.grounded && e.status.spinRemaining === 0 && e.status.intangibleRemaining === 0 && Math.abs(e.speed) < X.stuckSpeed ? t.stuckSeconds + r : 0, t.stuckSeconds + 1e-9 >= i.stuckSeconds && (t.stuckSeconds = 0, t.recovery = "reverse", t.recoverTimer = i.reverseSeconds, t.driftDir = 0, n.throttle = 0, n.brake = 1, n.drift = !1, n.steer = t.prevErr > 0 ? -1 : 1, !0));
+}
+//#endregion
+//#region src/ai-driver/types.ts
+function Da() {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		position: [
 			0,
@@ -6865,6 +8087,7 @@ function Oa() {
 		gripScale: 1
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ka() {
 	return {
 		ahead: Oa(),
@@ -6876,6 +8099,19 @@ function ka() {
 	};
 }
 function Aa() {
+========
+function Oa() {
+	return {
+		ahead: Da(),
+		near: Da(),
+		far: Da(),
+		here: Da(),
+		short: Da(),
+		tmp: Da()
+	};
+}
+function ka() {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		L: 0,
 		turnNear: 0,
@@ -6910,6 +8146,7 @@ function Aa() {
 }
 //#endregion
 //#region src/ai-driver/driver.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var ja = 625341585, Ma = Object.freeze({
 	...vi.normal,
 	skill: K.autopilot.skill,
@@ -6920,6 +8157,18 @@ function Na(e, t, n, r, i, a) {
 		seed: xi(e, t),
 		rng: xi(e, t),
 		driftRng: xi(e, t) ^ ja,
+========
+var Aa = 625341585, ja = Object.freeze({
+	...hi.normal,
+	skill: q.autopilot.skill,
+	power: q.autopilot.power
+});
+function Ma(e, t, n, r, i, a) {
+	let o = {
+		seed: vi(e, t),
+		rng: vi(e, t),
+		driftRng: vi(e, t) ^ Aa,
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		personality: {
 			lateralBias: 0,
 			aggression: 0,
@@ -6949,6 +8198,7 @@ function Na(e, t, n, r, i, a) {
 		stuckSeconds: 0,
 		reactionRemaining: 0,
 		lastItem: "none",
+		lastTaken: 0,
 		itemHold: 0,
 		itemPressed: !1,
 		itemTrailing: !1,
@@ -6956,9 +8206,15 @@ function Na(e, t, n, r, i, a) {
 		lateral: 0,
 		balloonPick: 0
 	};
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	return o.personality = a ? { ...a } : ma(n, o), o.startPress = r.startPressMean + q(o, -r.startPressSpread, r.startPressSpread), o.wanderAmp = q(o, K.line.wanderAmpMin, K.line.wanderAmpMax), o.wanderPeriod = q(o, K.line.wanderPeriodMin, K.line.wanderPeriodMax), o.wanderPhase = q(o, 0, 2 * Math.PI), o.balloonPick = Math.max(-1, Math.min(1, o.personality.lateralBias + q(o, -K.avoid.pickSpread, K.avoid.pickSpread))), o;
 }
 var Pa = class {
+========
+	return o.personality = a ? { ...a } : pa(n, o), o.startPress = r.startPressMean + J(o, -r.startPressSpread, r.startPressSpread), o.wanderAmp = J(o, q.line.wanderAmpMin, q.line.wanderAmpMax), o.wanderPeriod = J(o, q.line.wanderPeriodMin, q.line.wanderPeriodMax), o.wanderPhase = J(o, 0, 2 * Math.PI), o.balloonPick = Math.max(-1, Math.min(1, o.personality.lateralBias + J(o, -q.avoid.pickSpread, q.avoid.pickSpread))), o;
+}
+var Na = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	track;
 	profile;
 	onlyShortcut;
@@ -6966,8 +8222,13 @@ var Pa = class {
 	consts;
 	outputs;
 	playerIndex;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	sc = ka();
 	line = Aa();
+========
+	sc = Oa();
+	line = ka();
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	speed = {
 		legal: 0,
 		target: 0,
@@ -6977,6 +8238,7 @@ var Pa = class {
 	itemCtx;
 	threatened = [];
 	constructor(e, t, n, r = {}) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		this.track = e, this.profile = r.profile ?? vi[yi(t.speedClass)], this.onlyShortcut = r.onlyShortcut;
 		let i = new Map(t.racers.map((e) => [e.racerId, e])), a = n.karts;
 		this.consts = a.map((e) => {
@@ -6990,6 +8252,21 @@ var Pa = class {
 		}
 		let l = new Map(o.map((e, t) => [e, s[t]]));
 		this.memory = a.map((e, t) => Na(n.seed, n.trackers[t]?.gridSlot ?? t, e.racerId, this.profile, l.get(t) ?? 1, r.personalities?.[e.racerId]));
+========
+		this.track = e, this.profile = r.profile ?? hi[gi(t.speedClass)], this.onlyShortcut = r.onlyShortcut;
+		let i = new Map(t.racers.map((e) => [e.racerId, e])), a = n.karts;
+		this.consts = a.map((e) => {
+			let n = i.get(e.racerId);
+			return ue(n?.archetype ?? "medium", t.speedClass, e.racerId, n?.kartId);
+		}), this.outputs = a.map(() => ({ ...On })), this.playerIndex = a.findIndex((e) => e.isPlayer);
+		let o = a.map((e, t) => t).filter((e) => !a[e].isPlayer && !a[e].isGhost), s = o.map((e, t) => 1 - q.rubber.fieldPaceSpread * t / Math.max(1, o.length - 1)), c = { rng: vi(n.seed, 24301) };
+		for (let e = s.length - 1; e > 0; e--) {
+			let t = Math.floor(wi(c) * (e + 1));
+			[s[e], s[t]] = [s[t], s[e]];
+		}
+		let l = new Map(o.map((e, t) => [e, s[t]]));
+		this.memory = a.map((e, t) => Ma(n.seed, n.trackers[t]?.gridSlot ?? t, e.racerId, this.profile, l.get(t) ?? 1, r.personalities?.[e.racerId]));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let u = [], d = [], f = 0, p = 0;
 		for (let t of e.features) u.push(t.kind === "pickup" ? f++ : -1), d.push(t.kind === "coin" ? p++ : -1);
 		this.avoidCtx = {
@@ -7027,13 +8304,18 @@ var Pa = class {
 		}
 	}
 	drive(e, t, n, r, i) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let a = this.memory[n], o = this.consts[n], s = Lr, c = t.finishTick !== void 0, l = c ? Ma : this.profile;
+========
+		let a = this.memory[n], o = this.consts[n], s = Pr, c = t.finishTick !== void 0, l = c ? ja : this.profile;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		if (i.steer = 0, i.throttle = 0, i.brake = 0, i.drift = !1, i.item = !1, i.lookBack = !1, i.horn = !1, e.phase === "countdown") {
 			i.throttle = +(e.time >= -a.startPress);
 			return;
 		}
 		if (t.status.spinRemaining > 0) return;
 		let u = r && !c ? r.distanceAlong - t.distanceAlong : 0;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		a.rb = ha(u, l.rbMin), a.skill = ga(l, a.rb), a.powerCap = _a(l, a.rb);
 		let d = Ji(t, this.track, a, this.sc, this.line, o);
 		Xi(t, this.track, a, l, d, this.onlyShortcut), c || Ri(t, o, a, l, d);
@@ -7045,18 +8327,40 @@ var Pa = class {
 		i.steer = Ea(t, h, a, l.noise * (1 - a.skill), g ? K.steer.offroadGain : 1, a.lateral - d.myLat, s);
 		let _ = Sa(t, o, a, d, !c && a.driftDir === 0 && a.driftCooldown === 0 && a.driftPlan === 1 && !d.narrow && !d.nearNarrowBranch && !d.airAhead && Pi(t, o, l, d), this.speed);
 		wa(t, _, l, i), c || (zi(t, o, a, l, d, _.legal, i, s), Hi(t, a, l, i, d), d.hopRing && a.driftDir === 0 && t.grounded && t.drift.phase === "idle" && !t.prevDrift && a.skill >= K.avoid.ringSkill && (i.drift = !0)), c || (this.itemCtx.gap = u, this.itemCtx.threatened = this.threatened[n] === !0, i.item = fa(t, a, l, d, this.itemCtx, s)), Da(t, a, i, s);
+========
+		a.rb = ma(u, l.rbMin), a.skill = ha(l, a.rb), a.powerCap = ga(l, a.rb);
+		let d = Gi(t, this.track, a, this.sc, this.line, o);
+		qi(t, this.track, a, l, d, this.onlyShortcut), c || Fi(t, o, a, l, d);
+		let f = Ki(t, o, a, l, d, e.tick / 120);
+		f = da(t, this.avoidCtx, d, a.skill, a.branchChoice, f, a.balloonPick);
+		let p = q.line.laneRate * s, m = f - a.lateral;
+		a.lateral += m > p ? p : m < -p ? -p : m;
+		let h = this.track.sampleInto(G(t.t + d.L / this.track.length), a.lateral, d.branch, this.sc.ahead).position, g = t.surface === "dirt" || t.surface === "mud";
+		i.steer = Ta(t, h, a, l.noise * (1 - a.skill), g ? q.steer.offroadGain : 1, a.lateral - d.myLat, s);
+		let _ = xa(t, o, a, d, !c && a.driftDir === 0 && a.driftCooldown === 0 && a.driftPlan === 1 && !d.narrow && !d.nearNarrowBranch && !d.airAhead && ji(t, o, l, d), this.speed);
+		Ca(t, _, l, i), c || (Ii(t, o, a, l, d, _.legal, i, s), zi(t, a, l, i, d), d.hopRing && a.driftDir === 0 && t.grounded && t.drift.phase === "idle" && !t.prevDrift && a.skill >= q.avoid.ringSkill && (i.drift = !0)), c || (this.itemCtx.gap = u, this.itemCtx.threatened = this.threatened[n] === !0, i.item = $i(t, a, l, d, this.itemCtx, s)), Ea(t, a, i, s);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 };
 //#endregion
 //#region src/track-builder/features.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Fa(e, t) {
+========
+function Pa(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (!t) return 0;
 	let n = e.byId(t);
 	if (!n) throw Error(`feature names unknown shortcut "${t}"`);
 	return n.index;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ia(e, t, n, r, i, a) {
 	let o = Fa(e, r.shortcut), s = r.lateral ?? 0, c = r.t, l = e.sample(c, s, o);
+========
+function Fa(e, t, n, r, i, a) {
+	let o = Pa(e, r.shortcut), s = r.lateral ?? 0, c = r.t, l = e.sample(c, s, o);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		id: n,
 		kind: t,
@@ -7068,6 +8372,7 @@ function Ia(e, t, n, r, i, a) {
 		launch: a
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function La(e, t) {
 	let n = [];
 	return (e.pickups ?? []).forEach((e, r) => n.push({
@@ -7079,12 +8384,26 @@ function Ra(e, t) {
 	let n = t.shape === "hump";
 	return {
 		...Ia(e, "jump", t.id, t, t.width ?? U.boostPadWidth, t.launch),
+========
+function Ia(e, t) {
+	let n = [];
+	return (e.pickups ?? []).forEach((e, r) => n.push({
+		...Fa(t, "pickup", `pickup-${r}`, e, W.balloonRadius * 2, 0),
+		...e.double ? { double: !0 } : {}
+	})), (e.coins ?? []).forEach((e, r) => n.push(Fa(t, "coin", `coin-${r}`, e, W.coinRadius * 2, 0))), (e.boostPads ?? []).forEach((e, r) => n.push(Fa(t, "boostPad", `pad-${r}`, e, e.width ?? W.boostPadWidth, 0))), (e.jumps ?? []).forEach((e) => n.push(La(t, e))), n;
+}
+function La(e, t) {
+	let n = t.shape === "hump";
+	return {
+		...Fa(e, "jump", t.id, t, t.width ?? W.boostPadWidth, t.launch),
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		shape: n ? "hump" : "ramp",
-		run: t.run ?? (n ? U.humpRun : U.rampRun),
-		rise: t.rise ?? (n ? U.humpRise : U.rampRise),
-		...n ? { edge: U.humpEdge } : {}
+		run: t.run ?? (n ? W.humpRun : W.rampRun),
+		rise: t.rise ?? (n ? W.humpRise : W.rampRise),
+		...n ? { edge: W.humpEdge } : {}
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function za(e, t, n, r) {
 	let i = e.sample(t, 0, n), a = i.tangent[2], o = -i.tangent[0], s = L(a, o) || 1;
 	return ((r[0] - i.position[0]) * a + (r[2] - i.position[2]) * o) / s;
@@ -7096,6 +8415,19 @@ function Ba(e, t) {
 	}
 }
 function Va(e) {
+========
+function Ra(e, t, n, r) {
+	let i = e.sample(t, 0, n), a = i.tangent[2], o = -i.tangent[0], s = R(a, o) || 1;
+	return ((r[0] - i.position[0]) * a + (r[2] - i.position[2]) * o) / s;
+}
+function za(e, t) {
+	for (let n of e) {
+		let e = t.list[n.branch] ?? t.main;
+		n.t = e.nearestGlobal(n.position).t, n.lateral = Ra(t, n.t, e.index, n.position);
+	}
+}
+function Ba(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return e.filter((e) => e.kind === "jump").map((e) => ({
 		id: e.id,
 		t: e.t,
@@ -7107,7 +8439,11 @@ function Va(e) {
 		...e.edge ? { edge: e.edge } : {}
 	}));
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ha(e) {
+========
+function Va(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return e.filter((e) => e.kind === "boostPad").map((e) => ({
 		t: e.t,
 		lateral: e.lateral,
@@ -7117,28 +8453,41 @@ function Ha(e) {
 }
 //#endregion
 //#region src/track-builder/shift.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Ua = (e, t, n) => W(e - t) <= W(n - t), Wa = 2;
 function Ga(e, t, n) {
 	let r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Map();
 	for (let a of n) {
 		let n = [];
 		for (let r = 0; r < e.length; r++) Ua(t[r], a.fromT, a.toT) && n.push(r);
+========
+var Ha = (e, t, n) => G(e - t) <= G(n - t), Ua = 2;
+function Wa(e, t, n) {
+	let r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Map();
+	for (let a of n) {
+		let n = [];
+		for (let r = 0; r < e.length; r++) Ha(t[r], a.fromT, a.toT) && n.push(r);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let o;
 		if (n.length) {
-			n.sort((e, n) => W(t[e] - a.fromT) - W(t[n] - a.fromT)), o = n[0];
+			n.sort((e, n) => G(t[e] - a.fromT) - G(t[n] - a.fromT)), o = n[0];
 			for (let e of n) r.add(e);
 		} else {
 			o = 0;
 			let n = Infinity;
 			for (let r = 0; r < e.length; r++) {
-				let e = W(t[r] - a.toT);
+				let e = G(t[r] - a.toT);
 				e < n && (n = e, o = r);
 			}
 		}
 		i.set(o, [...i.get(o) ?? [], ...a.controlPoints]);
 		for (let t of [a.controlPoints[0], a.controlPoints[a.controlPoints.length - 1]]) if (t) for (let n = 0; n < e.length; n++) {
 			let i = e[n];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			R(i.x - t.x, i.y - t.y, i.z - t.z) < Wa * t.halfWidth && r.add(n);
+========
+			z(i.x - t.x, i.y - t.y, i.z - t.z) < Ua * t.halfWidth && r.add(n);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		}
 	}
 	let a = [];
@@ -7148,7 +8497,11 @@ function Ga(e, t, n) {
 	}
 	return a;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ka(e, t = []) {
+========
+function Ga(e, t = []) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (e.shifted) return;
 	e.shifted = !0;
 	let n = e.def.finalLapShift, r = e.branches, i = r.main, a = [], o = n.routeOverrides ?? [];
@@ -7158,13 +8511,23 @@ function Ka(e, t = []) {
 			e.y,
 			e.z
 		]));
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		e.controlPoints = Ga(e.controlPoints, s, o);
 		let c = r.list.map((e) => e.lut);
 		i.lut = li(e.controlPoints), qa(i.lut, c);
+========
+		e.controlPoints = Wa(e.controlPoints, s, o);
+		let c = r.list.map((e) => e.lut);
+		i.lut = oi(e.controlPoints), Ka(i.lut, c);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (let e of o) a.push([e.fromT, e.toT]);
-		for (let e of r.list) e.isMain || (e.entryT = i.lut.nearestTGlobal(e.entryPoint), e.exitT = i.lut.nearestTGlobal(e.exitPoint), e.span = W(e.exitT - e.entryT));
+		for (let e of r.list) e.isMain || (e.entryT = i.lut.nearestTGlobal(e.entryPoint), e.exitT = i.lut.nearestTGlobal(e.exitPoint), e.span = G(e.exitT - e.entryT));
 		e.startT = i.lut.nearestTGlobal(e.startPoint);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let l = (e) => o.some((t) => Ua(e, t.fromT, t.toT));
+========
+		let l = (e) => o.some((t) => Ha(e, t.fromT, t.toT));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		e.openEdges = e.openEdges.filter((e) => !l(e.fromT) && !l(e.toT)).map((e) => ({
 			...e,
 			fromT: i.lut.nearestTGlobal(e.fromPoint),
@@ -7177,6 +8540,7 @@ function Ka(e, t = []) {
 		t.forEach((e, t) => {
 			let a = r.list[e.branch];
 			if (e.branch > 0 && a) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let i = Za(r, e.position);
 				i >= 0 ? (e.t = i, e.branch = 0) : e.t = a.toMain(n[t]);
 			} else e.t = i.lut.nearestTGlobal(e.position), e.branch = 0;
@@ -7185,6 +8549,16 @@ function Ka(e, t = []) {
 	for (let e of n.surfaceOverrides ?? []) {
 		let t = ii(e.surface), n = i.lut;
 		for (let r = 0; r < n.n; r++) Ua(r / n.n, e.fromT, e.toT) && (n.surface[r] = t);
+========
+				let i = Xa(r, e.position);
+				i >= 0 ? (e.t = i, e.branch = 0) : e.t = a.toMain(n[t]);
+			} else e.t = i.lut.nearestTGlobal(e.position), e.branch = 0;
+		}), za(e.features, r), e.hazards.rederive();
+	}
+	for (let e of n.surfaceOverrides ?? []) {
+		let t = ti(e.surface), n = i.lut;
+		for (let r = 0; r < n.n; r++) Ha(r / n.n, e.fromT, e.toT) && (n.surface[r] = t);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		a.push([e.fromT, e.toT]);
 	}
 	let s = n.gripMultiplier ?? 1;
@@ -7197,7 +8571,11 @@ function Ka(e, t = []) {
 		let t = r.byId(e);
 		t && (t.forcedOpen = !0);
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	for (let t of n.addsJumps ?? []) e.features.push(Ra(r, t));
+========
+	for (let t of n.addsJumps ?? []) e.features.push(La(r, t));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let t of n.enablesHazards ?? []) e.hazards.setEnabled(t, !0);
 	for (let t of n.disablesHazards ?? []) e.hazards.setEnabled(t, !1);
 	e.rebuildDerived();
@@ -7209,16 +8587,24 @@ function Ka(e, t = []) {
 		fogDensity: n.fogDensity,
 		musicVariant: n.musicVariant,
 		length: i.lut.length,
-		changedRanges: a.map(([e, t]) => [W(e), W(t)])
+		changedRanges: a.map(([e, t]) => [G(e), G(t)])
 	};
 	return e.emit(c), c;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function qa(e, t) {
+========
+function Ka(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let n = e.n, r = e.length / e.step, i = new Float64Array(n), a = new Float64Array(n), o = new Uint8Array(n);
 	for (let r = 0; r < n; r++) {
 		let n = Infinity;
 		for (let o of t) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let t = Xa(o, e, r);
+========
+			let t = Ya(o, e, r);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			t && t.gap < n && (n = t.gap, i[r] = t.y - e.py[r], a[r] = t.bank - e.bank[r]);
 		}
 		o[r] = +(n < 0);
@@ -7243,15 +8629,24 @@ function qa(e, t) {
 	}
 	e.refreshFrames();
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Ja = {
 	y: 0,
 	bank: 0,
 	gap: 0
 }, Ya = [
+========
+var qa = {
+	y: 0,
+	bank: 0,
+	gap: 0
+}, Ja = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	0,
 	0,
 	0
 ];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Xa(e, t, n) {
 	Ya[0] = t.px[n], Ya[1] = t.py[n], Ya[2] = t.pz[n];
 	let r = e.nearestT(Ya, e.nearestTGlobal(Ya), U.globalSearchStep / e.step);
@@ -7272,6 +8667,28 @@ function Qa(e, t, n) {
 	return Ua(e, t, n) || G(e, t) === 0;
 }
 var $a = {
+========
+function Ya(e, t, n) {
+	Ja[0] = t.px[n], Ja[1] = t.py[n], Ja[2] = t.pz[n];
+	let r = e.nearestT(Ja, e.nearestTGlobal(Ja), W.globalSearchStep / e.step);
+	if (!e.closed && (r <= 0 || r >= 1)) {
+		let t = r <= 0 ? 0 : e.n - 1;
+		if (((Ja[0] - e.px[t]) * e.tx[t] + (Ja[2] - e.pz[t]) * e.tz[t]) * (r <= 0 ? -1 : 1) > 0) return null;
+	}
+	let i = e.norm(r) * e.step, a = Math.floor(i), o = e.idx(a), s = e.idx(a + 1), c = i - a, l = 1 - c, u = e.px[o] * l + e.px[s] * c, d = e.py[o] * l + e.py[s] * c, f = e.pz[o] * l + e.pz[s] * c, p = e.tx[o] * l + e.tx[s] * c, m = e.ty[o] * l + e.ty[s] * c, h = e.tz[o] * l + e.tz[s] * c, g = R(p, h) || 1, _ = h / g, v = -p / g, y = e.bank[o] * l + e.bank[s] * c, b = e.hw[o] * l + e.hw[s] * c + W.kerbWidth, x = (Ja[0] - u) * _ + (Ja[2] - f) * v, S = d - Math.max(-b, Math.min(b, x)) * mt(y);
+	if (Math.abs(S - Ja[1]) > W.tunnelApex) return null;
+	let C = t.rx[n] * _ + t.rz[n] * v, w = (t.rx[n] * p + t.rz[n] * h) / g;
+	return qa.y = S, qa.bank = kt(mt(y) * C - m / g * w), qa.gap = Math.abs(x) - b - (t.hw[n] + W.kerbWidth) * Math.abs(C), qa;
+}
+function Xa(e, t) {
+	let n = e.main, r = n.nearestGlobal(t);
+	return Math.sqrt(r.d2) <= n.halfWidthAt(r.t) ? r.t : -1;
+}
+function Za(e, t, n) {
+	return Ha(e, t, n) || K(e, t) === 0;
+}
+var Qa = {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	$schema: "https://json-schema.org/draft/2020-12/schema",
 	$id: "item.schema.json",
 	title: "ItemDefinition and distribution table",
@@ -7527,10 +8944,17 @@ var $a = {
 };
 //#endregion
 //#region src/items/data.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function X(e) {
 	return $a.properties[e].default;
 }
 var eo = Object.freeze([
+========
+function Z(e) {
+	return Qa.properties[e].default;
+}
+var $a = Object.freeze([
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	{
 		id: "beachBall",
 		name: "Beach Ball",
@@ -7738,7 +9162,11 @@ var eo = Object.freeze([
 		icon: "wind-up-mouse",
 		sfx: "mouse-scurry"
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 ]), to = Object.freeze([
+========
+]), eo = Object.freeze([
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	{
 		beachBall: 20,
 		oilCan: 30,
@@ -7809,6 +9237,7 @@ var eo = Object.freeze([
 		strikeBall: 50,
 		fogBank: 20
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 ]), no = eo.map((e) => e.id), ro = Object.freeze({
 	rouletteSeconds: X("rouletteSeconds"),
 	items: [...eo],
@@ -7845,20 +9274,66 @@ function ao(e, t, n, r) {
 }
 function oo(e, t, n, r) {
 	let i = e.sample(t, 0, n).position, a = ao(e, t, n, [
+========
+]), to = $a.map((e) => e.id), no = Object.freeze({
+	rouletteSeconds: Z("rouletteSeconds"),
+	items: [...$a],
+	table: [...eo],
+	lockoutSeconds: Z("lockoutSeconds"),
+	finalLapLockoutSeconds: Z("finalLapLockoutSeconds"),
+	lockedDuringLockout: ["fogBank", "strikeBall"],
+	knockoutPoolByRacers: {
+		8: to,
+		6: to,
+		4: to.filter((e) => e !== "fogBank" && e !== "strikeBall"),
+		2: to.filter((e) => e !== "fogBank" && e !== "decoyBalloon" && e !== "strikeBall")
+	},
+	ownerGraceSeconds: Z("ownerGraceSeconds"),
+	spawnAheadMetres: Z("spawnAheadMetres"),
+	dropBehindMetres: Z("dropBehindMetres"),
+	projectileHeight: Z("projectileHeight"),
+	homingSnapDistance: Z("homingSnapDistance"),
+	homingLateralRate: Z("homingLateralRate"),
+	maxProjectilesPerOwner: Z("maxProjectilesPerOwner"),
+	maxKitesPerOwner: Z("maxKitesPerOwner"),
+	kiteWarnMetres: Z("kiteWarnMetres"),
+	kiteWarnSeconds: Z("kiteWarnSeconds"),
+	crossHitHeight: Z("crossHitHeight"),
+	maxGroundPerOwner: Z("maxGroundPerOwner"),
+	trailBehindMetres: Z("trailBehindMetres"),
+	hitHeight: Z("hitHeight")
+}), ro = Object.freeze(Object.fromEntries($a.map((e) => [e.id, e.role])));
+//#endregion
+//#region src/items/projectiles.ts
+function io(e, t, n, r) {
+	let i = e.sample(t, 0, n).tangent, a = R(i[0], i[2]) || 1;
+	return r[0] = i[2] / a, r[1] = 0, r[2] = -i[0] / a, r;
+}
+function ao(e, t, n, r) {
+	let i = e.sample(t, 0, n).position, a = io(e, t, n, [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		0,
 		0,
 		0
 	]);
 	return (r[0] - i[0]) * a[0] + (r[2] - i[2]) * a[2];
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function so(e) {
 	return N.speedClasses[String(e)];
 }
 function co(e, t, n, r) {
+========
+function oo(e) {
+	return N.speedClasses[String(e)];
+}
+function so(e, t, n, r) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let i = 0;
 	for (let a of t.projectiles) a.owner === n && e.items.find((e) => e.id === a.itemId)?.behaviour.homing === !0 === r && i++;
 	return i;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function lo(e, t) {
 	return t === e || t === 0;
 }
@@ -7871,15 +9346,37 @@ function fo(e, t, n, r) {
 		let s = e[o];
 		if (o === t || !uo(s) || !lo(r, s.branch)) continue;
 		let c = W(s.t - n);
+========
+function co(e, t) {
+	return t === e || t === 0;
+}
+function lo(e) {
+	return !e.isGhost && e.finishTick === void 0 && e.status.intangibleRemaining <= 0;
+}
+function uo(e, t, n, r) {
+	let i = -1, a = .5;
+	for (let o = 0; o < e.length; o++) {
+		let s = e[o];
+		if (o === t || !lo(s) || !co(r, s.branch)) continue;
+		let c = G(s.t - n);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		c > 0 && c < a && (a = c, i = o);
 	}
 	return i;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function po(e, t, n) {
 	return fo(e, t, e[t].t, n);
 }
 function mo(e, t, n, r, i, a, o, s, c) {
 	let l = r[a], u = z(l.heading), d = s ? -1 : 1, f = (o.behaviour.projectileSpeed ?? 30) * so(i), p = [
+========
+function fo(e, t, n) {
+	return uo(e, t, e[t].t, n);
+}
+function po(e, t, n, r, i, a, o, s, c) {
+	let l = r[a], u = B(l.heading), d = s ? -1 : 1, f = (o.behaviour.projectileSpeed ?? 30) * oo(i), p = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		l.position[0] + u[0] * e.spawnAheadMetres * d,
 		l.position[1],
 		l.position[2] + u[2] * e.spawnAheadMetres * d
@@ -7887,7 +9384,11 @@ function mo(e, t, n, r, i, a, o, s, c) {
 		t: l.t,
 		branch: l.branch
 	}, N.tSearchWindow), h = n.sample(m.t, 0, m.branch);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	p[1] = h.groundY + wr(n, m.t, m.branch, oo(n, m.t, m.branch, p), h.halfWidth) + e.projectileHeight;
+========
+	p[1] = h.groundY + xr(n, m.t, m.branch, ao(n, m.t, m.branch, p), h.halfWidth) + e.projectileHeight;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let g = o.behaviour.homing === !0, _ = o.role === "runner", v = {
 		id: t.nextId++,
 		itemId: o.id,
@@ -7895,7 +9396,11 @@ function mo(e, t, n, r, i, a, o, s, c) {
 		ownerId: l.racerId,
 		t: m.t,
 		branch: m.branch,
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		lateral: oo(n, m.t, m.branch, p),
+========
+		lateral: ao(n, m.t, m.branch, p),
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		velocity: [
 			u[0] * f * d,
 			0,
@@ -7905,7 +9410,11 @@ function mo(e, t, n, r, i, a, o, s, c) {
 		position: p,
 		prevPosition: [...p],
 		bouncesLeft: g || _ ? 0 : o.behaviour.bounces ?? 0,
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		target: g ? po(r, a, m.branch) : -1,
+========
+		target: g ? fo(r, a, m.branch) : -1,
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		ttl: o.behaviour.lifetimeSeconds ?? 8,
 		graceRemaining: e.ownerGraceSeconds,
 		radius: o.behaviour.radius ?? .5,
@@ -7917,7 +9426,11 @@ function mo(e, t, n, r, i, a, o, s, c) {
 	};
 	if (_ && v.weave > 0) {
 		let e = Math.max(1e-6, h.halfWidth - v.radius);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		v.age = an(Math.max(-1, Math.min(1, v.lateral / (e * v.weave)))) / (2 * Math.PI) * v.weaveSeconds;
+========
+		v.age = tn(Math.max(-1, Math.min(1, v.lateral / (e * v.weave)))) / (2 * Math.PI) * v.weaveSeconds;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	return t.projectiles.push(v), c.push({
 		type: "projectileSpawn",
@@ -7927,7 +9440,11 @@ function mo(e, t, n, r, i, a, o, s, c) {
 		position: [...p]
 	}), v;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Z(e, t, n) {
+========
+function mo(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let r = e.projectiles.indexOf(t);
 	r < 0 || (e.projectiles.splice(r, 1), n.push({
 		type: "projectilePop",
@@ -7946,30 +9463,51 @@ function _o(e, t, n, r, i, a) {
 	for (let s = t.projectiles.length - 1; s >= 0; s--) {
 		let c = t.projectiles[s];
 		if (c.prevPosition[0] = c.position[0], c.prevPosition[1] = c.position[1], c.prevPosition[2] = c.position[2], c.graceRemaining = Math.max(0, c.graceRemaining - i), c.ttl -= i, c.age += i, c.ttl <= 1e-9) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			Z(t, c, a);
+========
+			mo(t, c, a);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			continue;
 		}
 		if (c.speed !== 0) {
 			let t = c.target >= 0 ? r[c.target] : void 0;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			if (t && !uo(t) && (c.target = fo(r, c.owner, c.t, c.branch)), c.t = W(c.t + c.speed * i / o), c.branch > 0) {
 				let e = n.branches.list[c.branch], t = G(c.t, e.entryT);
+========
+			if (t && !lo(t) && (c.target = uo(r, c.owner, c.t, c.branch)), c.t = G(c.t + c.speed * i / o), c.branch > 0) {
+				let e = n.branches.list[c.branch], t = K(c.t, e.entryT);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				(t < 0 || t > e.span) && (c.branch = 0);
 			}
 			let a = 0;
 			if (c.target >= 0) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let t = r[c.target], i = W(t.t - c.t) * o;
 				t.branch === c.branch && i <= e.homingSnapDistance && (a = oo(n, t.t, t.branch, t.position));
+========
+				let t = r[c.target], i = G(t.t - c.t) * o;
+				t.branch === c.branch && i <= e.homingSnapDistance && (a = ao(n, t.t, t.branch, t.position));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			}
 			let s = n.sample(c.t, 0, c.branch);
-			if (c.weave > 0) c.lateral = I(2 * Math.PI * c.age / c.weaveSeconds) * c.weave * (s.halfWidth - c.radius);
+			if (c.weave > 0) c.lateral = L(2 * Math.PI * c.age / c.weaveSeconds) * c.weave * (s.halfWidth - c.radius);
 			else {
 				let t = e.homingLateralRate * i;
 				c.lateral += Math.max(-t, Math.min(t, a - c.lateral));
 			}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let l = c.weave <= 0 && c.target >= 0, u = l ? Nn(s, -1) : s.halfWidth, d = l ? Nn(s, 1) : s.halfWidth;
 			c.lateral = Math.max(-u + c.radius, Math.min(d - c.radius, c.lateral));
 			let f = n.sample(c.t, c.lateral, c.branch);
 			c.position[0] = f.position[0], c.position[1] = f.groundY + wr(n, c.t, c.branch, c.lateral, f.halfWidth, f.open ?? 0) + e.projectileHeight, c.position[2] = f.position[2];
+========
+			let l = c.weave <= 0 && c.target >= 0, u = l ? An(s, -1) : s.halfWidth, d = l ? An(s, 1) : s.halfWidth;
+			c.lateral = Math.max(-u + c.radius, Math.min(d - c.radius, c.lateral));
+			let f = n.sample(c.t, c.lateral, c.branch);
+			c.position[0] = f.position[0], c.position[1] = f.groundY + xr(n, c.t, c.branch, c.lateral, f.halfWidth, f.open ?? 0) + e.projectileHeight, c.position[2] = f.position[2];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			continue;
 		}
 		c.position[0] += c.velocity[0] * i, c.position[2] += c.velocity[2] * i;
@@ -7981,10 +9519,17 @@ function _o(e, t, n, r, i, a) {
 			let e = n.branches.list[c.branch].toLocal(c.t);
 			(e <= go || e >= .999999999) && (c.t = n.branches.main.nearestLocal(c.position, c.t, N.tSearchWindow).t, c.branch = 0);
 		}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let u = n.sample(c.t, 0, c.branch), d = ao(n, c.t, c.branch, ho), f = (c.position[0] - u.position[0]) * d[0] + (c.position[2] - u.position[2]) * d[2], p = Nn(u, f) - c.radius;
 		if (Math.abs(f) > p) {
 			if (c.bouncesLeft--, c.bouncesLeft < 0) {
 				Z(t, c, a);
+========
+		let u = n.sample(c.t, 0, c.branch), d = io(n, c.t, c.branch, ho), f = (c.position[0] - u.position[0]) * d[0] + (c.position[2] - u.position[2]) * d[2], p = An(u, f) - c.radius;
+		if (Math.abs(f) > p) {
+			if (c.bouncesLeft--, c.bouncesLeft < 0) {
+				mo(t, c, a);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				continue;
 			}
 			let e = c.velocity[0] * d[0] + c.velocity[2] * d[2];
@@ -7998,7 +9543,11 @@ function _o(e, t, n, r, i, a) {
 		}
 		c.lateral = f;
 		let m = n.sample(c.t, f, c.branch);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		c.position[0] = m.position[0], c.position[2] = m.position[2], c.position[1] = m.groundY + wr(n, c.t, c.branch, f, m.halfWidth, m.open ?? 0) + e.projectileHeight;
+========
+		c.position[0] = m.position[0], c.position[2] = m.position[2], c.position[1] = m.groundY + xr(n, c.t, c.branch, f, m.halfWidth, m.open ?? 0) + e.projectileHeight;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 }
 //#endregion
@@ -8006,15 +9555,24 @@ function _o(e, t, n, r, i, a) {
 function vo(e, t, n, r, i, a, o) {
 	let s = r[i], c = t.groundItems.filter((e) => e.owner === i);
 	for (; c.length >= e.maxGroundPerOwner;) yo(t, c.shift(), o);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let l = z(s.heading), u = [
+========
+	let l = B(s.heading), u = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		s.position[0] - l[0] * e.dropBehindMetres,
 		s.position[1],
 		s.position[2] - l[2] * e.dropBehindMetres
 	], d = n.nearest(u, {
 		t: s.t,
 		branch: s.branch
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	}, N.tSearchWindow), f = oo(n, d.t, d.branch, u), p = n.sample(d.t, f, d.branch);
 	u[1] = p.groundY + wr(n, d.t, d.branch, f, p.halfWidth);
+========
+	}, N.tSearchWindow), f = ao(n, d.t, d.branch, u), p = n.sample(d.t, f, d.branch);
+	u[1] = p.groundY + xr(n, d.t, d.branch, f, p.halfWidth);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let m = {
 		id: t.nextId++,
 		itemId: a.id,
@@ -8115,6 +9673,7 @@ function jo(e, t, n, r, i) {
 	}
 	return o;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Mo(e, t, n, r, i, a, o) {
 	let s = n.karts[a];
 	if (s.isGhost || s.finishTick !== void 0) return !1;
@@ -8124,13 +9683,45 @@ function Mo(e, t, n, r, i, a, o) {
 	if (!u) return !1;
 	let d = e.items.find((e) => e.id === u)?.behaviour.charges ?? 1, f = +!c;
 	return f === 0 ? (s.item.held = u, s.item.charges = d, s.item.rouletteRemaining = e.rouletteSeconds) : (s.item.next = u, s.item.nextCharges = d, s.item.nextRouletteRemaining = e.rouletteSeconds), o.push({
+========
+var Mo = [
+	"held",
+	"next",
+	"third"
+], No = [
+	"charges",
+	"nextCharges",
+	"thirdCharges"
+], Po = [
+	"rouletteRemaining",
+	"nextRouletteRemaining",
+	"thirdRouletteRemaining"
+], Fo = Mo.length, Io = (e, t) => e[Mo[t]], Lo = (e, t) => e[Mo[t]] === "none" && e[Po[t]] <= 0;
+function Ro(e) {
+	for (let t = 0; t < Fo; t++) if (Lo(e, t)) return t;
+	return -1;
+}
+function zo(e, t, n, r, i) {
+	e[Mo[t]] = n, e[No[t]] = r, e[Po[t]] = i;
+}
+function Bo(e, t, n, r, i, a, o) {
+	let s = n.karts[a];
+	if (s.isGhost || s.finishTick !== void 0) return !1;
+	let c = Ro(s.item);
+	if (c < 0) return !1;
+	let l = Eo(jo(e, n, r, i, s.rank), To(t));
+	if (!l) return !1;
+	let u = e.items.find((e) => e.id === l);
+	return zo(s.item, c, l, u?.behaviour.charges ?? 1, e.rouletteSeconds), o.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "roulette",
 		racerId: s.racerId,
-		itemId: u,
+		itemId: l,
 		seconds: e.rouletteSeconds,
-		slot: f
+		slot: c
 	}), !0;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function No(e, t) {
 	let n = e - t;
 	return n > 1e-9 ? n : 0;
@@ -8153,24 +9744,61 @@ function Fo(e) {
 }
 function Io(e) {
 	e.item.held = e.item.next, e.item.charges = e.item.nextCharges, e.item.rouletteRemaining = e.item.nextRouletteRemaining, e.item.next = "none", e.item.nextCharges = 0, e.item.nextRouletteRemaining = 0;
+========
+function Vo(e, t) {
+	let n = e - t;
+	return n > 1e-9 ? n : 0;
+}
+function Ho(e, t, n) {
+	let r = e.item;
+	for (let i = 0; i < Fo; i++) r[Po[i]] <= 0 || (r[Po[i]] = Vo(r[Po[i]], t), r[Po[i]] === 0 && r[Mo[i]] !== "none" && n.push({
+		type: "itemReady",
+		racerId: e.racerId,
+		itemId: r[Mo[i]],
+		slot: i
+	}));
+}
+function Uo(e) {
+	let t = [];
+	for (let n = 0; n < Fo; n++) e.item[Mo[n]] !== "none" && t.push(e.item[Mo[n]]);
+	return t;
+}
+function Wo(e) {
+	for (let t = 0; t < Fo; t++) zo(e.item, t, "none", 0, 0);
+}
+function Go(e) {
+	let t = e.item;
+	for (let e = 0; e + 1 < Fo; e++) zo(t, e, t[Mo[e + 1]], t[No[e + 1]], t[Po[e + 1]]);
+	zo(t, Fo - 1, "none", 0, 0);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 }
 //#endregion
 //#region src/items/hits.ts
 function Q(e, t) {
-	return L(e[0] - t[0], e[2] - t[2]);
+	return R(e[0] - t[0], e[2] - t[2]);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Lo(e) {
 	return !e.isGhost && e.finishTick === void 0 && e.status.intangibleRemaining <= 0 && e.status.spinRemaining <= 0 && !V(e);
 }
 function Ro(e, t, n, r, i, a, o, s, c) {
 	let l = e[r];
 	if (!Lo(l)) return !1;
+========
+function Ko(e) {
+	return !e.isGhost && e.finishTick === void 0 && e.status.intangibleRemaining <= 0 && e.status.spinRemaining <= 0 && !H(e);
+}
+function qo(e, t, n, r, i, a, o, s, c) {
+	let l = e[r];
+	if (!Ko(l)) return !1;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (l.status.shield) return l.status.shield = !1, n.shieldRemaining[r] = 0, s.push({
 		type: "shieldPop",
 		racerId: l.racerId
 	}), !0;
 	let u = a.hitEffect ?? {}, d = !1, f = 0;
 	if ((u.spinSeconds ?? 0) > 0) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		c.length = 0, Gr(l, t[r], o, c);
 		for (let e of c) e.type === "hit" && (d = e.spun, f = e.coinsLost);
 	} else u.slowTo !== void 0 && (l.speed = Math.min(l.speed, t[r].topSpeed * u.slowTo), H(l), ye(l), l.status.slowedTo = Math.min(l.status.slowRemaining > 0 ? l.status.slowedTo : 1, u.slowTo), l.status.slowRemaining = Math.max(l.status.slowRemaining, u.slowSeconds ?? 0));
@@ -8183,6 +9811,20 @@ function Ro(e, t, n, r, i, a, o, s, c) {
 		racerId: l.racerId,
 		itemId: l.item.next
 	}), Fo(l)), s.push({
+========
+		c.length = 0, Hr(l, t[r], o, c);
+		for (let e of c) e.type === "hit" && (d = e.spun, f = e.coinsLost);
+	} else u.slowTo !== void 0 && (l.speed = Math.min(l.speed, t[r].topSpeed * u.slowTo), U(l), _e(l), l.status.slowedTo = Math.min(l.status.slowRemaining > 0 ? l.status.slowedTo : 1, u.slowTo), l.status.slowRemaining = Math.max(l.status.slowRemaining, u.slowSeconds ?? 0));
+	if (u.dropsItem && l.item.held !== "none") {
+		for (let e of Uo(l)) s.push({
+			type: "itemLost",
+			racerId: l.racerId,
+			itemId: e
+		});
+		Wo(l);
+	}
+	return s.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "hit",
 		racerId: l.racerId,
 		byRacerId: i,
@@ -8191,6 +9833,7 @@ function Ro(e, t, n, r, i, a, o, s, c) {
 		coinsLost: f
 	}), !0;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function zo(e, t, n, r) {
 	let i = e[t], a = n.behaviour.slowTo ?? 1, o = n.behaviour.durationSeconds ?? 0, s = [];
 	for (let c = 0; c < e.length; c++) {
@@ -8204,6 +9847,23 @@ function zo(e, t, n, r) {
 			racerId: l.racerId,
 			itemId: l.item.next
 		}), Fo(l)), s.push(l.racerId));
+========
+function Jo(e, t, n, r) {
+	let i = e[t], a = n.behaviour.slowTo ?? 1, o = n.behaviour.durationSeconds ?? 0, s = [];
+	for (let c = 0; c < e.length; c++) {
+		let l = e[c];
+		if (!(c === t || l.isGhost || l.finishTick !== void 0 || l.rank >= i.rank || H(l))) {
+			if (l.status.slowedTo = Math.min(l.status.slowRemaining > 0 ? l.status.slowedTo : 1, a), l.status.slowRemaining = Math.max(l.status.slowRemaining, o), n.behaviour.stripsItem) {
+				for (let e of Uo(l)) r.push({
+					type: "itemLost",
+					racerId: l.racerId,
+					itemId: e
+				});
+				Wo(l);
+			}
+			s.push(l.racerId);
+		}
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	return r.push({
 		type: "fog",
@@ -8213,6 +9873,7 @@ function zo(e, t, n, r) {
 }
 //#endregion
 //#region src/items/powers.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Bo(e, t) {
 	return Math.abs(e.position[1] - t.position[1]) < 2;
 }
@@ -8221,6 +9882,16 @@ function Vo(e, t, n, r, i, a, o, s) {
 	for (let l = 0; l < e.length; l++) l !== r && Bo(c, e[l]) && Q(e[l].position, c.position) <= a + t[l].kartRadius && Ro(e, t, n, l, c.racerId, i, "item", o, s);
 }
 function Ho(e, t, n, r, i, a) {
+========
+function Yo(e, t) {
+	return Math.abs(e.position[1] - t.position[1]) < 2;
+}
+function Xo(e, t, n, r, i, a, o, s) {
+	let c = e[r];
+	for (let l = 0; l < e.length; l++) l !== r && Yo(c, e[l]) && Q(e[l].position, c.position) <= a + t[l].kartRadius && qo(e, t, n, l, c.racerId, i, "item", o, s);
+}
+function Zo(e, t, n, r, i, a) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let o = 0; o < t.length; o++) {
 		let s = t[o];
 		if (e.power[o]) {
@@ -8229,6 +9900,7 @@ function Ho(e, t, n, r, i, a) {
 				type: "powerEnd",
 				racerId: s.racerId,
 				itemId: c.id
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			}), s.item.held === c.id && s.item.charges === 0 && Io(s), e.power[o] = "";
 			else if (V(s)) {
 				for (let r = 0; r < t.length; r++) {
@@ -8238,6 +9910,17 @@ function Ho(e, t, n, r, i, a) {
 				for (let t = e.groundItems.length - 1; t >= 0; t--) {
 					let r = e.groundItems[t];
 					Q(r.position, s.position) <= In(s, n[o]) + r.radius && yo(e, r, i);
+========
+			}), s.item.held === c.id && s.item.charges === 0 && Go(s), e.power[o] = "";
+			else if (H(s)) {
+				for (let r = 0; r < t.length; r++) {
+					let l = t[r];
+					r === o || e.knocked[o] & 1 << r || !Yo(s, l) || Q(l.position, s.position) > Nn(s, n[o]) + Nn(l, n[r]) + .3 || qo(t, n, e, r, s.racerId, c, "item", i, a) && (e.knocked[o] |= 1 << r, l.status.spinRemaining > 0 && (l.verticalVelocity = c.behaviour.popSpeed ?? 0, l.grounded = !1));
+				}
+				for (let t = e.groundItems.length - 1; t >= 0; t--) {
+					let r = e.groundItems[t];
+					Q(r.position, s.position) <= Nn(s, n[o]) + r.radius && yo(e, r, i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				}
 			} else {
 				let r = c.behaviour.burstRadius ?? 0;
@@ -8246,11 +9929,19 @@ function Ho(e, t, n, r, i, a) {
 					racerId: s.racerId,
 					position: [...s.position],
 					radius: r
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				}), Vo(t, n, e, o, c, r, i, a), i.push({
 					type: "powerEnd",
 					racerId: s.racerId,
 					itemId: c.id
 				}), s.item.held === c.id && s.item.charges === 0 && Io(s), e.power[o] = "";
+========
+				}), Xo(t, n, e, o, c, r, i, a), i.push({
+					type: "powerEnd",
+					racerId: s.racerId,
+					itemId: c.id
+				}), s.item.held === c.id && s.item.charges === 0 && Go(s), e.power[o] = "";
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			}
 		}
 		if (e.pogo[o] > 0 && s.grounded) {
@@ -8262,6 +9953,7 @@ function Ho(e, t, n, r, i, a) {
 					racerId: s.racerId,
 					position: [...s.position],
 					radius: r
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				}), Vo(t, n, e, o, c, r, i, a);
 			} else s.item.held === "pogoSpring" && s.item.charges === 1 && (s.item.charges = 0, Io(s));
 			e.pogo[o] = 0;
@@ -8269,6 +9961,15 @@ function Ho(e, t, n, r, i, a) {
 		if (e.towing[o]) {
 			let c = r.get("grappleAnchor"), l = s.status.towTarget, u = l >= 0 ? t[l] : void 0, d = !1, f = !Fn(s) || !u || !c;
 			!f && u && c && (u.finishTick !== void 0 || u.isGhost || u.status.intangibleRemaining > 0 || V(u) || u.branch !== s.branch && u.branch !== 0 ? f = !0 : Q(s.position, u.position) <= (c.behaviour.releaseMetres ?? 0) && (f = d = !0, ve(s, "item", n[o].itemSpeedMultiplier, c.behaviour.slingshotSeconds ?? 0, a), u.status.slowedTo = Math.min(u.status.slowRemaining > 0 ? u.status.slowedTo : 1, c.behaviour.tugSlowTo ?? 1), u.status.slowRemaining = Math.max(u.status.slowRemaining, c.behaviour.tugSeconds ?? 0))), f && (i.push({
+========
+				}), Xo(t, n, e, o, c, r, i, a);
+			} else s.item.held === "pogoSpring" && s.item.charges === 1 && (s.item.charges = 0, Go(s));
+			e.pogo[o] = 0;
+		}
+		if (e.towing[o]) {
+			let c = r.get("grappleAnchor"), l = s.status.towTarget, u = l >= 0 ? t[l] : void 0, d = !1, f = !Mn(s) || !u || !c;
+			!f && u && c && (u.finishTick !== void 0 || u.isGhost || u.status.intangibleRemaining > 0 || H(u) || u.branch !== s.branch && u.branch !== 0 ? f = !0 : Q(s.position, u.position) <= (c.behaviour.releaseMetres ?? 0) && (f = d = !0, ge(s, "item", n[o].itemSpeedMultiplier, c.behaviour.slingshotSeconds ?? 0, a), u.status.slowedTo = Math.min(u.status.slowRemaining > 0 ? u.status.slowedTo : 1, c.behaviour.tugSlowTo ?? 1), u.status.slowRemaining = Math.max(u.status.slowRemaining, c.behaviour.tugSeconds ?? 0))), f && (i.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				type: "tetherEnd",
 				racerId: s.racerId,
 				targetId: u?.racerId ?? "",
@@ -8279,7 +9980,11 @@ function Ho(e, t, n, r, i, a) {
 }
 //#endregion
 //#region src/items/use.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Uo(e, t, n) {
+========
+function Qo(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return e.push({
 		type: "itemRefused",
 		racerId: t.racerId,
@@ -8287,42 +9992,69 @@ function Uo(e, t, n) {
 		reason: n
 	}), !1;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Wo(e, t, n = !1) {
+========
+function $o(e, t, n = !1) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	e.item.charges = Math.max(0, e.item.charges - 1), t.push({
 		type: "itemUsed",
 		racerId: e.racerId,
 		itemId: e.item.held,
 		chargesLeft: e.item.charges
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	}), e.item.charges === 0 && !n && Io(e);
 }
 function Go(e, t) {
 	return e.phase !== "racing" && e.phase !== "finalLap" || t.isGhost || t.finishTick !== void 0 ? "notRacing" : t.item.rouletteRemaining > 0 ? "roulette" : t.item.charges <= 0 ? "inUse" : t.status.spinRemaining > 0 ? "spinning" : t.status.intangibleRemaining > 0 ? "intangible" : null;
 }
 function Ko(e, t, n, r) {
+========
+	}), e.item.charges === 0 && !n && Go(e);
+}
+function es(e, t) {
+	return e.phase !== "racing" && e.phase !== "finalLap" || t.isGhost || t.finishTick !== void 0 ? "notRacing" : t.item.rouletteRemaining > 0 ? "roulette" : t.item.charges <= 0 ? "inUse" : t.status.spinRemaining > 0 ? "spinning" : t.status.intangibleRemaining > 0 ? "intangible" : null;
+}
+function ts(e, t, n, r) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let i = e[t], a = -1, o = r / n;
 	for (let n = 0; n < e.length; n++) {
 		let r = e[n];
-		if (n === t || r.branch !== i.branch || r.isGhost || r.finishTick !== void 0 || r.status.intangibleRemaining > 0 || V(r)) continue;
-		let s = W(r.t - i.t);
+		if (n === t || r.branch !== i.branch || r.isGhost || r.finishTick !== void 0 || r.status.intangibleRemaining > 0 || H(r)) continue;
+		let s = G(r.t - i.t);
 		s > 0 && s <= o && (o = s, a = n);
 	}
 	return a;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function qo(e, t, n, r, i, a, o, s, c) {
+========
+function ns(e, t, n, r, i, a, o, s, c) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let l = n.karts, u = l[a];
 	if (u.item.held === "none") return !1;
 	let d = e.items.find((e) => e.id === u.item.held);
 	if (!d) return !1;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let f = Go(n, u);
 	if (f) return Uo(s, u, f);
+========
+	let f = es(n, u);
+	if (f) return Qo(s, u, f);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let p = !1;
 	switch (d.role) {
 		case "forward":
 		case "homing":
 		case "runner": {
 			let r = d.role === "homing";
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			if (co(e, t, a, r) >= (r ? e.maxKitesPerOwner : e.maxProjectilesPerOwner)) return Uo(s, u, "inFlight");
 			mo(e, t, i, l, n.speedClass, a, d, d.role !== "homing" && o.lookBack, s);
+========
+			if (so(e, t, a, r) >= (r ? e.maxKitesPerOwner : e.maxProjectilesPerOwner)) return Qo(s, u, "inFlight");
+			po(e, t, i, l, n.speedClass, a, d, d.role !== "homing" && o.lookBack, s);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			break;
 		}
 		case "rearDrop":
@@ -8330,7 +10062,11 @@ function qo(e, t, n, r, i, a, o, s, c) {
 			vo(e, t, i, l, a, d, s);
 			break;
 		case "defenceArea":
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			Jo(t, l, r, a, d, s, c);
+========
+			rs(t, l, r, a, d, s, c);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			break;
 		case "defenceHeld":
 			u.status.shield = !0, t.shieldRemaining[a] = d.behaviour.durationSeconds ?? 0, s.push({
@@ -8344,8 +10080,13 @@ function qo(e, t, n, r, i, a, o, s, c) {
 			break;
 		}
 		case "equaliser":
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			if (u.rank < (d.behaviour.minPosition ?? 1)) return Uo(s, u, "position");
 			zo(l, a, d, s);
+========
+			if (u.rank < (d.behaviour.minPosition ?? 1)) return Qo(s, u, "position");
+			Jo(l, a, d, s);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			break;
 		case "ride": {
 			let e = d.behaviour.durationSeconds ?? 0;
@@ -8364,6 +10105,7 @@ function qo(e, t, n, r, i, a, o, s, c) {
 				racerId: u.racerId
 			});
 			else if (t.pogo[a] === 1) u.verticalVelocity = -e.slamSpeed, u.airborne.trickQueued = !1, t.pogo[a] = 2;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			else return Uo(s, u, "inUse");
 			break;
 		}
@@ -8373,6 +10115,17 @@ function qo(e, t, n, r, i, a, o, s, c) {
 			let n = l[e];
 			if (n.status.shield) {
 				Ro(l, r, t, e, u.racerId, d, "item", s, c);
+========
+			else return Qo(s, u, "inUse");
+			break;
+		}
+		case "tether": {
+			let e = ts(l, a, i.length, d.behaviour.range ?? 0);
+			if (e < 0) return Qo(s, u, "noTarget");
+			let n = l[e];
+			if (n.status.shield) {
+				qo(l, r, t, e, u.racerId, d, "item", s, c);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				break;
 			}
 			u.status.towTarget = e, u.status.towRemaining = d.behaviour.durationSeconds ?? 0, t.towing[a] = !0, s.push({
@@ -8383,9 +10136,15 @@ function qo(e, t, n, r, i, a, o, s, c) {
 			break;
 		}
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	return Wo(u, s, p), !0;
 }
 function Jo(e, t, n, r, i, a, o) {
+========
+	return $o(u, s, p), !0;
+}
+function rs(e, t, n, r, i, a, o) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let s = t[r], c = i.behaviour.radius ?? 0;
 	a.push({
 		type: "horn",
@@ -8395,12 +10154,17 @@ function Jo(e, t, n, r, i, a, o) {
 	});
 	for (let t = e.projectiles.length - 1; t >= 0; t--) {
 		let n = e.projectiles[t];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		Q(n.position, s.position) <= c + n.radius && Z(e, n, a);
+========
+		Q(n.position, s.position) <= c + n.radius && mo(e, n, a);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	for (let t = e.groundItems.length - 1; t >= 0; t--) {
 		let n = e.groundItems[t];
 		Q(n.position, s.position) <= c + n.radius && yo(e, n, a);
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	for (let l = 0; l < t.length; l++) l !== r && Q(t[l].position, s.position) <= c + n[l].kartRadius && Ro(t, n, e, l, s.racerId, i, "item", a, o);
 }
 //#endregion
@@ -8410,6 +10174,17 @@ function Yo(e, t, n, r, i) {
 	return Math.abs(r) > Nn(a, r) + i;
 }
 var Xo = class {
+========
+	for (let l = 0; l < t.length; l++) l !== r && Q(t[l].position, s.position) <= c + n[l].kartRadius && qo(t, n, e, l, s.racerId, i, "item", a, o);
+}
+//#endregion
+//#region src/items/items.ts
+function is(e, t, n, r, i) {
+	let a = e.sample(t, 0, n);
+	return Math.abs(r) > An(a, r) + i;
+}
+var as = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	cfg;
 	track;
 	host;
@@ -8421,10 +10196,17 @@ var Xo = class {
 	scratch = [];
 	inert;
 	doubles;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	constructor(e, t, n = ro) {
 		this.cfg = n, this.track = e, this.host = t;
 		for (let e of n.items) this.defs.set(e.id, e);
 		this.roles = n === ro ? io : Object.fromEntries(n.items.map((e) => [e.id, e.role]));
+========
+	constructor(e, t, n = no) {
+		this.cfg = n, this.track = e, this.host = t;
+		for (let e of n.items) this.defs.set(e.id, e);
+		this.roles = n === no ? ro : Object.fromEntries(n.items.map((e) => [e.id, e.role]));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let r = t.state.karts.length;
 		this.threatened = Array(r).fill(!1), this.threatDistance = Array(r).fill(Infinity), this.state = {
 			rng: Co(t.state.seed),
@@ -8447,6 +10229,10 @@ var Xo = class {
 	trailable(e) {
 		return this.defs.get(e.item.held)?.behaviour.trailable === !0;
 	}
+	holdsEqualiser(e) {
+		for (let t = 0; t < Fo; t++) if (this.defs.get(Io(e.item, t))?.role === "equaliser") return !0;
+		return !1;
+	}
 	snapshot() {
 		return structuredClone(this.state);
 	}
@@ -8464,7 +10250,11 @@ var Xo = class {
 		}
 		for (let e = 0; e < l.length; e++) {
 			let t = l[e];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			Po(t, n, r), s.shieldRemaining[e] > 0 && !t.status.shield && (s.shieldRemaining[e] = 0, r.push({
+========
+			Ho(t, n, r), s.shieldRemaining[e] > 0 && !t.status.shield && (s.shieldRemaining[e] = 0, r.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				type: "shieldPop",
 				racerId: t.racerId
 			})), s.shieldRemaining[e] > 0 && (s.shieldRemaining[e] = Math.max(0, s.shieldRemaining[e] - n), s.shieldRemaining[e] === 0 && t.status.shield && (t.status.shield = !1, r.push({
@@ -8475,7 +10265,11 @@ var Xo = class {
 		for (let e of t) {
 			if (e.type !== "pickup") continue;
 			let t = l.findIndex((t) => t.racerId === e.racerId);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			t < 0 || (Mo(c, s, i, a, o, t, r), this.doubles[e.index] && Mo(c, s, i, a, o, t, r));
+========
+			t < 0 || (Bo(c, s, i, a, o, t, r), this.doubles[e.index] && Bo(c, s, i, a, o, t, r));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		}
 		for (let t = 0; t < l.length; t++) {
 			let n = l[t], u = e[t]?.item === !0, d = s.prevItem[t];
@@ -8484,6 +10278,7 @@ var Xo = class {
 					type: "itemLost",
 					racerId: n.racerId,
 					itemId: n.item.held
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				}), Wo(n, r);
 				continue;
 			}
@@ -8492,6 +10287,16 @@ var Xo = class {
 				racerId: n.racerId,
 				itemId: n.item.held
 			})) : qo(c, s, i, a, o, t, e[t], r, this.scratch) : !u && d && s.trailing[t] && (s.trailing[t] = !1, qo(c, s, i, a, o, t, e[t], r, this.scratch));
+========
+				}), $o(n, r);
+				continue;
+			}
+			u && !d ? this.trailable(n) && es(i, n) === null ? (s.trailing[t] = !0, r.push({
+				type: "trailStart",
+				racerId: n.racerId,
+				itemId: n.item.held
+			})) : ns(c, s, i, a, o, t, e[t], r, this.scratch) : !u && d && s.trailing[t] && (s.trailing[t] = !1, ns(c, s, i, a, o, t, e[t], r, this.scratch));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		}
 		_o(c, s, o, l, n, r), xo(s, o, l, n, r);
 		let u = s.projectiles, d = s.groundItems;
@@ -8499,32 +10304,56 @@ var Xo = class {
 			let t = u[e], n = !1;
 			for (let i = e - 1; i >= 0 && !n; i--) {
 				let a = u[i];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				this.meets(t.branch, t.position[1], a.branch, a.position[1]) && Q(t.position, a.position) <= t.radius + a.radius && (Z(s, t, r), Z(s, a, r), n = !0, e--);
+========
+				this.meets(t.branch, t.position[1], a.branch, a.position[1]) && Q(t.position, a.position) <= t.radius + a.radius && (mo(s, t, r), mo(s, a, r), n = !0, e--);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			}
 			if (!n) {
 				for (let e = d.length - 1; e >= 0 && !n; e--) {
 					let i = d[e];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 					this.meets(t.branch, t.position[1] - c.projectileHeight, i.branch, i.position[1]) && Q(t.position, i.position) <= t.radius + i.radius && (Z(s, t, r), yo(s, i, r), n = !0);
+========
+					this.meets(t.branch, t.position[1] - c.projectileHeight, i.branch, i.position[1]) && Q(t.position, i.position) <= t.radius + i.radius && (mo(s, t, r), yo(s, i, r), n = !0);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				}
 				if (!n) for (let e = 0; e < l.length && !n; e++) {
 					let i = l[e];
 					if (t.hitMask & 1 << e || !this.meets(t.branch, t.position[1] - c.projectileHeight, i.branch, i.position[1]) || e === t.owner && t.graceRemaining > 0 || Q(t.position, i.position) > t.radius + a[e].kartRadius || i.position[1] - (t.position[1] - c.projectileHeight) > c.hitHeight) continue;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 					if (V(i)) {
 						Z(s, t, r), n = !0;
 						continue;
 					}
 					if (!Lo(i)) continue;
+========
+					if (H(i)) {
+						mo(s, t, r), n = !0;
+						continue;
+					}
+					if (!Ko(i)) continue;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 					if (s.trailing[e] && this.fromBehind(t, i)) {
 						r.push({
 							type: "trailBlock",
 							racerId: i.racerId,
 							itemId: i.item.held,
 							position: [...t.position]
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 						}), s.trailing[e] = !1, Wo(i, r), Z(s, t, r), n = !0;
 						continue;
 					}
 					let o = this.defs.get(t.itemId);
 					Ro(l, a, s, e, t.ownerId, o, "projectile", r, this.scratch), t.hitMask |= 1 << e, --t.hitsLeft <= 0 && (Z(s, t, r), n = !0);
+========
+						}), s.trailing[e] = !1, $o(i, r), mo(s, t, r), n = !0;
+						continue;
+					}
+					let o = this.defs.get(t.itemId);
+					qo(l, a, s, e, t.ownerId, o, "projectile", r, this.scratch), t.hitMask |= 1 << e, --t.hitsLeft <= 0 && (mo(s, t, r), n = !0);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				}
 			}
 		}
@@ -8532,6 +10361,7 @@ var Xo = class {
 			let t = d[e];
 			for (let e = 0; e < l.length; e++) {
 				let n = l[e];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				if (!Lo(n) || !this.meets(t.branch, t.position[1], n.branch, n.position[1]) || e === t.owner && t.graceRemaining > 0 || Q(t.position, n.position) > t.radius + a[e].kartRadius || n.position[1] - t.position[1] > c.hitHeight) continue;
 				let i = this.defs.get(t.itemId);
 				Ro(l, a, s, e, t.ownerId, i, "item", r, this.scratch), yo(s, t, r);
@@ -8539,6 +10369,15 @@ var Xo = class {
 			}
 		}
 		Ho(s, l, a, this.defs, r, this.scratch), this.threatened.fill(!1), this.threatDistance.fill(Infinity);
+========
+				if (!Ko(n) || !this.meets(t.branch, t.position[1], n.branch, n.position[1]) || e === t.owner && t.graceRemaining > 0 || Q(t.position, n.position) > t.radius + a[e].kartRadius || n.position[1] - t.position[1] > c.hitHeight) continue;
+				let i = this.defs.get(t.itemId);
+				qo(l, a, s, e, t.ownerId, i, "item", r, this.scratch), yo(s, t, r);
+				break;
+			}
+		}
+		Zo(s, l, a, this.defs, r, this.scratch), this.threatened.fill(!1), this.threatDistance.fill(Infinity);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (let e of s.projectiles) {
 			if (e.target < 0) continue;
 			let t = l[e.target], n = Q(e.position, t.position);
@@ -8547,7 +10386,7 @@ var Xo = class {
 			(n <= c.kiteWarnMetres || r > 0 && n / r <= c.kiteWarnSeconds) && (this.threatened[e.target] = !0);
 		}
 		let f = "";
-		for (let e of l) if (this.defs.get(e.item.held)?.role === "equaliser" || this.defs.get(e.item.next)?.role === "equaliser") {
+		for (let e of l) if (this.holdsEqualiser(e)) {
 			f = e.racerId;
 			break;
 		}
@@ -8566,29 +10405,45 @@ var Xo = class {
 		if (t.def.finalLapShift.routeOverrides?.length) {
 			for (let r = n.projectiles.length - 1; r >= 0; r--) {
 				let i = n.projectiles[r];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				this.seat(i), i.lateral = oo(t, i.t, i.branch, i.position), Yo(t, i.t, i.branch, i.lateral, i.radius) && Z(n, i, e);
 			}
 			for (let r = n.groundItems.length - 1; r >= 0; r--) {
 				let i = n.groundItems[r];
 				this.seat(i), Yo(t, i.t, i.branch, oo(t, i.t, i.branch, i.position), i.radius) && yo(n, i, e);
+========
+				this.seat(i), i.lateral = ao(t, i.t, i.branch, i.position), is(t, i.t, i.branch, i.lateral, i.radius) && mo(n, i, e);
+			}
+			for (let r = n.groundItems.length - 1; r >= 0; r--) {
+				let i = n.groundItems[r];
+				this.seat(i), is(t, i.t, i.branch, ao(t, i.t, i.branch, i.position), i.radius) && yo(n, i, e);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			}
 		}
 	}
 	seat(e) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let t = this.track.branches, n = e.branch > 0 ? Za(t, e.position) : -1;
+========
+		let t = this.track.branches, n = e.branch > 0 ? Xa(t, e.position) : -1;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		n >= 0 ? (e.t = n, e.branch = 0) : e.t = t.list[e.branch].nearestGlobal(e.position).t;
 	}
 	meets(e, t, n, r) {
 		return e === n || Math.abs(t - r) <= this.cfg.crossHitHeight;
 	}
 	fromBehind(e, t) {
-		let n = z(t.heading);
+		let n = B(t.heading);
 		return (e.position[0] - t.position[0]) * n[0] + (e.position[2] - t.position[2]) * n[2] < 0;
 	}
 };
 //#endregion
 //#region src/race-manager/checkpoints.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Zo(e, t) {
+========
+function os(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		gridSlot: e,
 		nextCheckpoint: 0,
@@ -8609,7 +10464,11 @@ function Zo(e, t) {
 		finalDistance: 0
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Qo(e, t, n, r, i, a, o) {
+========
+function ss(e, t, n, r, i, a, o) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let s = n.checkpoints.length;
 	if (t.lastCheckpoint = r, t.nextCheckpoint = (r + 1) % s, r !== 0) return e.checkpointsHit++, o.push({
 		type: "checkpoint",
@@ -8624,12 +10483,17 @@ function Qo(e, t, n, r, i, a, o) {
 		isFinal: e.lap === i
 	}), "lap")) : "checkpoint";
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function $o(e, t, n, r, i, a) {
+========
+function cs(e, t, n, r, i, a) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let o = t.prevT;
 	if (t.prevT = e.t, e.isGhost || e.finishTick !== void 0) return "none";
 	let s = n.checkpoints.length;
-	if (W(e.t - o) > Y.teleportGuardSectors / s) return "none";
+	if (G(e.t - o) > X.teleportGuardSectors / s) return "none";
 	let c = n.checkpoints[t.nextCheckpoint];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	return xr(o, e.t, c.t) ? Qo(e, t, n, t.nextCheckpoint, r, i, a) : "none";
 }
 function es(e, t, n, r, i, a) {
@@ -8646,10 +10510,29 @@ function ns(e, t, n) {
 //#region src/race-manager/countdown.ts
 var rs = Math.round(Y.countdownStepSeconds * 120), is = Y.countdownSteps * rs;
 function as(e, t, n, r, i, a, o) {
+========
+	return vr(o, e.t, c.t) ? ss(e, t, n, t.nextCheckpoint, r, i, a) : "none";
+}
+function ls(e, t, n, r, i, a) {
+	if (t.prevT = e.t, e.isGhost || e.finishTick !== void 0) return "none";
+	let o = n.checkpoints.length, s = n.checkpoints[t.nextCheckpoint], c = K(e.t, s.t);
+	return c > 0 && c < X.checkpointResyncSectors / o ? ss(e, t, n, t.nextCheckpoint, r, i, a) : "none";
+}
+var us = 1.5;
+function ds(e, t, n) {
+	let r = n.checkpoints[t.lastCheckpoint], i = n.length, a = G(e.t - r.t), o = a > us / n.checkpoints.length ? a - 1 : a;
+	return (e.lap - 1) * i + (G(r.t - n.startT) + o) * i;
+}
+//#endregion
+//#region src/race-manager/countdown.ts
+var fs = Math.round(X.countdownStepSeconds * 120), ps = X.countdownSteps * fs;
+function ms(e, t, n, r, i, a, o) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let i = 0; i < t.length; i++) {
 		let t = n[i];
-		r[i].throttle > Y.stuckInputMin ? t.throttleHeldSinceTick < 0 && (t.throttleHeldSinceTick = e) : t.throttleHeldSinceTick = -1;
+		r[i].throttle > X.stuckInputMin ? t.throttleHeldSinceTick < 0 && (t.throttleHeldSinceTick = e) : t.throttleHeldSinceTick = -1;
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	if (e < is) return e % rs === 0 && a.push({
 		type: "countdown",
 		stepsLeft: Y.countdownSteps - e / rs
@@ -8657,11 +10540,21 @@ function as(e, t, n, r, i, a, o) {
 	for (let e = 0; e < t.length; e++) {
 		let r = n[e].throttleHeldSinceTick;
 		r >= 0 && Kr(t[e], i[e], (is - r) / 120, o[e]);
+========
+	if (e < ps) return e % fs === 0 && a.push({
+		type: "countdown",
+		stepsLeft: X.countdownSteps - e / fs
+	}), !1;
+	for (let e = 0; e < t.length; e++) {
+		let r = n[e].throttleHeldSinceTick;
+		r >= 0 && Ur(t[e], i[e], (ps - r) / 120, o[e]);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	return a.push({ type: "go" }), !0;
 }
 //#endregion
 //#region src/race-manager/util.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var os = 1e-9;
 function ss(e, t) {
 	let n = e - t;
@@ -8684,9 +10577,33 @@ function us(e, t, n, r, i, a, o) {
 	let s, c;
 	for (let l of r) if (!(ls(e.position, l.position) > l.radius + n.kartRadius) && !(e.status.intangibleRemaining > 0 || V(e)) && (!l.ground || e.grounded)) {
 		if ((!s || !c) && (s = z(e.heading), c = Pn(e.heading)), l.hit === "launch") {
+========
+var hs = 1e-9;
+function gs(e, t) {
+	let n = e - t;
+	return n > hs ? n : 0;
+}
+function _s(e, t) {
+	return R(e[0] - t[0], e[2] - t[2]);
+}
+function vs(e, t) {
+	return z(e[0] - t[0], e[1] - t[1], e[2] - t[2]);
+}
+//#endregion
+//#region src/race-manager/hazards.ts
+function ys(e, t, n, r, i, a, o) {
+	if (t.hazardCooldownRemaining = gs(t.hazardCooldownRemaining, i), t.ventCooldownRemaining = gs(t.ventCooldownRemaining, i), e.isGhost || e.finishTick !== void 0) return;
+	if (t.hazardInside !== void 0) {
+		let i = r.find((e) => e.id === t.hazardInside);
+		(!i || vs(e.position, i.position) > i.radius + n.kartRadius) && (t.hazardInside = void 0);
+	}
+	let s, c;
+	for (let l of r) if (!(vs(e.position, l.position) > l.radius + n.kartRadius) && !(e.status.intangibleRemaining > 0 || H(e)) && (!l.ground || e.grounded)) {
+		if ((!s || !c) && (s = B(e.heading), c = jn(e.heading)), l.hit === "launch") {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			let n = l.launch ?? 0;
 			if (t.ventCooldownRemaining > 0 || e.airborne.fromJumpId === l.id || e.verticalVelocity >= n) continue;
-			e.verticalVelocity = n, e.grounded = !1, e.airborne.fromJumpId = l.id, e.airborne.seconds = 0, t.ventCooldownRemaining = U.ventEruptSeconds, o.push({
+			e.verticalVelocity = n, e.grounded = !1, e.airborne.fromJumpId = l.id, e.airborne.seconds = 0, t.ventCooldownRemaining = W.ventEruptSeconds, o.push({
 				type: "launched",
 				jumpId: l.id
 			});
@@ -8703,23 +10620,27 @@ function us(e, t, n, r, i, a, o) {
 		}
 		if (!(t.hazardCooldownRemaining > 0 || e.status.spinRemaining > 0 || l.id === t.hazardInside)) {
 			if (e.status.shield && (l.hit === "spin" || l.hit === "slow")) {
-				e.status.shield = !1, t.hazardCooldownRemaining = Y.hazardCooldownSeconds, t.hazardInside = l.id;
+				e.status.shield = !1, t.hazardCooldownRemaining = X.hazardCooldownSeconds, t.hazardInside = l.id;
 				continue;
 			}
 			switch (l.hit) {
 				case "spin":
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 					Gr(e, n, "hazard", o);
+========
+					Hr(e, n, "hazard", o);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 					break;
 				case "slow":
-					e.status.slowedTo = Y.hazardSlowTo, e.status.slowRemaining = Y.hazardSlowSeconds;
+					e.status.slowedTo = X.hazardSlowTo, e.status.slowRemaining = X.hazardSlowSeconds;
 					break;
 				case "bump": {
 					let t = e.position[0] - l.position[0], n = e.position[2] - l.position[2], r = t * c[0] + n * c[2] >= 0 ? 1 : -1;
-					e.lateralVelocity += r * Y.hazardBumpLateral;
+					e.lateralVelocity += r * X.hazardBumpLateral;
 					break;
 				}
 			}
-			t.hazardCooldownRemaining = Y.hazardCooldownSeconds, t.hazardInside = l.id, a.push({
+			t.hazardCooldownRemaining = X.hazardCooldownSeconds, t.hazardInside = l.id, a.push({
 				type: "hazardHit",
 				racerId: e.racerId,
 				hazardId: l.id,
@@ -8730,7 +10651,11 @@ function us(e, t, n, r, i, a, o) {
 }
 //#endregion
 //#region src/race-manager/pickups.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ds(e) {
+========
+function bs(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let t = {
 		pickups: [],
 		coins: []
@@ -8739,27 +10664,43 @@ function ds(e) {
 		e.kind === "pickup" ? t.pickups.push(n) : e.kind === "coin" && t.coins.push(n);
 	}), t;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function fs(e) {
+========
+function xs(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		pickupStates: e.pickups.map(() => ({ respawnRemaining: 0 })),
 		coinStates: e.coins.map(() => ({ respawnRemaining: 0 }))
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ps(e, t, n, r, i, a, o, s) {
 	for (let c = 0; c < t.length; c++) {
 		let l = n[c];
 		if (l.respawnRemaining = ss(l.respawnRemaining, o), l.respawnRemaining > 0) continue;
+========
+function Ss(e, t, n, r, i, a, o, s) {
+	for (let c = 0; c < t.length; c++) {
+		let l = n[c];
+		if (l.respawnRemaining = gs(l.respawnRemaining, o), l.respawnRemaining > 0) continue;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let u = r.features[t[c]];
 		if (!r.branches.list[u.branch].open) continue;
 		let d = u.width / 2;
 		for (let t = 0; t < i.length; t++) {
 			let n = i[t];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			if (!(n.isGhost || n.finishTick !== void 0 || n.status.held || n.branch !== u.branch) && !(cs(n.position, u.position) > d + a[t].kartRadius)) {
 				e === "coin" ? (l.respawnRemaining = Y.coinRespawnSeconds, n.coins = Math.min(a[t].coinCap, n.coins + 1), s.push({
+========
+			if (!(n.isGhost || n.finishTick !== void 0 || n.status.held || n.branch !== u.branch) && !(_s(n.position, u.position) > d + a[t].kartRadius)) {
+				e === "coin" ? (l.respawnRemaining = X.coinRespawnSeconds, n.coins = Math.min(a[t].coinCap, n.coins + 1), s.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 					type: "coin",
 					racerId: n.racerId,
 					coins: n.coins
-				})) : (l.respawnRemaining = Y.pickupRespawnSeconds, s.push({
+				})) : (l.respawnRemaining = X.pickupRespawnSeconds, s.push({
 					type: "pickup",
 					racerId: n.racerId,
 					index: c
@@ -8769,6 +10710,7 @@ function ps(e, t, n, r, i, a, o, s) {
 		}
 	}
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ms(e, t, n, r, i, a, o, s) {
 	ps("pickup", e.pickups, t, r, i, a, o, s), ps("coin", e.coins, n, r, i, a, o, s);
 }
@@ -8784,19 +10726,44 @@ function gs(e, t, n, r) {
 	return o === s ? i.distanceAlong === a.distanceAlong ? hs(i) === hs(a) ? t[n].gridSlot - t[r].gridSlot : hs(a) - hs(i) : a.distanceAlong - i.distanceAlong : o ? -1 : 1;
 }
 function _s(e, t, n) {
+========
+function Cs(e, t, n, r, i, a, o, s) {
+	Ss("pickup", e.pickups, t, r, i, a, o, s), Ss("coin", e.coins, n, r, i, a, o, s);
+}
+//#endregion
+//#region src/race-manager/ranking.ts
+var ws = (e) => e.status.loopIndex >= 0 ? e.status.loopS : 0;
+function Ts(e, t, n, r) {
+	let i = e[n], a = e[r], o = i.finishTick !== void 0, s = a.finishTick !== void 0;
+	if (o && s) {
+		let e = i.finishTick - a.finishTick;
+		return e === 0 ? t[n].dnf === t[r].dnf ? t[n].finalDistance === t[r].finalDistance ? ws(i) === ws(a) ? t[n].gridSlot - t[r].gridSlot : ws(a) - ws(i) : t[r].finalDistance - t[n].finalDistance : t[n].dnf ? 1 : -1 : e;
+	}
+	return o === s ? i.distanceAlong === a.distanceAlong ? ws(i) === ws(a) ? t[n].gridSlot - t[r].gridSlot : ws(a) - ws(i) : a.distanceAlong - i.distanceAlong : o ? -1 : 1;
+}
+function Es(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	n.length = 0;
 	for (let t = 0; t < e.length; t++) e[t].isGhost || n.push(t);
 	for (let r = 1; r < n.length; r++) {
 		let i = n[r], a = r - 1;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		for (; a >= 0 && gs(e, t, n[a], i) > 0;) n[a + 1] = n[a], a--;
+========
+		for (; a >= 0 && Ts(e, t, n[a], i) > 0;) n[a + 1] = n[a], a--;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		n[a + 1] = i;
 	}
 	return n;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function vs(e, t, n, r, i) {
+========
+function Ds(e, t, n, r, i) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let a = 0; a < n.length; a++) {
 		let o = n[a], s = e[o], c = t[o], l = a + 1;
-		c.rankHeldSeconds = l === s.rank ? c.rankHeldSeconds + r : r, s.rank = l, l !== c.shownRank && (s.finishTick !== void 0 || c.rankHeldSeconds + 1e-9 >= Y.rankDebounceSeconds) && (c.shownRank = l, i.push({
+		c.rankHeldSeconds = l === s.rank ? c.rankHeldSeconds + r : r, s.rank = l, l !== c.shownRank && (s.finishTick !== void 0 || c.rankHeldSeconds + 1e-9 >= X.rankDebounceSeconds) && (c.shownRank = l, i.push({
 			type: "positionChange",
 			racerId: s.racerId,
 			rank: l
@@ -8805,7 +10772,11 @@ function vs(e, t, n, r, i) {
 }
 //#endregion
 //#region src/race-manager/wrongway.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var ys = {
+========
+var Os = {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	position: [
 		0,
 		0,
@@ -8826,17 +10797,26 @@ var ys = {
 	surface: "road",
 	gripScale: 1
 };
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function bs(e, t) {
 	let n = t.sampleInto(e.t, 0, e.branch, ys), r = z(e.heading), i = Pn(e.heading), a = r[0] * e.speed + i[0] * e.lateralVelocity, o = r[2] * e.speed + i[2] * e.lateralVelocity;
 	return a * n.tangent[0] + o * n.tangent[2];
 }
 function xs(e, t, n) {
+========
+function ks(e, t) {
+	let n = t.sampleInto(e.t, 0, e.branch, Os), r = B(e.heading), i = jn(e.heading), a = r[0] * e.speed + i[0] * e.lateralVelocity, o = r[2] * e.speed + i[2] * e.lateralVelocity;
+	return a * n.tangent[0] + o * n.tangent[2];
+}
+function As(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	t.wrongWaySeconds = 0, t.wrongWayOn && (t.wrongWayOn = !1, n.push({
 		type: "wrongWay",
 		racerId: e.racerId,
 		on: !1
 	}));
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ss(e, t, n, r, i) {
 	if (e.isGhost || e.finishTick !== void 0) {
 		xs(e, t, i);
@@ -8859,54 +10839,110 @@ function ws(e, t, n, r) {
 	return Number.isFinite(i) ? i < -a ? -a : i > a ? a : i : 0;
 }
 function Ts(e, t) {
+========
+function js(e, t, n, r, i) {
+	if (e.isGhost || e.finishTick !== void 0) {
+		As(e, t, i);
+		return;
+	}
+	let a = ks(e, n);
+	a < X.wrongWaySpeed ? (t.wrongWaySeconds += r, !t.wrongWayOn && t.wrongWaySeconds + 1e-9 >= X.wrongWayHoldSeconds && (t.wrongWayOn = !0, i.push({
+		type: "wrongWay",
+		racerId: e.racerId,
+		on: !0
+	}))) : a > X.wrongWayClearSpeed && As(e, t, i);
+}
+//#endregion
+//#region src/race-manager/respawn.ts
+function Ms(e, t, n, r) {
+	return t.stuckSeconds = (!e.isPlayer || n.throttle > X.stuckInputMin || n.brake > X.stuckInputMin) && Math.abs(e.speed) < X.stuckSpeed && e.status.spinRemaining === 0 && e.grounded && t.freezeRemaining === 0 ? t.stuckSeconds + r : 0, t.stuckSeconds + 1e-9 >= X.stuckSeconds;
+}
+function Ns(e, t, n, r) {
+	let i = r ?? gr(t, e.t, e.position, e.branch).lateral, a = Math.max(0, Math.min(n - N.kartRadius, n * X.respawnInset));
+	return Number.isFinite(i) ? i < -a ? -a : i > a ? a : i : 0;
+}
+function Ps(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let n = e.branches.main.lut, r = (e) => (n.covered[n.idx(e)] | n.covered[n.idx(e + 1)]) !== 0, i = Math.floor(n.norm(t) * n.step);
 	if (!r(i)) return t;
 	for (let e = 0; e < n.n && r(i); e++) i--;
-	return W((i - Math.ceil(U.tunnelFunnel / (n.length / n.step))) / n.step);
+	return G((i - Math.ceil(W.tunnelFunnel / (n.length / n.step))) / n.step);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Es(e, t, n, r) {
 	let i = n.checkpoints[t.lastCheckpoint], a = Ts(n, i.t), o = a === i.t ? i : n.sample(a, 0, 0), s = n.sample(a, ws(e, n, o.halfWidth, r), 0).position;
+========
+function Fs(e, t, n, r) {
+	let i = n.checkpoints[t.lastCheckpoint], a = Ps(n, i.t), o = a === i.t ? i : n.sample(a, 0, 0), s = n.sample(a, Ns(e, n, o.halfWidth, r), 0).position;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		position: [
 			s[0],
-			s[1] + Y.respawnLift,
+			s[1] + X.respawnLift,
 			s[2]
 		],
-		heading: B(o.tangent),
+		heading: V(o.tangent),
 		t: a
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Ds = (e) => {
 	let t = Math.max(0, Math.min(1, e));
 	return t * t * (3 - 2 * t);
 };
 function Os(e, t, n, r) {
 	let i = yr(n, e.t, e.position, e.branch).lateral, a = Es(e, t, n, i);
+========
+var Is = (e) => {
+	let t = Math.max(0, Math.min(1, e));
+	return t * t * (3 - 2 * t);
+};
+function Ls(e, t, n, r) {
+	let i = gr(n, e.t, e.position, e.branch).lateral, a = Fs(e, t, n, i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	t.rescue = {
 		lateral: Number.isFinite(i) ? i : 0,
 		from: [...e.position],
 		fromHeading: e.heading,
 		to: a.position,
 		toHeading: a.heading,
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		remaining: Y.rescueSeconds
 	}, e.status.falling = !1, e.status.held = !0, t.freezeRemaining = Math.max(t.freezeRemaining, Y.rescueSeconds + Y.respawnFreezeSeconds), e.status.intangibleRemaining = Math.max(e.status.intangibleRemaining, Y.rescueSeconds + Y.respawnFreezeSeconds), H(e), ye(e), r.push({
+========
+		remaining: X.rescueSeconds
+	}, e.status.falling = !1, e.status.held = !0, t.freezeRemaining = Math.max(t.freezeRemaining, X.rescueSeconds + X.respawnFreezeSeconds), e.status.intangibleRemaining = Math.max(e.status.intangibleRemaining, X.rescueSeconds + X.respawnFreezeSeconds), U(e), _e(e), r.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "rescue",
 		racerId: e.racerId,
 		phase: "start"
 	});
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ks(e, t) {
 	let n = Y.rescueSeconds, r = n / 2.4 * .8, i = n / 2.4 * 2, a = e.from, o = e.to;
 	if (t < r) return {
 		position: [
 			a[0],
 			a[1] + .3 * Ds((t - r * .7) / (r * .3)),
+========
+function Rs(e, t) {
+	let n = X.rescueSeconds, r = n / 2.4 * .8, i = n / 2.4 * 2, a = e.from, o = e.to;
+	if (t < r) return {
+		position: [
+			a[0],
+			a[1] + .3 * Is((t - r * .7) / (r * .3)),
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			a[2]
 		],
 		heading: e.fromHeading
 	};
 	if (t < i) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let n = Ds((t - r) / (i - r)), s = Math.max(a[1], o[1]) + Y.rescueRise, c = (t - r) / (i - r), l = c < .5 ? a[1] + .3 + (s - a[1] - .3) * Ds(c * 2) : s + (o[1] + 1.5 - s) * Ds((c - .5) * 2), u = e.toHeading - e.fromHeading;
+========
+		let n = Is((t - r) / (i - r)), s = Math.max(a[1], o[1]) + X.rescueRise, c = (t - r) / (i - r), l = c < .5 ? a[1] + .3 + (s - a[1] - .3) * Is(c * 2) : s + (o[1] + 1.5 - s) * Is((c - .5) * 2), u = e.toHeading - e.fromHeading;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (; u > Math.PI;) u -= 2 * Math.PI;
 		for (; u < -Math.PI;) u += 2 * Math.PI;
 		return {
@@ -8918,7 +10954,11 @@ function ks(e, t) {
 			heading: e.fromHeading + u * n
 		};
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let s = Ds((t - i) / (n - i));
+========
+	let s = Is((t - i) / (n - i));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return {
 		position: [
 			o[0],
@@ -8928,6 +10968,7 @@ function ks(e, t) {
 		heading: e.toHeading
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function As(e, t, n) {
 	let r = yr(t, e.t, e.position, e.branch).lateral, i = t.sample(e.t, r, e.branch), a = i.open ?? 0;
 	if (!(a & (r < 0 ? 1 : 2)) && Math.abs(r) - (Nn(i, r) - In(e, n)) > n.wallEndOvershoot) return !0;
@@ -8945,14 +10986,39 @@ function Ms(e, t, n, r, i) {
 	a.remaining = Math.max(0, a.remaining - r);
 	let o = ks(a, Y.rescueSeconds - a.remaining);
 	e.position = o.position, e.heading = o.heading, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !1, !(a.remaining > 1e-9) && (t.rescue = void 0, Ns(e, t, n, i, a.lateral), i.push({
+========
+function zs(e, t, n) {
+	let r = gr(t, e.t, e.position, e.branch).lateral, i = t.sample(e.t, r, e.branch), a = i.open ?? 0;
+	if (!(a & (r < 0 ? 1 : 2)) && Math.abs(r) - (An(i, r) - Nn(e, n)) > n.wallEndOvershoot) return !0;
+	let o = e.position[1] - (i.groundY + xr(t, e.t, e.branch, r, i.halfWidth, a));
+	return o < -n.groundCatch || e.grounded && o > n.groundCatch;
+}
+function Bs(e, t, n) {
+	if (!t.rescue) return;
+	let r = Fs(e, t, n, t.rescue.lateral);
+	t.rescue.to = r.position, t.rescue.toHeading = r.heading;
+}
+function Vs(e, t, n, r, i) {
+	let a = t.rescue;
+	if (!a) return;
+	a.remaining = Math.max(0, a.remaining - r);
+	let o = Rs(a, X.rescueSeconds - a.remaining);
+	e.position = o.position, e.heading = o.heading, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !1, !(a.remaining > 1e-9) && (t.rescue = void 0, Hs(e, t, n, i, a.lateral), i.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "rescue",
 		racerId: e.racerId,
 		phase: "end"
 	}));
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ns(e, t, n, r, i) {
 	let a = Es(e, t, n, i);
 	e.position = a.position, e.heading = a.heading, e.t = a.t, e.branch = 0, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !0, e.status.falling = !1, e.status.held = !1, e.airborne.fromJumpId = void 0, e.airborne.trickQueued = !1, e.airborne.seconds = 0, H(e), ye(e), e.status.intangibleRemaining = Math.max(e.status.intangibleRemaining, Y.respawnFreezeSeconds), t.prevT = W(a.t - 1e-7), t.freezeRemaining = Y.respawnFreezeSeconds, t.stuckSeconds = 0, t.respawnCount++, xs(e, t, r), r.push({
+========
+function Hs(e, t, n, r, i) {
+	let a = Fs(e, t, n, i);
+	e.position = a.position, e.heading = a.heading, e.t = a.t, e.branch = 0, e.speed = 0, e.lateralVelocity = 0, e.verticalVelocity = 0, e.grounded = !0, e.status.falling = !1, e.status.held = !1, e.airborne.fromJumpId = void 0, e.airborne.trickQueued = !1, e.airborne.seconds = 0, U(e), _e(e), e.status.intangibleRemaining = Math.max(e.status.intangibleRemaining, X.respawnFreezeSeconds), t.prevT = G(a.t - 1e-7), t.freezeRemaining = X.respawnFreezeSeconds, t.stuckSeconds = 0, t.respawnCount++, As(e, t, r), r.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		type: "respawn",
 		racerId: e.racerId,
 		checkpoint: t.lastCheckpoint
@@ -8960,7 +11026,11 @@ function Ns(e, t, n, r, i) {
 }
 //#endregion
 //#region src/race-manager/race.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Ps = class {
+========
+var Us = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	track;
 	config;
 	state;
@@ -8979,21 +11049,32 @@ var Ps = class {
 		this.track = e, this.config = t;
 		let n = e.spawnGrid;
 		if (t.racers.length > n.length) throw Error(`${t.racers.length} racers for ${n.length} grid slots`);
-		let r = t.laps ?? e.def.laps, i = t.mode === "knockout" ? t.racers.length : n.length, a = Math.min(Y.playerGridSlot, i - 1), o = t.racers.some((e) => e.isPlayer), s = [];
+		let r = t.laps ?? e.def.laps, i = t.mode === "knockout" ? t.racers.length : n.length, a = Math.min(X.playerGridSlot, i - 1), o = t.racers.some((e) => e.isPlayer), s = [];
 		for (let e = 0; e < n.length; e++) o && e === a || s.push(e);
 		let c = [], l = [], u = [], d = -1;
 		t.racers.forEach((e, r) => {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let i = e.isPlayer || e.isGhost && o ? a : s.shift(), f = n[i], p = Mn({
+========
+			let i = e.isPlayer || e.isGhost && o ? a : s.shift(), f = n[i], p = kn({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				racerId: e.racerId,
 				isPlayer: e.isPlayer,
 				isGhost: e.isGhost,
 				position: [...f.position],
 				heading: f.heading,
 				t: f.t
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			}), m = fe(e.archetype, t.speedClass, e.racerId, e.kartId);
 			p.lap = 1, p.kartId = m.kartId, p.bodyId = e.bodyId, p.skinId = e.skinId, e.isPlayer && (d = r), c.push(p), l.push(Zo(i, f.t)), u.push(m);
 		}), this.playerIndex = d, this.consts = u, this.fi = ds(e);
 		let f = fs(this.fi);
+========
+			}), m = ue(e.archetype, t.speedClass, e.racerId, e.kartId);
+			p.lap = 1, p.kartId = m.kartId, p.bodyId = e.bodyId, p.skinId = e.skinId, e.isPlayer && (d = r), c.push(p), l.push(os(i, f.t)), u.push(m);
+		}), this.playerIndex = d, this.consts = u, this.fi = bs(e);
+		let f = xs(this.fi);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		this.state = {
 			mode: t.mode,
 			trackId: t.trackId,
@@ -9001,8 +11082,13 @@ var Ps = class {
 			mirrored: t.mirrored ?? !1,
 			seed: t.seed,
 			tick: 0,
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			goTick: is,
 			time: -is * Lr,
+========
+			goTick: ps,
+			time: -ps * Pr,
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			phase: "countdown",
 			lapsTotal: r,
 			finalLapShiftFired: !1,
@@ -9019,17 +11105,30 @@ var Ps = class {
 			inputLog: [],
 			playerFinishTick: -1,
 			leaderLap: 1
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		}, this.effective = c.map(() => jn), this.kartEvents = c.map(() => []);
 		for (let t = 0; t < c.length; t++) c[t].distanceAlong = ns(c[t], l[t], e);
 		_s(c, l, this.order), this.order.forEach((e, t) => {
+========
+		}, this.effective = c.map(() => On), this.kartEvents = c.map(() => []);
+		for (let t = 0; t < c.length; t++) c[t].distanceAlong = ds(c[t], l[t], e);
+		Es(c, l, this.order), this.order.forEach((e, t) => {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			c[e].rank = t + 1, l[e].shownRank = t + 1;
 		});
 	}
 	get dt() {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		return Lr;
 	}
 	step(e) {
 		let t = this.state, { karts: n, trackers: r } = t, i = this.track, a = t.tick, o = Lr, s = [];
+========
+		return Pr;
+	}
+	step(e) {
+		let t = this.state, { karts: n, trackers: r } = t, i = this.track, a = t.tick, o = Pr, s = [];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		if (t.time = (a - t.goTick) * o, this.lastActiveHazards = i.activeHazards(t.time), t.phase !== "countdown") for (let e of i.hazards.vents(t.time)) this.ventStates.get(e.id) !== e.state && (this.ventStates.set(e.id, e.state), e.state !== "idle" && s.push({
 			type: "vent",
 			id: e.id,
@@ -9048,6 +11147,7 @@ var Ps = class {
 		for (let e of c) e.length = 0;
 		let l = t.phase === "finished", u = !1;
 		if (t.phase === "countdown") {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			u = as(a, n, r, e, this.consts, s, c);
 			for (let e = 0; e < n.length; e++) this.effective[e] = jn;
 		} else for (let t = 0; t < n.length; t++) {
@@ -9056,6 +11156,16 @@ var Ps = class {
 		}
 		this.playerIndex >= 0 && t.playerFinishTick < 0 && t.inputLog.push({ ...e[this.playerIndex] });
 		let d = Wr(n, this.effective, i, this.consts, o);
+========
+			u = ms(a, n, r, e, this.consts, s, c);
+			for (let e = 0; e < n.length; e++) this.effective[e] = On;
+		} else for (let t = 0; t < n.length; t++) {
+			let i = n[t], a = r[t];
+			this.effective[t] = !i.isGhost && a.freezeRemaining > 0 ? On : e[t];
+		}
+		this.playerIndex >= 0 && t.playerFinishTick < 0 && t.inputLog.push({ ...e[this.playerIndex] });
+		let d = Vr(n, this.effective, i, this.consts, o);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (let e = 0; e < n.length; e++) {
 			let t = d[e], n = c[e];
 			for (let e = 0; e < t.length; e++) n.push(t[e]);
@@ -9068,6 +11178,7 @@ var Ps = class {
 			l.length = 0;
 			for (let u = 0; u < n.length; u++) {
 				let d = n[u], f = r[u], p = this.consts[u];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				f.freezeRemaining = ss(f.freezeRemaining, o);
 				let m = !1, h = c[u];
 				for (let e = h.length - 1; e >= 0; e--) h[e].type === "respawn" && (m = !0, h.splice(e, 1));
@@ -9085,6 +11196,25 @@ var Ps = class {
 			for (let e = 0; e < n.length; e++) n[e].distanceAlong = ns(n[e], r[e], i);
 			for (let e = 0; e < l.length; e++) r[l[e]].finalDistance = n[l[e]].distanceAlong;
 			_s(n, r, this.order), vs(n, r, this.order, o, s);
+========
+				f.freezeRemaining = gs(f.freezeRemaining, o);
+				let m = !1, h = c[u];
+				for (let e = h.length - 1; e >= 0; e--) h[e].type === "respawn" && (m = !0, h.splice(e, 1));
+				if (f.rescue) {
+					Vs(d, f, i, o, s);
+					continue;
+				}
+				if (m || cs(d, f, i, t.lapsTotal, a, s) === "finish" && (l.push(u), d.isPlayer && (t.playerFinishTick = a)), js(d, f, i, o, s), !m && !d.isGhost && d.finishTick === void 0 && Ms(d, f, e[u], o) && (m = !0), m) {
+					Ls(d, f, i, s);
+					continue;
+				}
+				ys(d, f, p, this.lastActiveHazards, o, s, c[u]);
+			}
+			Cs(this.fi, t.pickupStates, t.coinStates, i, n, this.consts, o, s);
+			for (let e = 0; e < n.length; e++) n[e].distanceAlong = ds(n[e], r[e], i);
+			for (let e = 0; e < l.length; e++) r[l[e]].finalDistance = n[l[e]].distanceAlong;
+			Es(n, r, this.order), Ds(n, r, this.order, o, s);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			for (let e of this.order) l.includes(e) && s.push({
 				type: "finish",
 				racerId: n[e].racerId,
@@ -9099,13 +11229,17 @@ var Ps = class {
 				d = !1;
 				break;
 			}
-			let f = t.playerFinishTick >= 0 && (this.endRequested || a - t.playerFinishTick >= Math.round(Y.finishGraceSeconds / o));
+			let f = t.playerFinishTick >= 0 && (this.endRequested || a - t.playerFinishTick >= Math.round(X.finishGraceSeconds / o));
 			if (d || f) {
 				for (let e of this.order) {
 					let t = n[e];
 					t.finishTick === void 0 && (t.finishTick = a, r[e].dnf = !0, r[e].finalDistance = t.distanceAlong);
 				}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				_s(n, r, this.order), this.order.forEach((e, t) => {
+========
+				Es(n, r, this.order), this.order.forEach((e, t) => {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 					n[e].rank = t + 1;
 				});
 				for (let e of this.order) r[e].dnf && s.push({
@@ -9121,7 +11255,11 @@ var Ps = class {
 				}), s.push({ type: "raceFinished" });
 			}
 		}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		if (l) for (let e = 0; e < n.length; e++) r[e].freezeRemaining = ss(r[e].freezeRemaining, o), r[e].rescue && Ms(n[e], r[e], i, o, s);
+========
+		if (l) for (let e = 0; e < n.length; e++) r[e].freezeRemaining = gs(r[e].freezeRemaining, o), r[e].rescue && Vs(n[e], r[e], i, o, s);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		t.tick = a + 1;
 		let f = [];
 		for (let e = 0; e < n.length; e++) for (let t of c[e]) f.push({
@@ -9139,14 +11277,22 @@ var Ps = class {
 		let n = this.state;
 		if (n.finalLapShiftFired) return;
 		n.finalLapShiftFired = !0;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let r = this.track.def.finalLapShift.routeOverrides ?? [], i = n.karts.map((e) => e.branch === 0 && r.some((t) => Qa(e.t, t.fromT, t.toT))), a = this.track.applyFinalLapShift(n.karts);
+========
+		let r = this.track.def.finalLapShift.routeOverrides ?? [], i = n.karts.map((e) => e.branch === 0 && r.some((t) => Za(e.t, t.fromT, t.toT))), a = this.track.applyFinalLapShift(n.karts);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		a && t.push({
 			type: "trackChanged",
 			event: a
 		});
 		for (let r = 0; r < n.karts.length; r++) {
 			let o = n.karts[r], s = n.trackers[r];
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			es(o, s, this.track, n.lapsTotal, e, t), js(o, s, this.track), a && i[r] && !s.rescue && !ur(o) && As(o, this.track, this.consts[r]) && Os(o, s, this.track, t), o.distanceAlong = ns(o, s, this.track);
+========
+			ls(o, s, this.track, n.lapsTotal, e, t), Bs(o, s, this.track), a && i[r] && !s.rescue && !sr(o) && zs(o, this.track, this.consts[r]) && Ls(o, s, this.track, t), o.distanceAlong = ds(o, s, this.track);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		}
 		n.phase = "finalLap", t.push({
 			type: "phase",
@@ -9155,7 +11301,11 @@ var Ps = class {
 	}
 	results() {
 		let e = this.state, t = e.lapsTotal * this.track.length, n = 0, r = this.order.map((r) => {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let i = e.karts[r], a = e.trackers[r], o = i.finishTick ?? -1, s = a.lapTicks.map((t, n) => Fs(t - (n === 0 ? e.goTick : a.lapTicks[n - 1]))), c = o < 0 ? -1 : Fs(o - e.goTick), l = o < 0 || a.dnf, u = -1;
+========
+			let i = e.karts[r], a = e.trackers[r], o = i.finishTick ?? -1, s = a.lapTicks.map((t, n) => Ws(t - (n === 0 ? e.goTick : a.lapTicks[n - 1]))), c = o < 0 ? -1 : Ws(o - e.goTick), l = o < 0 || a.dnf, u = -1;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			return l && c > 0 && a.finalDistance > 0 && (u = Math.max(n + 100, Math.round(c * Math.max(1, t / a.finalDistance)))), n = Math.max(n, l ? u : c), {
 				racerId: i.racerId,
 				rank: i.rank,
@@ -9176,12 +11326,21 @@ var Ps = class {
 		};
 	}
 };
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Fs(e) {
 	return Math.round(e * 1e3 * Lr);
 }
 //#endregion
 //#region src/track-builder/creatures.ts
 var Is = Object.freeze({
+========
+function Ws(e) {
+	return Math.round(e * 1e3 * Pr);
+}
+//#endregion
+//#region src/track-builder/creatures.ts
+var Gs = Object.freeze({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	rumblesaur: {
 		off: 9,
 		step: 3.5,
@@ -9240,6 +11399,7 @@ var Is = Object.freeze({
 		gust: 20,
 		window: 36
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 }), Ls = (e) => {
 	let t = Math.max(0, Math.min(1, e));
 	return t * t * (3 - 2 * t);
@@ -9247,6 +11407,15 @@ var Is = Object.freeze({
 	let t = I(e * 127.1 + 311.7) * 43758.5453;
 	return t - Math.floor(t);
 }, zs = class {
+========
+}), Ks = (e) => {
+	let t = Math.max(0, Math.min(1, e));
+	return t * t * (3 - 2 * t);
+}, qs = (e) => {
+	let t = L(e * 127.1 + 311.7) * 43758.5453;
+	return t - Math.floor(t);
+}, Js = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	id;
 	kind;
 	def;
@@ -9261,7 +11430,7 @@ var Is = Object.freeze({
 		this.t = this.branches.main.nearestGlobal(this.spot).t;
 	}
 	frame(e) {
-		let t = this.branches.main.sample(e, 0), n = t.tangent[2], r = -t.tangent[0], i = L(n, r) || 1;
+		let t = this.branches.main.sample(e, 0), n = t.tangent[2], r = -t.tangent[0], i = R(n, r) || 1;
 		return {
 			t: e,
 			p: t.position,
@@ -9273,7 +11442,11 @@ var Is = Object.freeze({
 			],
 			hw: t.halfWidth,
 			reach: Math.max(t.wallLeft ?? t.wall ?? t.halfWidth, t.wallRight ?? t.wall ?? t.halfWidth),
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			heading: zt(t.tangent[0], t.tangent[2])
+========
+			heading: It(t.tangent[0], t.tangent[2])
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		};
 	}
 	clear(e, t, n) {
@@ -9301,11 +11474,19 @@ var Is = Object.freeze({
 		let t = [], n = this.pose(e), r = this.id, i = this.def.hit ?? "spin";
 		switch (this.kind) {
 			case "rumblesaur": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let e = Is.rumblesaur;
 				for (let a of n.marks) if (a.kind === "ring") {
 					let n = this.frame(this.t);
 					for (let i = 0; i < e.ringPoints; i++) {
 						let o = i / e.ringPoints * Math.PI * 2, s = a.position[0] + gt(o) * a.radius, c = a.position[2] + I(o) * a.radius, l = (s - n.p[0]) * n.right[0] + (c - n.p[2]) * n.right[2];
+========
+				let e = Gs.rumblesaur;
+				for (let a of n.marks) if (a.kind === "ring") {
+					let n = this.frame(this.t);
+					for (let i = 0; i < e.ringPoints; i++) {
+						let o = i / e.ringPoints * Math.PI * 2, s = a.position[0] + pt(o) * a.radius, c = a.position[2] + L(o) * a.radius, l = (s - n.p[0]) * n.right[0] + (c - n.p[2]) * n.right[2];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 						Math.abs(l) > Math.max(n.hw + 2, n.reach) || t.push({
 							id: r,
 							type: "creature",
@@ -9348,7 +11529,11 @@ var Is = Object.freeze({
 				break;
 			case "crab":
 			case "goose": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let e = this.kind === "crab" ? Is.crab : Is.goose, a = this.frame(this.t), o = (n.position[0] - a.p[0]) * a.right[0] + (n.position[2] - a.p[2]) * a.right[2];
+========
+				let e = this.kind === "crab" ? Gs.crab : Gs.goose, a = this.frame(this.t), o = (n.position[0] - a.p[0]) * a.right[0] + (n.position[2] - a.p[2]) * a.right[2];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				(this.kind === "goose" || Math.abs(o) < Math.max(a.hw, a.reach) + e.radius) && t.push({
 					id: r,
 					type: "creature",
@@ -9360,7 +11545,11 @@ var Is = Object.freeze({
 			}
 			case "whale": {
 				if (n.action !== "slap") break;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let e = Is.whale, i = this.frame(this.t), a = e.gust * -this.side;
+========
+				let e = Gs.whale, i = this.frame(this.t), a = e.gust * -this.side;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				t.push({
 					id: r,
 					type: "gust",
@@ -9382,7 +11571,11 @@ var Is = Object.freeze({
 		let t = this.phase(e), n = this.side, r = this.id, i = this.kind, a = [];
 		switch (i) {
 			case "rumblesaur": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let e = Is.rumblesaur, o = this.frame(this.t), s = this.on(o, n * this.clear(o, e.off, e.footprint)), c = o.heading - n * Math.PI / 2, l = this.on(o, n * (o.hw + e.off - e.step)), u = e.idle + e.rear, d = "idle", f = t / e.idle;
+========
+				let e = Gs.rumblesaur, o = this.frame(this.t), s = this.on(o, n * this.clear(o, e.off, e.footprint)), c = o.heading - n * Math.PI / 2, l = this.on(o, n * (o.hw + e.off - e.step)), u = e.idle + e.rear, d = "idle", f = t / e.idle;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				if (t >= e.idle && t < u) d = "rear", f = (t - e.idle) / e.rear, a.push({
 					kind: "shadow",
 					position: l,
@@ -9414,15 +11607,23 @@ var Is = Object.freeze({
 				};
 			}
 			case "yeti": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let o = Is.yeti, s = this.frame(this.t), c = this.on(s, n * this.clear(s, o.off, o.footprint), 3), l = s.heading - n * Math.PI / 2, u = this.period(), d = Math.floor(e / u), f = "idle", p = 0;
 				t >= u - o.windUp ? (f = "windUp", p = (t - (u - o.windUp)) / o.windUp) : t < o.flight && (f = "throw", p = t / o.flight);
 				let m = this.branches.main.lut.length, h = this.t + o.ahead / m, g = this.frame(h), _ = (Rs(d) * 2 - 1) * Math.max(0, g.hw - o.radius - 1), v = this.at(g, _);
 				if (t < o.flight) {
 					let e = Ls(t / o.flight), n = [
+========
+				let o = Gs.yeti, s = this.frame(this.t), c = this.on(s, n * this.clear(s, o.off, o.footprint), 3), l = s.heading - n * Math.PI / 2, u = this.period(), d = Math.floor(e / u), f = "idle", p = 0;
+				t >= u - o.windUp ? (f = "windUp", p = (t - (u - o.windUp)) / o.windUp) : t < o.flight && (f = "throw", p = t / o.flight);
+				let m = this.branches.main.lut.length, h = this.t + o.ahead / m, g = this.frame(h), _ = (qs(d) * 2 - 1) * Math.max(0, g.hw - o.radius - 1), v = this.at(g, _);
+				if (t < o.flight) {
+					let e = Ks(t / o.flight), n = [
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 						c[0],
 						c[1] + 4,
 						c[2]
-					], r = I(e * Math.PI) * 9;
+					], r = L(e * Math.PI) * 9;
 					a.push({
 						kind: "snowball",
 						position: [
@@ -9458,7 +11659,11 @@ var Is = Object.freeze({
 				};
 			}
 			case "kraken": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let e = Is.kraken, o = this.frame(this.t), s = n * (o.hw + e.off), c = this.at(o, s, -1), l = o.heading - n * Math.PI / 2, u = "idle", d = t / e.idle, f = e.idle + e.warn, p = f + e.slam;
+========
+				let e = Gs.kraken, o = this.frame(this.t), s = n * (o.hw + e.off), c = this.at(o, s, -1), l = o.heading - n * Math.PI / 2, u = "idle", d = t / e.idle, f = e.idle + e.warn, p = f + e.slam;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				t >= e.idle && t < f ? (u = "warn", d = (t - e.idle) / e.warn) : t >= f && t < p ? (u = "slam", d = (t - f) / e.slam) : t >= p && (u = "retract", d = Math.min(1, (t - p) / e.retract));
 				let m = this.at(o, n * (o.hw + 1)), h = this.at(o, -n * (o.hw + 1));
 				if (u === "warn" && a.push({
@@ -9494,9 +11699,15 @@ var Is = Object.freeze({
 				};
 			}
 			case "crab": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let e = Is.crab, o = this.frame(this.t), s = o.hw + e.off, c = e.wait + e.cross, l = t % c, u = (t >= c ? -1 : 1) * n * s, d = -u, f = u, p = "wait", m = l / e.wait;
 				if (l >= e.wait) {
 					let t = Ls((l - e.wait) / e.cross);
+========
+				let e = Gs.crab, o = this.frame(this.t), s = o.hw + e.off, c = e.wait + e.cross, l = t % c, u = (t >= c ? -1 : 1) * n * s, d = -u, f = u, p = "wait", m = l / e.wait;
+				if (l >= e.wait) {
+					let t = Ks((l - e.wait) / e.cross);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 					f = u + (d - u) * t, p = "cross", m = (l - e.wait) / e.cross;
 				} else if (l >= e.wait - e.warn) {
 					let t = (l - (e.wait - e.warn)) / e.warn;
@@ -9521,6 +11732,7 @@ var Is = Object.freeze({
 				};
 			}
 			case "goose": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let e = Is.goose, o = this.branches.main.lut.length, s = this.frame(this.t), c = s.hw + e.off, l = e.wait + e.charge, u = l + e.turn, d = 0, f = n * c, p = "wait", m = t / e.wait, h = s.heading + Math.PI;
 				if (t >= e.wait && t < l) {
 					let r = t - e.wait;
@@ -9531,6 +11743,18 @@ var Is = Object.freeze({
 					d = e.charge * e.speed;
 					let r = Ls((t - l) / e.turn);
 					f = n * c * r, p = t < u ? "turn" : "walk", m = t < u ? (t - l) / e.turn : (t - u) / (this.period() - u), t >= u && (d = e.charge * e.speed * (1 - Ls((t - u) / (this.period() - u)))), h = t >= u ? s.heading : s.heading + Math.PI - n * Math.PI / 2 * r;
+========
+				let e = Gs.goose, o = this.branches.main.lut.length, s = this.frame(this.t), c = s.hw + e.off, l = e.wait + e.charge, u = l + e.turn, d = 0, f = n * c, p = "wait", m = t / e.wait, h = s.heading + Math.PI;
+				if (t >= e.wait && t < l) {
+					let r = t - e.wait;
+					d = r * e.speed;
+					let i = Ks(r / .8);
+					f = n * c * (1 - i) + L(r / e.weavePeriod * Math.PI * 2) * e.weave * i, p = "charge", m = r / e.charge;
+				} else if (t >= l) {
+					d = e.charge * e.speed;
+					let r = Ks((t - l) / e.turn);
+					f = n * c * r, p = t < u ? "turn" : "walk", m = t < u ? (t - l) / e.turn : (t - u) / (this.period() - u), t >= u && (d = e.charge * e.speed * (1 - Ks((t - u) / (this.period() - u)))), h = t >= u ? s.heading : s.heading + Math.PI - n * Math.PI / 2 * r;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				}
 				let g = this.frame(this.t - d / o), _ = this.on(g, f);
 				return p === "wait" && m > .4 && a.push({
@@ -9549,14 +11773,24 @@ var Is = Object.freeze({
 				};
 			}
 			case "whale": {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				let o = Is.whale, s = this.frame(this.t), c = o.swim + o.warn, l = c + o.slap, u = "swim", d = t / o.swim, f = 0;
 				t >= o.swim - 2 && t < o.swim ? f = Ls((t - (o.swim - 2)) / 2) : t >= o.swim && t < l ? f = 1 : t >= l && (f = 1 - Ls((t - l) / Math.max(.5, this.period() - l))), t >= o.swim && t < c ? (u = "warn", d = (t - o.swim) / o.warn) : t >= c && t < l ? (u = "slap", d = (t - c) / o.slap) : t >= l && (u = "swim", d = (t - l) / (this.period() - l));
 				let p = I(e / this.period() * Math.PI * 2) * 20, m = this.branches.main.lut.length, h = this.frame(this.t + p / m), g = n * (s.hw + o.off * (1 - f * .55));
+========
+				let o = Gs.whale, s = this.frame(this.t), c = o.swim + o.warn, l = c + o.slap, u = "swim", d = t / o.swim, f = 0;
+				t >= o.swim - 2 && t < o.swim ? f = Ks((t - (o.swim - 2)) / 2) : t >= o.swim && t < l ? f = 1 : t >= l && (f = 1 - Ks((t - l) / Math.max(.5, this.period() - l))), t >= o.swim && t < c ? (u = "warn", d = (t - o.swim) / o.warn) : t >= c && t < l ? (u = "slap", d = (t - c) / o.slap) : t >= l && (u = "swim", d = (t - l) / (this.period() - l));
+				let p = L(e / this.period() * Math.PI * 2) * 20, m = this.branches.main.lut.length, h = this.frame(this.t + p / m), g = n * (s.hw + o.off * (1 - f * .55));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				return {
 					id: r,
 					kind: i,
 					position: this.at(h, g, o.height - f * 8),
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 					heading: h.heading + (gt(e / this.period() * Math.PI * 2) > 0 ? 0 : Math.PI),
+========
+					heading: h.heading + (pt(e / this.period() * Math.PI * 2) > 0 ? 0 : Math.PI),
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 					action: u,
 					phase: d,
 					marks: a
@@ -9576,26 +11810,35 @@ var Is = Object.freeze({
 };
 //#endregion
 //#region src/track-builder/hazards.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Bs(e, t) {
 	let n = Math.max(e.period ?? 5, U.ventWarnSeconds + U.ventEruptSeconds + .1), r = ((t + (e.offset ?? 0)) % n + n) % n, i = n - U.ventEruptSeconds, a = i - U.ventWarnSeconds;
+========
+function Ys(e, t) {
+	let n = Math.max(e.period ?? 5, W.ventWarnSeconds + W.ventEruptSeconds + .1), r = ((t + (e.offset ?? 0)) % n + n) % n, i = n - W.ventEruptSeconds, a = i - W.ventWarnSeconds;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return r >= i ? {
 		state: "erupt",
-		k: (r - i) / U.ventEruptSeconds
+		k: (r - i) / W.ventEruptSeconds
 	} : r >= a ? {
 		state: "warn",
-		k: (r - a) / U.ventWarnSeconds
+		k: (r - a) / W.ventWarnSeconds
 	} : {
 		state: "idle",
 		k: r / a
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Vs(e, t) {
+========
+function Xs(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let n = e.period ?? 1, r = n > 0 ? (t % n + n) % n : 0;
-	if (r < U.fallingActiveSeconds) return {
+	if (r < W.fallingActiveSeconds) return {
 		state: "down",
-		k: r / U.fallingActiveSeconds
+		k: r / W.fallingActiveSeconds
 	};
-	let i = Math.min(U.fallingWarnSeconds, n - U.fallingActiveSeconds);
+	let i = Math.min(W.fallingWarnSeconds, n - W.fallingActiveSeconds);
 	return r >= n - i ? {
 		state: "drop",
 		k: (r - (n - i)) / i
@@ -9604,14 +11847,22 @@ function Vs(e, t) {
 		k: 0
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Hs = class {
+========
+var Zs = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	items = [];
 	branches;
 	creatures = [];
 	constructor(e, t) {
 		this.branches = t, e.forEach((e, n) => {
 			if (e.type === "creature") {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 				this.creatures.push(new zs(e.id ?? `creature-${n}`, e, t));
+========
+				this.creatures.push(new Js(e.id ?? `creature-${n}`, e, t));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				return;
 			}
 			let r = e.lateral ?? 0, i = t.sample(e.t, r, 0);
@@ -9634,7 +11885,11 @@ var Hs = class {
 			id: n.id,
 			position: n.position,
 			asset: n.def.asset ?? "geyser",
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			...Bs(n.def, e)
+========
+			...Ys(n.def, e)
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		});
 		return t;
 	}
@@ -9643,7 +11898,11 @@ var Hs = class {
 		for (let n of this.items) n.def.type === "falling" && n.enabled && t.push({
 			id: n.id,
 			position: n.position,
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			...Vs(n.def, e)
+========
+			...Xs(n.def, e)
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		});
 		return t;
 	}
@@ -9659,10 +11918,14 @@ var Hs = class {
 	}
 	rederive() {
 		for (let e of this.creatures) e.rederive();
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		for (let e of this.items) e.t = this.branches.main.nearestGlobal(e.position).t, e.lateral = za(this.branches, e.t, 0, e.position);
+========
+		for (let e of this.items) e.t = this.branches.main.nearestGlobal(e.position).t, e.lateral = Ra(this.branches, e.t, 0, e.position);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	activeHazards(e) {
-		let t = [], n = this.branches.main, r = n.lut.length, i = U.hazardRadius;
+		let t = [], n = this.branches.main, r = n.lut.length, i = W.hazardRadius;
 		for (let a of this.items) {
 			if (!a.enabled) continue;
 			let o = a.def, s = o.hit ?? "spin", c = o.period ?? 1, l = c > 0 ? (e % c + c) % c : 0;
@@ -9688,7 +11951,7 @@ var Hs = class {
 					break;
 				}
 				case "crossing": {
-					let e = n.sample(a.t, 0).halfWidth, r = Math.max(0, e - i) * I(2 * Math.PI * l / c);
+					let e = n.sample(a.t, 0).halfWidth, r = Math.max(0, e - i) * L(2 * Math.PI * l / c);
 					t.push({
 						id: a.id,
 						type: o.type,
@@ -9699,7 +11962,11 @@ var Hs = class {
 					break;
 				}
 				case "falling":
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 					Vs(o, e).state === "down" && t.push({
+========
+					Xs(o, e).state === "down" && t.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 						id: a.id,
 						type: o.type,
 						position: a.position,
@@ -9708,22 +11975,26 @@ var Hs = class {
 					});
 					break;
 				case "vent":
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 					Bs(o, e).state === "erupt" && t.push({
+========
+					Ys(o, e).state === "erupt" && t.push({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 						id: a.id,
 						type: o.type,
 						position: a.position,
-						radius: U.ventRadius,
+						radius: W.ventRadius,
 						hit: "launch",
-						launch: o.launch ?? U.ventLaunch
+						launch: o.launch ?? W.ventLaunch
 					});
 					break;
 				case "gust": if (l < c / 2) {
-					let e = n.sample(a.t, 0), r = e.tangent[2], i = -e.tangent[0], s = L(r, i) || 1, c = a.lateral > 0 ? -1 : 1, l = (o.speed ?? 0) * c;
+					let e = n.sample(a.t, 0), r = e.tangent[2], i = -e.tangent[0], s = R(r, i) || 1, c = a.lateral > 0 ? -1 : 1, l = (o.speed ?? 0) * c;
 					t.push({
 						id: a.id,
 						type: o.type,
 						position: e.position,
-						radius: U.gustWindow / 2,
+						radius: W.gustWindow / 2,
 						hit: "bump",
 						push: [
 							r / s * l,
@@ -9744,8 +12015,13 @@ var Hs = class {
 };
 //#endregion
 //#region src/track-builder/minimap.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Us(e) {
 	let t = U.minimapSamples, n = U.minimapPadding, r = [], i = Infinity, a = -Infinity, o = Infinity, s = -Infinity;
+========
+function Qs(e) {
+	let t = W.minimapSamples, n = W.minimapPadding, r = [], i = Infinity, a = -Infinity, o = Infinity, s = -Infinity;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let n of e.list) {
 		let c = [], l = [], u = n.isMain ? t : Math.max(8, Math.round(t * n.lut.length / e.main.lut.length)), d = n.isMain ? u : u - 1;
 		for (let e = 0; e < u; e++) {
@@ -9780,10 +12056,14 @@ function Us(e) {
 }
 //#endregion
 //#region src/track-builder/race.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Ws(e, t, n) {
+========
+function $s(e, t, n) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let r = [];
 	for (let i = 0; i < n; i++) {
-		let a = W(t + i / n), o = e.sample(a, 0);
+		let a = G(t + i / n), o = e.sample(a, 0);
 		r.push({
 			index: i,
 			t: a,
@@ -9794,10 +12074,17 @@ function Ws(e, t, n) {
 	}
 	return r;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Gs(e, t, n) {
 	let r = [], { rows: i, columns: a, spacing: o } = n;
 	for (let n = 0; n < i; n++) {
 		let i = W(t - (n + 1) * o / e.length), s = e.sample(i, 0).halfWidth, c = Math.max(0, Math.min(.5 * s, s - Xr)), l = a > 1 ? 2 * c / (a - 1) : 0, u = n % 2 == 1 ? l / 4 : 0;
+========
+function ec(e, t, n) {
+	let r = [], { rows: i, columns: a, spacing: o } = n;
+	for (let n = 0; n < i; n++) {
+		let i = G(t - (n + 1) * o / e.length), s = e.sample(i, 0).halfWidth, c = Math.max(0, Math.min(.5 * s, s - qr)), l = a > 1 ? 2 * c / (a - 1) : 0, u = n % 2 == 1 ? l / 4 : 0;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (let t = 0; t < a; t++) {
 			let o = a > 1 ? -c + u + t * (2 * (c - u)) / (a - 1) : n % 2 == 1 ? c / 2 : -c / 2, s = e.sample(i, o);
 			r.push({
@@ -9805,7 +12092,7 @@ function Gs(e, t, n) {
 				t: i,
 				lateral: o,
 				position: s.position,
-				heading: B(s.tangent)
+				heading: V(s.tangent)
 			});
 		}
 	}
@@ -9813,7 +12100,11 @@ function Gs(e, t, n) {
 }
 //#endregion
 //#region src/track-builder/terrain.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Ks = 30, qs = .01, Js = 16, Ys = 15, Xs = class {
+========
+var tc = 30, nc = .01, rc = 16, ic = 15, ac = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	luts;
 	x0;
 	z0;
@@ -9826,8 +12117,13 @@ var Ks = 30, qs = .01, Js = 16, Ys = 15, Xs = class {
 		this.luts = e;
 		let t = Infinity, n = -Infinity, r = Infinity, i = -Infinity, a = 0;
 		for (let o of e) for (let e = 0; e < o.n; e++) o.px[e] < t && (t = o.px[e]), o.px[e] > n && (n = o.px[e]), o.pz[e] < r && (r = o.pz[e]), o.pz[e] > i && (i = o.pz[e]), o.hw[e] > a && (a = o.hw[e]);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		this.maxHw = a, this.x0 = t - Js, this.z0 = r - Js, this.nx = Math.ceil((n - t) / Js) + 3, this.nz = Math.ceil((i - r) / Js) + 3;
 		let o = new Int32Array(this.nx * this.nz + 1), s = (e, t) => Math.floor((e.pz[t] - this.z0) / Js) * this.nx + Math.floor((e.px[t] - this.x0) / Js);
+========
+		this.maxHw = a, this.x0 = t - rc, this.z0 = r - rc, this.nx = Math.ceil((n - t) / rc) + 3, this.nz = Math.ceil((i - r) / rc) + 3;
+		let o = new Int32Array(this.nx * this.nz + 1), s = (e, t) => Math.floor((e.pz[t] - this.z0) / rc) * this.nx + Math.floor((e.px[t] - this.x0) / rc);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		for (let t of e) for (let e = 0; e < t.n; e++) o[s(t, e) + 1]++;
 		for (let e = 0; e < this.nx * this.nz; e++) o[e + 1] += o[e];
 		this.start = o.slice();
@@ -9837,6 +12133,7 @@ var Ks = 30, qs = .01, Js = 16, Ys = 15, Xs = class {
 		});
 	}
 	top(e, t) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		return this.query(e, t, Zs, Ks).top;
 	}
 	query(e, t, n, r = Ks) {
@@ -9854,12 +12151,35 @@ var Ks = 30, qs = .01, Js = 16, Ys = 15, Xs = class {
 				let x = b.edge > 0 ? b.edge : 0, S = 1 - x / Ks;
 				if (S <= 0) continue;
 				let C = S * S * b.fade / (x + qs);
+========
+		return this.query(e, t, oc, tc).top;
+	}
+	query(e, t, n, r = tc) {
+		let i = this.maxHw + W.kerbWidth + r, a = i * i, o = Math.max(0, Math.floor((e - i - this.x0) / rc)), s = Math.min(this.nx - 1, Math.floor((e + i - this.x0) / rc)), c = Math.max(0, Math.floor((t - i - this.z0) / rc)), l = Math.min(this.nz - 1, Math.floor((t + i - this.z0) / rc)), u = 0, d = 0, f = Infinity, p = Infinity, m = NaN, h = !1, g = NaN, _ = NaN, v = 0;
+		for (let n = c; n <= l; n++) for (let i = o; i <= s; i++) {
+			let o = n * this.nx + i;
+			for (let n = this.start[o]; n < this.start[o + 1]; n++) {
+				let i = this.items[n], o = this.luts[i >> 20], s = i & 1048575, c = sc(o, s, e, t);
+				if (c > a) continue;
+				let l = o.idx(s - 1), y = o.idx(s + 1);
+				if (l !== s && sc(o, l, e, t) < c || y !== s && sc(o, y, e, t) <= c) continue;
+				let b = cc(o, s, e, t);
+				if (!b || b.edge > r) continue;
+				v++, b.edge < f ? (p = f, f = b.edge, m = b.h, h = b.open, g = b.cover, _ = b.lip) : b.edge < p && (p = b.edge);
+				let x = b.edge > 0 ? b.edge : 0, S = 1 - x / tc;
+				if (S <= 0) continue;
+				let C = S * S * b.fade / (x + nc);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 				u += C, d += C * b.h;
 			}
 		}
 		return n.top = u > 1e-12 ? d / u : m, n.edge = f, n.next = p, n.open = h, n.cover = g, n.lip = _, n.pieces = v, n;
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 }, Zs = {
+========
+}, oc = {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	top: 0,
 	edge: 0,
 	next: 0,
@@ -9875,11 +12195,19 @@ var Ks = 30, qs = .01, Js = 16, Ys = 15, Xs = class {
 	cover: NaN,
 	lip: NaN
 };
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Qs(e, t, n, r) {
 	let i = e.px[t] - n, a = e.pz[t] - r;
 	return i * i + a * a;
 }
 function $s(e, t, n, r) {
+========
+function sc(e, t, n, r) {
+	let i = e.px[t] - n, a = e.pz[t] - r;
+	return i * i + a * a;
+}
+function cc(e, t, n, r) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let i = Infinity, a = t;
 	for (let o = t - 1; o <= t; o++) {
 		let t = e.idx(o), s = e.idx(o + 1);
@@ -9893,30 +12221,46 @@ function $s(e, t, n, r) {
 		let i = t, a = t === 0 ? -1 : 1;
 		if (((n - e.px[i]) * e.tx[i] + (r - e.pz[i]) * e.tz[i]) * a > 0) return null;
 	}
-	let o = e.idx(Math.floor(a)), s = e.idx(Math.floor(a) + 1), c = a - Math.floor(a), l = 1 - c, u = e.px[o] * l + e.px[s] * c, d = e.pz[o] * l + e.pz[s] * c, f = e.rx[o] * l + e.rx[s] * c, p = e.rz[o] * l + e.rz[s] * c, m = L(f, p) || 1, h = ((n - u) * f + (r - d) * p) / m, g = e.hw[o] * l + e.hw[s] * c + U.kerbWidth, _ = e.bank[o] * l + e.bank[s] * c;
+	let o = e.idx(Math.floor(a)), s = e.idx(Math.floor(a) + 1), c = a - Math.floor(a), l = 1 - c, u = e.px[o] * l + e.px[s] * c, d = e.pz[o] * l + e.pz[s] * c, f = e.rx[o] * l + e.rx[s] * c, p = e.rz[o] * l + e.rz[s] * c, m = R(f, p) || 1, h = ((n - u) * f + (r - d) * p) / m, g = e.hw[o] * l + e.hw[s] * c + W.kerbWidth, _ = e.bank[o] * l + e.bank[s] * c;
 	$.open = !!(e.open[o] & (h < 0 ? 1 : 2));
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let v = $.open ? g + U.shoulderWidth : g, y = h < -v ? -v : h > v ? v : h, b = e.py[o] * l + e.py[s] * c, x = e.landAbove[o], S = Math.abs(h) - g, C = e.bore[o];
 	if ($.cover = C === C && S < 1.5 ? b + C : NaN, x === x ? ($.h = b + x, $.lip = U.tunnelMesaTop) : ($.h = b - y * _t(_) - U.offroadDrop, $.lip = NaN), $.edge = S, e.closed) $.fade = 1;
 	else {
 		let t = Math.min(1, Math.min(a, e.n - 1 - a) * e.length / e.step / Ys);
+========
+	let v = $.open ? g + W.shoulderWidth : g, y = h < -v ? -v : h > v ? v : h, b = e.py[o] * l + e.py[s] * c, x = e.landAbove[o], S = Math.abs(h) - g, C = e.bore[o];
+	if ($.cover = C === C && S < 1.5 ? b + C : NaN, x === x ? ($.h = b + x, $.lip = W.tunnelMesaTop) : ($.h = b - y * mt(_) - W.offroadDrop, $.lip = NaN), $.edge = S, e.closed) $.fade = 1;
+	else {
+		let t = Math.min(1, Math.min(a, e.n - 1 - a) * e.length / e.step / ic);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		$.fade = t * t * (3 - 2 * t);
 	}
 	return $;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ec(e, t) {
+========
+function lc(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let n = e.environment?.ground;
 	if (n?.kind === "none") return -Infinity;
 	let r = n?.y ?? 0;
 	if (e.offroad !== !0) return r;
 	let i = Infinity;
 	for (let e = 0; e < t.n; e++) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let n = t.hw[e] + U.kerbWidth, r = t.py[e] - n * Math.abs(_t(t.bank[e]));
+========
+		let n = t.hw[e] + W.kerbWidth, r = t.py[e] - n * Math.abs(mt(t.bank[e]));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		r < i && (i = r);
 	}
-	return Math.min(r, i - U.offroadDrop - .25);
+	return Math.min(r, i - W.offroadDrop - .25);
 }
 //#endregion
 //#region src/track-builder/tunnel.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var tc = 3, nc = (e) => {
 	let t = e < 0 ? 0 : e > 1 ? 1 : e;
 	return t * t * (3 - 2 * t);
@@ -9927,6 +12271,18 @@ function rc(e, t, n) {
 	for (let t = r; t <= i; t++) {
 		let n = Math.min(t - r, i - t) * a;
 		e.landAbove[t] = -U.offroadDrop + (U.tunnelHill + U.offroadDrop) * nc(n / U.tunnelRamp);
+========
+var uc = 3, dc = (e) => {
+	let t = e < 0 ? 0 : e > 1 ? 1 : e;
+	return t * t * (3 - 2 * t);
+};
+function fc(e, t, n) {
+	let r = Math.round(t * e.step), i = Math.round(n * e.step), a = e.length / e.step, o = i - r + 1, s = new Float64Array(o), c = new Float64Array(o), l = new Float64Array(o), u = Infinity, d = -Infinity, f = Infinity, p = -Infinity;
+	for (let t = Math.max(0, r - Math.ceil(uc / a)); t <= Math.min(e.n - 1, i + Math.ceil(uc / a)); t++) e.bore[t] = W.tunnelApex + .8;
+	for (let t = r; t <= i; t++) {
+		let n = Math.min(t - r, i - t) * a;
+		e.landAbove[t] = -W.offroadDrop + (W.tunnelHill + W.offroadDrop) * dc(n / W.tunnelRamp);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let o = t - r;
 		s[o] = e.px[t], c[o] = e.py[t], l[o] = e.pz[t], s[o] < u && (u = s[o]), s[o] > d && (d = s[o]), l[o] < f && (f = l[o]), l[o] > p && (p = l[o]);
 	}
@@ -9943,7 +12299,11 @@ function rc(e, t, n) {
 		maxZ: p
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function ic(e, t) {
+========
+function pc(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (e.covered.fill(0), !t.length) return;
 	for (let n = 0; n < e.n; n++) {
 		let r = e.px[n], i = e.pz[n];
@@ -9961,11 +12321,15 @@ function ic(e, t) {
 			}
 		}
 	}
-	let n = e.length / e.step, r = Math.ceil(U.tunnelFunnel / n);
+	let n = e.length / e.step, r = Math.ceil(W.tunnelFunnel / n);
 	for (let t = 0; t < e.n; t++) if (!e.covered[t]) for (let i = 1; i <= r; i++) {
 		let r = e.idx(t + i), a = e.idx(t - i);
 		if (r !== t && e.covered[r] || a !== t && e.covered[a]) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 			let r = U.offroadReach * nc(i * n / U.tunnelFunnel);
+========
+			let r = W.offroadReach * dc(i * n / W.tunnelFunnel);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			r < e.reachL[t] && (e.reachL[t] = r), r < e.reachR[t] && (e.reachR[t] = r);
 			break;
 		}
@@ -9973,6 +12337,7 @@ function ic(e, t) {
 }
 //#endregion
 //#region src/track-builder/limits.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var ac = (e) => {
 	let t = e < 0 ? 0 : e > 1 ? 1 : e;
 	return t * t * (3 - 2 * t);
@@ -10003,6 +12368,38 @@ function lc(e) {
 	let t = /* @__PURE__ */ new Map();
 	for (let n = 0; n < e.n; n++) {
 		let r = uc(Math.floor(e.px[n] / cc), Math.floor(e.pz[n] / cc)), i = t.get(r);
+========
+var mc = (e) => {
+	let t = e < 0 ? 0 : e > 1 ? 1 : e;
+	return t * t * (3 - 2 * t);
+};
+function hc(e, t, n) {
+	for (let t of e.list) t.lut.reachL.fill(W.offroadReach), t.lut.reachR.fill(W.offroadReach);
+	let r = t.courseLimit;
+	if (!r || t.offroad !== !0) return;
+	let i = e.main.lut, a = xc(i, r, n);
+	for (let t of e.list) if (!t.isMain) for (let [e, n] of [[t.entryT, .12], [t.exitT, .88]]) {
+		let r = Sc(i, t.lut, e, n) < 0 ? a.left : a.right;
+		Cc(i, e, W.limitMouth, (e) => {
+			r[e] < W.offroadReach && (r[e] = W.offroadReach);
+		});
+	}
+	Tc(i, a.left), Tc(i, a.right);
+	let o = new Float32Array(i.n).fill(Infinity), s = e.list.filter((e) => !e.isMain).map((e) => vc(e.lut));
+	for (let e = 0; e < i.n; e++) for (let t of s) if (bc(t, i.px[e], i.pz[e], gc)) {
+		o[e] = W.offroadReach;
+		break;
+	}
+	wc(i, o);
+	for (let e = 0; e < i.n; e++) a.left[e] > o[e] && (a.left[e] = o[e]), a.right[e] > o[e] && (a.right[e] = o[e]);
+	i.reachL.set(a.left), i.reachR.set(a.right);
+}
+var gc = 1.5, _c = 8;
+function vc(e) {
+	let t = /* @__PURE__ */ new Map();
+	for (let n = 0; n < e.n; n++) {
+		let r = yc(Math.floor(e.px[n] / _c), Math.floor(e.pz[n] / _c)), i = t.get(r);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		i || t.set(r, i = []), i.push(n);
 	}
 	return {
@@ -10010,11 +12407,19 @@ function lc(e) {
 		cells: t
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var uc = (e, t) => (e + 32768) * 65536 + (t + 32768);
 function dc(e, t, n, r) {
 	let i = r * r, a = Math.floor(t / cc), o = Math.floor(n / cc);
 	for (let r = a - 1; r <= a + 1; r++) for (let a = o - 1; a <= o + 1; a++) {
 		let o = e.cells.get(uc(r, a));
+========
+var yc = (e, t) => (e + 32768) * 65536 + (t + 32768);
+function bc(e, t, n, r) {
+	let i = r * r, a = Math.floor(t / _c), o = Math.floor(n / _c);
+	for (let r = a - 1; r <= a + 1; r++) for (let a = o - 1; a <= o + 1; a++) {
+		let o = e.cells.get(yc(r, a));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		if (o) for (let r of o) {
 			let a = e.L.px[r] - t, o = e.L.pz[r] - n;
 			if (a * a + o * o < i) return !0;
@@ -10022,13 +12427,20 @@ function dc(e, t, n, r) {
 	}
 	return !1;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function fc(e, t, n) {
 	let r = e.n, i = e.length / e.step, a = new Float32Array(r), o = new Float32Array(r), s = new Float32Array(r), c = Math.max(1, Math.round(U.limitWindow / 2 / i)), l = 1 / U.limitBend[0], u = 1 / U.limitBend[1], [d, f] = U.limitStart;
 	for (let p = 0; p < r; p++) {
 		let r = 2 * (e.hw[p] + U.kerbWidth), m = (t.straight ?? U.offroadReach / r) * r, h = (t.outside ?? t.straight ?? U.offroadReach / r) * r, g = (t.inside ?? t.straight ?? U.offroadReach / r) * r, _ = e.idx(p - c), v = e.idx(p + c), y = Math.sqrt(e.tx[_] * e.tx[_] + e.tz[_] * e.tz[_]) || 1, b = Math.sqrt(e.tx[v] * e.tx[v] + e.tz[v] * e.tz[v]) || 1, x = e.tx[v] / b - e.tx[_] / y, S = e.tz[v] / b - e.tz[_] / y, C = ac((Math.sqrt(x * x + S * S) / (2 * c * i) - l) / (u - l));
+========
+function xc(e, t, n) {
+	let r = e.n, i = e.length / e.step, a = new Float32Array(r), o = new Float32Array(r), s = new Float32Array(r), c = Math.max(1, Math.round(W.limitWindow / 2 / i)), l = 1 / W.limitBend[0], u = 1 / W.limitBend[1], [d, f] = W.limitStart;
+	for (let p = 0; p < r; p++) {
+		let r = 2 * (e.hw[p] + W.kerbWidth), m = (t.straight ?? W.offroadReach / r) * r, h = (t.outside ?? t.straight ?? W.offroadReach / r) * r, g = (t.inside ?? t.straight ?? W.offroadReach / r) * r, _ = e.idx(p - c), v = e.idx(p + c), y = Math.sqrt(e.tx[_] * e.tx[_] + e.tz[_] * e.tz[_]) || 1, b = Math.sqrt(e.tx[v] * e.tx[v] + e.tz[v] * e.tz[v]) || 1, x = e.tx[v] / b - e.tx[_] / y, S = e.tz[v] / b - e.tz[_] / y, C = mc((Math.sqrt(x * x + S * S) / (2 * c * i) - l) / (u - l));
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		s[p] = C;
 		let w = x * e.rx[p] + S * e.rz[p] > 0, T = m + C * ((w ? h : g) - m), E = m + C * ((w ? g : h) - m), D = (((p / e.step - n) % 1 + 1.5) % 1 - .5) * e.length;
-		D >= -d && D <= f && t.start !== void 0 && (T = t.start * r, E = T), a[p] = Math.max(U.limitMin, Math.min(U.limitMax, T)), o[p] = Math.max(U.limitMin, Math.min(U.limitMax, E));
+		D >= -d && D <= f && t.start !== void 0 && (T = t.start * r, E = T), a[p] = Math.max(W.limitMin, Math.min(W.limitMax, T)), o[p] = Math.max(W.limitMin, Math.min(W.limitMax, E));
 	}
 	return {
 		left: a,
@@ -10036,6 +12448,7 @@ function fc(e, t, n) {
 		bend: s
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function pc(e, t, n, r) {
 	let i = t.sample(r, 0).position, a = e.sample(n, 0), o = Math.sqrt(a.tangent[0] * a.tangent[0] + a.tangent[2] * a.tangent[2]) || 1;
 	return ((i[0] - a.position[0]) * a.tangent[2] - (i[2] - a.position[2]) * a.tangent[0]) / o < 0 ? -1 : 1;
@@ -10046,6 +12459,18 @@ function mc(e, t, n, r) {
 }
 function hc(e, t) {
 	let n = e.n, r = U.limitSlope * (e.length / e.step);
+========
+function Sc(e, t, n, r) {
+	let i = t.sample(r, 0).position, a = e.sample(n, 0), o = Math.sqrt(a.tangent[0] * a.tangent[0] + a.tangent[2] * a.tangent[2]) || 1;
+	return ((i[0] - a.position[0]) * a.tangent[2] - (i[2] - a.position[2]) * a.tangent[0]) / o < 0 ? -1 : 1;
+}
+function Cc(e, t, n, r) {
+	let i = e.length / e.step, a = Math.round((t % 1 + 1) % 1 * e.step), o = Math.ceil(n / i);
+	for (let t = -o; t <= o; t++) r(e.idx(a + t));
+}
+function wc(e, t) {
+	let n = e.n, r = W.limitSlope * (e.length / e.step);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let e = 0; e < 2; e++) {
 		for (let e = 1; e < 2 * n; e++) {
 			let i = e % n, a = (e - 1) % n;
@@ -10057,8 +12482,13 @@ function hc(e, t) {
 		}
 	}
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function gc(e, t) {
 	let n = e.n, r = U.limitSlope * (e.length / e.step);
+========
+function Tc(e, t) {
+	let n = e.n, r = W.limitSlope * (e.length / e.step);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let e = 0; e < 2; e++) {
 		for (let e = 1; e < 2 * n; e++) {
 			let i = e % n, a = (e - 1) % n;
@@ -10072,8 +12502,13 @@ function gc(e, t) {
 }
 //#endregion
 //#region src/track-builder/validate.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var _c = o.properties.base.properties.topSpeed.default, vc = .8, yc = 2, bc = 5, xc = 4, Sc = .25, Cc = 30, wc = 10, Tc = Math.max(U.hazardRadius, U.ventRadius) + Xr + 1, Ec = /* @__PURE__ */ new Set(["static", "vent"]);
 function Dc(e) {
+========
+var Ec = o.properties.base.properties.topSpeed.default, Dc = .8, Oc = 2, kc = 5, Ac = 4, jc = .25, Mc = 30, Nc = 10, Pc = Math.max(W.hazardRadius, W.ventRadius) + qr + 1, Fc = /* @__PURE__ */ new Set(["static", "vent"]);
+function Ic(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return [
 		e.x,
 		e.y,
@@ -10082,6 +12517,7 @@ function Dc(e) {
 		e.bank ?? 0
 	].some((e) => !Number.isFinite(e));
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Oc(e, t, n, r) {
 	if (e.length < r) return n.push(`${t}: needs at least ${r} control points, has ${e.length}`), !1;
 	for (let r = 0; r < e.length; r++) {
@@ -10105,12 +12541,38 @@ function jc(e, t, n) {
 	let r = e.length / e.step, i = +!e.closed, a = e.closed ? e.n : e.n - 1, o = Infinity, s = 0, c = 0, l = 0;
 	for (let t = i; t < a; t++) {
 		let n = kc(e, t) / e.hw[t];
+========
+function Lc(e, t, n, r) {
+	if (e.length < r) return n.push(`${t}: needs at least ${r} control points, has ${e.length}`), !1;
+	for (let r = 0; r < e.length; r++) {
+		if (Ic(e[r])) return n.push(`${t}: control point ${r} has a NaN or infinite value`), !1;
+		Math.abs(e[r].bank ?? 0) > W.maxBankDeg && n.push(`${t}: control point ${r} bank ${e[r].bank}° exceeds ${W.maxBankDeg}°`);
+	}
+	return !0;
+}
+function Rc(e, t) {
+	let n = e.idx(t + 1), r = e.idx(t - 1), i = e.tx[n] - e.tx[r], a = e.ty[n] - e.ty[r], o = e.tz[n] - e.tz[r], s = e.length / e.step, c = z(i, a, o) / (2 * s);
+	return c > 0 ? 1 / c : Infinity;
+}
+function zc(e, t, n, r) {
+	let i = e.length;
+	for (let a = 0; a < (r ? i : i - 1); a++) {
+		let r = e[a], o = e[(a + 1) % i], s = z(o.x - r.x, o.y - r.y, o.z - r.z);
+		s < Ac && n.push(`${t}: control points ${a} and ${(a + 1) % i} are ${s.toFixed(2)} m apart (min ${Ac})`);
+	}
+}
+function Bc(e, t, n) {
+	let r = e.length / e.step, i = +!e.closed, a = e.closed ? e.n : e.n - 1, o = Infinity, s = 0, c = 0, l = 0;
+	for (let t = i; t < a; t++) {
+		let n = Rc(e, t) / e.hw[t];
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		n < o && (o = n, s = t / e.step);
 	}
 	for (let t = 0; t < (e.closed ? e.n : e.n - 1); t++) {
 		let n = Math.abs(e.hw[e.idx(t + 1)] - e.hw[t]) / r;
 		n > c && (c = n, l = t / e.step);
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	o < U.minTurnRadiusFactor && n.push(`${t}: hairpin at t=${s.toFixed(3)}: turn radius is ${o.toFixed(2)} × halfWidth, minimum ${U.minTurnRadiusFactor}`), c > Sc && n.push(`${t}: halfWidth changes ${c.toFixed(2)} m per metre at t=${l.toFixed(3)}, max ${Sc}`);
 }
 function Mc(e, t) {
@@ -10118,12 +12580,22 @@ function Mc(e, t) {
 	return on(Math.max(-1, Math.min(1, n))) * 180 / Math.PI;
 }
 function Nc(e, t) {
+========
+	o < W.minTurnRadiusFactor && n.push(`${t}: hairpin at t=${s.toFixed(3)}: turn radius is ${o.toFixed(2)} × halfWidth, minimum ${W.minTurnRadiusFactor}`), c > jc && n.push(`${t}: halfWidth changes ${c.toFixed(2)} m per metre at t=${l.toFixed(3)}, max ${jc}`);
+}
+function Vc(e, t) {
+	let n = (e[0] * t[0] + e[2] * t[2]) / (R(e[0], e[2]) * R(t[0], t[2]) || 1);
+	return nn(Math.max(-1, Math.min(1, n))) * 180 / Math.PI;
+}
+function Hc(e, t) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let n = e.finalLapShift.routeOverrides ?? [];
 	if (!n.length) return null;
 	let r = e.controlPoints.map((e) => t.nearestTGlobal([
 		e.x,
 		e.y,
 		e.z
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	])), i = Ga(e.controlPoints, r, n);
 	return {
 		points: i,
@@ -10133,6 +12605,17 @@ function Nc(e, t) {
 function Pc(e) {
 	let t = [], n = [], r = e.controlPoints;
 	if (Oc(r, "controlPoints", t, 8)) {
+========
+	])), i = Wa(e.controlPoints, r, n);
+	return {
+		points: i,
+		lut: oi(i)
+	};
+}
+function Uc(e) {
+	let t = [], n = [], r = e.controlPoints;
+	if (Lc(r, "controlPoints", t, 8)) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		let e = r[0], n = r[r.length - 1];
 		e.x === n.x && e.y === n.y && e.z === n.z && t.push("controlPoints: last point repeats the first; the loop closes itself, drop it");
 	}
@@ -10143,21 +12626,35 @@ function Pc(e) {
 		errors: t,
 		warnings: n
 	};
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let a = li(r), o = W(e.startGrid.t), s = a.sample(o, 0).halfWidth;
 	s < U.minStartHalfWidth && t.push(`start line halfWidth ${s.toFixed(2)} < ${U.minStartHalfWidth}`), Ac(r, "controlPoints", t, !0), jc(a, "main", t);
+========
+	let a = oi(r), o = G(e.startGrid.t), s = a.sample(o, 0).halfWidth;
+	s < W.minStartHalfWidth && t.push(`start line halfWidth ${s.toFixed(2)} < ${W.minStartHalfWidth}`), zc(r, "controlPoints", t, !0), Bc(a, "main", t);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let c = a.minY, l = /* @__PURE__ */ new Set();
 	for (let r of e.shortcuts ?? []) {
 		let e = `shortcut "${r.id}"`;
 		l.has(r.id) && t.push(`${e}: duplicate id`), l.add(r.id);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let i = W(r.exitT - r.entryT);
 		if ((i <= 0 || i > .5) && t.push(`${e}: exitT must follow entryT by less than half a lap (span ${i.toFixed(3)})`), !Oc(r.controlPoints, e, t, 2)) continue;
 		let o = a.sample(r.entryT, 0).position, s = a.sample(r.exitT, 0).position, u = r.controlPoints[0], d = r.controlPoints[r.controlPoints.length - 1], f = R(u.x - o[0], u.y - o[1], u.z - o[2]), p = R(d.x - s[0], d.y - s[1], d.z - s[2]);
 		f > yc && t.push(`${e}: first point is ${f.toFixed(2)} m from the main line at entryT (max ${yc})`), p > yc && t.push(`${e}: last point is ${p.toFixed(2)} m from the main line at exitT (max ${yc})`);
 		let m = li(r.controlPoints, {
+========
+		let i = G(r.exitT - r.entryT);
+		if ((i <= 0 || i > .5) && t.push(`${e}: exitT must follow entryT by less than half a lap (span ${i.toFixed(3)})`), !Lc(r.controlPoints, e, t, 2)) continue;
+		let o = a.sample(r.entryT, 0).position, s = a.sample(r.exitT, 0).position, u = r.controlPoints[0], d = r.controlPoints[r.controlPoints.length - 1], f = z(u.x - o[0], u.y - o[1], u.z - o[2]), p = z(d.x - s[0], d.y - s[1], d.z - s[2]);
+		f > Oc && t.push(`${e}: first point is ${f.toFixed(2)} m from the main line at entryT (max ${Oc})`), p > Oc && t.push(`${e}: last point is ${p.toFixed(2)} m from the main line at exitT (max ${Oc})`);
+		let m = oi(r.controlPoints, {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			closed: !1,
 			samples: 256,
 			divisions: 512
 		});
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		m.minY < c && (c = m.minY), Ac(r.controlPoints, e, t, !1), jc(m, e, t);
 		let h = Mc(m.sample(0, 0).tangent, a.sample(r.entryT, 0).tangent), g = Mc(m.sample(1, 0).tangent, a.sample(r.exitT, 0).tangent);
 		h > Cc && n.push(`${e}: leaves the main line at ${h.toFixed(0)}° (max ${Cc}°)`), g > Cc && n.push(`${e}: rejoins the main line at ${g.toFixed(0)}° (max ${Cc}°)`);
@@ -10171,6 +12668,21 @@ function Pc(e) {
 			for (let i = 0; i < e.checkpointCount; i++) {
 				let l = G(c, W(r + i / e.checkpointCount)) * n.length;
 				l >= 0 && l < wc && t.push(`${a}hazard ${o.id ?? s} (${o.type}) is ${l.toFixed(1)} m past checkpoint ${i} (min ${wc})`), l < 0 && -l < Tc && t.push(`${a}hazard ${o.id ?? s} (${o.type}) is ${(-l).toFixed(1)} m before checkpoint ${i} (min ${Tc.toFixed(1)})`);
+========
+		m.minY < c && (c = m.minY), zc(r.controlPoints, e, t, !1), Bc(m, e, t);
+		let h = Vc(m.sample(0, 0).tangent, a.sample(r.entryT, 0).tangent), g = Vc(m.sample(1, 0).tangent, a.sample(r.exitT, 0).tangent);
+		h > Mc && n.push(`${e}: leaves the main line at ${h.toFixed(0)}° (max ${Mc}°)`), g > Mc && n.push(`${e}: rejoins the main line at ${g.toFixed(0)}° (max ${Mc}°)`);
+	}
+	let u = Hc(e, a);
+	u && (zc(u.points, "final-lap road", t, !0), Bc(u.lut, "final-lap road", t));
+	let d = (n, r, i, a) => {
+		(e.hazards ?? []).forEach((o, s) => {
+			if (!Fc.has(o.type)) return;
+			let c = i(o);
+			for (let i = 0; i < e.checkpointCount; i++) {
+				let l = K(c, G(r + i / e.checkpointCount)) * n.length;
+				l >= 0 && l < Nc && t.push(`${a}hazard ${o.id ?? s} (${o.type}) is ${l.toFixed(1)} m past checkpoint ${i} (min ${Nc})`), l < 0 && -l < Pc && t.push(`${a}hazard ${o.id ?? s} (${o.type}) is ${(-l).toFixed(1)} m before checkpoint ${i} (min ${Pc.toFixed(1)})`);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			}
 		});
 	};
@@ -10178,7 +12690,11 @@ function Pc(e) {
 		let e = u.lut;
 		d(e, e.nearestTGlobal(a.sample(o, 0).position), (t) => e.nearestTGlobal(a.sample(t.t, t.lateral ?? 0).position), "final lap: ");
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	e.voidY > c - bc && t.push(`voidY ${e.voidY} must be at least ${bc} m below the lowest road sample (${c.toFixed(2)})`);
+========
+	e.voidY > c - kc && t.push(`voidY ${e.voidY} must be at least ${kc} m below the lowest road sample (${c.toFixed(2)})`);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let f = (e) => e >= 0 && e <= 1, p = (e, n) => {
 		(n ?? []).forEach((n, r) => {
 			f(n.t) || t.push(`${e} ${r}: t ${n.t} outside 0..1`), n.shortcut && !l.has(n.shortcut) && t.push(`${e} ${r}: unknown shortcut "${n.shortcut}"`);
@@ -10187,7 +12703,7 @@ function Pc(e) {
 	p("pickup", e.pickups), p("coin", e.coins), p("boostPad", e.boostPads), p("jump", e.jumps), (e.hazards ?? []).forEach((e, n) => {
 		f(e.t) || t.push(`hazard ${n}: t ${e.t} outside 0..1`);
 	});
-	let m = (e, t, n) => W(e - t) <= W(n - t);
+	let m = (e, t, n) => G(e - t) <= G(n - t);
 	(e.openEdges ?? []).forEach((n, r) => {
 		(!f(n.fromT) || !f(n.toT)) && t.push(`openEdges ${r}: t outside 0..1`);
 		for (let i of e.finalLapShift.routeOverrides ?? []) {
@@ -10198,22 +12714,37 @@ function Pc(e) {
 	let h = e.finalLapShift, g = new Set((e.hazards ?? []).map((e, t) => e.id ?? `hazard-${t}`));
 	for (let e of [...h.closesShortcuts ?? [], ...h.opensShortcuts ?? []]) l.has(e) || t.push(`finalLapShift names unknown shortcut "${e}"`);
 	for (let e of [...h.enablesHazards ?? [], ...h.disablesHazards ?? []]) g.has(e) || t.push(`finalLapShift names unknown hazard "${e}"`);
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	for (let e of h.routeOverrides ?? []) (!f(e.fromT) || !f(e.toT)) && t.push("routeOverride: fromT/toT outside 0..1"), Oc(e.controlPoints, "routeOverride", t, 1);
 	p("addsJump", h.addsJumps);
 	let _ = a.length / (vc * _c), [v, y] = U.lapTimeWarn;
+========
+	for (let e of h.routeOverrides ?? []) (!f(e.fromT) || !f(e.toT)) && t.push("routeOverride: fromT/toT outside 0..1"), Lc(e.controlPoints, "routeOverride", t, 1);
+	p("addsJump", h.addsJumps);
+	let _ = a.length / (Dc * Ec), [v, y] = W.lapTimeWarn;
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return (_ < v || _ > y) && n.push(`estimated lap ${_.toFixed(1)} s (length ${a.length.toFixed(0)} m) is outside ${v}–${y} s; design target is 45–60 s`), {
 		ok: t.length === 0,
 		errors: t,
 		warnings: n
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Fc(e) {
 	let t = Pc(e);
+========
+function Wc(e) {
+	let t = Uc(e);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (!t.ok) throw Error(`track "${e.id}" is invalid:\n  ${t.errors.join("\n  ")}`);
 }
 //#endregion
 //#region src/track-builder/track.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Ic = class {
+========
+var Gc = class {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	def;
 	voidY;
 	branches;
@@ -10237,15 +12768,24 @@ var Ic = class {
 	listeners = [];
 	constructor(e) {
 		this.def = e, this.voidY = e.voidY, this.controlPoints = e.controlPoints.map((e) => ({ ...e }));
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let t = li(this.controlPoints), n = [new ui(0, "main", t, 0, 1, [])];
 		(e.shortcuts ?? []).forEach((e, r) => n.push(pi(r + 1, e, t))), this.branches = new hi(n), this.groundPlaneY = ec(e, t), this.tunnels = (e.shortcuts ?? []).flatMap((e, t) => e.tunnel ? [rc(n[t + 1].lut, e.tunnel.from, e.tunnel.to)] : []), this.land = e.offroad === !0 ? new Xs(n.map((e) => e.lut)) : null, this.startT = W(e.startGrid.t), this.startPoint = t.sample(this.startT, 0).position, this.openEdges = (e.openEdges ?? []).map((e) => ({
+========
+		let t = oi(this.controlPoints), n = [new si(0, "main", t, 0, 1, [])];
+		(e.shortcuts ?? []).forEach((e, r) => n.push(ui(r + 1, e, t))), this.branches = new fi(n), this.groundPlaneY = lc(e, t), this.tunnels = (e.shortcuts ?? []).flatMap((e, t) => e.tunnel ? [fc(n[t + 1].lut, e.tunnel.from, e.tunnel.to)] : []), this.land = e.offroad === !0 ? new ac(n.map((e) => e.lut)) : null, this.startT = G(e.startGrid.t), this.startPoint = t.sample(this.startT, 0).position, this.openEdges = (e.openEdges ?? []).map((e) => ({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			...e,
 			fromPoint: t.sample(e.fromT, 0).position,
 			toPoint: t.sample(e.toT, 0).position
 		})), this.loopFeet = (e.loops ?? []).map((e) => ({
 			...e,
 			point: t.sample(e.t, 0).position
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		})), this.features = La(e, this.branches), this.hazards = new Hs(e.hazards ?? [], this.branches), this.branches.setLap(1), this.rebuildDerived();
+========
+		})), this.features = Ia(e, this.branches), this.hazards = new Zs(e.hazards ?? [], this.branches), this.branches.setLap(1), this.rebuildDerived();
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	get length() {
 		return this.branches.main.lut.length;
@@ -10272,13 +12812,21 @@ var Ic = class {
 		return this.branches.nearestGlobal(e);
 	}
 	setLap(e) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		this.branches.setLap(e), this.minimap = Us(this.branches);
+========
+		this.branches.setLap(e), this.minimap = Qs(this.branches);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	activeHazards(e) {
 		return this.hazards.activeHazards(e);
 	}
 	applyFinalLapShift(e = []) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		return Ka(this, e);
+========
+		return Ga(this, e);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	}
 	onChanged(e) {
 		return this.listeners.push(e), () => {
@@ -10292,30 +12840,45 @@ var Ic = class {
 	rebuildDerived() {
 		let e = this.branches.main.lut;
 		for (let e of this.branches.list) e.lut.offroad = this.def.offroad === !0, e.lut.land = this.land, e.lut.floorY = this.groundPlaneY;
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		oc(this.branches, this.def, this.startT);
 		for (let e of this.branches.list) ic(e.lut, this.tunnels);
+========
+		hc(this.branches, this.def, this.startT);
+		for (let e of this.branches.list) pc(e.lut, this.tunnels);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		e.open.fill(0);
 		for (let t of this.openEdges) {
 			let n = t.side === "left" ? 1 : t.side === "right" ? 2 : 3;
 			for (let r = 0; r < e.n; r++) ((r / e.n - t.fromT) % 1 + 1) % 1 <= ((t.toT - t.fromT) % 1 + 1) % 1 && (e.open[r] |= n);
 		}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		this.checkpoints = Ws(e, this.startT, this.def.checkpointCount), this.spawnGrid = Gs(e, this.startT, this.def.startGrid), this.minimap = Us(this.branches);
 		let t = this.def.offroad === !0 ? U.rampSkirt : 0;
 		this.jumps = Va(this.features).map((e) => t && e.shape !== "hump" && e.rise ? {
 			...e,
 			skirt: t
 		} : e), this.boostPads = Ha(this.features), this.loops = this.loopFeet.map((e) => ({
+========
+		this.checkpoints = $s(e, this.startT, this.def.checkpointCount), this.spawnGrid = ec(e, this.startT, this.def.startGrid), this.minimap = Qs(this.branches);
+		let t = this.def.offroad === !0 ? W.rampSkirt : 0;
+		this.jumps = Ba(this.features).map((e) => t && e.shape !== "hump" && e.rise ? {
+			...e,
+			skirt: t
+		} : e), this.boostPads = Va(this.features), this.loops = this.loopFeet.map((e) => ({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			id: e.id,
 			t: e.t,
-			radius: e.radius ?? U.loopRadius,
-			spread: U.loopSpread,
-			shift: this.def.mirrored ? -U.loopShift : U.loopShift,
-			approach: U.loopApproach,
-			exit: U.loopExit,
-			width: U.loopWidth
+			radius: e.radius ?? W.loopRadius,
+			spread: W.loopSpread,
+			shift: this.def.mirrored ? -W.loopShift : W.loopShift,
+			approach: W.loopApproach,
+			exit: W.loopExit,
+			width: W.loopWidth
 		}));
 	}
 };
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Lc(e, t = {}) {
 	return (t.validate ?? !0) && Fc(e), new Ic(e);
 }
@@ -10334,39 +12897,82 @@ function Hc(e, t) {
 		steer: n / Rc + 0,
 		throttle: e[t + 1] / Rc,
 		brake: e[t + 2] / Rc,
+========
+function Kc(e, t = {}) {
+	return (t.validate ?? !0) && Wc(e), new Gc(e);
+}
+//#endregion
+//#region src/backend-leaderboard/inputlog.ts
+var qc = 127, Jc = (e, t, n) => Math.round(Math.min(n, Math.max(t, e)) * qc) / qc + 0;
+function Yc(e, t) {
+	return t.steer = Jc(e.steer, -1, 1), t.throttle = Jc(e.throttle, 0, 1), t.brake = Jc(e.brake, 0, 1), t.drift = e.drift, t.item = e.item, t.lookBack = e.lookBack, t.horn = e.horn, t;
+}
+function Xc(e, t, n) {
+	t[n] = Math.round(e.steer * qc) + 256 & 255, t[n + 1] = Math.round(e.throttle * qc), t[n + 2] = Math.round(e.brake * qc), t[n + 3] = +!!e.drift | (e.item ? 2 : 0) | (e.lookBack ? 4 : 0) | (e.horn ? 8 : 0);
+}
+function Zc(e, t) {
+	let n = e[t] > 127 ? e[t] - 256 : e[t], r = e[t + 3];
+	return {
+		steer: n / qc + 0,
+		throttle: e[t + 1] / qc,
+		brake: e[t + 2] / qc,
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		drift: (r & 1) > 0,
 		item: (r & 2) > 0,
 		lookBack: (r & 4) > 0,
 		horn: (r & 8) > 0
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Uc(e) {
+========
+function Qc(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let t = "";
 	for (let n = 0; n < e.length; n += 32768) t += String.fromCharCode(...e.subarray(n, n + 32768));
 	return btoa(t);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Wc(e) {
+========
+function $c(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let t = atob(e), n = new Uint8Array(t.length);
 	for (let e = 0; e < t.length; e++) n[e] = t.charCodeAt(e);
 	return n;
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Gc(e) {
+========
+function el(e) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let t = /* @__PURE__ */ new Uint8Array(4), n = /* @__PURE__ */ new Uint8Array(4), r = [1], i = 0, a = () => {
 		let e = i;
 		for (; e >= 128;) r.push(e & 127 | 128), e >>>= 7;
 		r.push(e), r.push(n[0], n[1], n[2], n[3]);
 	};
 	for (let r of e) {
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		if (Vc(r, t, 0), i > 0 && t[0] === n[0] && t[1] === n[1] && t[2] === n[2] && t[3] === n[3]) {
+========
+		if (Xc(r, t, 0), i > 0 && t[0] === n[0] && t[1] === n[1] && t[2] === n[2] && t[3] === n[3]) {
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 			i++;
 			continue;
 		}
 		i > 0 && a(), n.set(t), i = 1;
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	return i > 0 && a(), Uc(Uint8Array.from(r));
 }
 function Kc(e, t = 72e3) {
 	let n = Wc(e);
+========
+	return i > 0 && a(), Qc(Uint8Array.from(r));
+}
+function tl(e, t = 72e3) {
+	let n = $c(e);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	if (n[0] !== 1) throw Error("unknown log version");
 	let r = [], i = 1;
 	for (; i < n.length;) {
@@ -10379,7 +12985,11 @@ function Kc(e, t = 72e3) {
 		}
 		if (i + 4 > n.length) throw Error("truncated record");
 		if (e <= 0 || r.length + e > t) throw Error("log too long");
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		let o = Hc(n, i);
+========
+		let o = Zc(n, i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 		i += 4;
 		for (let t = 0; t < e; t++) r.push(o);
 	}
@@ -10387,10 +12997,17 @@ function Kc(e, t = 72e3) {
 }
 //#endregion
 //#region src/game/simtick.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function qc(e, t) {
 	let { manager: n, ai: r, items: i, inputs: a, playerIndex: o } = e;
 	r.fill(n.state, n.lastActiveHazards, a), o >= 0 && t && n.state.karts[o].finishTick === void 0 && (a[o] = Bc(t, e.playerSlot));
 	let s = n.step(a), c = i.step(a, s, Lr);
+========
+function nl(e, t) {
+	let { manager: n, ai: r, items: i, inputs: a, playerIndex: o } = e;
+	r.fill(n.state, n.lastActiveHazards, a), o >= 0 && t && n.state.karts[o].finishTick === void 0 && (a[o] = Yc(t, e.playerSlot));
+	let s = n.step(a), c = i.step(a, s, Pr);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	for (let e = 0; e < a.length; e++) r.threatened[e] = i.threatened[e];
 	return {
 		race: s,
@@ -10399,6 +13016,7 @@ function qc(e, t) {
 }
 //#endregion
 //#region src/backend-leaderboard/verify.ts
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Jc(e, t, n, r, i, a) {
 	let o = A(t, e.id, n, r, a), s = Lc(e), c = new Ps(s, o), l = new Xo(s, c), u = {
 		manager: c,
@@ -10409,6 +13027,18 @@ function Jc(e, t, n, r, i, a) {
 		playerSlot: { ...jn }
 	}, d = 0;
 	for (; d < i.length && c.state.phase !== "finished"; d++) qc(u, i[d]);
+========
+function rl(e, t, n, r, i, a) {
+	let o = k(t, e.id, n, r, a), s = Kc(e), c = new Us(s, o), l = new as(s, c), u = {
+		manager: c,
+		items: l,
+		ai: new Na(s, o, c.state, { itemRoles: l.roles }),
+		inputs: c.state.karts.map(() => ({ ...On })),
+		playerIndex: 0,
+		playerSlot: { ...On }
+	}, d = 0;
+	for (; d < i.length && c.state.phase !== "finished"; d++) nl(u, i[d]);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	let f = c.results().ranks[0], p = f !== void 0 && !f.dnf && f.finishTick >= 0;
 	return {
 		finished: p,
@@ -10417,18 +13047,30 @@ function Jc(e, t, n, r, i, a) {
 		ticks: d
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Yc = 1e3;
 function Xc(e, t, n, r, i, a, o) {
 	let s;
 	try {
 		s = Kc(i);
+========
+var il = 1e3;
+function al(e, t, n, r, i, a, o) {
+	let s;
+	try {
+		s = tl(i);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	} catch (e) {
 		return {
 			ok: !1,
 			reason: `bad input log: ${e.message}`
 		};
 	}
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 	let c = Jc(e, t, n, r, s, o);
+========
+	let c = rl(e, t, n, r, s, o);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return c.finished ? Math.abs(c.timeMs - a) > 1e3 ? {
 		ok: !1,
 		reason: `claimed ${a} ms but the replay finished in ${c.timeMs} ms`
@@ -10436,12 +13078,17 @@ function Xc(e, t, n, r, i, a, o) {
 		ok: !0,
 		timeMs: c.timeMs,
 		lapTimesMs: c.lapTimesMs,
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 		canonicalLog: Gc(Zc(e, t, n, r, s.slice(0, c.ticks), c.timeMs, o))
+========
+		canonicalLog: el(ol(e, t, n, r, s.slice(0, c.ticks), c.timeMs, o))
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	} : {
 		ok: !1,
 		reason: "the replay never reached the finish line"
 	};
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 function Zc(e, t, n, r, i, a, o) {
 	let s = i.map((e, n) => {
 		let r = Bc(e, { ...jn });
@@ -10450,18 +13097,38 @@ function Zc(e, t, n, r, i, a, o) {
 			throttle: +(r.throttle > Y.stuckInputMin)
 		} : (t === "timeTrial" && (r.item = !1, r.lookBack = !1), r);
 	}), c = Jc(e, t, n, r, s, o);
+========
+function ol(e, t, n, r, i, a, o) {
+	let s = i.map((e, n) => {
+		let r = Yc(e, { ...On });
+		return r.horn = !1, n <= ps ? {
+			...On,
+			throttle: +(r.throttle > X.stuckInputMin)
+		} : (t === "timeTrial" && (r.item = !1, r.lookBack = !1), r);
+	}), c = rl(e, t, n, r, s, o);
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	return c.finished && c.timeMs === a ? s : i.map((e) => e.horn ? {
 		...e,
 		horn: !1
 	} : e);
 }
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 var Qc = Object.freeze(Object.fromEntries(Object.values(/* @__PURE__ */ Object.assign({
+========
+var sl = Object.freeze(Object.fromEntries(Object.values(/* @__PURE__ */ Object.assign({
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js
 	"../track-builder/tracks/boardwalk-nights.json": e,
 	"../track-builder/tracks/canyon-rush.json": t,
 	"../track-builder/tracks/frostbite-pass.json": n,
 	"../track-builder/tracks/harbour-loop.json": r,
 	"../track-builder/tracks/meadow-run.json": i,
 	"../track-builder/tracks/skyline-circuit.json": a
+<<<<<<<< HEAD:public/fn/core-23878056ac57f901.js
 })).map((e) => [e.id, e]))), $c = Object.freeze(Object.keys(Qc).sort());
 //#endregion
 export { Yc as CLAIM_TOLERANCE_MS, T as CLIENT_VERSION, E as MAX_LOG_BYTES, Qc as TRACKS, $c as TRACK_IDS, le as checkSubmission, ee as dailySeed, O as ipBucket, Xc as verifyRun };
+========
+})).map((e) => [e.id, e]))), cl = Object.freeze(Object.keys(sl).sort());
+//#endregion
+export { il as CLAIM_TOLERANCE_MS, C as CLIENT_VERSION, w as MAX_LOG_BYTES, sl as TRACKS, cl as TRACK_IDS, se as checkSubmission, D as dailySeed, E as ipBucket, al as verifyRun };
+>>>>>>>> origin/mac-wip/worktree-agent-a34c074aa91085c3b:public/fn/core-6ed2794ec306a0d7.js

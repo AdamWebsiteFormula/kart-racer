@@ -53,7 +53,7 @@ export const TIPS: readonly string[] = Object.freeze([
   'New to racing? In Settings, Steering assist keeps you on the road near the edges, and Auto-accelerate holds the gas for you from GO.',
   'Hold drift through a turn: the sparks go blue, orange, then purple. Let go for a boost.',
   'Press the gas the moment the 2 appears for a start boost. On a phone, put a thumb on the screen then.',
-  'Pop a balloon for an item. You can hold two. A gold pair of balloons gives you two at once.',
+  'Pop a balloon for an item. You can hold three. A gold pair of balloons gives you two at once.',
   // the speed pickups are gears (Adam, 26 Sept 2026: "not coins"); the sim still counts them as coins
   'Grab gears to tune up your kart: a little more top speed, up to 10. A hit spins you out and knocks 2 gears loose.',
   'Stay right behind a racer for 2 seconds: their slipstream gives you a boost.',

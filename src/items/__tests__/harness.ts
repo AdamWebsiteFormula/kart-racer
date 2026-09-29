@@ -78,11 +78,13 @@ export function go(h: H): void {
 
 export function seconds(s: number): number { return Math.round(s / SIM_DT); }
 
-export function give(h: H, i: number, id: string, slot: 0 | 1 = 0): void {
+/** Put `id` in kart i's item slot (0 the first, used one; 1 and 2 behind it), ready to use. */
+export function give(h: H, i: number, id: string, slot: 0 | 1 | 2 = 0): void {
   const s = h.rm.state.karts[i];
   const charges = itemById(h.items.cfg, id)?.behaviour.charges ?? 1;
   if (slot === 0) { s.item.held = id; s.item.charges = charges; s.item.rouletteRemaining = 0; }
-  else { s.item.next = id; s.item.nextCharges = charges; s.item.nextRouletteRemaining = 0; }
+  else if (slot === 1) { s.item.next = id; s.item.nextCharges = charges; s.item.nextRouletteRemaining = 0; }
+  else { s.item.third = id; s.item.thirdCharges = charges; s.item.thirdRouletteRemaining = 0; }
 }
 
 /**

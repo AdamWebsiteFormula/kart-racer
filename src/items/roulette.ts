@@ -64,23 +64,42 @@ export function weightsFor(cfg: ItemsConfig, st: RaceState, consts: readonly Kar
   return out;
 }
 
-/** A balloon popped under kart i. Rolls when the slot is empty; otherwise nothing. */
+// The item slots on KartState.item, first to last (design §8: three since 28 Sept 2026, Adam: "Yes, 3 item
+// slots"). The first is the one used; the others move up behind it. Each slot has its id, charges and roulette.
+type ItemSlots = KartState['item'];
+const IDS = ['held', 'next', 'third'] as const;
+const CHARGES = ['charges', 'nextCharges', 'thirdCharges'] as const;
+const ROLLS = ['rouletteRemaining', 'nextRouletteRemaining', 'thirdRouletteRemaining'] as const;
+
+/** How many items a kart can hold. */
+export const ITEM_SLOTS = IDS.length;
+
+/** Slot k's item id ('none' when empty; set, though hidden, while it rolls). */
+export const slotItem = (it: ItemSlots, k: number): string => it[IDS[k]];
+/** Slot k holds nothing and rolls nothing. */
+export const slotFree = (it: ItemSlots, k: number): boolean => it[IDS[k]] === 'none' && it[ROLLS[k]] <= 0;
+/** The first slot that holds nothing, or -1 when every slot is taken (the slots fill from the first, so any after it are free too). */
+export function firstFreeSlot(it: ItemSlots): number {
+  for (let k = 0; k < ITEM_SLOTS; k++) if (slotFree(it, k)) return k;
+  return -1;
+}
+
+function setSlot(it: ItemSlots, k: number, id: string, charges: number, roll: number): void {
+  it[IDS[k]] = id; it[CHARGES[k]] = charges; it[ROLLS[k]] = roll;
+}
+
+/** A balloon popped under kart i. Rolls in the first empty slot; with every slot taken, nothing. */
 export function onPickup(
   cfg: ItemsConfig, m: ItemsState, st: RaceState, consts: readonly KartConstants[], track: Track, i: number, events: ItemEvent[],
 ): boolean {
   const s = st.karts[i];
   if (s.isGhost || s.finishTick !== undefined) return false;
-  // two slots: the first free one takes the roll
-  const heldFree = s.item.held === 'none' && s.item.rouletteRemaining <= 0;
-  const nextFree = s.item.next === 'none' && s.item.nextRouletteRemaining <= 0;
-  if (!heldFree && !nextFree) return false;
+  const slot = firstFreeSlot(s.item);
+  if (slot < 0) return false;
   const id = weightedPick(weightsFor(cfg, st, consts, track, s.rank), next(m));
   if (!id) return false;
   const def = cfg.items.find((d) => d.id === id);
-  const charges = def?.behaviour.charges ?? 1;
-  const slot: 0 | 1 = heldFree ? 0 : 1;
-  if (slot === 0) { s.item.held = id; s.item.charges = charges; s.item.rouletteRemaining = cfg.rouletteSeconds; }
-  else { s.item.next = id; s.item.nextCharges = charges; s.item.nextRouletteRemaining = cfg.rouletteSeconds; }
+  setSlot(s.item, slot, id, def?.behaviour.charges ?? 1, cfg.rouletteSeconds);
   events.push({ type: 'roulette', racerId: s.racerId, itemId: id, seconds: cfg.rouletteSeconds, slot });
   return true;
 }
@@ -90,26 +109,31 @@ function tickDown(x: number, dt: number): number {
   return n > 1e-9 ? n : 0;
 }
 
-/** Ticks both roulettes; fires itemReady when one lands. */
+/** Ticks every slot's roulette; fires itemReady when one lands. */
 export function stepRoulette(s: KartState, dt: number, events: ItemEvent[]): void {
-  if (s.item.rouletteRemaining > 0) {
-    s.item.rouletteRemaining = tickDown(s.item.rouletteRemaining, dt);
-    if (s.item.rouletteRemaining === 0 && s.item.held !== 'none') events.push({ type: 'itemReady', racerId: s.racerId, itemId: s.item.held, slot: 0 });
-  }
-  if (s.item.nextRouletteRemaining > 0) {
-    s.item.nextRouletteRemaining = tickDown(s.item.nextRouletteRemaining, dt);
-    if (s.item.nextRouletteRemaining === 0 && s.item.next !== 'none') events.push({ type: 'itemReady', racerId: s.racerId, itemId: s.item.next, slot: 1 });
+  const it = s.item;
+  for (let k = 0; k < ITEM_SLOTS; k++) {
+    if (it[ROLLS[k]] <= 0) continue;
+    it[ROLLS[k]] = tickDown(it[ROLLS[k]], dt);
+    if (it[ROLLS[k]] === 0 && it[IDS[k]] !== 'none') events.push({ type: 'itemReady', racerId: s.racerId, itemId: it[IDS[k]], slot: k });
   }
 }
 
-/** Empty both slots and cancel both roulettes (Fog Bank). */
+/** Every item the kart holds, first slot first (for itemLost events). */
+export function heldItems(s: KartState): string[] {
+  const out: string[] = [];
+  for (let k = 0; k < ITEM_SLOTS; k++) if (s.item[IDS[k]] !== 'none') out.push(s.item[IDS[k]]);
+  return out;
+}
+
+/** Empty every slot and cancel every roulette (Fog Bank). */
 export function clearSlots(s: KartState): void {
-  s.item.held = 'none'; s.item.charges = 0; s.item.rouletteRemaining = 0;
-  s.item.next = 'none'; s.item.nextCharges = 0; s.item.nextRouletteRemaining = 0;
+  for (let k = 0; k < ITEM_SLOTS; k++) setSlot(s.item, k, 'none', 0, 0);
 }
 
-/** The next item moves up into the held slot (still rolling if it was). */
+/** The first slot is spent: every item behind it moves up one slot (still rolling if it was), and the last slot empties. */
 export function promoteNext(s: KartState): void {
-  s.item.held = s.item.next; s.item.charges = s.item.nextCharges; s.item.rouletteRemaining = s.item.nextRouletteRemaining;
-  s.item.next = 'none'; s.item.nextCharges = 0; s.item.nextRouletteRemaining = 0;
+  const it = s.item;
+  for (let k = 0; k + 1 < ITEM_SLOTS; k++) setSlot(it, k, it[IDS[k + 1]], it[CHARGES[k + 1]], it[ROLLS[k + 1]]);
+  setSlot(it, ITEM_SLOTS - 1, 'none', 0, 0);
 }

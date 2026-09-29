@@ -109,7 +109,7 @@ describe('How to Play says what the game does', () => {
   it('a Pogo Spring shows no ×2 (its second charge is the slam); a Triple Fizz shows ×3', () => {
     const defs = ITEM_DEFINITIONS.map((d) => ({ id: d.id, name: d.name }));
     const k = createKartState({ racerId: 'p', isPlayer: true });
-    k.item = { held: 'pogoSpring', charges: item('pogoSpring').behaviour.charges ?? 0, rouletteRemaining: 0, next: 'tripleFizz', nextCharges: 3, nextRouletteRemaining: 0 };
+    k.item = { held: 'pogoSpring', charges: item('pogoSpring').behaviour.charges ?? 0, rouletteRemaining: 0, next: 'tripleFizz', nextCharges: 3, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     const s = itemSlots(k, defs, 0);
     expect([s.held.label, s.held.charges]).toEqual(['Pogo Spring', '']);
     expect(s.next.charges).toBe('×3');

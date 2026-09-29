@@ -81,6 +81,8 @@ export interface AiMemory {
   /** seconds left before a newly held item may be used */
   reactionRemaining: number;
   lastItem: string;
+  /** item slots taken last tick (three slots): one fewer with the first slot still full means an item moved up into it */
+  lastTaken: number;
   /** seconds the current item has been held */
   itemHold: number;
   /** the item button was down last tick (a tap is one tick down, one tick up) */

@@ -395,7 +395,7 @@ export class GameAudio {
     if (!player || !input) return;
     if (input.horn && !this.lastHorn) this.sfx(hornFor(player.racerId), 0.8);
     this.lastHorn = input.horn;
-    const left = Math.max(player.item.rouletteRemaining, player.item.nextRouletteRemaining);
+    const left = Math.max(player.item.rouletteRemaining, player.item.nextRouletteRemaining, player.item.thirdRouletteRemaining);
     if (left > 0 && this.bus.time - this.lastTick >= rouletteGap(left)) {
       this.lastTick = this.bus.time;
       // the tick before is cut, so its voice is free: without this the cap of three refused ticks

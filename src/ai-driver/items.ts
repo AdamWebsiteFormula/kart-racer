@@ -31,14 +31,41 @@ function distXZ(a: KartState, b: KartState): number {
 /** Roles whose item trails behind while the button is held (design §8 hold to trail). */
 const TRAIL_ROLES: ReadonlySet<ItemRole> = new Set<ItemRole>(['forward', 'rearDrop', 'deception', 'runner']);
 
+/** Item slots a kart has: held, next and third (design §8, three since 28 Sept 2026; the items system's own ITEM_SLOTS). */
+export const ITEM_SLOTS = 3;
+
+/** Item slots taken: an item in it, or its roulette rolling. */
+export function slotsTaken(s: KartState): number {
+  const it = s.item;
+  return (it.held !== 'none' || it.rouletteRemaining > 0 ? 1 : 0) + (it.next !== 'none' || it.nextRouletteRemaining > 0 ? 1 : 0)
+    + (it.third !== 'none' || it.thirdRouletteRemaining > 0 ? 1 : 0);
+}
+
+/** One of the kart's own item boosts runs, or waits under a stronger boost: a speed item now would only refresh it (boosts never add). */
+function itemBoosting(s: KartState): boolean {
+  return (s.boost.source === 'item' && s.boost.remaining > 0) || (s.boostQueue.source === 'item' && s.boostQueue.remaining > 0);
+}
+
 /** Returns true when the button should be down this tick. */
 export function decideItem(s: KartState, m: AiMemory, profile: AiProfile, line: LineInfo, ctx: ItemContext, dt: number): boolean {
   const held = s.item.held;
+  // one of the same kind moved up into the first slot behind the one just spent (a slot emptied, three slots)
+  const taken = slotsTaken(s);
+  const movedUp = held !== 'none' && held === m.lastItem && taken < m.lastTaken;
+  m.lastTaken = taken;
   if (held !== m.lastItem) {
     m.lastItem = held;
     m.itemHold = 0;
     m.itemPressed = m.itemTrailing = false;
     m.reactionRemaining = held === 'none' ? 0 : range(m, profile.reactionMin, profile.reactionMax) * (1 - m.skill);
+    return false;
+  }
+  if (movedUp) {
+    // its own reaction and a beat before it goes, so a hand is never fired in one burst (28 Sept 2026: a second
+    // Beach Ball that moved up was thrown the tick after the first); the hand's carry stands, so a second shot can
+    // still break the shield the first one hit. (A new kind waits its whole carry, above.)
+    m.itemPressed = m.itemTrailing = false;
+    m.reactionRemaining = AI.items.followSeconds + range(m, profile.reactionMin, profile.reactionMax) * (1 - m.skill);
     return false;
   }
   // nothing to press while the slot rolls, or while a power runs from it (a Strike Ball)
@@ -80,7 +107,9 @@ export function decideItem(s: KartState, m: AiMemory, profile: AiProfile, line: 
     case 'deception': want = behindNear <= it.rearRange * 0.5 || m.itemHold >= it.holdMax; break;
     case 'defenceArea': want = anyNear <= it.defenceRadius || ctx.threatened; break;
     case 'defenceHeld': want = ctx.threatened || behindNear <= it.rearRange; break;
-    case 'speed': want = (ready && straight) || offroad || ctx.gap > it.speedItemGap; break;
+    // never over a boost of its own: a Triple Fizz's three, or Fizz Pops from three slots, one after another (28 Sept 2026:
+    // used two ticks apart, the second and third only refreshed the first, 1.5 s of boost where three gave 4.5)
+    case 'speed': want = !itemBoosting(s) && ((ready && straight) || offroad || ctx.gap > it.speedItemGap); break;
     case 'ride': want = ready; break;
     case 'jump':
       // first press: dodge a homing shot or hop a kart; second (in the air): slam onto a kart below

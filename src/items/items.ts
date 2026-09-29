@@ -13,7 +13,7 @@ import { distXZ, hittable, landHit } from './hits.ts';
 import { stepPowers } from './powers.ts';
 import { lateralOf, popProjectile, stepProjectiles } from './projectiles.ts';
 import { seedFor } from './rng.ts';
-import { onPickup, stepRoulette } from './roulette.ts';
+import { ITEM_SLOTS, onPickup, slotItem, stepRoulette } from './roulette.ts';
 import type { ItemDefinition, ItemEvent, ItemRole, ItemsConfig, ItemsState, Projectile } from './types.ts';
 import { refusal, spend, useItem } from './use.ts';
 
@@ -71,6 +71,12 @@ export class Items {
     return this.defs.get(s.item.held)?.behaviour.trailable === true;
   }
 
+  /** A Fog Bank (the equaliser) in any of the kart's slots: the leaders get the warning (design §8). */
+  private holdsEqualiser(s: KartState): boolean {
+    for (let k = 0; k < ITEM_SLOTS; k++) if (this.defs.get(slotItem(s.item, k))?.role === 'equaliser') return true;
+    return false;
+  }
+
   snapshot(): ItemsState { return structuredClone(this.state); }
   restore(m: ItemsState): void { this.state = structuredClone(m); }
 
@@ -102,7 +108,7 @@ export class Items {
       }
     }
 
-    // 2. pickups (a gold double balloon rolls both slots)
+    // 2. pickups (a gold double balloon rolls two slots: the first two free ones, or the one left)
     for (const e of raceEvents) {
       if (e.type !== 'pickup') continue;
       const i = karts.findIndex((k) => k.racerId === e.racerId);
@@ -215,7 +221,7 @@ export class Items {
       if (d <= cfg.kiteWarnMetres || (closing > 0 && d / closing <= cfg.kiteWarnSeconds)) this.threatened[p.target] = true;
     }
     let fogHolder = '';
-    for (const s of karts) if (this.defs.get(s.item.held)?.role === 'equaliser' || this.defs.get(s.item.next)?.role === 'equaliser') { fogHolder = s.racerId; break; }
+    for (const s of karts) if (this.holdsEqualiser(s)) { fogHolder = s.racerId; break; }
     if (fogHolder !== m.fogHeldBy) {
       if (m.fogHeldBy) events.push({ type: 'equaliserHeld', racerId: m.fogHeldBy, on: false });
       if (fogHolder) events.push({ type: 'equaliserHeld', racerId: fogHolder, on: true });
