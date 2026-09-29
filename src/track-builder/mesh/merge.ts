@@ -10,22 +10,35 @@ export interface MergeItem { geometry: BufferGeometry; matrices: Float32Array; c
 const M = new Matrix4(), N = new Matrix3(), V = new Vector3();
 
 /**
+ * A prop's turning part (art-pipeline spin.ts): its vertices marked 1 in `aSpin`, its hub and axis in its own frame on
+ * `userData.spin`. Merged, each copy's hub and axis go where the copy stands, listed on the merged geometry's
+ * `userData.spins`, and its marked vertices say which (`aSpinK`: k + 1 for spins[k], 0 for none), so the one mesh's
+ * shader turns each copy's part about its own hub (a ranch windpump's wheel among the dressing).
+ */
+interface SpinData { hub: [number, number, number]; axis: [number, number, number]; period: number }
+const SPIN_MARK = 'aSpin', SPIN_INDEX = 'aSpinK';
+const H = new Vector3();
+
+/**
  * One indexed geometry holding every copy of every item, positions and normals moved by each
- * matrix, colours kept. Items must carry position, normal and color (ModelBuilder output); null
- * when there is nothing to merge.
+ * matrix, colours kept (and each copy's turning part listed: SpinData). Items must carry position,
+ * normal and color (ModelBuilder output); null when there is nothing to merge.
  */
 export function mergeInstances(items: readonly MergeItem[]): BufferGeometry | null {
-  let verts = 0, tris = 0;
+  let verts = 0, tris = 0, turning = false;
   for (const it of items) {
     verts += it.geometry.getAttribute('position').count * it.count;
     tris += (it.geometry.index ? it.geometry.index.count : it.geometry.getAttribute('position').count) * it.count;
+    if (it.count > 0 && it.geometry.userData.spin && it.geometry.getAttribute(SPIN_MARK)) turning = true;
   }
   if (verts === 0) return null;
   const pos = new Float32Array(verts * 3), nor = new Float32Array(verts * 3), col = new Float32Array(verts * 3);
+  const which = turning ? new Float32Array(verts) : null, spins: SpinData[] = [];
   const index = new Uint32Array(tris);
   let v = 0, k = 0;
   for (const it of items) {
     const g = it.geometry, p = g.getAttribute('position'), n = g.getAttribute('normal'), c = g.getAttribute('color'), idx = g.index;
+    const spin = which ? g.userData.spin as SpinData | undefined : undefined, mark = spin ? g.getAttribute(SPIN_MARK) : undefined;
     for (let i = 0; i < it.count; i++) {
       M.fromArray(it.matrices, i * 16);
       N.getNormalMatrix(M);
@@ -36,6 +49,12 @@ export function mergeInstances(items: readonly MergeItem[]): BufferGeometry | nu
         nor[(v + j) * 3] = V.x; nor[(v + j) * 3 + 1] = V.y; nor[(v + j) * 3 + 2] = V.z;
         col[(v + j) * 3] = c.getX(j); col[(v + j) * 3 + 1] = c.getY(j); col[(v + j) * 3 + 2] = c.getZ(j);
       }
+      if (spin && mark && which) {
+        H.set(spin.hub[0], spin.hub[1], spin.hub[2]).applyMatrix4(M);
+        V.set(spin.axis[0], spin.axis[1], spin.axis[2]).applyMatrix3(N).normalize();
+        spins.push({ hub: [H.x, H.y, H.z], axis: [V.x, V.y, V.z], period: spin.period });
+        for (let j = 0; j < p.count; j++) if (mark.getX(j) > 0.5) which[v + j] = spins.length;
+      }
       if (idx) for (let j = 0; j < idx.count; j++) index[k++] = v + idx.getX(j);
       else for (let j = 0; j < p.count; j++) index[k++] = v + j;
       v += p.count;
@@ -45,6 +64,7 @@ export function mergeInstances(items: readonly MergeItem[]): BufferGeometry | nu
   out.setAttribute('position', new BufferAttribute(pos, 3));
   out.setAttribute('normal', new BufferAttribute(nor, 3));
   out.setAttribute('color', new BufferAttribute(col, 3));
+  if (which && spins.length) { out.setAttribute(SPIN_INDEX, new BufferAttribute(which, 1)); out.userData.spins = spins; }
   out.setIndex(new BufferAttribute(index, 1));
   out.computeBoundingBox();
   out.computeBoundingSphere();

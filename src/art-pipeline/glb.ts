@@ -15,6 +15,7 @@ import { vistaPieceBox, VISTA_PIECES } from './vista.ts';
 import type { V3 } from './model.ts';
 import { MODEL_WHEELS, rigKart } from './rig.ts';
 import { buildComboTemplate, buildRiggedTemplate, drawAtlas, isPartsSpec, makeRigged, makeRiggedDriver, type PartsManifest, type PartsSpec, type RiggedTemplate } from './rigged.ts';
+import { markSpin, placedSpin, type SpinFind } from './spin.ts';
 import { atOnce, type Schedule } from '../performance/loadQueue.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 
@@ -29,6 +30,8 @@ export interface ModelSpec {
   glow?: number;
   /** a prop: match the code-built model's height (default) or its widest side (a flat cloud bank) */
   fit?: 'height' | 'width';
+  /** a prop with a part that turns (a windmill's sails, a Ferris wheel), found by where it stands in the file (spin.ts) */
+  spin?: SpinFind;
 }
 export type ModelManifest = Record<string, ModelSpec>;
 
@@ -537,8 +540,13 @@ function propTarget(name: string): Box3 | null {
 export class PropModels {
   private readonly ready = new Map<string, { geometry: BufferGeometry; material: Material }>();
   private manifest: Promise<ModelManifest | null> | null = null;
+  /** the manifest once in (null: not yet, or none) */
+  private listed: ModelManifest | null = null;
+  private listFailed = false;
   /** each prop's load, started once */
   private readonly started = new Map<string, Promise<void>>();
+  /** the props whose load is over (in, or failed) */
+  private readonly done = new Set<string>();
   private loader: GLTFLoader | null = null;
   private readonly base: string;
   private readonly get_: typeof fetch;
@@ -556,18 +564,27 @@ export class PropModels {
   load(names?: Iterable<string>, schedule: Schedule = atOnce): Promise<void> {
     return (async () => {
       const manifest = await (this.manifest ??= this.get_(`${this.base}models/props.json`)
-        .then((r) => (r.ok ? r.json() as Promise<ModelManifest> : null)).catch(() => null));
+        .then((r) => (r.ok ? r.json() as Promise<ModelManifest> : null)).catch(() => null)
+        .then((m) => { this.listed = m; this.listFailed = m === null; return m; }));
       if (!manifest) return;
       const want = names ? [...names].filter((n) => Object.hasOwn(manifest, n)) : Object.keys(manifest);
       await Promise.all(want.map((name) => {
         let p = this.started.get(name);
         if (!p) {
-          p = schedule(() => this.loadOne(name, manifest[name])).catch(() => undefined);
+          p = schedule(() => this.loadOne(name, manifest[name])).catch(() => undefined).finally(() => { this.done.add(name); });
           this.started.set(name, p);
         }
         return p;
       }));
     })();
+  }
+
+  /**
+   * Nothing more will come for this prop: its model is in, its file failed, or it has none (once the list is in or
+   * failed). A scene built now is built as it will stay (main.ts holds a race's build for its track's props).
+   */
+  settled(name: string): boolean {
+    return this.ready.has(name) || this.done.has(name) || this.listFailed || (this.listed !== null && !Object.hasOwn(this.listed, name));
   }
 
   private async loadOne(name: string, spec: ModelSpec): Promise<void> {
@@ -589,8 +606,18 @@ export class PropModels {
     scene.traverse((o) => { if (!mesh && (o as Mesh).isMesh) mesh = o as Mesh; });
     if (!target || !mesh) return false;
     const geometry = smoothed(bakedGeometry(mesh));
+    // a turning part is found where the file has it, and its axis carried through the turn and the fit (spin.ts)
+    if (spec.spin) markSpin(geometry, spec.spin);
     geometry.rotateY(spec.yaw ?? 0);
+    geometry.computeBoundingBox();
+    const before = geometry.boundingBox!.clone();
     fitToBox(geometry, target, spec.fit);
+    if (spec.spin) {
+      const after = geometry.boundingBox!, k = spec.fit === 'width' ? 2 : 1;
+      const size = (b: Box3, axis: number) => (axis === 1 ? b.max.y - b.min.y : Math.max(b.max.x - b.min.x, b.max.z - b.min.z));
+      const s = size(after, k) / Math.max(1e-9, size(before, k));
+      geometry.userData.spin = placedSpin(spec.spin, spec.yaw ?? 0, s, after.min.clone().sub(before.min.clone().multiplyScalar(s)));
+    }
     const material = mesh.material as Material;
     material.userData.shared = true;
     const std = material as MeshStandardMaterial;

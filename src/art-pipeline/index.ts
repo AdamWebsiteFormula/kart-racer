@@ -12,6 +12,7 @@ import { withCrowd } from './crowd.ts';
 import { applyLook, isPbr } from './look.ts';
 import { grassMaterial, tuftGeometry } from './grass.ts';
 import { edgeKit } from './edges.ts';
+import { turning } from './spin.ts';
 
 export { bodyColours, buildRacerMesh, comboOwnerOf, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
 export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } from './bodies.ts';
@@ -64,7 +65,8 @@ export function trackAssets(biome?: string): TrackAssets {
   // what lines each land track's edge past the course limit, and the cover inside it (edges.ts); `?noedge` in
   // the address leaves it off, for a side-by-side look at the same build
   const edge = new URLSearchParams(globalThis.location?.search ?? '').has('noedge') ? undefined : edgeKit(biome);
-  const out: TrackAssets = { geometries, materials, gradientMap: toonRamp(), ...surfaces, ...pbr, ...(edge ? { edge } : {}) };
+  // a model with a turning part (a windmill's sails, the Ferris wheel: spin.ts) turns in its own vertex shader
+  const out: TrackAssets = { geometries, materials, gradientMap: toonRamp(), ...surfaces, ...pbr, ...(edge ? { edge } : {}), spin: turning };
   // the vista's big pieces from their model files, looked up through the assets as every other model is
   const file = (name: string) => {
     const geometry = out.geometries?.[name], material = out.materials?.[name];

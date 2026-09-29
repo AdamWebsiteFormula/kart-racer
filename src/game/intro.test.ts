@@ -24,7 +24,8 @@ function introScene(def: TrackDefinition): { session: RaceSession; scene: IntroS
   const session = new RaceSession(new Scene(), def, config);
   const kart = session.player!;
   const stands = (session.trackScene.group.getObjectByName('crowd-stands') as Mesh | undefined)?.geometry.getAttribute('position').array;
-  return { session, scene: { track: session.track, farLandmark: session.trackScene.farLandmark, kart, rest: restPose(session.track, kart), stand: stands ? findStand(session.track, stands) : undefined } };
+  const others = session.state.karts.filter((k) => k !== kart).map((k) => k.position);
+  return { session, scene: { track: session.track, farLandmark: session.trackScene.farLandmark, kart, rest: restPose(session.track, kart), stand: stands ? findStand(session.track, stands) : undefined, others } };
 }
 
 const view = (): IntroView => ({ pos: [0, 0, 0], look: [0, 0, 0], fov: 0, roll: 0, move: 0 });
@@ -194,11 +195,11 @@ describe('the course intro, timing and skip', () => {
     expect([...new Set(seen)]).toEqual([...plan.moves.map((_, i) => i), plan.moves.length]);
   });
 
-  it('the title card leaves before the last move, a beat before the countdown', () => {
+  it('the title card leaves as the close-up comes, the racer on screen alone', () => {
     const intro = new CourseIntro(plan);
-    const crane = plan.moves[plan.moves.length - 1];
-    expect(crane.name).toBe('crane');
-    expect(plan.cardOut).toBeLessThanOrEqual(crane.start + 0.1);
+    const front = plan.moves.find((m) => m.name === 'front')!;
+    expect(plan.moves.at(-1)!.name).toBe('swing');
+    expect(plan.cardOut).toBeCloseTo(front.start - INTRO.cardOut, 9);
     expect(plan.cardOut).toBeGreaterThan(plan.duration / 2);
     intro.advance(plan.cardOut - 0.01);
     expect(intro.cardLeaving).toBe(false);
@@ -218,13 +219,13 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the course intro', (_i
     expect(scene.stand!.len).toBeGreaterThan(5);
   });
 
-  it('flies four moves in 5 to 6 s, or two in 2 to 3 s in Time Trial and the Daily', () => {
-    expect(full.moves.map((m) => m.name)).toEqual(['vista', 'feature', 'stands', 'crane']);
-    expect(full.duration).toBeGreaterThanOrEqual(5);
-    expect(full.duration).toBeLessThanOrEqual(6);
-    expect(short.moves.map((m) => m.name)).toEqual(['vista', 'crane']);
-    expect(short.duration).toBeGreaterThanOrEqual(2);
-    expect(short.duration).toBeLessThanOrEqual(3);
+  it('flies three moves and the close-up in 6 to 7.5 s, or the sweep and the close-up in 2.5 to 3.5 s in Time Trial and the Daily', () => {
+    expect(full.moves.map((m) => m.name)).toEqual(['vista', 'feature', 'stands', 'front', 'swing']);
+    expect(full.duration).toBeGreaterThanOrEqual(6);
+    expect(full.duration).toBeLessThanOrEqual(7.5);
+    expect(short.moves.map((m) => m.name)).toEqual(['vista', 'front', 'swing']);
+    expect(short.duration).toBeGreaterThanOrEqual(2.5);
+    expect(short.duration).toBeLessThanOrEqual(3.5);
     for (const p of [full, short]) {
       let t = 0;
       for (const m of p.moves) { expect(m.start).toBeCloseTo(t, 9); t += m.secs; }
@@ -295,7 +296,7 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the course intro', (_i
     }
   });
 
-  it('reduced motion holds every move still and cuts between them; the crane is the rest pose', () => {
+  it('reduced motion holds every move still and cuts between them; the swing is the rest pose', () => {
     for (const plan of [full, short]) {
       const a = view(), b = view();
       for (const m of plan.moves) {
@@ -322,6 +323,7 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the course intro', (_i
       track: m.scene.track, kart, rest,
       farLandmark: scene.farLandmark && flip(scene.farLandmark),
       stand: scene.stand && { ...scene.stand, lat: -scene.stand.lat },
+      others: scene.others?.map(flip),
     };
     // the mirrored track's own landmark stands where the authored one reflects to; its grandstand on the
     // other side of the road (the crowd lays itself round the props, so a stand may sit a little along)
@@ -341,6 +343,73 @@ describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the course intro', (_i
         expect(vb.roll).toBeCloseTo(-va.roll, 9); // a lean reflected leans the other way
       }
     }
+  });
+});
+
+describe.each(TRACKS.map((d) => [d.id, d] as const))('%s: the close-up before the count', (_id, def) => {
+  // the player on the back row (a race of eight), and at the back of a Knockout round's smaller field (6, 4, 2)
+  for (const field of [8, 6, 4, 2]) {
+    it(`${field} on the grid: from the front of the racer at its eye level, looking at it and easing back, then round its open side onto the rest pose, clear of the other karts`, () => {
+      const config: RaceConfig = {
+        mode: field < 8 ? 'knockout' : 'quick', trackId: def.id, speedClass: 150, seed: 1,
+        racers: CAST.slice(0, field).map((c, i) => ({ racerId: c.id, archetype: c.archetype, isPlayer: i === 0 })),
+        ...(field < 8 ? { knockout: { setId: 'test', segment: 0, cutLine: Math.max(1, field - 2), eliminated: [] } } : {}),
+      };
+      const session = new RaceSession(new Scene(), def, config);
+      const k = session.player!;
+      const others = session.state.karts.filter((x) => x !== k).map((x) => x.position);
+      const sc: IntroScene = { track: session.track, farLandmark: session.trackScene.farLandmark, kart: k, rest: restPose(session.track, k), others };
+      const plan = planIntro(sc, 'full');
+      const front = plan.moves.find((m) => m.name === 'front')!, swing = plan.moves.find((m) => m.name === 'swing')!;
+      const fx = Math.sin(k.heading), fz = Math.cos(k.heading);
+      const ahead = (p: readonly number[]) => (p[0] - k.position[0]) * fx + (p[2] - k.position[2]) * fz;
+      const across = (p: readonly number[]) => Math.abs((p[0] - k.position[0]) * fz - (p[2] - k.position[2]) * fx);
+      const a = view(), b = view();
+      sampleIntro(plan, front.start + 1e-4, false, a);
+      sampleIntro(plan, front.start + front.secs - 1e-4, false, b);
+      // in front of the kart, at about the driver's eye level, looking at the driver, and easing back and up
+      expect(ahead(a.pos)).toBeGreaterThan(3.3);
+      expect(across(a.pos)).toBeLessThan(1);
+      expect(a.pos[1] - k.position[1]).toBeGreaterThan(1.1);
+      expect(a.pos[1] - k.position[1]).toBeLessThan(1.8);
+      expect(Math.hypot(a.look[0] - k.position[0], a.look[2] - k.position[2])).toBeLessThan(0.05);
+      expect(dist(b.pos, k.position)).toBeGreaterThan(dist(a.pos, k.position) + 0.5);
+      expect(b.pos[1]).toBeGreaterThan(a.pos[1]);
+      // the swing goes round its side (beside the kart at some point), then onto the rest pose
+      let beside = false, room = Infinity;
+      const v = view();
+      for (const m of [front, swing]) {
+        for (let i = 0; i <= 60; i++) {
+          sampleIntro(plan, m.start + (Math.min(i, 59.99) / 60) * m.secs, false, v);
+          if (m === swing && Math.abs(ahead(v.pos)) < 1.5 && across(v.pos) > 2.5) beside = true;
+          // (a lens over a kart's top passes it)
+          for (const o of others) if (v.pos[1] - o[1] < INTRO.kartTop) room = Math.min(room, Math.hypot(v.pos[0] - o[0], v.pos[2] - o[2]));
+        }
+      }
+      expect(beside, 'the swing passes beside the kart').toBe(true);
+      sampleIntro(plan, swing.start + swing.secs - 1e-6, false, v);
+      expect(dist(v.pos, plan.rest.position)).toBeLessThan(1e-3);
+      // no other kart's middle within INTRO.kartRoom of the lens under its top
+      expect(room, 'the lens clear of the other karts').toBeGreaterThan(INTRO.kartRoom);
+      session.dispose();
+    });
+  }
+
+  it('the racer looks into the close-up: turned to where its lens will be just before it cuts in, at the lens through the front shot, then back to the road', () => {
+    const { scene } = introScene(def);
+    const plan = planIntro(scene, 'full'), intro = new CourseIntro(plan);
+    const front = plan.moves.find((m) => m.name === 'front')!;
+    intro.advance(front.start - INTRO.faceLead - 0.05);
+    expect(intro.faceAt(false)).toBeNull();
+    intro.advance(0.1);
+    const lensStart = view();
+    sampleIntro(plan, front.start, false, lensStart);
+    expect(dist(intro.faceAt(false)!, lensStart.pos)).toBeLessThan(1e-9);
+    intro.advance(front.start + front.secs / 2 - intro.time);
+    expect(dist(intro.faceAt(false)!, intro.camera(false).pos)).toBeLessThan(1e-9);
+    expect(dist(intro.camera(false).pos, lensStart.pos)).toBeGreaterThan(0.1);
+    intro.advance(front.secs);
+    expect(intro.faceAt(false)).toBeNull();
   });
 });
 
