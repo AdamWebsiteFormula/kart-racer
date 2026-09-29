@@ -22,15 +22,16 @@ import { BalloonBack, balloonBackGeometry, patchBalloonBack } from './balloonBac
 import { buildCoast, hideableRoads, landAt, type CoastOptions, buildPier } from './land.ts';
 import { buildBackdrop } from './backdrop.ts';
 import { bakeTrackShading, type BakeReceiver } from './bake.ts';
-import { buildBoundary } from './boundary.ts';
+import { boundaryTop, buildBoundary } from './boundary.ts';
 import { fadeNearCamera, glowFromVertexColours, selfLit, sunlessBackFaces } from './glow.ts';
-import { buildStartGantry, setStartLamps } from './gantry.ts';
+import { buildStartGantry, gantryFrame, setStartLamps } from './gantry.ts';
 import { BORE_LIGHT, FINAL_ROAD, buildTunnels, lightBoreRoad, type Lantern } from './tunnel.ts';
 import { buildLoopMeshes } from './loop.ts';
 import { VentView } from './vents.ts';
 import { buildJumpMeshes, padMaterial, tickPads } from './ramps.ts';
 import { placeGrass } from './verge.ts';
 import { placeEdge, type EdgeKit, type EdgePlacement } from './edge.ts';
+import { gantryDressing, placeRaceDressing, type RaceDressingKit, type RaceDressingPlacement } from './raceDressing.ts';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { hexToRgb, paletteFor, PLANKED, type Rgb, type TrackPalette } from './palette.ts';
 
@@ -92,6 +93,13 @@ export interface TrackAssets {
    * named in its `replaces`
    */
   edge?: EdgeKit;
+  /**
+   * race day on the course (art-pipeline signs.ts; laid by raceDressing.ts before the edge, which keeps off it):
+   * arrow boards round every real bend, flags, sponsor boards, banners over the road and the gantry's sign, every
+   * face a card of its atlas in the merged dressing (the atlas on its material: no new draw); it takes the place of
+   * the decor entries named in its `replaces`
+   */
+  raceDressing?: RaceDressingKit;
 }
 
 /** What a far vista is laid out from: the track's middle and reach, its start, its ground and sun. */
@@ -164,6 +172,8 @@ export interface TrackScene {
   dressing: Mesh[];
   /** the course's edge (edge.ts) as laid, when the track has one: its runs and pieces, for the checks */
   edge?: EdgePlacement;
+  /** race day on the course (raceDressing.ts) as laid, when the assets carried its kit: for the checks */
+  race?: RaceDressingPlacement;
   /** the far vista's landmark ahead of the start line, when the track has a vista */
   farLandmark?: [number, number, number];
   /** the far vista's parts (its sky life's controls), when the track has one */
@@ -328,10 +338,31 @@ interface EdgeStyle { mode: 0 | 1 | 2; a: string; b: string; joints: number; joi
 const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
   harbour: { mode: 1, a: '#e2ddd0', b: '#d2cabb', joints: 5, joint: 0.28, off: ['#ead9ab', '#d8c290'] }, // a town sidewalk, stripes on the corners; beach sand past it
   skyline: { mode: 1, a: '#f4c64e', b: '#e2a92c', joints: 2, joint: 0.12 },             // gold trim; stripes on the corners
-  meadow: { mode: 2, a: '#7cbc56', b: '#5e9c40', joints: 0, joint: 0 },                 // a grass verge
-  canyon: { mode: 2, a: '#ecc08a', b: '#d9a56d', joints: 0, joint: 0 },                 // drifted sand
-  frost: { mode: 2, a: '#f7faff', b: '#d6e3f3', joints: 0, joint: 0 },                  // a snowbank
+  // a country lane's edge: worn grass and the farm's dirt in patches (28 Sept 2026: a flat mint band read as a highway's;
+  // these colours are linear, so a dirt that reads as dirt is darker here than its hex looks)
+  meadow: { mode: 2, a: '#5a4526', b: '#3f6a22', joints: 0, joint: 0 },
+  // drifted sand, and the biome's turquoise and cream striped on the inside of its tight bends (PBR: road.ts insideCurbs)
+  canyon: { mode: 1, a: '#ecc08a', b: '#d9a56d', joints: 0, joint: 0 },
+  // a snowbank, and hot pink and white on the inside of the pass's hairpins
+  frost: { mode: 1, a: '#f7faff', b: '#d6e3f3', joints: 0, joint: 0 },
   boardwalk: { mode: 2, a: '#4c3c72', b: '#3a2d5a', joints: 16, joint: 0.35, neon: '#2ee6ff' }, // planks with a neon line
+});
+
+/**
+ * Each place's road paint (28 Sept 2026; the second fresh-eyes review, item 3: "five of six tracks run on the same gray
+ * highway with lane dashes"): the dashed centre line and the edge lines, each 0 (none) to 1, their colour, and how far
+ * in from each edge the edge line runs (a share of the width). Only the seaside town keeps a town street's lines (its
+ * edge line set in past its cobbled gutter: art-pipeline surfaces.ts ROAD_LOOKS harbour.gutter); a country lane and a
+ * pass under snow carry none, a desert road faded edge lines under its dust (Mario Kart World's own farm road and
+ * desert road carry no lane paint: youtube.com/watch?v=OSU-aguh1AY 1:29:15, 2:26), the sky road a thin cream edge line.
+ * Planks carry none.
+ */
+const ROAD_PAINT: Readonly<Record<string, { centre: number; edge: number; colour: Rgb; inset: number }>> = Object.freeze({
+  harbour: { centre: 1, edge: 1, colour: [0.93, 0.93, 0.88], inset: 0.042 },
+  meadow: { centre: 0, edge: 0, colour: [0.93, 0.93, 0.88], inset: 0.012 },
+  canyon: { centre: 0, edge: 0.4, colour: [0.95, 0.9, 0.82], inset: 0.012 },
+  frost: { centre: 0, edge: 0, colour: [0.93, 0.93, 0.88], inset: 0.012 },
+  skyline: { centre: 0, edge: 0.85, colour: [1.0, 0.95, 0.8], inset: 0.02 },
 });
 
 /**
@@ -363,13 +394,17 @@ float roadPaintWear(vec2 road, vec2 lane) {
  * ruts, where the lines stop. Reads the ribbon's `mark`, `bend` and `surf` attributes (road.ts);
  * vertex colours still tint everything else.
  */
-function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle, offroad: boolean): void {
+function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle, offroad: boolean, paint = ROAD_PAINT.harbour): void {
   const kerbA = new Color(...palette.kerbA), kerbB = new Color(...palette.kerbB);
   const ea = hexToRgb(edge.a), eb = hexToRgb(edge.b), neon = edge.neon ? hexToRgb(edge.neon) : ([0, 0, 0] as Rgb);
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uKerbA = { value: kerbA };
     shader.uniforms.uKerbB = { value: kerbB };
-    shader.uniforms.uLines = { value: lines ? 1 : 0 };
+    shader.uniforms.uLines = { value: lines && paint.centre + paint.edge > 0 ? 1 : 0 };
+    shader.uniforms.uLineCentre = { value: paint.centre };
+    shader.uniforms.uLineEdge = { value: paint.edge };
+    shader.uniforms.uLineColour = { value: new Color(...paint.colour) };
+    shader.uniforms.uLineInset = { value: paint.inset };
     shader.uniforms.uEdgeMode = { value: edge.mode };
     shader.uniforms.uEdgeA = { value: new Color(...ea) };
     shader.uniforms.uEdgeB = { value: new Color(...eb) };
@@ -387,7 +422,7 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
       .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nattribute float surf;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n#ifdef STANDARD\nattribute vec2 lane;\nattribute float curb;\nvarying vec2 vLane;\nvarying float vCurb;\n#endif')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvSurf = surf;\nvRoad = uv;\n#ifdef STANDARD\nvLane = lane;\nvCurb = curb;\n#endif');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nuniform vec3 uMud;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n${PBR_ROAD_PARS}`)
+      .replace('#include <common>', `#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uLineCentre;\nuniform float uLineEdge;\nuniform vec3 uLineColour;\nuniform float uLineInset;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nuniform vec3 uMud;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n${PBR_ROAD_PARS}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         if (vMark > 0.5 && vMark < 1.5) {
           // a neon line along the edge (Boardwalk): it lights itself
@@ -463,18 +498,18 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           // painted lines: an edge line just inside each kerb, a dashed centre line
           float x = vRoad.x, wx = fwidth(x);
           float e = min(x, 1.0 - x);
-          float edge = smoothstep(0.012 - wx, 0.012, e) * (1.0 - smoothstep(0.024, 0.024 + wx, e));
+          float edge = smoothstep(uLineInset - wx, uLineInset, e) * (1.0 - smoothstep(uLineInset + 0.012, uLineInset + 0.012 + wx, e));
           float c = abs(x - 0.5);
           float dash = step(fract(vRoad.y * 0.6), 0.45);
           float centre = (1.0 - smoothstep(0.006, 0.006 + wx, c)) * dash;
-          // the lines stop at a mud patch (no paint on mud)
-          float paint = max(edge, centre) * 0.9 * (1.0 - mudMask);
+          // the lines stop at a mud patch (no paint on mud); each place paints the ones its road carries (ROAD_PAINT)
+          float paint = max(edge * uLineEdge, centre * uLineCentre) * 0.9 * (1.0 - mudMask);
           #ifdef STANDARD
             // the PBR look: worn paint, patchy and chipped, thinnest where the racing line's tires cross it
             paint *= 1.0 - roadPaintWear(vRoad, vLane);
             roadPaint = paint;
           #endif
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.88), paint);
+          diffuseColor.rgb = mix(diffuseColor.rgb, uLineColour, paint);
         }`);
   };
   m.customProgramCacheKey = () => `road-lines-${lines ? 1 : 0}`;
@@ -539,10 +574,10 @@ const OWNED = new WeakSet<BufferGeometry>();
  * Toon material for a geometry: its own vertex colours when it carries them, else the palette colour.
  * `dither`: it dissolves near the lens (glow.ts); off for what fades as a ghost instead (ghost.ts).
  */
-function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | undefined, dither = true): MeshToonMaterial {
+function toon(geometry: BufferGeometry, colour: Rgb, gradientMap: Texture | undefined, dither = true, mapGlow = false): MeshToonMaterial {
   const vc = geometry.hasAttribute('color');
   const m = new MeshToonMaterial({ color: vc ? 0xffffff : toColor(colour), vertexColors: vc, gradientMap: gradientMap ?? null });
-  if (vc) glowFromVertexColours(m); // lamp globes, bulbs and neon signs light themselves (glow.ts)
+  if (vc) glowFromVertexColours(m, mapGlow); // lamp globes, bulbs and neon signs light themselves (glow.ts)
   if (dither) fadeNearCamera(m); // and nothing fills the screen when the camera brushes past it
   return m;
 }
@@ -568,7 +603,7 @@ function instancer(name: string, geometry: BufferGeometry, colour: Rgb, matrices
  * the road (casting shadows, as the roadside instancers do) or far from it (no shadows), and each
  * slice is one static mesh with its own toon material; the renderer culls a slice off screen.
  */
-function buildDressing(items: readonly { item: MergeItem; far: boolean }[], lut: Track['branches']['main']['lut']): Mesh[] {
+function buildDressing(items: readonly { item: MergeItem; far: boolean }[], lut: Track['branches']['main']['lut'], kit?: RaceDressingKit, nearSlices: number = DRESSING_SLICES.near): Mesh[] {
   if (items.length === 0) return [];
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
   for (let i = 0; i < lut.n; i++) {
@@ -578,7 +613,7 @@ function buildDressing(items: readonly { item: MergeItem; far: boolean }[], lut:
   const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
   const out: Mesh[] = [];
   for (const far of [false, true]) {
-    const slices = far ? DRESSING_SLICES.far : DRESSING_SLICES.near;
+    const slices = far ? DRESSING_SLICES.far : nearSlices;
     const buckets: MergeItem[][] = Array.from({ length: slices }, () => []);
     for (const { item, far: f } of items) {
       if (f !== far) continue;
@@ -592,10 +627,14 @@ function buildDressing(items: readonly { item: MergeItem; far: boolean }[], lut:
       });
     }
     buckets.forEach((b, k) => {
-      const g = mergeInstances(b);
+      // with the race dressing (raceDressing.ts), every slice reads its sign atlas: a sign's face its own card of it,
+      // everything else a spot of white (merge.ts), and a face over white lights itself in its own colours (glow.ts)
+      const g = mergeInstances(b, kit?.white);
       if (!g) return;
       OWNED.add(g);
-      const m = new Mesh(g, toon(g, [1, 1, 1], GRADIENT));
+      const mat = toon(g, [1, 1, 1], GRADIENT, true, kit !== undefined);
+      if (kit) mat.map = kit.atlas;
+      const m = new Mesh(g, mat);
       m.name = `dressing:${far ? 'far' : 'near'}:${k}`;
       m.castShadow = !far;
       m.receiveShadow = true;
@@ -605,6 +644,13 @@ function buildDressing(items: readonly { item: MergeItem; far: boolean }[], lut:
     });
   }
   return out;
+}
+
+/** An occupancy that reads `o` but claims nothing: a decor entry placed only to keep the random numbers after it as they were. */
+function claimsNothing(o: Occupancy): Occupancy {
+  const dry = Object.create(o) as Occupancy;
+  dry.add = () => {};
+  return dry;
 }
 
 /** Would the renderer issue a draw call for this object? Visible, and for instancers at least one instance. */
@@ -828,7 +874,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
   if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
   else if (assets.roadMap) roadMaterial.map = assets.roadMap;
-  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour, def.offroad === true);
+  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour, def.offroad === true, ROAD_PAINT[def.biome]);
   assets.road?.(roadMaterial);
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));
@@ -910,7 +956,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // corners reach √2 further, and a chalet's eaves hung over the course limit into the lens's path)
     const bb = geo.boundingBox!, footprint = reachOf(geo);
     const extent = { across: Math.max(-bb.min.x, bb.max.x, 0), along: Math.max(-bb.min.z, bb.max.z, 0) };
-    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, occupied, course);
+    // the race dressing (raceDressing.ts) takes the place of this entry (the old little arrow boards): its places are
+    // still worked out, from the same random numbers, so every other prop stands where it did; it claims no ground
+    const replaced = entry.merge === true && (assets.raceDressing?.replaces?.includes(entry.asset) ?? false);
+    const p = placeDecor(branches, entry, rng, groundY, groundAt, footprint, extent, replaced ? claimsNothing(occupied) : occupied, course);
+    if (replaced) { p.hidden = true; decor.push(p); continue; }
     decor.push(p);
     decorBase.set(p, { reach: baseReachOf(geo), below: Math.max(0, -bb.min.y) });
     // the PBR look's grass by the road (below) takes the place of this ground cover
@@ -1473,11 +1523,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   };
   const pre = twin ? prebuildShift(twin) : null;
 
-  // The course's edge (edge.ts, art-pipeline edges.ts): laid last, round every prop, the crowd, the
-  // landmark, the start gantry and the Final Lap Shift's set piece, so each of them stands where it stood.
-  let edge: EdgePlacement | undefined;
-  if (assets.edge && def.offroad && groundAt) {
-    const avoid: [number, number, number][] = [];
+  // What the course's edge and the race dressing keep out of: the crowd and its stands, perched birds, the landmark,
+  // Frostbite's frozen lake
+  const avoid: [number, number, number][] = [];
+  if ((assets.edge && def.offroad && groundAt) || assets.raceDressing) {
     for (const m of vistaParts?.world ?? []) {
       const layout = (m.userData.crowd as { layout?: { spectators: { at: readonly number[] }[]; solids: { at: readonly number[]; yaw: number; half: readonly number[] }[] } } | undefined)?.layout;
       if (!layout) continue;
@@ -1500,6 +1549,32 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // Frostbite's lake, painted on the snow past the limits (its ragged shore reaches 4.5 m past each circle)
     const lake = assets.lake;
     if (lake) for (let k = 0; k < lake.count.value; k++) { const r = lake.path.value[k * 4 + 2]; if (r > 0) avoid.push([lake.path.value[k * 4], lake.path.value[k * 4 + 1], r + 6]); }
+  }
+
+  // Race day (raceDressing.ts, art-pipeline signs.ts): arrow boards round every real bend, flags, sponsor boards,
+  // banners over the road and the gantry's sign, laid before the edge so the edge keeps off them (they claim their
+  // ground in `occupied`), round everything else; into the merged dressing, which reads their atlas
+  let race: RaceDressingPlacement | undefined;
+  const raceItems = new Set<MergeItem>();
+  if (assets.raceDressing) {
+    const kit = assets.raceDressing;
+    // a banner keeps off the spans over the road already (the bunting) and the final lap's new ramps (their set pieces)
+    const spans: number[] = [];
+    for (const p of decor) if (p.layout === 'span' && !p.hidden) for (let i = 0; i < p.count; i++) spans.push(branches.main.lut.nearestTGlobal([p.matrices[i * 16 + 12], p.matrices[i * 16 + 13], p.matrices[i * 16 + 14]]));
+    if (twin) for (const j of twin.jumps) if (!track.jumps.some((k) => k.id === j.id)) spans.push(j.t);
+    race = placeRaceDressing({
+      branches, course, kit, seed: def.id, startT: track.startT, jumps: track.jumps, loops: track.loops.map((l) => l.t),
+      groundAt: def.offroad ? groundAt : undefined, edgeTop: def.offroad ? undefined : boundaryTop(def.biome), occupied, avoid, spans,
+    });
+    const g = gantryFrame(track);
+    const sign = gantryDressing(kit, g.o, g.f, g.span, g.beamTop, g.beamUnder, g.lampHalf);
+    for (const item of sign ? [...race.items, sign] : race.items) { toMerge.push({ item, far: false }); raceItems.add(item); }
+  }
+
+  // The course's edge (edge.ts, art-pipeline edges.ts): laid last, round every prop, the crowd, the
+  // landmark, the start gantry, the race dressing and the Final Lap Shift's set piece, so each of them stands where it stood.
+  let edge: EdgePlacement | undefined;
+  if (assets.edge && def.offroad && groundAt) {
     // the props a bank goes round: buildings on a footing (the kit names them) and anything very wide (a span's
     // legs, a cliff); a smaller prop where a bank is laid (a tree, a post, a fence) is lifted onto it below
     const solid = new Occupancy(), solidNames = new Set(assets.edge.solid ?? []);
@@ -1507,7 +1582,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // relief (a dune, a knoll, a drift: a low mound half under the land, which the rail may cross)
     const standing = new Occupancy(), relief = new Set(assets.edge.relief ?? []);
     for (const p of decor) {
-      if (p.band === 'verge' || p.band === 'sky') continue;
+      if (p.band === 'verge' || p.band === 'sky' || p.hidden) continue;
       for (let i = 0; i < p.count; i++) {
         const m = p.matrices, o = i * 16, r = p.footprint * Math.hypot(m[o], m[o + 1], m[o + 2]);
         if (solidNames.has(p.asset) || r >= EDGE_WIDE) solid.add(m[o + 12], m[o + 14], r);
@@ -1538,7 +1613,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // air (28 Sept 2026: a pine lifted by the bank's height at its centre showed up to 0.65 m of air under one side)
     const bankAt = edge.bankAt, drawn = (x: number, z: number) => groundAt(x, z) + bankAt(x, z);
     for (const p of decor) {
-      if (p.band === 'verge' || p.band === 'sky' || p.layout === 'span') continue;
+      if (p.band === 'verge' || p.band === 'sky' || p.layout === 'span' || p.hidden) continue;
       const im = decorMesh.get(p), arr = im ? (im.instanceMatrix.array as Float32Array) : null;
       // (and the Low tier's own copy of its placed matrices, which it draws its thinned copies from)
       const full = im ? pools.find((q) => q.mesh === im)?.full : undefined;
@@ -1566,7 +1641,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // everything else joins the merged dressing near the road (it casts shadows, as the roadside props do)
     for (const item of edge.items) toMerge.push({ item, far: false });
   }
-  const dressing = buildDressing(toMerge, branches.main.lut);
+  // (a pier or a sky road merges nothing but its race dressing, a thousand-odd triangles: one slice, not four, so it
+  // costs two draws, not eight)
+  const onlySigns = raceItems.size > 0 && toMerge.every((m) => m.far || raceItems.has(m.item));
+  const dressing = buildDressing(toMerge, branches.main.lut, assets.raceDressing, onlySigns ? 1 : DRESSING_SLICES.near);
   for (const m of dressing) group.add(m);
 
   // baked soft shading (mesh/bake.ts, Adam 25 Sept 2026 "shading and shadows need to be for more
@@ -1628,7 +1706,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     for (const p of pools) cullPool(p, CULL_PLANES, CULL_EYE.x, CULL_EYE.y, CULL_EYE.z, reach, fogFar);
   };
   const scene: TrackScene = {
-    group, palette, chunks, decor, dressing, edge, farLandmark, vista: vistaParts, instancers,
+    group, palette, chunks, decor, dressing, edge, race, farLandmark, vista: vistaParts, instancers,
     fog: { color: env.fogColor && HEX.test(env.fogColor) ? hexToRgb(env.fogColor) : palette.background, density: env.fogDensity ?? 0 },
     sky: env.sky,
     update,

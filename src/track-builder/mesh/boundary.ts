@@ -22,6 +22,12 @@ const PROFILES: Readonly<Record<string, Profile>> = Object.freeze({
 
 const hash = (i: number) => { const x = Math.sin(i * 127.1) * 43758.5453; return x - Math.floor(x); };
 
+/** The solid edge's top over the road beside it (metres), for what stands on it (raceDressing.ts); undefined for a biome with none. */
+export function boundaryTop(biome: string): number | undefined {
+  const prof = PROFILES[biome];
+  return prof ? Math.max(...prof.pts.map((p) => p[1])) : undefined;
+}
+
 /** The solid low edge for a pier or a sky road, at the curb's outer edge. Null for a biome with none. */
 export function buildBoundary(branches: Branches, biome: string, gradientMap: Texture | null): Mesh | null {
   const prof = PROFILES[biome];

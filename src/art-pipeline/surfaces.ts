@@ -584,18 +584,41 @@ export interface RoadLook {
   tone?: number; reseal?: number; resealTint?: readonly [number, number, number]; resealGloss?: number; seal?: number;
   dust?: string; dustWidth?: number; dustAmount?: number; puddles?: number; puddleTint?: readonly [number, number, number]; puddleGloss?: number;
   line?: number; lineTint?: string;
+  /**
+   * Each place's own road (28 Sept 2026; the second fresh-eyes review, item 3: "five of six tracks run on the same gray
+   * highway with lane dashes, so a farm, a desert and a snowy pass look alike underfoot"; Mario Kart World's road
+   * belongs to its place: its desert course's sand drifted over the road, youtube.com/watch?v=OSU-aguh1AY 2:26; its
+   * farm road rutted and tire-streaked, 1:29:15). `drift`/`driftAmount`/`driftTint`: sand blown across the road in
+   * drifts slanting with the wind, the whole road filmed with it (`driftTint`), swept clearer along the karts' line
+   * (Mesa Rush's red dust); `snow`: a dusting of snow over the road, thick in drifts and banked at the edges, packed
+   * smooth and gray-blue into the karts' wheel tracks, never over the sim's ice, which reads clearer and glossier
+   * (Frostbite Pass); `gutter`/`gutterTint`: metres of cobbled gutter along each edge, and `bricks`/`brickTint`: the
+   * share of 160 m stretches holding a brick-paved square across the road (Lighthouse Loop's seaside town).
+   */
+  drift?: string; driftAmount?: number; driftTint?: number; snow?: number;
+  gutter?: number; gutterTint?: string; bricks?: number; brickTint?: string;
+  /** a clean sky road (Skyline Circuit): this gold laid over the asphalt's grain, `gildAmount` of the way, polished (the PBR look's roughness `gildGloss`) */
+  gild?: string; gildAmount?: number; gildGloss?: number;
+  /** how much of the surface's own fine relief shows in the PBR look's normal (1; a clean sky road less) */
+  grain?: number;
 }
 export const ROAD_LOOKS: Readonly<Record<string, RoadLook>> = Object.freeze({
-  harbour: { wear: 1, cracks: 0.55, patches: 0.7, sheen: 0.16, shine: 22, tone: 0.07, reseal: 0.5, resealTint: [0.76, 0.77, 0.82], seal: 0.5, dust: '#dccfa8', dustWidth: 1.3, dustAmount: 0.5, line: 0.28 },
-  meadow: { wear: 0.9, cracks: 0.75, patches: 0.5, sheen: 0.13, shine: 18, tone: 0.08, reseal: 0.45, resealTint: [0.74, 0.75, 0.8], seal: 0.55, dust: '#b39c76', dustWidth: 1.6, dustAmount: 0.55, puddles: 1, puddleGloss: 0.84, line: 0.28 },
-  canyon: { wear: 0.85, cracks: 1, patches: 0.35, sheen: 0.1, shine: 14, sand: '#e8a868', tone: 0.08, reseal: 0.35, resealTint: [0.8, 0.74, 0.7], seal: 0.5, line: 0.3 },
-  frost: { wear: 0.7, cracks: 0.35, patches: 0, sheen: 0.32, shine: 42, frost: 0.55, tone: 0.05, puddles: 0.8, puddleTint: [0.88, 0.92, 0.98], puddleGloss: 0.78, line: 0.22, lineTint: '#9fb4d6' },
-  skyline: { wear: 0.6, cracks: 0, patches: 0, sheen: 0.32, shine: 30, seams: 1, tone: 0.04, line: 0.16 },
+  // a seaside town's street: lighter, sun-bleached asphalt, a cobbled gutter along each curb, now and then a brick-paved square
+  harbour: { wear: 1, cracks: 0.45, patches: 0.6, sheen: 0.16, shine: 22, tone: 0.06, reseal: 0.35, resealTint: [0.8, 0.8, 0.84], seal: 0.4, dust: '#e2d6b4', dustWidth: 1.0, dustAmount: 0.45, line: 0.24, gutter: 0.55, gutterTint: '#b3a794', bricks: 0.55, brickTint: '#b0604a' },
+  // a country lane: warm, patched and patched again, cracked, no lines, the farm's dirt on its edges and in its tire tracks
+  meadow: { wear: 0.9, cracks: 0.9, patches: 1, sheen: 0.12, shine: 16, tone: 0.1, reseal: 0.8, resealTint: [0.8, 0.76, 0.72], seal: 0.6, dust: '#a88a60', dustWidth: 2.6, dustAmount: 0.8, puddles: 1, puddleGloss: 0.84, line: 0.26, lineTint: '#8a6a48' },
+  // a desert road under red dust: filmed all over, drifted across in the wind, swept darker where the karts run
+  canyon: { wear: 0.85, cracks: 0.8, patches: 0.2, sheen: 0.08, shine: 12, sand: '#e39a62', tone: 0.08, reseal: 0.2, resealTint: [0.82, 0.74, 0.7], seal: 0.35, line: 0.34, drift: '#e9a46c', driftAmount: 0.85, driftTint: 0.18 },
+  // a mountain pass under snow: dusted, banked at the edges, packed into the wheel tracks; the ice clear and glossy
+  frost: { wear: 0.7, cracks: 0.25, patches: 0, sheen: 0.32, shine: 42, frost: 0.55, tone: 0.05, line: 0.22, lineTint: '#9fb4d6', snow: 1 },
+  // a clean golden sky road: gilded panels, no wear to speak of
+  skyline: { wear: 0.35, cracks: 0, patches: 0, sheen: 0.36, shine: 34, seams: 1, tone: 0.03, line: 0.1, lineTint: '#d9a83e', gild: '#e8c46e', gildAmount: 0.55, gildGloss: 0.52, grain: 0.35 },
   boardwalk: { wear: 0.45, cracks: 0, patches: 0, sheen: 0.4, shine: 70, wet: 0.75, wetTint: '#8a6cff', spill: '#2fd8ff', tone: 0.05, line: 0.2 },
 });
 
 const WEAR_PARS = `varying vec3 vWearW;
 uniform vec3 uSand; uniform vec3 uWetTint; uniform vec3 uSpill; uniform vec3 uResealTint; uniform vec3 uDust; uniform vec3 uPuddleTint;
+uniform vec3 uDrift; uniform vec3 uGutter; uniform vec3 uBrick; uniform vec3 uGild;
 #ifndef STANDARD
 varying vec2 vLane;
 #endif
@@ -694,6 +717,106 @@ const WEAR_BIG = `{
   #endif
   }
 #endif
+  // (metres from the karts' line: road.ts racingLine, as the PBR look's own line reads it)
+  float rbLat = (vRoad.x - vLane.x) * 2.0 * rbHw;
+#ifdef DRIFT
+  {
+    // red dust: a film over the whole road, and sand blown across it in drifts slanting with the wind, banked at the
+    // edges; the karts' tires sweep their line clearer (it shows the darker road under the dust)
+    float swept = exp(-rbLat * rbLat * 0.2);
+    float slant = rbAlong * 0.55 + rbX * 0.85;
+    float d = rwNoise(vec2(slant * 0.075, rbAlong * 0.011 + 3.1)) * 0.62 + rwNoise(vec2(slant * 0.23, rbX * 0.21 + 9.4)) * 0.38;
+    float drift = smoothstep(0.5, 0.74, d) * (1.0 - 0.8 * swept);
+    drift = max(drift, (1.0 - smoothstep(0.0, 2.4, rbHw - abs(rbX))) * 0.9);
+    float grain = mix(0.5, rwNoise(rw * 1.9), rbThin);
+    // wind ripples across a drift, near the lens only (gone well before they could shimmer)
+    float rip = sin(slant * 5.5 + 3.0 * rwNoise(vec2(slant * 0.4, rbX * 0.3))) * (1.0 - smoothstep(6.0, 22.0, rwView));
+    vec3 dust = uDrift * (0.88 + 0.24 * grain) * (1.0 - 0.07 * rip * drift);
+    float film = DRIFT_TINT * (1.0 - 0.6 * swept);
+    diffuseColor.rgb = mix(diffuseColor.rgb, dust, (film + (1.0 - film) * drift) * DRIFT * rwClean);
+  #ifdef STANDARD
+    roughnessFactor = mix(roughnessFactor, 0.97, drift * DRIFT * rwClean);
+  #endif
+  }
+#endif
+#ifdef SNOWROAD
+  {
+    // the sim's ice (the ribbon's own pale blue, far brighter than any road) stays ice: clearer, bluer, glossy, crazed
+    // with fine white cracks; everywhere else a dusting of snow, thick in drifts and banked at the edges, packed smooth
+    // and gray-blue into two pairs of wheel tracks along the karts' line
+    float ice = smoothstep(0.62, 0.74, dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
+    float tracks = 0.0;
+    for (int p = 0; p < 2; p++) {
+      float off = float(p) * 1.5 - 0.4;
+      for (int k = 0; k < 2; k++) {
+        float d = rbLat - off - (float(k) * 1.24 - 0.62) - 0.12 * sin(rbAlong * 0.09 + float(p) * 2.3);
+        tracks += exp(-d * d * 7.0) * (p == 0 ? 1.0 : 0.55);
+      }
+    }
+    tracks = min(tracks, 1.0);
+    // a dusting, not a snowfield: blown into streaks along the road and lying in drifts here and there, the cold
+    // road showing between (it must still read as the road against the snowbanks)
+    float n = rwNoise(rw * 0.08 + 5.0) * 0.7 + rwNoise(rw * 0.31 + 1.7) * 0.3;
+    float streak = rwNoise(vec2(rbAlong * 0.045, rbX * 0.75 + 2.0)) * 0.65 + rwNoise(vec2(rbAlong * 0.17, rbX * 1.9 + 8.0)) * 0.35;
+    float dusting = max(smoothstep(0.52, 0.78, n) * 0.85, smoothstep(0.5, 0.74, streak) * 0.62);
+    dusting = max(dusting, 1.0 - smoothstep(0.2, 1.4, rbHw - abs(rbX)));
+    dusting *= 1.0 - 0.9 * tracks;
+    float grain = mix(0.5, rwNoise(rw * 3.1), rbThin);
+    // (linear: the powder reads near white, the packed tracks a pale blue-gray, the road a cold slate between them)
+    vec3 powder = vec3(0.8, 0.86, 0.96) * (0.93 + 0.12 * grain);
+    vec3 packed = vec3(0.42, 0.5, 0.63) * (0.94 + 0.1 * rwNoise(vec2(rbAlong * 0.3, rbLat * 2.0)));
+    vec3 snowy = mix(diffuseColor.rgb, vec3(0.13, 0.17, 0.24), 0.55 * SNOWROAD);
+    snowy = mix(snowy, powder, dusting * SNOWROAD);
+    snowy = mix(snowy, packed, tracks * 0.8 * SNOWROAD);
+    float ck = rwCrack(rw * 0.35);
+    float crack = (1.0 - smoothstep(0.0, max(0.035, fwidth(ck) * 1.5), ck)) * rbThin;
+    vec3 icy = diffuseColor.rgb * vec3(0.62, 0.84, 1.05) + vec3(0.2, 0.24, 0.28) * crack;
+    diffuseColor.rgb = mix(snowy, icy, ice * rwClean);
+  #ifdef STANDARD
+    roughnessFactor = mix(roughnessFactor, 0.94, dusting * SNOWROAD * (1.0 - ice));
+    roughnessFactor = mix(roughnessFactor, 0.6, tracks * SNOWROAD * (1.0 - ice));
+    roughnessFactor = mix(roughnessFactor, 0.5 + 0.3 * crack, ice);
+  #endif
+  }
+#endif
+#ifdef GUTTER
+  {
+    // a cobbled gutter along each curb: setts in courses, each a shade of its own, their joints gone before they could shimmer
+    float e = rbHw - abs(rbX), aa = fwidth(e) + 0.01;
+    float g = 1.0 - smoothstep(GUTTER - aa, GUTTER + aa, e);
+    vec2 sp = vec2(rbAlong / 0.24, e / 0.17);
+    float course = floor(sp.y);
+    vec2 sf = fract(vec2(sp.x + 0.5 * mod(course, 2.0), sp.y));
+    float j = min(min(sf.x, 1.0 - sf.x) * 0.24, min(sf.y, 1.0 - sf.y) * 0.17);
+    float jw = fwidth(rbAlong) * 0.5 + 0.004;
+    float mortar = (1.0 - smoothstep(0.014, 0.014 + jw, j)) * (1.0 - smoothstep(12.0, 30.0, rwView));
+    vec3 stone = uGutter * (0.84 + 0.3 * rwHash(floor(vec2(sp.x + 0.5 * mod(course, 2.0), course))));
+    stone = mix(stone, uGutter * 0.62, mortar);
+    diffuseColor.rgb = mix(diffuseColor.rgb, stone, g * rwClean);
+  }
+#endif
+#ifdef BRICKS
+  {
+    // now and then a brick-paved square across the road, 7 to 12 m long: courses of warm red brick across it, every other
+    // course half a brick along, a pale stone border at each end; its joints gone before they could shimmer
+    float cellL = 160.0, cell = floor(rbAlong / cellL);
+    float has = step(1.0 - BRICKS, rwHash(vec2(cell, 21.7)));
+    float len = 7.0 + 5.0 * rwHash(vec2(cell, 5.3));
+    float c0 = (cell + 0.5) * cellL + (rwHash(vec2(cell, 13.1)) - 0.5) * (cellL - len - 24.0);
+    float q = abs(rbAlong - c0) - len * 0.5, aa = fwidth(rbAlong) + 0.01;
+    float inside = (1.0 - smoothstep(-aa, aa, q)) * has * rwClean;
+    vec2 bp = vec2(rbX / 0.23, rbAlong / 0.11);
+    float row = floor(bp.y);
+    vec2 bf = fract(vec2(bp.x + 0.5 * mod(row, 2.0), bp.y));
+    float bj = min(min(bf.x, 1.0 - bf.x) * 0.23, min(bf.y, 1.0 - bf.y) * 0.11);
+    float jw = fwidth(rbAlong) * 0.5 + 0.003;
+    float joint = (1.0 - smoothstep(0.01, 0.01 + jw, bj)) * (1.0 - smoothstep(16.0, 40.0, rwView));
+    vec3 brick = uBrick * (0.84 + 0.28 * rwHash(floor(vec2(bp.x + 0.5 * mod(row, 2.0), row))));
+    brick = mix(brick, vec3(0.66, 0.62, 0.56), joint);
+    float border = 1.0 - smoothstep(0.3 - aa, 0.3 + aa, abs(q + 0.3));
+    diffuseColor.rgb = mix(diffuseColor.rgb, mix(brick, vec3(0.74, 0.71, 0.66), border), inside);
+  }
+#endif
 }`;
 
 /** The road's albedo: world-space patches, the worn bands, grit, patches and cracks, the biome at the edges. Before the emissive (after the lines are painted). */
@@ -751,6 +874,13 @@ if (vMark < 0.5) {
   float rwIce = min(vRoad.x, 1.0 - vRoad.x) + 0.08 * (rwNoise(rw * 0.3) - 0.5);
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.93, 1.0), (1.0 - smoothstep(0.0, 0.14, rwIce)) * FROST);
 #endif
+#ifdef GILD
+  // a clean sky road: gold laid over the asphalt's grain (its panels and joints below still read over it), polished
+  diffuseColor.rgb = mix(diffuseColor.rgb, uGild * (0.96 + 0.08 * rwN), GILD);
+  #ifdef STANDARD
+  roughnessFactor = mix(roughnessFactor, GILD_GLOSS, GILD);
+  #endif
+#endif
 #ifdef SEAMS
   // the sky road's panels, 12 m long: each a shade of its own, a joint across the road between them
   float rwP = vRoad.y * 10.0 / 12.0;
@@ -807,6 +937,12 @@ export function roadWear(m: MeshToonMaterial, biome: string): void {
     look.resealGloss ? `#define RESEAL_GLOSS ${f(look.resealGloss)}` : '', look.seal ? `#define SEAL ${f(look.seal)}` : '',
     look.dust ? `#define DUST\n#define DUST_W ${f(look.dustWidth ?? 1.2)}\n#define DUST_A ${f(look.dustAmount ?? 0.5)}` : '',
     look.puddles ? `#define PUDDLES ${f(look.puddles)}\n#define PUDDLE_GLOSS ${f(look.puddleGloss ?? 0.66)}` : '',
+    // each place's own road (RoadLook drift, snow, gutter, bricks)
+    look.drift ? `#define DRIFT ${f(look.driftAmount ?? 0.8)}\n#define DRIFT_TINT ${f(look.driftTint ?? 0.25)}` : '',
+    look.snow ? `#define SNOWROAD ${f(look.snow)}` : '',
+    look.gutter ? `#define GUTTER ${f(look.gutter)}` : '',
+    look.bricks ? `#define BRICKS ${f(look.bricks)}` : '',
+    look.gild ? `#define GILD ${f(look.gildAmount ?? 0.6)}\n#define GILD_GLOSS ${f(look.gildGloss ?? 0.7)}` : '',
   ].filter(Boolean).join('\n');
   const reseal = look.resealTint ?? [1, 1, 1], pud = look.puddleTint ?? [0.74, 0.74, 0.76];
   const uniforms = {
@@ -814,6 +950,7 @@ export function roadWear(m: MeshToonMaterial, biome: string): void {
     // a multiplier (linear), not a colour
     uResealTint: { value: new Color().setRGB(reseal[0], reseal[1], reseal[2]) }, uDust: { value: new Color(look.dust ?? '#000000') },
     uPuddleTint: { value: new Color().setRGB(pud[0], pud[1], pud[2]) },
+    uDrift: { value: new Color(look.drift ?? '#000000') }, uGutter: { value: new Color(look.gutterTint ?? '#000000') }, uBrick: { value: new Color(look.brickTint ?? '#000000') }, uGild: { value: new Color(look.gild ?? '#000000') },
   };
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
@@ -908,7 +1045,7 @@ export function roadDetail(m: MeshToonMaterial, biome: string): void {
   #ifdef PUDDLES
     if (vMark < 0.5) rdFlat = 1.0 - 0.85 * rwPuddle(vRdW.xz, (vRoad.x - 0.5) * 2.0 * vLane.y, vLane.y) * (1.0 - mudMask);
   #endif
-    normal = lkBend(normal, lkSlope(uRoadGrain, vRdW.xz / ${g}) * 0.9 * rdFlat * (1.0 - smoothstep(${ROAD_RELIEF_FAR[0].toFixed(1)}, ${ROAD_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))), 1.0);
+    normal = lkBend(normal, lkSlope(uRoadGrain, vRdW.xz / ${g}) * ${(0.9 * (look?.grain ?? 1)).toFixed(3)} * rdFlat * (1.0 - smoothstep(${ROAD_RELIEF_FAR[0].toFixed(1)}, ${ROAD_RELIEF_FAR[1].toFixed(1)}, length(vViewPosition))), 1.0);
   }
 #endif`);
   };
@@ -973,10 +1110,9 @@ function snowRoadCanvas(): Texture {
       if (g) {
         g.fillStyle = 'rgb(224, 230, 240)';
         g.fillRect(0, 0, 256, 256);
-        // two packed ruts, a kart's own wheels apart: a firm edge (compressed snow meets loose) each
-        // side, so the Sobel slope below finds them as readily as the sparkle flecks (a wide, gentle
-        // gradient alone normalises away next to the flecks' own sharp edges), packed grain inside
-        for (const x of [84, 172]) {
+        // (no ruts: the relief is sampled in world space, so ruts drawn here lay across the road wherever it runs
+        // across the world's Z, 28 Sept 2026; the packed wheel tracks are the road's albedo, along the road: SNOWROAD)
+        for (const x of [] as number[]) {
           const grad = g.createLinearGradient(x - 12, 0, x + 12, 0);
           grad.addColorStop(0, 'rgba(160, 170, 190, 0)');
           grad.addColorStop(0.22, 'rgba(160, 170, 190, 0.75)');

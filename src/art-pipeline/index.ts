@@ -12,6 +12,7 @@ import { withCrowd } from './crowd.ts';
 import { applyLook, isPbr } from './look.ts';
 import { grassMaterial, tuftGeometry } from './grass.ts';
 import { edgeKit } from './edges.ts';
+import { signKit } from './signs.ts';
 
 export { bodyColours, buildRacerMesh, comboOwnerOf, exhaustFor, racerGeometry, type KartLook } from './kart.ts';
 export { BODY_EXHAUST, BODY_IDS, isBodyId, KART_COLOURS, SEAT, type BodyId } from './bodies.ts';
@@ -63,8 +64,11 @@ export function trackAssets(biome?: string): TrackAssets {
   const pbr = isPbr() ? { look: applyLook, ...(lawn ? { grass: { geometry: tuftTemplate(), material: grassMaterial(biome), replaces: ['tuft'] } } : {}) } : {};
   // what lines each land track's edge past the course limit, and the cover inside it (edges.ts); `?noedge` in
   // the address leaves it off, for a side-by-side look at the same build
-  const edge = new URLSearchParams(globalThis.location?.search ?? '').has('noedge') ? undefined : edgeKit(biome);
-  const out: TrackAssets = { geometries, materials, gradientMap: toonRamp(), ...surfaces, ...pbr, ...(edge ? { edge } : {}) };
+  const search = new URLSearchParams(globalThis.location?.search ?? '');
+  const edge = search.has('noedge') ? undefined : edgeKit(biome);
+  // race day: arrow boards, flags, sponsor boards and banners (signs.ts; `?nodress` leaves it off, as `?noedge` does the edge)
+  const raceDressing = search.has('nodress') ? undefined : signKit(biome);
+  const out: TrackAssets = { geometries, materials, gradientMap: toonRamp(), ...surfaces, ...pbr, ...(edge ? { edge } : {}), ...(raceDressing ? { raceDressing } : {}) };
   // the vista's big pieces from their model files, looked up through the assets as every other model is
   const file = (name: string) => {
     const geometry = out.geometries?.[name], material = out.materials?.[name];
