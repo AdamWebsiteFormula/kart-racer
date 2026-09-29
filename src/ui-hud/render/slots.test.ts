@@ -45,7 +45,7 @@ describe('the item slots come from one number (UI.itemSlots)', () => {
     expect(slots.map((s) => s.classList.contains('next'))).toEqual([false, true, true]);
     expect(slots.map((s) => s.querySelector('.tag')?.textContent ?? '')).toEqual(['', 'NEXT', '']);
     // screen readers hear which slot is which
-    expect(slots.map((s) => s.getAttribute('aria-label'))).toEqual(['Item: Beach Ball', 'Next item: Oil Can', 'Item after next: empty']);
+    expect(slots.map((s) => s.getAttribute('aria-label'))).toEqual(['Item: Laser Blaster', 'Next item: Oil Slick', 'Item after next: empty']);
     // each is glass with the item's art over it, and the landing's shine
     for (const s of slots) expect(['.slot-glass', '.ic', '.gloss'].every((c) => s.querySelector(c))).toBe(true);
     expect(slots[0].querySelector('.ic img.art')).not.toBeNull();
@@ -58,8 +58,8 @@ describe('the item slots come from one number (UI.itemSlots)', () => {
     third(k, 'tripleFizz', 3, 0.6);
     expect(itemSlots(k, defs).slots[2].state).toBe('rolling');
     k.item = { ...k.item, ...{ thirdRouletteRemaining: 0 } };
-    expect(itemSlots(k, defs).slots[2]).toEqual({ state: 'ready', itemId: 'tripleFizz', label: 'Triple Fizz', charges: '×3', uses: { left: 3, of: 3 } });
-    // a Fog Bank empties every slot
+    expect(itemSlots(k, defs).slots[2]).toEqual({ state: 'ready', itemId: 'tripleFizz', label: 'Triple Nitro', charges: '×3', uses: { left: 3, of: 3 } });
+    // an EMP Blast empties every slot
     third(k, 'none', 0, 0);
     k.item.held = k.item.next = 'none';
     expect(itemSlots(k, defs).slots.map((s) => s.state)).toEqual(['empty', 'empty', 'empty']);
@@ -75,7 +75,7 @@ describe('the item slots come from one number (UI.itemSlots)', () => {
     expect([slot.getAttribute('data-state'), slot.classList.contains('land')]).toEqual(['rolling', false]);
     third(k, 'airHorn', 1, 0);
     v.render(hudModel(race, k, 5, 10, newHudMemory(), 1, defs, 0));
-    expect([slot.getAttribute('data-state'), slot.classList.contains('land'), slot.getAttribute('aria-label')]).toEqual(['ready', true, 'Item after next: Air Horn']);
+    expect([slot.getAttribute('data-state'), slot.classList.contains('land'), slot.getAttribute('aria-label')]).toEqual(['ready', true, 'Item after next: Shockwave']);
   });
 });
 
@@ -83,7 +83,7 @@ describe('an item of more than one use shows its uses as pips', () => {
   // the game passes the item definitions themselves (main.ts ITEMS_CONFIG.items): their charges are the uses
   const full = ITEM_DEFINITIONS;
 
-  it('each use a pip, the ones left lit: a Triple Fizz 3 of 3, then 2 of 3; none for one use, the Pogo Spring or a roll', () => {
+  it('each use a pip, the ones left lit: a Triple Nitro 3 of 3, then 2 of 3; none for one use, the Jump Jets or a roll', () => {
     const k = kart('tripleFizz', 'pogoSpring');
     k.item.charges = 3; k.item.nextCharges = 2;
     expect(itemSlots(k, full).held.uses).toEqual({ left: 3, of: 3 });
@@ -91,7 +91,7 @@ describe('an item of more than one use shows its uses as pips', () => {
     expect(itemSlots(k, full).held.uses).toEqual({ left: 2, of: 3 });
     k.item.charges = 1;
     expect(itemSlots(k, full).held.uses).toEqual({ left: 1, of: 3 });
-    // the Pogo Spring's second charge is its slam, not a second spring
+    // the Jump Jets' second charge is their dive, not a second jump
     expect(itemSlots(k, full).next.uses).toBeNull();
     k.item.held = 'beachBall';
     expect(itemSlots(k, full).held.uses).toBeNull();
@@ -111,7 +111,7 @@ describe('an item of more than one use shows its uses as pips', () => {
     v.render(hudModel(race, k, 5, 10, newHudMemory(), 1, full, 0));
     const pips = () => [...held.querySelectorAll('.pips > i')].map((i) => (i.classList.contains('on') ? 1 : 0));
     expect(pips()).toEqual([1, 1, 1]);
-    expect(held.getAttribute('aria-label')).toBe('Item: Triple Fizz ×3');
+    expect(held.getAttribute('aria-label')).toBe('Item: Triple Nitro ×3');
     const first = held.querySelector('.pips > i');
     v.render(hudModel(race, k, 5, 10, newHudMemory(), 1, full, 0));
     expect(held.querySelector('.pips > i')).toBe(first);

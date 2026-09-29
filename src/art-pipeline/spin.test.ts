@@ -90,8 +90,8 @@ describe('marking what turns', () => {
     expect(s.period).toBe(SPIN_PERIOD.windpump);
     const mark = g.getAttribute(SPIN_ATTRIBUTE), p = g.getAttribute('position');
     for (let i = 0; i < p.count; i++) {
-      // the tower (below the head) and the tail vane (behind it) stand still
-      if (p.getY(i) < 8 || p.getZ(i) < -0.5) expect(mark.getX(i), `vertex ${i}`).toBe(0);
+      // the tower (below the wheel: a blade pointing down reaches 7.55 m) and the tail vane (behind it) stand still
+      if (p.getY(i) < 7.4 || p.getZ(i) < -0.5) expect(mark.getX(i), `vertex ${i}`).toBe(0);
     }
     expect([...(mark.array as Float32Array)].filter((x) => x > 0.5).length).toBeGreaterThan(100);
     // two copies merged, one turned a quarter round and moved: each listed with its own hub and axis

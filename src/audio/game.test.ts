@@ -610,6 +610,8 @@ describe("the racers' voice lines (barks.ts)", () => {
 
   it('a racer with lines says their hit line on the voice bus in place of the creature yelp; one without keeps the yelp', () => {
     const v = voiced(['pip']);
+    // a hit is voiced about one time in three (29 Sept 2026): this one rolls a line
+    (v.audio as unknown as { barker: { random: () => number } }).barker.random = () => 0;
     v.audio.newRace('raceSunrise', 'harbour-loop', 4);
     v.audio.tick([hit], [], me);
     expect(v.played).not.toContain('yelp:pip');

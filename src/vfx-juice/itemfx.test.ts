@@ -56,7 +56,7 @@ describe('the items\' bursts (director)', () => {
 describe('the items\' effects (drawn)', () => {
   const kart = (racerId: string, x = 0) => createKartState({ racerId, position: [x, 0, 0], heading: 0 });
 
-  it('a rocket\'s explosion: a flash in a flash, a shock ring on the road, a comic burst, sparks, embers and a puff of smoke; it shakes the player nearby', () => {
+  it('a rocket\'s explosion: a hot core in a fireball\'s glow and a flash, a shock ring on the road, a comic burst, sparks, embers and a puff of smoke; it shakes the player nearby', () => {
     const vfx = new Vfx(new Scene(), new PerspectiveCamera());
     const me = kart('p', 4);
     vfx.frame(1 / 60, 1 / 60, 0, [me], me, [0, 3, -6], false);
@@ -64,7 +64,8 @@ describe('the items\' effects (drawn)', () => {
     vfx.onTick(fx, () => undefined, 1, false);
     expect(vfx.items.blasts.mesh.visible).toBe(false); // (shown by the frame)
     vfx.frame(0.05, 0.05, 1.05, [me], me, [0, 3, -6], false);
-    expect(vfx.items.blasts.alive()).toBe(3);
+    // a white-hot core, the fireball's glow, the flash and the shock ring on the road
+    expect(vfx.items.blasts.alive()).toBe(4);
     expect(vfx.items.blasts.mesh.visible).toBe(true);
     expect(vfx.soft.count).toBeGreaterThanOrEqual(BOOM.smoke);
     expect(vfx.kartFx.sparks.count).toBeGreaterThanOrEqual(BOOM.sparks);
