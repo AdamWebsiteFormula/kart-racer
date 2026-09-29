@@ -2,6 +2,10 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
+## 29 Sept 2026: the Mac's work since 28 Sept, 12:36 EDT is NOT on GitHub (read this first)
+
+The Broadcast fonts (Adam's pick), music before the race, new items and item slots, the wider drift, tricks and shadows, race dressing and roads, the title camera, Mesa Rush's landmarks, and new course music and sounds were all built or started by helpers on the Mac. The weekly limit stopped the Mac session before it joined or pushed any of it. The full list and each item's state are in docs/requests.md; add every new request there as it is made. To bring the work up, run `scripts/save-mac-work.sh` on the Mac (it pushes branches mac/* and mac-wip/*, and changes nothing on the Mac).
+
 ## 29 Sept 2026: each racer's own stats LIVE (PR #1 merged, submit-score v22, probed) (read this first)
 
 Adam (cloud session): "No 2 racers should have the exact same stat." Racers of a class had shared their stats in their own karts (the Racer screen's Y stats showed three identical lights, three mediums, two heavies). Now kart.schema.json `racerStats` gives each racer but Juniper one balanced trade on their class (one step of one stat for one of another, equal in lap time, weight untouched; the table is in design §4), and karts.ts combines class + touch + (kart − own kart). No two racers share speed, accel and handling, in their own karts or side by side in any kart (karts.test.ts). Checked: verify green (2154 tests); the kart gate 51 totals, worst 2.85% from a track's median, 3.37% from the racer's own kart, 1.40% on the mean (limit 1.5%), no claw rescue in 918 runs; the class gate at 150cc and 100cc. Two tests recalibrated with measurements (both reported to Adam): AI gate 2's ceiling 8 -> 9 s (on 27 Sept's sim it passed by 0.03 s on one AI personality; ai-driver SOP), and the parked yeti's threat check races up to 12 seeds (it caught somebody in 3 of 12 races before, 1 of 12 now). A sim change: CLIENT_VERSION 9, core rebuilt (core-23878056ac57f901, committed on the branch).
