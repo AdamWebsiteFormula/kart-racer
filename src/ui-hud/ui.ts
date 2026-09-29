@@ -569,6 +569,22 @@ export class UiRoot {
     return room >= UI.besideMinRoom ? Math.min(1, room) : 0;
   }
 
+  /**
+   * The title's menu (its bands down the left, design §12): its right edge as a share of the window's width, from the
+   * laid-out boxes (transforms left out, so the bands' slide-in does not move it); 0 on the start screen (no menu yet)
+   * or off the title. main.ts frames the attract race's leader in the room right of it (game/titleCam.ts), as Mario
+   * Kart World's title keeps its racer in the clear beside its menu.
+   */
+  titleRoom(): number {
+    if (this.active?.key !== 'title') return 0;
+    const menu = this.views.title.root.querySelector<HTMLElement>('.menu.bands');
+    const w = this.root.clientWidth || window.innerWidth;
+    if (!menu || !(w > 0) || !(menu.offsetWidth > 0)) return 0;
+    let x = 0;
+    for (let e: HTMLElement | null = menu; e && e !== this.root; e = e.offsetParent as HTMLElement | null) x += e.offsetLeft;
+    return Math.min(1, (x + menu.offsetWidth) / w);
+  }
+
   /** Once per rendered frame while racing (paused or not). */
   race(f: RaceFrame, nowMs: number): void {
     if (this.app.screen !== 'racing') return;
@@ -600,6 +616,34 @@ export class UiRoot {
 
   /** A course intro's card is up: any key, pad button or tap skips on to the countdown. */
   get introOn(): boolean { return this.introView.phase !== 'off'; }
+
+  /** the thin bar at the foot of the screen (loading), made on its first use */
+  private loadBar: HTMLElement | null = null;
+
+  /**
+   * A thin bar along the foot of the screen while the files a screen waits on come down (main.ts: the title's world,
+   * a race's racers and course on a first visit; the second fresh-eyes review's item 10), `share` of them in (0 to 1);
+   * null takes it away. No words: a line filling, as a video's does.
+   */
+  loading(share: number | null): void {
+    if (share === null) { this.loadBar?.classList.remove('on'); return; }
+    let b = this.loadBar;
+    if (!b) {
+      b = document.createElement('div');
+      b.className = 'load-bar';
+      b.setAttribute('role', 'progressbar');
+      b.setAttribute('aria-label', 'Loading');
+      b.setAttribute('aria-valuemin', '0');
+      b.setAttribute('aria-valuemax', '100');
+      b.appendChild(document.createElement('i'));
+      this.root.appendChild(b);
+      this.loadBar = b;
+    }
+    const p = Math.max(0, Math.min(1, share));
+    b.classList.add('on');
+    b.style.setProperty('--p', p.toFixed(3));
+    b.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+  }
 
   /** Polls the gamepad. Call every frame. */
   poll(nowMs: number): void {

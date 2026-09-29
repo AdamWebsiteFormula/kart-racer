@@ -13,7 +13,7 @@ import { dailyConfig, restartConfig, soloConfig, CLIENT_VERSION, isBoardMode } f
 import { encodeLog } from './backend-leaderboard/inputlog.ts';
 import { leaderboardClient } from './backend-leaderboard/client.ts';
 import { BALLOON_SPARKLE, Post, Vfx, directFx, msaaSamples, newEffects } from './vfx-juice/index.ts';
-import { BUBBLE_CLOCK, DAY_GRADE, freeSkeletons, isBodyId, isPbr, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, ROAD_WET, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
+import { BUBBLE_CLOCK, comboOwnerOf, DAY_GRADE, freeSkeletons, isBodyId, isPbr, isShared, PAINTS, preloadSky, preloadSurfaces, PROP_MODELS, RACER_MODELS, ROAD_WET, SkyEnvironment, trackProps, WATER_CLOCK, type KartLook, type SkyLight } from './art-pipeline/index.ts';
 import { dprCap, Governor } from './performance/governor.ts';
 import { watchPixelRatio } from './performance/pixelRatio.ts';
 import { Warmup } from './performance/warmup.ts';
@@ -32,7 +32,8 @@ import { decodeGhost } from './race-manager/ghost.ts';
 import type { GrandPrixState, RaceConfig, RaceMode, SeriesState } from './race-manager/types.ts';
 import type { TrackDefinition } from './track-builder/types.ts';
 import { mirrored } from './track-builder/mirror.ts';
-import { ChaseCam, clampAboveSea, fovFor, kickedFov, restPose, smoothTo } from './game/camera.ts';
+import { ChaseCam, fovFor, kickedFov, restPose } from './game/camera.ts';
+import { TITLE_CAM, TitleCam, titleSpot, type Followed } from './game/titleCam.ts';
 import { CourseIntro, findStand, planIntro, type IntroKind } from './game/intro.ts';
 import { DriveAssist } from './game/assist.ts';
 import { Accumulator } from './game/loop.ts';
@@ -154,7 +155,6 @@ const chase = new ChaseCam();
 const camPos: Vec3 = chase.pos;
 const camLook: Vec3 = chase.look;
 const lookTmp = new Vector3();
-let orbit = 0;
 
 let settings: Settings | null = null;
 // quality Auto: the governor trades resolution, then shadows and post, to hold 55+ fps
@@ -309,9 +309,8 @@ const acc = new Accumulator();
 function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | null = null): void {
   // the old race is freed once the new one's shaders are compiled, so the shaders both draw with carry over
   const old = session;
-  const base = TRACKS.get(config.trackId) ?? TRACKS.get(FIRST_TRACK)!;
   // Mirror mode races the track reflected left to right (track-builder/mirror.ts); never on a leaderboard mode
-  const def = config.mirrored && !isBoardMode(config.mode) ? mirrored(base) : base;
+  const def = defOf(config);
   session = new RaceSession(scene, def, { ...config, trackId: def.id, mirrored: def.mirrored === true }, isAttract ? {} : look);
   session.eye = camPos; // the rigged drivers look at the camera on the grid and over the line (kart-controller driverAnim.ts)
   attract = isAttract;
@@ -362,6 +361,8 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
   acc.reset();
   vfx.reset();
   chase.reset(session.player ?? session.state.karts[0]);
+  // a new attract race: the title camera starts again on its first shot, the kart put on its spot at once
+  if (isAttract) { titleCam.reset(); titleSnap = true; }
   // the course intro (game/intro.ts): the camera flies the course and lands on the chase camera's rest
   // pose while the title card names it; the sim waits at tick 0, the countdown comes after it
   const pk = session.player;
@@ -370,14 +371,12 @@ function load(config: RaceConfig, isAttract: boolean, introKind: IntroKind | nul
     ? new CourseIntro(planIntro({
       track: session.track, farLandmark: session.trackScene.farLandmark, kart: pk, rest: restPose(session.track, pk),
       stand: stands ? findStand(session.track, stands) : undefined,
+      // the close-up keeps clear of the other karts on the grid (a Time Trial's ghost shares the player's slot: none)
+      others: session.state.karts.filter((k) => k !== pk && !k.isGhost).map((k) => k.position),
     }, introKind))
     : null;
-  ui.introCard(intro && pk ? introCard({
-    trackId: def.id, trackName: def.name, mode: config.mode, speedClass: config.speedClass, mirrored: def.mirrored === true, racerId: pk.racerId,
-    seriesId: series?.kind === 'grandPrix' ? series.cupId : series?.kind === 'knockout' ? series.setId : null,
-    race: series ? { index: series.kind === 'grandPrix' ? series.raceIndex : series.segment, count: series.trackIds.length } : undefined,
-    cutLine: config.knockout?.cutLine, dailySeed: config.mode === 'daily' ? config.seed : undefined, touch: coarse,
-  }) : null);
+  // (a race that waited for its files under its card keeps that card as it is: ui-hud render/intro.ts)
+  ui.introCard(intro && pk ? cardFor(config, def, pk.racerId) : null);
   // racers whose model files were not in yet (a race picked early on a slow line) are asked for first; with a
   // course intro, each is swapped in as it lands and the countdown waits for them a little (upgradeKarts)
   dropUpgrade();
@@ -434,6 +433,79 @@ function configFor(p: RacePlan): RaceConfig {
   return withMirror({ mode: p.mode, trackId: p.tracks[0] ?? FIRST_TRACK, speedClass: p.speedClass, seed: Date.now() % 1_000_000, racers: lineup(p.racerId, p.kartId) });
 }
 
+/** The track a race runs on: its file, reflected in Mirror mode (never on a leaderboard mode). */
+function defOf(config: RaceConfig): TrackDefinition {
+  const base = TRACKS.get(config.trackId) ?? TRACKS.get(FIRST_TRACK)!;
+  return config.mirrored && !isBoardMode(config.mode) ? mirrored(base) : base;
+}
+
+/** The course intro's title card for this race (ui-hud screens/intro.ts), with `racerId` the player's. */
+function cardFor(config: RaceConfig, def: TrackDefinition, racerId: string) {
+  return introCard({
+    trackId: def.id, trackName: def.name, mode: config.mode, speedClass: config.speedClass, mirrored: def.mirrored === true, racerId,
+    seriesId: series?.kind === 'grandPrix' ? series.cupId : series?.kind === 'knockout' ? series.setId : null,
+    race: series ? { index: series.kind === 'grandPrix' ? series.raceIndex : series.segment, count: series.trackIds.length } : undefined,
+    cutLine: config.knockout?.cutLine, dailySeed: config.mode === 'daily' ? config.seed : undefined, touch: coarse,
+  });
+}
+
+/** Every racer model a race's karts are made of: each racer's own, and for a racer in another's kart (design §5), that racer's too. */
+function racersOf(config: RaceConfig): string[] {
+  const out = new Set<string>();
+  for (const r of config.racers) {
+    if (r.isGhost) continue;
+    out.add(r.racerId);
+    const owner = comboOwnerOf(r.racerId, { ...(r.isPlayer ? look : {}), kartId: r.kartId });
+    if (owner) out.add(owner);
+  }
+  return [...out];
+}
+
+/** Seconds a race waits for its racers' and its track's model files before it is built with what is in (item 10). */
+const FILE_WAIT = 45;
+/**
+ * A race waiting for its files before it is built (the second fresh-eyes review's item 10: on a slow first visit the
+ * code-built stand-ins showed; a race's scene is built once, with the props in hand then), or null. Its card sits on
+ * ink over a filling line meanwhile; any other race, or leaving, drops it.
+ */
+let waiting: { config: RaceConfig; kind: IntroKind | null; racers: string[]; props: string[] } | null = null;
+
+/**
+ * Start a race: at once when its racers' models and its track's scenery models are in (or failed: those stay
+ * code-built, by design §4); else it waits, their files moved to the front of the line (the player's own kart first,
+ * alone at the line's full speed), at most FILE_WAIT seconds, and is built then.
+ */
+function beginRace(config: RaceConfig, kind: IntroKind | null): void {
+  const def = defOf(config);
+  const racers = racersOf(config), props = trackProps(def);
+  const missing = racers.filter((id) => !RACER_MODELS.settled(id)), unbuilt = props.filter((n) => !PROP_MODELS.settled(n));
+  if (!missing.length && !unbuilt.length) { waiting = null; load(config, false, kind); return; }
+  const w = { config, kind, racers, props };
+  waiting = w;
+  const me = config.racers.find((r) => r.isPlayer);
+  if (me) ui.introCard(cardFor(config, def, me.racerId));
+  raceLine(true);
+  for (const n of unbuilt) files.rerank(`prop:${n}`, RANK.race);
+  let turn = 0;
+  const got = Promise.all([
+    RACER_MODELS.want(missing, (job) => files.add(job, RANK.race, turn++ === 0 ? files.limit : 1, 'race-models')),
+    PROP_MODELS.load(unbuilt, files.at(RANK.race)),
+  ]);
+  void Promise.race([got, new Promise((r) => setTimeout(r, FILE_WAIT * 1000))]).then(() => {
+    if (waiting !== w) return; // left, or another race picked meanwhile
+    waiting = null;
+    load(config, false, kind);
+  });
+}
+
+/** How much of what `racers` and `props` need is in (0 to 1): the filling line's share. */
+function shareIn(racers: readonly string[], props: readonly string[]): number {
+  let n = 0;
+  for (const id of racers) if (RACER_MODELS.settled(id)) n++;
+  for (const p of props) if (PROP_MODELS.settled(p)) n++;
+  return (racers.length + props.length) ? n / (racers.length + props.length) : 1;
+}
+
 const host: UiHost = {
   builtTracks: new Set(TRACKS.keys()),
   medalTimes: new Map([...TRACKS.values()].map((d) => [d.id, d.medalTimesMs])),
@@ -452,18 +524,20 @@ const host: UiHost = {
     // the course intro before the countdown: a short one in Time Trial and the Daily (game/intro.ts); from the
     // results, a short one on to the next track and none for the same race again (as the pause's Restart)
     const intro = p.intro === 'none' ? null : p.intro ?? (p.mode === 'timeTrial' || p.mode === 'daily' ? 'short' : 'full');
-    load(series ? withMirror(nextRace(series)!) : configFor(p), false, intro);
+    beginRace(series ? withMirror(nextRace(series)!) : configFor(p), intro);
   },
   nextRace() {
     const next = series ? nextRace(series) : undefined;
     // every race of a Grand Prix or a Knockout gets its intro
-    if (next) load(withMirror(next), false, 'full'); else startAttract();
+    if (next) beginRace(withMirror(next), 'full'); else startAttract();
   },
   restartRace() {
+    // (a race still waiting for its files has not started: nothing to start again)
+    if (waiting) return;
     // a Daily restarts as today's: past midnight UTC the old day's run could not be posted
-    if (session) load(restartConfig(session.config, [...TRACKS.keys()]), false);
+    if (session) beginRace(restartConfig(session.config, [...TRACKS.keys()]), null);
   },
-  quitRace() { startAttract(); },
+  quitRace() { waiting = null; startAttract(); },
   skipIntro() { intro?.skip(); },
   skipToResults() {
     // over the line and pressed on: the rest of the field is cut off now (projected times), no 12 s wait
@@ -492,6 +566,8 @@ const host: UiHost = {
     if (app.screen === 'podium' && podium && !podium.showing) startPodium();
     // leaving the race screens for the menus brings the attract race back (the results' Change track and Change racer too)
     if (!attract && (app.screen === 'modeSelect' || app.screen === 'title' || app.screen === 'rosterSelect' || app.screen === 'trackSelect')) startAttract();
+    // and a race still waiting for its files is dropped, its card with it
+    if (waiting && app.screen !== 'racing') { waiting = null; ui.introCard(null); }
   },
 };
 
@@ -529,17 +605,33 @@ function backgroundFiles(): void {
   for (const c of CAST) void files.add(() => prefetchImage(`${base}art/racers/${c.id}.webp`), RANK.screens);
   for (const id of TRACKS.keys()) void files.add(() => prefetchImage(`${base}art/tracks/${id}.webp`), RANK.screens);
   // the eight racers' model files (every race), then the title's track's scenery models. Both in, the
-  // title's race restarts, so the first thing a player sees is the modelled cast (fails soft: code-built)
-  const titleTrack = TRACKS.get(ATTRACT_TRACK);
-  void Promise.all([RACER_MODELS.load(files.at(RANK.racers)), PROP_MODELS.load(titleTrack ? trackProps(titleTrack) : [], files.at(RANK.title))])
-    .then(() => { if (attract) startAttract(); warmLooks(); });
+  // title's race restarts, so the first thing a player sees is the modelled cast (fails soft: code-built);
+  // until then the title sits on the stage's still of the course (worldReady). Each scenery model has its
+  // own turn and tag, so a race can move its own track's to the front (beginRace)
+  void Promise.all([RACER_MODELS.load(files.at(RANK.racers)), ...ATTRACT_PROPS.map((n) => PROP_MODELS.load([n], files.at(RANK.title, 1, `prop:${n}`)))])
+    .then(() => { if (attract && !waiting) startAttract(); warmLooks(); worldReady = true; });
+  setTimeout(() => { worldReady = true; }, WORLD_WAIT * 1000);
   // the item art the roulette flicks through (the first race's first balloon); every other track's ground and scenery
   for (const id of Object.keys(ITEM_ICONS)) void files.add(() => prefetchImage(itemArt(id)), RANK.items);
   void files.add(async () => preloadSurfaces(), RANK.rest);
   // only the models some track's scene asks for (trackProps): the course creatures' (off every track
   // since 25 Sept 2026, 3.6 MB) are not fetched, and come back with a creature put back on its track
-  void PROP_MODELS.load([...TRACKS.values()].flatMap(trackProps), files.at(RANK.rest));
+  // (each its own turn and tag: a race moves its own to the front, beginRace)
+  for (const n of new Set([...TRACKS.values()].flatMap(trackProps))) void PROP_MODELS.load([n], files.at(RANK.rest, 1, `prop:${n}`));
 }
+
+/** The title's track's scenery models (the attract race's world). */
+const ATTRACT_PROPS: readonly string[] = (() => { const d = TRACKS.get(ATTRACT_TRACK); return d ? trackProps(d) : []; })();
+/** The attract race's racers (every one of the cast). */
+const ATTRACT_RACERS: readonly string[] = lineup(null).map((r) => r.racerId);
+/**
+ * The title's world is on show: the attract race's racers and its track's scenery models are in (or failed) and the
+ * race built again with them (the second fresh-eyes review's item 10: on a slow first visit the title's karts were
+ * boxes and balls for its first seconds). Until then the title sits on the stage's still of the course (stageStep),
+ * over a filling line, at most WORLD_WAIT seconds.
+ */
+let worldReady = false;
+const WORLD_WAIT = 60;
 
 document.fonts?.ready.then(() => ui.dispatch({ type: 'boot' }));
 setTimeout(() => ui.dispatch({ type: 'boot' }), 1500); // never wait on fonts for more than 1.5 s
@@ -768,7 +860,8 @@ function upgradeKarts(): void {
     }
   }
   // swapped on a cut, before the flight moves, or while the countdown waits for them: never mid-move
-  const move = intro.move, cut = move !== u.lastMove;
+  // (the close-up's swing carries on from its front shot: no cut there, the player's kart right in front of the lens)
+  const move = intro.move, cut = move !== u.lastMove && !intro.plan.moves[move]?.joined;
   u.lastMove = move;
   if (u.staging && u.compiled && (cut || !intro.moving || intro.flightOver)) {
     for (const id of u.session.swapInModels()) u.want.delete(id);
@@ -831,40 +924,37 @@ function showShift(s: RaceSession, audible: boolean, reduced: boolean): void {
 }
 
 /**
- * Attract mode: a slow TV camera swinging around whoever leads. The title's menu sits in the middle of
- * the screen, so the camera aims past the leader to its right (rule of thirds) and the kart shows left
- * of the menu, close enough to read the racer (26 Sept 2026: at 16 m, dead centre, the menu hid it).
- * Camera and aim ride along with the leader each frame, so the easing only shapes the framing: eased
- * alone, they trailed a kart at race speed by some 15 m and the frame showed empty road.
+ * Attract mode: the title's TV camera (game/titleCam.ts; the second fresh-eyes review's item 1, 28 Sept 2026). It
+ * cuts in turn between shots of whoever leads, and frames the kart in the open part of the screen the whole time:
+ * in the middle under the start screen's logo, then in the room right of the menu (its right edge measured four
+ * times a second while the title is up, held on the screens after it), as Mario Kart World's title keeps its racer
+ * in the clear. It was an orbit that aimed the kart left of a menu that has since moved to the left, over the kart.
  */
-function tvCamera(frameDt: number): void {
+function tvCamera(frameDt: number, nowS: number): void {
   const s = session!;
-  const lead = s.leader();
-  const k = s.views[lead].root.position;
-  if (lead === tvKart) {
-    const d = [k.x - tvPrev.x, k.y - tvPrev.y, k.z - tvPrev.z];
-    for (let a = 0; a < 3; a++) { camPos[a] += d[a]; camLook[a] += d[a]; }
+  if (ui.app.screen === 'title' && (nowS - titleMenuAt > 0.25 || nowS < titleMenuAt)) {
+    titleMenuAt = nowS;
+    titleMenuRight = ui.app.pressed ? ui.titleRoom() : 0;
   }
-  tvKart = lead;
-  tvPrev.copy(k);
-  orbit += frameDt * (ui.reducedMotion ? 0.02 : 0.12);
-  const r = 11;
-  const want: Vec3 = [k.x + Math.sin(orbit) * r, k.y + 2.8, k.z + Math.cos(orbit) * r];
-  smoothTo(camPos, want, 0.6, frameDt);
-  // the camera's right, flat: the look point moves that way so the leader sits a third in from the left; on the start
-  // screen (no menu yet) the leader sits in the middle under the logo, as Mario Kart World's title frames its kart
-  const aside = ui.app.screen === 'title' && !ui.app.pressed ? 0 : TV_ASIDE;
-  const dx = k.x - camPos[0], dz = k.z - camPos[2], len = Math.hypot(dx, dz) || 1;
-  smoothTo(camLook, [k.x - (dz / len) * aside, k.y + 0.4, k.z + (dx / len) * aside], 0.25, frameDt);
-  // review, 26 Sept 2026, finding 1: the leader can be down by the coast; the TV orbit keeps clear of the sea's own surface too
-  clampAboveSea(camPos, s.track);
-  camera.fov = 58;
+  titleSpot(titleMenuRight, titleAt);
+  titleCam.update(s.track, s.leader(), titleKart, titleAt[0], titleAt[1], camera.aspect, ui.reducedMotion, frameDt, titleSnap);
+  titleSnap = false;
+  for (let a = 0; a < 3; a++) { camPos[a] = titleCam.pos[a]; camLook[a] = titleCam.look[a]; }
+  camera.fov = titleCam.fov;
 }
-/** metres the title camera aims past the leader, to its right: the kart shows left of the centred menu */
-const TV_ASIDE = 4;
-/** the kart the title camera rode with last frame, and where it was */
-let tvKart = -1;
-const tvPrev = new Vector3();
+const titleCam = new TitleCam();
+/** the title's menu's right edge (a share of the width; 0: the start screen) and when it was measured; the spot it gives */
+let titleMenuRight = 0, titleMenuAt = -1, titleSnap = true;
+const titleAt: [number, number] = [0.5, 0.5];
+const titleFollow: Followed = { kart: { t: 0, branch: 0 }, at: { x: 0, y: 0, z: 0 } };
+/** Kart i of the attract race as drawn this frame (one object, reused), for the title camera. */
+function titleKart(i: number): Followed | undefined {
+  const s = session, v = s?.views[i];
+  if (!s || !v) return undefined;
+  titleFollow.kart = s.state.karts[i];
+  titleFollow.at = v.root.position;
+  return titleFollow;
+}
 
 // ---- loop ----
 /** dev only: a fixed camera for checking art up close (kart.photo); with `kart`, pos and look are in that kart's frame and the camera rides along */
@@ -948,19 +1038,20 @@ function step(now: number): void {
   // the field cut off as a press on the finish banner does (a press still skips straight to them)
   if (!attract && !celebrating && s.player?.finishTick !== undefined) startCelebration(s);
   if (celebrating && !skipResults && ui.app.screen === 'racing' && finishCam.time >= CELEBRATE.seconds) { s.manager.endRace(); skipResults = true; }
-  if (attract && s.finishedFor > 4) startAttract();
+  // (not while a race waits for its files under its card: the next load is that race's)
+  if (attract && s.finishedFor > 4 && !waiting) startAttract();
   else if (!attract && ui.app.screen === 'racing' && ((!celebrating && s.finishedFor > RESULTS_AFTER) || (skipResults && s.state.phase === 'finished'))) raceOver();
 
   const cur = session!;
   if (warmup.active) return; // the attract loop just started its next race: compiling
-  cur.frame(acc.alpha, frameDt, reduced, intro ? intro.sceneTime(cur.state.time) : undefined);
+  cur.frame(acc.alpha, frameDt, reduced, intro ? intro.sceneTime(cur.state.time) : undefined, intro?.faceAt(reduced));
   if (skyEnv) followSky(cur);
   if (scene.fog && !(scene.fog as Fog).color.equals(cur.horizon)) { (scene.fog as Fog).color.copy(cur.horizon); (scene.background as Color).copy(cur.horizon); }
   applyLight(cur.skyLight, cur.bounce, frameDt, lightSnap, attract ? 0 : chase.tunnel);
   showShift(cur, racing && !ui.paused, reduced);
   if (post) { post.gradeTo = cur.skyLight.grade ?? DAY_GRADE; if (lightSnap) post.snapGrade(); }
   lightSnap = false;
-  if (attract) tvCamera(frameDt); else if (intro) introCamera(reduced); else chaseCamera(frameDt, nowS, reduced);
+  if (attract) tvCamera(frameDt, nowS); else if (intro) introCamera(reduced); else chaseCamera(frameDt, nowS, reduced);
   const ceremony = !attract && (podium?.showing ?? false);
   const liveDt = ui.paused || document.hidden ? 0 : frameDt;
   if (ceremony) podiumCamera(liveDt, reduced); else if (!attract && celebrating) celebrationCamera(liveDt, reduced, nowS);
@@ -1025,28 +1116,59 @@ function step(now: number): void {
   const stage = stageStep(frameDt, reduced);
   if (stage < 1) post!.render(frameDt, attract || celebrating || ceremony ? 0 : vfx.boostLevel(pl, nowS, reduced), reduced);
   if (stage > 0) drawStage(nowS, reduced, stage);
+  showLoading();
   // the warm-up draw's time is not the countdown's: the next frame starts from here, the governor warms up again
   if (warmed) { last = performance.now(); governor.reset(last / 1000); }
+}
+
+/** The filling line's share last shown (-1: none), so the page is touched only when it moves. */
+let loadingShown = -1;
+/** The filling line at the foot (UiRoot.loading): under the title's still while its world comes down, under a race's card while its files do. */
+function showLoading(): void {
+  const title = !worldReady && (ui.app.screen === 'title' || ui.app.screen === 'boot');
+  const share = waiting && ui.app.screen === 'racing' ? shareIn(waiting.racers, waiting.props) : title ? shareIn(ATTRACT_RACERS, ATTRACT_PROPS) : -1;
+  if (share === loadingShown) return;
+  loadingShown = share;
+  ui.loading(share < 0 ? null : share);
 }
 
 // ---- the setup screens' stage (design §12): the blurred world behind the Mode, Racer, Kart, Cup and Track screens, and the big 3D hero ----
 const showroom = new Showroom(scene.environment);
 new TextureLoader().load(`${import.meta.env.BASE_URL}art/menus/stage.webp`, (t) => showroom.setBackdrop(t), undefined, () => { /* no picture: its plain colour stands */ });
-/** how much of the stage shows (0 none, 1 all), eased in and out with the screen change (UI.wipeMs) */
-let stageAlpha = 0;
+/**
+ * how much of the stage shows (0 none, 1 all), eased in and out with the screen change (UI.wipeMs); all of it from the
+ * first frame, over the title's world until that is in (worldReady): a first frame of the race behind would be its
+ * code-built stand-ins (measured on a 5 Mbps first visit: one frame of them as the title came up)
+ */
+let stageAlpha = 1;
 /** the Racer screen's picks seen so far (UiRoot.turntable().cheer): a new one is the racer's flourish */
 let stageCheers = 0;
 
 /** The screens drawn on the stage: the whole setup after the title (design §12, 26 Sept 2026), as MKW's own menus sit on theirs; the title keeps the attract race. */
 const STAGE_SCREENS: ReadonlySet<string> = new Set(['modeSelect', 'rosterSelect', 'kartSelect', 'cupSelect', 'trackSelect']);
 
-/** The stage's share this frame: toward all of it on the setup screens (the Mode, Racer, Kart, Cup and Track screens), toward none elsewhere (at once with reduced motion). */
+/**
+ * The stage's share this frame: toward all of it on the setup screens (the Mode, Racer, Kart, Cup and Track screens),
+ * and on the title until its world is in (worldReady: its still of the course, never the code-built stand-ins), toward
+ * none elsewhere (at once with reduced motion).
+ */
 function stageStep(dt: number, reduced: boolean): number {
   const was = stageAlpha;
-  stageAlpha = stageFade(stageAlpha, STAGE_SCREENS.has(ui.app.screen), dt, UI.wipeMs / 1000, reduced);
+  const on = STAGE_SCREENS.has(ui.app.screen) || (!worldReady && (ui.app.screen === 'title' || ui.app.screen === 'boot'));
+  stageAlpha = stageFade(stageAlpha, on, dt, UI.wipeMs / 1000, reduced);
   // gone: its kart's own material copies go too (the next time, the racer on show says hello again)
   if (was > 0 && stageAlpha === 0) showroom.empty();
   return stageAlpha;
+}
+
+/** Racers whose models were moved to the front of the line for the stage's hero. */
+const hurried = new Set<string>();
+/** These racers' model files next (once each), at a race's own turn: the hero on show waits on them. */
+function hurry(ids: readonly string[]): void {
+  const fresh = ids.filter((id) => !hurried.has(id) && !RACER_MODELS.settled(id));
+  if (!fresh.length) return;
+  for (const id of fresh) hurried.add(id);
+  void RACER_MODELS.want(fresh, files.at(RANK.race, 1, 'race-models'));
 }
 
 /** Draw the stage over the canvas: the backdrop at `alpha`, and the hero in the box the menu leaves for it (none where it has no room). */
@@ -1055,8 +1177,13 @@ function drawStage(nowS: number, reduced: boolean, alpha: number): void {
   const r = t?.box.getBoundingClientRect();
   const view = { w: innerWidth, h: innerHeight };
   const box = t && r && r.width >= 8 && r.height >= 8 ? { x: r.left, y: r.top, w: r.width, h: r.height } : undefined;
-  // the Racer screen's racer stands alone (art-pipeline stand.ts); each pick there is its flourish
-  if (t && box) showroom.show(t.racerId, { ...artLook(t.look), kartId: t.kartId }, t.stand === true);
+  // the Racer screen's racer stands alone (art-pipeline stand.ts); each pick there is its flourish. A racer whose model
+  // is still coming shows nothing (never a code-built stand-in: game/showroom.ts), its file moved to the front of the line
+  if (t && box) {
+    const l = { ...artLook(t.look), kartId: t.kartId };
+    hurry([t.racerId, comboOwnerOf(t.racerId, l) ?? t.racerId]);
+    showroom.show(t.racerId, l, t.stand === true);
+  }
   if (t?.cheer !== undefined && t.cheer !== stageCheers) { if (t.cheer > stageCheers) showroom.cheer(); stageCheers = t.cheer; }
   showroom.update(nowS, reduced, view, box);
   renderer.setViewport(0, 0, view.w, view.h);
@@ -1123,6 +1250,8 @@ if (import.meta.env.DEV) {
     introAt: (s: number | null) => { devIntroAt = s; },
     /** dev: the course intro under way (its plan and clock), or null */
     get intro() { return intro; },
+    /** dev: the title's attract camera (game/titleCam.ts): its shot on screen and the kart it follows, and its shots (to try one) */
+    titleCam, titleShots: TITLE_CAM.shots,
     camera, scene, acc,
     /** dev: the PBR look's sky map (?look=pbr; null in the toon look), and a capture of the race's sky into it now */
     skyEnv, paintSkyEnv: () => { if (session) paintSkyEnv(session); },

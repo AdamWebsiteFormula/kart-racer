@@ -1,7 +1,7 @@
 // The select screens' stage: the focused racer in their look, built again only when the racer or look
 // changes, turning (or standing still for reduced motion), standing in the box the menu leaves for it on
 // the whole screen, popping in, and giving back its own material copies, never a shared one.
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Box3, ConstantAlphaFactor, CustomBlending, OneMinusConstantAlphaFactor, Vector3, type Material, type Mesh, type Scene, type ShaderMaterial, type WebGLRenderer } from 'three';
 import { buildRacerMesh, isShared, RACER_MODELS } from '../art-pipeline/index.ts';
 import { riggedTemplate } from '../art-pipeline/__tests__/parts.ts';
@@ -67,7 +67,33 @@ describe('the Racer screen\'s racer standing alone (Adam, 28 Sept 2026: "This pa
   }, 120_000);
 });
 
+describe('the showroom, while a racer\'s model file is still coming (the second fresh-eyes review\'s item 10)', () => {
+  it('shows no code-built stand-in: nothing on the stand until the model is in (or its file failed), then it pops in saying hello', () => {
+    let settled = false;
+    const spy = vi.spyOn(RACER_MODELS, 'settled').mockImplementation(() => settled);
+    const s = new Showroom();
+    const view = { w: 1600, h: 900 }, box = { x: 900, y: 100, w: 600, h: 650 };
+    s.show('pip', {});
+    expect(s.showing).toBe('');
+    expect(kartOf(s)).toBeUndefined();
+    s.update(1, false, view, box);
+    // the file failed (or there is none): the code-built kart, design §4's fallback, pops in
+    settled = true;
+    s.show('pip', {});
+    expect(kartOf(s)).toBeDefined();
+    s.update(2, false, view, box);
+    expect(kartOf(s)!.parent!.scale.x).toBeLessThan(1); // popping in from POP_FROM
+    s.dispose();
+    spy.mockRestore();
+  });
+});
+
 describe('the showroom', () => {
+  // (no model files here: each racer's is taken as failed, so the code-built kart stands, as design §4 falls back)
+  let settledSpy: ReturnType<typeof vi.spyOn> | null = null;
+  beforeEach(() => { settledSpy = vi.spyOn(RACER_MODELS, 'settled').mockReturnValue(true); });
+  afterEach(() => { settledSpy?.mockRestore(); settledSpy = null; });
+
   it('shows the look, rebuilds only on a change, frees only its own material copies', () => {
     const s = new Showroom();
     s.show('pip', { paint: 'pip-alt', body: 'classic' });

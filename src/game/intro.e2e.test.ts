@@ -25,11 +25,12 @@ const TRACKS = Object.values(FILES);
 const DEF = (id: string) => TRACKS.find((d) => d.id === id)!;
 const DT = 1 / 60;
 
-/** The intro for `session`'s race, as main.ts plans it. */
+/** The intro for `session`'s race, as main.ts plans it (the close-up clear of the other karts on the grid). */
 function planFor(session: RaceSession, kind: IntroKind): IntroPlan {
   const k = session.player!;
   const stands = (session.trackScene.group.getObjectByName('crowd-stands') as Mesh | undefined)?.geometry.getAttribute('position').array;
-  return planIntro({ track: session.track, farLandmark: session.trackScene.farLandmark, kart: k, rest: restPose(session.track, k), stand: stands ? findStand(session.track, stands) : undefined }, kind);
+  const others = session.state.karts.filter((x) => x !== k && !x.isGhost).map((x) => x.position);
+  return planIntro({ track: session.track, farLandmark: session.trackScene.farLandmark, kart: k, rest: restPose(session.track, k), stand: stands ? findStand(session.track, stands) : undefined, others }, kind);
 }
 
 /**

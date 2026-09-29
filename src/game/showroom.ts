@@ -17,7 +17,7 @@ import {
   PerspectiveCamera, PlaneGeometry, Scene, ShaderMaterial, Sphere, SRGBColorSpace,
   type Material, type Object3D, type Texture, type WebGLRenderer,
 } from 'three';
-import { buildRacerMesh, freeSkeletons, isShared, RACER_MODELS, type KartLook } from '../art-pipeline/index.ts';
+import { buildRacerMesh, comboOwnerOf, freeSkeletons, isShared, RACER_MODELS, type KartLook } from '../art-pipeline/index.ts';
 import { makeStanding, type StandingRacer } from '../art-pipeline/stand.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
 import { createKartState, NEUTRAL_INPUT, type KartState } from '../kart-controller/types.ts';
@@ -238,8 +238,16 @@ export class Showroom {
    * `stand`: on its feet, alone (the Racer screen), in its paint; nothing until its model is in.
    */
   show(racerId: string, look: KartLook, stand = false): void {
-    const key = `${racerId}|${look.paint ?? ''}|${stand ? 'stand' : `${look.body ?? ''}|${look.kartId ?? ''}`}|${RACER_MODELS.has(racerId)}`;
+    // (a racer in another's kart, design §5, is made of that racer's model too)
+    const owner = stand ? undefined : comboOwnerOf(racerId, look);
+    const key = `${racerId}|${look.paint ?? ''}|${stand ? 'stand' : `${look.body ?? ''}|${look.kartId ?? ''}`}|${RACER_MODELS.has(racerId)}|${owner ? RACER_MODELS.has(owner) : ''}`;
     if (this.kart?.key === key) return;
+    // never a code-built stand-in while a model file is still coming (the second fresh-eyes review's item 10: on a slow
+    // first visit the Mode and Kart screens showed a box scooter): nothing on the stand until it is in, then it pops in
+    // saying hello. A file that failed leaves the code-built one (design §4's fallback).
+    // (standing, it waits for its rigged model below)
+    const coming = (id: string) => !RACER_MODELS.has(id) && !RACER_MODELS.settled(id);
+    if (!stand && (coming(racerId) || (owner && coming(owner)))) { this.clearKart(); return; }
     // the same racer on the stand, only in another kart (the Kart screen's focus moving), in another paint or their models
     // just in: no hello again; a new racer, or the racer getting in or out of a kart, says hello
     const prev = this.kart;

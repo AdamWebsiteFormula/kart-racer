@@ -2,16 +2,34 @@
 // hazards (pads, ramps and bumps: track-builder/mesh/ramps.ts). Every model keeps the size and origin of the placeholder it replaces (scene.ts), so
 // placement code never changes. Keyed exactly as TrackAssets expects.
 import type { BufferGeometry } from 'three';
-import { ModelBuilder } from './model.ts';
+import { ModelBuilder, type V3 } from './model.ts';
 import { DRESSING_MODELS } from './dressing.ts';
 import { EDGE_MODELS } from './edges.ts';
 import { buildGear } from './gear.ts';
+import { markSpinFrom, type Spin } from './spin.ts';
 
 type Build = (m: ModelBuilder) => void;
 
 const WOOD = '#a0703c', WOOD_DARK = '#7a5230', WHITE = '#fffaf0', CORAL = '#ff6f61', SUN = '#ffd23f', TEAL = '#2ec4b6', INK = '#1b1b2f';
 
-const MODELS: Record<string, { build: Build }> = {
+/**
+ * A code-built model's turning part (spin.ts): the parts from `from` up to `to` (their order in `build`; to the end
+ * when absent) turn about the axis through `hub`, `period` seconds a turn. The model files' own are in props.json.
+ */
+interface CodeSpin { hub: V3; axis: V3; period: number; from: number; to?: number }
+
+/** Seconds a windmill's sails and a Ferris wheel take to go round once (the sails 6 to 8 s, the wheel a minute: the MKW gap review of 28 Sept 2026, item 9); the small far windmills a little quicker, a ranch windpump's many-bladed wheel quicker still. */
+export const SPIN_PERIOD = Object.freeze({ windmill: 7, smallWindmill: 5, ferrisWheel: 60, windpump: 3 });
+
+/**
+ * The turning parts of models built elsewhere (dressing.ts): a ranch windpump's wheel, its twelve blades and its hub cap
+ * (parts 13 to 25: after the four legs, the eight braces and the head), about its axle 9.3 m up, facing +Z.
+ */
+const OTHER_SPINS: Readonly<Record<string, CodeSpin>> = Object.freeze({
+  windpump: { hub: [0, 9.3, 0.7], axis: [0, 0, 1], period: SPIN_PERIOD.windpump, from: 13, to: 26 },
+});
+
+const MODELS: Record<string, { build: Build; spin?: CodeSpin }> = {
   // Frostbite Pass and Mesa Rush at Mario Kart World density: fences, lamps, signs, villages, set-pieces, relief (dressing.ts)
   ...DRESSING_MODELS,
   // what stands on each land track's edge past the course limit, and the cover inside it (edges.ts; track-builder mesh/edge.ts)
@@ -147,6 +165,8 @@ const MODELS: Record<string, { build: Build }> = {
         m.box([1.5, 8.5, 0.12], k % 2 ? '#fffaf0' : '#ffd23f', [Math.cos(a) * 4.4, 13.5 + Math.sin(a) * 4.4, 3.2], [0, 0, a - Math.PI / 2]);
       }
     },
+    // the hub and its sails (parts 5 on) turn about the hub's own axis
+    spin: { hub: [0, 13.5, 2.6], axis: [0, 0, 1], period: SPIN_PERIOD.windmill, from: 5 },
   },
   'windmill-small': {
     build: (m) => {
@@ -157,6 +177,7 @@ const MODELS: Record<string, { build: Build }> = {
         m.box([0.45, 2.6, 0.06], k % 2 ? '#fffaf0' : '#ffd23f', [Math.cos(a) * 1.35, 4 + Math.sin(a) * 1.35, 1], [0, 0, a - Math.PI / 2], false);
       }
     },
+    spin: { hub: [0, 4, 1], axis: [0, 0, 1], period: SPIN_PERIOD.smallWindmill, from: 2 },
   },
   oak: {
     build: (m) => {
@@ -455,6 +476,8 @@ const MODELS: Record<string, { build: Build }> = {
       m.cyl(1.2, 1.2, 2.5, '#2a2a4a', [0, y, 0], [Math.PI / 2, 0, 0], 10);            // hub
       for (const x of [-1, 1]) m.box([0.8, y + 1, 0.8], '#2a2a4a', [x * 5, (y + 1) / 2, -1.5], [0, 0, x * 0.28]); // legs
     },
+    // the rims, spokes, cabins and hub (every part but the two legs, parts 27 and 28) turn slowly about the hub
+    spin: { hub: [0, 17, 0], axis: [0, 0, 1], period: SPIN_PERIOD.ferrisWheel, from: 0, to: 27 },
   },
   stall: {
     build: (m) => {
@@ -607,6 +630,12 @@ export function decorGeometry(name: string): DecorGeometry | null {
   const m = new ModelBuilder();
   spec.build(m);
   const out = { body: m.build() };
+  // a turning part: its vertices marked and its axis kept with the geometry (spin.ts turning)
+  const s = spec.spin ?? OTHER_SPINS[name];
+  if (s) {
+    markSpinFrom(out.body, m.vertexStart(s.from), s.to === undefined ? undefined : m.vertexStart(s.to));
+    out.body.userData.spin = { hub: s.hub, axis: s.axis, period: s.period } satisfies Spin;
+  }
   cache.set(name, out);
   return out;
 }

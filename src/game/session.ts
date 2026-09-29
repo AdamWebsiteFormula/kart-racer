@@ -221,8 +221,9 @@ export class RaceSession {
    * Interpolated visuals for one rendered frame. `sceneTime`: the race time to draw the course's
    * creatures and hazards at instead of the sim's (the course intro, game/intro.ts, runs them on
    * toward the countdown while the sim waits at tick 0; drawn only, the sim never reads it).
+   * `faceAt`: with it, where the player's rigged driver looks meanwhile (the intro's close-up lens).
    */
-  frame(alpha: number, frameDt: number, reduced = false, sceneTime?: number): void {
+  frame(alpha: number, frameDt: number, reduced = false, sceneTime?: number, faceAt?: Readonly<Vec3> | null): void {
     const st = this.manager.state;
     const ch = this.skyChange;
     if (ch) {
@@ -231,11 +232,12 @@ export class RaceSession {
       recolourBackdrop(this.farRing, lerpRgb(ch.ring[0], ch.ring[1], k), lerpRgb(ch.tint[0], ch.tint[1], k));
       if (k >= 1) this.skyChange = null;
     }
-    // while the sim waits (the course intro) the rigged drivers still look about on the grid
+    // while the sim waits (the course intro) the rigged drivers still look about on the grid; the player's
+    // turns to the close-up's lens, as Mario Kart World's racer looks into its close-up before the count
     if (sceneTime !== undefined && frameDt > 0) {
       for (let k = 0; k < this.views.length; k++) {
-        const look = this.views[k].look;
-        look.eye = this.eye; look.karts = st.karts; look.self = k; look.faceEye = false;
+        const look = this.views[k].look, face = k === this.playerIndex && faceAt ? faceAt : null;
+        look.eye = face ?? this.eye; look.karts = st.karts; look.self = k; look.faceEye = face !== null;
         this.views[k].idle(st.karts[k], frameDt);
       }
     }

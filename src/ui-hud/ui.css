@@ -83,6 +83,13 @@ html, body {
 canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
 
 #ui { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+/* a thin line filling along the foot of the screen while what a screen waits on comes down (UiRoot.loading: the
+   title's world, a race's racers and course on a first visit); over everything, never in the way */
+#ui .load-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; z-index: 40; background: rgb(14 16 38 / 0.35); opacity: 0; transition: opacity 400ms ease; pointer-events: none; }
+#ui .load-bar.on { opacity: 1; }
+#ui .load-bar > i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: linear-gradient(90deg, var(--sun), var(--coral)); box-shadow: 0 0 10px rgb(255 210 63 / 0.6); transition: width 600ms ease; }
+/* a race waiting on its files has nothing to skip yet */
+#ui:has(.load-bar.on) .intro .skip { visibility: hidden; }
 #ui .screen { position: absolute; inset: 0; pointer-events: auto; display: none; }
 #ui .screen.on { display: block; }
 #ui .hud { pointer-events: none; }

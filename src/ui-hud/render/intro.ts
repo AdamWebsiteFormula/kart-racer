@@ -52,8 +52,16 @@ export class IntroCardView {
 
   get phase(): IntroPhase { return this.now; }
 
-  /** A new race's card, from the top (in on ink: 'hold'). */
+  /** the card on show (its name, line, cup and racer), '' for none */
+  private shown = '';
+
+  /**
+   * A new race's card, from the top (in on ink: 'hold'). The same card already up on ink (a race that waited for its
+   * files under it, then was built: main.ts) stays as it is, its entrance not played again.
+   */
   show(vm: IntroCardVM): void {
+    const key = `${vm.name}|${vm.sub}|${vm.cup}|${vm.racer?.id ?? ''}`;
+    if (this.now === 'hold' && this.shown === key) return;
     this.cup.set(vm.cup);
     this.emblem.set(cupSvg(vm.cupId));
     this.chip.classList.toggle('with-emblem', vm.cupId !== '');
@@ -72,11 +80,13 @@ export class IntroCardView {
     // a card already up (a race started over it): off first, so its entrance plays again
     if (this.now !== 'off') { this.set('off'); void this.root.offsetWidth; }
     this.set('hold');
+    this.shown = key;
   }
 
   set(p: IntroPhase): void {
     if (p === this.now) return;
     this.now = p;
+    if (p === 'off') this.shown = '';
     this.phaseAttr.set(p);
   }
 }

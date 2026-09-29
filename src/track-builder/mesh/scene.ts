@@ -57,6 +57,11 @@ export interface TrackAssets {
   gradientMap?: Texture;
   /** a model file's own (textured) material for an asset key, same keys as `geometries`; never disposed by the scene */
   materials?: Record<string, Material>;
+  /**
+   * A model with a turning part (a windmill's sails, a Ferris wheel: art-pipeline spin.ts) made to turn, its material and
+   * shadow patched; returns what sets its angle for the scene's clock (update), or null for a mesh with nothing that turns.
+   */
+  spin?: (mesh: Mesh) => ((time: number) => void) | null;
   /** the ground plane's material (painted land, animated water), given the track's own fixed sun direction (env.sunDirection: the water's own glint, art-pipeline surfaces.ts, follows it); never disposed by the scene */
   ground?: (kind: string, size: number, sunDirection?: readonly [number, number, number]) => Material | undefined;
   /** a fine grain multiplied over every road's colours (not on planked roads); never disposed by the scene */
@@ -940,6 +945,8 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const decorBase = new Map<DecorPlacement, { reach: number; below: number }>();
   /** the decor instancers (and their piers) the Low tier thins (cull) */
   const pools: Pool[] = [];
+  /** the turning parts (a windmill's sails, the Ferris wheel: TrackAssets.spin), set for the scene's clock in update */
+  const spinners: ((time: number) => void)[] = [];
   const toMerge: { item: MergeItem; far: boolean }[] = [];
   let farLandmark: [number, number, number] | undefined;
   let vistaParts: VistaParts | undefined;
@@ -982,6 +989,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // frame: only the roadside band is near enough for its shadows to be seen (and a model file may
     // cast none where the draw budget has no room for its shadow draw: art-pipeline ModelSpec.shadow)
     m.castShadow = entry.band === 'roadside' && own?.userData.castShadow !== false;
+    // a model with a turning part (the small windmills' sails) turns, each copy on its own phase
+    const turn = assets.spin?.(m);
+    if (turn) spinners.push(turn);
     decorMesh.set(p, m);
     // (the asset's second band in the map as decor:<asset>#2, so the map holds every instancer)
     let key = m.name;
@@ -1247,6 +1257,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     // the balloons float on their ribbons (floatBalloons: the matrices, hidden while one is away), and one
     // just back swells out of its knot in its own shader (balloonBack: the matrices untouched)
     floatBalloons(time, live?.pickups);
+    for (let i = 0; i < spinners.length; i++) spinners[i](time);
     const bf = featureSlots.get('balloons');
     balloonBack.update(time, live?.pickups, instancers.get('balloons'), bf?.slots, bf?.mats, live?.reduced === true);
     turnGears(time, live?.coins);
@@ -1462,6 +1473,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     group.add(landmark);
     withHull(landmark, def.landmark);
     landmarkMesh = landmark;
+    // Windmill Run's windmill turns its sails, Boardwalk Nights' Ferris wheel turns slowly (the second fresh-eyes
+    // review's item 9: "the windmill and the Ferris wheel never turn"; art-pipeline spin.ts)
+    const turn = assets.spin?.(landmark);
+    if (turn) spinners.push(turn);
   }
 
   // The Final Lap Shift, built ahead: the same track with its shift applied (the twin: the sim's own
@@ -1645,7 +1660,12 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   // costs two draws, not eight)
   const onlySigns = raceItems.size > 0 && toMerge.every((m) => m.far || raceItems.has(m.item));
   const dressing = buildDressing(toMerge, branches.main.lut, assets.raceDressing, onlySigns ? 1 : DRESSING_SLICES.near);
-  for (const m of dressing) group.add(m);
+  for (const m of dressing) {
+    group.add(m);
+    // a merged prop's turning part (a ranch windpump's wheel, merge.ts) turns too, each copy about its own hub
+    const turn = assets.spin?.(m);
+    if (turn) spinners.push(turn);
+  }
 
   // baked soft shading (mesh/bake.ts, Adam 25 Sept 2026 "shading and shadows need to be for more
   // things than just the karts"): contact AO and a soft sun shadow, multiplied into the vertex colours

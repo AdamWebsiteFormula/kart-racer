@@ -14,6 +14,14 @@ import type { Rgb, TrackPalette } from './palette.ts';
 
 /** Metres of one checker square on the band and the beam. */
 const SQUARE = 0.75;
+/**
+ * The grid boxes painted on the road, one round each start slot (the second fresh-eyes review's item 7: "the karts stand
+ * on plain asphalt with no grid boxes"), as Mario Kart World paints its grid (muted stills of youtube.com/watch?v=OSU-aguh1AY
+ * 1:09.3 and 1:09.6: a white bar across the front of each slot and its ends turned back along the kart's sides): metres
+ * from the slot's middle to the bar (the kart's nose is 1.05 m ahead of it), the bar's half-width across the road, the
+ * lines' width, and how far back the legs run. White road paint, a hair over the road as the checkered band is.
+ */
+export const GRID_BOX = Object.freeze({ front: 1.4, half: 1.25, line: 0.22, leg: 1.35, lift: 0.012 });
 /** The beam's underside above the road, its height, the pillars' width, their distance past the curb. */
 const CLEAR = 6.2, BEAM = 1.3, PILLAR = 0.8, OUT = 0.9;
 const WHITE: Rgb = [0.96, 0.96, 0.94], BLACK: Rgb = [0.08, 0.08, 0.1];
@@ -105,6 +113,18 @@ export function buildStartGantry(track: Track, palette: TrackPalette, gradientMa
       const f0 = (row - 1) * SQUARE, f1 = row * SQUARE;
       quad(b, at(f0, l0, 0.012), at(f0, l1, 0.012), at(f1, l1, 0.012), at(f1, l0, 0.012), (row + k) % 2 ? BLACK : WHITE);
     }
+  }
+
+  // the grid boxes: a white bracket round each start slot, its bar across the front and its legs back along the sides
+  const G = GRID_BOX;
+  for (const slot of track.spawnGrid) {
+    const on = (along: number, across: number): Vec3 => {
+      const p = track.sample(slot.t + along / L, slot.lateral + across).position;
+      return [p[0], p[1] + G.lift, p[2]];
+    };
+    const rect = (a0: number, a1: number, l0: number, l1: number) => quad(b, on(a0, l0), on(a0, l1), on(a1, l1), on(a1, l0), WHITE);
+    rect(G.front - G.line, G.front, -G.half, G.half);
+    for (const s of [-1, 1]) rect(G.front - G.line - G.leg, G.front - G.line, s < 0 ? -G.half : G.half - G.line, s < 0 ? -G.half + G.line : G.half);
   }
 
   // two pillars just past where a kart can drive (past the curb; on an off-road track past the course
