@@ -36,12 +36,18 @@ export const VS = (f: string): Src => PK(`vsco/${f}`);
 /** The game's own ElevenLabs takes, pinned (as ../parts.ts). */
 export const EL = (id: string): Src => ({ git: '979e511', path: `public/audio/sfx/${id}.mp3` });
 
+/** The vibe every brief carries (Adam, 28 Sept 2026: items "a little more edgy than Mario Kart World", rated G "just in a cool
+ * way"; the sound "cool and not corny/cheesy/cartoony"). */
+export const GAME = 'a polished, cinematic sci-fi kart racer (cool and a little edgy, never corny, cheesy or cartoony; rated G)';
+
 export const lvl = (db: number): Op[] => [{ op: 'normalize', db: 0 }, { op: 'gain', db }];
 /** A recording (or pack file) as a layer: its processing, then its level (peak-normalised, then `db`). */
 export const rec = (src: Src, db: number, fx: Op[] = [], at = 0): Layer => ({ at, src, fx: [...fx, ...lvl(db)] });
 /** A synth as a layer. */
 export const syn = (synth: string, args: Record<string, unknown>, db: number, fx: Op[] = [], at = 0): Layer => ({ at, src: { synth, args }, fx: [...fx, ...lvl(db)] });
 export const OUT: Op = { op: 'limit', ceiling: -1 };
+/** flatten a loop's slow swells before its wrap is baked (as samples.ts evenLoop does in the game) */
+export const EVEN: Op = { op: 'even', win: 0.4, amount: 1 };
 
 // common processing
 export const trim = (from: number, to?: number): Op => (to === undefined ? { op: 'trim', from } : { op: 'trim', from, to });

@@ -1,85 +1,86 @@
 // Oil Slick (was Oil Can) and Decoy Mine (was Decoy Balloon): the drop, and the mine's arming, proximity beep and burst.
 import type { Cand } from '../parts.ts';
-import { bp, cap, comp, conv, fade, FS, hp, KI, lp, OUT, pitch, PLATE, rec, sat, snap, SPRING, syn, thump, trim, verb, VS } from '../parts.ts';
+import { cap, comp, conv, fade, FS, GAME, hp, KI, lp, OUT, pitch, PLATE, rec, sat, snap, SPRING, syn, thump, trim, verb } from '../parts.ts';
 
-const BRIEF_DROP = 'The player drops an Oil Slick behind the kart in a polished cartoon sci-fi kart racer: a canister pops out and a thick glossy slick splats across the road. Gloopy, satisfying and a little gross in a fun way, under a second. No voice.';
-const BRIEF_MINE_DROP = 'The player drops a Decoy Mine behind the kart in a polished cartoon sci-fi kart racer: a small device clamps onto the road and arms itself with a quick electronic chirp. Sneaky and cool, under a second. No voice.';
-const BRIEF_BEEP = 'A Decoy Mine on the road blinks and beeps as a kart comes near, in a polished cartoon sci-fi kart racer: one short, clean electronic warning beep (the game repeats it, faster as a kart closes in). Clear but never shrill or annoying. No voice.';
-const BRIEF_BURST = 'A kart runs into a Decoy Mine in a polished cartoon sci-fi kart racer: it bursts in a quick, bright energy pop with an electric crackle. Punchy and fun, smaller than a rocket\'s explosion, under a second. No voice, nothing like a real bomb.';
+const BRIEF_DROP = `The player drops an Oil Slick behind the kart in ${GAME}: a canister vents and a thick, glossy slick splashes across the road. Heavy and satisfying, under a second. No voice.`;
+const BRIEF_MINE_DROP = `The player drops a Decoy Mine behind the kart in ${GAME}: a small device clamps onto the road and arms itself. Sneaky and techy, under a second. No voice.`;
+const BRIEF_BEEP = `A Decoy Mine on the road blinks and beeps as a kart comes near, in ${GAME}: one short, clean electronic warning beep (the game repeats it, faster as a kart closes in). Clear, never shrill or annoying. No voice.`;
+const BRIEF_BURST = `A kart runs into a Decoy Mine in ${GAME}: it bursts in a quick, bright energy pop with an electric crackle. Punchy, smaller than a rocket's explosion, under a second. No voice, nothing like a real bomb.`;
+
+const ZAP = FS(136542); // JoelAudio, ELECTRIC_ZAP_001 (CC0)
 
 export const DROPS: Cand[] = [
   // ---------------------------------------------------------------- Oil Slick
   {
     id: 'drop', name: 'dropA', brief: BRIEF_DROP,
-    what: 'A, canister glug-splat: a metal canister clunks out with a pneumatic "pssh", then a real mud splat and a real slime squelch land together, a low gloopy "blorp" under them, and a slow phaser for the oily sheen.',
-    why: 'Recordings for the gloop (Breviceps\' Mud Splat and Archos\' Slime 21, CC0) and the clunk (Kenney Impact, CC0); a synthesized falling "blorp" (FM, filtered) gives it weight and a cartoon shape.',
+    what: 'A, canister and slick: the canister vents with a pneumatic hiss and clunks onto the road, then a real thick liquid splash spreads out, pitched down so it moves like oil, with a low thud under it.',
+    why: 'Recordings throughout: a pressurized door\'s vent (NeoSpica, CC0), a metal impact (Kenney, CC0), a real liquid gurgle and splash (martinimeniscus, CC0: the local ear hears it as "thick oil splashing onto a road") and a water splash (AardsReal, CC0) pitched down 6 semitones for weight.',
     layers: [
-      rec(KI('impactMetal_medium_001.ogg'), -7, [pitch(-3), lp(5000)]),
-      rec(FS(581083), -13, [trim(0, 0.25), hp(2000), fade(0.002, 0.12)]),
-      rec(FS(445109), 0, [pitch(-2)], 0.06),
-      rec(FS(433832), -4, [trim(0.3, 0.9), fade(0.005, 0.25)], 0.07),
-      syn('zap', { seconds: 0.25, seed: 61, hz: [[0, 260], [0.2, 90]], index: [[0, 2], [0.2, 0]], ratio: 1.0, env: [[0, 0], [0.004, 1], [0.08, 0.6], [0.24, 0]] }, -8, [lp(900)], 0.06),
+      rec(FS(425090), -9, [trim(0.05, 0.4), hp(500), fade(0.002, 0.15)]),
+      rec(KI('impactMetal_medium_001.ogg'), -8, [pitch(-5), lp(3500)]),
+      rec(FS(199653), -1, [trim(5.2, 6.1), pitch(-3), fade(0.004, 0.3)], 0.05),
+      rec(FS(842165), -4, [trim(0.24, 0.9), pitch(-6), lp(5000), fade(0.002, 0.25)], 0.05),
+      thump(-10, 120, 50, 0.1, 0.05),
     ],
-    master: [hp(50), { op: 'phaser', rate: 1.5, lo: 300, hi: 2500, stages: 4, fb: 0.3, mix: 0.2 }, verb(0.4, 0.08), comp(-14, 2.5), ...cap(0.8, 0.3), OUT],
+    master: [hp(50), verb(0.35, 0.08), comp(-14, 2.5), ...cap(0.8, 0.3), OUT],
   },
   {
     id: 'drop', name: 'dropB', brief: BRIEF_DROP,
-    what: 'B, pressurized spray: a spray valve fires a burst of oil, a real slime squelch spreads across the road, and a descending synth "wub" sells the slick.',
-    why: 'A real aerosol burst (WeeJee_vdH, CC0) and a real slime squelch (Archos, CC0), a synthesized falling saw through a closing filter.',
+    what: 'B, pressure spray: a nozzle fires a hard burst of oil, which slaps down across the road with a wet, heavy splat.',
+    why: 'Recordings: an aerosol burst (WeeJee_vdH, CC0), a real splat (Reitanna, CC0) and a liquid gurgle (martinimeniscus, CC0), both pitched down.',
     layers: [
-      rec(KI('impactGeneric_light_001.ogg'), -12, [hp(800)]),
-      rec(FS(267709), -6, [trim(1.0, 1.5), hp(800), fade(0.004, 0.2)], 0.01),
-      rec(FS(433824), 0, [trim(0.65, 1.3), fade(0.005, 0.25)], 0.08),
-      syn('zap', { seconds: 0.35, seed: 62, hz: [[0, 400], [0.3, 110]], wave: 'saw', voices: 3, detune: 12, env: [[0, 0], [0.01, 1], [0.34, 0]] }, -11,
-        [{ op: 'sweep', mode: 'lp', hz: [[0, 2500], [0.3, 300]], q: 2 }], 0.08),
+      rec(FS(267709), -4, [trim(0.95, 1.35), hp(900), fade(0.002, 0.15)]),
+      rec(FS(215342), 0, [trim(4.85, 5.5), pitch(-3), fade(0.003, 0.25)], 0.06),
+      rec(FS(199653), -8, [trim(5.2, 6.0), pitch(-4), fade(0.01, 0.3)], 0.08),
     ],
-    master: [hp(50), verb(0.4, 0.08), comp(-14, 2.5), ...cap(0.8, 0.3), OUT],
+    master: [hp(60), verb(0.3, 0.08), comp(-14, 2.5), ...cap(0.8, 0.3), OUT],
   },
   {
     id: 'drop', name: 'dropC', brief: BRIEF_DROP,
-    what: 'C, big glob: comic and gloopy: two real splats land as one big "SPLORP", a low synth blorp under them, then a few bubbles blub up out of the slick.',
-    why: 'Real splats (Breviceps\' Cartoon Splat and slug splat, CC0), real bubbles (VSCO-2 CE, CC0), a synthesized blorp.',
+    what: 'C, heavy slick: a steel plate thuds onto the road and a big, slow, low splash of oil spreads out.',
+    why: 'Recordings: Kenney\'s plate impact (CC0) pitched down, a water splash (AardsReal, CC0) pitched down 8 semitones, a real splat (Reitanna, CC0); a little saturation for weight.',
     layers: [
-      rec(FS(445117), 0, [trim(0, 0.4), fade(0.001, 0.1)]),
-      rec(FS(447930), -3, [trim(0, 0.35), pitch(-3), fade(0.001, 0.12)], 0.02),
-      syn('zap', { seconds: 0.3, seed: 63, hz: [[0, 220], [0.25, 80]], index: [[0, 2.5], [0.25, 0]], ratio: 1.0, env: [[0, 0], [0.004, 1], [0.1, 0.6], [0.28, 0]] }, -7, [lp(800)]),
-      rec(VS('Miscellania Raw/Misc 1/bubbles.wav'), -13, [trim(0.2, 0.8), hp(300), fade(0.02, 0.2)], 0.15),
+      rec(KI('impactPlate_heavy_001.ogg'), -7, [pitch(-6), lp(2500)]),
+      rec(FS(842165), 0, [trim(0.22, 1.0), pitch(-8), lp(3500), fade(0.002, 0.3)], 0.02),
+      rec(FS(215342), -6, [trim(10.0, 10.6), pitch(-3), fade(0.003, 0.2)], 0.1),
+      thump(-6, 100, 40, 0.14, 0.02),
     ],
-    master: [hp(50), verb(0.35, 0.08), comp(-14, 2.5), ...cap(0.85, 0.3), OUT],
+    master: [hp(40), verb(0.35, 0.08), sat(1.3, 0.2), comp(-14, 2.5), ...cap(0.85, 0.3), OUT],
   },
   // ---------------------------------------------------------------- Decoy Mine: dropped and armed (new id: mineDrop)
   {
     id: 'mineDrop', name: 'mineDropA', brief: BRIEF_MINE_DROP,
-    what: 'A, clamp and arm: a real metal clank as it hits the road, a tiny servo whirr as it grips, then two rising arming beeps.',
-    why: 'Recordings for the mechanics (Mish7913\'s metal clank, JoontheFloof\'s servo, CC0), synthesized beeps with a chirpy onset.',
+    what: 'A, clamp and charge: a heavy metal hit on the road, a servo as it grips, a rising capacitor whine as it charges, and a latch click when it is armed.',
+    why: 'Recordings for the mechanics (Kenney\'s metal impact, JoontheFloof\'s servo, IanStarGem\'s switch, CC0); the charge whine synthesized (a rising FM tone, like a camera flash charging).',
     layers: [
-      rec(FS(741351), 0, [trim(0.2, 0.6), hp(150), fade(0.001, 0.15)]),
-      rec(FS(740244), -11, [trim(0.12, 0.45), hp(400), fade(0.005, 0.1)], 0.08),
-      syn('beeps', { seconds: 0.5, notes: [[0.28, 1318.5, 0.045, 1], [0.38, 1760, 0.07, 1]], wave: 'sine', blip: 2, harmonics: [[2, 0.15]] }, -9),
+      rec(KI('impactMetal_heavy_002.ogg'), -2, [pitch(-2), lp(4000)]),
+      rec(FS(740242), -9, [trim(0.2, 0.5), hp(400), fade(0.002, 0.1)], 0.06),
+      syn('zap', { seconds: 0.35, seed: 61, hz: [[0, 1200], [0.33, 5200]], index: 0.3, ratio: 2, env: [[0, 0], [0.3, 1], [0.35, 0]] }, -16, [], 0.15),
+      rec(FS(278205), -8, [trim(0.04, 0.25), fade(0.001, 0.08)], 0.5),
     ],
-    master: [hp(80), verb(0.4, 0.1), comp(-14, 2.5), ...cap(0.8, 0.25), OUT],
+    master: [hp(70), verb(0.35, 0.08), comp(-14, 2.5), ...cap(0.8, 0.25), OUT],
   },
   {
     id: 'mineDrop', name: 'mineDropB', brief: BRIEF_MINE_DROP,
-    what: 'B, magnetic thunk: a heavy magnetic "thunk" onto the road, then a rising "dweep" as it powers on and a short hum.',
-    why: 'Kenney\'s heavy metal impact (CC0) pitched down with a synthesized low punch; the power-on chirp and hum synthesized.',
+    what: 'B, latch and charge: two real latch clicks as it locks onto the road over a low thunk, then a rising capacitor whine as it arms.',
+    why: 'A real metal latch (deleted_user_7, CC0); a synthesized punch and charge whine. The local ear: "a small device clamping to the ground and arming", 0.81.',
     layers: [
-      rec(KI('impactMetal_heavy_001.ogg'), 0, [pitch(-4), lp(3000)]),
-      thump(-6, 120, 50, 0.1),
-      syn('zap', { seconds: 0.2, seed: 64, hz: [[0, 400], [0.16, 1600]], voices: 2, detune: 10, index: [[0, 1], [0.16, 0.2]], ratio: 2, env: [[0, 0], [0.01, 1], [0.12, 0.8], [0.19, 0]] }, -8, [], 0.12),
-      syn('hum', { seconds: 0.4, seed: 65, hz: 220, partials: 8, tilt: 1.4, voices: 2, detune: 6, env: [[0, 0], [0.02, 1], [0.38, 0]] }, -16, [], 0.28),
+      rec(FS(383797), -2, [trim(0.62, 1.0), hp(200), fade(0.002, 0.1)]),
+      thump(-5, 160, 60, 0.08),
+      syn('zap', { seconds: 0.35, seed: 64, hz: [[0, 1200], [0.33, 5200]], index: 0.3, ratio: 2, env: [[0, 0], [0.3, 1], [0.35, 0]] }, -15, [], 0.3),
     ],
-    master: [hp(60), verb(0.35, 0.1), comp(-14, 2.5), ...cap(0.75, 0.25), OUT],
+    master: [hp(70), verb(0.35, 0.08), comp(-14, 2.5), ...cap(0.8, 0.25), OUT],
   },
   {
     id: 'mineDrop', name: 'mineDropC', brief: BRIEF_MINE_DROP,
-    what: 'C, sonar arm: a crisp plate clack onto the road, then a single sonar-like ping that rings out in a spring.',
-    why: 'Kenney\'s plate impact (CC0) for the clack; a synthesized struck-resonator ping in the RE-301 spring impulse response (CC0).',
+    what: 'C, plate and charge: a heavy steel plate thuds onto the road, a servo grips, and a lower capacitor whine rises as it arms.',
+    why: 'Kenney\'s plate impact (CC0) pitched down, a real servo (JoontheFloof, CC0); a synthesized charge whine.',
     layers: [
-      rec(KI('impactPlate_heavy_002.ogg'), -2, [pitch(2), hp(200)]),
-      syn('ring', { seconds: 0.6, seed: 66, hz: 1175, modes: [[1, 1, 0.3], [2.0, 0.2, 0.15], [3.01, 0.08, 0.08]], strike: 0.001, hardness: 7000 }, -6, [conv(SPRING, 0.25, { decay: 0.5, hp: 400 })], 0.12),
+      rec(KI('impactPlate_heavy_002.ogg'), -2, [pitch(-3), lp(3500)]),
+      rec(FS(740242), -9, [trim(0.2, 0.5), hp(400), fade(0.002, 0.1)], 0.06),
+      syn('zap', { seconds: 0.35, seed: 62, hz: [[0, 1000], [0.33, 4600]], index: 0.3, ratio: 2, env: [[0, 0], [0.3, 1], [0.35, 0]] }, -16, [], 0.15),
     ],
-    master: [hp(80), comp(-14, 2), ...cap(0.8, 0.3), OUT],
+    master: [hp(70), verb(0.35, 0.08), comp(-14, 2.5), ...cap(0.75, 0.25), OUT],
   },
   // ---------------------------------------------------------------- Decoy Mine: the proximity beep (new id: mineBeep)
   {
@@ -91,9 +92,9 @@ export const DROPS: Cand[] = [
   },
   {
     id: 'mineBeep', name: 'mineBeepB', brief: BRIEF_BEEP,
-    what: 'B, chirpy blip: a rounder E6 (1,319 Hz) triangle blip that drops a whisker in pitch as it starts, friendlier and more "gadget".',
-    why: 'Synthesized; a soft triangle with a quick falling onset.',
-    layers: [syn('beeps', { seconds: 0.12, notes: [[0, 1318.5, 0.05, 1]], wave: 'tri', blip: 3, blipTime: 0.008, harmonics: [[2, 0.1]], attack: 0.002, release: 0.035 }, 0)],
+    what: 'B, double blip: two quick identical blips at C7 (2,093 Hz), 50 ms apart, like a mine\'s status light.',
+    why: 'Synthesized: two short sines, the same pitch (no melody).',
+    layers: [syn('beeps', { seconds: 0.15, notes: [[0, 2093, 0.025, 1], [0.05, 2093, 0.03, 1]], wave: 'sine', harmonics: [[2, 0.08]], attack: 0.0015, release: 0.02 }, 0)],
     master: [verb(0.2, 0.08, { hp: 800 }), OUT],
   },
   {
@@ -106,26 +107,26 @@ export const DROPS: Cand[] = [
   // ---------------------------------------------------------------- Decoy Mine: the burst (new id: mineBurst)
   {
     id: 'mineBurst', name: 'mineBurstA', brief: BRIEF_BURST,
-    what: 'A, zap pop: a real electric zap as the charge dumps, a sharp little crack and low punch, a crackling arc and a few sparks.',
-    why: 'A real zap (JoelAudio, CC0) with a synthesized crack (N-wave), arc and sparks.',
+    what: 'A, zap pop: a real electric zap as the charge dumps, a sharp little crack and low punch, and a crackling arc.',
+    why: 'A real zap (JoelAudio, CC0) with a synthesized crack (N-wave), arc and crackle.',
     layers: [
-      rec(FS(136542), -2, [trim(0, 0.35), hp(300), fade(0.001, 0.12)]),
+      rec(ZAP, -2, [trim(0, 0.35), hp(300), fade(0.001, 0.12)]),
       syn('nwave', { seconds: 0.15, seed: 68, T: 0.01, rise: 0.0003, double: false, lp: 12000, hp: 300 }, -5),
       syn('arc', { seconds: 0.45, seed: 69, buzz: 140, hum: 0.3, sparks: 0.6, intensity: [[0, 1], [0.4, 0]] }, -9),
-      syn('glitter', { seconds: 0.5, seed: 70, density: [[0, 80], [0.4, 0]], lo: 3000, hi: 9000, decay: 0.05, ratio: 1.41, index: 0.6 }, -15),
+      syn('crackle', { seconds: 0.5, seed: 70, rate: 120, lo: 2000, hi: 9000, decay: 0.002, spread: 14, width: 0.9, env: [[0, 1], [0.45, 0]] }, -14),
       thump(-5, 130, 45, 0.14),
     ],
     master: [hp(40), sat(1.6, 0.3), verb(0.5, 0.12), comp(-12, 3, 0.002, 0.12), ...cap(0.95, 0.35), OUT],
   },
   {
     id: 'mineBurst', name: 'mineBurstB', brief: BRIEF_BURST,
-    what: 'B, energy pop: a round bright "POW": a snapped transient, a ring-modulated shimmer, a punchy low drop and a little confetti of sparkle.',
-    why: 'Synthesized (noise snap, ring modulation, a driven sub drop, bell grains) with a short plate impulse response.',
+    what: 'B, charge dump: a real electric crack as the mine fires, a snapped transient, a punchy low drop and a spray of crackle.',
+    why: 'A real zap (JoelAudio, CC0) with a synthesized snap, driven sub drop and crackle, in a short plate impulse response made in code.',
     layers: [
       snap(-2, 1500, 11000, 0.02),
-      syn('noise', { seconds: 0.35, seed: 71, color: 'pink', env: [[0, 0], [0.002, 1], [0.3, 0]] }, -5, [bp(1800, 0.6), { op: 'ringmod', hz: [[0, 420], [0.3, 160]], mix: 0.6 }]),
+      rec(ZAP, -3, [trim(0, 0.2), hp(600), fade(0.001, 0.08)]),
       syn('subdrop', { seconds: 0.4, hz: [[0, 160], [0.3, 45]], drive: 2.5, env: [[0, 0], [0.002, 1], [0.12, 0.6], [0.38, 0]] }, -2),
-      syn('glitter', { seconds: 0.6, seed: 72, density: [[0, 120], [0.5, 0]], notes: [2349, 2960, 3520, 4699], decay: 0.08, ratio: 2, index: 0.5 }, -12, [], 0.02),
+      syn('crackle', { seconds: 0.5, seed: 72, rate: 220, lo: 2000, hi: 9000, decay: 0.002, spread: 14, width: 0.9, env: [[0, 1], [0.45, 0]] }, -10, [], 0.01),
     ],
     master: [hp(40), conv(PLATE, 0.12, { decay: 0.5 }), sat(1.5, 0.3), comp(-12, 3, 0.002, 0.12), ...cap(0.8, 0.3), OUT],
   },

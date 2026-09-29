@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..'))
+sys.path.insert(0, HERE)
 import dsp  # noqa: E402
 
 SR = dsp.SR
@@ -80,13 +81,16 @@ def metrics(y):
 
 
 def _read(p):
-    """A file, or a stretch of one: 'file.ogg@12.5-18' (seconds)."""
-    if '@' in p:
-        f, rng = p.rsplit('@', 1)
+    """A file, or a stretch of one: 'file.ogg@12.5-18' (seconds); a bare number is a Freesound id."""
+    f, rng = (p.rsplit('@', 1) + [None])[:2] if '@' in p else (p, None)
+    if f.isdigit():
+        import sources
+        f = sources.local(int(f))
+    y = dsp._read(f)
+    if rng:
         a, b = (float(v) for v in rng.split('-'))
-        y = dsp._read(f)
-        return y[:, int(a * SR):int(b * SR)]
-    return dsp._read(p)
+        y = y[:, int(a * SR):int(b * SR)]
+    return y
 
 
 def sheet(out, paths, seconds=None):

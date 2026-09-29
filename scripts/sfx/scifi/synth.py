@@ -854,6 +854,12 @@ def fx(x, steps):
         elif op == 'loopcut':  # `seconds` + `xfade` of material from `from` s (then the recipe's loop wraps it)
             a0 = int(s.get('from', 0) * SR)
             x = x[:, a0:a0 + int((s['seconds'] + s.get('xfade', 0.06) + 0.02) * SR)].copy()
+        elif op == 'even':  # flatten slow swells and dips (a loop cut from a recording): divide by the RMS smoothed over `win` s, by `amount` 0..1
+            win = max(1, int(s.get('win', 0.4) * SR))
+            m = (x ** 2).mean(axis=0)
+            rms = np.sqrt(np.convolve(m, np.ones(win) / win, 'same')) + 1e-9
+            g = np.clip((np.sqrt(m.mean()) / rms) ** s.get('amount', 1.0), 0.25, 4.0)
+            x = x * g
         elif op == 'octave':  # a sub-octave: the layer tape-slowed an octave, low-passed, mixed under
             sub = dsp.pitch(x, -12)[:, :n]
             sub = np.pad(sub, ((0, 0), (0, n - sub.shape[-1])))

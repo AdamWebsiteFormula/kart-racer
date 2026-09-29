@@ -41,8 +41,11 @@ def write_mp3(path, x):
     os.replace(tmp, path)
 
 
-def played(x, sid, loop):
+def played(x, sid, loop, mix=None):
+    """As the game plays it (samples.ts cutSfx, MIX_DB); a proposed new id at its proposed mix level (MOMENTS mixDb)."""
     y = dsp.as_played(x, sid, loop)
+    if mix is not None and sid not in dsp._game()['mix']:
+        y = y * 10 ** ((mix - dsp.mix_db(sid)) / 20)
     if loop:
         reps = int(math.ceil(DEMO_LOOP_SECONDS / (y.shape[-1] / SR)))
         y = np.tile(y, (1, reps))
@@ -108,7 +111,7 @@ def update_json(sid, entries, moment):
     cur['id'] = sid
     by = {c['name']: c for c in cur['candidates']}
     for e in entries:
-        by[e['name']] = {**by.get(e['name'], {}), **e}
+        by[e['name']] = e  # rebuilt: its old ears no longer apply
     order = ['current'] + sorted(k for k in by if k != 'current')
     cur['candidates'] = [by[k] for k in order if k in by]
     json.dump(cur, open(path, 'w'), indent=1)
@@ -139,7 +142,7 @@ def main():
         x = R.render(rec)
         os.makedirs(os.path.join(folder(sid), 'wav'), exist_ok=True)
         dsp.write_wav(os.path.join(folder(sid), 'wav', name + '.wav'), x)
-        write_mp3(os.path.join(folder(sid), name + '.mp3'), played(x, sid, loop))
+        write_mp3(os.path.join(folder(sid), name + '.mp3'), played(x, sid, loop, (moments.get(sid) or {}).get('mixDb')))
         m = metrics(x, loop)
         e = {'name': name, 'file': name + '.mp3', 'what': rec['what'], 'sources': sources_of(rec), 'loop': loop, 'metrics': m}
         done.setdefault(sid, []).append(e)
@@ -150,7 +153,7 @@ def main():
         cur = current(sid, loop)
         if cur:
             entries.append(cur)
-        update_json(sid, entries, moments.get(sid))
+        update_json(sid, entries, {**(moments.get(sid) or {}), 'brief': next(r['brief'] for r in recs if r['id'] == sid)})
         if sheets:
             import look
             os.makedirs(sheets, exist_ok=True)
