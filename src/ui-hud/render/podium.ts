@@ -59,11 +59,14 @@ export class PodiumView implements ScreenView {
   private lit = 0;
   /**
    * The place the ceremony's camera is on (game/podium.ts hero shots; 0: none): its bar steps up and glows in
-   * its racer's color, as Mario Kart World puts "3rd Donkey Kong" under each racer's close shot (podium.css .focus).
+   * its racer's color, as Mario Kart World puts "3rd Donkey Kong" under each racer's close shot (podium.css .focus),
+   * and the headline, the series and the stars step out of the top of the frame while it lasts (podium.css .hero:
+   * the winner's shot looks up at the cup over them, which the headline hid; 28 Sept 2026).
    */
   light(place: number): void {
     if (place === this.lit) return;
     this.lit = place;
+    this.root.classList.toggle('hero', place > 0);
     this.root.querySelectorAll<HTMLElement>('.podium-place').forEach((li) => li.classList.toggle('focus', li.classList.contains(`p${place}`)));
   }
 }

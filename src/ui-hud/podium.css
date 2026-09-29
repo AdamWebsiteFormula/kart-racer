@@ -14,6 +14,12 @@
   transform: translateX(-50%);
   text-align: center;
 }
+/* a hero shot on (render/podium.ts light: the close shot of 3rd, 2nd or the winner, craning up to the cup over them):
+   the headline, the series and the stars step up out of the frame, as Mario Kart World's close shots carry only the
+   racer's name (our lit card below); they come back for the crane and the wide shots (28 Sept 2026: at 1280x720 the
+   headline hid the cup and its balloon in the winner's shot) */
+.podium .podium-top { transition: opacity 360ms ease, transform 360ms var(--out); }
+.podium.hero .podium-top { opacity: 0; transform: translateX(-50%) translateY(-24px); }
 .podium-head {
   --face: linear-gradient(180deg, #fffbe8 14%, #ffe76a 42%, #ffc21c 43%, #ffa00e 66%, #f27a00 84%);
   --side: #a44300;
