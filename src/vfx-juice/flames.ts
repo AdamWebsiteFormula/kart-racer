@@ -44,8 +44,13 @@ export const PALETTE = Object.freeze({
     // violet, not pink: a strong red channel read as magenta slime once tone-mapped
     Object.freeze({ mouth: rgb(1.2, 0.95, 2.7), fringe: rgb(1.0, 0.45, 2.3), core: rgb(2.0, 1.75, 2.8), inner: rgb(1.1, 0.45, 2.0), body: rgb(0.45, 0.04, 1.5), edge: rgb(0.18, 0.01, 0.78) }),
   ] as FlamePalette[]),
-  /** a pad, an item, a trick or the start: warm orange-gold, Mario Kart World's blue nozzle and violet fringe */
+  /** a pad, a trick or the start: warm orange-gold, Mario Kart World's blue nozzle and violet fringe */
   other: Object.freeze({ mouth: NOZZLE, fringe: VIOLET, core: rgb(2.3, 2.0, 1.15), inner: rgb(1.6, 1.05, 0.06), body: rgb(1.45, 0.38, 0.02), edge: rgb(0.75, 0.09, 0.01) }) as FlamePalette,
+  /**
+   * an item's boost (a Nitro, a Triple Nitro, the Tractor Beam's slingshot; 28 Sept 2026, the new set): a
+   * nitro's blue-white, a white-hot core in electric blue, never the blue mini-turbo's deep one
+   */
+  nitro: Object.freeze({ mouth: rgb(1.3, 2.0, 2.9), fringe: rgb(0.7, 1.5, 2.8), core: rgb(2.3, 2.6, 2.9), inner: rgb(0.55, 1.45, 2.0), body: rgb(0.1, 0.62, 1.75), edge: rgb(0.02, 0.2, 0.9) }) as FlamePalette,
   /** the pipes' own fire off the boost (revving on the grid, a blip, a pop): yellow-orange tongues, the mouth glowing its heat (mouth and fringe follow heatColor) */
   rev: Object.freeze({ mouth: rgb(2.0, 0.85, 0.15), fringe: rgb(1.3, 0.3, 0.03), core: rgb(2.2, 1.85, 0.9), inner: rgb(1.6, 0.95, 0.05), body: rgb(1.45, 0.42, 0.02), edge: rgb(0.8, 0.12, 0.01) }) as FlamePalette,
 });
@@ -217,9 +222,9 @@ export function tierBySeconds(seconds: number): number {
   return seconds >= (s[1] + s[2]) / 2 ? 3 : seconds >= (s[0] + s[1]) / 2 ? 2 : 1;
 }
 
-/** The flame's colors for a boost: a mini-turbo's tier 1..3, else (0) warm orange-gold. */
-export function flamePalette(tier: number): FlamePalette {
-  return tier > 0 ? PALETTE.tier[Math.min(3, tier) - 1] : PALETTE.other;
+/** The flame's colors for a boost: a mini-turbo's tier 1..3, else (0) an item's nitro blue-white or any other's warm orange-gold. */
+export function flamePalette(tier: number, source?: BoostSource): FlamePalette {
+  return tier > 0 ? PALETTE.tier[Math.min(3, tier) - 1] : source === 'item' ? PALETTE.nitro : PALETTE.other;
 }
 
 /**
@@ -439,7 +444,7 @@ export class ExhaustFlames {
       return;
     }
 
-    const pal = flamePalette(tier);
+    const pal = flamePalette(tier, k.boost.source);
     if (pal !== this.palette) {
       this.palette = pal;
       u.uMouth.value.setRGB(...pal.mouth); u.uFringe.value.setRGB(...pal.fringe); u.uCore.value.setRGB(...pal.core);

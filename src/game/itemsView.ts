@@ -31,8 +31,8 @@ export const TRAIL_MINE_SCALE = 0.45;
 
 /** The Laser Blaster's bolt: how high over the road it flies (over the sim's shot height), and the share of its length it leaves the orb at. */
 export const LASER = Object.freeze({ lift: 0.3, born: 0.3 });
-/** The Homing Rocket: its height over the shot, its wobble in the air (rad, per s). */
-export const ROCKET = Object.freeze({ lift: 0.55, roll: 0.22, rollHz: 1.4 });
+/** The Homing Rocket: its size, its height over the shot, its wobble in the air (rad, per s). */
+export const ROCKET = Object.freeze({ scale: 1.3, lift: 0.55, roll: 0.22, rollHz: 1.4 });
 /** The Seeker Drone: its hover over the shot, its bank into its weave (rad), its nose down. */
 export const DRONE = Object.freeze({ lift: 0.35, bank: 0.42, pitch: 0.1 });
 /**
@@ -343,13 +343,13 @@ export class ItemsView {
         const q = this.yaw(head);
         this.turn(q, 0, run > 1e-6 ? -Math.atan2(dy, run) : 0);
         this.turn(q, 2, Math.sin(time * ROCKET.rollHz * Math.PI * 2 + p.id) * ROCKET.roll);
-        const ry = y + ROCKET.lift;
-        this.put('rocket', x, ry, z, q);
+        const ry = y + ROCKET.lift, k = ROCKET.scale;
+        this.put('rocket', x, ry, z, q, k);
         // its flame and the glow at the nozzle, flickering
-        this.v.set(0, 0, -0.44).applyQuaternion(q);
-        const fl = 0.85 + 0.25 * Math.sin(time * 31 + p.id * 1.7);
-        this.glow('flameHot', x + this.v.x, ry + this.v.y, z + this.v.z, q, 0.13, 0.13, fl, 1, 1, 1, 1);
-        this.glow('glowOrb', x + this.v.x, ry + this.v.y, z + this.v.z, q, 0.3, 0.3, 0.3, 3, 1.3, 0.35, 0.75);
+        this.v.set(0, 0, -0.44 * k).applyQuaternion(q);
+        const fl = (0.85 + 0.25 * Math.sin(time * 31 + p.id * 1.7)) * k;
+        this.glow('flameHot', x + this.v.x, ry + this.v.y, z + this.v.z, q, 0.14 * k, 0.14 * k, fl, 1, 1, 1, 1);
+        this.glow('glowOrb', x + this.v.x, ry + this.v.y, z + this.v.z, q, 0.32 * k, 0.32 * k, 0.32 * k, 3, 1.3, 0.35, 0.75);
       } else if (p.itemId === 'windUpMouse') {
         // the Seeker Drone: hovering, banked into its weave, its rotors a blur
         const weave = p.weave > 0 ? Math.cos((2 * Math.PI * p.age) / p.weaveSeconds) : 0;
@@ -462,7 +462,7 @@ export class ItemsView {
           // the same world orbit on the road (a + h turns world axes into the kart's), tipped with the kart round a loop
           const p = this.local(r, h, pitch, Math.cos(a + h) * 1.55, 1.15 + Math.sin(time * 4 + k * 2) * 0.12, Math.sin(a + h) * 1.55);
           this.put('nitro', p.x, p.y, p.z, this.q, 0.95);
-          this.glow('glowOrb', p.x, p.y + 0.18, p.z, this.q, 0.2, 0.2, 0.2, 0.4, 1.8, 2.6, 0.45);
+          this.glow('glowOrb', p.x, p.y + 0.18, p.z, this.q, 0.14, 0.14, 0.14, 0.4, 1.8, 2.6, 0.3);
         }
       }
 

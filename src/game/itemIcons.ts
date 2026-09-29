@@ -7,17 +7,19 @@
 // scripts/headless/item-icons.mjs runs it in the dev server's page and writes public/art/items/<id>.webp.
 import {
   ACESFilmicToneMapping, AmbientLight, Box3, CatmullRomCurve3, Color, DirectionalLight, Euler, Group, HemisphereLight, InstancedBufferAttribute, InstancedMesh,
-  Matrix4, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, PMREMGenerator, Quaternion, Scene, SphereGeometry, SRGBColorSpace, TubeGeometry,
+  Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PMREMGenerator, Quaternion, Scene, SphereGeometry, SRGBColorSpace, TubeGeometry,
   Vector3, WebGLRenderer, type BufferGeometry, type Material, type Object3D,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { energyMaterial, itemGeometry, SHIELD, shieldMaterial } from '../art-pipeline/index.ts';
+import { energyMaterial, itemGeometry, oilSlickMaterial, SHIELD, shieldMaterial } from '../art-pipeline/index.ts';
 import { itemFinish } from '../art-pipeline/items.ts';
 import { EnergyBuilder, FINISH, ItemBuilder, plateXZ } from '../art-pipeline/itemKit.ts';
 
 /** The render (px, square), the lens, the air round the item in the frame, the halo's blur (px) and strength. */
 export const ITEM_ICON = Object.freeze({ size: 512, fov: 24, margin: 0.05, halo: 16, haloStrength: 0.85 });
 
+/** The oil slick's rainbow film in its picture, times the race's */
+const ICON_FILM = 7;
 /** The icons' one Jet Mode livery (every racer's own shows in the race): hot coral hull, white wings and tails. */
 const JET_ICON = Object.freeze({ hull: '#ff5a3c', trim: '#f4f6fa' });
 
@@ -50,7 +52,7 @@ function pulser(): BufferGeometry {
 /** The EMP Blast: a charged core between two chrome rings. */
 function empCore(): BufferGeometry {
   const b = new ItemBuilder();
-  b.ball([0.2, 0.2, 0.2], '#5a3cff', FINISH.light(1.8), [0, 0, 0], undefined, 20);
+  b.ball([0.2, 0.2, 0.2], '#4a2cff', FINISH.light(0.9), [0, 0, 0], undefined, 20);
   b.cyl(0.11, 0.17, 0.09, '#3a3f4b', FINISH.steel, [0, 0.2, 0], undefined, 18);
   b.cyl(0.17, 0.11, 0.09, '#3a3f4b', FINISH.steel, [0, -0.2, 0], undefined, 18);
   b.torus(0.31, 0.035, '#454b58', FINISH.steel, [0, 0, 0], [Math.PI / 2 + 0.35, 0, 0.25], Math.PI * 2, 40);
@@ -72,7 +74,7 @@ function arcs(r: number, count: number, seed: number): BufferGeometry {
       const d = r + (j / 5) * r * 1.3;
       pts.push(dir.clone().multiplyScalar(d).add(new Vector3((rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.1)));
     }
-    e.part(new TubeGeometry(new CatmullRomCurve3(pts, false, 'catmullrom', 0), 24, 0.022, 5, false), [0.55, 0.85, 2.1, 1]);
+    e.part(new TubeGeometry(new CatmullRomCurve3(pts, false, 'catmullrom', 0), 24, 0.03, 5, false), [0.35, 0.55, 1.6, 1]);
   }
   return e.build();
 }
@@ -133,12 +135,9 @@ export function iconScenes(): Record<string, () => IconScene> {
       };
     },
     oilCan: () => {
-      // the slick in glossy black with the oily rainbow sheen a studio shows up best as thin-film iridescence
-      const slick = new Mesh(kind('oilSlick'), new MeshPhysicalMaterial({
-        color: 0x040406, roughness: 0.06, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.04,
-        iridescence: 1, iridescenceIOR: 1.45, iridescenceThicknessRange: [180, 820],
-      }));
-      slick.scale.set(0.8, 1, 0.8);
+      // the race's own slick, its rainbow film shown stronger (seen from above it is mostly black)
+      const slick = new InstancedMesh(kind('oilSlick'), oilSlickMaterial(ICON_FILM), 1);
+      slick.setMatrixAt(0, new Matrix4().makeScale(0.8, 1, 0.8));
       const q = Q(0, 0.5, Math.PI / 2 - 0.12);
       return { solid: [slick, solidOf(kind('canister'), V(0.62, 0.19, 0.25), q, 1.35)], glow: [], yaw, pitch: (32 * Math.PI) / 180 };
     },
@@ -149,7 +148,7 @@ export function iconScenes(): Record<string, () => IconScene> {
     }),
     airHorn: () => ({
       solid: [solidOf(pulser(), V(), Q())],
-      glow: [0.58, 0.82, 1.06].map((r, k) => glowOf(kind('ring'), V(0, 0.1, 0), Q(Math.PI / 2, 0, 0), S(r, r, 2.2), [0.22, 1.0, 1.4], 1 - k * 0.28)),
+      glow: [0.58, 0.82, 1.06].map((r, k) => glowOf(kind('ring'), V(0, 0.1, 0), Q(Math.PI / 2, 0, 0), S(r, r, 2.2), [0.08, 0.55, 0.85], 1 - k * 0.28)),
       yaw, pitch: (34 * Math.PI) / 180, frameGlow: true,
     }),
     bubble: () => {
@@ -174,7 +173,7 @@ export function iconScenes(): Record<string, () => IconScene> {
     }),
     fogBank: () => ({
       solid: [solidOf(empCore(), V(), Q())],
-      glow: [glowOf(arcs(0.24, 9, 7), V(), Q(), S(1)), glowOf(kind('glowOrb'), V(), Q(), S(0.32), [0.45, 0.35, 1.6], 0.8)], frameGlow: true,
+      glow: [glowOf(arcs(0.24, 9, 7), V(), Q(), S(1)), glowOf(kind('glowOrb'), V(), Q(), S(0.32), [0.3, 0.2, 1.1], 0.8)], frameGlow: true,
       yaw, pitch,
     }),
     strikeBall: () => {
@@ -207,7 +206,7 @@ export function iconScenes(): Record<string, () => IconScene> {
           glowOf(kind('ring'), V(0, 0, 0.85), q, S(0.34, 0.34, 2), [0.25, 1.2, 0.45]),
           glowOf(kind('glowOrb'), V(0, 0, 0.85), q, S(0.26), [0.2, 0.9, 0.32], 0.8),
         ],
-        yaw: (70 * Math.PI) / 180, pitch,
+        yaw: (32 * Math.PI) / 180, pitch,
       };
     },
     windUpMouse: () => ({

@@ -973,7 +973,7 @@ function step(now: number): void {
     if (dx * dx + dy * dy + dz * dz < reach) vfx.balloonBack(back[i], back[i + 1], back[i + 2], reduced);
   }
   // (no speed lines, lens or FOV kicks over the celebration; the podium's hidden field makes no sparks or dust)
-  vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced, cur.revs, ceremony ? undefined : cur.views);
+  vfx.frame(frameDt, simDt, nowS, ceremony ? NO_KARTS : cur.state.karts, attract || celebrating || ceremony ? undefined : pl, camPos, reduced, cur.revs, ceremony ? undefined : cur.views, ceremony ? undefined : cur.items.state.projectiles);
   if (!attract && !celebrating && !ceremony) camera.fov = kickedFov(camera.fov, vfx.kick.fov(nowS, reduced));
   camera.updateProjectionMatrix();
   const sh = vfx.shake;

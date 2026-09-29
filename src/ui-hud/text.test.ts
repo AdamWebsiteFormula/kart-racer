@@ -183,7 +183,8 @@ describe('the credits', () => {
     const art = parseCredits(md).find((s) => s.title === 'Art')!.rows.map((r) => r.work).join('\n');
     expect(art).toContain(`portraits (${count('public/art/racers', '.webp')})`);
     expect(art).toContain(`painted skies (${count('public/skies', '.webp')})`);
-    expect(art).toContain(`Item art (${count('public/art/items', '.webp')})`);
+    // the item pictures are rendered from our own item models (28 Sept 2026), no longer painted art
+    expect(art).toContain(`item pictures (${count('public/art/items', '.webp')}) rendered from the item models`);
     expect(art).toContain(`ground textures (${count('public/textures', '.webp')})`);
     expect(art).toContain(`Racer 3D models (${count('public/models', '.glb')})`);
     // the scenery files are counted over their rows (the far landmarks of 27 Sept 2026 have their own)

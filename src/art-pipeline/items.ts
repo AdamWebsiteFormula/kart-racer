@@ -50,7 +50,7 @@ function wing(sx: 1 | -1): BufferGeometry {
 const SOLID: Readonly<Record<string, Build>> = {
   // ---- Laser Blaster: the bolt (flying, along +Z) and the charged orb held behind the kart
   laserBolt: () => new ItemBuilder()
-    .capsule(0.075, 1.1, C.hot, FINISH.light(5), [0, 0, 0], [Math.PI / 2, 0, 0], 10)
+    .capsule(0.1, 1.6, C.hot, FINISH.light(5), [0, 0, 0], [Math.PI / 2, 0, 0], 10)
     .build(),
   laserOrb: () => new ItemBuilder()
     .ball([0.12, 0.12, 0.12], C.hot, FINISH.light(4.5), [0, 0, 0], undefined, 14)
@@ -213,9 +213,9 @@ function flame(core: [number, number, number], body: [number, number, number]): 
 const ENERGY: Readonly<Record<string, Build>> = {
   // the Laser Blaster's bolt: a hot pink halo round the white core, and a fading streak behind
   boltGlow: () => new EnergyBuilder()
-    .part(new CapsuleGeometry(0.17, 1.15, 4, 12), [2.4, 0.4, 1.4, 0.9], [0, 0, 0], [Math.PI / 2, 0, 0])
-    .part(new CapsuleGeometry(0.32, 1.45, 4, 12), [1.3, 0.14, 0.75, 0.38], [0, 0, 0], [Math.PI / 2, 0, 0])
-    .part(new ConeGeometry(0.16, 1.8, 12, 1, true).translate(0, 0.9, 0).rotateX(-Math.PI / 2), (p) => [2.2, 0.3, 1.3, Math.max(0, 1 + (p.z + 0.6) / 1.8) * 0.5], [0, 0, -0.6])
+    .part(new CapsuleGeometry(0.22, 1.65, 4, 12), [2.4, 0.4, 1.4, 0.9], [0, 0, 0], [Math.PI / 2, 0, 0])
+    .part(new CapsuleGeometry(0.42, 2.0, 4, 12), [1.3, 0.14, 0.75, 0.38], [0, 0, 0], [Math.PI / 2, 0, 0])
+    .part(new ConeGeometry(0.2, 2.4, 12, 1, true).translate(0, 1.2, 0).rotateX(-Math.PI / 2), (p) => [2.2, 0.3, 1.3, Math.max(0, 1 + (p.z + 0.85) / 2.4) * 0.5], [0, 0, -0.85])
     .build(),
   /** a round glow (radius 1, white: the view gives each its color and strength) */
   glowOrb: () => new EnergyBuilder().part(new SphereGeometry(1, 16, 12), [1, 1, 1, 1]).build(),
@@ -366,7 +366,7 @@ void main() {
 }`;
 
 const SLICK_FRAG = `
-uniform float time;
+uniform float time; uniform float film;
 varying vec3 vW; varying vec3 vV;
 vec3 hue(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
 void main() {
@@ -377,21 +377,28 @@ void main() {
   float bands = pow(0.5 + 0.5 * sin(n * 5.0), 3.0);
   float patchy = smoothstep(0.1, 0.9, sin(p.x * 0.55 + time * 0.2) * sin(p.y * 0.65 - time * 0.15) + 0.55);
   float graze = 1.0 - clamp(vV.y, 0.0, 1.0);
-  vec3 film = hue(n * 0.35 + graze * 0.6 + time * 0.02);
-  vec3 c = vec3(0.008, 0.008, 0.014) + film * bands * patchy * 0.13 * (0.6 + graze * 1.6);
+  vec3 hueFilm = hue(n * 0.35 + graze * 0.6 + time * 0.02);
+  vec3 c = vec3(0.008, 0.008, 0.014) + hueFilm * bands * patchy * 0.13 * film * (0.6 + graze * 1.6);
   // the sky's sheen on the wet surface, and a glossy glint
   c += vec3(0.30, 0.34, 0.42) * pow(graze, 4.0) * 0.4;
   gl_FragColor = vec4(c, 1.0);
 }`;
 
 let slick: ShaderMaterial | null = null;
-/** Oil: a glossy black pool marbled with drifting rainbow film and the sky's sheen. Shared, never disposed. */
-export function oilSlickMaterial(): ShaderMaterial {
+/**
+ * Oil: a glossy black pool marbled with drifting rainbow film and the sky's sheen. Shared, never disposed.
+ * `film` (a copy's own, not the shared one) scales the rainbow: the item picture's, seen from above, shows it stronger.
+ */
+export function oilSlickMaterial(film?: number): ShaderMaterial {
   if (!slick) {
-    slick = new ShaderMaterial({ vertexShader: SLICK_VERT, fragmentShader: SLICK_FRAG, uniforms: { time: BUBBLE_CLOCK } });
+    slick = new ShaderMaterial({ vertexShader: SLICK_VERT, fragmentShader: SLICK_FRAG, uniforms: { time: BUBBLE_CLOCK, film: { value: 1 } } });
     slick.userData.shared = true;
   }
-  return slick;
+  if (film === undefined) return slick;
+  const m = slick.clone();
+  m.uniforms.time = BUBBLE_CLOCK;
+  m.uniforms.film = { value: film };
+  return m;
 }
 
 /**
@@ -452,6 +459,9 @@ void main() {
   vec3 c = col * light + vec3(1.6, 2.0, 2.2) * wave;
   float a = clamp((light * 0.9 + wave) * shown * strength, 0.0, 1.0);
   gl_FragColor = vec4(c * shown * strength, a);
+  // straight to the screen (the Low tier, no post chain): tone mapped and in the screen's colors like the rest
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 
 let shield: ShaderMaterial | null = null;

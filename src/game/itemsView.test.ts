@@ -5,6 +5,7 @@ import { createKartState } from '../kart-controller/types.ts';
 import { ITEMS_CONFIG } from '../items/data.ts';
 import { CAM } from './camera.ts';
 import { ROSTER } from './racers.ts';
+import { MINE_UP } from '../vfx-juice/itemfx.ts';
 import { BATCHED_ITEMS, ENERGY_ITEMS, ItemsView, JET_LOOK, LASER, MINE } from './itemsView.ts';
 
 /** A frame's items: these projectiles and ground items out, nothing held, `extra` over the rest of the state. */
@@ -97,6 +98,8 @@ describe('items view', () => {
     const far = blinks(MINE.warn - 1), near = blinks(2);
     expect(far.on).toBeGreaterThan(0);
     expect(near.turns).toBeGreaterThan(far.turns);
+    // its burst comes where its balloon hangs (vfx-juice itemfx.ts)
+    expect(MINE_UP).toBe(MINE.lift);
     // it wears the pickup balloons' night glow
     view.onFrame(out([], mine), [], [], 1, 0, 0, undefined, 0.6);
     expect(ITEM_PICKUP_GLOW.value).toBe(0.6);

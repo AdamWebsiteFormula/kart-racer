@@ -136,10 +136,16 @@ describe('the jet mesh (one a kart, one draw call: jets, flares, billows, ring, 
 });
 
 describe('the flame\'s look (Mario Kart World: a compact jet, a blue-white nozzle, flat bands of fire)', () => {
-  it('a mini-turbo burns its tier\'s color, any other boost warm orange-gold', () => {
+  it('a mini-turbo burns its tier\'s color, an item\'s boost nitro blue-white, any other warm orange-gold', () => {
     expect(flamePalette(1)).toBe(PALETTE.tier[0]);
     expect(flamePalette(3)).toBe(PALETTE.tier[2]);
     expect(flamePalette(0)).toBe(PALETTE.other);
+    expect(flamePalette(0, 'pad')).toBe(PALETTE.other);
+    expect(flamePalette(0, 'item')).toBe(PALETTE.nitro);
+    expect(flamePalette(2, 'item')).toBe(PALETTE.tier[1]);
+    // the nitro's body blue, and paler than the blue mini-turbo's deep one (its green channel higher)
+    expect(top(PALETTE.nitro.body)).toBe(2);
+    expect(PALETTE.nitro.body[1]).toBeGreaterThan(PALETTE.tier[0].body[1]);
     // each tier's body in its spark color's hue
     for (let t = 0; t < 3; t++) expect(top(PALETTE.tier[t].body), `tier ${t + 1}`).toBe(top(TIER_RGB[t]));
     const gold = PALETTE.other;
@@ -149,7 +155,7 @@ describe('the flame\'s look (Mario Kart World: a compact jet, a blue-white nozzl
   });
 
   it('every palette runs from a near-white core to a darker edge, and its fire stays saturated (no white-out)', () => {
-    for (const p of [...PALETTE.tier, PALETTE.other]) {
+    for (const p of [...PALETTE.tier, PALETTE.other, PALETTE.nitro]) {
       expect(Math.min(...p.core) / Math.max(...p.core)).toBeGreaterThan(0.4); // hot: near white
       expect(Math.max(...p.edge)).toBeLessThan(Math.max(...p.body)); // the skin darker
       for (const band of [p.inner, p.body, p.edge]) expect(Math.min(...band) / Math.max(...band)).toBeLessThan(0.3); // saturated (purple has two strong channels)
@@ -334,9 +340,9 @@ describe('ExhaustFlames: one mesh on the chassis', () => {
     expect(u.uWave.value).toBe(1);
     expect(u.uFlash.value).toBe(0);
     expect(u.uRing.value).toBe(-1);
-    // an item boost: orange-gold
+    // an item boost: nitro blue-white (28 Sept 2026)
     f.update(kart('item', 1.5), 3);
-    expect(rgbOf(u.uBody.value)).toEqual(PALETTE.other.body.map((x) => +x.toFixed(3)));
+    expect(rgbOf(u.uBody.value)).toEqual(PALETTE.nitro.body.map((x) => +x.toFixed(3)));
     // reduced motion: steady (after the ignition's swell)
     const held = new Set<number>();
     for (let t = 3.4; t < 3.9; t += 0.05) { f.update(kart('item', 1.2), t, true); held.add(+u.uLen.value.x.toFixed(4)); }
