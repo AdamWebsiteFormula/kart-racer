@@ -2,8 +2,9 @@
    before the game's script (about 420 KB) has arrived, so a first visit on a slow line sees the
    game's name and a moving bar at once instead of a blank page. main.ts fades it out as the title
    screen comes up (performance/splash.ts). Self-contained: its colors are the ui-hud tokens'
-   values, since ui.css may not be in yet. It draws with the two font files the page preloads
-   (Lilita One, Fredoka 600: vite.config.ts), so it asks for no other file while the script loads. */
+   values, since ui.css may not be in yet. It draws with the one font file the page preloads (Mona Sans
+   italic, the house type since 28 Sept 2026: ui.css, vite.config.ts), so it asks for no other file while
+   the script loads. */
 #splash {
   --s-ink: #1b1b2f;
   --s-paper: #fffaf0;
@@ -20,7 +21,7 @@
   padding: 24px 16px;
   background: radial-gradient(ellipse at 50% 40%, #2c2c50 0%, var(--s-ink) 70%);
   color: var(--s-paper);
-  font: 600 16px/1.3 'Fredoka', 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  font: italic 600 16px/1.3 'Mona Sans', 'Segoe UI', system-ui, sans-serif;
   text-align: center;
   transition: opacity 320ms ease, visibility 0s linear 320ms;
   -webkit-font-smoothing: antialiased;
@@ -31,18 +32,23 @@
    splash's logo leaves at once, so the two are never on screen together (a double logo, 25 Sept 2026) */
 #splash.done .splash-logo { opacity: 0; transition: opacity 80ms ease; }
 
+/* the title's logo (ui-hud menus.css .logo): RASCAL over RALLY!, Expanded Black Italic in the sun and coral, each
+   printed over a deeper tone of its color and a navy block inside a navy keyline */
 #splash .splash-logo {
   margin-bottom: 18px;
-  font-family: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
-  line-height: 0.86;
-  letter-spacing: 0.01em;
-  -webkit-text-stroke: 4px var(--s-ink);
+  font-family: 'Mona Sans', 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  font-stretch: 125%;
+  line-height: 0.84;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0.05em #141a45;
   paint-order: stroke fill;
-  text-shadow: 0 6px 0 var(--s-ink);
 }
 #splash .splash-logo span { display: block; }
-#splash .splash-logo .l1 { font-size: clamp(64px, 11vw, 150px); color: var(--s-sun); transform: rotate(-3deg); }
-#splash .splash-logo .l2 { font-size: clamp(56px, 9.5vw, 128px); color: var(--s-coral); transform: rotate(2deg); margin-top: -0.08em; }
+#splash .splash-logo .l1 { font-size: clamp(56px, 9.6vw, 132px); color: var(--s-sun); transform: rotate(-4deg) skewX(-4deg); text-shadow: 0.045em 0.05em 0 #e2561b, 0.075em 0.085em 0 #141a45; }
+#splash .splash-logo .l2 { font-size: clamp(50px, 8.6vw, 118px); color: var(--s-coral); transform: rotate(-4deg) skewX(-4deg); margin: 0.02em 0 0 0.9em; text-shadow: 0.045em 0.05em 0 #a51d4a, 0.075em 0.085em 0 #141a45; }
 
 /* the bar: it eases most of the way while the script loads (it cannot know how far that is); the
    splash fades out once the title is up */
@@ -67,24 +73,24 @@
 }
 @keyframes splash-fill { from { transform: scaleX(0.04); } to { transform: scaleX(0.82); } }
 
-#splash .splash-label { margin: 0; font: 600 18px/1.2 'Fredoka', 'Nunito', system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0.9; }
+#splash .splash-label { margin: 0; font: italic 700 18px/1.2 'Mona Sans', 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0.9; }
 #splash .splash-tip {
   margin: 6px 0 0;
   max-width: min(560px, 92vw);
   padding: 10px 18px;
   border-radius: 16px;
   background: rgba(255, 250, 240, 0.08);
-  font: 600 16px/1.4 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font: italic 600 16px/1.4 'Mona Sans', 'Segoe UI', system-ui, sans-serif;
   color: rgba(255, 250, 240, 0.92);
 }
-#splash .splash-tip b { color: var(--s-sun); font-weight: 600; margin-right: 6px; }
+#splash .splash-tip b { color: var(--s-sun); font-weight: 800; margin-right: 6px; }
 
 /* a short screen (a phone on its side): the logo and the tip shrink so everything fits */
 @media (max-height: 480px) {
   #splash { gap: 12px; }
   #splash .splash-logo { margin-bottom: 8px; }
-  #splash .splash-logo .l1 { font-size: clamp(40px, 15vh, 96px); }
-  #splash .splash-logo .l2 { font-size: clamp(36px, 13vh, 84px); }
+  #splash .splash-logo .l1 { font-size: clamp(36px, 13vh, 84px); }
+  #splash .splash-logo .l2 { font-size: clamp(32px, 11.5vh, 76px); }
   #splash .splash-tip { font-size: 14px; padding: 6px 14px; }
 }
 

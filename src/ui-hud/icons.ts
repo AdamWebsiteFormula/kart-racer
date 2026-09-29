@@ -154,8 +154,8 @@ function calendar(seed: number): string {
     + `<path d="M6 20V14a5.5 5.5 0 0 1 5.5-5.5h25A5.5 5.5 0 0 1 42 14v6Z" fill="${CORAL}" stroke-width="3"/>`
     + `<rect x="11.4" y="3.4" width="4.6" height="9.6" rx="2.3" fill="${PAPER}" stroke-width="2.2"/><rect x="32" y="3.4" width="4.6" height="9.6" rx="2.3" fill="${PAPER}" stroke-width="2.2"/>`
     + '</g>'
-    + `<text x="24" y="18.1" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="6.6" letter-spacing="0.4" fill="${PAPER}">${month}</text>`
-    + `<text x="24" y="39.6" text-anchor="middle" font-family="Lilita One, Arial Rounded MT Bold, sans-serif" font-size="${day > 9 ? 19 : 21}" fill="${INK}">${day}</text>`;
+    + `<text x="24" y="18.1" text-anchor="middle" font-family="Mona Sans, sans-serif" font-style="italic" font-weight="800" font-size="6.6" letter-spacing="0.4" fill="${PAPER}">${month}</text>`
+    + `<text x="24" y="39.6" text-anchor="middle" font-family="Mona Sans, Arial Black, sans-serif" font-style="italic" font-weight="900" font-size="${day > 9 ? 19 : 21}" letter-spacing="-0.5" fill="${INK}">${day}</text>`;
 }
 
 /**

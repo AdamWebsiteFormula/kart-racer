@@ -179,7 +179,9 @@ function platesTexture(): CanvasTexture | null {
     g.beginPath(); g.arc(x, y, 108, 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#fffaf0'; g.lineWidth = 10;
     g.beginPath(); g.arc(x, y, 90, 0, Math.PI * 2); g.stroke();
-    g.font = "400 150px 'Lilita One', 'Arial Rounded MT Bold', sans-serif";
+    // the house type (ui-hud ui.css, 28 Sept 2026): Mona Sans Expanded Black Italic, as the HUD's place
+    g.font = "italic 900 150px 'Mona Sans', 'Arial Black', sans-serif";
+    g.fontStretch = 'expanded';
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.lineJoin = 'round'; g.lineWidth = 18; g.strokeStyle = '#fffaf0';
     g.strokeText(ORDINAL[i], x, y + 10);
