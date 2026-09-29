@@ -129,7 +129,9 @@ export const RACER_POSES: Readonly<Record<string, Partial<SeatedPose>>> = Object
   juniper: {},
   // the low-back handlebars (25 Sept 2026 fit) have no stem in front of his face, so no head turn is
   // needed any more (checked on close-ups of the new body: the beak clears it in the default pose)
-  pip: {},
+  // his hands pitched 40 degrees forward: on the Scooter's high bars his wing feathers fanned up over his face
+  // (29 Sept 2026, measured live in a race: the feathers' top 1.25 m -> 1.04 m; the Kart screen's idle wave still lifts one)
+  pip: { turns: [['LeftHand', 'x', 40], ['RightHand', 'x', 40]] },
 });
 export const poseFor = (racerId: string): SeatedPose => ({ ...SEATED, ...(RACER_POSES[racerId] ?? {}) });
 
