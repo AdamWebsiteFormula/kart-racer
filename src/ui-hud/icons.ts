@@ -1,6 +1,8 @@
-// Item icons. The HUD shows painted art (AI-made, public/art/items/<id>.webp); under it sits the
-// accessibility layer: a shape, an Okabe-Ito colour and a one-letter glyph for the colourblind
-// labels setting (appendix C§10), and the shape is what shows if the art cannot load.
+// Item icons. The HUD shows a picture of each item rendered from its own 3D model in the race
+// (public/art/items/<id>.webp: game/itemIcons.ts through scripts/headless/item-icons.mjs, 28 Sept 2026;
+// they were painted AI art of the old, cartoonier set); under it sits the accessibility layer: a shape,
+// an Okabe-Ito colour and a one-letter glyph for the colourblind labels setting (appendix C§10), and the
+// shape is what shows if the picture cannot load.
 
 /** Okabe-Ito, the colourblind-safe eight. */
 export const OKABE_ITO = Object.freeze({
@@ -23,24 +25,29 @@ export const SHAPE_PATHS: Readonly<Record<IconShape, string>> = Object.freeze({
 
 export interface ItemIcon { shape: IconShape; colour: string; glyph: string }
 
-/** One entry per item (design §8). The glyph is a one-letter label for the colourblind-labels setting. */
+/**
+ * One entry per item (design §8), by the sim's item id. The glyph is a one-letter label for the
+ * colourblind-labels setting: the item's own initial where no other item has it (Laser Blaster, Homing
+ * Rocket, Oil Slick, Decoy Mine as M, Shockwave as W, Energy Shield, Nitro, Triple Nitro, EMP Blast, Jet
+ * Mode, Jump Jets as U for up, Tractor Beam as B, Seeker Drone as D).
+ */
 export const ITEM_ICONS: Readonly<Record<string, ItemIcon>> = Object.freeze({
-  beachBall: { shape: 'circle', colour: OKABE_ITO.vermillion, glyph: 'B' },
-  homingKite: { shape: 'diamond', colour: OKABE_ITO.sky, glyph: 'K' },
+  beachBall: { shape: 'circle', colour: OKABE_ITO.vermillion, glyph: 'L' },
+  homingKite: { shape: 'diamond', colour: OKABE_ITO.sky, glyph: 'R' },
   oilCan: { shape: 'teardrop', colour: OKABE_ITO.black, glyph: 'O' },
-  decoyBalloon: { shape: 'triangle', colour: OKABE_ITO.purple, glyph: 'D' },
-  airHorn: { shape: 'star', colour: OKABE_ITO.orange, glyph: 'H' },
+  decoyBalloon: { shape: 'triangle', colour: OKABE_ITO.purple, glyph: 'M' },
+  airHorn: { shape: 'star', colour: OKABE_ITO.orange, glyph: 'W' },
   bubble: { shape: 'hexagon', colour: OKABE_ITO.blue, glyph: 'S' },
-  fizzPop: { shape: 'chevron', colour: OKABE_ITO.green, glyph: 'P' },
+  fizzPop: { shape: 'chevron', colour: OKABE_ITO.green, glyph: 'N' },
   tripleFizz: { shape: 'chevron', colour: OKABE_ITO.blue, glyph: 'T' },
-  fogBank: { shape: 'square', colour: OKABE_ITO.yellow, glyph: 'F' },
-  strikeBall: { shape: 'circle', colour: OKABE_ITO.purple, glyph: 'X' },
-  pogoSpring: { shape: 'triangle', colour: OKABE_ITO.orange, glyph: 'J' },
-  grappleAnchor: { shape: 'diamond', colour: OKABE_ITO.yellow, glyph: 'A' },
-  windUpMouse: { shape: 'teardrop', colour: OKABE_ITO.sky, glyph: 'M' },
+  fogBank: { shape: 'square', colour: OKABE_ITO.yellow, glyph: 'E' },
+  strikeBall: { shape: 'circle', colour: OKABE_ITO.purple, glyph: 'J' },
+  pogoSpring: { shape: 'triangle', colour: OKABE_ITO.orange, glyph: 'U' },
+  grappleAnchor: { shape: 'diamond', colour: OKABE_ITO.yellow, glyph: 'B' },
+  windUpMouse: { shape: 'teardrop', colour: OKABE_ITO.sky, glyph: 'D' },
 });
 
-/** The painted art for an item, or '' for an unknown id. */
+/** The rendered picture for an item, or '' for an unknown id. */
 export function itemArt(itemId: string): string {
   return ITEM_ICONS[itemId] ? `${import.meta.env?.BASE_URL ?? '/'}art/items/${itemId}.webp` : '';
 }

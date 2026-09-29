@@ -106,21 +106,21 @@ Any racer can drive any kart, the way Mario Kart World lets you mix and match. T
 
 | Item | What it does |
 |---|---|
-| Beach Ball | Throw it ahead. It bounces off the sides three times. |
-| Homing Kite | Flies after the racer in front of you. |
-| Oil Can | Leaves a slick behind you. Whoever drives in slows to half speed. |
-| Decoy Balloon | Looks just like a real balloon, but spins out whoever grabs it. |
-| Air Horn | A 6 m blast all around you: clears items and spins racers nearby. |
-| Bubble | A shield that stops one hit, for up to 8 seconds. |
-| Fizz Pop | One big burst of speed, even off the road. |
-| Triple Fizz | Three bursts of speed, and faster drift sparks. |
-| Fog Bank | Slows everyone ahead and takes their items. Works from 5th place back. |
-| Strike Ball | Become a giant bowling ball for 5 seconds: roll on your own and knock racers flying like pins. |
-| Pogo Spring | Boing over trouble. Press again in the air to slam down. |
-| Grapple Anchor | Hook the racer ahead (up to 50 m), reel in, then slingshot past. |
-| Wind-Up Mouse | Scurries ahead, weaving, and bumps up to three racers. |
+| Laser Blaster | Fire a laser bolt ahead. It bounces off the sides three times. |
+| Homing Rocket | Locks on to the racer in front of you and chases them down, ending in a bright energy explosion. |
+| Oil Slick | Leaves a slick behind you. Whoever drives in slows to half speed. |
+| Decoy Mine | Looks just like a real balloon, but spins out whoever grabs it. Watch for a red light. |
+| Shockwave | A 6 m energy pulse all around you: clears items and spins racers nearby. |
+| Energy Shield | A hex force field that stops one hit, for up to 8 seconds. |
+| Nitro | One big burst of speed, even off the road. |
+| Triple Nitro | Three bursts of speed, and faster drift sparks. |
+| EMP Blast | Shorts out everyone ahead: they slow down and lose their items. Works from 5th place back. |
+| Jet Mode | Become a fighter jet in your racer's colors for 5 seconds: fly on your own, knock racers aside and end with a sonic boom. |
+| Jump Jets | Thrusters blast you over trouble. Press again in the air to dive back down. |
+| Tractor Beam | Lock on to the racer ahead (up to 50 m), reel in, then slingshot past. |
+| Seeker Drone | Zips ahead, weaving, and bumps up to three racers. |
 
-Two slots: a second balloon spins the second slot while you can still use the first. Hold the button to trail a Beach Ball, Oil Can, Decoy Balloon or Wind-Up Mouse behind you, where it blocks one shot from behind. The leaders draw traps, a shield and small boosts; the back of the pack draws the comeback powers, and the Strike Ball and Fog Bank never roll in the first 15 seconds or the leader's last 8.
+Two slots: a second balloon spins the second slot while you can still use the first. Hold the button to trail a Laser Blaster, Oil Slick, Decoy Mine or Seeker Drone behind you, where it blocks one shot from behind. The leaders draw traps, a shield and small boosts; the back of the pack draws the comeback powers, and Jet Mode and the EMP Blast never roll in the first 15 seconds or the leader's last 8. The item set is cool sci-fi and rated G: chrome, glowing energy and bright explosions, and a hit racer only spins out.
 
 ### Race day
 
@@ -189,7 +189,8 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 | Design, code, tests, tuning and reviews | Claude Code (Claude Opus), several agents in parallel |
 | Second-opinion code reviews | Codex |
 | Racer concept art and portraits, 12 painted skies | GPT Image 2.5 via Higgsfield |
-| Item art and ground textures | AI images via Higgsfield |
+| Ground textures | AI images via Higgsfield |
+| Item pictures | Rendered from the game's own 3D item models, modeled in code |
 | 8 racer models, rebuilt as rigged drivers from parts; 31 landmark, scenery and creature models | Image-to-3D via Higgsfield (Meshy v7 auto-rig for the drivers, Tripo H3.1 for kart bodies, wheels, landmarks and scenery) |
 | Tracks, the Classic and Buggy bodies, spectators, vistas, sky life and effects | Modeled in code |
 | 7 songs and 102 sound effects | ElevenLabs (Eleven Music, Sound Effects) |
@@ -203,7 +204,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 - **Mesa Rush** (Quick Race, Sunrise Cup): watch the intro, ride a geyser early in the lap, and on the last lap take the mine. To see the claw, drive off an unwalled edge about halfway round the lap.
 - **Boardwalk Nights** (Summit Cup): the neon loop-the-loop; fireworks and the Ferris-wheel ramp on the last lap.
 - **Drift** a long bend until the sparks go purple and feel the camera punch.
-- **From the back of the pack**, look for a Strike Ball: the back draws the big items.
+- **From the back of the pack**, look for Jet Mode: the back draws the big items.
 - **Finish a Grand Prix** for the podium ceremony.
 - **Time Trial** for the ghost and medals, and the **Daily Challenge** for the global board.
 - **Pause, then Settings** for Reduce motion and Item letters.
@@ -211,7 +212,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 ## Which prize fits
 
 - **Best Game:** the full package: five modes plus Mirror, a replay-verified global leaderboard, 1,785 tests and three red-team passes.
-- **Most Creative:** the Final Lap Shift, the claw rescue, the neon loop, and items of our own (Strike Ball, Grapple Anchor, Pogo Spring).
+- **Most Creative:** the Final Lap Shift, the claw rescue, the neon loop, and items of our own (Jet Mode, Tractor Beam, Jump Jets).
 - **Eye Candy:** the AI-made 3D cast, painted skies, course intros, far vistas, crowds and sky life, and night neon on Boardwalk Nights.
 - **One More Go:** drifting that pays, Time Trial ghosts and medals, and a new Daily Challenge every day.
 
@@ -231,18 +232,18 @@ Code: https://github.com/AdamWebsiteFormula/kart-racer
 What's in it:
 - 8 original racers, 6 tracks, and drifting that pays: hold a turn for blue, orange, then purple sparks and a mini-turbo
 - **Final Lap Shift:** on the last lap every track changes (the tide comes in, a blizzard freezes the lake into a shortcut, the bridge goes down and the only way on is a lantern-lit mine)
-- 13 original items, held two at a time: bowl rivals over as a giant **Strike Ball**, boing over trouble on a **Pogo Spring**, hook the racer ahead with a **Grapple Anchor** and slingshot past
+- 13 original items, held two at a time: turn into a fighter jet with **Jet Mode**, blast over trouble on **Jump Jets**, lock on to the racer ahead with a **Tractor Beam** and slingshot past
 - A camera fly-through before every race, a slow-motion finish, and a podium ceremony after a Grand Prix or Knockout
 - Grand Prix, Knockout (8 start, cuts after every race, one champion), Time Trial with ghosts and medals, and a Daily Challenge on a global leaderboard where the server replays every run
 - Plays on keyboard, gamepad and phone (turn it sideways)
 
 How AI built it:
 - **Claude Code** (Opus) designed and wrote the whole game: physics, AI rivals, items, tracks, UI, the leaderboard server and 1,785 tests. It also ran teams of AI agents that hunted bugs, red-teamed the security and checked every screen in silent headless Chrome
-- **Higgsfield:** the racer and scenery 3D models (AI images turned into 3D), the painted skies and the item art
+- **Higgsfield:** the racer and scenery 3D models (AI images turned into 3D) and the painted skies
 - **ElevenLabs:** 7 songs and 102 sound effects, checked by AI listening models
 - **Supabase:** the leaderboard
 
-My favorite moment: hopping the dinosaur's shock ring on the last lap while a Strike Ball knocks the pack flying. Tell me your best time on the Daily Challenge!
+My favorite moment: hopping the dinosaur's shock ring on the last lap while a racer in Jet Mode knocks the pack aside with a sonic boom. Tell me your best time on the Daily Challenge!
 
 ## 60-second video script
 
@@ -254,7 +255,7 @@ Start on the title screen (a race runs behind the logo). Keep the game full scre
 | 5–12 s | A Quick Race on **Mesa Rush**: the course intro sweeps down onto your kart | "Every race opens with a fly-through of the course." |
 | 12–20 s | Drift a long bend until the sparks go purple, then boost | "Eight racers, six tracks, and drifting that pays: hold a turn for blue, orange, then purple sparks." |
 | 20–28 s | Ride a geyser for a trick, then drift a long bend until the sparks go purple | "Geysers throw you up for a trick boost. Drifting that pays: hold a turn for blue, orange, then purple sparks." |
-| 28–38 s | Items: pop a balloon, fire a Wind-Up Mouse, then (from the back) a Strike Ball | "Thirteen original items, held two at a time, like the giant bowling ball that knocks everyone flying." |
+| 28–38 s | Items: pop a balloon, fire a Homing Rocket, then (from the back) Jet Mode | "Thirteen original items, held two at a time, like the jet that knocks everyone aside with a sonic boom." |
 | 38–44 s | **Boardwalk Nights**: the neon loop-the-loop | "There's a neon loop-the-loop at the night carnival." |
 | 44–50 s | Mesa Rush, the last lap: the **Final Lap Shift** banner, then the mine | "And on the last lap, every track changes. Here the bridge goes down, so it's through the mine." |
 | 50–56 s | Over the line: the slow-motion finish, then the results and the leaderboard | "Grand Prix, Knockout, Time Trial and a Daily Challenge on a global leaderboard." |

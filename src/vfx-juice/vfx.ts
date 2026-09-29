@@ -1,20 +1,21 @@
 // Vfx: the Three.js side of the juice. Emits particles from kart state every frame (drift sparks,
 // boost flames, off-road dust, tyre marks) and bursts from the director's effects each tick
-// (balloon pops, gear sparkles, gears knocked loose, hit stars, confetti), and owns the shake, kicks and time scale.
+// (balloon pops, gear sparkles, gears knocked loose, hit stars, confetti, and the items' own: itemfx.ts),
+// and owns the shake, kicks and time scale.
 import type { Camera, Scene } from 'three';
 import { decorGeometry, vertexToon } from '../art-pipeline/index.ts';
 import type { RevView } from '../kart-controller/rev.ts';
 import type { KartState } from '../kart-controller/types.ts';
+import type { Projectile } from '../items/types.ts';
 import { fadeNearCameraAlpha } from '../track-builder/mesh/glow.ts';
 import { Contact, type Drawn } from './contact.ts';
 import { GearScatter } from './gears.ts';
+import { BOOM, ItemFx, type ItemBurst } from './itemfx.ts';
 import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, type Effects } from './juice.ts';
 import { KartFx } from './kartfx.ts';
 import { ParticlePool, SHAPE, type SpawnOpts } from './particles.ts';
 import { Skids, SpeedLines } from './trails.ts';
 
-const CORAL: [number, number, number] = [1, 0.44, 0.38];
-const TEAL: [number, number, number] = [0.18, 0.77, 0.71], WHITE: [number, number, number] = [1, 0.98, 0.94];
 const WHITE_HOT: readonly number[] = [2.4, 2.3, 2.1];
 const DUST: readonly number[] = [0.86, 0.77, 0.6], SCUFF: readonly number[] = [0.7, 0.66, 0.6];
 /** the Final Lap Shift's bursts: canyon dust in shadow, hot sparks, an oak's leaves */
@@ -47,8 +48,6 @@ export const GEAR_POP = Object.freeze({ radius: 0.35, turn: 4.4, out: 1.3, up: 1
 /** The player's gear sparks (teal, HDR so they bloom) and the glint; gears knocked loose throw a few of the same */
 const GEAR_TEAL: readonly number[] = [0.5, 2.1, 1.9];
 export const CONFETTI_BURST = Object.freeze({ count: 180, ahead: 4, lead: 0.4, spread: 4, depth: 3, rise: 4.5, riseSpread: 3, size: 0.22 });
-/** The STRIKE burst: thrown up and out to the sides and forward from `ahead` metres in front, never back at the lens. */
-export const STRIKE_BURST = Object.freeze({ count: 140, ahead: 1.5, side: 9, forward: [1, 8] as const, up: [5, 13] as const, size: 0.24 });
 /**
  * The podium ceremony's fireworks (game/podium.ts): a round burst of sparks in one confetti hue made
  * bright past 1 (they bloom), falling and fading, with a white heart; soft and slow, never a strobe.
@@ -109,6 +108,8 @@ export class Vfx {
   readonly contact = new Contact(this.glow, this.soft, this.kartFx.sparks);
   /** gears a hit knocks loose, flying out of the kart (gears.ts): the track's gear, small, in the items' own see-through-near-the-lens toon */
   readonly gears: GearScatter;
+  /** the items' explosions, rings, trails and crackle (itemfx.ts): the pools above, and its one ring-and-flash mesh */
+  readonly items: ItemFx;
   private readonly o: SpawnOpts = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, size: 0.2, life: 0.4 };
   /** a firework's colour, reused */
   private readonly hot: number[] = [1, 1, 1];
@@ -120,7 +121,8 @@ export class Vfx {
     const gearMaterial = vertexToon().clone();
     fadeNearCameraAlpha(gearMaterial, 2.8); // game/camera.ts CAM.nearFade, as a thrown item fades
     this.gears = new GearScatter(decorGeometry('coin')!.body, gearMaterial);
-    scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh, this.kartFx.sparks.mesh, this.gears.mesh);
+    this.items = new ItemFx({ glow: this.glow, soft: this.soft, confetti: this.confetti, sparks: this.kartFx.sparks });
+    scene.add(this.glow.mesh, this.soft.mesh, this.confetti.mesh, this.skids.mesh, this.kartFx.sparks.mesh, this.gears.mesh, this.items.blasts.mesh);
     this.lines.attach(camera);
     if (!camera.parent) scene.add(camera); // camera children only render if the camera is in the scene
   }
@@ -129,6 +131,7 @@ export class Vfx {
   reset(): void {
     this.glow.clear(); this.soft.clear(); this.confetti.clear(); this.skids.clear(); this.kartFx.reset(); this.gears.clear();
     this.contact.reset();
+    this.items.reset();
     this.wet = 0;
     this.trauma.value = 0;
     this.time.reset(); // a restart mid hit-stop or slow-mo must not start frozen
@@ -166,9 +169,20 @@ export class Vfx {
       }
     }
     for (const b of fx.bursts) {
-      const k = kartOf(b.racerId);
-      if (!k) continue;
-      const [x, y, z] = k.position;
+      // at a shot's or a drop's own point, else at its kart
+      const k = b.at ? undefined : kartOf(b.racerId);
+      if (!b.at && !k) continue;
+      const [x, y, z] = b.at ?? k!.position;
+      if (!k) {
+        this.items.burst(b.kind as ItemBurst, x, y, z, 0, reduced, b.radius);
+        // a rocket's explosion near the player shakes the camera, less the further off it is
+        const me = this.lastPlayer;
+        if (b.kind === 'boom' && me && !reduced) {
+          const near = Math.max(0, 1 - Math.hypot(me.position[0] - x, me.position[2] - z) / BOOM.reach);
+          if (near > 0) this.trauma.add(BOOM.trauma * near);
+        }
+        continue;
+      }
       switch (b.kind) {
         case 'balloon': {
           const p = b.mine ? POP.mine : POP.rival, glow = b.mine ? [1.6, 1.4, 0.9] : POP.rivalGlow;
@@ -235,38 +249,12 @@ export class Vfx {
           this.contact.wall(k, b.mine ?? b.racerId === this.lastPlayer?.racerId, now, reduced);
           break;
         case 'shield':
+          // a trailed item stopped a shot from behind
           for (let i = 0; i < 18; i++) this.spawn(this.glow, x, y + 1, z, sym() * 3, sym() * 3, sym() * 3, [0.6, 1.3, 1.9], 0.25, 0.45, 0, 2);
           break;
-        case 'horn':
-          for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; this.spawn(this.glow, x, y + 0.8, z, Math.cos(a) * 14, 0, Math.sin(a) * 14, [1.4, 1.4, 1.5], 0.35, 0.35, 0, 1); }
-          break;
-        case 'fog':
-          for (let i = 0; i < 40; i++) this.spawn(this.soft, x + sym() * 10, y + 1 + rnd() * 3, z + sym() * 10, sym(), rnd() * 0.3, sym(), [0.72, 0.74, 0.78], 2.2, 2.5, 0, 0.3, 1);
-          break;
-        case 'strike': {
-          // STRIKE! confetti and white-and-red pin chips thrown up, and a bright flash ring. The
-          // confetti goes up, out and forward: none of it flies back into the chase camera.
-          const S = STRIKE_BURST, s = Math.sin(k.heading), c = Math.cos(k.heading);
-          const ox = x + s * S.ahead, oz = z + c * S.ahead;
-          for (let i = 0; i < S.count; i++) {
-            const f = S.forward[0] + rnd() * (S.forward[1] - S.forward[0]), l = sym() * S.side;
-            this.spawn(this.confetti, ox + sym() * 2, y + 1.5, oz + sym() * 2, s * f + c * l, S.up[0] + rnd() * (S.up[1] - S.up[0]), c * f - s * l, CONFETTI[i % CONFETTI.length], S.size, 1.6 + rnd(), 12, 1);
-          }
-          for (let i = 0; i < 24; i++) this.spawn(this.soft, x, y + 1.2, z, sym() * 7, 4 + rnd() * 6, sym() * 7, i % 3 ? WHITE : CORAL, 0.35, 0.9, 16, 0.5);
-          for (let i = 0; i < 36; i++) { const a = (i / 36) * Math.PI * 2; this.spawn(this.glow, x, y + 1, z, Math.cos(a) * 16, 0.5, Math.sin(a) * 16, [1.8, 1.3, 1.9], 0.4, 0.4, 0, 1); }
-          break;
-        }
-        case 'slam':
-          // a ring of dust rolling out over the road
-          for (let i = 0; i < 40; i++) { const a = (i / 40) * Math.PI * 2; this.spawn(this.soft, x, y + 0.3, z, Math.cos(a) * 11, 0.6 + rnd(), Math.sin(a) * 11, DUST, 0.9, 0.7, 0, 2.2, 1.6); }
-          for (let i = 0; i < 16; i++) this.spawn(this.glow, x + sym(), y + 0.4, z + sym(), sym() * 3, 2 + rnd() * 3, sym() * 3, [1.8, 1.6, 1.2], 0.3, 0.4, 8, 1);
-          break;
-        case 'spring':
-          for (let i = 0; i < 12; i++) this.spawn(this.soft, x + sym() * 0.6, y + 0.2, z + sym() * 0.6, sym() * 3, rnd() * 1.2, sym() * 3, DUST, 0.6, 0.5, 0, 2, 1.4);
-          break;
-        case 'fizz':
-          // soda foam spraying out behind the kart
-          for (let i = 0; i < 30; i++) this.spawn(this.soft, x + sym() * 0.4, y + 0.8, z + sym() * 0.4, sym() * 2.5, 1.5 + rnd() * 3, sym() * 2.5, i % 4 ? WHITE : TEAL, 0.28, 0.7, 6, 1.2);
+        default:
+          // the items' own (itemfx.ts), at the kart
+          this.items.burst(b.kind as ItemBurst, x, y, z, k.heading, reduced, b.radius, b.racerId);
           break;
       }
     }
@@ -384,11 +372,13 @@ export class Vfx {
    * kart's engine rev (kart-controller rev.ts), in `karts`' order, for the pipes' smoke. `views`: the
    * karts' drawn places, in `karts`' order (the dizzy stars circle the drawn head; else the sim's).
    */
-  frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean, revs?: readonly (RevView | undefined)[], views?: readonly Drawn[]): void {
+  frame(dt: number, simDt: number, t: number, karts: readonly KartState[], player: KartState | undefined, camPos: readonly number[], reduced: boolean, revs?: readonly (RevView | undefined)[], views?: readonly Drawn[], shots?: readonly Projectile[]): void {
     this.lastPlayer = player;
     // (an index loop, not for-of: an iterator is garbage every frame)
     if (simDt > 0) for (let i = 0; i < karts.length; i++) this.kartFx.emit(karts[i], simDt, t, camPos, karts[i] === player, reduced, revs?.[i], this.wet);
     this.contact.emit(simDt, t, karts, camPos);
+    // the shots' trails, Jet Mode's contrails, the EMP'd karts' crackle, and the items' rings
+    this.items.frame(dt, simDt, shots, karts, reduced);
     this.glow.update(dt); this.soft.update(dt); this.confetti.update(dt); this.kartFx.update(dt); this.gears.update(dt);
     this.skids.setTime(t);
     this.trauma.update(dt);
@@ -414,5 +404,6 @@ export class Vfx {
   dispose(): void {
     this.glow.dispose(); this.soft.dispose(); this.confetti.dispose(); this.skids.dispose(); this.lines.dispose(); this.kartFx.dispose();
     this.gears.dispose(); (this.gears.mesh.material as { dispose(): void }).dispose();
+    this.items.dispose();
   }
 }

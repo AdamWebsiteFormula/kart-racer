@@ -156,11 +156,11 @@ describe('fx director', () => {
     const spin = directFx([hz('p', 'spin')], [], 'p');
     expect([spin.trauma, spin.bursts.length]).toEqual([0, 0]); // applyHit's kart 'hit' event does it
   });
-  it("the player's item boosts punch too (their kart events stay inside the items step): a Fizz Pop, a Grapple's slingshot", () => {
+  it("the player's item boosts punch too (their kart events stay inside the items step): a Nitro, a Tractor Beam's slingshot", () => {
     const fizz = directFx([], [{ type: 'itemUsed', racerId: 'p', itemId: 'fizzPop', chargesLeft: 0 }], 'p');
     expect(fizz.kickBoost).toBe('item');
     expect(fizz.trauma).toBeCloseTo(JUICE.punch.item.trauma);
-    expect(fizz.bursts.map((b) => b.kind)).toEqual(['fizz']);
+    expect(fizz.bursts.map((b) => b.kind)).toEqual(['nitro']);
     const sling = directFx([], [{ type: 'tetherEnd', racerId: 'p', targetId: 'a', slingshot: true }], 'p');
     expect(sling.kickBoost).toBe('item');
     expect(directFx([], [{ type: 'tetherEnd', racerId: 'p', targetId: 'a', slingshot: false }], 'p').kickBoost).toBeNull();

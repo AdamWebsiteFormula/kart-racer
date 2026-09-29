@@ -202,6 +202,8 @@ export interface TrackScene {
    * eases to it with the lights and pulses it gently. `snap` jumps there (a new race).
    */
   setPickupGlow(amount: number, snap?: boolean): void;
+  /** The balloons' self-light as it stands now (eased and pulsing): a Decoy Mine wears the same (game/itemsView.ts). */
+  pickupGlow(): number;
   /** Mesh + InstancedMesh objects in the group (draw-call proxy) */
   drawables(): number;
   /**
@@ -1735,6 +1737,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       glowTo = amount;
       if (snap) { glowNow = amount; pickupGlow.value = amount; }
     },
+    pickupGlow: () => pickupGlow.value,
     drawables: () => {
       let n = 0;
       group.traverse((o) => { if (isDrawn(o as Mesh)) n++; });

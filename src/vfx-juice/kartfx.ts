@@ -292,7 +292,7 @@ export class KartFx {
     // a new boost throws a handful at its ignition, and a mini-turbo's last spray leaves the tires
     const btier = m.boost.update(k, t);
     if (k.boost.source !== 'none' && k.boost.remaining > 0) {
-      const pal = flamePalette(btier);
+      const pal = flamePalette(btier, k.boost.source);
       // the ignition's flakes fly faster and wider than the steady ones
       let burst = 0, steady = 0;
       if (m.boost.since !== m.lastSince) {

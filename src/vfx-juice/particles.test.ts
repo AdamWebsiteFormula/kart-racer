@@ -6,7 +6,8 @@ import { SCATTER } from './gears.ts';
 import { newEffects } from './juice.ts';
 import { drawnSize, drawnStreak, nearFade, PARTICLE, ParticlePool, SHAPE, STREAK_COVER } from './particles.ts';
 import { SKID, skidShade, Skids } from './trails.ts';
-import { CONFETTI, CONFETTI_BURST, GEAR_POP, POP, STRIKE_BURST, Vfx } from './vfx.ts';
+import { SONIC } from './itemfx.ts';
+import { CONFETTI, CONFETTI_BURST, GEAR_POP, POP, Vfx } from './vfx.ts';
 
 /** Every live particle's position and velocity, read back from the pool's buffers. */
 function offsets(pool: ParticlePool): number[][] {
@@ -101,7 +102,7 @@ describe('particles near the lens (detail review 2026-09-24)', () => {
 
 describe('confetti bursts', () => {
   const heading = 0.7, fwd = [Math.sin(heading), Math.cos(heading)];
-  const burst = (kind: 'confetti' | 'strike', speed = 0) => {
+  const burst = (kind: 'confetti' | 'sonic', speed = 0) => {
     const vfx = new Vfx(new Scene(), new PerspectiveCamera());
     const k = createKartState({ racerId: 'pip', isPlayer: true, position: [10, 2, -5], heading });
     k.speed = speed;
@@ -125,15 +126,23 @@ describe('confetti bursts', () => {
     expect(mean).toBeGreaterThan(ahead - 1);
   });
 
-  it('the STRIKE confetti is thrown forward and out, never back at the lens', () => {
-    const { vfx, k } = burst('strike');
-    expect(vfx.confetti.count).toBe(STRIKE_BURST.count);
-    const before = offsets(vfx.confetti).map((p) => along(p, k));
-    vfx.confetti.update(0.05);
-    const after = offsets(vfx.confetti).map((p) => along(p, k));
-    for (let i = 0; i < before.length; i++) expect(after[i]).toBeGreaterThan(before[i]);
-    // and it starts in front of the kart
-    expect(before.reduce((s, x) => s + x, 0) / before.length).toBeGreaterThan(STRIKE_BURST.ahead - 0.5);
+  it('Jet Mode\'s sonic boom throws its vapor and sparkles forward and out, never back at the lens, and lights its rings', () => {
+    const { vfx, k } = burst('sonic');
+    expect(vfx.soft.count).toBe(SONIC.puffs);
+    expect(vfx.glow.count).toBe(SONIC.sparkles);
+    for (const pool of [vfx.soft, vfx.glow]) {
+      const before = offsets(pool).map((p) => along(p, k));
+      pool.update(0.05);
+      const after = offsets(pool).map((p) => along(p, k));
+      for (let i = 0; i < before.length; i++) expect(after[i]).toBeGreaterThan(before[i]);
+      // and it starts in front of the kart
+      expect(Math.min(...before)).toBeGreaterThan(0.3);
+    }
+    // two vapor rings across the jet's way, a shock ring over the road, a flash
+    vfx.items.blasts.update(0.06);
+    expect(vfx.items.blasts.alive()).toBe(4);
+    vfx.items.blasts.update(2);
+    expect(vfx.items.blasts.alive()).toBe(0);
   });
 
   it('confetti colours are saturated hues (no white, no pastels)', () => {

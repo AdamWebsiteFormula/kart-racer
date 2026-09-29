@@ -5,6 +5,10 @@ import type { BoostSource, KartEvent } from '../kart-controller/types.ts';
 import type { ItemEvent } from '../items/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
 import { SHOW } from '../track-builder/shiftShow.ts';
+import { MINE_UP, type ItemBurst } from './itemfx.ts';
+
+/** What a shot's end looks like, by the sim's item id: a Homing Rocket explodes, a Laser Blaster bolt pops pink, a Seeker Drone fizzles out. */
+const SHOT_POP: Readonly<Record<string, ItemBurst>> = Object.freeze({ homingKite: 'boom', beachBall: 'laserPop', windUpMouse: 'droneFizz' });
 
 /** A boost's kind as the camera feels it: the three mini-turbo tiers (blue, orange, purple) and the other sources. */
 export type PunchKind = 'mini' | 'super' | 'ultra' | 'trick' | 'pad' | 'item' | 'start' | 'slipstream';
@@ -13,7 +17,7 @@ export interface Punch { readonly fov: number; readonly back: number; readonly t
 
 export const JUICE = Object.freeze({
   traumaHit: 0.5, traumaLand: 0.2, traumaWall: 0.25, traumaBump: 0.12,
-  /** the big item moments: a STRIKE burst or a Pogo slam, shaken by the player's own */
+  /** the big item moments: Jet Mode's sonic boom (the sim's Strike Ball burst) or the Jump Jets' dive, shaken by the player's own */
   traumaStrike: 0.45, traumaSlam: 0.35,
   /** a creature's stomp or slam shakes the camera this much at its feet, fading to nothing at quakeReach metres */
   traumaQuake: 0.55, quakeReach: 70,
@@ -197,12 +201,22 @@ export class TimeScale {
  * hit knocked `count` gears loose (the hit's coinsLost), and they fly out of the kart (gears.ts). `bump`:
  * two karts touched (`racerId` and `other`, once a pair a tick); `wall`: a kart hit a wall (any kart; the
  * player's also from a bumper car's shove or a rockfall); `hitStars`: a kart was hit (contact.ts draws all three).
+ * `shield`: a trailed item blocked a shot. The rest are the items' own (itemfx.ts, the new set of 28 Sept
+ * 2026): a Homing Rocket's explosion (`boom`), a Laser Blaster bolt glancing off a wall or popping (`zap`,
+ * `laserPop`), a Decoy Mine bursting (`mineBurst`), a Seeker Drone running down (`droneFizz`), the
+ * Shockwave's pulse (`pulse`), the EMP Blast (`emp`) and each kart it shorts (`shorted`), Jet Mode forming
+ * and its sonic boom (`jetForm`, `sonic`), the Jump Jets firing and their dive landing (`thrust`, `dive`), a
+ * Nitro (`nitro`), the Energy Shield coming on and shattering (`shieldOn`, `shieldBreak`), and the Tractor
+ * Beam locking on and slingshotting (`lock`, `sling`).
  */
-export type Burst = 'balloon' | 'gear' | 'gearsLost' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'bump' | 'strike' | 'slam' | 'spring' | 'fizz' | 'trick' | 'trickLand';
+export type Burst = 'balloon' | 'gear' | 'gearsLost' | 'hitStars' | 'confetti' | 'shield' | 'land' | 'wall' | 'bump' | 'trick' | 'trickLand' | ItemBurst;
 
 export interface Effects {
-  /** `mine`: the player's own (a balloon or gear pickup, gears lost, a bump or a wall), drawn at full size; a rival's is small. `count`: gears lost; `other`: the kart a bump met */
-  bursts: { kind: Burst; racerId: string; mine?: boolean; count?: number; other?: string }[];
+  /**
+   * `mine`: the player's own (a balloon or gear pickup, gears lost, a bump or a wall), drawn at full size; a rival's is small. `count`: gears
+   * lost; `other`: the kart a bump met; `at`: a world point it bursts at (a shot's or a drop's) instead of `racerId`'s kart; `radius`: an item's reach (m)
+   */
+  bursts: { kind: Burst; racerId: string; mine?: boolean; count?: number; other?: string; at?: [number, number, number]; radius?: number }[];
   /** creature stomps and slams: dust at a world point, and a shake that fades with distance from the player */
   quakes: { position: [number, number, number]; strength: number }[];
   /** drift spark tier per racer that changed this tick (0 = sparks off) */
@@ -311,28 +325,49 @@ export function directFx(race: readonly RaceEvent[], items: readonly ItemEvent[]
         if (e.coinsLost > 0) out.bursts.push({ kind: 'gearsLost', racerId: e.racerId, mine: e.racerId === me, count: e.coinsLost });
         if (e.racerId === me) { out.trauma += JUICE.traumaHit; out.kickHit = true; out.hitStop = true; }
         break;
-      case 'shieldUp': case 'shieldPop': out.bursts.push({ kind: 'shield', racerId: e.racerId }); break;
-      case 'horn': out.bursts.push({ kind: 'horn', racerId: e.racerId }); break;
-      case 'fog': out.bursts.push({ kind: 'fog', racerId: e.racerId }); break;
+      // the items' own (the sim's ids: beachBall the Laser Blaster, homingKite the Homing Rocket, decoyBalloon the
+      // Decoy Mine, windUpMouse the Seeker Drone, strikeBall Jet Mode, pogoSpring the Jump Jets, grappleAnchor the Tractor Beam)
+      case 'shieldUp': out.bursts.push({ kind: 'shieldOn', racerId: e.racerId }); break;
+      case 'shieldPop': out.bursts.push({ kind: 'shieldBreak', racerId: e.racerId }); break;
+      case 'horn': out.bursts.push({ kind: 'pulse', racerId: e.racerId, radius: e.radius }); break;
+      case 'fog':
+        out.bursts.push({ kind: 'emp', racerId: e.racerId });
+        for (const v of e.victims) out.bursts.push({ kind: 'shorted', racerId: v });
+        break;
+      case 'powerStart': if (e.itemId === 'strikeBall') out.bursts.push({ kind: 'jetForm', racerId: e.racerId }); break;
       case 'burst':
-        out.bursts.push({ kind: 'strike', racerId: e.racerId });
+        out.bursts.push({ kind: 'sonic', racerId: e.racerId, radius: e.radius });
         if (e.racerId === me) out.trauma += JUICE.traumaStrike;
         break;
       case 'springSlam':
-        out.bursts.push({ kind: 'slam', racerId: e.racerId });
+        out.bursts.push({ kind: 'dive', racerId: e.racerId, radius: e.radius });
         if (e.racerId === me) out.trauma += JUICE.traumaSlam;
         break;
-      case 'springLaunch': out.bursts.push({ kind: 'spring', racerId: e.racerId }); break;
+      case 'springLaunch': out.bursts.push({ kind: 'thrust', racerId: e.racerId }); break;
       case 'trailBlock': out.bursts.push({ kind: 'shield', racerId: e.racerId }); break;
       // an item's boost raises no kart event here (the items step keeps its kart events to itself),
-      // so the player's Fizz Pop and a Grapple's slingshot punch from their item events
+      // so the player's Nitro and a Tractor Beam's slingshot punch from their item events
       case 'itemUsed':
         if (e.itemId === 'fizzPop' || e.itemId === 'tripleFizz') {
-          out.bursts.push({ kind: 'fizz', racerId: e.racerId });
+          out.bursts.push({ kind: 'nitro', racerId: e.racerId });
           if (e.racerId === me) punch(out, 'item');
         }
         break;
-      case 'tetherEnd': if (e.slingshot && e.racerId === me) punch(out, 'item'); break;
+      case 'tetherStart': out.bursts.push({ kind: 'lock', racerId: e.targetId }); break;
+      case 'tetherEnd':
+        if (e.slingshot) {
+          out.bursts.push({ kind: 'sling', racerId: e.racerId });
+          if (e.racerId === me) punch(out, 'item');
+        }
+        break;
+      case 'projectileBounce': if (e.itemId === 'beachBall') out.bursts.push({ kind: 'zap', racerId: '', at: [e.position[0], e.position[1], e.position[2]] }); break;
+      case 'projectilePop': {
+        const kind = SHOT_POP[e.itemId];
+        if (kind) out.bursts.push({ kind, racerId: '', at: [e.position[0], e.position[1], e.position[2]] });
+        break;
+      }
+      // a Decoy Mine bursts where its balloon hangs over the road
+      case 'groundPop': if (e.itemId === 'decoyBalloon') out.bursts.push({ kind: 'mineBurst', racerId: '', at: [e.position[0], e.position[1] + MINE_UP, e.position[2]] }); break;
       default: break;
     }
   }

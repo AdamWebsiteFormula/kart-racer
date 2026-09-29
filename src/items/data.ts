@@ -1,6 +1,8 @@
 // The item schema instance: the 13 items (design §8), plan §5 numbers, and the
 // rank table (docs/sops/items.md Constants and Decisions). Code reads this object;
-// no item number lives anywhere else.
+// no item number lives anywhere else. The ids are the sim's, saves' and input logs' own and never
+// change; `name` is what a player reads (28 Sept 2026, Adam: "something cool and maybe a little more
+// edgy", "still rated G": the Beach Ball is the Laser Blaster, the Strike Ball Jet Mode, and so on).
 import schema from '../../docs/schemas/item.schema.json';
 import type { ItemDefinition, ItemRole, ItemsConfig } from './types.ts';
 
@@ -10,77 +12,77 @@ function def<T>(key: keyof typeof schema.properties): T {
 
 export const ITEM_DEFINITIONS: readonly ItemDefinition[] = Object.freeze([
   {
-    id: 'beachBall', name: 'Beach Ball', role: 'forward',
+    id: 'beachBall', name: 'Laser Blaster', role: 'forward',
     behaviour: { projectileSpeed: 38, bounces: 3, lifetimeSeconds: 8, radius: 0.6, affects: 'target', trailable: true },
     hitEffect: { spinSeconds: 1, dropsItem: false },
-    icon: 'beach-ball', sfx: 'ball-bounce',
+    icon: 'laser-blaster', sfx: 'ball-bounce',
   },
   {
-    id: 'homingKite', name: 'Homing Kite', role: 'homing',
+    id: 'homingKite', name: 'Homing Rocket', role: 'homing',
     behaviour: { projectileSpeed: 42, homing: true, lifetimeSeconds: 10, radius: 0.6, affects: 'target' },
     hitEffect: { spinSeconds: 1, dropsItem: false },
-    icon: 'kite', sfx: 'kite-whoosh',
+    icon: 'homing-rocket', sfx: 'kite-whoosh',
   },
   {
-    id: 'oilCan', name: 'Oil Can', role: 'rearDrop',
+    id: 'oilCan', name: 'Oil Slick', role: 'rearDrop',
     behaviour: { lifetimeSeconds: 20, radius: 1.2, affects: 'target', trailable: true },
     hitEffect: { slowTo: 0.5, slowSeconds: 1, dropsItem: false },
-    icon: 'oil-can', sfx: 'oil-splash',
+    icon: 'oil-slick', sfx: 'oil-splash',
   },
   {
-    id: 'decoyBalloon', name: 'Decoy Balloon', role: 'deception',
+    id: 'decoyBalloon', name: 'Decoy Mine', role: 'deception',
     behaviour: { lifetimeSeconds: 20, radius: 0.9, affects: 'target', trailable: true },
     hitEffect: { spinSeconds: 1, dropsItem: false },
-    icon: 'decoy-balloon', sfx: 'balloon-pop-bad',
+    icon: 'decoy-mine', sfx: 'balloon-pop-bad',
   },
   {
-    id: 'airHorn', name: 'Air Horn', role: 'defenceArea',
+    id: 'airHorn', name: 'Shockwave', role: 'defenceArea',
     behaviour: { radius: 6, affects: 'adjacent' },
     hitEffect: { spinSeconds: 1, dropsItem: false },
-    icon: 'air-horn', sfx: 'air-horn',
+    icon: 'shockwave', sfx: 'air-horn',
   },
   {
-    id: 'bubble', name: 'Bubble', role: 'defenceHeld',
+    id: 'bubble', name: 'Energy Shield', role: 'defenceHeld',
     behaviour: { durationSeconds: 8, weightBonus: 0.5, affects: 'self' },
-    icon: 'bubble', sfx: 'bubble-up',
+    icon: 'energy-shield', sfx: 'bubble-up',
   },
   {
-    id: 'fizzPop', name: 'Fizz Pop', role: 'speed',
+    id: 'fizzPop', name: 'Nitro', role: 'speed',
     behaviour: { charges: 1, affects: 'self' },
-    icon: 'fizz-pop', sfx: 'fizz-pop',
+    icon: 'nitro', sfx: 'fizz-pop',
   },
   {
-    id: 'tripleFizz', name: 'Triple Fizz', role: 'speed',
+    id: 'tripleFizz', name: 'Triple Nitro', role: 'speed',
     behaviour: { charges: 3, chargeMultiplier: 2, chargeSeconds: 2, affects: 'self' },
-    icon: 'triple-fizz', sfx: 'fizz-pop',
+    icon: 'triple-nitro', sfx: 'fizz-pop',
   },
   {
-    id: 'fogBank', name: 'Fog Bank', role: 'equaliser',
+    id: 'fogBank', name: 'EMP Blast', role: 'equaliser',
     behaviour: { slowTo: 0.6, durationSeconds: 3, stripsItem: true, minPosition: 5, affects: 'ahead' },
-    icon: 'fog-bank', sfx: 'fog-roll',
+    icon: 'emp-blast', sfx: 'fog-roll',
   },
   {
-    id: 'strikeBall', name: 'Strike Ball', role: 'ride',
+    id: 'strikeBall', name: 'Jet Mode', role: 'ride',
     behaviour: { durationSeconds: 5, burstRadius: 7, popSpeed: 7, affects: 'adjacent' },
     hitEffect: { spinSeconds: 1, dropsItem: false },
-    icon: 'strike-ball', sfx: 'strike-roll',
+    icon: 'jet-mode', sfx: 'strike-roll',
   },
   {
-    id: 'pogoSpring', name: 'Pogo Spring', role: 'jump',
+    id: 'pogoSpring', name: 'Jump Jets', role: 'jump',
     behaviour: { charges: 2, slamRadius: 6, affects: 'adjacent' },
     hitEffect: { spinSeconds: 1, dropsItem: false },
-    icon: 'pogo-spring', sfx: 'boing',
+    icon: 'jump-jets', sfx: 'boing',
   },
   {
-    id: 'grappleAnchor', name: 'Grapple Anchor', role: 'tether',
+    id: 'grappleAnchor', name: 'Tractor Beam', role: 'tether',
     behaviour: { range: 50, durationSeconds: 3, releaseMetres: 4, slingshotSeconds: 1.2, tugSlowTo: 0.8, tugSeconds: 0.6, affects: 'target' },
-    icon: 'grapple-anchor', sfx: 'anchor-throw',
+    icon: 'tractor-beam', sfx: 'anchor-throw',
   },
   {
-    id: 'windUpMouse', name: 'Wind-Up Mouse', role: 'runner',
+    id: 'windUpMouse', name: 'Seeker Drone', role: 'runner',
     behaviour: { projectileSpeed: 32, lifetimeSeconds: 8, radius: 0.7, hits: 3, weave: 0.55, weaveSeconds: 1.6, affects: 'target', trailable: true },
     hitEffect: { spinSeconds: 1, dropsItem: false },
-    icon: 'wind-up-mouse', sfx: 'mouse-scurry',
+    icon: 'seeker-drone', sfx: 'mouse-scurry',
   },
 ]);
 

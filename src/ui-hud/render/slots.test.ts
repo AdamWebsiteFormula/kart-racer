@@ -23,10 +23,10 @@ const S = UI.slotStaggerMs / 1000;
 function kart(held = 'none', next = 'none'): KartState {
   const k = createKartState({ racerId: 'p', isPlayer: true });
   k.lap = 1; k.rank = 5;
-  k.item = { held, charges: held === 'none' ? 0 : 1, rouletteRemaining: 0, next, nextCharges: next === 'none' ? 0 : 1, nextRouletteRemaining: 0 };
+  k.item = { held, charges: held === 'none' ? 0 : 1, rouletteRemaining: 0, next, nextCharges: next === 'none' ? 0 : 1, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
   return k;
 }
-/** the item state's third slot, as the gameplay branch adds it (named as the first two are) */
+/** the item state's third slot (named as the first two are) */
 const third = (k: KartState, id: string, charges = 1, roll = 0) => Object.assign(k.item, { third: id, thirdCharges: charges, thirdRouletteRemaining: roll });
 /** (the sim's events name slots 0 and 1 until it has a third) */
 const ready = (slot: number, itemId = 'beachBall') => ({ type: 'itemReady', racerId: 'p', itemId, slot }) as unknown as ItemEvent;
@@ -178,7 +178,7 @@ describe('each slot glows in its item\'s color', () => {
     const vm = hudModel(race, k, 5, 10, newHudMemory(), 1, defs, 0);
     v.render(vm);
     expect(held.style.getPropertyValue('--glow')).toBe(glowFor(vm.held.itemId));
-    k.item = { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0 };
+    k.item = { held: 'none', charges: 0, rouletteRemaining: 0, next: 'none', nextCharges: 0, nextRouletteRemaining: 0, third: 'none', thirdCharges: 0, thirdRouletteRemaining: 0 };
     v.render(hudModel(race, k, 5, 10, newHudMemory(), 1, defs, 0));
     expect(held.style.getPropertyValue('--glow')).toBe('');
   });
