@@ -1106,13 +1106,18 @@ if (import.meta.env.DEV) {
     /** dev: jump straight into a quick race on any track, `opts.kartId` in any kart (design §5, K6) */
     race: (trackId: string, racerId = 'pip', opts: { intro?: IntroKind; mirror?: boolean; kartId?: string } = {}) => {
       // straight to the countdown, as it always was; `intro` flies the course intro first, `mirror` reflects the track
+      const wasRacing = ui.app.screen === 'racing';
       devNoIntro = true;
       try {
         for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId }, { type: 'pickKart', kartId: kartFor(racerId, opts.kartId) }, { type: 'pickTrack', trackId }] as const) ui.dispatch(a);
       } finally { devNoIntro = false; }
       // from any other screen the menu walk does nothing: load the race directly
       const cfg = configFor({ mode: 'quick', racerId, speedClass: 150, cupId: null, tracks: [trackId], kartId: opts.kartId });
-      if (ui.app.screen !== 'racing' || session?.def.id !== trackId || opts.intro || opts.mirror || opts.kartId) load(opts.mirror ? { ...cfg, mirrored: true } : cfg, false, opts.intro ?? null);
+      if (ui.app.screen !== 'racing' || session?.def.id !== trackId || opts.intro || opts.mirror || opts.kartId) {
+        // (from inside a race the menus never ran: the HUD starts fresh here, as they would have started it)
+        if (wasRacing) ui.freshRace();
+        load(opts.mirror ? { ...cfg, mirrored: true } : cfg, false, opts.intro ?? null);
+      }
     },
     /** dev: hold the course intro at `s` seconds in (null lets it run), for checking its shots */
     introAt: (s: number | null) => { devIntroAt = s; },

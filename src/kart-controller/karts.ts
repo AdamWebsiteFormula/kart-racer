@@ -1,9 +1,10 @@
 // Any racer in any kart (design §5; Adam, 25 Sept 2026, option B: like Mario Kart World). The three
-// classes, the ten karts and the fairness rules, all read from docs/schemas/kart.schema.json, and the
-// combine rule: a racer's handling is their class with the chosen kart's stats put in place of their
-// own kart's. A racer in their own kart (or its twin) gets their class to the last bit, so every gate,
-// medal time and stored leaderboard run from before still holds. Pure data, no Three.js; nothing here
-// throws: an unknown kart is the racer's own, an unknown racer (test fixtures' 'k0') takes the class alone.
+// classes, each racer's own touch, the ten karts and the fairness rules, all read from
+// docs/schemas/kart.schema.json, and the combine rule: a racer's handling is their line (their class and
+// their own touch, design §4; Adam, 28 Sept 2026: "No 2 racers should have the exact same stat") with the
+// chosen kart's stats put in place of their own kart's. A racer in their own kart (or its twin) gets their
+// line to the last bit. Pure data, no Three.js; nothing here throws: an unknown kart is the racer's own, an
+// unknown racer (test fixtures' 'k0') takes the class alone.
 import schema from '../../docs/schemas/kart.schema.json';
 import type { Archetype } from './types.ts';
 
@@ -39,7 +40,16 @@ export const RACER_CLASSES: Readonly<Record<string, Archetype>> = Object.freeze(
 
 type Row = { id: string; name: string; owner?: string; twinOf?: string } & Partial<KartStats>;
 const ROWS = P.karts.default as Row[];
-const numbers = (r: Row | undefined): KartStats => ({ speed: r?.speed ?? 0, accel: r?.accel ?? 0, handling: r?.handling ?? 0, weight: r?.weight ?? 0 });
+const numbers = (r: Partial<KartStats> | undefined): KartStats => ({ speed: r?.speed ?? 0, accel: r?.accel ?? 0, handling: r?.handling ?? 0, weight: r?.weight ?? 0 });
+
+/**
+ * design §4. Each racer's own touch on their class: whole kart steps, at most one a stat, balanced (a
+ * stat traded for another of equal lap-time value), so no two racers share a line. Juniper's is all 0.
+ */
+export const RACER_STATS: Readonly<Record<string, Readonly<KartStats>>> = Object.freeze(Object.fromEntries(
+  Object.entries(P.racerStats.default as Record<string, Partial<KartStats>>).map(([r, s]) => [r, Object.freeze(numbers(s))]),
+));
+const NO_TOUCH: Readonly<KartStats> = Object.freeze(numbers(undefined));
 
 /** The ten karts in the kart screen's order: the eight signature karts in racer order, then the twins. */
 export const KARTS: readonly Readonly<KartDef>[] = Object.freeze(ROWS.map((r) => Object.freeze({
@@ -82,19 +92,21 @@ export function kartFor(racerId: string, kartId?: string): string {
 
 /**
  * The combined line of `racerId` in `kartId` (design §5): for each stat, in exactly this order,
- * class + (kart − own kart). In the racer's own kart the bracket is exactly 0, so the line is the
- * class to the last bit. `archetype` defaults to the racer's class (makeConstants passes its own).
+ * class + the racer's own touch + (kart − own kart). In the racer's own kart the bracket is exactly 0,
+ * so the total is the racer's line to the last bit. `archetype` defaults to the racer's class
+ * (makeConstants passes its own).
  */
 export function comboStats(racerId: string, kartId?: string, archetype: Archetype = racerClassOf(racerId) ?? 'medium'): Readonly<ArchetypeStats> {
   const cls = ARCHETYPES[archetype];
   const own = kartById(ownKartOf(racerId));
   if (!own) return cls; // unknown racer: the class alone
+  const me = RACER_STATS[racerId] ?? NO_TOUCH;
   const k = kartById(kartFor(racerId, kartId)) as Readonly<KartDef>;
   return Object.freeze({
-    speed: cls.speed + (k.speed - own.speed),
-    accel: cls.accel + (k.accel - own.accel),
-    handling: cls.handling + (k.handling - own.handling),
-    weight: cls.weight + (k.weight - own.weight),
+    speed: cls.speed + me.speed + (k.speed - own.speed),
+    accel: cls.accel + me.accel + (k.accel - own.accel),
+    handling: cls.handling + me.handling + (k.handling - own.handling),
+    weight: cls.weight + me.weight + (k.weight - own.weight),
     hook: cls.hook,
   });
 }

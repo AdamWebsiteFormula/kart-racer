@@ -435,7 +435,8 @@ describe('the Kart screen renderer (K5)', () => {
     expect(screen.querySelectorAll('[tabindex="0"]').length).toBe(1);
     const truck = cards.find((c) => c.dataset.id === 'snacktruck')!;
     expect(truck.getAttribute('aria-label')).toBe(`Snack Truck, Big Gus's kart. Top speed, turns like a truck. Your kart now. ${truck.getAttribute('aria-label')!.split('Your kart now. ')[1]}`);
-    expect(truck.getAttribute('aria-label')).toMatch(/Speed 8 of 10\. Accel 2 of 10\. Handling 3 of 10\. Weight 10 of 10\.$/);
+    // Big Gus's own line (design §4, 28 Sept 2026: the heavy class, a step more speed and a step less handling)
+    expect(truck.getAttribute('aria-label')).toMatch(/Speed 10 of 10\. Accel 2 of 10\. Handling 1 of 10\. Weight 10 of 10\.$/);
     const classic = cards.find((c) => c.dataset.id === 'classic')!;
     expect(classic.getAttribute('aria-label')).toMatch(/^Classic, Same stats as the Wind-Up Racer\. Quick on straights, stiff in bends\. Locked: Finish a Grand Prix\. Speed/);
     expect(classic.getAttribute('aria-disabled')).toBe('true');
@@ -455,9 +456,10 @@ describe('the Kart screen renderer (K5)', () => {
     expect(screen.querySelector('.stat-panel')!.getAttribute('role')).toBe('group');
     // the panel's words for a screen reader
     const words = [...screen.querySelectorAll('.stat-panel .sp-row > .sr-only')].map((e) => e.textContent);
-    expect(words).toEqual(['Speed 8 of 10', 'Accel 2 of 10', 'Handling 3 of 10', 'Weight 10 of 10']);
+    expect(words).toEqual(['Speed 10 of 10', 'Accel 2 of 10', 'Handling 1 of 10', 'Weight 10 of 10']);
     key('ArrowLeft'); // the Stone Stomper: a speed step down, a handling step up
-    expect([...screen.querySelectorAll('.stat-panel .sp-row > .sr-only')].map((e) => e.textContent)).toEqual(['Speed 7 of 10, down 1', 'Accel 2 of 10', 'Handling 4 of 10, up 1', 'Weight 10 of 10']);
+    // (Big Gus's speed sits at the band's top, so its one step down reads as two of the ten levels)
+    expect([...screen.querySelectorAll('.stat-panel .sp-row > .sr-only')].map((e) => e.textContent)).toEqual(['Speed 8 of 10, down 2', 'Accel 2 of 10', 'Handling 3 of 10, up 2', 'Weight 10 of 10']);
     const speed = screen.querySelector('.stat-panel .sp-row[data-stat="speed"]')!;
     expect([speed.getAttribute('data-ghost'), speed.querySelector('.sp-chev')!.getAttribute('data-dir'), speed.querySelector('.sp-chev')!.getAttribute('data-n')]).toEqual(['loss', 'down', '1']);
     ui.dispose();

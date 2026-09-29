@@ -502,6 +502,17 @@ export class UiRoot {
   }
 
   // ---------------------------------------------------------------- race
+  /**
+   * A race put on from inside another without the menus (main.ts dev kart.race): its HUD starts fresh, as a race
+   * the menus start does (effects, the screen coming to 'racing'), so the last race's banner or its FINAL LAP never
+   * carries into it (28 Sept 2026: a silent tour of six tracks in a row showed FINAL LAP on the leader's shift).
+   */
+  freshRace(): void {
+    this.hudMem = newHudMemory(false);
+    this.playerDone = false;
+    this.statsOff = false;
+  }
+
   /** Once per sim tick with that tick's events. */
   feed(race: readonly RaceEvent[], items: readonly ItemEvent[], playerId: string): void {
     feedHud(this.hudMem, race, items, playerId, performance.now() / 1000);

@@ -81,11 +81,13 @@ describe('submission rules', () => {
     expect(checkSubmission({ ...good, kartId: 'rocket' }, IDS)).toBe('unknown kart');
     // a v5 game sends no kartId: it hears "please reload" (400), which the board words as "The game was updated";
     // so does a v6 game (26 Sept 2026: its hops and tricks replay differently on the v7 sim), and a v7 game
-    // (27 Sept 2026: its course limit stood 12 m past every curb; v8 lays it stretch by stretch, track-builder limits.ts)
-    expect(CLIENT_VERSION).toBe('8');
+    // (27 Sept 2026: its course limit stood 12 m past every curb; v8 lays it stretch by stretch, track-builder limits.ts),
+    // and a v8 game (28 Sept 2026: racers of a class shared their stats; v9 gives each racer a line of their own)
+    expect(CLIENT_VERSION).toBe('9');
     expect(checkSubmission({ ...noKart, clientVersion: '5' }, IDS)).toBe('please reload the game: new version');
     expect(checkSubmission({ ...good, clientVersion: '6' }, IDS)).toBe('please reload the game: new version');
     expect(checkSubmission({ ...good, clientVersion: '7' }, IDS)).toBe('please reload the game: new version');
+    expect(checkSubmission({ ...good, clientVersion: '8' }, IDS)).toBe('please reload the game: new version');
     expect(postError(400, 'please reload the game: new version')).toMatch(/Reload the page/);
   });
   it('a solo run carries its kart, and a restarted Daily keeps it', () => {

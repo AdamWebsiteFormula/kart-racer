@@ -2,6 +2,8 @@
 
 Adam approved the feature on 25 Sept 2026 (option B: "like Mario Kart World", with stats and live combined stat bars). The design rules are in docs/design.md §5, §10 and §12; this file is the build plan (from the planning pass of 25 Sept). Where this file and design.md disagree, design.md wins.
 
+**Since 28 Sept 2026** each racer has a line of their own (design §4: their class and their own touch; Adam: "No 2 racers should have the exact same stat"). Read "a racer in their own kart = their class" below as "= their line"; the combine rule is line + (kart − own kart).
+
 **The core idea:** a racer's handling is their class, with the chosen kart's stats put in place of their own kart's stats. A racer in their own kart handles exactly as today, to the last bit, so every current test, AI gate, medal time and stored leaderboard time still holds. Every kart changes *how* you are fast, not *how fast* you are.
 
 ## 1. Research (Mario Kart World) and where we differ on purpose

@@ -165,10 +165,14 @@ describe('the podium screen', () => {
     const lit = () => [...scr.querySelectorAll('.podium-place.focus .nm')].map((e) => e.textContent);
     ui.podiumFocus(3);
     expect(lit()).toEqual(['Nova']);
+    // and the headline steps out of the top of the frame while a hero shot is on (the winner's looks up at the cup)
+    expect(scr.classList.contains('hero')).toBe(true);
     ui.podiumFocus(1);
     expect(lit()).toEqual(['Momo']);
+    expect(scr.classList.contains('hero')).toBe(true);
     ui.podiumFocus(0);
     expect(lit()).toEqual([]);
+    expect(scr.classList.contains('hero'), 'back for the crane and the wide shots').toBe(false);
     expect((document.activeElement as HTMLElement).dataset.id).toBe('continue');
     press(); // the second half of a double press
     expect(ui.app.screen).toBe('podium');

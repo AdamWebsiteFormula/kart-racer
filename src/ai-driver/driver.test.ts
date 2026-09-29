@@ -76,9 +76,12 @@ describe('AiDriver gates', () => {
     const hard = soloTime(HARBOUR_LOOP, 150);
     const margin = average - hard;
     // was 3 s. Since driftSteerMin 0.2 the Hard AI's own drifts cost it ~0.7 s a lap on Harbour
-    // (Lessons 2026-09-21); the scripted driver never brakes and survives the 18 m corner on the wall
+    // (Lessons 2026-09-21); the scripted driver never brakes and survives the 18 m corner on the wall.
+    // The ceiling was 8 s: on 27 Sept's sim the margin as medium was 7.97 s for pip (this racer), 8.38 for
+    // juniper, 9.13 for momo, 7.49 for sprocket (their AI personalities); with each racer's own line (28 Sept
+    // 2026, design §4) pip's is 8.53, juniper's 8.38 (her line unchanged), so 9 s: a few seconds, never a mile
     expect(margin, `average ${average.toFixed(1)} s, hard ${hard.toFixed(1)} s`).toBeGreaterThanOrEqual(1);
-    expect(margin, `average ${average.toFixed(1)} s, hard ${hard.toFixed(1)} s`).toBeLessThanOrEqual(8);
+    expect(margin, `average ${average.toFixed(1)} s, hard ${hard.toFixed(1)} s`).toBeLessThanOrEqual(9);
   });
 
   it('3: deterministic — same seed twice is identical, a different seed differs, no Math.random or Date', () => {
