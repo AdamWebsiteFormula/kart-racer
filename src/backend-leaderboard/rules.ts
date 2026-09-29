@@ -14,8 +14,10 @@ export const BOARD_MODES: readonly BoardMode[] = ['timeTrial', 'daily'];
  * wide on a bend's outside, as Mario Kart World), so a v7 game's run replays differently: it is told to reload.
  * 9 (28 Sept 2026): each racer has a line of their own (design §4, kart-controller karts.ts: their class and
  * their own touch; Adam: "No 2 racers should have the exact same stat"), so a v8 game's run replays differently.
+ * 10 (29 Sept 2026): the drift arc measured on Mario Kart World (kart schema driftSteerMax 0.4 → 0.36: full in and
+ * centred turn wider), so a v9 game's drifts replay differently: it is told to reload.
  */
-export const CLIENT_VERSION = '9';
+export const CLIENT_VERSION = '10';
 export const MAX_LOG_BYTES = 256 * 1024;
 export const MIN_TIME_MS = 30_000;
 /** Yesterday's Daily still takes posts this long after midnight UTC (a race started just before). */

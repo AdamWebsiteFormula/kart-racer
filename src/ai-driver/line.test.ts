@@ -72,7 +72,7 @@ describe('line', () => {
     expect(lat({ lateralBias: 1 })).toBe(0);
     s.branch = 0;
     // a tight bend at 20 m/s whose drift is planned (stepDriftPlan): the drifter sets up wide
-    const tight = { ...fakeLine(0.6, 0.8), probeNear: 20 }; // asks for 0.5 rad/s: less than a half-stick drift gives, so the drift will swing and needs room
+    const tight = { ...fakeLine(0.48, 0.64), probeNear: 20 }; // asks for 0.4 rad/s: less than a half-stick drift gives (0.47), so the drift will swing and needs room
     const planned = (plan: number) => { const m = memory(PROFILES.hard, { lateralBias: 1, driftUse: 1 }); m.driftPlan = plan; return lateralTarget(s, c, m, PROFILES.hard, tight, 0); };
     expect(planned(1)).toBeCloseTo(-AI.line.outsideFraction * wide.halfWidth);
     // the same bend with the drift declined on the approach, or not yet decided: the ordinary lane, no set-up
