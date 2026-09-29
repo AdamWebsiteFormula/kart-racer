@@ -10,6 +10,9 @@
 # A file over 95 MB (GitHub refuses 100 MB) stays on the Mac and is listed. Run it again after adding more
 # zips: packs already up are skipped.
 
+# (the whole script is one block, so bash reads all of it before running: piped in through curl, a command that reads
+# stdin would otherwise eat the rest of the script, and the last lines never ran on 29 Sept)
+{
 set -u
 set -f
 SRC="${1:-$HOME/Downloads/rascal-sfx}"
@@ -54,6 +57,7 @@ push() {
 UP="" LEFT="" FAILED=""
 IFS="$NL"
 for zip in $ZIPS; do
+  exec </dev/null
   name=$(basename "$zip" | sed 's/\.[Zz][Ii][Pp]$//' | tr -c 'A-Za-z0-9._\n-' '_')
   if git log --format=%s | grep -qxF "pack: $name (done)"; then say "Already up: $name"; continue; fi
   say "Unpacking $name..."
@@ -82,3 +86,5 @@ say ""
 if [ -n "$FAILED" ]; then say ""; say "Problems:$FAILED"; say "Fix what it says, then run this again (finished packs are skipped)."; exit 1; fi
 say ""
 say "Done. Tell Claude: packs are up"
+exit 0
+}
