@@ -6,16 +6,16 @@
 // only to being picked, the finish (1st, 2nd-9th, out), being hit and a Star, all short exclamations;
 // Mario Kart 8's passing quips are gone from it (comicbook.com, 5 July 2025); no racer in any Mario Kart
 // counts laps or apologizes; a review calls its voice work minimal. Mario Kart 8 also voiced tricks,
-// boosts and item hits on a rival; World's list shows none of those, so here a trick and a gloat are rare
-// and a boost says nothing. The rate is measured on whole races (render.mix.ts, barks.mix.ts; audio SOP).
+// boosts and item hits on a rival; World's list shows none of those, so here they say nothing. Adam still heard
+// too many (29 Sept 2026), so a hit is voiced about one time in three, never twice within 12 s. The rate is measured on whole races (render.mix.ts, barks.mix.ts; audio SOP).
 // The mechanics are standard bark practice (Valve's dynamic dialog, GDC 2012: a cooldown per line, a
 // random pick among takes; Wwise / FMOD voice limiting: a small budget and priorities, lower lines
 // dropped, not stacked):
 // - one line at a time, whoever says it, at least `gap` apart, and a racer's own lines `perRacer` apart;
 // - each moment has a chance and its own cooldown; a chance of 0 is a moment nobody speaks at;
 // - the takes of a moment come round in a shuffled order, never the same one twice running;
-// - the player's racer says the lines; a rival speaks only when the player's item hits them, near the
-//   player, quieter with distance.
+// - the player's racer says the lines; a rival could speak when the player's item hits them, near the
+//   player, quieter with distance (its chance is 0 since 29 Sept 2026).
 import type { ItemEvent } from '../items/types.ts';
 import type { RaceEvent } from '../race-manager/types.ts';
 import { distanceGain, type Listener } from './director.ts';
@@ -40,33 +40,33 @@ export const BARKS = Object.freeze({
   /** a rival's line against the player's own (AUDIO.otherGain is the same idea for their sounds) */
   rivalGain: 0.75,
   rules: {
-    // Mario Kart World: said when picked, when hit, at the finish (its quote list)
+    // said when picked, at a rocket start and at the finish; a hit only now and then, and not again for a while
+    // (Adam, 29 Sept 2026: "I still hear way too many voices, more than on Mario Kart"; every hit voiced was 4 of the 8)
     select: { chance: 1, cooldown: 0, priority: 5 },
-    hit: { chance: 1, cooldown: 2.5, priority: 4 },
+    hit: { chance: 0.35, cooldown: 12, priority: 4 },
     win: { chance: 1, cooldown: 0, priority: 5 },
     good: { chance: 1, cooldown: 0, priority: 5 },
     lose: { chance: 1, cooldown: 0, priority: 5 },
     // a rocket start: once a race at most (Mario Kart 8's voice bank has it)
     start: { chance: 1, cooldown: 0, priority: 3 },
-    // rare: Mario Kart 8 voiced them, World's quote list does not (about one of each a race)
-    trick: { chance: 0.2, cooldown: 30, priority: 1 },
-    hitRival: { chance: 0.25, cooldown: 30, priority: 3 },
-    // never: World dropped the passing quips; no Mario Kart racer counts laps or says sorry; no boost line
+    // never: World dropped the passing quips; no Mario Kart racer counts laps or says sorry; no boost line; and since
+    // 29 Sept no trick line or gloat either
+    trick: { chance: 0, cooldown: 30, priority: 1 },
+    hitRival: { chance: 0, cooldown: 30, priority: 3 },
     boost: { chance: 0, cooldown: 0, priority: 1 },
     overtake: { chance: 0, cooldown: 0, priority: 2 },
     lap: { chance: 0, cooldown: 0, priority: 3 },
     sorry: { chance: 0, cooldown: 0, priority: 2 },
   } satisfies Record<Bark, Rule> as Readonly<Record<Bark, Rule>>,
-  /** a rival's line: only their hit, when the player's item hit them (the rest are 0: never) */
-  rivalChance: { hit: 0.5 } as Readonly<Partial<Record<Bark, number>>>,
+  /** a rival's line (29 Sept 2026: none; a rival only ever spoke when the player's item hit them) */
+  rivalChance: { hit: 0 } as Readonly<Partial<Record<Bark, number>>>,
 });
 
 /**
- * The lines a race these rules come to, on average (the tests hold them to it): over 96 whole races, six
- * tracks, each racer as the player (render.mix.ts CENSUS, 28 Sept 2026), 8.3 a race, 4.0 of them the
- * player being hit and 1 the finish; 18.4 before the cut.
+ * The lines a race these rules come to, at most, on average (the tests hold them to it): a rocket start, the finish and
+ * one or two of the player's hits; 8.3 a race on 28 Sept 2026 (render.mix.ts CENSUS, 96 whole races), 18.4 before that.
  */
-export const LINES_A_RACE = 9;
+export const LINES_A_RACE = 4;
 
 /** How many takes of a moment a racer has (0: none recorded, so nothing is said). */
 export type TakeCount = (racerId: string, bark: Bark) => number;
