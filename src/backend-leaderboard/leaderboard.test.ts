@@ -18,7 +18,8 @@ const IDS = Object.keys(TRACKS);
 
 /** A "client" run exactly as the game plays it: the shared sim tick, a scripted player, the race's own input log; in `kartId` (absent: the racer's own). */
 /** `hops`: the drift button tapped every 0.75 s, and again 6 ticks into each flight (hops on every slope, tricks off every jump and crest). */
-function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string, hops = false) {
+/** `hoard`: the item button is left alone until all three slots hold a ready item, then tapped every 0.5 s until they are spent (three slots, 28 Sept 2026). */
+function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: number, lane = 0, kartId?: string, hops = false, hoard = false) {
   const config = soloConfig(mode, trackId, racerId, seed, kartId);
   const track = buildTrack(TRACKS[trackId]);
   const manager = new RaceManager(track, config);
@@ -27,12 +28,15 @@ function clientRun(trackId: string, mode: BoardMode, racerId: string, seed: numb
   const inputs = manager.state.karts.map(() => ({ ...NEUTRAL_INPUT }));
   const parts = { manager, items, ai, inputs, playerIndex: 0, playerSlot: { ...NEUTRAL_INPUT } };
   const drive = lookAheadDriver(26, lane);
-  let wobble = 0;
+  let wobble = 0, spending = false;
   while (manager.state.phase !== 'finished' && manager.state.tick < 120 * 400) {
-    const i = drive(manager.state.karts[0], track);
+    const s = manager.state.karts[0];
+    const i = drive(s, track);
     wobble += 0.37; // unrounded analogue values, like a real stick
     const tick = manager.state.tick;
-    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991, drift: hops && (tick % 90 === 0 || tick % 90 === 6) });
+    if (hoard && s.item.third !== 'none' && s.item.thirdRouletteRemaining <= 0) spending = true;
+    if (s.item.held === 'none') spending = false;
+    simTick(parts, { ...i, steer: i.steer * (0.97 + 0.03 * Math.sin(wobble)), throttle: i.throttle * 0.9991, drift: hops && (tick % 90 === 0 || tick % 90 === 6), item: spending && tick % 60 === 0 });
   }
   return { result: manager.results().ranks[0], log: manager.state.inputLog };
 }
@@ -81,11 +85,13 @@ describe('submission rules', () => {
     expect(checkSubmission({ ...good, kartId: 'rocket' }, IDS)).toBe('unknown kart');
     // a v5 game sends no kartId: it hears "please reload" (400), which the board words as "The game was updated";
     // so does a v6 game (26 Sept 2026: its hops and tricks replay differently on the v7 sim), and a v7 game
-    // (27 Sept 2026: its course limit stood 12 m past every curb; v8 lays it stretch by stretch, track-builder limits.ts)
-    expect(CLIENT_VERSION).toBe('8');
+    // (27 Sept 2026: its course limit stood 12 m past every curb; v8 lays it stretch by stretch, track-builder limits.ts),
+    // and a v8 game (28 Sept 2026: two item slots; v9 has three, so a Daily's third balloon rolls an item)
+    expect(CLIENT_VERSION).toBe('9');
     expect(checkSubmission({ ...noKart, clientVersion: '5' }, IDS)).toBe('please reload the game: new version');
     expect(checkSubmission({ ...good, clientVersion: '6' }, IDS)).toBe('please reload the game: new version');
     expect(checkSubmission({ ...good, clientVersion: '7' }, IDS)).toBe('please reload the game: new version');
+    expect(checkSubmission({ ...good, clientVersion: '8' }, IDS)).toBe('please reload the game: new version');
     expect(postError(400, 'please reload the game: new version')).toMatch(/Reload the page/);
   });
   it('a solo run carries its kart, and a restarted Daily keeps it', () => {
@@ -232,6 +238,12 @@ describe('re-simulation (SOP gate)', () => {
     const d = clientRun(track, 'daily', 'otto', seed);
     expect(verifyRun(TRACKS[track], 'daily', 'otto', seed, encodeLog(d.log), d.result.timeMs)).toMatchObject({ ok: true });
   });
+  it('a daily run that fills all three item slots and spends them replays exactly (three slots, 28 Sept 2026)', () => {
+    const d = clientRun('harbour-loop', 'daily', 'otto', 20260931, 0, undefined, false, true);
+    expect(d.result.dnf).toBe(false);
+    expect(d.log.some((i) => i.item), 'it used its items').toBe(true);
+    expect(verifyRun(TRACKS['harbour-loop'], 'daily', 'otto', 20260931, encodeLog(d.log), d.result.timeMs)).toMatchObject({ ok: true, timeMs: d.result.timeMs });
+  });
 });
 
 describe('red-team hardening (2026-09-23)', () => {
@@ -308,6 +320,15 @@ describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => 
       expect(hopper.result.dnf, `${id} hopping`).toBe(false);
       const h = core.verifyRun(core.TRACKS[id], 'timeTrial', 'pip', 0, encodeLog(hopper.log), hopper.result.timeMs);
       expect(h, `${id}, hopping: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: hopper.result.timeMs });
+    }
+    // the Daily's items (three slots, 28 Sept 2026): the runs above are Time Trials, where items are inert, so an item
+    // rule changed without a rebuild slipped past them. Two Dailies that fill all three slots and spend them: on the
+    // two-slot core one finished 25 ms early and the other never finished.
+    for (const seed of [20260931, 20260920]) {
+      const daily = clientRun('harbour-loop', 'daily', 'otto', seed, 0, undefined, false, true);
+      expect(daily.result.dnf, `daily ${seed}`).toBe(false);
+      const d = core.verifyRun(core.TRACKS['harbour-loop'], 'daily', 'otto', seed, encodeLog(daily.log), daily.result.timeMs);
+      expect(d, `daily ${seed}, three item slots: the bundle is stale, run npm run build:function`).toMatchObject({ ok: true, timeMs: daily.result.timeMs });
     }
   }, 120_000);
 });
