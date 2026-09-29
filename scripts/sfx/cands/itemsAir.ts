@@ -1,4 +1,5 @@
-// Air and motion candidates (28 Sept 2026, for Adam's ears; not installed): throw, trick, boostStart, kite, fog.
+// Item air candidates (28 Sept 2026; set aside the same day: another builder makes the item sounds, and these are kept
+// only as material, in ~/.cache/rascal-sfx/candidates-items-alt): throw, kite, fog.
 // Real recorded air (CC0 on Freesound: throw swishes, whooshes, wing flaps, a puff of smoke, an air release) carries
 // each one; the game's own boost family (its steam-vent flame, the shipped boost takes, pinned) keeps the rocket start
 // kin to the drift boosts; musical sparkles are real mallets (VSCO-2 CE) in the menus' G major.
@@ -66,52 +67,6 @@ const throwC = takes('throwC', 3, (k) => ({ id: 'throw', brief: THROW,
   ],
   master: [{ op: 'hp', hz: 120 }, { op: 'peak', hz: 3000, db: 1.5, q: 1 }, ROOM(0.08), ...END(0.42)] }));
 
-// ---------------------------------------------------------------- trick (the trick button in mid-air)
-const TRICK = 'A go-kart does a quick mid-air flip trick off a ramp in a polished cartoon kart racing game (Mario Kart World quality): a fast spinning swish of air and a small bright sparkle, stylish and fun, short. No voice.';
-const trickA = takes('trickA', 3, (k) => ({ id: 'trick', brief: TRICK,
-  why: "A, spin and sparkle: two real arm swishes (hz37, CC0) 70 ms apart, panned left then right (the kart turning over), and a glockenspiel sparkle, G6 then D7 (VSCO-2 CE, the menus' G major), 14 dB under.",
-  layers: [
-    fs(SWISH, 0, [hit([3, 5, 8][k], 0.35), { op: 'pitch', st: 2 + ST[k] }, { op: 'pan', pos: -0.5 }]),
-    fs(SWISH, -2, [hit([4, 6, 9][k], 0.35), { op: 'pitch', st: 4 + ST[k] }, { op: 'pan', pos: 0.5 }], 0.07),
-    note('G6g', 0.1, 0.35, -14, -0.2), note('D7g', 0.16, 0.4, -15, 0.2),
-  ],
-  master: [{ op: 'hp', hz: 150 }, ROOM(0.12), ...END(0.6)] }));
-const trickB = takes('trickB', 3, (k) => ({ id: 'trick', brief: TRICK,
-  why: "B, tumble: a real arm swish (hz37, CC0) chopped at 14 Hz so it tumbles (the kart spinning through the air), and a quick xylophone flourish up G6, B6, D7 (VSCO-2 CE) as it lands the trick. (The first B, a big whoosh, had a thud AST heard as a door: remade.)",
-  layers: [
-    fs(SWISH, 0, [hit([2, 7, 9][k], 0.45), { op: 'pitch', st: 3 + ST[k] }, { op: 'flutter', depth: 0.55, rate: 14, seed: 3 + k }]),
-    note('G6x', 0.12, 0.2, -12), note('B6x', 0.17, 0.2, -12.5), note('D7x', 0.22, 0.3, -13),
-  ],
-  master: [{ op: 'hp', hz: 150 }, ROOM(0.12), ...END(0.6)] }));
-const trickC = takes('trickC', 3, (k) => ({ id: 'trick', brief: TRICK,
-  why: "C, twirl: three real swishes in a row (qubodup's swipe, florianreichelt's rod swish, qubodup's swosh; CC0), each a tone higher and panned the other way, and a quick run of wind chimes (VSCO-2 CE) for the sparkle.",
-  layers: [
-    fs(SWIPE, 0, [{ op: 'trim', to: 0.25 }, { op: 'pitch', st: ST[k] }, { op: 'pan', pos: -0.4 }]),
-    fs(QUICK, -1, [{ op: 'trim', from: 0.15, to: 0.35 }, { op: 'pitch', st: 2 + ST[k] }, { op: 'pan', pos: 0.4 }], 0.06),
-    fs(SWOSH, -2, [{ op: 'trim', to: 0.3 }, { op: 'pitch', st: 4 + ST[k] }, { op: 'pan', pos: -0.2 }], 0.12),
-    vs('VSCO 1 Percussion/varMetal/various/windchimes_fastAsc1.wav', -15, [{ op: 'trim', to: 0.5 }, { op: 'hp', hz: 2000 }, { op: 'fade', out: 0.25 }], 0.1),
-  ],
-  master: [{ op: 'hp', hz: 150 }, ROOM(0.12), ...END(0.65)] }));
-
-// ---------------------------------------------------------------- boostStart (a perfect rocket start at the go)
-const START = "A perfect rocket start at the GO in a polished cartoon kart racing game (Mario Kart World quality): the tires chirp and the kart launches with a big bright rushing burst of flame and air, thrilling and punchy, about a second and a half. No voice, nothing like a weapon.";
-const chirp = (db: number, at = 0): Layer => fs(SQUEAL, db, [hit(3, 0.16, -14, 0.3), { op: 'bp', hz: 1300, q: 1 }, { op: 'env', pts: [[0, 0], [0.01, 1], [0.06, 0.5], [0.16, 0]] }], at);
-const blast = (st: number, db: number, len: number): Layer => el('steamVent', db, [{ op: 'pitch', st }, { op: 'lp', hz: 5000 }, { op: 'lowshelf', hz: 300, db: 4 }, { op: 'env', pts: [[0, 1], [0.001, 1], [0.1, 0.8], [0.45 * len, 0.3], [len * 0.9, 0]] }, { op: 'trim', to: len }]);
-const bsA: Recipe[] = [{ id: 'boostStart', name: 'boostStartA', brief: START,
-  why: "A, launch: a real tire chirp (johnnydekk, CC0) as the wheels bite, a rising zing of air (band-passed noise sweeping 0.6 to 5 kHz), the game's own steam-vent blast pitched down 5 semitones for the flame (the drift boosts' family, pinned take), a big real whoosh (northern87, CC0) for the rush and a real pass-by swoop (oscaraudiogeek, CC0) trailing off; a room.",
-  layers: [chirp(-6), syn('whoosh', { seconds: 0.45, hz: [[0, 600], [0.35, 5000]], q: 3, env: [[0, 0], [0.08, 1], [0.35, 0.8], [0.45, 0]], seed: 81, color: 'white' }, -9), blast(-5, -2, 1.1), fs(BIG, 0, [{ op: 'trim', from: 0.15, to: 1.45 }, { op: 'fade', in: 0.02 }, { op: 'env', pts: [[0, 0.6], [0.12, 1], [0.6, 0.55], [1.3, 0]] }], 0.03),
-    fs(PASSBY, -8, [{ op: 'trim', from: 0.95, to: 1.9 }, { op: 'fade', in: 0.05 }], 0.15)],
-  master: [{ op: 'hp', hz: 45 }, { op: 'comp', threshold: -14, ratio: 2.5, attack: 0.004, release: 0.12 }, ROOM(0.1, 0.4), ...END(1.5, 0.45)] }];
-const bsB: Recipe[] = [{ id: 'boostStart', name: 'boostStartB', brief: START,
-  why: "B, sparkle launch: the shipped tier-3 drift boost (the recipe's own file, pinned at 527a1c0) so the rocket start sits in the boost family, a tire chirp (johnnydekk, CC0) on its front, and a real glockenspiel glissando rising (VSCO-2 CE) 10 dB under it: the reward of a perfect start.",
-  layers: [el('boost3', 0, [], 0.02, '527a1c0'), chirp(-7), vs('Miscellania Raw/Misc 2/glock_glisses/glock_fx_up_pentatonic_med_01.wav', -11, [hit(0, 0.7, -20, 0.5), { op: 'hp', hz: 1500 }, { op: 'fade', out: 0.35 }], 0.08)],
-  master: [{ op: 'hp', hz: 45 }, ROOM(0.1, 0.4), ...END(1.4, 0.45)] }];
-const bsC: Recipe[] = [{ id: 'boostStart', name: 'boostStartC', brief: START,
-  why: "C, big air: a real low whoosh (DJT4NN3R, CC0) as the thump of the launch, the long real whoosh (northern87, CC0) for the rush, a real pass-by swoop (oscaraudiogeek, CC0) rising out of it, and the chirp; no flame, all air.",
-  layers: [chirp(-7), fs(SHORTLOW, -2, [{ op: 'trim', from: 0.05, to: 0.6 }, { op: 'pitch', st: -2 }]), fs(BIG, -1, [{ op: 'trim', from: 0.1, to: 1.5 }, { op: 'fade', in: 0.05 }], 0.05),
-    fs(PASSBY, -4, [{ op: 'trim', from: 0.7, to: 1.9 }, { op: 'pitch', st: 2 }, { op: 'fade', in: 0.1 }], 0.1)],
-  master: [{ op: 'hp', hz: 45 }, { op: 'comp', threshold: -14, ratio: 2.5, attack: 0.004, release: 0.12 }, ROOM(0.1, 0.4), ...END(1.5, 0.45)] }];
-
 // ---------------------------------------------------------------- kite (a Homing Kite flies off after the kart ahead)
 const KITE = 'The player launches a Homing Kite in a polished cartoon kart racing game (Mario Kart World quality): a paper kite catches the wind with a fast, soft fluttering that rises as it lifts off and zips away after the kart ahead. No voice.';
 const kiteA: Recipe[] = [{ id: 'kite', name: 'kiteA', brief: KITE,
@@ -153,4 +108,4 @@ const fogC: Recipe[] = [{ id: 'fog', name: 'fogC', brief: FOG,
     vs('VSCO 1 Percussion/varWood/maraca_shake.wav', -16, [{ op: 'trim', to: 1.0 }, { op: 'hp', hz: 3000 }, { op: 'fade', in: 0.2, out: 0.5 }], 0.25)],
   master: [{ op: 'hp', hz: 60 }, ROOM(0.15, 0.5), ...END(1.4, 0.45)] }];
 
-export const RECIPES: readonly Recipe[] = [...throwA, ...throwB, ...throwC, ...trickA, ...trickB, ...trickC, ...bsA, ...bsB, ...bsC, ...kiteA, ...kiteB, ...kiteC, ...fogA, ...fogB, ...fogC];
+export const RECIPES: readonly Recipe[] = [...throwA, ...throwB, ...throwC, ...kiteA, ...kiteB, ...kiteC, ...fogA, ...fogB, ...fogC];
