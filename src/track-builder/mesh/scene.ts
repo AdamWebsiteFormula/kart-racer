@@ -338,10 +338,31 @@ interface EdgeStyle { mode: 0 | 1 | 2; a: string; b: string; joints: number; joi
 const EDGES: Readonly<Record<string, EdgeStyle>> = Object.freeze({
   harbour: { mode: 1, a: '#e2ddd0', b: '#d2cabb', joints: 5, joint: 0.28, off: ['#ead9ab', '#d8c290'] }, // a town sidewalk, stripes on the corners; beach sand past it
   skyline: { mode: 1, a: '#f4c64e', b: '#e2a92c', joints: 2, joint: 0.12 },             // gold trim; stripes on the corners
-  meadow: { mode: 2, a: '#7cbc56', b: '#5e9c40', joints: 0, joint: 0 },                 // a grass verge
-  canyon: { mode: 2, a: '#ecc08a', b: '#d9a56d', joints: 0, joint: 0 },                 // drifted sand
-  frost: { mode: 2, a: '#f7faff', b: '#d6e3f3', joints: 0, joint: 0 },                  // a snowbank
+  // a country lane's edge: worn grass and the farm's dirt in patches (28 Sept 2026: a flat mint band read as a highway's;
+  // these colours are linear, so a dirt that reads as dirt is darker here than its hex looks)
+  meadow: { mode: 2, a: '#5a4526', b: '#3f6a22', joints: 0, joint: 0 },
+  // drifted sand, and the biome's turquoise and cream striped on the inside of its tight bends (PBR: road.ts insideCurbs)
+  canyon: { mode: 1, a: '#ecc08a', b: '#d9a56d', joints: 0, joint: 0 },
+  // a snowbank, and hot pink and white on the inside of the pass's hairpins
+  frost: { mode: 1, a: '#f7faff', b: '#d6e3f3', joints: 0, joint: 0 },
   boardwalk: { mode: 2, a: '#4c3c72', b: '#3a2d5a', joints: 16, joint: 0.35, neon: '#2ee6ff' }, // planks with a neon line
+});
+
+/**
+ * Each place's road paint (28 Sept 2026; the second fresh-eyes review, item 3: "five of six tracks run on the same gray
+ * highway with lane dashes"): the dashed centre line and the edge lines, each 0 (none) to 1, their colour, and how far
+ * in from each edge the edge line runs (a share of the width). Only the seaside town keeps a town street's lines (its
+ * edge line set in past its cobbled gutter: art-pipeline surfaces.ts ROAD_LOOKS harbour.gutter); a country lane and a
+ * pass under snow carry none, a desert road faded edge lines under its dust (Mario Kart World's own farm road and
+ * desert road carry no lane paint: youtube.com/watch?v=OSU-aguh1AY 1:29:15, 2:26), the sky road a thin cream edge line.
+ * Planks carry none.
+ */
+const ROAD_PAINT: Readonly<Record<string, { centre: number; edge: number; colour: Rgb; inset: number }>> = Object.freeze({
+  harbour: { centre: 1, edge: 1, colour: [0.93, 0.93, 0.88], inset: 0.042 },
+  meadow: { centre: 0, edge: 0, colour: [0.93, 0.93, 0.88], inset: 0.012 },
+  canyon: { centre: 0, edge: 0.4, colour: [0.95, 0.9, 0.82], inset: 0.012 },
+  frost: { centre: 0, edge: 0, colour: [0.93, 0.93, 0.88], inset: 0.012 },
+  skyline: { centre: 0, edge: 0.85, colour: [1.0, 0.95, 0.8], inset: 0.02 },
 });
 
 /**
@@ -373,13 +394,17 @@ float roadPaintWear(vec2 road, vec2 lane) {
  * ruts, where the lines stop. Reads the ribbon's `mark`, `bend` and `surf` attributes (road.ts);
  * vertex colours still tint everything else.
  */
-function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle, offroad: boolean): void {
+function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boolean, edge: EdgeStyle, offroad: boolean, paint = ROAD_PAINT.harbour): void {
   const kerbA = new Color(...palette.kerbA), kerbB = new Color(...palette.kerbB);
   const ea = hexToRgb(edge.a), eb = hexToRgb(edge.b), neon = edge.neon ? hexToRgb(edge.neon) : ([0, 0, 0] as Rgb);
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uKerbA = { value: kerbA };
     shader.uniforms.uKerbB = { value: kerbB };
-    shader.uniforms.uLines = { value: lines ? 1 : 0 };
+    shader.uniforms.uLines = { value: lines && paint.centre + paint.edge > 0 ? 1 : 0 };
+    shader.uniforms.uLineCentre = { value: paint.centre };
+    shader.uniforms.uLineEdge = { value: paint.edge };
+    shader.uniforms.uLineColour = { value: new Color(...paint.colour) };
+    shader.uniforms.uLineInset = { value: paint.inset };
     shader.uniforms.uEdgeMode = { value: edge.mode };
     shader.uniforms.uEdgeA = { value: new Color(...ea) };
     shader.uniforms.uEdgeB = { value: new Color(...eb) };
@@ -397,7 +422,7 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
       .replace('#include <common>', '#include <common>\nattribute float mark;\nattribute float bend;\nattribute float surf;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n#ifdef STANDARD\nattribute vec2 lane;\nattribute float curb;\nvarying vec2 vLane;\nvarying float vCurb;\n#endif')
       .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMark = mark;\nvBend = bend;\nvSurf = surf;\nvRoad = uv;\n#ifdef STANDARD\nvLane = lane;\nvCurb = curb;\n#endif');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nuniform vec3 uMud;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n${PBR_ROAD_PARS}`)
+      .replace('#include <common>', `#include <common>\nuniform vec3 uKerbA;\nuniform vec3 uKerbB;\nuniform float uLines;\nuniform float uLineCentre;\nuniform float uLineEdge;\nuniform vec3 uLineColour;\nuniform float uLineInset;\nuniform float uEdgeMode;\nuniform vec3 uEdgeA;\nuniform vec3 uEdgeB;\nuniform float uEdgeJoints;\nuniform float uEdgeJoint;\nuniform vec3 uNeon;\nuniform float uOffroad;\nuniform vec3 uOffA;\nuniform vec3 uOffB;\nuniform vec3 uMud;\nvarying float vMark;\nvarying float vBend;\nvarying float vSurf;\nvarying vec2 vRoad;\n${PBR_ROAD_PARS}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         if (vMark > 0.5 && vMark < 1.5) {
           // a neon line along the edge (Boardwalk): it lights itself
@@ -473,18 +498,18 @@ function paintRoadLines(m: MeshToonMaterial, palette: TrackPalette, lines: boole
           // painted lines: an edge line just inside each kerb, a dashed centre line
           float x = vRoad.x, wx = fwidth(x);
           float e = min(x, 1.0 - x);
-          float edge = smoothstep(0.012 - wx, 0.012, e) * (1.0 - smoothstep(0.024, 0.024 + wx, e));
+          float edge = smoothstep(uLineInset - wx, uLineInset, e) * (1.0 - smoothstep(uLineInset + 0.012, uLineInset + 0.012 + wx, e));
           float c = abs(x - 0.5);
           float dash = step(fract(vRoad.y * 0.6), 0.45);
           float centre = (1.0 - smoothstep(0.006, 0.006 + wx, c)) * dash;
-          // the lines stop at a mud patch (no paint on mud)
-          float paint = max(edge, centre) * 0.9 * (1.0 - mudMask);
+          // the lines stop at a mud patch (no paint on mud); each place paints the ones its road carries (ROAD_PAINT)
+          float paint = max(edge * uLineEdge, centre * uLineCentre) * 0.9 * (1.0 - mudMask);
           #ifdef STANDARD
             // the PBR look: worn paint, patchy and chipped, thinnest where the racing line's tires cross it
             paint *= 1.0 - roadPaintWear(vRoad, vLane);
             roadPaint = paint;
           #endif
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.93, 0.88), paint);
+          diffuseColor.rgb = mix(diffuseColor.rgb, uLineColour, paint);
         }`);
   };
   m.customProgramCacheKey = () => `road-lines-${lines ? 1 : 0}`;
@@ -849,7 +874,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const roadMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT ?? null });
   if (PLANKED.has(def.biome)) roadMaterial.map = plankTexture();
   else if (assets.roadMap) roadMaterial.map = assets.roadMap;
-  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour, def.offroad === true);
+  paintRoadLines(roadMaterial, palette, !PLANKED.has(def.biome), EDGES[def.biome] ?? EDGES.harbour, def.offroad === true, ROAD_PAINT[def.biome]);
   assets.road?.(roadMaterial);
   const chunks: Chunk[] = [];
   for (const b of branches.list) chunks.push(...buildBranchChunks(b, branches.main, palette, roadMaterial));

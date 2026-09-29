@@ -128,8 +128,9 @@ class Cards {
     const i = this.pos.length / 3;
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
     let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const l = Math.hypot(nx, ny, nz) || 1;
-    nx /= l; ny /= l; nz /= l;
+    const l = Math.hypot(nx, ny, nz);
+    // (never a zero normal: one NaN pixel blacks out a whole frame through the bloom, performance SOP 26 Sept 2026)
+    if (l < 1e-9) { nx = 0; ny = 1; nz = 0; } else { nx /= l; ny /= l; nz /= l; }
     [a, b, c, d].forEach((p, k) => {
       this.pos.push(p[0], p[1], p[2]);
       this.nor.push(nx, ny, nz);
@@ -144,8 +145,8 @@ class Cards {
     const i = this.pos.length / 3;
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
     let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const l = Math.hypot(nx, ny, nz) || 1;
-    nx /= l; ny /= l; nz /= l;
+    const l = Math.hypot(nx, ny, nz);
+    if (l < 1e-9) { nx = 0; ny = 1; nz = 0; } else { nx /= l; ny /= l; nz /= l; }
     [a, b, c].forEach((p, k) => {
       this.pos.push(p[0], p[1], p[2]);
       this.nor.push(nx, ny, nz);

@@ -54,6 +54,57 @@ describe('road wear and sheen (critique of 24 Sept 2026: "flat, uniform grey wit
   });
 });
 
+describe('each place its own road (the second fresh-eyes review, item 3, 28 Sept 2026: "five of six tracks run on the same gray highway with lane dashes")', () => {
+  /** the road material's line uniforms as its shader sets them */
+  function lines(def: TrackDefinition): { lines: number; centre: number; edge: number } {
+    const { m } = road(def);
+    const shader = { vertexShader: ShaderChunk.meshtoon_vert, fragmentShader: ShaderChunk.meshtoon_frag, uniforms: {} } as unknown as WebGLProgramParametersWithUniforms;
+    m.onBeforeCompile(shader, {} as WebGLRenderer);
+    const u = shader.uniforms as Record<string, { value: number }>;
+    return { lines: u.uLines.value, centre: u.uLineCentre.value, edge: u.uLineEdge.value };
+  }
+
+  it('only the seaside town keeps a town street\'s lane dashes; the farm lane and the snowy pass carry no lines; the desert road faded edge lines', () => {
+    for (const def of TRACKS) {
+      const l = lines(def);
+      // (planks carry no lines at all: uLines off)
+      expect(l.lines * l.centre > 0, def.id).toBe(def.biome === 'harbour');
+      if (def.biome === 'meadow' || def.biome === 'frost' || def.biome === 'boardwalk') expect(l.lines, def.id).toBe(0);
+      if (def.biome === 'canyon') expect(l.edge).toBeLessThan(0.6);
+    }
+  });
+
+  it('every land road its own features: dust drifted across Mesa Rush, snow packed into Frostbite Pass\'s tracks, cobbles and brick in Lighthouse Loop\'s town, gold on the sky road', () => {
+    const want: Record<string, string[]> = {
+      canyon: ['#define DRIFT'], frost: ['#define SNOWROAD'], harbour: ['#define GUTTER', '#define BRICKS'], skyline: ['#define GILD', '#define SEAMS'],
+      meadow: ['#define PATCHES 100', '#define DUST', '#define PUDDLES'],
+    };
+    const all = ['#define DRIFT', '#define SNOWROAD', '#define GUTTER', '#define BRICKS', '#define GILD'];
+    for (const def of TRACKS) {
+      const { fs } = road(def);
+      for (const d of want[def.biome] ?? []) expect(fs.includes(d), `${def.id}: ${d}`).toBe(true);
+      for (const d of all) if (!(want[def.biome] ?? []).includes(d)) expect(fs.includes(d), `${def.id}: not ${d}`).toBe(false);
+    }
+  });
+
+  it('the snowy pass keeps the sim\'s ice readable as ice: never dusted, clearer and glossier (read by its own pale color, far brighter than the road)', () => {
+    const { fs } = road(TRACKS.find((d) => d.biome === 'frost')!);
+    expect(fs).toContain('float ice = smoothstep(');
+    expect(fs).toContain('diffuseColor.rgb = mix(snowy, icy, ice * rwClean);');
+    // the ribbon's ice color is far brighter than its road's (track-builder palette.ts): the shader can tell them apart
+    const luma = (h: string) => { const v = parseInt(h.slice(1), 16); return (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255; };
+    expect(luma('#cfe9f7')).toBeGreaterThan(0.8);
+    expect(luma('#6f8299')).toBeLessThan(0.55);
+  });
+
+  it('every road look keeps its sheen a glint and its colors plain CSS', () => {
+    for (const [biome, l] of Object.entries(ROAD_LOOKS)) {
+      for (const c of [l.drift, l.gutterTint, l.brickTint, l.gild, l.dust, l.lineTint].filter(Boolean)) expect(c, biome).toMatch(/^#[0-9a-f]{6}$/);
+      if (l.gildGloss !== undefined) expect(l.gildGloss, biome).toBeGreaterThanOrEqual(0.3); // polished, never a mirror
+    }
+  });
+});
+
 /** A material's shaders as the renderer would compile them, a standard one's through three's physical shader. */
 function compile(m: Material): { vs: string; fs: string } {
   const std = (m as MeshStandardMaterial).isMeshStandardMaterial;
