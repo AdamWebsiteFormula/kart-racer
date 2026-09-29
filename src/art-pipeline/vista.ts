@@ -17,13 +17,13 @@
 // vista stands it where the piece stood, one draw per model (VistaParts.models); without the file, or
 // before it arrives, the piece stays code-built.
 import {
-  AdditiveBlending, Box3, BufferAttribute, BufferGeometry, InstancedMesh, Matrix4, Mesh, NormalBlending, Quaternion,
-  ShaderMaterial, UniformsLib, UniformsUtils, Vector3, type Material,
+  AdditiveBlending, Box3, BufferAttribute, BufferGeometry, CanvasTexture, ClampToEdgeWrapping, InstancedMesh, Matrix4, Mesh,
+  MeshStandardMaterial, NormalBlending, Quaternion, ShaderMaterial, SRGBColorSpace, UniformsLib, UniformsUtils, Vector3, type Material,
 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { VistaContext, VistaParts, VistaPiece } from '../track-builder/mesh/index.ts';
 import { decorGeometry } from './decor.ts';
-import { HAZE } from './look.ts';
+import { HAZE, PBR } from './look.ts';
 import { ModelBuilder, type Paint, type V3 } from './model.ts';
 import { WATER_CLOCK } from './surfaces.ts';
 
@@ -329,6 +329,82 @@ export function flierAt(f: Flier, time: number, trig: Float32Array): V3 | null {
 /** A model file standing in for a named piece: its geometry fitted onto the code-built piece's box (glb.ts), and its own material; both shared, never disposed by a scene. */
 export interface PieceFile { geometry: BufferGeometry; material: Material }
 
+/** A banded rock column in its set-piece's own frame: its middle (x, z), its radius and its height (column()). */
+export type Column = readonly [x: number, z: number, r: number, h: number];
+
+/** A picture as a page holds it (an ImageBitmap, an image, a canvas): what an atlas draws from. */
+type Picture = CanvasImageSource & { width: number; height: number };
+
+/**
+ * Where an atlas is drawn: a canvas `width` x `height` with each picture drawn at its `x` along the top,
+ * or null where a page cannot (no DOM: the tests, a worker). Tests may put a stand-in here.
+ */
+export const ATLAS = {
+  canvas: (width: number, height: number, pictures: readonly { image: Picture; x: number }[]): CanvasImageSource | null => {
+    if (typeof document === 'undefined') return null;
+    const c = document.createElement('canvas');
+    c.width = width; c.height = height;
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    for (const p of pictures) ctx.drawImage(p.image, p.x, 0);
+    return c;
+  },
+};
+
+/** The widest atlas drawn (pixels): wider, the files keep a draw each. */
+const ATLAS_MAX = 4096;
+
+/**
+ * Every placement of a track's model files (textured) as one mesh over one picture: the files' pictures
+ * side by side in a canvas, each copy's UVs moved onto its own part of it, the copies merged in world
+ * space. One draw where each file would take one (28 Sept 2026: Mesa Rush's cinder cone and its buttes,
+ * Lighthouse Loop's volcano and sea stacks, with the draw budget full). The mesh, its material and its
+ * picture are this scene's own (userData.ownGeometry, ownMaterial, ownMap: the scene frees them). Null
+ * where the pictures cannot be drawn (no DOM) or would not fit: each file then keeps its own draw.
+ */
+export function atlasMesh(groups: ReadonlyMap<string, { file: PieceFile; at: readonly Matrix4[] }>): Mesh | null {
+  const parts: { name: string; file: PieceFile; at: readonly Matrix4[]; image: Picture; x: number }[] = [];
+  let width = 0, height = 0;
+  for (const [name, { file, at }] of groups) {
+    const map = (file.material as MeshStandardMaterial).map, image = map?.image as Picture | undefined;
+    if (!image?.width || !image.height || !file.geometry.hasAttribute('uv') || map!.flipY) return null;
+    parts.push({ name, file, at, image, x: width });
+    width += image.width;
+    height = Math.max(height, image.height);
+  }
+  if (width > ATLAS_MAX) return null;
+  const canvas = ATLAS.canvas(width, height, parts);
+  if (!canvas) return null;
+  const copies: BufferGeometry[] = [];
+  for (const p of parts) {
+    const w = p.image.width / width, h = p.image.height / height, u0 = p.x / width;
+    for (const m of p.at) {
+      const g = new BufferGeometry();
+      for (const a of ['position', 'normal', 'uv']) g.setAttribute(a, p.file.geometry.getAttribute(a).clone());
+      if (p.file.geometry.index) g.setIndex(p.file.geometry.index.clone());
+      const uv = g.getAttribute('uv');
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * w, uv.getY(i) * h);
+      copies.push(g.applyMatrix4(m));
+    }
+  }
+  const geometry = mergeGeometries(copies, false);
+  for (const g of copies) g.dispose();
+  if (!geometry) return null;
+  geometry.computeBoundingSphere();
+  const map = new CanvasTexture(canvas);
+  map.colorSpace = SRGBColorSpace;
+  map.flipY = false;
+  map.wrapS = map.wrapT = ClampToEdgeWrapping;
+  // rough and not metal, as every model file's own material is made (glb.ts PropModels)
+  const mesh = new Mesh(geometry, new MeshStandardMaterial({ map, roughness: PBR.roughness, metalness: PBR.metalness }));
+  mesh.name = 'vista-model';
+  mesh.userData.piece = 'atlas';
+  mesh.userData.pieces = parts.map((p) => p.name);
+  mesh.userData.ownGeometry = mesh.userData.ownMaterial = mesh.userData.ownMap = true;
+  mesh.castShadow = mesh.receiveShadow = false;
+  return mesh;
+}
+
 /** Where a piece stands: its place, its turn, the model file drawn there (if any), and a point of the piece's own frame in the world. */
 export interface Placed { p: V3; yaw: number; file?: PieceFile; toWorld(local: V3): V3 }
 
@@ -453,6 +529,33 @@ class Vista {
     if (g) this.add(name, placed(g, p, yaw, scale));
     return { p, yaw, toWorld };
   }
+  /** Whether the model file for a named piece is in (its set-piece then leaves its own drums out: `columns`). */
+  has(name: string): boolean { return this.files(name) !== undefined; }
+  /**
+   * The butte's model file (BUTTE) standing in for each banded rock column of a set-piece placed as
+   * `solid` places it: each copy stretched onto its column's own box (2r across, h plus the cap's height
+   * tall, the same floor and middle), turned its own way (a hash of its place, so no two look alike).
+   * Nothing without the file: the set-piece keeps the drums it builds itself.
+   */
+  columns(cols: readonly Column[], deg: number, d: number, y = 0, scale: number | V3 = 1, turn = 0): void {
+    const file = this.files(BUTTE);
+    if (!file) return;
+    const piece = new Matrix4().compose(P.set(...this.at(deg, d, y)), Q.setFromAxisAngle(UP, this.facing(deg) + turn), S.set(...(typeof scale === 'number' ? [scale, scale, scale] as V3 : scale)));
+    const g = file.geometry;
+    g.computeBoundingBox();
+    const b = g.boundingBox!, w = b.max.x - b.min.x, dp = b.max.z - b.min.z, h0 = b.max.y - b.min.y;
+    const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
+    for (const [x, z, r, h] of cols) {
+      const tall = h + Math.max(1.2, r * 0.18); // the code-built column's cap stands this far over its drums
+      const spin = (((Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1) + 1) % 1 * Math.PI * 2;
+      const m = new Matrix4().makeTranslation(-cx, -b.min.y, -cz)
+        .premultiply(new Matrix4().makeScale((2 * r) / w, tall / h0, (2 * r) / dp))
+        .premultiply(new Matrix4().makeRotationY(spin))
+        .premultiply(new Matrix4().makeTranslation(x, 0, z))
+        .premultiply(piece);
+      this.placements.push({ name: BUTTE, file, matrix: m });
+    }
+  }
   parts(): VistaParts {
     const sun = this.ctx.sun;
     const out: VistaParts = {
@@ -469,13 +572,16 @@ class Vista {
       this.solids.forEach((g, i) => { const count = g.getAttribute('position').count; pieces.push({ name: this.names[i], start, count }); start += count; });
       out.pieces = pieces;
     }
-    // the model files: one draw each, however many places it stands in (shared geometry and material)
+    // the model files: one draw each, however many places it stands in (shared geometry and material);
+    // two or more files on one track share a single draw where a page can draw their pictures side by side
     const byName = new Map<string, { file: PieceFile; at: Matrix4[] }>();
     for (const pl of this.placements) {
       const e = byName.get(pl.name) ?? { file: pl.file, at: [] };
       e.at.push(pl.matrix);
       byName.set(pl.name, e);
     }
+    const atlas = byName.size > 1 ? atlasMesh(byName) : null;
+    if (atlas) { out.models!.push(atlas); byName.clear(); }
     for (const [name, { file, at }] of byName) {
       let m: Mesh;
       if (at.length === 1) {
@@ -981,6 +1087,14 @@ function meadow(v: Vista): void {
 
 const CLAY = '#c65a3a', CREAM = '#ebb98c', RUST = '#a8462c', RED = '#d9774f';
 
+/** The butte's model file: it stands in for Mesa Rush's banded rock columns (Vista.columns). */
+const BUTTE = 'vista-butte';
+
+/** One banded rock column as the code-built set-pieces build them: the box a butte's model file is fitted onto. */
+function butteColumn(): BufferGeometry {
+  return model((m) => column(m, 0, 0, 10, 33, [CLAY, CREAM, RUST, RED, CREAM, CLAY], RUST, 10));
+}
+
 /** The glow of a cinder cone's crater (colours past white: the bloom lights it). */
 const LAVA: Paint = [2.4, 0.7, 0.18];
 
@@ -1009,12 +1123,20 @@ function canyon(v: Vista): void {
   v.landmark = crater;
   for (let k = 0; k < 7; k++) v.glows.push(mover(spark(11, [0.3, 0.19, 0.12]), [crater[0], crater[1] + 2, crater[2]], 0, [MOVE.rise, k / 7, 0.045, 80]));
 
-  // a timber train trestle between two buttes, a little train running across it
+  // the butte's model file stands in for every banded column out here (review, 28 Sept 2026: "rows of
+  // striped cylinders ... stacked drums or traffic cones"); without it each set-piece builds its own drums
+  const drums = !v.has(BUTTE);
+
+  // a timber train trestle between two buttes, a little train running across it (its deck runs 6 m into
+  // each butte, so it meets a model's rock wherever that stands)
+  const trestleCols: Column[] = [[-52, 0, 17, 48], [52, 0, 15, 44]];
   const trestle = model((m) => {
-    column(m, -52, 0, 17, 48, [CLAY, CREAM, RUST, RED, CREAM], RUST);
-    column(m, 52, 0, 15, 44, [RUST, CREAM, CLAY, CREAM], CLAY);
-    m.box([74, 1.6, 4.5], '#6b4a2b', [0, 41.8, 0], undefined, false);
-    for (const z of [-1.1, 1.1]) m.box([74, 0.4, 0.3], '#8a8f99', [0, 42.8, z], undefined, false);
+    if (drums) {
+      column(m, ...trestleCols[0], [CLAY, CREAM, RUST, RED, CREAM], RUST);
+      column(m, ...trestleCols[1], [RUST, CREAM, CLAY, CREAM], CLAY);
+    }
+    m.box([86, 1.6, 4.5], '#6b4a2b', [0, 41.8, 0], undefined, false);
+    for (const z of [-1.1, 1.1]) m.box([86, 0.4, 0.3], '#8a8f99', [0, 42.8, z], undefined, false);
     for (let i = 0; i <= 8; i++) {
       const x = -36 + i * 9;
       for (const z of [-2.4, 2.4]) m.cyl(0.35, 0.45, 42, '#7a5236', [x, 21, z], undefined, 4, false);
@@ -1022,6 +1144,7 @@ function canyon(v: Vista): void {
     }
   });
   const tp = v.solid('vista-trestle', trestle, -52, v.out(150)), tyaw = v.facing(-52);
+  v.columns(trestleCols, -52, v.out(150));
   const train = model((m) => {
     m.box([2.4, 2.6, 7], '#2e3a4a', [0, 1.8, 3.8]);
     m.cyl(1.1, 1.1, 5, '#3c4b5c', [0, 2.2, 5.2], [Math.PI / 2, 0, 0], 8, false);
@@ -1033,10 +1156,14 @@ function canyon(v: Vista): void {
   const along: V3 = [Math.cos(tyaw), 0, -Math.sin(tyaw)];
   v.movers.push(mover(train, [tp[0] - along[0] * 30, tp[1] + 42.8, tp[2] - along[2] * 30], tyaw + Math.PI / 2, [MOVE.shuttle, 0, 0.18, 0], [along[0], 0, along[2], 60]));
 
-  // a rope bridge between two hoodoos
+  // a rope bridge between two hoodoos (a model's pillars stand 3 m taller than the drums, so the bridge's
+  // ends reach their tops)
+  const ropeCols: Column[] = [[-24, 0, 8, 40], [24, 0, 7, 36]];
   const rope = model((m) => {
-    column(m, -24, 0, 8, 40, [CLAY, CREAM, RUST, CLAY], RUST, 7);
-    column(m, 24, 0, 7, 36, [RUST, CREAM, CLAY, RED], CLAY, 7);
+    if (drums) {
+      column(m, ...ropeCols[0], [CLAY, CREAM, RUST, CLAY], RUST, 7);
+      column(m, ...ropeCols[1], [RUST, CREAM, CLAY, RED], CLAY, 7);
+    }
     for (let i = 0; i < 12; i++) {
       const u = (i + 0.5) / 12, x = -18 + 36 * u, y = 38 - 6 * 4 * u * (1 - u);
       m.box([2.6, 0.3, 3.2], '#a0703c', [x, y, 0], [0, 0, (u - 0.5) * 0.5], false);
@@ -1047,36 +1174,38 @@ function canyon(v: Vista): void {
     }
   });
   v.solid('vista-rope-bridge', rope, 58, v.out(120));
+  v.columns(ropeCols.map(([x, z, r, h]) => [x, z, r, h + 3] as const), 58, v.out(120));
 
   // the mouth of a deep far gorge: two great banded walls with a river running out between them
+  const gorgeCols: Column[] = [];
+  for (const s of [-1, 1]) for (let i = 0; i < 4; i++) gorgeCols.push([s * (30 + i * 4), -60 + i * 40, 20 + (i % 2) * 4, 56 - i * 6 + (s > 0 ? 6 : 0)]);
   const gorge = model((m) => {
-    for (const s of [-1, 1]) {
-      for (let i = 0; i < 4; i++) {
-        const z = -60 + i * 40;
-        column(m, s * (30 + i * 4), z, 20 + (i % 2) * 4, 56 - i * 6 + (s > 0 ? 6 : 0), [CLAY, CREAM, RUST, RED, CREAM, CLAY], RUST, 9);
-      }
-    }
+    if (drums) for (const c of gorgeCols) column(m, ...c, [CLAY, CREAM, RUST, RED, CREAM, CLAY], RUST, 9);
     m.box([16, 0.4, 170], '#4aa8e0', [0, 0.25, 0], undefined, false);
     m.box([26, 0.3, 170], '#d9a56d', [0, 0.1, 0], undefined, false);
   });
   const gp = v.solid('vista-gorge', gorge, 130, v.out(170)), gyaw = v.facing(130);
+  v.columns(gorgeCols, 130, v.out(170));
   v.glows.push(mover(model((m) => m.box([8, 0.1, 160], [0.55, 0.95, 1.3], [0, 0, 0], undefined, false)), [gp[0], gp[1] + 0.5, gp[2]], gyaw, [MOVE.shimmer, 0, 0.3, 0.9], [0, 0, 1, 0.05]));
 
   // clusters of tall buttes framing the far corners
-  const buttes = model((m) => {
-    column(m, 0, 0, 20, 66, [CLAY, CREAM, RUST, RED, CREAM, CLAY, RUST], RUST, 10);
-    column(m, 38, 16, 14, 48, [RUST, CREAM, CLAY, CREAM, RED], CLAY, 9);
-    column(m, -30, 22, 11, 38, [CLAY, CREAM, RUST, CREAM], RUST, 8);
-  });
-  v.solid('vista-buttes', buttes, -118, v.out(170));
-  v.solid('vista-buttes', buttes, 178, v.out(190), 0, 1.15, 2.1);
+  const butteCols: Column[] = [[0, 0, 20, 66], [38, 16, 14, 48], [-30, 22, 11, 38]];
+  const buttes = drums ? model((m) => {
+    column(m, ...butteCols[0], [CLAY, CREAM, RUST, RED, CREAM, CLAY, RUST], RUST, 10);
+    column(m, ...butteCols[1], [RUST, CREAM, CLAY, CREAM, RED], CLAY, 9);
+    column(m, ...butteCols[2], [CLAY, CREAM, RUST, CREAM], RUST, 8);
+  }) : null;
+  const clusters: [number, number, number, number][] = [[-118, 170, 1, 0], [178, 190, 1.15, 2.1], [88, 230, 0.9, 0.7]];
+  for (const [deg, d, s, turn] of clusters) {
+    if (buttes) v.solid('vista-buttes', buttes, deg, v.out(d), 0, s, turn);
+    v.columns(butteCols, deg, v.out(d), 0, s, turn);
+  }
   // pterosaurs of our own circling high over the far buttes, gliding with a slow beat now and then
   const pt = pterosaur();
   for (const [deg, d, h, r, ph] of [[-118, 170, 88, 40, 0], [178, 190, 76, 34, 2.1], [88, 230, 96, 44, 4.2]] as const) {
     const c = v.at(deg, v.out(d), h);
     v.flier('pterosaur', 'orbit', pt, c, 0, [MOVE.orbit, ph, 8 / r, r], [-0.3, 0, 0, 0], [0.9, 0.34, ROOT.pterosaur], -1, c);
   }
-  v.solid('vista-buttes', buttes, 88, v.out(230), 0, 0.9, 0.7);
 }
 
 // ================================================================ Frostbite Pass: a glacier peak and a village
@@ -1344,6 +1473,8 @@ const PIECES: Readonly<Record<string, { biome: string; build: () => BufferGeomet
   'vista-stacks': { biome: 'harbour', build: seaStacks, grounded: true },
   'vista-tree': { biome: 'meadow', build: giantTree, grounded: true },
   'vista-cinder-cone': { biome: 'canyon', build: cinderCone, grounded: true },
+  // one file for every banded column of Mesa's buttes, trestle, rope bridge and gorge (Vista.columns)
+  [BUTTE]: { biome: 'canyon', build: butteColumn, grounded: true },
   'vista-peak': { biome: 'frost', build: glacierPeak, grounded: true },
   // (its spots have three to five trees: the box is the four-tree one's, all but the same)
   'vista-sky-island': { biome: 'skyline', build: () => skyIsland(4), grounded: false },

@@ -46,12 +46,24 @@ function blades(m: ModelBuilder, colours: readonly Paint[], n: number, h: number
   }
 }
 
-/** A beach hut facing the road (its door at local -X): a painted body with white boards down its front, a white roof, a door. */
+/**
+ * A beach hut facing the road (its door at local -X), drawn from its concept image (28 Sept 2026; review: "its
+ * beach huts are boxes with pyramid roofs"): a painted body a little taller than wide, its gable to the road
+ * under a white pitched roof with eaves, a door in a white frame with a round-ish window, a little awning in
+ * the door's color over it and a wooden step (108 triangles).
+ */
 function hut(m: ModelBuilder, body: Paint, door: Paint): void {
-  m.box([1.8, 2.1, 1.7], body, [0, 1.05, 0], undefined, false);
-  for (const z of [-0.62, 0.62]) m.box([0.05, 2.1, 0.2], WHITE, [-0.92, 1.05, z], undefined, false);
-  m.cone(1.5, 1.0, WHITE, [0, 2.6, 0], [0, Math.PI / 4, 0], 4, false);
-  m.box([0.06, 1.45, 0.72], door, [-0.92, 0.8, 0], undefined, false);
+  m.box([1.7, 2.2, 1.6], body, [0, 1.1, 0], undefined, false);
+  // the gable: a square prism laid along X, turned 45 degrees (its lower half is inside the body)
+  m.box([1.7, 1.131, 1.131], body, [0, 2.2, 0], [Math.PI / 4, 0, 0], false);
+  // the roof: two white boards down the slopes, past the gable ends and out over the eaves
+  for (const s of [-1, 1]) m.box([2.0, 0.08, 1.3], WHITE, [0, 2.63, s * 0.46], [s * Math.PI / 4, 0, 0], false);
+  // the door in its white frame, a small window in it, the awning over it and the step under it
+  m.box([0.05, 1.52, 0.8], WHITE, [-0.86, 0.8, 0], undefined, false);
+  m.box([0.07, 1.36, 0.62], door, [-0.87, 0.74, 0], undefined, false);
+  m.box([0.08, 0.24, 0.24], '#e4f5ff', [-0.89, 1.12, 0], [Math.PI / 4, 0, 0], false);
+  m.box([0.5, 0.06, 1.0], door, [-1.07, 1.66, 0], [0, 0, 0.32], false);
+  m.box([0.34, 0.16, 0.86], '#b07a4a', [-1.02, 0.08, 0], undefined, false);
 }
 
 /** A leafy clump of wildflowers, heads open on top, a little taller than the grass (drive-through; 42 triangles). */

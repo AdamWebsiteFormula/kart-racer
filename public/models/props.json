@@ -23,6 +23,12 @@
   "url": "models/props/chalet.glb",
   "yaw": 0
  },
+ "cliff": {
+  "url": "models/props/cliff.glb",
+  "yaw": 3.1416,
+  "fit": "box",
+  "shadow": false
+ },
  "cloud": {
   "url": "models/props/cloud.glb",
   "yaw": 0
@@ -114,6 +120,10 @@
   "url": "models/props/tent.glb",
   "yaw": 0
  },
+ "vista-butte": {
+  "url": "models/props/vista-butte.glb",
+  "yaw": 0
+ },
  "vista-cinder-cone": {
   "url": "models/props/vista-cinder-cone.glb",
   "yaw": 3.1416
@@ -125,6 +135,10 @@
  "vista-sky-island": {
   "url": "models/props/vista-sky-island.glb",
   "yaw": 3.1416
+ },
+ "vista-stacks": {
+  "url": "models/props/vista-stacks.glb",
+  "yaw": 0
  },
  "vista-volcano": {
   "url": "models/props/vista-volcano.glb",

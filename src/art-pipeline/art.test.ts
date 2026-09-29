@@ -180,6 +180,9 @@ describe('scenery model files', () => {
     const w = fitToBox(new BoxGeometry(2, 4, 1), new Box3(new Vector3(-10, 0, -3), new Vector3(10, 2, 3)), 'width').boundingBox!;
     expect(w.max.x - w.min.x).toBeCloseTo(20, 6);
     expect(w.max.y - w.min.y).toBeCloseTo(40, 6);
+    // by box: each axis onto the target's own (a canyon wall's file, longer for its height than the code-built wall)
+    const bx = fitToBox(new BoxGeometry(2, 4, 1).translate(3, 2, 0), new Box3(new Vector3(-10, 0, -3), new Vector3(10, 2, 3)), 'box').boundingBox!;
+    expect([bx.min.x, bx.min.y, bx.min.z, bx.max.x, bx.max.y, bx.max.z].map((n) => +n.toFixed(6))).toEqual([-10, 0, -3, 10, 2, 3]);
     // no manifest: every prop stays code-built
     const none = new PropModels('/', (async () => ({ ok: false })) as unknown as typeof fetch);
     await none.load();

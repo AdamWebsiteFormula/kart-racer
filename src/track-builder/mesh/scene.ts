@@ -929,8 +929,9 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     if (own) fadeNearCamera(own);
     const m = instancer(`decor:${entry.asset}`, geo, palette.decor, p.matrices, undefined, own);
     // an instancer is never culled per instance, so every copy is drawn into the shadow map each
-    // frame: only the roadside band is near enough for its shadows to be seen
-    m.castShadow = entry.band === 'roadside';
+    // frame: only the roadside band is near enough for its shadows to be seen (and a model file may
+    // cast none where the draw budget has no room for its shadow draw: art-pipeline ModelSpec.shadow)
+    m.castShadow = entry.band === 'roadside' && own?.userData.castShadow !== false;
     decorMesh.set(p, m);
     // (the asset's second band in the map as decor:<asset>#2, so the map holds every instancer)
     let key = m.name;
@@ -1354,7 +1355,10 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     for (const m of vista?.models ?? []) {
       const mat = m.material as Material;
       if (mat.userData.vistaHaze === undefined) { lessHaze(mat, VISTA_HAZE); mat.userData.vistaHaze = VISTA_HAZE; }
-      m.userData.sharedMaterial = true;
+      // a model file's geometry and material are shared by every race; an atlas of several files (one draw
+      // for all) is this scene's own, its picture too (userData.ownMap): retire frees them with the scene
+      if (m.userData.ownGeometry) OWNED.add(m.geometry);
+      m.userData.sharedMaterial = !m.userData.ownMaterial;
       group.add(m);
     }
     if (vista?.ring?.length) {
