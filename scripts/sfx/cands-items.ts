@@ -57,7 +57,7 @@ export const RECIPES: readonly Recipe[] = [
     L(PX('Pings/SCIMisc_Ping 21_RSCPC_PX.wav'), -11, cap(0.7), 0.3),
   ]),
   r('shieldPop', 'The Energy Shield absorbs a hit and shatters: an energy impact breaking into glassy crystal shards, under a second.', [
-    L(LK('Ice Spell Impacts/Ice Spell Impact 3.wav'), 0, cap(0.8)),
+    L(LK('Ice Spell Impacts/Ice Spell Impact 3.wav'), 0, [{ op: 'trim', from: 0.44 }, { op: 'fade', in: 0.004 }, ...cap(0.8)]),
     L(PX('Hits/DSGNSynth_Hit Small Tight 02_RSCPC_PX.wav'), -4, cap(0.6)),
   ]),
   r('shieldEnd', 'The Energy Shield runs out and powers down: a short falling force-field fade, under a second, quiet.', [
@@ -70,7 +70,7 @@ export const RECIPES: readonly Recipe[] = [
     L(SF('Source Sounds/Mech Processed/SCIMech_Mech Processed Metal 25_RSCPC_SFEW.wav'), -12, cap(0.25)),
   ]),
   r('fog', 'The EMP Blast: an electromagnetic pulse crackles over the karts ahead, electric discharge and static, about 1.5 seconds.', [
-    L(LK('Lightning Spell Impacts/Lightning Spell Impact 3.wav'), 0, cap(1.48)),
+    L(LK('Lightning Spell Impacts/Lightning Spell Impact 3.wav'), 0, [{ op: 'trim', from: 0.45 }, { op: 'fade', in: 0.004 }, ...cap(1.48)]),
     L(PX('Zaps/SCIMisc_Zap Long 12_RSCPC_PX.wav'), -4, cap(1.4)),
     L(EM('Electromagnetic Fields, Humming, Buzzing, 03.wav'), -12, cap(1.4)),
     L(SF('Source Sounds/Robotic Glitch/SCIMisc_Robotic Glitch Short 09_RSCPC_SFEW.wav'), -9, cap(0.8), 0.2),
