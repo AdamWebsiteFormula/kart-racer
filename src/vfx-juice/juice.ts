@@ -198,7 +198,7 @@ export class TimeScale {
  * two karts touched (`racerId` and `other`, once a pair a tick); `wall`: a kart hit a wall (any kart; the
  * player's also from a bumper car's shove or a rockfall); `hitStars`: a kart was hit (contact.ts draws all three).
  */
-export type Burst = 'balloon' | 'gear' | 'gearsLost' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'bump' | 'strike' | 'slam' | 'spring' | 'fizz';
+export type Burst = 'balloon' | 'gear' | 'gearsLost' | 'hitStars' | 'confetti' | 'shield' | 'horn' | 'fog' | 'land' | 'wall' | 'bump' | 'strike' | 'slam' | 'spring' | 'fizz' | 'trick' | 'trickLand';
 
 export interface Effects {
   /** `mine`: the player's own (a balloon or gear pickup, gears lost, a bump or a wall), drawn at full size; a rival's is small. `count`: gears lost; `other`: the kart a bump met */
@@ -240,8 +240,12 @@ function kart(fx: Effects, id: string, e: KartEvent, me: string | null): void {
       break;
     case 'landed':
       fx.bursts.push({ kind: 'land', racerId: id });
+      // a trick lands into its boost with a little burst of sparkle (every kart's; a rival's small)
+      if (e.trick) fx.bursts.push({ kind: 'trickLand', racerId: id, mine });
       if (mine) fx.trauma += JUICE.traumaLand;
       break;
+    // a trick pressed: a twinkle of stars round the kart as it throws itself into its stunt
+    case 'trick': fx.bursts.push({ kind: 'trick', racerId: id, mine }); break;
     case 'wall':
       // every kart's: sparks where it meets the wall (a rival's smaller); only the player's shakes
       fx.bursts.push({ kind: 'wall', racerId: id, mine });

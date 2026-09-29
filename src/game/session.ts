@@ -26,6 +26,7 @@ import { ItemsView } from './itemsView.ts';
 import { RescueView } from './rescueView.ts';
 import { simTick, type SimParts } from './simtick.ts';
 import { KartFader } from './kartFade.ts';
+import { ContactShadows } from './contactShadow.ts';
 import { buildKartMesh, ownKartMaterials } from './kartMesh.ts';
 import { ROSTER } from './racers.ts';
 
@@ -47,6 +48,8 @@ export class RaceSession {
   private readonly flameBatch = new FlameBatch();
   /** a rival near the lens turns to a see-through ghost (kartFade.ts); yours never does */
   private readonly fader: KartFader;
+  /** the soft shade on the road under each kart's wheels (contactShadow.ts): one draw for the field */
+  private readonly contact: ContactShadows;
   readonly itemsView: ItemsView;
   readonly rescueView = new RescueView();
   readonly config: RaceConfig;
@@ -136,6 +139,8 @@ export class RaceSession {
     });
     this.roots = this.views.map((v) => v.root);
     this.revs = this.views.map((v) => v.rev);
+    this.contact = new ContactShadows(this.views.length);
+    this.group.add(this.contact.mesh);
     this.flameBatch.set(this.rivalFlames());
     this.group.add(this.flameBatch.mesh);
     splitShadowDepth(this.group);
@@ -206,7 +211,7 @@ export class RaceSession {
     // the views read the tick's karts and inputs (the kart animation, kart-controller anim.ts); they never write them.
     // The engines read the start from the ticks between the tick just stepped and the go (rev.ts: the sim's own count)
     const toGoTicks = st.goTick - (st.tick - 1);
-    for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT, this.inputs[k], toGoTicks);
+    for (let k = 0; k < this.views.length; k++) this.views[k].onTick(st.karts[k], SIM_DT, this.inputs[k], toGoTicks, this.track);
     this.recorder?.record(st.tick, st.karts[this.playerIndex]);
     if (st.phase === 'finished') this.finishedFor += SIM_DT;
     return ev;
@@ -235,6 +240,7 @@ export class RaceSession {
       }
     }
     for (let k = 0; k < this.views.length; k++) this.views[k].onFrame(alpha, st.karts[k], this.inputs[k].steer, frameDt, reduced, this.track);
+    this.contact.update(this.views, st.karts, this.eye, frameDt);
     this.ghost?.place(st.tick - 1 + alpha, this.playerIndex >= 0 ? this.views[this.playerIndex].root.position : undefined);
     for (let k = 0; k < this.flames.length; k++) this.flames[k].update(st.karts[k], st.time, reduced, this.views[k].rev);
     this.flameBatch.update();
@@ -364,6 +370,7 @@ export class RaceSession {
     this.itemsView.dispose();
     this.fader.dispose();
     this.flameBatch.dispose();
+    this.contact.dispose();
     this.group.traverse((o) => {
       const m = o as unknown as { geometry?: { dispose(): void }; material?: { dispose(): void } | { dispose(): void }[] };
       // shared placeholder geometries live at module scope; only per-session materials go

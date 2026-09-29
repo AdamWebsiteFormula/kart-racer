@@ -6,11 +6,12 @@
 // lean, look and nod, the front wheels' steer, the body on its springs; art-pipeline rig.ts), or,
 // for a racer built from parts, on its bones (art-pipeline rigged.ts, with the driver's own
 // animation: driverAnim.ts). None of this touches the sim.
-import { Group, MathUtils, type Mesh, type Object3D } from 'three';
+import { Euler, Group, MathUtils, Quaternion, Vector3, type Mesh, type Object3D } from 'three';
 import { KartAnim, newPose } from './anim.ts';
 import type { KartConstants } from './constants.ts';
 import { DriverAnim, newDriverPose, type DriverContext, type KartRig, type WheelGround } from './driverAnim.ts';
 import { EngineRev } from './rev.ts';
+import { STUNT } from './stunt.ts';
 import { NEUTRAL_INPUT, type InputState, type KartState, type TrackQuery, type TrackSample } from './types.ts';
 
 interface Pose { x: number; y: number; z: number; heading: number; angle: number }
@@ -75,6 +76,13 @@ export class KartView {
   readonly look: DriverContext = { eye: null, faceEye: false, karts: null, self: -1 };
   /** the driver was stepped by frames while the sim waited (idle): drawn at its last step */
   private idled = false;
+  /** m the body stands off the road over the root this frame (a hit's toss, a trick's lift; not a turn's lean): the contact shade under it fades (game/contactShadow.ts) */
+  bodyRise = 0;
+  /** reused every frame: a trick's stunt turns the posed kart about its middle */
+  private readonly euler = new Euler();
+  private readonly qPose = new Quaternion();
+  private readonly qStunt = new Quaternion();
+  private readonly pivot = new Vector3();
 
   /** `seed`: the kart's index, so the field's idle shivers are out of step */
   constructor(c: KartConstants, mesh: Object3D, s: KartState, seed = 0) {
@@ -123,9 +131,10 @@ export class KartView {
   /**
    * Call once per sim tick, after stepKart, with the input the kart drove on this tick. `toGoTicks`:
    * on the grid, the ticks from the tick just stepped to the go (0 on the go tick; NaN or negative
-   * after it, or with no race), so the engine can read the start (rev.ts).
+   * after it, or with no race), so the engine can read the start (rev.ts). `track`: the course, so a
+   * trick's stunt is sized to the flight still to come (anim.ts; none: the ground it left).
    */
-  onTick(s: KartState, dt: number, input: Readonly<InputState> = NEUTRAL_INPUT, toGoTicks = Number.NaN): void {
+  onTick(s: KartState, dt: number, input: Readonly<InputState> = NEUTRAL_INPUT, toGoTicks = Number.NaN, track: TrackQuery | null = null): void {
     this.prev = this.curr;
     this.curr = KartView.pose(s);
     // a big one-tick turn (a wall's impact) plays out over a few frames: the interpolation spans
@@ -142,7 +151,7 @@ export class KartView {
       this.snapYaw -= excess;
     }
     this.rev.tick(s, input, dt, toGoTicks);
-    this.anim.tick(s, input, dt, this.engine ? this.rev : undefined);
+    this.anim.tick(s, input, dt, this.engine ? this.rev : undefined, track);
     if (this.rig) { this.driver.tick(s, input, dt, this.anim, this.look); this.idled = false; }
   }
 
@@ -192,8 +201,19 @@ export class KartView {
     // about the kart's own axes, squash and stretch about the wheels' contact, riding up so the
     // low wheel stays on the road as it leans
     const a = this.anim.pose(alpha, reduced, this.posed);
-    this.chassis.rotation.set(a.pitch, a.yaw + a.spin + a.wobble, a.roll, 'YXZ');
-    this.chassis.position.set(0, a.lift + a.hop, 0);
+    if (a.stuntRoll === 0 && a.stuntPitch === 0 && a.stuntYaw === 0) {
+      this.chassis.rotation.set(a.pitch, a.yaw + a.spin + a.wobble, a.roll, 'YXZ');
+      this.chassis.position.set(0, a.lift + a.hop + a.stuntLift, 0);
+    } else {
+      // a trick's stunt (anim.ts, stunt.ts) turns the posed kart about its middle, STUNT.pivot over the wheels'
+      // contact: the stunt's turn outside the pose's (q = stunt · pose), and the kart moved so that point stays put
+      this.qPose.setFromEuler(this.euler.set(a.pitch, a.yaw + a.spin + a.wobble, a.roll, 'YXZ'));
+      this.qStunt.setFromEuler(this.euler.set(a.stuntPitch, a.stuntYaw, a.stuntRoll, 'YXZ'));
+      this.chassis.quaternion.multiplyQuaternions(this.qStunt, this.qPose);
+      const p = this.pivot.set(0, STUNT.pivot, 0).applyQuaternion(this.qStunt);
+      this.chassis.position.set(-p.x, a.lift + a.hop + a.stuntLift + STUNT.pivot - p.y, -p.z);
+    }
+    this.bodyRise = a.hop + a.stuntLift;
     const sy = 1 + a.squash, sxz = 1 / Math.sqrt(sy);
     this.chassis.scale.set(sxz, sy, sxz);
     for (let i = 0; i < this.rigs.length; i++) {

@@ -8,7 +8,8 @@
 // only its own fields: the sim never sees it (game/viewSim.test.ts). KartView (view.ts) puts
 // the pose on the chassis and on the model's morph targets (art-pipeline rig.ts).
 import type { RevView } from './rev.ts';
-import type { InputState, KartState } from './types.ts';
+import { airLeft, pickStunt, STUNT, stuntPose, stuntSeconds, type StuntKind, type StuntPose } from './stunt.ts';
+import type { InputState, KartState, TrackQuery } from './types.ts';
 
 /** A spring's natural frequency (Hz) and damping ratio (1: no overshoot; lower: it bounces back past rest). */
 export type SpringTune = readonly [hz: number, zeta: number];
@@ -162,8 +163,7 @@ export const KART_ANIM = Object.freeze({
   /** rad and Hz: a fishtail while an oil slick (or a tug) slows the kart */
   slowWobble: 0.12,
   slowHz: 3,
-  /** rad/s: a trick flicks the chassis over and back (about 14°) */
-  trickFlick: 6,
+  /* a trick's stunt (a whole spin, roll or flip in the air, sized to the flight: stunt.ts) keeps its tuning in STUNT */
   /** m/s in one tick: a sideways shove past this (a kart's bump, a wall) jolts the kart; steering never does */
   shoveMin: 1.5,
   /** m/s: the most one shove counts */
@@ -259,10 +259,20 @@ export interface AnimPose {
   steer: number;
   /** m the whole kart jumps off the road (a finish reaction's leap; 0 while racing) */
   hop: number;
+  /**
+   * A trick's stunt (stunt.ts), about a point STUNT.pivot over the wheels' contact and on top of everything
+   * above: roll (+ lifts +X), pitch (+ dips the nose), yaw (+ turns the nose to +X), whole turns and all, and
+   * the metres the kart rises as it goes over; `stuntU` how far through it is (0..1; −1: none)
+   */
+  stuntRoll: number;
+  stuntPitch: number;
+  stuntYaw: number;
+  stuntLift: number;
+  stuntU: number;
 }
 
 export function newPose(): AnimPose {
-  return { roll: 0, pitch: 0, yaw: 0, spin: 0, wobble: 0, squash: 0, heave: 0, lift: 0, lean: 0, look: 0, nod: 0, steer: 0, hop: 0 };
+  return { roll: 0, pitch: 0, yaw: 0, spin: 0, wobble: 0, squash: 0, heave: 0, lift: 0, lean: 0, look: 0, nod: 0, steer: 0, hop: 0, stuntRoll: 0, stuntPitch: 0, stuntYaw: 0, stuntLift: 0, stuntU: -1 };
 }
 
 const clamp = (x: number, lo: number, hi: number) => (x < lo ? lo : x > hi ? hi : x);
@@ -457,8 +467,8 @@ function sadReactionPose(kind: 'sigh' | 'deflated' | 'dejected', t: number, out:
 /** Seconds into the glum idle's sigh this cycle (GLUM.sighAt into each GLUM.every s); the lift is its first 0.7 s, the drop to 1.5 s. */
 export const glumSigh = (t: number): number => (t + GLUM.every - GLUM.sighAt) % GLUM.every;
 
-/** What the animation needs from the kart's constants (both render-only reads). */
-export interface AnimKartConsts { hitSpinSeconds: number; driftVisualSlip: number }
+/** What the animation needs from the kart's constants (render-only reads; `gravity` forecasts a trick's flight, the schema's 26 m/s² if absent). */
+export interface AnimKartConsts { hitSpinSeconds: number; driftVisualSlip: number; gravity?: number }
 
 /**
  * One kart's animation. Call tick() once per sim tick after the sim has stepped (with the input
@@ -503,7 +513,21 @@ export class KartAnim {
   private wasSpinning = false;
   private spinDir = 1;
   private lastTrick = false;
-  private trickDir = 1;
+  /**
+   * The trick's stunt under way (null: none): its kind and way round, the clock it started at and how long it
+   * runs, and how many tricks so far (the racer's own stunts are taken in turn); a stunt cut short settles
+   * upright from `settleFrom` (its angles then) to `settleTo` (the nearer whole turns) from the clock `settleAt`
+   */
+  private stunt: StuntKind | null = null;
+  private stuntDir: 1 | -1 = 1;
+  private stuntAt = 0;
+  private stuntLong = 1;
+  private stunts = 0;
+  private settleAt = -1;
+  private settleHard = false;
+  private readonly settleFrom: StuntPose = { roll: 0, pitch: 0, yaw: 0, lift: 0 };
+  private readonly settleTo: StuntPose = { roll: 0, pitch: 0, yaw: 0, lift: 0 };
+  private readonly sp: StuntPose = { roll: 0, pitch: 0, yaw: 0, lift: 0 };
   /** the finish reaction playing (null: none) and the clock it started at; its offsets on the last two ticks */
   private reaction: Reaction | null = null;
   private reactAt = 0;
@@ -536,12 +560,20 @@ export class KartAnim {
   /** Seconds the reaction playing's main move lasts (0 with none). */
   get reactionMain(): number { return this.reaction ? REACTION_SECONDS[this.reaction] : 0; }
 
+  /** The trick's stunt under way: its kind (null: none), how far through it is (0..1) and how long it runs (s); the driver's flourish rides on it (driverAnim.ts). */
+  get stuntKind(): StuntKind | null { return this.stunt; }
+  get stuntProgress(): number { return this.stunt ? Math.min(1, Math.max(0, (this.clock - this.stuntAt) / this.stuntLong)) : 0; }
+  get stuntSeconds(): number { return this.stunt ? this.stuntLong : 0; }
+  /** How many tricks this kart has done (the racer's own stunts and flourishes are taken in turn). */
+  get stuntCount(): number { return this.stunts; }
+
   /**
    * One sim tick: `s` is the kart after the step, `input` what it drove on, `rev` its engine's own rev
-   * (rev.ts, ticked already this tick; none: no engine, no rumble, as on the menu's turntable).
-   * Reads all three, writes none.
+   * (rev.ts, ticked already this tick; none: no engine, no rumble, as on the menu's turntable), `track`
+   * the course (a trick's stunt is sized to the flight still to come over it; none: over the ground it
+   * left). Reads all four, writes none.
    */
-  tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number, rev?: RevView): void {
+  tick(s: Readonly<KartState>, input: Readonly<InputState>, dt: number, rev?: RevView, track: TrackQuery | null = null): void {
     // a tick of no time moves nothing: the rates below divide by dt, and one NaN stays in the springs
     // for good (the podium ticks on the frame's time, 0 while paused or hidden: its three vanished, 25 Sept 2026)
     if (!(dt > 0)) return;
@@ -550,6 +582,7 @@ export class KartAnim {
     prev.roll = curr.roll; prev.pitch = curr.pitch; prev.yaw = curr.yaw; prev.spin = curr.spin; prev.wobble = curr.wobble;
     prev.squash = curr.squash; prev.lean = curr.lean; prev.look = curr.look; prev.nod = curr.nod; prev.steer = curr.steer;
     prev.hop = curr.hop;
+    prev.stuntRoll = curr.stuntRoll; prev.stuntPitch = curr.stuntPitch; prev.stuntYaw = curr.stuntYaw; prev.stuntLift = curr.stuntLift; prev.stuntU = curr.stuntU;
     this.swayPrev = this.swayCurr;
     const sp = this.sPrev, sc = this.sCurr;
     sp.heave = sc.heave; sp.roll = sc.roll; sp.pitch = sc.pitch; sp.nod = sc.nod;
@@ -647,10 +680,10 @@ export class KartAnim {
     }
     if (!spinning && this.wasSpinning) this.dizzyAt = this.clock;
     const trick = s.airborne.trickQueued;
-    if (trick && !this.lastTrick) {
-      this.roll.v += this.trickDir * t.trickFlick;
+    if (trick && !this.lastTrick && moved <= t.teleport) {
+      // the trick: the kart stretches as it throws itself into its stunt (stunt.ts), sized to the flight still to come
       this.squash.v += t.hopStretch;
-      this.trickDir = -this.trickDir;
+      this.startStunt(s, input, track);
     }
     // the engine: a blip rocks the kart back on its springs and the driver's head with it; a pop jolts it
     const onGround = grounded && !spinning;
@@ -752,6 +785,8 @@ export class KartAnim {
     curr.nod = clamp(this.nod.x, -t.nodMax * 1.5, t.nodMax * 1.5) + dizzyNod;
     curr.steer = this.steer.x;
 
+    this.stepStunt(grounded || riding, spinning, moved > t.teleport);
+
     this.lastX = x; this.lastY = y; this.lastZ = z;
     this.lastHeading = s.heading;
     this.lastSpeed = s.speed;
@@ -792,6 +827,84 @@ export class KartAnim {
     out.hop = (lerp(a.hop, b.hop, alpha) + lerp(ra.hop, rb.hop, alpha)) * k;
     out.steer = lerp(a.steer, b.steer, alpha);
     out.lift = t.halfTrack * Math.abs(Math.sin(out.roll)) + t.halfBase * Math.abs(Math.sin(out.pitch));
+    // the trick's stunt: whole turns (reduced motion: a small tip over and back instead, the same way round)
+    out.stuntU = a.stuntU < 0 && b.stuntU < 0 ? -1 : lerp(Math.max(0, a.stuntU), Math.max(0, b.stuntU), alpha);
+    if (reduced) {
+      const tip = out.stuntU > 0 && this.stunt ? STUNT.reducedTip * Math.sin(Math.PI * out.stuntU) : 0;
+      out.stuntRoll = this.stunt === 'flip' ? 0 : -this.stuntDir * tip;
+      out.stuntPitch = this.stunt === 'flip' ? this.stuntDir * tip : 0;
+      out.stuntYaw = 0;
+      out.stuntLift = 0;
+    } else {
+      out.stuntRoll = lerp(a.stuntRoll, b.stuntRoll, alpha);
+      out.stuntPitch = lerp(a.stuntPitch, b.stuntPitch, alpha);
+      out.stuntYaw = lerp(a.stuntYaw, b.stuntYaw, alpha);
+      out.stuntLift = lerp(a.stuntLift, b.stuntLift, alpha);
+    }
     return out;
   }
+
+  /**
+   * A trick pressed this tick (its queue just set): the stunt for it (stunt.ts pickStunt: the stick's way, the
+   * brake's backflip or the racer's own) over the flight forecast from here (airLeft), a whole turn done a
+   * moment before the touchdown, or a flick over and back when the flight is too short for one.
+   */
+  private startStunt(s: Readonly<KartState>, input: Readonly<InputState>, track: TrackQuery | null): void {
+    const plan = stuntSeconds(airLeft(s, track, this.c.gravity ?? 26));
+    const pick = pickStunt(s.racerId, input, this.stunts++);
+    this.stunt = plan.whole ? pick.kind : 'flick';
+    this.stuntDir = pick.dir;
+    this.stuntAt = this.clock;
+    this.stuntLong = plan.seconds;
+    this.settleAt = -1;
+  }
+
+  /**
+   * The stunt's pose this tick. Done: its whole turns dropped from both ends of the interpolation at once (as
+   * the hit's spin), so it never unwinds. Cut short, it comes upright the nearer way over STUNT.settle: `down`
+   * (on the road before it was done: a forecast gone wrong) or `hit` (a spin-out takes over); a set-down
+   * (`gone`: a respawn, the claw) at once.
+   */
+  private stepStunt(down: boolean, hit: boolean, gone: boolean): void {
+    const curr = this.curr, prev = this.prev, sp = this.sp;
+    if (!this.stunt) { curr.stuntRoll = curr.stuntPitch = curr.stuntYaw = curr.stuntLift = 0; curr.stuntU = -1; return; }
+    const u = (this.clock - this.stuntAt) / this.stuntLong;
+    if (this.settleAt < 0 && u < 1 && (down || hit || gone)) {
+      // bring it upright from where it is: each angle to its nearer whole turn
+      this.settleAt = this.clock;
+      this.settleHard = gone;
+      const f = this.settleFrom, to = this.settleTo;
+      f.roll = curr.stuntRoll; f.pitch = curr.stuntPitch; f.yaw = curr.stuntYaw; f.lift = curr.stuntLift;
+      to.roll = wholeTurns(f.roll); to.pitch = wholeTurns(f.pitch); to.yaw = wholeTurns(f.yaw); to.lift = 0;
+    }
+    let done: boolean;
+    if (this.settleAt >= 0) {
+      const e = this.settleHard ? 1 : Math.min(1, (this.clock - this.settleAt) / STUNT.settle);
+      const w = e * e * (3 - 2 * e), f = this.settleFrom, to = this.settleTo;
+      sp.roll = f.roll + (to.roll - f.roll) * w; sp.pitch = f.pitch + (to.pitch - f.pitch) * w; sp.yaw = f.yaw + (to.yaw - f.yaw) * w;
+      sp.lift = f.lift * (1 - w);
+      done = e >= 1;
+    } else {
+      stuntPose(this.stunt, this.stuntDir, u, sp);
+      done = u >= 1;
+    }
+    curr.stuntRoll = sp.roll; curr.stuntPitch = sp.pitch; curr.stuntYaw = sp.yaw; curr.stuntLift = sp.lift;
+    curr.stuntU = Math.min(1, Math.max(0, u));
+    if (!done) return;
+    // whole turns: dropped from both ends at once (no unwinding); a set-down draws its end pose on both
+    for (const key of ['stuntRoll', 'stuntPitch', 'stuntYaw'] as const) {
+      const whole = wholeTurns(curr[key]);
+      curr[key] -= whole;
+      prev[key] = this.settleHard ? curr[key] : prev[key] - whole;
+    }
+    curr.stuntLift = 0;
+    if (this.settleHard) prev.stuntLift = 0;
+    curr.stuntU = -1;
+    this.stunt = null;
+    this.settleAt = -1;
+    this.settleHard = false;
+  }
 }
+
+/** The whole turns nearest `a` (rad). */
+const wholeTurns = (a: number): number => Math.round(a / TAU) * TAU;

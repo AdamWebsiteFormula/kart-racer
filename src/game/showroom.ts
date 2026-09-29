@@ -56,11 +56,12 @@ export const POP_FROM = 0.86, POP_S = 0.34;
  * show: a fresh-eyes critique, 28 Sept 2026, saw Pip's feet 110 px above Otto's; the rest leaves room for a hand
  * raised in a flourish); the camera nearly level with it (a gentle look down at the chest, not the kart's high
  * three-quarter); and a small, soft contact shadow under its feet (half extents, m, and its share of the kart's
- * darkness: MKW's characters have none, a hard one read as a disc they stood on).
+ * darkness: MKW's characters have none, a hard one read as a disc they stood on; 0.84 of the kart's lighter core since
+ * 28 Sept 2026 is the 0.42 it always had, a core keeping 0.52 of the backdrop at its tenth percentile).
  */
 export const STAND_YAW = -0.42, STAND_FILL = 0.88;
 const STAND_ELEVATION = 0.1;
-export const STAND_SHADOW = Object.freeze({ halfWidth: 0.38, halfLength: 0.3, strength: 0.5 });
+export const STAND_SHADOW = Object.freeze({ halfWidth: 0.38, halfLength: 0.3, strength: 0.84 });
 /** the camera eases to a new box (the stats panel opening, a window resized) at this rate a second (reduced motion: at once) */
 const FIT_RATE = 14;
 
@@ -109,8 +110,14 @@ export function popScale(t: number): number {
   return POP_FROM + (1 - POP_FROM) * (1 + (c + 1) * u * u * u + c * u * u);
 }
 
-/** the contact shadow's half extents across and along the kart (every kart is fitted to the same footprint, glb.ts KART_FIT 2.1 × 1.7 m) and its darkness */
-export const SHADOW = Object.freeze({ halfWidth: 1.4, halfLength: 1.65, opacity: 0.64 });
+/**
+ * the contact shadow's half extents across and along the kart (every kart is fitted to the same footprint, glb.ts KART_FIT
+ * 2.1 × 1.7 m), the darkness its core adds and its halo's (the core takes both). Measured against the backdrop under it
+ * (second MKW gap review, 28 Sept 2026, item 5, "near-black"): at 0.64 and 0.2 its core kept 0.16 of the light (0.28 of
+ * the backdrop's brightness at its tenth percentile, 0.08 at its darkest), a dark disc under the hero; at 0.36 and 0.14 the
+ * core keeps half, as a race's shadows now do (game/shadow.ts), and the hero still stands on it
+ */
+export const SHADOW = Object.freeze({ halfWidth: 1.4, halfLength: 1.65, opacity: 0.36, halo: 0.14 });
 const SHADOW_VERT = /* glsl */ `varying vec2 vUv;
 void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 // a dark core out to about the wheels (the kart hides its middle: what shows is the contact under the tyres),
@@ -119,7 +126,7 @@ const SHADOW_FRAG = /* glsl */ `varying vec2 vUv;
 uniform float fade;
 void main() {
   float d = length(vUv - 0.5) * 2.0;
-  float a = ${SHADOW.opacity.toFixed(2)} * (1.0 - smoothstep(0.5, 0.8, d)) + 0.2 * (1.0 - smoothstep(0.8, 1.0, d));
+  float a = ${SHADOW.opacity.toFixed(2)} * (1.0 - smoothstep(0.5, 0.8, d)) + ${SHADOW.halo.toFixed(2)} * (1.0 - smoothstep(0.8, 1.0, d));
   gl_FragColor = vec4(0.03, 0.04, 0.1, a * fade);
 }`;
 

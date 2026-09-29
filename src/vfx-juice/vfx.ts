@@ -10,7 +10,7 @@ import { Contact, type Drawn } from './contact.ts';
 import { GearScatter } from './gears.ts';
 import { CameraKick, DriftRoll, JUICE, TimeScale, Trauma, boostHold, type Effects } from './juice.ts';
 import { KartFx } from './kartfx.ts';
-import { ParticlePool, type SpawnOpts } from './particles.ts';
+import { ParticlePool, SHAPE, type SpawnOpts } from './particles.ts';
 import { Skids, SpeedLines } from './trails.ts';
 
 const CORAL: [number, number, number] = [1, 0.44, 0.38];
@@ -68,6 +68,23 @@ export const BALLOON_SPARKLE = Object.freeze({
   gold: Object.freeze([1.9, 1.55, 0.7]), gleam: 0.42, gleamLife: 0.16,
   /** metres from the lens past which none is drawn (a glint there is under a pixel) */
   reach: 60,
+});
+
+/**
+ * A trick (second MKW gap review, 28 Sept 2026, item 4): Mario Kart World throws a twinkle of coloured stars round
+ * a kart as it tricks, and it lands into its boost in a flash of sparks (OSU-aguh1AY 1:38.8 and 1:39.3). Ours: at
+ * the press (`press`), little stars in the confetti hues twinkle out round the kart, carried along with it; as it
+ * lands into the trick boost (`land`), a small burst of gold and white-hot glints flung out low round it, carried
+ * along too so the ring stays where the chase camera looks, and a gleam at its heart. Yours bright past 1 (they
+ * bloom); a rival's `rival` of the size and count, under the bloom. Metres, m/s, seconds.
+ */
+export const TRICK_SPARKLE = Object.freeze({
+  press: Object.freeze({ count: 7, radius: 1.05, up: 0.95, out: 0.9, size: 0.3, life: 0.36, spin: 6, drag: 2 }),
+  land: Object.freeze({ count: 12, radius: 0.55, up: 0.35, out: 3.4, rise: 1.6, size: 0.26, life: 0.42, drag: 3, gravity: 4, gleam: 0.7, gleamLife: 0.16, carry: 0.85 }),
+  rival: 0.55,
+  /** the stars' colour gain (the confetti hues past 1 bloom; a rival's stays under) */
+  bright: 2.1, dim: 0.9,
+  gold: Object.freeze([2.0, 1.55, 0.55]),
 });
 
 /** Visual-only randomness (never touches the sim). */
@@ -209,6 +226,10 @@ export class Vfx {
           // a low, quick scuff of dust, not big pale puffs (they read as blurry blobs behind the kart, at night most of all)
           for (let i = 0; i < 8; i++) this.spawn(this.soft, x + sym() * 0.6, y + 0.15, z + sym() * 0.6, sym() * 2.5, rnd() * 1.2, sym() * 2.5, SCUFF, 0.3, 0.38, 0, 2.2, 1);
           break;
+        case 'trick':
+        case 'trickLand':
+          this.trickSparkle(k, b.kind === 'trickLand', b.mine ?? false);
+          break;
         case 'wall':
           // sparks where the kart meets the wall, its dust there, a scrape along it (contact.ts)
           this.contact.wall(k, b.mine ?? b.racerId === this.lastPlayer?.racerId, now, reduced);
@@ -249,6 +270,42 @@ export class Vfx {
           break;
       }
     }
+  }
+
+  /**
+   * A trick's sparkle (TRICK_SPARKLE) round kart `k`: the press's twinkle of stars, or (`landing`) the burst as it
+   * lands into its boost; `mine`, the player's, full size and bright.
+   */
+  private trickSparkle(k: KartState, landing: boolean, mine: boolean): void {
+    const T = TRICK_SPARKLE, sc = mine ? 1 : T.rival, o = this.o, c = this.hot;
+    const [x, y, z] = k.position;
+    const s = Math.sin(k.heading), co = Math.cos(k.heading), v = Math.max(0, k.speed), turn = rnd() * Math.PI * 2;
+    if (!landing) {
+      // stars round the kart, across the road and up (side = rightOf(heading)), drifting out, turning; carried along with it
+      const P = T.press, n = Math.max(3, Math.round(P.count * sc)), gain = mine ? T.bright : T.dim;
+      o.cx = s * v; o.cy = 0; o.cz = co * v; o.shape = SHAPE.star;
+      for (let i = 0; i < n; i++) {
+        const a = turn + (i / n) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+        const ox = co * ca, oz = -s * ca, oy = sa, hue = CONFETTI[i % CONFETTI.length];
+        c[0] = hue[0] * gain + 0.25; c[1] = hue[1] * gain + 0.25; c[2] = hue[2] * gain + 0.25;
+        o.spin = (i % 2 ? 1 : -1) * P.spin; o.phase = a;
+        this.spawn(this.glow, x + ox * P.radius, y + P.up + oy * P.radius * 0.6, z + oz * P.radius, ox * P.out, oy * P.out * 0.6 + 0.4, oz * P.out, c, P.size * sc, P.life, 0, P.drag);
+      }
+    } else {
+      // little stars flung out low round the kart, gold and white-hot by turns (round glints read as bubbles), rising a
+      // little, turning; a gleam at its heart
+      const L = T.land, n = Math.max(4, Math.round(L.count * sc)), glow = mine ? T.gold : POP.rivalGlow;
+      o.cx = s * v * L.carry; o.cy = 0; o.cz = co * v * L.carry; o.shape = SHAPE.star;
+      for (let i = 0; i < n; i++) {
+        const a = turn + (i / n) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+        o.spin = (i % 2 ? 1 : -1) * T.press.spin; o.phase = a;
+        this.spawn(this.glow, x + ca * L.radius, y + L.up, z + sa * L.radius, ca * L.out * sc, L.rise * (0.6 + 0.4 * rnd()), sa * L.out * sc,
+          i % 3 === 1 && mine ? WHITE_HOT : glow, L.size * sc, L.life, L.gravity, L.drag);
+      }
+      o.shape = 0;
+      if (mine) this.spawn(this.glow, x, y + 0.6, z, 0, 0, 0, WHITE_HOT, L.gleam, L.gleamLife, 0, 0, -0.8);
+    }
+    o.cx = 0; o.cy = 0; o.cz = 0; o.shape = 0; o.spin = 0; o.phase = 0;
   }
 
   /** One firework burst at (x, y, z) in confetti hue `hue` (any integer); `scale` grows it (a burst high over the road: 3). */
