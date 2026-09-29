@@ -2,10 +2,13 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
-## 29 Sept 2026, afternoon: the Mac's work merged on branch claude/tender-cray-km9jt6, NOT live yet (read this first)
+## 29 Sept 2026, 14:00 EDT: the Mac's work is LIVE (main 174e970, Deploy run 154 green, submit-score v23 probed) (read this first)
+
+Shipped with Adam's OK ("Yes, ship it"): the live bundle (index-BNXb1bzu.js) carries the new item names, the voice cut and CLIENT_VERSION 10; submit-score v23 imports core-ea7dc08e377167ec pinned at 9ffc6c0 (jsDelivr's copy checked byte for byte); the probe: a v9 post 400 "please reload the game: new version", a never-finishing v10 log 422 "the replay never reached the finish line". The item pictures were re-rendered in the cloud (the Mac never had). What follows is how it was merged.
+
+### Merged on branch claude/tender-cray-km9jt6
 
 Adam ran scripts/save-mac-work.sh; the Mac's work came up as mac/* and mac-wip/* branches, and this branch merges the finished game work: the drift arc, tricks and shadows, landmarks round 2, race dressing and road surfaces, the title camera and front shot and turning windmills, the pre-race music, the Broadcast type (Mona Sans), three item slots, the glass slots, the new item set (names, models, effects; ids unchanged), the heavy-job rule, Pip's wing fix; plus fewer voice lines (about 3 a race). CLIENT_VERSION 10 (three slots, the drift arc, each racer's own line), score core core-ea7dc08e377167ec. Checked in the cloud: tsc, 2370 tests, vite build, bundle 618 KB gzipped. Gates recalibrated with measurements (ai-driver SOP, 29 Sept).
-**To ship (Adam's OK first):** main takes this branch; Deploy green; the live bundle checked; then at once `node scripts/fn-deploy-entry.mjs` -> the Supabase connector (submit-score v23 for core-ea7dc08e377167ec) and the probe (a v9 post 400, a never-finishing v10 log 422). Until then the live function refuses the new game's posts.
 **Not merged (need Adam's ears):** the music lab (mac/worktree-agent-a41c157f86f47ce7c), the sound lab (mac/worktree-agent-a83db92ee7f6b6303), the sci-fi item sound candidates (mac/worktree-agent-a0b61ed0157348242): tools and drafts, nothing picked. The new items still play the old items' sounds. Old branches in mac/* (pbr-default, blinks a72eb189, accd644b, adaba84c, ac8e6d7d review doc) are history, not work to merge.
 
 ## 29 Sept 2026: the Mac's work since 28 Sept, 12:36 EDT is NOT on GitHub (read this first)
