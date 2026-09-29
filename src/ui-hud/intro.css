@@ -1,7 +1,7 @@
-/* The course intro's title card (render/intro.ts; game/intro.ts flies the camera). House style: the
-   track's name in Lilita One over a ribbon in the track's accent, the cup on a chip above it, which race
-   this is on an ink pill under it, the player's racer in the corner. Tokens from ui.css. Reduced motion:
-   ui.css drops every animation and transition to 1 ms, so it simply appears and goes. */
+/* The course intro's title card (render/intro.ts; game/intro.ts flies the camera). House style (the type of 28 Sept
+   2026): the track's name in Mona Sans Black Italic over a slanted plate in the track's accent, the cup on a chip above
+   it, which race this is on an ink pill under it, the player's racer in the corner; no ink outlines. Tokens from
+   ui.css. Reduced motion: ui.css drops every animation and transition to 1 ms, so it simply appears and goes. */
 
 /* the race HUD waits under the card, and comes with the countdown */
 #ui .hud.intro-on > :not(.intro) { visibility: hidden; }
@@ -33,24 +33,22 @@
   top: 30%;
   bottom: 10%;
   z-index: -1;
-  background: var(--track-accent, var(--coral));
-  border: var(--stroke) solid var(--ink);
-  border-left: 0;
-  border-radius: 0 999px 999px 0;
-  box-shadow: var(--shadow-drop);
-  transform-origin: left center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--track-accent, var(--coral)) 82%, #fff) 0%, var(--track-accent, var(--coral)) 55%, color-mix(in srgb, var(--track-accent, var(--coral)) 80%, #0b0f2e) 100%);
+  border-radius: 0 16px 16px 0;
+  box-shadow: 0 10px 26px rgb(8 10 34 / 0.35), inset 0 3px 0 rgb(255 255 255 / 0.35);
+  transform: skewX(-16deg);
+  transform-origin: left bottom;
   animation: intro-ribbon 560ms var(--out) both;
 }
 .intro .cup-chip {
-  font: 700 18px/1 var(--body);
+  font: italic 800 18px/1 var(--body);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink);
   background: var(--paper);
-  border: var(--stroke) solid var(--ink);
   border-radius: 999px;
   padding: 8px 16px 7px;
-  box-shadow: 0 5px 0 var(--ink);
+  box-shadow: 0 6px 16px rgb(8 10 34 / 0.32);
   animation: intro-pop 520ms 80ms var(--pop) both;
 }
 /* the cup's emblem (icons.ts cupSvg) at the chip's front, bigger than the chip and standing out of it
@@ -62,12 +60,16 @@
 .intro .cup-chip .emblem svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 0 rgb(27 27 47 / 0.45)); }
 .intro .name {
   font-size: clamp(52px, 7.6vw, 112px);
+  font-weight: 900;
+  font-stretch: 118%;
+  letter-spacing: -0.02em;
+  text-shadow: 0.04em 0.05em 0 color-mix(in srgb, var(--track-accent, var(--coral)) 45%, #0b0f2e), 0 0.08em 0.24em rgb(8 10 34 / 0.35);
   line-height: 0.92;
   white-space: nowrap;
   animation: intro-pop 600ms 160ms var(--pop) both;
 }
 .intro .sub {
-  font: 600 20px/1 var(--body);
+  font: italic 600 20px/1 var(--body);
   color: var(--paper);
   background: rgb(27 27 47 / 0.8);
   border-radius: 999px;
@@ -85,9 +87,8 @@
   padding: 6px 22px 6px 6px;
   background: var(--paper);
   color: var(--ink);
-  border: var(--stroke) solid var(--ink);
   border-radius: 999px;
-  box-shadow: var(--shadow-drop);
+  box-shadow: 0 8px 20px rgb(8 10 34 / 0.35);
   animation: intro-in-right 520ms 380ms var(--pop) both;
 }
 .intro .driver .face {
@@ -98,14 +99,14 @@
   box-shadow: 0 0 0 3px var(--accent, var(--sun));
   background: #e6e6e6 var(--portrait) 50% 22% / 170% no-repeat;
 }
-.intro .driver .who { font: 400 26px/1 var(--display); letter-spacing: 0.01em; }
+.intro .driver .who { font: italic 900 26px/1 var(--display); font-stretch: 112%; letter-spacing: -0.01em; }
 
 .intro .skip {
   position: absolute;
   left: 50%;
   bottom: calc(18px + var(--safe-b));
   transform: translateX(-50%);
-  font: 600 14px/1 var(--body);
+  font: italic 600 14px/1 var(--body);
   color: var(--paper);
   background: rgb(27 27 47 / 0.55);
   border-radius: 999px;
@@ -118,7 +119,7 @@
 .intro[data-phase='out'] .plate, .intro[data-phase='out'] .skip { animation: intro-leave 380ms ease-in both; }
 .intro[data-phase='out'] .driver { animation: intro-leave-right 380ms ease-in both; }
 
-@keyframes intro-ribbon { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes intro-ribbon { from { transform: skewX(-16deg) scaleX(0); } to { transform: skewX(-16deg) scaleX(1); } }
 @keyframes intro-pop { 0% { opacity: 0; transform: translateX(-70px) skewX(-8deg); } 60% { opacity: 1; transform: translateX(6px) skewX(2deg); } 100% { opacity: 1; transform: none; } }
 @keyframes intro-in-right { 0% { opacity: 0; transform: translateX(60px); } 100% { opacity: 1; transform: none; } }
 @keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -129,12 +130,12 @@
 @media (max-height: 500px) {
   .intro .plate { left: calc(24px + var(--safe-l)); bottom: calc(30px + var(--safe-b)); gap: 7px; max-width: calc(100vw - 48px - var(--safe-l) - var(--safe-r)); }
   .intro .plate::before { left: calc(-24px - var(--safe-l) - 8px); right: -24px; }
-  .intro .cup-chip { font-size: 12px; padding: 5px 10px 4px; box-shadow: 0 3px 0 var(--ink); }
+  .intro .cup-chip { font-size: 12px; padding: 5px 10px 4px; }
   .intro .cup-chip.with-emblem { padding-left: 32px; }
   .intro .cup-chip.with-emblem .emblem { left: -8px; width: 36px; height: 36px; }
   .intro .name { font-size: clamp(38px, 7.2vw, 64px); }
   .intro .sub { font-size: 13px; padding: 6px 11px 5px; }
-  .intro .driver { right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); padding: 4px 14px 4px 4px; gap: 8px; box-shadow: 0 4px 0 var(--ink); }
+  .intro .driver { right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); padding: 4px 14px 4px 4px; gap: 8px; }
   .intro .driver .face { width: 38px; height: 38px; }
   .intro .driver .who { font-size: 19px; }
   .intro .skip { top: calc(12px + var(--safe-t)); bottom: auto; font-size: 12px; }

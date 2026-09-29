@@ -4,8 +4,8 @@
 // on the right over the blurred world (the game draws both: game/showroom.ts), its name big on a ribbon
 // under it, and along the bottom the prompts, what each button does. The stats wait behind a button, as
 // MKW's "Details" on Y ("You can check vehicle stats by pressing the Y Button", mario.nintendo.com's own
-// tips); ours on Y too, on the keys and a pad, and a tap on the prompt. Our own art throughout: Lilita One
-// and Fredoka, the house ink and sun, the intro title card's ribbon.
+// tips); ours on Y too, on the keys and a pad, and a tap on the prompt. Our own art throughout: the house type
+// (Mona Sans, 28 Sept 2026), the house ink and sun, the intro title card's plate.
 import '../select.css';
 import { lockSvg } from '../icons.ts';
 import { button, h } from './dom.ts';

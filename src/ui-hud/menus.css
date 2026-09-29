@@ -61,20 +61,19 @@
   transition: transform var(--t-fast) var(--pop);
 }
 .band > .icon svg { display: block; width: 70%; height: 70%; overflow: visible; }
+/* the words: Mona Sans semi-expanded Black Italic, white with a lift (MKW's menus: italic white, a soft shadow, no outline) */
 .band > .label {
   min-width: 0;
-  font: 400 var(--band-font, 32px)/1 var(--display);
-  letter-spacing: 0.01em;
+  font: italic 800 calc(var(--band-font, 32px) * 0.94)/1 var(--display);
+  font-stretch: 116%;
+  letter-spacing: -0.015em;
   white-space: nowrap;
-  -webkit-text-stroke: 3px var(--ink);
-  paint-order: stroke fill;
-  text-shadow: 0 4px 0 var(--ink);
-  transform: skewX(-8deg);
+  text-shadow: var(--lift);
   transition: color var(--t-fast);
 }
 /* each mode's own line, for assistive tech: the eyes read the focused one's at the foot (.mode-say) */
 .band > .sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.band > .badge { margin-left: auto; padding: 5px 11px; border-radius: 999px; background: var(--paper); color: var(--ink); font: 700 14px/1 var(--body); transform: skewX(-8deg); }
+.band > .badge { margin-left: auto; padding: 5px 11px; border-radius: 999px; background: var(--paper); color: var(--ink); font: italic 800 14px/1 var(--body); }
 /* focus: the band slides out and lifts, its glass deepens under the white and sun ring, a glow, the name in gold, the
    emblem pops; and a sheen crosses the glass once (the tiles' own: select.css) */
 .band.focused, .band:focus-visible { z-index: 2; transform: translateX(14px) scale(1.04); }
@@ -109,30 +108,28 @@
 /* `safe`: a title taller than its window starts at the top and scrolls; plain centre cut the logo's top off where
    nothing could scroll to it (sweep, 24 Sept 2026) */
 .title .stage { align-items: flex-start; justify-content: safe center; gap: 0; }
-.logo { margin: 0 0 clamp(14px, 3vh, 34px) 4px; text-align: left; line-height: 0.86; animation: drop-in 900ms var(--pop) both; }
-.logo .l1, .logo .l2 { position: relative; display: block; }
-.logo .l1 { font-size: clamp(64px, 8.6vw, 138px); color: var(--sun); transform: rotate(-3deg); transform-origin: 0 100%; }
-.logo .l2 { margin: -0.06em 0 0 0.62em; font-size: clamp(56px, 7.6vw, 122px); color: var(--coral); transform: rotate(-1deg); transform-origin: 0 100%; }
-/* the gloss over the letters: a copy of the word, clipped to its letters, light on its top half and a little deeper
-   at its foot, over the word's own fill (its ink outline and drop stay the word's; content's alt text '' keeps it
-   from being read twice) */
-.logo [data-text]::after {
-  content: attr(data-text);
-  content: attr(data-text) / '';
+/* the logo (the house type, Adam, 28 Sept 2026): RASCAL over RALLY!, Mona Sans Expanded Black Italic in the sun and
+   coral, each line printed over a deeper tone of its own color and a navy block (a hard offset down and right, two
+   steps deep) inside a navy keyline, the two lines on a slanted navy plate with a sun edge: its badge. Our own
+   lettering: no Nintendo logo or look-alike */
+.logo { position: relative; isolation: isolate; margin: 0 0 clamp(14px, 3vh, 34px) 4px; text-align: left; line-height: 0.84; letter-spacing: -0.035em; text-transform: uppercase; animation: drop-in 900ms var(--pop) both; }
+.logo::before {
+  content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  color: transparent;
-  -webkit-text-stroke: 0;
-  text-shadow: none;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.72) 0%, rgb(255 255 255 / 0.18) 44%, transparent 46%, transparent 72%, rgb(140 40 0 / 0.22) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  pointer-events: none;
+  z-index: -1;
+  inset: 16% -5% 0% -3%;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(36 44 110 / 0.92), rgb(16 20 58 / 0.95));
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.26), inset 0 -5px 0 0 var(--sun), 0 12px 30px rgb(8 10 34 / 0.42);
+  transform: rotate(-4deg) skewX(-14deg);
 }
-.title .menu { display: flex; flex-direction: column; gap: 12px; width: min(470px, 40vw); padding-left: 14px; --band-h: 62px; --band-font: 32px; }
+.logo .l1, .logo .l2 { position: relative; display: block; font-weight: 900; font-stretch: 125%; -webkit-text-stroke: 0.05em var(--keyline); paint-order: stroke fill; transform: rotate(-4deg) skewX(-4deg); transform-origin: 0 100%; }
+.logo .l1 { font-size: clamp(56px, 7.4vw, 118px); color: var(--sun); text-shadow: 0.045em 0.05em 0 #e2561b, 0.075em 0.085em 0 var(--keyline), 0.075em 0.085em 0.28em rgb(8 10 34 / 0.4); }
+.logo .l2 { margin: 0.02em 0 0 0.9em; font-size: clamp(50px, 6.6vw, 106px); color: var(--coral); text-shadow: 0.045em 0.05em 0 #a51d4a, 0.075em 0.085em 0 var(--keyline), 0.075em 0.085em 0.28em rgb(8 10 34 / 0.4); }
+/* the bands taller and their words bigger than the old 62 px (two fresh-eyes critics, 28 Sept 2026: the words read small) */
+.title .menu { display: flex; flex-direction: column; gap: 12px; width: min(530px, 42vw); padding-left: 14px; --band-h: 70px; --band-font: 36px; }
 /* (no display here: .only-keys and .only-pad say which one shows) */
-.title .press { margin: 18px 0 0 24px; padding: 7px 16px 8px; border-radius: 999px; background: rgb(14 16 38 / 0.56); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.34); font: 600 17px/1 var(--body); color: var(--paper); text-shadow: 0 2px 0 var(--ink); animation: pulse 1.6s ease-in-out infinite; }
+.title .press { margin: 18px 0 0 24px; padding: 7px 16px 8px; border-radius: 999px; background: rgb(14 16 38 / 0.56); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.34); font: italic 700 17px/1 var(--body); letter-spacing: 0.02em; color: var(--paper); animation: pulse 1.6s ease-in-out infinite; }
 
 /* ---------- the start screen (design §12, 28 Sept 2026; Adam: "The game should have music playing here"), as Mario
    Kart World's title before its menu (youtube.com/watch?v=_9JZhslBy3E, 0:02 to 0:16: its logo big at the top over
@@ -158,17 +155,16 @@
   border: 0;
   background: none;
   color: #fff;
-  font: 400 clamp(26px, 2.4vw, 40px)/1 var(--display);
-  letter-spacing: 0.02em;
-  -webkit-text-stroke: 3px var(--ink);
-  paint-order: stroke fill;
-  text-shadow: 0 4px 0 var(--ink), 0 0 22px rgb(14 16 38 / 0.55);
+  font: italic 700 clamp(26px, 2.4vw, 40px)/1 var(--display);
+  font-stretch: 118%;
+  letter-spacing: 0.01em;
+  text-shadow: var(--lift), 0 0 26px rgb(8 10 34 / 0.5);
   cursor: pointer;
   outline: none;
   animation: start-pulse 1.8s ease-in-out infinite;
 }
 /* the one stop on the screen, always focused: a soft sun glow says so */
-.start-prompt.focused, .start-prompt:focus-visible { text-shadow: 0 4px 0 var(--ink), 0 0 22px rgb(255 210 63 / 0.6); }
+.start-prompt.focused, .start-prompt:focus-visible { text-shadow: var(--lift), 0 0 26px rgb(255 210 63 / 0.55); }
 @keyframes start-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.035); } }
 /* the prompt in the words of the input in hand: a keyboard's, a pad's once one is used, a tap's on a touch screen */
 .start-prompt > span { display: none; }
@@ -202,9 +198,9 @@
 .menu-side { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .menu-side .hero-box { display: block; align-self: stretch; flex: 1 1 auto; min-height: 120px; }
 /* what the mode under the focus is, at the foot on the right (MKW's "Go for gold in a four-race cup!") */
-.menu-side .mode-say { max-width: 100%; min-height: 1.1em; padding-right: 10px; font-size: clamp(24px, 2.2vw, 36px); line-height: 1.1; text-align: right; -webkit-text-stroke: 3px var(--ink); text-shadow: 0 4px 0 var(--ink); transform: skewX(-8deg); }
+.menu-side .mode-say { max-width: 100%; min-height: 1.1em; padding-right: 10px; font-size: clamp(24px, 2.2vw, 36px); font-weight: 700; line-height: 1.1; text-align: right; }
 .select-screen.on .mode-say.swap { animation: say-in 260ms var(--out); }
-@keyframes say-in { from { opacity: 0; transform: translateX(28px) skewX(-8deg); } }
+@keyframes say-in { from { opacity: 0; transform: translateX(28px); } }
 
 /* ---------- the pictures: a track's own shot in a glass frame (the tiles' glass: select.css) ---------- */
 .frame {
@@ -231,7 +227,7 @@
   background: linear-gradient(164deg, rgb(255 255 255 / 0.26) 0%, rgb(255 255 255 / 0.06) 22%, transparent 40%);
   pointer-events: none;
 }
-.frame > .soon-tag { position: absolute; inset: 0; display: grid; place-items: center; font: 400 22px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; letter-spacing: 0.04em; }
+.frame > .soon-tag { position: absolute; inset: 0; display: grid; place-items: center; font: italic 900 22px/1 var(--display); font-stretch: 112%; color: var(--paper); text-shadow: var(--lift); letter-spacing: 0.04em; }
 .shot.soon .frame { filter: grayscale(0.85) brightness(0.8); }
 
 /* ---------- a ribbon title (a cup's name over its courses: MKW heads them with the cup's name; ours on the intro's ribbon) ---------- */
@@ -242,10 +238,12 @@
   margin: 0 0 0 30px;
   padding: 0 8px;
   font-size: clamp(34px, 3vw, 54px);
+  font-weight: 900;
+  font-stretch: 118%;
+  letter-spacing: -0.02em;
   line-height: 1.05;
   white-space: nowrap;
-  -webkit-text-stroke: 4px var(--ink);
-  text-shadow: 0 5px 0 var(--ink);
+  text-shadow: 0.045em 0.05em 0 color-mix(in srgb, var(--ribbon, var(--coral)) 45%, #0b0f2e), 0 0.08em 0.24em rgb(8 10 34 / 0.35);
 }
 .menu-stage .ribbon::before {
   content: '';
@@ -255,11 +253,10 @@
   right: -28px;
   top: 36%;
   bottom: 4%;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon, var(--coral)) 60%, #fff) 0 44%, var(--ribbon, var(--coral)) 44% 100%);
-  border: 3px solid var(--ink);
-  border-radius: 999px;
-  box-shadow: 0 5px 0 var(--ink), inset 0 -4px 0 rgb(0 0 0 / 0.14);
-  transform: skewX(-12deg);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon, var(--coral)) 82%, #fff) 0%, var(--ribbon, var(--coral)) 55%, color-mix(in srgb, var(--ribbon, var(--coral)) 80%, #0b0f2e) 100%);
+  border-radius: 0.12em;
+  box-shadow: 0 0.1em 0.26em rgb(8 10 34 / 0.35), inset 0 0.04em 0 rgb(255 255 255 / 0.4);
+  transform: skewX(-16deg);
 }
 /* each cup's own colors: its ribbon, and the glow in its tile's glass */
 [data-cup='sunrise'] { --ribbon: #ff9a3c; --glow: #ffb347; }
@@ -275,7 +272,7 @@
 /* three across, as big as the room allows: the pictures (16:9) and their names under them fit its height */
 .cup-preview .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.6vw, 28px); width: min(100%, calc((100cqh - 130px) * 5.33 + 56px)); }
 .shot { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.shot-name { padding-left: 6px; font: 400 clamp(20px, 1.7vw, 28px)/1.05 var(--display); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.shot-name { padding-left: 6px; font: italic 800 clamp(20px, 1.7vw, 28px)/1.1 var(--display); font-stretch: 110%; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: var(--lift-strong); }
 /* a cup coming on show: its ribbon pops and its pictures slide in, one after another */
 .select-screen.on .cup-preview:not([hidden]) .ribbon { animation: np-swap 280ms var(--pop); }
 .select-screen.on .cup-preview:not([hidden]) .shot { animation: shot-in 320ms var(--out) backwards; animation-delay: calc(var(--i, 0) * 50ms); }
@@ -292,12 +289,12 @@
 .cup-tile .emblem { grid-row: 1 / span 2; display: block; width: 64px; height: 64px; }
 .cup-tile .emblem svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.3)); transition: transform var(--t-fast) var(--pop); }
 .cup-tile.focused .emblem svg { transform: scale(1.12) rotate(-6deg); }
-.cup-tile .label { align-self: end; justify-self: start; max-width: 100%; font: 400 clamp(22px, 1.7vw, 28px)/1.05 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.cup-tile .label { align-self: end; justify-self: start; max-width: 100%; font: italic 800 clamp(22px, 1.7vw, 28px)/1.1 var(--display); font-stretch: 110%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: var(--lift); }
 .cup-tile .cup-head:not(:has(.badge)) .label { grid-row: 1 / span 2; align-self: center; }
-.cup-tile .badge { align-self: start; justify-self: start; font: 700 14px/1 var(--body); color: var(--ink); background: var(--paper); border-radius: 999px; padding: 4px 10px; }
+.cup-tile .badge { align-self: start; justify-self: start; font: italic 800 14px/1 var(--body); color: var(--ink); background: var(--paper); border-radius: 999px; padding: 4px 10px; }
 .cup-tile .badge.star-badge { display: flex; gap: 1px; padding: 0; background: none; }
 .cup-tile .star-badge .star-svg { display: block; width: 26px; height: 26px; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.3)); }
-.cup-tile .sub { position: relative; z-index: 1; display: block; margin-top: 4px; font: 600 13px/1.2 var(--body); opacity: 0.85; }
+.cup-tile .sub { position: relative; z-index: 1; display: block; margin-top: 4px; font: italic 600 13px/1.2 var(--body); opacity: 0.85; }
 .cup-tile[aria-disabled='true'] { cursor: not-allowed; }
 .cup-tile[aria-disabled='true'] .cup-head { opacity: 0.55; filter: grayscale(0.7); }
 
@@ -307,8 +304,8 @@
 /* as big as the room allows: each row's pictures (16:9), their names and the ribbon over them fit the room's height */
 .track-rows { display: flex; flex-direction: column; justify-content: center; gap: clamp(8px, 2vh, 24px); height: 100%; width: min(100%, calc((100cqh / var(--rows, 2) - 104px) * 5.33 + 48px)); }
 .track-group { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
-.track-group .ribbon { font-size: clamp(24px, 2vw, 34px); -webkit-text-stroke-width: 3px; text-shadow: 0 4px 0 var(--ink); margin-left: 24px; }
-.track-group .ribbon::before { left: -22px; right: -22px; box-shadow: 0 4px 0 var(--ink), inset 0 -3px 0 rgb(0 0 0 / 0.14); }
+.track-group .ribbon { font-size: clamp(24px, 2vw, 34px); margin-left: 24px; }
+.track-group .ribbon::before { left: -22px; right: -22px; }
 .track-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.6vw, 24px); }
 .track-card {
   appearance: none;
@@ -329,9 +326,9 @@
   transition: transform var(--t-fast) var(--pop);
 }
 .track-card .words { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-width: 0; padding-left: 6px; }
-.track-card .label { font: 400 clamp(20px, 1.7vw, 28px)/1.05 var(--display); white-space: nowrap; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); transition: color var(--t-fast); }
-.track-card .biome { font: 600 14px/1 var(--body); color: rgb(255 255 255 / 0.88); text-shadow: 0 1px 0 var(--ink), 0 0 4px rgb(14 16 38 / 0.8); }
-.track-card .sub { font: 700 13px/1 var(--body); color: var(--paper); background: rgb(14 16 38 / 0.72); border-radius: 999px; padding: 4px 10px; }
+.track-card .label { font: italic 800 clamp(20px, 1.7vw, 28px)/1.1 var(--display); font-stretch: 110%; white-space: nowrap; text-shadow: var(--lift-strong); transition: color var(--t-fast); }
+.track-card .biome { font: italic 600 14px/1 var(--body); color: #fff; text-shadow: var(--lift-strong); }
+.track-card .sub { font: italic 700 13px/1 var(--body); color: var(--paper); background: rgb(14 16 38 / 0.72); border-radius: 999px; padding: 4px 10px; }
 /* a Time Trial's best medal on the picture's corner */
 .frame > .medal-badge { position: absolute; top: 8px; right: 10px; z-index: 3; width: 44px; transform: rotate(8deg); filter: drop-shadow(0 3px 0 rgb(27 27 47 / 0.55)); }
 .frame > .medal-badge svg { display: block; width: 100%; height: auto; }
@@ -378,11 +375,11 @@
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.42), 0 8px 18px rgb(8 10 30 / 0.3);
   transition: transform var(--t-fast) var(--pop), box-shadow var(--t-fast), background var(--t-fast);
 }
-.classes .pill .label { font: 400 24px/1 var(--display); letter-spacing: 0.01em; -webkit-text-stroke: 2.5px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
-.classes .pill .sub { font: 600 15px/1 var(--body); opacity: 0.88; }
-.classes .pill .badge { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: var(--sun); font: 800 12px/1 var(--body); }
+.classes .pill .label { font: italic 800 24px/1 var(--display); font-stretch: 110%; letter-spacing: -0.01em; text-shadow: var(--lift); }
+.classes .pill .sub { font: italic 600 15px/1 var(--body); opacity: 0.88; }
+.classes .pill .badge { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--ink); color: var(--sun); font: italic 800 12px/1 var(--body); }
 .classes .pill[aria-pressed='true'] { color: var(--ink); background: linear-gradient(180deg, #ffe9a0 0%, var(--sun) 50%, #f4b42a 100%); box-shadow: inset 0 0 0 2px var(--ink), inset 0 2px 0 3px rgb(255 255 255 / 0.5), 0 8px 18px rgb(8 10 30 / 0.3); }
-.classes .pill[aria-pressed='true'] .label { color: #fff; }
+.classes .pill[aria-pressed='true'] .label { color: var(--ink); text-shadow: none; }
 .classes .pill.focused, .classes .pill:focus-visible { transform: translateY(-3px) scale(1.06) skewX(-10deg); box-shadow: inset 0 0 0 3px #fff, 0 0 0 4px var(--sun), 0 0 0 7px var(--ink), 0 0 28px 8px rgb(255 210 63 / 0.5); }
 .classes .pill:active { transform: translateY(1px) scale(0.98) skewX(-10deg); }
 /* slanted as the bands are, the words upright on it */
@@ -391,9 +388,9 @@
 
 /* ---------- a laptop window (1280x720, 1366x657): a little tighter ---------- */
 @media (max-height: 800px) {
-  .logo .l1 { font-size: min(8.6vw, 14vh); }
-  .logo .l2 { font-size: min(7.6vw, 12.4vh); }
-  .title .menu { gap: 10px; --band-h: min(58px, 7.6vh); --band-font: 28px; }
+  .logo .l1 { font-size: min(7.4vw, 12.2vh); }
+  .logo .l2 { font-size: min(6.6vw, 11vh); }
+  .title .menu { gap: 10px; --band-h: min(64px, 8.4vh); --band-font: 32px; }
   .title .press { margin-top: 12px; }
   .cup-tile { padding: 8px 16px 8px 10px; }
   .cup-tile .emblem { width: 54px; height: 54px; }
@@ -416,31 +413,31 @@
 @media (max-height: 500px) {
   .logo { margin-bottom: 14px; }
   .logo .l1, .logo .l2 { display: inline-block; }
-  .logo .l1 { font-size: min(7vw, 13vh); }
-  .logo .l2 { margin: 0 0 0 0.3em; font-size: min(6.4vw, 12vh); }
-  .title .menu { gap: 6px; width: min(360px, 46vw); padding-left: 10px; --band-h: 42px; --band-font: 22px; }
+  .logo .l1 { font-size: min(6vw, 11.5vh); }
+  .logo .l2 { margin: 0 0 0 0.3em; font-size: min(5.4vw, 10.5vh); }
+  .logo::before { inset: 12% -3% 6% -2%; border-radius: 10px; }
+  .title .menu { gap: 6px; width: min(390px, 48vw); padding-left: 10px; --band-h: 42px; --band-font: 23px; }
   .title .press { margin: 8px 0 0 16px; padding: 5px 12px 6px; font-size: 14px; }
   .band { gap: 12px; padding-right: 20px; }
   .band > .glass { border-radius: 10px; }
   .band > .icon { box-shadow: 0 0 0 2px var(--ink), 0 3px 0 2px var(--ink); }
-  .band > .label { -webkit-text-stroke-width: 2.5px; text-shadow: 0 3px 0 var(--ink); }
   .band.focused, .band:focus-visible { transform: translateX(8px) scale(1.03); }
   .band.focused > .glass, .band:focus-visible > .glass { box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 16px 4px rgb(255 196 48 / 0.5); }
   .modes.bands { gap: 6px; padding: 4px 0 4px 10px; --band-h: 42px; --band-font: 22px; }
-  .menu-side .mode-say { font-size: 18px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 3px 0 var(--ink); }
-  .menu-stage .ribbon { font-size: 24px; -webkit-text-stroke-width: 3px; text-shadow: 0 3px 0 var(--ink); margin-left: 18px; }
-  .menu-stage .ribbon::before { left: -16px; right: -16px; border-width: 2px; box-shadow: 0 3px 0 var(--ink); }
+  .menu-side .mode-say { font-size: 18px; }
+  .menu-stage .ribbon { font-size: 24px; margin-left: 18px; }
+  .menu-stage .ribbon::before { left: -16px; right: -16px; }
   .cup-preview { gap: 6px; }
   .cup-preview .shots { gap: 10px; width: min(100%, calc((100cqh - 40px) * 6 + 20px)); }
   .frame { aspect-ratio: 2 / 1; border-radius: 12px; }
   .shot { position: relative; gap: 0; }
   .shot-name, .track-card .words { position: absolute; left: 6px; right: 6px; bottom: 5px; z-index: 3; padding: 0; }
-  .shot-name, .track-card .label { font-size: 15px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 2px 0 var(--ink); }
+  .shot-name, .track-card .label { font-size: 15px; }
   .track-card .biome { display: none; }
   .track-card .sub { padding: 2px 7px; font-size: 10.5px; }
   .track-rows { gap: 8px; width: min(100%, calc((100cqh / var(--rows, 2) - 10px) * 6 + 150px)); }
   .track-group { flex-direction: row; align-items: center; gap: 8px; }
-  .track-group .ribbon { flex: none; width: 6.4em; margin-left: 12px; font-size: 15px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 2px 0 var(--ink); }
+  .track-group .ribbon { flex: none; width: 6.4em; margin-left: 12px; font-size: 15px; }
   .track-group .ribbon::before { left: -10px; right: -2px; }
   .track-cards { flex: 1 1 auto; min-width: 0; gap: 8px; }
   .frame > .medal-badge { width: 26px; top: 4px; right: 6px; }
@@ -449,12 +446,12 @@
   .cups { gap: 8px; padding: 2px; }
   .cup-tile { width: auto; min-width: 200px; padding: 5px 14px 5px 8px; border-radius: 12px; }
   .cup-tile .emblem { width: 38px; height: 38px; }
-  .cup-tile .label { font-size: 18px; -webkit-text-stroke-width: 2.5px; text-shadow: 0 2px 0 var(--ink); }
+  .cup-tile .label { font-size: 18px; }
   .cup-tile .star-badge .star-svg { width: 18px; height: 18px; }
   .cup-tile .cup-head { column-gap: 8px; row-gap: 2px; }
   .classes { gap: 8px; padding: 2px; }
   .classes .pill { gap: 6px; padding: 4px 12px 4px 14px; }
-  .classes .pill .label { font-size: 17px; -webkit-text-stroke-width: 2px; text-shadow: 0 2px 0 var(--ink); }
+  .classes .pill .label { font-size: 17px; }
   .classes .pill .sub { font-size: 12px; }
   .classes .pill .badge { min-width: 18px; height: 18px; font-size: 10px; }
   .classes .pill.focused, .classes .pill:focus-visible { box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 14px 4px rgb(255 210 63 / 0.5); }

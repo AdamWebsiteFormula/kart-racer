@@ -360,10 +360,13 @@ describe('the race\'s big moments and the end screens at the menus\' quality (27
     throw new Error(`no keyframes ${name}`);
   };
 
-  it('the banners are struck letters: an ink outline and a face cut to each glyph from its data-ch, over its deep side', () => {
+  it('the banners are struck letters: a face cut to each glyph from its data-ch over its deeper side, a navy keyline round both (the type of 28 Sept 2026: no ink outline)', () => {
     expect(value('.ch::before', 'content')).toMatch(/attr\(data-ch\)/);
     expect(value('.ch::after', 'background')).toBe('var(--face)');
-    expect(value('.ch', 'transform')).toBe('skewX(-9deg)');
+    expect(value('.ch::before', '-webkit-text-stroke')).toMatch(/var\(--keyline\)/);
+    // the slant is the font's own italic (Mona Sans Expanded Black Italic), not a skew of each letter
+    expect(value('.ch', 'transform')).toBe('');
+    expect(value('.banner .big', 'font')).toMatch(/^italic 900 /);
     expect(value('.banner .big', '--face')).toMatch(/linear-gradient/);
     for (const kind of ['go', 'finalLap', 'wrongWay']) expect(value(`.banner[data-kind='${kind}'] .big`, '--face'), kind).toMatch(/linear-gradient/);
     // the count and GO! bigger than the rest, under the start lamps, and still below the gantry's own (24 Sept)
@@ -371,12 +374,12 @@ describe('the race\'s big moments and the end screens at the menus\' quality (27
     expect(value(".banner[data-kind='countdown'] .big", 'font-size')).toMatch(/236px/);
   });
 
-  it('they drop in one after another and land with a squash and a stretch; the words going squash and stretch away; transforms and opacity only', () => {
-    expect(value('.banner.show .ch', 'animation')).toMatch(/^ch-drop .*backwards/);
+  it('they dash in one after another and snap into place (the count and GO! punch in); the words going dash off; transforms and opacity only', () => {
+    expect(value('.banner.show .ch', 'animation')).toMatch(/^ch-dash .*backwards/);
     expect(value('.banner.show .ch', 'animation-delay')).toContain('var(--i)');
-    expect(value(".banner[data-kind='countdown'].show .ch", 'animation-name')).toBe('ch-slam');
-    expect(value('.banner.ghost.out .ch', 'animation')).toMatch(/^ch-out /);
-    for (const k of ['ch-drop', 'ch-slam', 'ch-out', 'sash-in']) moves(k, ['opacity', 'transform']);
+    expect(value(".banner[data-kind='countdown'].show .ch", 'animation-name')).toBe('ch-punch');
+    expect(value('.banner.ghost.out .ch', 'animation')).toMatch(/^ch-off /);
+    for (const k of ['ch-dash', 'ch-punch', 'ch-off', 'sash-in']) moves(k, ['opacity', 'transform']);
     // the words going sit under the ones coming, and show only while they leave (a screen's exit cannot bring them back)
     expect([value('.banner', 'z-index'), value('.banner.ghost', 'z-index'), value('.banner.ghost .ch', 'opacity')]).toEqual(['1', '0', '0']);
     // reduced motion: no stagger either, all at once

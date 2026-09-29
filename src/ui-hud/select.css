@@ -104,7 +104,7 @@
   -webkit-user-drag: none;
 }
 .tile.focused .tile-art { transform: scale(1.05); }
-.tile-letter { position: absolute; inset: 0; display: grid; place-items: center; font: 400 clamp(40px, 5vw, 72px)/1 var(--display); color: rgb(255 255 255 / 0.4); }
+.tile-letter { position: absolute; inset: 0; display: grid; place-items: center; font: italic 900 clamp(40px, 5vw, 72px)/1 var(--display); font-stretch: 118%; color: rgb(255 255 255 / 0.4); }
 /* (the picture is the racer alone on a clear ground: the initial goes while it is there, and comes back if it fails) */
 .racer-tile:has(> .tile-art) > .tile-letter { display: none; }
 
@@ -130,7 +130,7 @@
 .kart-tile.locked { --accent: #9a97a8; }
 .kc-lock { position: absolute; left: 50%; top: 44%; z-index: 2; width: clamp(24px, 17%, 44px); aspect-ratio: 1; transform: translate(-50%, -50%); filter: drop-shadow(0 2px 0 rgb(255 255 255 / 0.9)); }
 .kc-lock svg, .kc-hint .lk svg { display: block; width: 100%; height: 100%; }
-.kc-hint { position: absolute; left: 8px; right: 8px; bottom: 7px; z-index: 3; font: 700 clamp(11px, 0.85vw, 14px)/1.15 var(--body); color: #fff; text-align: center; text-shadow: 0 1px 0 var(--ink), 0 0 6px rgb(0 0 0 / 0.6); }
+.kc-hint { position: absolute; left: 8px; right: 8px; bottom: 7px; z-index: 3; font: italic 700 clamp(11px, 0.85vw, 14px)/1.15 var(--body); color: #fff; text-align: center; text-shadow: var(--lift); }
 .kc-hint .lk { display: none; }
 /* the kart the racer is in now: a coral check in the corner (the label says it in words) */
 .kc-chosen { position: absolute; top: 8px; right: 8px; z-index: 4; display: grid; place-items: center; width: 28px; height: 28px; border: 3px solid var(--ink); border-radius: 50%; background: var(--coral); color: #fff; font: 800 15px/1 var(--body); box-shadow: 0 3px 0 var(--ink); }
@@ -141,13 +141,14 @@
   left: 50%;
   z-index: 5;
   padding: 5px 12px 7px;
-  border: 3px solid var(--ink);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--coral);
   color: #fff;
-  font: 400 19px/1 var(--display);
+  font: italic 900 19px/1 var(--display);
+  font-stretch: 112%;
   white-space: nowrap;
-  box-shadow: 0 4px 0 var(--ink);
+  text-shadow: 0 1px 2px rgb(8 10 34 / 0.4);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.5), 0 6px 14px rgb(8 10 34 / 0.4);
   transform: translateX(-50%) rotate(-8deg) scale(0.3);
   opacity: 0;
   pointer-events: none;
@@ -159,24 +160,26 @@
 .kart-screen.on .kart-tile.refused { animation: refuse-shake 320ms ease-in-out; }
 @keyframes refuse-shake { 20% { transform: translateX(-7px) rotate(-1deg); } 45% { transform: translateX(6px) rotate(1deg); } 70% { transform: translateX(-4px); } 90% { transform: translateX(2px); } }
 
-/* ---------- the name under the hero: big, on a ribbon in its color (the course intro's), a line under it ---------- */
+/* ---------- the name under the hero: big, on a plate in its color (the course intro's), a line under it ----------
+   The house type (Adam, 28 Sept 2026): caps in Mona Sans Expanded Black Italic, a hard offset in a deep tone of the
+   racer's color, on a flat slanted plate like a broadcast's lower third (no ink rim) */
 .nameplate { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 100%; }
-.nameplate .np-name { position: relative; isolation: isolate; padding: 0 12px; font-size: clamp(52px, 5vw, 90px); line-height: 1.02; white-space: nowrap; -webkit-text-stroke-width: 5px; text-shadow: 0 7px 0 var(--ink); }
-/* the ribbon: its color, glossy (a lighter top half), inked */
+.nameplate .np-name { position: relative; isolation: isolate; padding: 0 0.28em; font-size: clamp(48px, 4.8vw, 84px); font-weight: 900; font-stretch: 125%; letter-spacing: -0.03em; text-transform: uppercase; line-height: 1.02; white-space: nowrap; text-shadow: 0.045em 0.05em 0 color-mix(in srgb, var(--ribbon, var(--coral)) 45%, #0b0f2e), 0 0.08em 0.24em rgb(8 10 34 / 0.35); }
+/* the plate: its color, a bright top easing into it and a deeper foot, slanted */
 .np-name::before {
   content: '';
   position: absolute;
   z-index: -1;
-  left: -30px;
-  right: -30px;
-  top: 34%;
-  bottom: 2%;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon, var(--coral)) 62%, #fff) 0 44%, var(--ribbon, var(--coral)) 44% 100%);
-  border: var(--stroke) solid var(--ink);
-  border-radius: 999px;
-  box-shadow: var(--shadow-drop), inset 0 -5px 0 rgb(0 0 0 / 0.14);
+  left: -0.2em;
+  right: -0.2em;
+  top: 22%;
+  bottom: 4%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon, var(--coral)) 82%, #fff) 0%, var(--ribbon, var(--coral)) 55%, color-mix(in srgb, var(--ribbon, var(--coral)) 80%, #0b0f2e) 100%);
+  border-radius: 0.1em;
+  box-shadow: 0 0.12em 0.3em rgb(8 10 34 / 0.35), inset 0 0.035em 0 rgb(255 255 255 / 0.4);
+  transform: skewX(-16deg);
 }
-.np-sub { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; font: 600 clamp(15px, 1.15vw, 19px)/1.1 var(--body); color: var(--paper); background: rgb(27 27 47 / 0.84); border-radius: 999px; padding: 8px 16px 7px; }
+.np-sub { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; font: italic 600 clamp(15px, 1.15vw, 19px)/1.1 var(--body); color: var(--paper); background: rgb(27 27 47 / 0.84); border-radius: 999px; padding: 8px 16px 7px; }
 .np-sub:has(> .np-text:empty) { display: none; }
 .np-lock { display: none; flex: none; width: 1.25em; height: 1.25em; }
 .np-lock svg { display: block; width: 100%; height: 100%; }
@@ -189,13 +192,13 @@
   content: '';
   position: absolute;
   z-index: -1;
-  left: -30px;
-  right: -30px;
-  top: 34%;
-  bottom: 2%;
+  left: -0.2em;
+  right: -0.2em;
+  top: 22%;
+  bottom: 4%;
   background: var(--sun);
-  border: var(--stroke) solid var(--ink);
-  border-radius: 999px;
+  border-radius: 0.1em;
+  transform: skewX(-16deg);
   opacity: 0;
   pointer-events: none;
 }
@@ -217,7 +220,7 @@
   background: linear-gradient(180deg, rgb(30 34 74 / 0.86), rgb(16 18 44 / 0.88));
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.42), 0 10px 22px rgb(8 10 30 / 0.3);
 }
-.select-side .btn.pick .label { font-size: 22px; text-shadow: 0 2px 0 rgb(0 0 0 / 0.35); }
+.select-side .btn.pick .label { font-size: 22px; text-shadow: var(--lift); }
 .select-side .btn.pick .arrow { color: #fff; }
 .select-side .opt .nm { color: rgb(255 255 255 / 0.85); }
 .select-side .opt .sw { border-color: rgb(255 255 255 / 0.9); }
@@ -252,9 +255,9 @@
 .select-side.stats-on .hero-box { transform: translateY(4%) scale(0.8); }
 .select-screen.on .stat-panel:not([hidden]) { animation: stats-in 240ms var(--out); }
 @keyframes stats-in { from { opacity: 0; transform: translateY(-12px) scale(0.97); } }
-.sp-title { font: 400 clamp(19px, 1.5vw, 24px)/1.1 var(--display); letter-spacing: 0.01em; text-shadow: 0 2px 0 rgb(0 0 0 / 0.35); }
+.sp-title { font: italic 800 clamp(19px, 1.5vw, 24px)/1.1 var(--display); font-stretch: 110%; letter-spacing: -0.01em; text-shadow: var(--lift); }
 .sp-row { display: grid; grid-template-columns: 6.4em minmax(0, 1fr) 44px; align-items: center; gap: 12px; }
-.sp-label { font: 600 16px/1 var(--body); }
+.sp-label { font: italic 600 16px/1 var(--body); }
 /* the bar in five segments (as MKW's), the combo chosen now solid, the one under the focus a ghost:
    a light extension for a gain, a hatched cut-back for a loss, and a chevron a step beside it, up to three.
    Every layer is the whole track scaled from the left (scaleX only), 240 ms on the house ease, 40 ms apart */
@@ -280,7 +283,7 @@
 
 /* ---------- the prompts along the bottom (MKW: the buttons and what they do, bottom right); Stats and Back are buttons ---------- */
 .select-stage .prompts { flex: none; margin-top: 0; align-items: center; justify-content: flex-end; gap: 8px 22px; }
-.prompts .prompt { display: inline-flex; align-items: center; font: 600 16px/1 var(--body); color: var(--paper); text-shadow: 0 2px 0 var(--ink); }
+.prompts .prompt { display: inline-flex; align-items: center; font: italic 600 16px/1 var(--body); color: var(--paper); text-shadow: var(--lift); }
 /* the keys' names clean: no ink shadow of the prompt's under their ink letters (it closed the "c" of a small "Esc"
    into "Ese": a fresh-eyes critique, 28 Sept 2026), a touch lighter and apart */
 .select-stage .prompts kbd { text-shadow: none; font-weight: 600; letter-spacing: 0.04em; }
@@ -300,7 +303,7 @@
 .prompts .prompt-btn .label { font: inherit; }
 
 /* who is picking, beside the heading, where the hero has no room (a narrower screen) */
-.kart-who { display: none; align-items: center; gap: 8px; margin-left: auto; padding: 4px 14px 4px 5px; border: 3px solid var(--ink); border-radius: 999px; background: var(--paper); color: var(--ink); font: 400 20px/1 var(--display); box-shadow: 0 4px 0 var(--ink); }
+.kart-who { display: none; align-items: center; gap: 8px; margin-left: auto; padding: 4px 14px 4px 5px; border-radius: 999px; background: rgb(27 27 47 / 0.62); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.3); color: #fff; font: italic 800 20px/1 var(--display); font-stretch: 110%; text-shadow: var(--lift); }
 .kart-who .face-ic { --face: 30px; border-width: 2px; border-color: var(--ink); box-shadow: none; }
 
 /* ---------- a laptop window (1280x720, 1366x657): a little tighter ---------- */
@@ -332,8 +335,7 @@
   .sp-chev { grid-column: 2; grid-row: 1; height: 12px; justify-self: end; }
   .sp-chev .chev-svg { width: 11px; height: 9px; }
   .sp-track { grid-column: 1 / -1; height: 11px; }
-  .nameplate .np-name { font-size: clamp(30px, 4.4vw, 44px); -webkit-text-stroke-width: 4px; text-shadow: 0 5px 0 var(--ink); }
-  .np-name::before, .np-name::after { left: -18px; right: -18px; border-width: 3px; }
+  .nameplate .np-name { font-size: clamp(30px, 4.4vw, 44px); }
 }
 @media (max-width: 720px) and (min-height: 501px) {
   .roster.select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -345,7 +347,7 @@
 /* ---------- a phone on its side (852x393, 740x360): one screen, no scroll. The racers in one row, the karts two
    rows of five, the name and the paint in a row under them, the stats a thin strip ---------- */
 @media (max-height: 500px) {
-  .select-stage .heading { font-size: 28px; -webkit-text-stroke-width: 3px; text-shadow: 0 4px 0 var(--ink); }
+  .select-stage .heading { font-size: 28px; }
   .select-grid { gap: 6px; padding: 6px 4px; }
   .roster.select-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); max-width: none; }
   .kart-grid.select-grid { max-width: none; }
@@ -353,10 +355,8 @@
   .tile.focused, .tile:focus-visible { transform: scale(1.05); box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 14px 4px rgb(255 210 63 / 0.55); }
   .kc-hint { font-size: 9.5px; bottom: 3px; left: 3px; right: 3px; }
   .kc-chosen { width: 18px; height: 18px; top: 4px; right: 4px; border-width: 2px; font-size: 10px; box-shadow: 0 2px 0 var(--ink); }
-  .kc-stamp { top: 18%; padding: 3px 7px 4px; font-size: 13px; border-width: 2px; }
-  .nameplate .np-name { font-size: 26px; -webkit-text-stroke-width: 3px; text-shadow: 0 4px 0 var(--ink); }
-  .np-name::before, .np-name::after { left: -12px; right: -12px; border-width: 3px; }
-  .np-name::before { box-shadow: 0 4px 0 var(--ink); }
+  .kc-stamp { top: 18%; padding: 3px 7px 4px; font-size: 13px; }
+  .nameplate .np-name { font-size: 26px; }
   .nameplate { flex-direction: row; gap: 14px; }
   .np-sub { font-size: 13px; padding: 5px 11px 5px; }
   .select-side { gap: 6px 18px; }

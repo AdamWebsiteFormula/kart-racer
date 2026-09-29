@@ -1,8 +1,8 @@
 // The race's big words as game banners (27 Sept 2026, the fresh-eyes review's item 9: "the countdown and banners
-// are flat text"): each letter its own span, so the letters can drop in one after another with a squash and a
-// stretch, and each struck in three layers from its `data-ch` (ui.css `.ch`: the ink outline under it, the deep
-// side dropped below the face, the face's gradient cut to the glyph), as the place numeral is. Our own letters:
-// Lilita One, slanted, in the house colors; never Mario Kart World's numerals or banner art.
+// are flat text"): each letter its own span, so the letters can come in one after another (they dash in from the
+// right since the type of 28 Sept 2026), each struck in three layers from its `data-ch` (ui.css `.ch`: the side in a
+// deeper tone, the face's gradient cut to the glyph over it, a navy keyline round both), as the place numeral is. Our
+// own letters: Mona Sans Expanded Black Italic in the house colors; never Mario Kart World's numerals or banner art.
 import { clear, h } from './dom.ts';
 
 /**

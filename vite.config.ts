@@ -4,10 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
 /**
- * Preload the two font files the title screen draws with (Lilita One for the logo and the menu,
- * Fredoka 600 for "Press Enter"), so they come down beside the script instead of after it: the
- * title waited up to 1.5 s for them on a slow line (the game's font timeout) and then swapped
- * fonts in front of the player. The files are found in the bundle, so their hashed names are right.
+ * Preload the font file the title screen draws with (the house type's italic, Mona Sans latin: the
+ * logo, the prompt and the menu, and the loading screen; ui-hud/ui.css, 28 Sept 2026), so it comes
+ * down beside the script instead of after it: the title waited up to 1.5 s for its fonts on a slow
+ * line (the game's font timeout) and then swapped them in front of the player. The file is found in
+ * the bundle, so its hashed name is right.
  */
 function preloadTitleFonts(): Plugin {
   let base = '/';
@@ -19,7 +20,7 @@ function preloadTitleFonts(): Plugin {
       order: 'post',
       handler(_html, ctx) {
         return Object.keys(ctx.bundle ?? {})
-          .filter((f) => /\/(lilita-one-latin-400|fredoka-latin-600)-normal-[\w-]+\.woff2$/.test(f))
+          .filter((f) => /\/mona-sans-latin-standard-italic-[\w-]+\.woff2$/.test(f))
           .sort()
           .map((f) => ({ tag: 'link', attrs: { rel: 'preload', href: base + f, as: 'font', type: 'font/woff2', crossorigin: '' }, injectTo: 'head' as const }));
       },

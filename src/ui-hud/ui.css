@@ -1,9 +1,26 @@
 /* ui-hud: the whole overlay. Tokens on :root; screens use tokens, never raw values.
-   Fonts are self-hosted through @fontsource (OFL-1.1), bundled by Vite. */
-@import '@fontsource/lilita-one/400.css';
-@import '@fontsource/fredoka/500.css';
-@import '@fontsource/fredoka/600.css';
-@import '@fontsource/fredoka/700.css';
+   The type (Adam, 28 Sept 2026, picked "A" of two directions on stills; design §12): Mona Sans (OFL-1.1, GitHub's
+   grotesk), self-hosted from @fontsource-variable and bundled by Vite, the latin files only. One variable file holds the
+   italic at every weight and width: the display (Expanded Black Italic) and every italic word; one the upright at every
+   weight, for reading. font-display swap: the fallback draws until a file is in (vite.config.ts preloads the italic,
+   which the title draws with). */
+@font-face {
+  font-family: 'Mona Sans';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 200 900;
+  font-stretch: 75% 125%;
+  src: url('@fontsource-variable/mona-sans/files/mona-sans-latin-standard-italic.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Mona Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 900;
+  src: url('@fontsource-variable/mona-sans/files/mona-sans-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 :root {
   --ink: #1b1b2f;
@@ -19,8 +36,16 @@
   --silver: #c9d2dc;
   --bronze: #d0894f;
 
-  --display: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif;
-  --body: 'Fredoka', 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  /* the display: Mona Sans Expanded Black Italic for the big words, its semi-expanded italic for the words a player
+     acts on or glances at; the text: the same family at its own width */
+  --display: 'Mona Sans', 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+  --body: 'Mona Sans', 'Segoe UI', system-ui, sans-serif;
+  /* the navy keyline round the big words, the place and the logo (never the old black ink outline) */
+  --keyline: #141a45;
+  /* a word's lift over the scene: a short soft shadow (never an ink block under it) */
+  --lift: 0 2px 0 rgb(8 10 34 / 0.28), 0 2px 10px rgb(8 10 34 / 0.45);
+  /* a word on the bright stage or sky with no plate under it (a track's name under its picture): a tight dark halo too */
+  --lift-strong: 0 1px 2px rgb(8 10 34 / 0.8), 0 2px 12px rgb(8 10 34 / 0.62), 0 0 24px rgb(8 10 34 / 0.32);
 
   --stroke: 4px;
   --radius: 22px;
@@ -135,14 +160,21 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 #ui .results.x-in > .stage { animation-delay: calc(var(--t-wipe-lag) + var(--lag, 0ms)); }
 @keyframes x-rise-out { 50% { opacity: 0.12; } to { opacity: 0; transform: translateY(-40px) scale(calc(var(--banner-scale, 1) * 0.92)); } }
 
-/* ---------- shared type ---------- */
+/* ---------- shared type (Adam, 28 Sept 2026: "Why do so many of the graphics with the fonts feel outdated and not
+   cool?"; he picked "A" of two directions on stills) ----------
+   Mona Sans, italic and heavy for every word a player acts on or glances at, white with a lift (a short soft shadow),
+   never an ink outline or an ink block: Mario Kart World sets its menus, prompts, names and results in italic white
+   with a soft shadow and no outline (stills youtube.com/watch?v=_9JZhslBy3E 0:00-3:24, ngiIINHSiJc 4:42). The big words
+   (the count, GO!, FINAL LAP, FINISH!, the place, the logo) are Expanded Black Italic: a bright face over a deeper tone
+   of itself inside a navy keyline (.ch, .place, menus.css .logo). Upright only for reading (dialog text, tables). */
 .display {
   font-family: var(--display);
-  letter-spacing: 0.01em;
+  font-style: italic;
+  font-weight: 800;
+  font-stretch: 112%;
+  letter-spacing: -0.01em;
   color: var(--paper);
-  -webkit-text-stroke: var(--stroke) var(--ink);
-  paint-order: stroke fill;
-  text-shadow: 0 6px 0 var(--ink);
+  text-shadow: var(--lift);
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -164,7 +196,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   text-align: left;
   outline: none;
 }
-.btn .label { font-family: var(--display); font-size: 28px; letter-spacing: 0.01em; }
+.btn .label { font: italic 800 28px/1 var(--display); font-stretch: 112%; letter-spacing: -0.01em; }
 .btn .sub { font-size: 15px; font-weight: 500; opacity: 0.75; }
 .btn .badge { margin-left: auto; font: 600 14px/1 var(--body); background: var(--ink); color: var(--paper); border-radius: 999px; padding: 6px 10px; }
 .btn.focused, .btn:focus-visible {
@@ -198,7 +230,20 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   overscroll-behavior: contain;
   scrollbar-width: none;
 }
-.heading { font-size: clamp(40px, 6vw, 72px); margin: 0; }
+/* a screen's heading: Expanded Black Italic, a sun slash before it (a broadcast's lower third) */
+.heading { position: relative; margin: 0; padding-left: 0.62em; font-size: clamp(40px, 6vw, 72px); font-weight: 900; font-stretch: 118%; letter-spacing: -0.025em; }
+.heading::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.14em;
+  bottom: 0.1em;
+  width: 0.26em;
+  border-radius: 0.04em;
+  background: linear-gradient(180deg, #ffe27a, var(--sun) 50%, #f4a51c);
+  box-shadow: 0 0.04em 0.16em rgb(8 10 34 / 0.4);
+  transform: skewX(-14deg);
+}
 /* the heading's row: Back at its far end (a mouse or a thumb has no Escape), small enough that
    the row stays the heading's height */
 .stage-head { display: flex; align-items: center; gap: 16px; }
@@ -206,9 +251,9 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .stage-head .back-btn .label { font-size: 20px; }
 .hint {
   margin-top: auto;
-  font: 600 16px/1.4 var(--body);
+  font: italic 600 16px/1.4 var(--body);
   color: var(--paper);
-  text-shadow: 0 2px 0 var(--ink);
+  text-shadow: var(--lift);
   display: flex;
   gap: 22px;
   flex-wrap: wrap;
@@ -277,7 +322,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .opt.locked .nm { opacity: 0.55; }
 .opt .lock { position: absolute; top: -9px; right: -10px; width: 18px; height: 18px; }
 .opt .lock svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 1px 0 #fff); }
-.pick-hint { max-width: 520px; font: 600 12.5px/1.35 var(--body); color: var(--paper); text-shadow: 0 1px 0 var(--ink), 0 0 3px var(--ink); }
+.pick-hint { max-width: 520px; font: italic 600 12.5px/1.35 var(--body); color: var(--paper); text-shadow: var(--lift); }
 .pick-hint .lk { display: inline-block; width: 1.25em; height: 1.25em; margin-right: 4px; vertical-align: -0.28em; }
 .pick-hint .lk svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 1px 0 var(--ink)); }
 /* a row's step arrows (icons.ts arrowSvg: settings, Paint and Body, the touch steering pad), sized by the text */
@@ -359,13 +404,14 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 :root[data-reduced-motion='on'] .slot.land .gloss::before, :root[data-reduced-motion='on'] .slot.land .charges { animation: none !important; }
 
 .hud .tc { position: absolute; z-index: 2; top: calc(18px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.timer { font: 400 30px/1 var(--display); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; background: rgba(27, 27, 47, 0.35); padding: 8px 18px; border-radius: 999px; }
+/* the timer: tabular figures on a dark glass tab, big enough to read at a glance */
+.timer { font: italic 800 32px/1 var(--display); font-stretch: 110%; color: var(--paper); text-shadow: var(--lift); background: rgb(27 27 47 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.22); padding: 8px 18px 10px; border-radius: 12px; }
 /* a solo run (Time Trial, Daily): no place to show ("1st" of one); each finished lap's time sits under
    the timer, the fastest in green (sweep, 24 Sept 2026) */
 .hud.solo .place { display: none; }
 .splits { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.split { display: flex; gap: 10px; align-items: baseline; padding: 5px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.45); font: 400 22px/1 var(--display); color: var(--paper); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-med) var(--pop) backwards; transition: transform var(--t-med) var(--out), background var(--t-med); }
-.split .n { font-size: 15px; letter-spacing: 0.06em; }
+.split { display: flex; gap: 10px; align-items: baseline; padding: 5px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.5); font: italic 800 22px/1 var(--display); font-stretch: 108%; color: var(--paper); text-shadow: var(--lift); animation: pop-in var(--t-med) var(--pop) backwards; transition: transform var(--t-med) var(--out), background var(--t-med); }
+.split .n { font-size: 15px; letter-spacing: 0.08em; }
 .split.best .t { color: var(--grass); }
 /* the lap line (Mario Kart World's Time Trial, 25 Sept 2026): the lap just run pops by the timer, bigger and
    ringed in sun, with the run against your best at that line on a chip, green ahead and red behind, for
@@ -373,7 +419,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
    it is the newest, the last in the list. With no best yet, the lap time alone */
 .split.pop { transform: scale(1.32); transform-origin: 50% 0; background: rgb(27 27 47 / 0.78); box-shadow: 0 0 0 3px var(--sun); }
 .hud.solo.celebrate .split.pop { transform-origin: 0 0; }
-.split .d { align-self: center; padding: 3px 9px 4px; border: 2px solid var(--ink); border-radius: 999px; font-size: 20px; -webkit-text-stroke: 3px var(--ink); font-variant-numeric: tabular-nums; }
+.split .d { align-self: center; padding: 3px 10px 4px; border-radius: 999px; font-size: 20px; color: #fff; text-shadow: 0 1px 2px rgb(8 10 34 / 0.45); box-shadow: 0 2px 8px rgb(8 10 34 / 0.3); font-variant-numeric: tabular-nums; }
 .split .d:empty { display: none; }
 .split .d[data-kind='ahead'] { background: var(--grass); }
 .split .d[data-kind='behind'] { background: var(--danger); }
@@ -390,34 +436,34 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* A Knockout race's goal where the eye goes for the place (Mario Kart World's "be 8th or better", in our
    words: "6th or better goes through", the final's "Only 1st wins"); red and pulsing outside it. It sat
    under the timer, a glance away from the place it is about (25 Sept 2026) */
-.ko-strip { padding: 6px 16px 8px; border: 3px solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--ink); color: var(--ink); font: 400 22px/1 var(--display); letter-spacing: 0.02em; white-space: nowrap; transform-origin: 0 50%; }
-.ko-strip.danger { background: var(--danger); color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; animation: pulse 0.8s ease-in-out infinite; }
+.ko-strip { padding: 7px 16px 8px; border-radius: 999px; background: rgb(27 27 47 / 0.62); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.3); color: #fff; font: italic 800 21px/1 var(--display); font-stretch: 108%; text-shadow: var(--lift); white-space: nowrap; transform-origin: 0 50%; }
+.ko-strip.danger { background: var(--danger); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.55), 0 0 18px 4px rgb(255 59 59 / 0.45); animation: pulse 0.8s ease-in-out infinite; }
 /* The place numeral, colored by place (MKW's idea, our own colors; 25 Sept 2026): 1st gold, 2nd icy
-   silver, 3rd copper-rose bronze, each struck like metal (a bright top, a hard horizon, a deep foot), and
-   4th to 8th in the HUD's painted yellow-orange. hudModel's positionTier sets data-tier with the numeral,
-   so the color changes on the flourish. Three layers of the one numeral: the ink outline round the whole
-   block (::before), the side, a darker shade dropped under the face (the text and its shadows), and the
-   face (::after, the gradient cut to the glyphs), so it reads on bright snow and on a night track */
+   silver, 3rd copper-rose bronze, and 4th to 8th in the HUD's yellow-orange. hudModel's positionTier sets
+   data-tier with the numeral, so the color changes on the flourish. The house type (28 Sept 2026): Expanded
+   Black Italic, three layers of the one numeral: the side, a deeper tone of its color (the numeral's own
+   glyph), the face over it a step up and left (::after, its gradient cut to the glyph), and a navy keyline
+   round both with a soft shadow under (::before), so it reads on bright snow and on a night track */
 .place {
-  --face: linear-gradient(180deg, #fff3b5 6%, #ffd23f 44%, #ffb01f 72%, #ff9012 94%);
-  --side: #c25400;
+  --face: linear-gradient(180deg, #ffe066 0%, #ffc21a 100%);
+  --side: #d9480f;
   --suf: var(--paper);
   display: flex; align-items: flex-start; line-height: 0.8;
 }
-.place[data-tier='gold'] { --face: linear-gradient(180deg, #fffdf0 6%, #fff0a6 40%, #ffcc00 41%, #ffb300 68%, #f28c00 94%); --side: #a85200; --suf: #ff8aa1; }
-.place[data-tier='silver'] { --face: linear-gradient(180deg, #ffffff 6%, #eef8ff 40%, #c2dcf2 41%, #a3c3e0 68%, #82a6c9 94%); --side: #466891; --suf: #d7ecff; }
-.place[data-tier='bronze'] { --face: linear-gradient(180deg, #fff0e8 6%, #ffc9b2 40%, #f0916f 41%, #de7458 68%, #c35843 94%); --side: #7c3024; --suf: #ffb39c; }
-.place .n { position: relative; z-index: 0; font: 400 132px/0.8 var(--display); color: var(--side); text-shadow: 0 0.015em 0 var(--side), 0 0.03em 0 var(--side), 0 0.045em 0 var(--side), 0 0.06em 0 var(--side); }
+.place[data-tier='gold'] { --face: linear-gradient(180deg, #fff1a1 0%, #ffcf1f 58%, #ffb800 100%); --side: #c2410c; --suf: #ffe066; }
+.place[data-tier='silver'] { --face: linear-gradient(180deg, #ffffff 0%, #d6e6f7 100%); --side: #3f5f8f; --suf: #e8f2ff; }
+.place[data-tier='bronze'] { --face: linear-gradient(180deg, #ffd0b8 0%, #f08a5d 100%); --side: #8c3521; --suf: #ffc3a6; }
+.place .n { position: relative; z-index: 0; font: italic 900 132px/0.8 var(--display); font-stretch: 125%; letter-spacing: -0.04em; color: var(--side); }
 /* (the alt text '' keeps screen readers to the one numeral) */
-.place .n::before, .place .n::after { content: attr(data-n); content: attr(data-n) / ''; position: absolute; left: 0; top: 0; }
-.place .n::before { z-index: -1; color: var(--ink); -webkit-text-stroke: 0.09em var(--ink); text-shadow: 0 0.03em 0 var(--ink), 0 0.06em 0 var(--ink); }
-.place .n::after { color: transparent; background: var(--face); -webkit-background-clip: text; background-clip: text; text-shadow: none; }
-.place .suf { font: 400 44px/1 var(--display); color: var(--suf); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 4px 0 var(--ink); margin: 6px 0 0 2px; }
+.place .n::before, .place .n::after { content: attr(data-n); content: attr(data-n) / ''; position: absolute; left: 0; top: 0; transform: translate(-0.05em, -0.05em); }
+.place .n::before { z-index: -1; color: var(--keyline); -webkit-text-stroke: 0.07em var(--keyline); text-shadow: 0.05em 0.05em 0 var(--keyline), 0.07em 0.1em 0.2em rgb(8 10 34 / 0.45); }
+.place .n::after { color: transparent; background: var(--face); -webkit-background-clip: text; background-clip: text; }
+.place .suf { font: italic 900 40px/1 var(--display); font-stretch: 118%; color: var(--suf); -webkit-text-stroke: 0.07em var(--keyline); paint-order: stroke fill; text-shadow: 0.05em 0.06em 0 var(--side), 0.08em 0.1em 0 var(--keyline), 0 2px 8px rgb(8 10 34 / 0.45); margin: 4px 0 0 4px; }
 .place.flourish { animation: flourish 400ms var(--pop); }
 /* the gears (Adam, 26 Sept 2026: gears, not coins): a pill with the lap counter's weight, our teal cog
    (gearIcon.ts) and two digits (05). Each gear clicks the cog round a tooth; at the cap (10, coinsFull) the
    pill rings and glows teal, the gear's own color, and pops as it gets there */
-.gears { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; padding: 5px 16px 5px 6px; border-radius: 999px; background: rgb(27 27 47 / 0.5); font: 400 36px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+.gears { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; padding: 5px 16px 6px 6px; border-radius: 999px; background: rgb(27 27 47 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.22); font: italic 900 34px/1 var(--display); font-stretch: 115%; color: var(--paper); text-shadow: var(--lift); }
 .gears .gear { flex: none; display: block; width: 34px; height: 34px; filter: drop-shadow(0 3px 0 var(--ink)); }
 .gears .gear svg { display: block; width: 100%; height: 100%; }
 .gears .gear.tick svg { animation: gear-tick 300ms var(--pop); }
@@ -428,12 +474,13 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .hud .br { position: absolute; bottom: calc(18px + var(--safe-b)); right: calc(22px + var(--safe-r)); display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 /* no box behind the map (MKW has none): the course's ink outline and its soft shadow carry it */
 .minimap { width: 210px; height: 210px; }
-.lap { font: 400 40px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+/* the lap on a dark glass tab, LAP small and tracked before the figures */
+.lap { display: flex; align-items: baseline; padding: 6px 16px 8px; border-radius: 12px; background: rgb(27 27 47 / 0.55); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.22); font: italic 900 42px/1 var(--display); font-stretch: 122%; letter-spacing: -0.02em; color: var(--paper); text-shadow: var(--lift); }
 .lap .of { font-size: 26px; }
-.lap .word { font-size: 22px; margin-right: 6px; }
+.lap .word { order: -1; margin-right: 8px; font-size: 17px; font-weight: 800; font-stretch: 105%; letter-spacing: 0.12em; }
 .lap.final { color: var(--coral); }
 /* Mirror mode: a small badge by the lap counter */
-.mirror-badge { display: none; align-self: flex-end; margin-top: 6px; padding: 4px 12px; border: 3px solid var(--ink); border-radius: 999px; background: var(--sky); color: #fff; font: 400 18px/1 var(--display); letter-spacing: 0.08em; box-shadow: 0 3px 0 var(--ink); }
+.mirror-badge { display: none; align-self: flex-end; margin-top: 6px; padding: 5px 12px; border-radius: 999px; background: var(--sky); color: #fff; font: italic 900 17px/1 var(--display); font-stretch: 110%; letter-spacing: 0.06em; text-shadow: 0 1px 2px rgb(8 10 34 / 0.4); box-shadow: 0 4px 12px rgb(8 10 34 / 0.3); }
 .mirror-badge.on { display: inline-block; }
 
 /* no speed readout (Mario Kart World shows none, 25 Sept 2026): the foot of the screen holds only the badge below */
@@ -446,24 +493,27 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .assist-dock .assist svg { display: block; width: 100%; height: 100%; }
 
 /* ---------- the race's big words: game banners (render/banner.ts; 27 Sept 2026, the fresh-eyes review's item 9:
-   "flat text"; Adam: "it all just looks really cheap") ----------
-   Each letter is struck in three layers from its data-ch, as the place numeral is: the ink outline under it (::before,
-   with a soft shadow, so it reads over snow, sky and a night track), the deep side dropped under the face (the letter
-   itself and its stacked shadows), and the face (::after: a bright top, a hard horizon and a deep foot, cut to the
-   glyph). Slanted as the menus' words are. The letters drop in one after another and land with a squash and a stretch
-   (the count and GO! slam in from big); the words going squash and stretch away as a ghost (.banner.ghost, under the
-   banner) while the next come in. Our own letters and colors (Lilita One in the house sun, grass and coral), never
-   Mario Kart World's numerals or banner art. Reduced motion: they simply appear, all at once, and go. */
+   "flat text"; the type of 28 Sept 2026, Adam: "Why do so many of the graphics with the fonts feel outdated and not
+   cool?") ----------
+   Each letter is struck in three layers from its data-ch, as the place numeral is: the side, a deeper tone of its color
+   (the letter itself), the face over it a step up and left (::after: a bright top easing into its color, cut to the
+   glyph), and a navy keyline round both with a soft shadow under all (::before), so it reads over snow, sky and a night
+   track. Mona Sans Expanded Black Italic, tracked tight: its italic is its slant. The letters dash in from the right,
+   stretched and leaning, and snap into place one after another (the count and GO! punch in from big); the words going
+   dash off to the left as a ghost (.banner.ghost, under the banner) while the next come in. Our own letters and colors
+   (the house sun, grass and coral), never Mario Kart World's numerals or banner art. Reduced motion: they simply
+   appear, all at once, and go. */
 .banner { position: absolute; z-index: 1; top: 24%; left: 0; right: 0; text-align: center; pointer-events: none; }
 .banner .big {
-  --face: linear-gradient(180deg, #fffbe8 14%, #ffe76a 42%, #ffc21c 43%, #ffa00e 66%, #f27a00 84%);
-  --side: #a44300;
+  --face: linear-gradient(180deg, #ffeba5 0%, #ffd84a 38%);
+  --side: #e8590c;
   position: relative;
   isolation: isolate;
   display: inline-block;
   white-space: nowrap;
-  font: 400 clamp(72px, 12vw, 160px)/1 var(--display);
-  letter-spacing: 0.035em;
+  font: italic 900 clamp(60px, 9.4vw, 136px)/1 var(--display);
+  font-stretch: 125%;
+  letter-spacing: -0.03em;
 }
 /* a struck letter (render/banner.ts letters: the banners here, the podium's headline in podium.css); its container
    gives the face and the side (--face, --side) */
@@ -471,89 +521,84 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .ch {
   position: relative;
   display: inline-block;
-  color: var(--side, #a44300);
-  text-shadow: 0 0.02em 0 var(--side, #a44300), 0 0.04em 0 var(--side, #a44300), 0 0.06em 0 var(--side, #a44300), 0 0.075em 0 var(--side, #a44300);
-  transform: skewX(-9deg);
-  transform-origin: 50% 82%;
+  color: var(--side, #e8590c);
+  transform-origin: 50% 70%;
 }
 /* (the alt text '' keeps screen readers to the words said once: .big's .sr-only, the podium headline's label) */
-.ch::before, .ch::after { content: attr(data-ch); content: attr(data-ch) / ''; position: absolute; left: 0; top: 0; }
-.ch::before { z-index: -1; color: var(--ink); -webkit-text-stroke: 0.1em var(--ink); text-shadow: 0 0.04em 0 var(--ink), 0 0.085em 0 var(--ink), 0 0.13em 0.16em rgb(10 12 36 / 0.5); }
-.ch::after { color: transparent; background: var(--face); -webkit-background-clip: text; background-clip: text; text-shadow: none; }
-.banner .small { display: block; margin-top: 8px; font: 400 clamp(26px, 3.5vw, 44px)/1 var(--display); color: var(--sun); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
-/* the finish: the place beside FINISH! on a pill (the timer's), so it reads over any sky or crowd; the
-   celebration takes the two up under the timer, clear of the kart (podium.css). Under FINISH! it sat on the
+.ch::before, .ch::after { content: attr(data-ch); content: attr(data-ch) / ''; position: absolute; left: 0; top: 0; transform: translate(-0.055em, -0.055em); }
+.ch::before { z-index: -1; color: var(--keyline); -webkit-text-stroke: 0.075em var(--keyline); text-shadow: 0.055em 0.055em 0 var(--keyline), 0.08em 0.11em 0.2em rgb(8 10 34 / 0.5); }
+.ch::after { color: transparent; background: var(--face); -webkit-background-clip: text; background-clip: text; }
+.banner .small { display: block; margin-top: 8px; font: italic 900 clamp(26px, 3.5vw, 44px)/1 var(--display); font-stretch: 118%; color: var(--sun); -webkit-text-stroke: 0.07em var(--keyline); paint-order: stroke fill; text-shadow: 0 0.06em 0.18em rgb(8 10 34 / 0.5); }
+/* the finish: the place beside FINISH! on a tab (the timer's), clear of the sash, so it reads over any sky or crowd;
+   the celebration takes the two up under the timer, clear of the kart (podium.css). Under FINISH! it sat on the
    racer's hat in the finish camera, small and bare (25 Sept 2026) */
-.banner[data-kind='finish'] .small { position: relative; z-index: 1; display: inline-block; vertical-align: 0.6em; margin: 0 0 0 1em; padding: 0.12em 0.42em 0.18em; border-radius: 999px; background: rgb(27 27 47 / 0.6); font-size: clamp(34px, 4.4vw, 62px); }
+.banner[data-kind='finish'] .small { position: relative; z-index: 1; display: inline-block; vertical-align: 0.6em; margin: 0 0 0 1.3em; padding: 0.12em 0.42em 0.18em; border-radius: 14px; background: rgb(27 27 47 / 0.62); color: #fff; -webkit-text-stroke: 0; text-shadow: none; font-size: clamp(38px, 4.8vw, 66px); }
 .banner[data-kind='finish'] .small:empty { display: none; }
 .banner.show[data-kind='finish'] .small { animation: pop-in var(--t-slow) var(--pop) 200ms backwards; }
 /* the prompt's words stay in the banner for assistive tech (read out with FINISH!); the eyes get the pill */
 .banner .skip { display: none; }
 /* over the line: how to go on to the results, on a pill at the foot of the screen, under the kart the finish
    camera circles (render/hud.ts); it comes a beat after FINISH!, so the finish reads first */
-.finish-go { position: absolute; left: 0; right: 0; bottom: calc(34px + var(--safe-b)); display: none; width: max-content; max-width: calc(100% - 32px); margin: 0 auto; padding: 11px 26px; border-radius: 999px; background: rgb(27 27 47 / 0.74); box-shadow: 0 4px 0 rgb(27 27 47 / 0.35); color: var(--paper); font: 700 21px/1.15 var(--body); text-align: center; pointer-events: none; }
+.finish-go { position: absolute; left: 0; right: 0; bottom: calc(34px + var(--safe-b)); display: none; width: max-content; max-width: calc(100% - 32px); margin: 0 auto; padding: 11px 26px; border-radius: 999px; background: rgb(27 27 47 / 0.74); box-shadow: 0 4px 0 rgb(27 27 47 / 0.35); color: var(--paper); font: italic 700 21px/1.15 var(--body); text-align: center; pointer-events: none; }
 .finish-go.on { display: block; animation: pop-in var(--t-slow) var(--pop) 700ms backwards; }
 @media (max-height: 500px) { .finish-go { bottom: calc(12px + var(--safe-b)); padding: 8px 18px; font-size: 17px; } }
-/* a Time Trial over the line: the medal its time won, under FINISH! */
+/* a Time Trial over the line: the medal its time won, under FINISH!, on a dark glass tab */
 .banner .medal-won { display: none; }
-.banner .medal-won.on { display: flex; align-items: center; gap: 12px; width: max-content; margin: 14px auto 0; padding: 6px 26px 6px 10px; border: var(--stroke) solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 6px 0 var(--ink); animation: medal-in 700ms var(--pop) 350ms backwards; }
+.banner .medal-won.on { display: flex; align-items: center; gap: 12px; width: max-content; margin: 14px auto 0; padding: 6px 26px 6px 10px; border-radius: 999px; background: rgb(27 27 47 / 0.66); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.3), 0 8px 20px rgb(8 10 34 / 0.35); animation: medal-in 700ms var(--pop) 350ms backwards; }
 .banner .medal-won .mw-icon { width: 84px; margin: -18px 0 -12px; }
-.banner .medal-won .mw-text { font: 400 clamp(32px, 3.6vw, 50px)/1 var(--display); color: var(--ink); }
+.banner .medal-won .mw-text { font: italic 900 clamp(32px, 3.6vw, 50px)/1 var(--display); font-stretch: 112%; color: #fff; text-shadow: var(--lift); }
 .banner .skip.on { display: block; }
 /* the count and GO! sit lower and bigger than the other banners: at 24% the numeral sat on the start
    gantry's own lights, half its size (sweep, 24 Sept 2026); under the start lamps now (.lamps), bigger still */
 .banner[data-kind='countdown'], .banner[data-kind='go'] { top: 30%; }
-.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, min(15vw, 28vh), 236px); letter-spacing: 0.05em; }
+.banner[data-kind='countdown'] .big, .banner[data-kind='go'] .big { font-size: clamp(96px, min(15vw, 28vh), 236px); letter-spacing: -0.02em; }
 /* each kind's colors: the count, FINISH! and the shift's label in the sun, GO! in the grass, FINAL LAP in coral */
-.banner[data-kind='go'] .big { --face: linear-gradient(180deg, #f5ffe6 14%, #c8f77c 42%, #7fd63f 43%, #4db52e 66%, #2c9432 84%); --side: #15612a; }
-.banner[data-kind='finalLap'] .big { --face: linear-gradient(180deg, #fff4ef 14%, #ffc4b5 42%, #ff7b67 43%, #f5534f 66%, #d8344a 84%); --side: #871b35; }
-.banner[data-kind='wrongWay'] .big { --face: linear-gradient(180deg, #ffffff 14%, #ffbaba 42%, #ff4d4d 43%, #e52d2d 66%, #b81f2c 84%); --side: #6c1020; font-size: clamp(48px, 7vw, 96px); animation: pulse 0.6s ease-in-out infinite; }
-.banner[data-kind='shift'] .big { font-size: clamp(40px, 6vw, 80px); }
-/* FINISH! over a checkered sash of our own start line's squares, swept in behind the letters */
+.banner[data-kind='go'] .big { --face: linear-gradient(180deg, #c7efa5 0%, #8ee04a 38%); --side: #167a36; }
+.banner[data-kind='finalLap'] .big { --face: linear-gradient(180deg, #ffbab2 0%, #ff7566 38%); --side: #8e1f47; }
+.banner[data-kind='wrongWay'] .big { --face: linear-gradient(180deg, #ffadad 0%, #ff5a5a 38%); --side: #6c1020; font-size: clamp(44px, 6vw, 84px); animation: pulse 0.6s ease-in-out infinite; }
+.banner[data-kind='shift'] .big { font-size: clamp(36px, 5vw, 70px); }
+.banner[data-kind='finish'] .big { --side: #d9480f; }
+/* FINISH! over a checkered sash of our own start line's squares, swept in behind the letters: flat, low across their
+   feet, stopping short of the place beside it */
 .banner[data-kind='finish'] .chs { isolation: isolate; }
 .banner[data-kind='finish'] .chs::before {
   content: '';
   position: absolute;
   z-index: -1;
   left: -0.3em;
-  right: -0.34em;
-  top: 0.36em;
-  height: 0.42em;
-  background: repeating-conic-gradient(var(--ink) 0 25%, #fff 0 50%) 0 0 / 0.21em 0.21em;
-  border: 0.035em solid var(--ink);
-  border-radius: 0.06em;
-  box-shadow: 0 0.045em 0 var(--ink), 0 0.1em 0.16em rgb(10 12 36 / 0.35);
+  right: -0.1em;
+  top: 0.6em;
+  height: 0.3em;
+  background: repeating-conic-gradient(var(--keyline) 0 25%, #fff 0 50%) 0 0 / 0.15em 0.15em;
+  border-radius: 0.03em;
+  box-shadow: 0 0.06em 0.18em rgb(8 10 34 / 0.4);
   transform: skewX(-18deg);
   transform-origin: 0 50%;
   animation: sash-in 460ms var(--out) 160ms backwards;
 }
 @keyframes sash-in { from { transform: skewX(-18deg) scaleX(0); } }
-/* coming in: each letter drops, lands squashed, springs up stretched and settles, one after another; the count and
-   GO! slam in from big. (Their own style is where they end: the fill is backwards, nothing held after it.) */
-.banner.show .ch { animation: ch-drop 640ms backwards; animation-delay: calc(var(--i) * 45ms); }
-.banner[data-kind='countdown'].show .ch, .banner[data-kind='go'].show .ch { animation-name: ch-slam; animation-duration: 560ms; animation-delay: calc(var(--i) * 60ms); }
-@keyframes ch-drop {
-  0% { opacity: 0; transform: translateY(-0.75em) skewX(-9deg) scale(0.74, 1.42); animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.55); }
-  34% { opacity: 1; transform: translateY(0.05em) skewX(-9deg) scale(1.3, 0.7); animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }
-  58% { transform: translateY(-0.06em) skewX(-9deg) scale(0.9, 1.13); animation-timing-function: ease-in-out; }
-  80% { transform: skewX(-9deg) scale(1.04, 0.97); animation-timing-function: ease-out; }
-  100% { transform: skewX(-9deg); }
+/* coming in: each letter dashes in from the right, stretched and leaning, overshoots a touch and snaps into place, one
+   after another; the count and GO! punch in from big. (Their own style is where they end: the fill is backwards,
+   nothing held after it.) */
+.banner.show .ch { animation: ch-dash 420ms backwards; animation-delay: calc(var(--i) * 32ms); }
+.banner[data-kind='countdown'].show .ch, .banner[data-kind='go'].show .ch { animation-name: ch-punch; animation-duration: 380ms; animation-delay: calc(var(--i) * 40ms); }
+@keyframes ch-dash {
+  0% { opacity: 0; transform: translateX(1.4em) skewX(-24deg) scaleX(1.5); animation-timing-function: cubic-bezier(0.16, 0.9, 0.3, 1); }
+  60% { opacity: 1; transform: translateX(-0.05em) skewX(4deg) scaleX(0.97); animation-timing-function: ease-in-out; }
+  100% { transform: none; }
 }
-@keyframes ch-slam {
-  0% { opacity: 0; transform: skewX(-9deg) scale(2.6); animation-timing-function: cubic-bezier(0.55, 0, 1, 0.5); }
-  32% { opacity: 1; transform: skewX(-9deg) scale(1.26, 0.76); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
-  56% { transform: skewX(-9deg) scale(0.9, 1.13); animation-timing-function: ease-in-out; }
-  78% { transform: skewX(-9deg) scale(1.04, 0.97); animation-timing-function: ease-out; }
-  100% { transform: skewX(-9deg); }
+@keyframes ch-punch {
+  0% { opacity: 0; transform: scale(1.9) skewX(-14deg); animation-timing-function: cubic-bezier(0.3, 0, 0.8, 0.4); }
+  45% { opacity: 1; transform: scale(0.94); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  100% { transform: none; }
 }
-/* going: the words squash, then stretch up and away (the ghost holds the words the banner just let go) */
+/* going: the words dash off to the left (the ghost holds the words the banner just let go) */
 .banner.ghost { z-index: 0; }
 .banner.ghost .ch { opacity: 0; }
-.banner.ghost.out .ch { animation: ch-out 340ms both; animation-delay: calc(var(--i) * 24ms); }
-@keyframes ch-out {
-  0% { opacity: 1; transform: skewX(-9deg); animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1); }
-  30% { opacity: 1; transform: skewX(-9deg) scale(1.22, 0.76); animation-timing-function: cubic-bezier(0.45, 0, 1, 1); }
-  100% { opacity: 0; transform: translateY(-0.42em) skewX(-9deg) scale(0.5, 1.8); }
+.banner.ghost.out .ch { animation: ch-off 260ms both; animation-delay: calc(var(--i) * 18ms); }
+@keyframes ch-off {
+  0% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6); }
+  100% { opacity: 0; transform: translateX(-1.2em) skewX(-24deg) scaleX(1.4); }
 }
 :root[data-reduced-motion='on'] .ch, :root[data-reduced-motion='on'] .chs::before { animation-delay: 0ms !important; }
 /* a line under the words (the shift's label under FINAL LAP) comes up once they have landed */
@@ -669,7 +714,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 }
 .flash { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(255, 59, 59, 0.55)); opacity: 0; transition: opacity 90ms; }
 .flash.on { opacity: 1; }
-.keys-hint { position: absolute; bottom: calc(64px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(12px); padding: 8px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.62); font: 600 14px/1 var(--body); color: var(--paper); white-space: nowrap; opacity: 0; transition: opacity var(--t-med) ease, transform var(--t-med) var(--pop); pointer-events: none; }
+.keys-hint { position: absolute; bottom: calc(64px + var(--safe-b)); left: 50%; transform: translateX(-50%) translateY(12px); padding: 8px 14px; border-radius: 999px; background: rgb(27 27 47 / 0.62); font: italic 600 14px/1 var(--body); color: var(--paper); white-space: nowrap; opacity: 0; transition: opacity var(--t-med) ease, transform var(--t-med) var(--pop); pointer-events: none; }
 .keys-hint.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* ---- touch controls (phones and tablets, while racing) ---- */
 .touch { position: absolute; inset: 0; display: none; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -680,7 +725,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .touch .pad .arrows { position: absolute; inset: 0 20px; display: flex; align-items: center; justify-content: space-between; font-size: 22px; color: #fff; opacity: 0.7; }
 .touch .pad .knob { position: absolute; left: calc(50% - 38px); top: 6px; width: 76px; height: 76px; border-radius: 50%; background: rgb(255 255 255 / 0.85); box-shadow: 0 4px 0 rgb(27 27 47 / 0.5); }
 .touch .buttons { position: absolute; right: calc(16px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); width: 250px; height: 210px; pointer-events: none; }
-.touch .tb { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgb(27 27 47 / 0.38); border: 3px solid rgb(255 255 255 / 0.6); color: var(--paper); font: 400 18px/1 var(--display); pointer-events: auto; touch-action: none; }
+.touch .tb { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgb(27 27 47 / 0.38); border: 3px solid rgb(255 255 255 / 0.6); color: var(--paper); font: italic 800 18px/1 var(--display); font-stretch: 108%; pointer-events: auto; touch-action: none; }
 .touch .tb.down { background: rgb(255 111 97 / 0.75); transform: scale(0.94); }
 .touch .tb.drift { right: 0; bottom: 0; width: 112px; height: 112px; font-size: 22px; }
 .touch .tb.item { right: 126px; bottom: 58px; width: 92px; height: 92px; }
@@ -710,7 +755,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   :root .touch .buttons { transform: scale(0.82); transform-origin: bottom right; }
 }
 /* it takes the taps (#ui passes them through): none reaches the buttons hidden under it */
-.rotate-hint { display: none; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgb(27 27 47 / 0.92); color: var(--paper); font: 400 26px/1.2 var(--display); text-align: center; padding: 24px; pointer-events: auto; touch-action: none; }
+.rotate-hint { display: none; position: fixed; inset: 0; z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgb(27 27 47 / 0.92); color: var(--paper); font: italic 800 26px/1.2 var(--display); font-stretch: 110%; text-align: center; padding: 24px; pointer-events: auto; touch-action: none; }
 .rotate-hint .phone { width: 58px; height: 100px; border: 6px solid var(--paper); border-radius: 14px; animation: rotate-phone 1.8s ease-in-out infinite; }
 .rotate-hint p { margin: 0; max-width: 13em; text-wrap: balance; }
 @keyframes rotate-phone { 0%, 20% { transform: rotate(0); } 55%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
@@ -731,7 +776,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   background: linear-gradient(180deg, rgb(36 42 92 / 0.95), rgb(16 18 46 / 0.96));
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.4), inset 0 2px 0 0 rgb(255 255 255 / 0.55), 0 24px 60px rgb(6 8 26 / 0.55);
 }
-.overlay h2 { margin: 0 0 18px; font: 400 44px/1 var(--display); color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); }
+.overlay h2 { margin: 0 0 18px; font: italic 900 44px/1 var(--display); font-stretch: 120%; letter-spacing: -0.02em; color: var(--paper); text-shadow: var(--lift); }
 .overlay .list { display: flex; flex-direction: column; gap: 12px; }
 .overlay .btn {
   justify-content: center;
@@ -740,7 +785,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   background: linear-gradient(180deg, rgb(255 255 255 / 0.17), rgb(255 255 255 / 0.06));
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.36), 0 6px 14px rgb(6 8 26 / 0.3);
 }
-.overlay .btn .label { -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.overlay .btn .label { text-shadow: var(--lift); }
 .overlay .btn.focused, .overlay .btn:focus-visible {
   color: var(--sun);
   background: linear-gradient(180deg, rgb(255 255 255 / 0.26), rgb(255 255 255 / 0.1));
@@ -760,7 +805,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 
 .setting { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; padding: 12px 18px !important; border-radius: var(--radius-sm) !important; }
 .setting .label { font-size: 20px; }
-.overlay .setting .label { -webkit-text-stroke-width: 2.5px; text-shadow: 0 2px 0 var(--ink); }
+.overlay .setting .label { text-shadow: var(--lift); }
 .setting .val { display: flex; align-items: center; gap: 10px; font: 700 16px/1 var(--body); }
 /* the value keeps one width, so the meters line up down the panel (80% and 100% moved Resolution's) */
 .setting .val > span:not([class]) { min-width: 3.3em; text-align: center; }
@@ -779,7 +824,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 @keyframes help-in { from { opacity: 0; transform: translateY(6px); } }
 
 .credits .box { width: min(720px, 92vw); }
-.credits h3 { margin: 18px 0 8px; font: 400 26px/1 var(--display); color: var(--coral); }
+.credits h3 { margin: 18px 0 8px; font: italic 900 26px/1 var(--display); font-stretch: 112%; color: var(--coral); }
 .credits table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .credits td { padding: 6px 4px; border-bottom: 2px dashed rgb(255 255 255 / 0.16); }
 .credits td.lic { text-align: right; font-weight: 700; }
@@ -796,12 +841,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .unlock.on .mark { border-radius: 50%; background: var(--ink); }
 .unlock.on .mark svg { transform: scale(1.1); }
 .unlock .txt { display: flex; flex-direction: column; gap: 2px; font: 600 15px/1.25 var(--body); }
-.unlock .txt b { font: 400 20px/1.1 var(--display); }
+.unlock .txt b { font: italic 800 20px/1.1 var(--display); font-stretch: 108%; }
 /* the unlock reveal: over any screen, gone after a few seconds */
-#ui .toast { position: absolute; top: calc(18px + var(--safe-t, 0px)); left: 50%; transform: translate(-50%, -16px); z-index: 40; padding: 12px 22px; border: var(--stroke, 3px) solid var(--ink); border-radius: 999px; background: var(--sun); color: var(--ink); font: 400 22px/1.1 var(--display); box-shadow: 0 5px 0 var(--ink); opacity: 0; pointer-events: none; transition: opacity 240ms ease, transform 240ms var(--pop, ease); max-width: calc(100vw - 32px); text-align: center; }
+#ui .toast { position: absolute; top: calc(18px + var(--safe-t, 0px)); left: 50%; transform: translate(-50%, -16px); z-index: 40; padding: 12px 22px; border-radius: 999px; background: var(--sun); color: var(--ink); font: italic 800 21px/1.1 var(--display); font-stretch: 108%; box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.55), 0 8px 22px rgb(8 10 34 / 0.35); opacity: 0; pointer-events: none; transition: opacity 240ms ease, transform 240ms var(--pop, ease); max-width: calc(100vw - 32px); text-align: center; }
 #ui .toast.on { opacity: 1; transform: translate(-50%, 0); }
 .howto .box { width: min(860px, 94vw); max-height: 88vh; overflow-y: auto; }
-.howto h3 { margin: 18px 0 8px; font: 400 26px/1 var(--display); color: var(--coral); }
+.howto h3 { margin: 18px 0 8px; font: italic 900 26px/1 var(--display); font-stretch: 112%; color: var(--coral); }
 .howto table.controls { width: 100%; border-collapse: collapse; font-size: 15px; }
 .howto table.controls th { text-align: left; font-size: 13px; opacity: 0.7; padding: 2px 4px; }
 .howto table.controls td { padding: 5px 4px; border-bottom: 2px dashed rgb(255 255 255 / 0.16); }
@@ -812,7 +857,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .howto .item .ic .art { position: absolute; inset: 0; }
 .howto .item .ic:has(.art) .shape { visibility: hidden; }
 .howto .item .txt { display: flex; flex-direction: column; font-size: 14px; line-height: 1.25; }
-.howto .item .txt b { font: 400 18px/1.1 var(--display); }
+.howto .item .txt b { font: italic 800 18px/1.1 var(--display); font-stretch: 108%; }
 /* the Item labels setting's key: each letter boxed as the item slot shows it */
 .howto .letters { margin: 12px 0 0; font-size: 14px; line-height: 1.9; }
 .howto .letters b { display: inline-block; min-width: 1.5em; padding: 0 3px; border: 2px solid var(--ink); border-radius: 6px; background: var(--paper); color: var(--ink); text-align: center; line-height: 1.3; }
@@ -842,12 +887,11 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   isolation: isolate;
   margin: 0 0 0 26px;
   padding: 0 8px;
-  font: 400 50px/1.1 var(--display);
-  letter-spacing: 0.01em;
+  font: italic 900 50px/1.1 var(--display);
+  font-stretch: 120%;
+  letter-spacing: -0.02em;
   color: #fff;
-  -webkit-text-stroke: 4px var(--ink);
-  paint-order: stroke fill;
-  text-shadow: 0 5px 0 var(--ink);
+  text-shadow: 0.045em 0.05em 0 color-mix(in srgb, var(--ribbon) 45%, #0b0f2e), 0 0.08em 0.24em rgb(8 10 34 / 0.35);
 }
 .results h2::before {
   content: '';
@@ -857,13 +901,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   right: -26px;
   top: 34%;
   bottom: 3%;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon) 58%, #fff) 0 44%, var(--ribbon) 44% 100%);
-  border: 3px solid var(--ink);
-  border-radius: 999px;
-  box-shadow: 0 5px 0 var(--ink), inset 0 -4px 0 rgb(0 0 0 / 0.14);
-  transform: skewX(-12deg);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ribbon) 82%, #fff) 0%, var(--ribbon) 55%, color-mix(in srgb, var(--ribbon) 80%, #0b0f2e) 100%);
+  border-radius: 0.12em;
+  box-shadow: 0 0.1em 0.26em rgb(8 10 34 / 0.35), inset 0 0.04em 0 rgb(255 255 255 / 0.4);
+  transform: skewX(-16deg);
 }
-.res-words .sub { margin: 10px 0 14px 2px; font: 600 17px/1.2 var(--body); color: rgb(255 255 255 / 0.92); text-shadow: 0 2px 0 var(--ink), 0 0 10px rgb(14 16 38 / 0.8); }
+.res-words .sub { margin: 10px 0 14px 2px; font: italic 600 17px/1.2 var(--body); color: #fff; text-shadow: var(--lift-strong); }
 .rows { display: flex; flex-direction: column; gap: 8px; }
 .row {
   display: grid;
@@ -884,33 +927,32 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   animation: slide-in var(--t-med) var(--out) backwards;
   animation-delay: var(--delay, 0ms);
 }
-/* the place, slanted and struck: gold, silver and bronze for the podium (the race HUD's place numeral), white behind */
-/* (render/screens.ts rankCell: the number and the suffix, each struck in three layers from its data-ch, as the race HUD's
-   place numeral is: the ink outline under it, its deep side, and the face cut to the glyph; a stroke on the face itself
-   ate the thin suffix away) */
-.row .rk { justify-self: start; font: 400 34px/1 var(--display); white-space: nowrap; transform: skewX(-8deg); }
+/* the place, struck as the race HUD's place numeral is: gold, silver and bronze for the podium, white behind */
+/* (render/screens.ts rankCell: the number and the suffix, each struck in three layers from its data-ch: its side, a
+   deeper tone of its color (the glyph itself), the face a step up and left, cut to the glyph, and a navy keyline round
+   both; Expanded Black Italic, its italic its slant) */
+.row .rk { justify-self: start; font: italic 900 34px/1 var(--display); font-stretch: 118%; white-space: nowrap; }
 .rk {
-  --tier: linear-gradient(180deg, #ffffff 40%, #e6ebf8 41%, #ccd3ea 90%);
+  --tier: linear-gradient(180deg, #ffffff 0%, #d6dcef 100%);
   --tier-side: #545c8c;
-  /* (a place that is no ordinal draws plainly, inked) */
+  /* (a place that is no ordinal draws plainly, lifted) */
   color: #fff;
-  -webkit-text-stroke: 2px var(--ink);
-  paint-order: stroke fill;
+  text-shadow: var(--lift);
 }
 .rk small { font-size: 0.56em; margin-left: 0.05em; vertical-align: 0.62em; }
-.rk > * { position: relative; z-index: 0; -webkit-text-stroke: 0; color: var(--tier-side); text-shadow: 0 0.035em 0 var(--tier-side), 0 0.07em 0 var(--tier-side); }
-.rk > *::before, .rk > *::after { content: attr(data-ch); content: attr(data-ch) / ''; position: absolute; left: 0; top: 0; }
-.rk > *::before { z-index: -1; color: var(--ink); -webkit-text-stroke: 0.14em var(--ink); text-shadow: 0 0.05em 0 var(--ink), 0 0.1em 0 var(--ink); }
-.rk > *::after { color: transparent; background: var(--tier); -webkit-background-clip: text; background-clip: text; text-shadow: none; }
-.row.r1 .rk, .podium-place.p1 .rk { --tier: linear-gradient(180deg, #fffdf0 12%, #fff0a6 40%, #ffcc00 41%, #ffb300 68%, #f28c00 92%); --tier-side: #a85200; }
-.row.r2 .rk, .podium-place.p2 .rk { --tier: linear-gradient(180deg, #ffffff 12%, #eef8ff 40%, #c2dcf2 41%, #a3c3e0 68%, #82a6c9 92%); --tier-side: #466891; }
-.row.r3 .rk, .podium-place.p3 .rk { --tier: linear-gradient(180deg, #fff0e8 12%, #ffc9b2 40%, #f0916f 41%, #de7458 68%, #c35843 92%); --tier-side: #7c3024; }
-.row .nm { min-width: 0; font: 400 22px/1.15 var(--display); letter-spacing: 0.01em; -webkit-text-stroke: 2.5px var(--ink); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink); }
+.rk > * { position: relative; z-index: 0; color: var(--tier-side); text-shadow: none; }
+.rk > *::before, .rk > *::after { content: attr(data-ch); content: attr(data-ch) / ''; position: absolute; left: 0; top: 0; transform: translate(-0.05em, -0.05em); }
+.rk > *::before { z-index: -1; color: var(--keyline); -webkit-text-stroke: 0.08em var(--keyline); text-shadow: 0.05em 0.05em 0 var(--keyline), 0 0.06em 0.14em rgb(8 10 34 / 0.45); }
+.rk > *::after { color: transparent; background: var(--tier); -webkit-background-clip: text; background-clip: text; }
+.row.r1 .rk, .podium-place.p1 .rk { --tier: linear-gradient(180deg, #fff1a1 0%, #ffcf1f 58%, #ffb800 100%); --tier-side: #c2410c; }
+.row.r2 .rk, .podium-place.p2 .rk { --tier: linear-gradient(180deg, #ffffff 0%, #d6e6f7 100%); --tier-side: #3f5f8f; }
+.row.r3 .rk, .podium-place.p3 .rk { --tier: linear-gradient(180deg, #ffd0b8 0%, #f08a5d 100%); --tier-side: #8c3521; }
+.row .nm { min-width: 0; font: italic 800 22px/1.15 var(--display); font-stretch: 110%; letter-spacing: -0.005em; text-shadow: var(--lift); }
 /* a racer's face (render/screens.ts face()): the portrait cropped to the head (data/faces.ts), ringed in the
    racer's color, an ink line either side so a pale one (Sprocket's cream) still rings it. Mario Kart World
    names every racer in a list by their face; a colored dot said little */
 .face-ic { display: block; width: var(--face, 36px); height: var(--face, 36px); border-radius: 50%; border: 3px solid var(--accent, var(--paper)); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 1.5px rgb(27 27 47 / 0.5); background: #e6e6e6 var(--portrait) var(--crop, 50% 22% / 170%) no-repeat; }
-.row .tm { font: 700 19px/1 var(--body); font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 rgb(14 16 38 / 0.7); }
+.row .tm { font: italic 700 19px/1 var(--body); font-variant-numeric: tabular-nums; text-shadow: var(--lift); }
 .row .gp { font-variant-numeric: tabular-nums; color: rgb(255 255 255 / 0.72); font-size: 15px; min-width: 64px; text-align: right; }
 /* the player's bar: the sun, inked, glowing, a sheen crossing it once it is in */
 .row.me {
@@ -925,7 +967,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   animation-delay: var(--delay, 0ms), calc(var(--delay, 0ms) + 420ms);
 }
 @keyframes me-sheen { from { background-position: -160% 0, 0 0, 0 0; } to { background-position: 260% 0, 0 0, 0 0; } }
-.row.me :is(.tm, .gp) { color: var(--ink); text-shadow: none; }
+.row.me :is(.nm, .tm, .gp) { color: var(--ink); text-shadow: none; }
 .row.dnf { opacity: 0.55; }
 .row.out { opacity: 0.55; }
 .row.out .nm { text-decoration: line-through 3px var(--danger); }
@@ -958,7 +1000,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
     linear-gradient(180deg, rgb(34 40 94 / 0.92), rgb(16 18 46 / 0.94));
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.42), 0 8px 18px rgb(8 10 30 / 0.34);
 }
-:is(.results, .podium) .btn .label { -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+:is(.results, .podium) .btn .label { text-shadow: var(--lift); }
 :is(.results, .podium) .btn.focused, :is(.results, .podium) .btn:focus-visible {
   color: var(--sun);
   background:
@@ -983,17 +1025,17 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* a Time Trial against the best it raced: "−1.37" on green by "New best!", "+0.85" on red on a slower run */
 .res-words { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; }
 .res-words .sub { flex-basis: 100%; }
-.res-delta { margin-left: 16px; padding: 3px 13px 6px; border: 3px solid var(--ink); border-radius: 999px; box-shadow: 0 4px 0 var(--ink); color: var(--paper); font: 400 34px/1 var(--display); font-variant-numeric: tabular-nums; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; animation: pop-in var(--t-slow) var(--pop) calc(300ms + var(--delay, 0ms)) backwards; }
+.res-delta { margin-left: 16px; padding: 3px 14px 6px; border-radius: 999px; box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.45), 0 6px 16px rgb(8 10 34 / 0.3); color: #fff; font: italic 900 34px/1 var(--display); font-stretch: 112%; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px rgb(8 10 34 / 0.45); animation: pop-in var(--t-slow) var(--pop) calc(300ms + var(--delay, 0ms)) backwards; }
 .res-delta.ahead { background: var(--grass); }
 .res-delta.behind { background: var(--danger); }
 .gained { color: #7cf29c; font-weight: 700; }
 .row.me .gained { color: #0b6b3e; }
 /* the Knockout's word on each row: through in teal, out in coral, the winner in the sun */
-.rows.cut .tm { font: 400 19px/1 var(--display); letter-spacing: 0.06em; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink); }
+.rows.cut .tm { font: italic 900 19px/1 var(--display); font-stretch: 110%; letter-spacing: 0.04em; text-shadow: var(--lift); }
 .rows.cut .tm.ko-go { color: #8ff3e6; }
 .rows.cut .tm.ko-out { color: #ffa296; }
 .rows.cut .tm.ko-win { color: var(--sun); }
-.rows.cut .row.me .tm { color: #fff; }
+.rows.cut .row.me .tm { color: var(--ink); text-shadow: none; }
 
 /* ---------- the Knockout cut (ResultsView.renderCut) ----------
    A dashed coral line labeled CUT across the list, under the last racer who goes through and over the first
@@ -1014,8 +1056,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   content: 'CUT';
   content: 'CUT' / '';
   position: absolute; z-index: 1; left: -16px; top: calc(100% + 3px + 11px);
-  padding: 3px 11px 4px; border: 2px solid var(--ink); border-radius: 999px; background: var(--coral);
-  color: var(--paper); font: 400 17px/1 var(--display); letter-spacing: 0.1em; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill;
+  padding: 3px 11px 4px; border-radius: 999px; background: var(--coral); box-shadow: 0 3px 10px rgb(8 10 34 / 0.35);
+  color: #fff; font: italic 900 17px/1 var(--display); font-stretch: 110%; letter-spacing: 0.08em; text-shadow: 0 1px 2px rgb(8 10 34 / 0.35);
   transform: translateY(-50%);
   animation: cut-tag 360ms var(--pop) calc(var(--cut-at, 0ms) + 200ms) backwards;
 }
@@ -1045,7 +1087,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   opacity: 0;
 }
 .standings .was.me { border-color: var(--ink); background: linear-gradient(180deg, rgb(255 255 255 / 0.42) 0%, rgb(255 255 255 / 0.12) 46%, transparent 48%) padding-box, linear-gradient(90deg, #ffd84a, #f7b52a) padding-box; }
-.standings .was.me :is(.tm, .gp) { color: var(--ink); text-shadow: none; }
+.standings .was.me :is(.nm, .tm, .gp) { color: var(--ink); text-shadow: none; }
 .standings .mv { display: flex; justify-content: center; }
 .standings .mv i { display: block; }
 .standings .mv.up i { border: 0 solid transparent; border-width: 0 7px 10px; border-bottom-color: #7cf29c; filter: drop-shadow(0 1.5px 0 var(--ink)); }
@@ -1094,7 +1136,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* a Time Trial's medal times under the run: each in color where the run reached it */
 .medal-ladder { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .rung { display: inline-flex; align-items: center; gap: 7px; padding: 4px 14px 4px 6px; border-radius: 999px; color: #fff; background: rgb(14 16 38 / 0.68); box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.32); font: 600 15px/1 var(--body); }
-.rung b { font: 400 17px/1 var(--display); }
+.rung b { font: italic 900 17px/1 var(--display); font-stretch: 110%; }
 .rung .rung-ic { width: 24px; }
 .rung .rung-t { font-variant-numeric: tabular-nums; }
 .rung.won { color: var(--ink); background: linear-gradient(180deg, #ffe9a0 0%, var(--sun) 50%, #f4b42a 100%); box-shadow: inset 0 0 0 2px var(--ink), 0 3px 0 var(--ink); }
@@ -1103,7 +1145,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 
 /* ---------- leaderboard panel (Time Trial and Daily results) ---------- */
 .board { margin-top: 16px; padding-top: 14px; border-top: 2px dashed rgb(255 255 255 / 0.24); }
-.board h3 { margin: 0; font: 400 28px/1 var(--display); color: var(--sun); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 3px 0 var(--ink); }
+.board h3 { margin: 0; font: italic 900 28px/1 var(--display); font-stretch: 116%; color: var(--sun); text-shadow: var(--lift); }
 .board-sub { font: 600 14px/1.3 var(--body); opacity: 0.7; margin: 4px 0 10px; }
 .board-list { display: flex; flex-direction: column; gap: 5px; min-height: 40px; margin-top: 8px; }
 .board-empty { font: 600 15px/1.4 var(--body); opacity: 0.7; padding: 8px 2px; }
@@ -1117,7 +1159,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   background: linear-gradient(180deg, rgb(255 255 255 / 0.13) 0%, rgb(255 255 255 / 0.03) 46%, transparent 48%) padding-box, linear-gradient(90deg, rgb(30 36 88 / 0.88), rgb(20 24 62 / 0.78)) padding-box;
   box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.28);
 }
-.board-row .rk { font: 400 20px/1 var(--display); white-space: nowrap; transform: skewX(-8deg); }
+.board-row .rk { font: italic 900 20px/1 var(--display); font-stretch: 116%; white-space: nowrap; }
 .board-row .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
 .board-row .rc { display: inline-flex; align-items: center; gap: 6px; }
 .board-row .rt { font-size: 13px; opacity: 0.6; }
@@ -1164,7 +1206,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 /* a narrow window with keys: the gear pill in step with the smaller numeral, and clear of the controls
    strip, which reached its glow at 880 px (a phone has no strip and keeps the lap counter's weight) */
 @media (max-width: 900px) and (pointer: fine) {
-  .gears { padding: 4px 13px 4px 5px; font-size: 28px; -webkit-text-stroke-width: 3px; }
+  .gears { padding: 4px 13px 5px 5px; font-size: 28px; }
   .gears .gear { width: 27px; height: 27px; }
 }
 /* a laptop window (1280x720, 1366x657): the faces a little smaller, so eight rows are no taller than they
@@ -1209,8 +1251,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .scroll { padding-left: 14px; padding-right: 14px; }
   .row { --face: 28px; grid-template-columns: 34px var(--face) minmax(0, 1fr) auto auto; gap: 8px; padding: 5px 10px; font-size: 15px; }
   .row .rk { font-size: 22px; }
-  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; -webkit-text-stroke-width: 2px; }
-  .results h2 { font-size: 36px; margin-left: 20px; -webkit-text-stroke-width: 3px; text-shadow: 0 4px 0 var(--ink); }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; }
+  .results h2 { font-size: 36px; margin-left: 20px; }
   .results h2::before { left: -18px; right: -18px; }
   .rows:not(.standings) .row .gp { display: none; }
   .standings .gained { min-width: 0; font-size: 14px; }
@@ -1265,18 +1307,18 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   .results .scroll { padding: 8px 18px 2px; }
   .res-head { gap: 10px; margin-bottom: 8px; }
   .res-words { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 30px; }
-  .results h2 { font-size: 30px; margin-left: 16px; padding: 0 6px; -webkit-text-stroke-width: 3px; text-shadow: 0 3px 0 var(--ink); }
-  .results h2::before { left: -14px; right: -14px; border-width: 2px; box-shadow: 0 3px 0 var(--ink), inset 0 -3px 0 rgb(0 0 0 / 0.14); }
+  .results h2 { font-size: 30px; margin-left: 16px; padding: 0 6px; }
+  .results h2::before { left: -14px; right: -14px; }
   .res-words .sub { margin: 0; }
   .res-words .sub { flex-basis: auto; }
-  .res-delta { padding: 2px 9px 4px; font-size: 22px; -webkit-text-stroke-width: 2px; box-shadow: 0 3px 0 var(--ink); }
+  .res-delta { padding: 2px 10px 4px; font-size: 22px; }
   .results .res-medal { width: 42px; margin: -4px 0 -2px; }
   .rows.many { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--half, 4), auto); grid-auto-flow: column; gap: 5px 10px; }
   .row { --face: 26px; grid-template-columns: 34px var(--face) minmax(0, 1fr) auto auto; gap: 8px; padding: 3px 10px; font-size: 15px; }
   .row .rk { font-size: 21px; }
-  .row .nm { font-size: 16px; -webkit-text-stroke-width: 2px; text-shadow: 0 1.5px 0 var(--ink); }
+  .row .nm { font-size: 16px; }
   .row .tm { font-size: 15px; }
-  .rows.cut .tm { font-size: 14px; -webkit-text-stroke-width: 2px; }
+  .rows.cut .tm { font-size: 14px; }
   .row .face-ic, .board-row .face-ic { border-width: 2px; box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 1px rgb(27 27 47 / 0.5); }
   .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row .gp { font-size: 13px; min-width: 44px; }
