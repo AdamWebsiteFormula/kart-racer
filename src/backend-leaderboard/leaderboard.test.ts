@@ -244,7 +244,7 @@ describe('re-simulation (SOP gate)', () => {
     expect(verifyRun(TRACKS[track], 'daily', 'otto', seed, encodeLog(d.log), d.result.timeMs)).toMatchObject({ ok: true });
   });
   it('a daily run that fills all three item slots and spends them replays exactly (three slots, 28 Sept 2026)', () => {
-    const d = clientRun('harbour-loop', 'daily', 'otto', 20260931, 0, undefined, false, true);
+    const d = clientRun('harbour-loop', 'daily', 'otto', 20260931, 0, undefined, false, false, true);
     expect(d.result.dnf).toBe(false);
     expect(d.log.some((i) => i.item), 'it used its items').toBe(true);
     expect(verifyRun(TRACKS['harbour-loop'], 'daily', 'otto', 20260931, encodeLog(d.log), d.result.timeMs)).toMatchObject({ ok: true, timeMs: d.result.timeMs });

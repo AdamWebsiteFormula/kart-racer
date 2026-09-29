@@ -110,8 +110,22 @@ function bank(ctx: () => FakeCtx, o: BankOpts = {}) {
 
 const L: Listener = { playerId: 'p', position: [0, 0, 0], heading: 0, positionOf: () => undefined };
 const flush = async () => { for (let i = 0; i < 4; i++) await new Promise((ok) => setTimeout(ok, 0)); };
-/** The flights the camera flies (game/intro.ts): the full one, and Time Trial's and the Daily's short one. */
+/**
+ * The flights the camera flies (game/intro.ts): the full one, and Time Trial's and the Daily's short one. Every
+ * course flies every move (game/intro.test.ts: each has its flight authored and a grandstand by the start), so a
+ * flight is its moves' seconds: 6.75 s and 2.9 s since 29 Sept 2026, when the intro gained the front shot (5.9 and
+ * 2.5 s before). main.ts passes the plan's own length (CourseIntro.plan.duration) to audio.courseIntro.
+ */
 const FULL = Object.values(INTRO.full).reduce((a, b) => a + b, 0), SHORT = Object.values(INTRO.short).reduce((a, b) => a + b, 0);
+/**
+ * Whole bars of a race song's first bars under each flight (its room: the flight less the breath and the 20 ms the
+ * cue starts after the flight's first frame): the full one's 6.33 s holds four at 160 BPM (race-finale, 1.5 s a bar)
+ * and three at 140 to 150; the short one's 2.48 s holds one. (29 Sept 2026, the front shot: race-finale's went 3 → 4.)
+ */
+const BARS: Record<'full' | 'short', Record<string, number>> = {
+  full: { 'race-harbour': 3, 'race-meadow': 3, 'race-finale': 4, 'race-frost': 3, 'race-boardwalk': 3 },
+  short: { 'race-harbour': 1, 'race-meadow': 1, 'race-finale': 1, 'race-frost': 1, 'race-boardwalk': 1 },
+};
 
 function game(o: BankOpts = {}) {
   const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
@@ -168,13 +182,17 @@ beforeAll(() => { g0.addEventListener ??= () => undefined; });
 afterAll(() => { g0.addEventListener = had; });
 
 describe('from the pick to the GO: the course intro\'s music', () => {
-  for (const [track, key] of [['harbour-loop', 'race-harbour'], ['meadow-run', 'race-meadow'], ['canyon-rush', 'race-finale'], ['frostbite-pass', 'race-frost'], ['boardwalk-nights', 'race-boardwalk'], ['skyline-circuit', 'race-finale']] as const) {
-    it(`${track}: its race song's first bars under the flight, out on a bar line before the first beep; the song from its top on the go`, async () => {
+  for (const [track, key] of [['harbour-loop', 'race-harbour'], ['meadow-run', 'race-meadow'], ['canyon-rush', 'race-finale'], ['frostbite-pass', 'race-frost'], ['boardwalk-nights', 'race-boardwalk'], ['skyline-circuit', 'race-finale']] as const) for (const kind of ['full', 'short'] as const) {
+    it(`${track} (${kind} flight): its race song's first bars under the flight, out on a bar line before the first beep; the song from its top on the go`, async () => {
+      const flight = kind === 'full' ? FULL : SHORT;
       const g = game();
       g.audio.newRace('raceSunrise', track, 8);
       await flush();
       expect(g.raceSongs(), 'silent while it loads').toHaveLength(0);
-      const { t0, first, go } = await flyAndCount(g, FULL);
+      // (a race waiting for its models (main.ts beginRace) is built, and its flight begins, only once they are in:
+      // no intro music before the flight's first frame calls courseIntro)
+      expect(g.cues(), 'no intro music before the flight').toHaveLength(0);
+      const { t0, first, go } = await flyAndCount(g, flight);
       const s = SONGS[key];
       const [cue] = g.cues();
       expect(cue, 'a cue under the flight').toBeDefined();
@@ -183,14 +201,14 @@ describe('from the pick to the GO: the course intro\'s music', () => {
       // its end: the last bar line of the song's own grid that leaves the breath before the countdown
       const gain = g.gainOf(cue), end = gain.evs.at(-1)!.t, bars = (end - cue.startedAt!) / s.bar!;
       expect(Math.abs(bars - Math.round(bars)), `${bars} bars`).toBeLessThan(1e-6);
-      expect(Math.round(bars)).toBe(3);
-      expect(end).toBeLessThanOrEqual(first - AUDIO.intro.breath + 1e-9);
+      expect(Math.round(bars)).toBe(BARS[kind][key]);
+      expect(end, 'silent at least the breath (0.4 s) before the first beep').toBeLessThanOrEqual(first - AUDIO.intro.breath + 1e-9);
       const fadeFrom = gain.evs.filter((e) => e.k === 'set').at(-1)!.t;
       expect(end - fadeFrom, 'a fade of at least 0.6 s, never a cut').toBeGreaterThanOrEqual(0.6 - 1e-9);
       expect(gain.at(fadeFrom - 0.1), 'full level before the fade').toBeCloseTo(s.gain, 9);
       expect(gain.at(first), 'silent at the first beep').toBeCloseTo(0, 6);
       expect(cue.stoppedAt!, 'stopped before the first beep').toBeLessThan(first);
-      expect(first).toBeCloseTo(t0 + FULL, 9);
+      expect(first).toBeCloseTo(t0 + flight, 9);
       // the race song on the go, from its top, looping
       const [race] = g.raceSongs();
       expect(race.startedAt!).toBeGreaterThanOrEqual(go);
@@ -215,7 +233,7 @@ describe('from the pick to the GO: the course intro\'s music', () => {
     expect(g.cues().filter((s) => s.buffer === SONGS['race-harbour'].buffer), 'the stand-in is not played').toHaveLength(0);
   });
 
-  it('Time Trial\'s and the Daily\'s short intro (2.5 s): the first bar, faded, silent before the first beep; a piece too long is cut on a bar line too', async () => {
+  it('Time Trial\'s and the Daily\'s short intro (2.9 s): the first bar, faded, silent before the first beep; a piece too long is cut on a bar line too', async () => {
     for (const intro of [{}, { 'intro:frostbite-pass': PIECE }] as Record<string, Sample>[]) {
       const g = game({ intro });
       g.audio.newRace('raceSummit', 'frostbite-pass', 1);
@@ -262,7 +280,7 @@ describe('from the pick to the GO: the course intro\'s music', () => {
     const [cue] = g.cues();
     expect(cue.startedAt!).toBeCloseTo(t0 + 2 + 0.02, 9);
     const end = g.gainOf(cue).evs.at(-1)!.t, bars = (end - cue.startedAt!) / SONGS['race-boardwalk'].bar!;
-    expect(bars).toBeCloseTo(2, 6); // 3.48 s of room: two bars at 140 BPM
+    expect(bars).toBeCloseTo(2, 6); // 4.33 s of room (6.75 s flight since 29 Sept 2026): two bars at 140 BPM
     expect(end).toBeLessThanOrEqual(first - AUDIO.intro.breath + 1e-9);
     const late = game({ landAfter: { 'race-boardwalk': 1 } });
     late.audio.newRace('raceSummit', 'boardwalk-nights', 8);

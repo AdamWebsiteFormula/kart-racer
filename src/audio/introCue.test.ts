@@ -10,12 +10,21 @@ import type { Sample } from './samples.ts';
 const FULL = Object.values(INTRO.full).reduce((a, b) => a + b, 0), SHORT = Object.values(INTRO.short).reduce((a, b) => a + b, 0);
 /** The race songs' tempos (public/audio/manifest.json): the stand-in is each course's own. */
 const SONGS: Record<string, number> = { 'race-harbour': 150, 'race-meadow': 146, 'race-finale': 160, 'race-frost': 146, 'race-boardwalk': 140 };
+/**
+ * Whole bars each song's first bars get in the full flight (6.35 s of room): four at 160 BPM (1.5 s a bar), three at
+ * 140 to 150; one in the short flight (2.5 s of room). (29 Sept 2026: the intro gained the front shot, 5.9 → 6.75 s
+ * and 2.5 → 2.9 s, so race-finale's first bars went from three to four.)
+ */
+const BARS_FULL: Record<string, number> = { 'race-harbour': 3, 'race-meadow': 3, 'race-finale': 4, 'race-frost': 3, 'race-boardwalk': 3 };
 const whole = (x: number, step: number) => Math.abs(x / step - Math.round(x / step)) < 1e-6;
 
 describe('where a course intro\'s music ends (introPlan)', () => {
-  it('the flights are the ones the camera flies: 5.9 s, and 2.5 s in Time Trial and the Daily', () => {
-    expect(FULL).toBeCloseTo(5.9, 6);
-    expect(SHORT).toBeCloseTo(2.5, 6);
+  // 29 Sept 2026: the intro gained the front shot (the player's racer seen from the front before the swing round
+  // behind it), so the full flight went from 5.9 s to 6.75 s and the short one from 2.5 s to 2.9 s. The music reads
+  // the flight's own length (main.ts passes CourseIntro.plan.duration to audio.courseIntro); these read INTRO too.
+  it('the flights are the ones the camera flies: 6.75 s, and 2.9 s in Time Trial and the Daily', () => {
+    expect(FULL).toBeCloseTo(6.75, 6);
+    expect(SHORT).toBeCloseTo(2.9, 6);
   });
 
   for (const [song, bpm] of Object.entries(SONGS)) {
@@ -33,8 +42,8 @@ describe('where a course intro\'s music ends (introPlan)', () => {
         expect(fade).toBeCloseTo(Math.min(AUDIO.intro.fadeMax, Math.max(AUDIO.intro.fadeMin, 2 * beat)), 9);
         expect(p.fadeFrom, 'some of it at full level first').toBeGreaterThanOrEqual(AUDIO.intro.minFull - 1e-9);
       }
-      // the full flight has room for three bars, the short one for one
-      expect(introPlan(FULL - AUDIO.intro.breath, 80, bar)!.end / bar).toBeCloseTo(3, 9);
+      // the full flight has room for three bars (four at 160 BPM), the short one for one
+      expect(introPlan(FULL - AUDIO.intro.breath, 80, bar)!.end / bar).toBeCloseTo(BARS_FULL[song], 9);
       expect(introPlan(SHORT - AUDIO.intro.breath, 80, bar)!.end / bar).toBeCloseTo(1, 9);
     });
   }
