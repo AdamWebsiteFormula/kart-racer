@@ -25,6 +25,7 @@ import { BIOMES, type Crowd } from '../art-pipeline/crowd.ts';
 import type { Paint as Colour } from '../art-pipeline/model.ts';
 import type { Reaction } from '../kart-controller/anim.ts';
 import { makeConstants } from '../kart-controller/constants.ts';
+import { kartFor } from '../kart-controller/karts.ts';
 import { createKartState, NEUTRAL_INPUT, type Archetype, type KartState, type TrackSample, type Vec3 } from '../kart-controller/types.ts';
 import { KartView } from '../kart-controller/view.ts';
 import type { Track } from '../track-builder/track.ts';
@@ -57,6 +58,12 @@ export const PODIUM = Object.freeze({
   heroDist: [4.7, 3.9] as const, heroUp: [1.45, 1.85] as const, heroSwing: [0.62, 0.2] as const, heroAim: 1.2, heroFov: 42,
   /** the winner's: from low, craning up as it swings across the front, the aim rising with it so the cup shows over them */
   winnerDist: [5.2, 4.6] as const, winnerUp: [0.95, 1.7] as const, winnerSwing: 0.4, winnerAim: [1.1, 1.35] as const,
+  /**
+   * a kart whose front rises over its driver's face (by kart id): its hero shots come round toward its side by
+   * `swing` rad (the winner's centred there, its swing narrowed to `span`) and `rise` m higher, as the finish
+   * camera does (celebrate.ts KART_FRAME). Nova in her Comet Pod: from straight in front only her antennae showed.
+   */
+  deep: Object.freeze({ pod: Object.freeze({ swing: 0.65, span: 0.2, rise: 0.8 }) }) as Readonly<Record<string, Readonly<{ swing: number; span: number; rise: number }>>>,
   /** reduced motion: still shots cut in turn (wide, 3rd, 2nd, 1st) every `cut` seconds */
   cut: 4,
   /** in the opening crane and each wide shot, 3rd, 2nd, then 1st start their move at these seconds in; in a hero shot, its racer this long after the cut */
@@ -245,6 +252,8 @@ export class Podium {
   readonly views: KartView[] = [];
   readonly racers: readonly PodiumRacer[];
   private readonly states: KartState[] = [];
+  /** each racer's kart (1st, 2nd, 3rd): its PODIUM.deep entry, if any */
+  private readonly deep: (Readonly<{ swing: number; span: number; rise: number }> | undefined)[] = [];
   private readonly cup: Mesh;
   private readonly own: (BufferGeometry | Material | CanvasTexture)[] = [];
   private readonly crowd: Crowd | null;
@@ -352,6 +361,7 @@ export class Podium {
       v.look.faceEye = true;
       this.states.push(st);
       this.views.push(v);
+      this.deep.push(P.deep[kartFor(r.racerId, r.look?.kartId)]);
       this.group.add(v.root); // in world space: the group itself is never moved
     }
     splitShadowDepth(this.group); // (a rigged racer's skinned shadow keeps a depth material of its own)
@@ -468,20 +478,22 @@ export class Podium {
    * with it so the cup on its column shows over them.
    */
   private hero(v: number, u: number, round: number): void {
-    const P = PODIUM, sp = this.spot, b = this.states[v].position, e = ease(u);
+    const P = PODIUM, sp = this.spot, b = this.states[v].position, e = ease(u), deep = this.deep[v];
     let swing: number, dist: number, up: number, aim: number;
     if (v === 0) {
-      swing = (round % 2 === 0 ? 1 : -1) * P.winnerSwing * (2 * e - 1);
+      const way = round % 2 === 0 ? 1 : -1;
+      swing = deep ? way * (deep.swing + deep.span * (2 * e - 1)) : way * P.winnerSwing * (2 * e - 1);
       dist = lerp(P.winnerDist[0], P.winnerDist[1], e);
       up = lerp(P.winnerUp[0], P.winnerUp[1], e);
       aim = lerp(P.winnerAim[0], P.winnerAim[1], e);
     } else {
       // 2nd stands on the audience's left, 3rd on the right
-      swing = (v === 1 ? -1 : 1) * lerp(P.heroSwing[0], P.heroSwing[1], e);
+      swing = (v === 1 ? -1 : 1) * (lerp(P.heroSwing[0], P.heroSwing[1], e) + (deep?.swing ?? 0));
       dist = lerp(P.heroDist[0], P.heroDist[1], e);
       up = lerp(P.heroUp[0], P.heroUp[1], e);
       aim = P.heroAim;
     }
+    up += deep?.rise ?? 0;
     const cs = Math.cos(swing), sn = Math.sin(swing);
     this.pos[0] = b[0] + (sp.front[0] * cs + sp.right[0] * sn) * dist;
     this.pos[1] = b[1] + up;

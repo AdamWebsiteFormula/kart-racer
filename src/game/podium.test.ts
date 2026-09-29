@@ -9,7 +9,7 @@ import { isShared } from '../art-pipeline/index.ts';
 import type { TrackSample } from '../kart-controller/types.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
-import { BLOCK, platePlace, Podium, PODIUM, PODIUM_REACTIONS, podiumShot, podiumSpot, type PodiumFx } from './podium.ts';
+import { BLOCK, platePlace, Podium, PODIUM, PODIUM_REACTIONS, podiumShot, podiumSpot, type PodiumFx, type PodiumRacer } from './podium.ts';
 
 const DEFS = Object.values(import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' })) as TrackDefinition[];
 const TOP = [{ racerId: 'boulder', archetype: 'heavy' as const }, { racerId: 'pip', archetype: 'light' as const, look: { paint: 'pip-alt' } }, { racerId: 'otto', archetype: 'medium' as const }];
@@ -35,6 +35,11 @@ describe('where the podium stands', () => {
     expect((PODIUM.radius + PODIUM.push / 2) * Math.sin(PODIUM.arc)).toBeLessThan(wall);
     for (const d of PODIUM.heroDist) for (const a of PODIUM.heroSwing) expect(across + d * Math.sin(a)).toBeLessThan(wall);
     for (const d of PODIUM.winnerDist) expect(d * Math.sin(PODIUM.winnerSwing)).toBeLessThan(wall);
+    // (a deep kart's shots, round toward its side: PODIUM.deep)
+    for (const k of Object.values(PODIUM.deep)) {
+      for (const d of PODIUM.heroDist) for (const a of PODIUM.heroSwing) expect(across + d * Math.sin(a + k.swing)).toBeLessThan(wall);
+      for (const d of PODIUM.winnerDist) expect(d * Math.sin(k.swing + k.span)).toBeLessThan(wall);
+    }
   });
 });
 
@@ -219,6 +224,34 @@ describe('the podium', () => {
     expect(wideFrom * wideTo).toBeLessThan(0);
     expect(Math.abs(wideFrom - wideTo)).toBeGreaterThan(PODIUM.radius * Math.sin(PODIUM.arc));
     p.dispose();
+  });
+
+  it('a kart whose front rises over its driver (Nova\'s Comet Pod: from in front only her antennae showed): its hero shot comes round toward its side and rises, as 1st and as 2nd', () => {
+    // where the camera is, halfway through racer `view`'s first hero shot: its angle off the front of that racer's step, and its height over it
+    const at = (top: readonly PodiumRacer[], view: number) => {
+      const p = new Podium(track, top, 'harbour');
+      p.start();
+      let half = -1;
+      for (let i = 0; i < 60 * 20 && half < 0; i++) {
+        p.update(1 / 60, false, null);
+        if (p.shot.kind === 'hero' && p.shot.view === view && p.shot.u >= 0.5) half = i;
+      }
+      const b = p.views[view].root.position, sp = p.spot;
+      const d = [p.pos[0] - b.x, 0, p.pos[2] - b.z];
+      const r = { angle: Math.abs(Math.atan2(dot(d, sp.right), dot(d, sp.front))), up: p.pos[1] - b.y };
+      p.dispose();
+      return r;
+    };
+    const nova = { racerId: 'nova', archetype: 'light' as const };
+    const open1 = at(TOP, 0), pod1 = at([nova, TOP[1], TOP[2]], 0);
+    expect(pod1.angle).toBeGreaterThan(open1.angle + PODIUM.deep.pod.swing - 0.05);
+    expect(pod1.up).toBeCloseTo(open1.up + PODIUM.deep.pod.rise, 3);
+    const open2 = at(TOP, 1), pod2 = at([TOP[0], nova, TOP[2]], 1);
+    expect(pod2.angle).toBeCloseTo(open2.angle + PODIUM.deep.pod.swing, 3);
+    expect(pod2.up).toBeCloseTo(open2.up + PODIUM.deep.pod.rise, 3);
+    // in another racer's kart she is framed as anyone in an open kart; another racer in her pod as she is
+    expect(at([{ ...nova, look: { kartId: 'stomper' } }, TOP[1], TOP[2]], 0).up).toBeCloseTo(open1.up, 3);
+    expect(at([{ ...TOP[0], look: { kartId: 'pod' } }, TOP[1], TOP[2]], 0).up).toBeCloseTo(pod1.up, 3);
   });
 
   it('reduced motion: still shots cut in turn (wide, 3rd, 2nd, 1st, each close and still), the cup there from the start, fewer fireworks', () => {
