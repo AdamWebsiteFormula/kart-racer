@@ -3,7 +3,7 @@
 # AdamWebsiteFormula/rascal-sfx-source (29 Sept 2026). Paid packs must never go in the public game repo or
 # a public release: their licences allow the finished game sounds, not the raw files.
 #
-# Put the pack zips in one folder (default ~/Downloads/rascal-sfx), then on the Mac:
+# Put the pack zips (or .7z files) in one folder (default ~/Downloads/rascal-sfx), then on the Mac:
 #   curl -fsSL <raw url of this file> | bash
 #   curl -fsSL <raw url of this file> | bash -s -- /path/to/folder/of/zips
 # Each zip is unpacked into packs/<zip name>/ and pushed in parts under 1.5 GB (GitHub's push limit is 2 GB).
@@ -25,8 +25,8 @@ NL='
 say() { printf '%s\n' "$*"; }
 
 [ -d "$SRC" ] || { say "No folder at $SRC. Put the pack zips in it, or run: curl -fsSL <link> | bash -s -- /path/to/folder"; exit 1; }
-ZIPS=$(find "$SRC" -maxdepth 1 -type f -iname '*.zip' | sort)
-[ -n "$ZIPS" ] || { say "No .zip files in $SRC."; exit 1; }
+ZIPS=$(find "$SRC" -maxdepth 1 -type f \( -iname '*.zip' -o -iname '*.7z' \) | sort)
+[ -n "$ZIPS" ] || { say "No .zip or .7z files in $SRC."; exit 1; }
 
 TOKEN=""
 if command -v gh >/dev/null 2>&1; then TOKEN=$(gh auth token --user AdamWebsiteFormula 2>/dev/null || true); fi
@@ -58,13 +58,17 @@ UP="" LEFT="" FAILED=""
 IFS="$NL"
 for zip in $ZIPS; do
   exec </dev/null
-  name=$(basename "$zip" | sed 's/\.[Zz][Ii][Pp]$//' | tr -c 'A-Za-z0-9._\n-' '_')
+  name=$(basename "$zip" | sed -E 's/\.([Zz][Ii][Pp]|7[Zz])$//' | tr -c 'A-Za-z0-9._\n-' '_')
   if git log --format=%s | grep -qxF "pack: $name (done)"; then say "Already up: $name"; continue; fi
   say "Unpacking $name..."
   rm -rf "packs/$name" && mkdir -p "packs/$name"
   # (unzip's exit code also counts an exclusion that matched nothing, so judge by what came out)
-  unzip -q -o "$zip" -d "packs/$name" -x '__MACOSX/*' '*.DS_Store' >/dev/null 2>&1
-  [ -n "$(find "packs/$name" -type f | head -1)" ] || { FAILED="$FAILED$NL  $name: could not unzip"; continue; }
+  case "$zip" in
+    # a .7z opens with the Mac's own tar (bsdtar reads 7-Zip)
+    *.7z|*.7Z) tar -xf "$zip" -C "packs/$name" >/dev/null 2>&1; find "packs/$name" \( -name '__MACOSX' -o -name '.DS_Store' \) -exec rm -rf {} + 2>/dev/null ;;
+    *) unzip -q -o "$zip" -d "packs/$name" -x '__MACOSX/*' '*.DS_Store' >/dev/null 2>&1 ;;
+  esac
+  [ -n "$(find "packs/$name" -type f | head -1)" ] || { FAILED="$FAILED$NL  $name: could not open it (a .7z: double-click it in Finder, then right-click the folder it makes, Compress, and put that .zip in the folder)"; continue; }
   n=0 size=0 part=1
   for f in $(find "packs/$name" -type f | sort); do
     s=$(wc -c < "$f" | tr -d ' ')
