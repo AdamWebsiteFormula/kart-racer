@@ -127,6 +127,9 @@ def compose():
     brk(A0, 8)
     acid(A0, 8)
     gtr(A0, 8)
+    P['organ'].add(lines(ORGAN_ANSWER + ORGAN_ANSWER, at(A0)))
+    P['lead'].add(lines(["r:1", "r:1", "r:1", "r:1", "Bb4:8 Db5:8 r:8 Eb5:8~ Eb5:4 r:4", "Gb5:8 F5:8 r:8 Eb5:8~ Eb5:4 r:4",
+                         "Bb4:8 Db5:8 r:8 Eb5:8 F5:8 Ab5:8 F5:8 Eb5:8", "F5:2 r:2"], at(A0)))
     P['drums'].add(grid('x...............', 'crash', at(A0)))
     P['edrums'].add([Note(at(A0), 2, 'impact', 0.7)])
 
@@ -250,18 +253,14 @@ def shorts():
         P[pn].add(Note(8, 1.5, p, 0.9, {'acc'}))
     out['intro-6s'] = (s, 6.0, 8)
     s = Song('Lighthouse Loop (big beat) - course intro short', 'harbour-loop', BPM, 'B-flat minor', 2, 0, seed=93, tail_bars=0)
-    s.about = 'a snare rush and a riser into a B-flat minor hit with an impact'
+    s.about = 'the guitar riff over a snare rush and a riser, into a B-flat minor hit with an impact'
     P = {'drums': s.part('drums', 'kit', jitter_ms=2), 'edrums': s.part('edrums', 'edrums', jitter_ms=1), 'gtr': s.part('gtr', 'guitar', jitter_ms=2),
          'sub': s.part('sub', 'sub', jitter_ms=1), 'pad': s.part('pad', 'bb_pad', jitter_ms=1)}
-    for name, inst in (('tpt1', 'trumpet'), ('tpt2', 'trumpet'), ('tbn1', 'trombone'), ('tbn2', 'trombone')):
-        P[name] = s.part(name, inst, lag_ms=3, jitter_ms=2, mono=True)
     P['drums'].add(grid('xxxxxxxx........', 'snare', 0, vels={'x': 0.65}) + grid('........x.......', 'crash', 0) + grid('........x.......', 'kick', 0))
     P['edrums'].add([Note(0, 2.0, 'rise', 0.6), Note(2, 2, 'impact', 0.8), Note(2, 1, 'kick', 1.0)])
-    P['gtr'].add(lines(["r:2 [Bb2 F3 Bb3]:2^", "r:1"], 0))
+    P['gtr'].add(lines(["[Bb2 F3]:8^ r:8 r:16 [Bb2 F3]:16 r:8 [Bb2 F3 Bb3]:2^", "r:1"], 0))
     P['sub'].add([Note(2, 2.0, 34, 0.9)])
     P['pad'].add([Note(2, 2.5, p, 0.6) for p in (58, 61, 65, 70)])
-    for pn, p in (('tpt1', 77), ('tpt2', 73), ('tbn1', 65), ('tbn2', 58)):
-        P[pn].add(Note(2, 1.2, p, 0.9, {'acc'}))
     out['intro-2s'] = (s, 2.5, 2)
     return out
 

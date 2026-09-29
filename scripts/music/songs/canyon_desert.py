@@ -315,6 +315,9 @@ def compose():
 def _instruments():
     from studio import synths, modern
     _I.RACK['mesa_organ'] = lambda: synths.Organ(drawbars='886400000', perc=None, click=0.12, drive_db=8.0, leslie='slow', gain_db=-8.0)
+    # the course intros' sustain: a dark synth pad under the ringing guitars (the organ read as circus in a short clip)
+    _I.RACK['mesa_pad'] = lambda: modern.Pad(gain_db=-16, cutoff=1900, attack=0.04, release=0.6, voices=5, detune=10, air=0.02, tri=0.4)
+    _I.get.cache_clear()
     _I.RACK['mesa_edrums'] = lambda: modern.DrumSynth(kick_tune=50.0, kick_decay=0.22)
 
 
@@ -335,6 +338,7 @@ MIX = {
         'bass': {'gain': -1.0, 'eq': [('hp', 40), ('peak', 85, 1.0, 0.0), ('peak', 260, 1.0, -2.5), ('peak', 1100, 1.2, 2.5)],
                  'comp': {'thr': -20, 'ratio': 4, 'att_ms': 6, 'rel_ms': 90}, 'sat': 4.0},
         'organ': {'pan': 0.3, 'gain': -15.0, 'width': 1.3, 'eq': [('hp', 180), ('lp', 5500)], 'sends': {'room': -12}},
+        'ipad': {'gain': -5.0, 'width': 1.4, 'eq': [('hp', 200), ('lp', 6500)], 'sends': {'room': -12}},
         # the kit bright and open (the tuned mix was dark: the overheads and the tambourine carry the top)
         'drums.kick': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 40), ('peak', 60, 1.0, 0.0), ('peak', 330, 1.2, -4.0), ('peak', 3500, 1.0, 4.0)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 6, 'rel_ms': 80}},
@@ -372,7 +376,7 @@ def shorts():
     P['gtrR'] = s.part('gtrR', 'guitar', lag_ms=2, jitter_ms=3.5)
     P['lead'] = s.part('lead', 'guitar', jitter_ms=3, mono=True)
     P['bass'] = s.part('bass', 'ebass', lag_ms=1, jitter_ms=3, mono=True)
-    P['organ'] = s.part('organ', 'mesa_organ', jitter_ms=3)
+    P['ipad'] = s.part('ipad', 'mesa_pad', jitter_ms=2)
     P['drums'] = s.part('drums', 'kit', jitter_ms=3.0)
     P['edrums'] = s.part('edrums', 'mesa_edrums', jitter_ms=1.0)
     rhythm = []
@@ -384,7 +388,7 @@ def shorts():
     P['bass'].add([Note(0.5 * k, 0.42, 33, 0.8) for k in range(8)] + [Note(4 + 0.5 * k, 0.42, 29, 0.8) for k in range(8)] +
                   bassline(lines([LIFT_E], 8)) + [Note(12, 4.8, 33, 0.9)])
     P['lead'].add(sing(lines([HOOK[0], "A4:2. r:8 C5:8", "C5:4. D5:4. B4:4", "A4:1!bend"], 0)))
-    P['organ'].add(lines(["[A3 C4 E4]:1", "[A3 C4 F4]:1", "[A3 C4 F4]:4. [B3 D4 G4]:4. [B3 E4 G#4]:4", "[A3 C4 E4 A4]:1"], 0))
+    P['ipad'].add(lines(["[A3 C4 E4]:1", "[A3 C4 F4]:1", "[A3 C4 F4]:4. [B3 D4 G4]:4. [B3 E4 G#4]:4", "[A3 C4 E4 A4]:1"], 0))
     P['drums'].add(grid('x.....x.....x...|x.....x.......x.|x.....x.....x...|x...............', 'kick', 0) +
                    grid('....X.......X...|....X.......X...|....X.....x.xxXX|................', 'snare', 0, vels={'x': 0.7}) +
                    grid('y.h.y.h.y.h.y.h.|y.h.y.h.y.h.y.h.|y.h.y.h.........|................', 'hhc', 0, vels={'y': 0.55, 'h': 0.45}) +
@@ -397,13 +401,13 @@ def shorts():
 
     s = Song('Mesa Rush (desert rock) - course intro short', 'canyon-rush', BPM, 'A minor', 2, 0, seed=43, tail_bars=0)
     s.about = ("the riff's hammered blues lick over a snare and tom fill into an A power chord that rings out under a bent, "
-               "singing lead note, the organ and a crash")
+               "singing lead note, a synth pad and a crash")
     P = {}
     P['gtrL'] = s.part('gtrL', 'guitar', jitter_ms=2.5)
     P['gtrR'] = s.part('gtrR', 'guitar', lag_ms=2, jitter_ms=3)
     P['lead'] = s.part('lead', 'guitar', jitter_ms=2, mono=True)
     P['bass'] = s.part('bass', 'ebass', jitter_ms=2, mono=True)
-    P['organ'] = s.part('organ', 'mesa_organ', jitter_ms=2)
+    P['ipad'] = s.part('ipad', 'mesa_pad', jitter_ms=2)
     P['drums'] = s.part('drums', 'kit', jitter_ms=2.5)
     P['edrums'] = s.part('edrums', 'mesa_edrums', jitter_ms=1.0)
     P['tamb'] = s.part('tamb', 'tamb', jitter_ms=3)
@@ -412,7 +416,7 @@ def shorts():
     P['gtrL'].add(gtr(st)); P['gtrR'].add(gtr(st, 0.97, detune=0.05))
     P['bass'].add(bassline(st))
     P['lead'].add(sing(lines(["r:2 A5:2!bend~", "A5:1"], 0)))
-    P['organ'].add([Note(2, 6.0, p, 0.6) for p in (57, 64, 69, 72)])
+    P['ipad'].add([Note(2, 6.0, p, 0.6) for p in (57, 64, 69, 72)])
     P['drums'].add(grid('x.......x.......', 'kick', 0) + grid('..x.x.x.........', 'snare', 0, vels={'x': 0.7}) +
                    grid('.....x.x........', 'toml', 0, vels={'x': 0.8}) + grid('x.......x.......', 'crash', 0) +
                    grid('........x.......', 'snare', 0, vels={'x': 0.9}))

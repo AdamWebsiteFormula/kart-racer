@@ -4,13 +4,13 @@
 # octave below, long notes only; the open horn scored above no horn at all; 28 Sept 2026). A chopped live breakbeat on
 # the multi-mic kit (two-step kick, snare on 2 and 4 with ghost notes, sixteenth hats, jazz ride, tom fills) over a code
 # kick and clap, a sine sub with a Reese an octave up, a tine electric piano comping the jazz chords in dotted liquid
-# pushes (funk stabs in the break), icy pads, a pluck arpeggio. The break over F minor rides a sub riff; the breakdown
-# plays the tune's opening in half time. Every note is written by hand here.
+# pushes, icy pads, a pluck arpeggio. The break over F minor rides a sub riff; the breakdown plays the tune's opening
+# in half time. Every note is written by hand here.
 #
 # Form (bars): intro 4 (electric piano, pads, the flute's teaser, a riser, the pickup bar) | loop 48:
 #   A 8 | A' 8 (the tune twice, the second ending home) | B 8 (the bridge: long flute notes over the ride)
-#   C 8 (the flute's break over F minor, a sub riff, chopped breaks) | D 8 (breakdown: the tune in half time on the
-#   flute, then the build) | A'' 8 (the tune with everything, ending on the pickup bar = the intro's last bar)
+#   C 8 (the flute and trumpet break over F minor, a sub riff, chopped breaks) | D 8 (breakdown: the tune in half time on
+#   the flute, then the build) | A'' 8 (the tune with everything, ending on the pickup bar = the intro's last bar)
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from studio.score import Song, seq, grid, chords, Note
@@ -21,7 +21,7 @@ SLOT, CANDIDATE = 'frostbite-pass', 'b-jazz-dnb'
 STYLE = ('jazz-funk drum and bass: flute melody over an open trumpet in unison, tine electric piano comping jazz chords, chopped live '
          'breakbeat with ghost notes and jazz ride, code kick and clap, sine sub and Reese bass, icy pads, pluck arpeggio')
 FORM = ["intro 4 (electric piano, pads, flute teaser, riser, pickup bar)", 'A 8 the tune (flute and trumpet, dotted electric piano pushes)',
-        "A' 8 the tune, home cadence (ride)", 'B 8 bridge: long flute notes over the ride', "C 8 the flute's break over F minor, sub riff, funk stabs, chopped breaks",
+        "A' 8 the tune, home cadence (ride)", 'B 8 bridge: long flute notes over the ride', "C 8 the flute and trumpet break over F minor, sub riff, chopped breaks",
         'D 8 breakdown: the tune in half time on the flute, then the build', "A'' 8 the tune with everything; pickup bar = the intro's last bar"]
 
 BPM, INTRO, LOOP = 172, 4, 48
@@ -291,7 +291,7 @@ def compose():
     P['sub'].add(rc)
     # the Reese holds each bar's root under the riff (the riff itself stays on the clean sub)
     P['reese'].add([Note(at(C0 + b), 3.4, root(at(C0 + b)) + 12, 0.6) for b in range(8)])
-    ep_comp(C0, 8, 'x..x..x.x..x..x.', vel=0.55)
+    ep_comp(C0, 8, 'x.....x...x...x.', vel=0.5, dur=0.7)
     pads(C0, 8, vel=0.4)
     beat(C0, 8, chop=True)
     hit(C0)
@@ -355,7 +355,7 @@ MIX = {
     'tracks': {
         'flute': {'pan': -0.1, 'gain': 0.0, 'eq': [('hp', 250), ('peak', 3000, 1.0, 1.0), ('highshelf', 9000, 0.7, 1.5)], 'sends': {'hall': -12, 'room': -14}},
         'tpt': {'pan': 0.12, 'gain': -6.0, 'eq': [('hp', 250), ('peak', 1500, 1.0, -1.5)], 'sends': {'hall': -12, 'room': -12}},
-        'ep': {'pan': -0.15, 'gain': -13.0, 'eq': [('hp', 140), ('peak', 350, 1.0, -2.0), ('highshelf', 5000, 0.7, 1.0)], 'sends': {'room': -12},
+        'ep': {'pan': -0.15, 'gain': -15.0, 'eq': [('hp', 140), ('peak', 350, 1.0, -2.0), ('highshelf', 5000, 0.7, 1.0)], 'sends': {'room': -12},
                'duck': {'by': 'edrums.kick', 'depth_db': 3.0, 'rel_ms': 150}},
         'pad': {'gain': -6.0, 'width': 1.6, 'eq': [('hp', 250), ('lp', 9000)], 'sends': {'hall': -12}, 'duck': {'by': 'edrums.kick', 'depth_db': 6.0, 'rel_ms': 200}},
         'arp': {'pan': 0.25, 'gain': -10.0, 'width': 1.5, 'eq': [('hp', 400)], 'sends': {'delay': -10}, 'duck': {'by': 'edrums.kick', 'depth_db': 4.0}},
@@ -385,7 +385,7 @@ MIX = {
         'hall': {'ir': '2.3s_Nice Plate', 'predelay': 25, 'hp': 450, 'lp': 10000, 'gain': -5.0},
         'delay': {'kind': 'delay', 'time': 60 / BPM * 0.75, 'fb': 0.3, 'lp': 5000, 'hp': 500, 'pingpong': True, 'gain': -6.0},
     },
-    'master': {'comp': {'thr': -14, 'ratio': 2, 'att_ms': 20, 'rel_ms': 150, 'knee': 8}, 'lufs': -11.5, 'ceiling': -1.0, 'clip': 2.0,
+    'master': {'comp': {'thr': -16, 'ratio': 2, 'att_ms': 30, 'rel_ms': 200, 'knee': 8}, 'lufs': -12.0, 'ceiling': -1.0, 'clip': 1.5,
                'target': [-14.0, -6.5, -7.5, -9.5, -10.0, -10.5, -11.5, -15.0, -19.5]},
 }
 

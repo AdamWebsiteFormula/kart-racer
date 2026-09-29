@@ -86,7 +86,14 @@ def wrap_check(y, a_s, b_s, fade=0.012):
     wrapped = np.concatenate([z[:, b - 4096:b], z[:, a:a + 4096]], axis=1)
     first = y[:, a - 4096:a + 4096]
     fr_w, fr_f = flux_at(wrapped, 4096), flux_at(first, 4096)
-    return {'preMatch': round(match, 3), 'levelDb': round(lvl, 2), 'fluxRatio': round(fr_w / (fr_f + 1e-9), 3)}
+    # where the game starts the song (samples.ts loopPoints: the first 10 ms whose RMS reaches a quarter of the
+    # median): a quiet first bar would be skipped, so it is reported and should stay near 0
+    hop = int(round(0.01 * SR))
+    m = y[:, :(y.shape[1] // hop) * hop]
+    env = np.sqrt(np.mean(m.reshape(m.shape[0], -1, hop) ** 2, axis=(0, 2)))
+    med = float(np.median(env))
+    start = int(np.argmax(env >= 0.25 * med)) * 0.01
+    return {'preMatch': round(match, 3), 'levelDb': round(lvl, 2), 'fluxRatio': round(fr_w / (fr_f + 1e-9), 3), 'gameStart': round(start, 2)}
 
 
 def _produce(mod, out_dir=None, tag='', analyze=True, only=None, write=True):

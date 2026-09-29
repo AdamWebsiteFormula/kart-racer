@@ -7,7 +7,7 @@
 #
 # Form (bars): intro 4 (pads, electric piano, the hook's call three times on the piano, a riser, the pickup bar) | loop 48:
 #   A 16 (the drop: the hook twice, the second time turning to C7b9) | B 8 (the ice lake: long lead notes over a
-#   rolling bass, busier chords, the ride) | C 8 (breakdown: the hook's call in half time, then the build)
+#   rolling bass, dotted chord pushes, the ride) | C 8 (breakdown: the hook's call in half time, then the build)
 #   A' 16 (the hook with everything; its last bar is the pickup bar = the intro's last bar)
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -224,7 +224,7 @@ def compose():
 
     # ---------------------------------------------------------------- B: the ice lake
     P['lead'].add(lines(LAKE, at(B0)))
-    P['ep'].add(comp(prog['B'], 'x..x..x...x..x..', 55, 72, n=4, vel=0.5, dur=0.45))
+    P['ep'].add(comp(prog['B'], 'x.....x...x.....', 55, 72, n=4, vel=0.5, dur=0.9))
     P['pad'].add(pad(prog['B'], 60, 79, n=4, vel=0.45))
     lb = lines(LAKE_BASS, at(B0))
     P['sub'].add(lb)
@@ -282,8 +282,6 @@ def compose():
     hit(A2 + 8, impact=False)
     fill(A2 + 7, 'snare')
     fill(A2 + 11, 'toms')
-    P['mid'] = s.part('mid', 'fa_mid', jitter_ms=1)
-    P['mid'].notes = list(P['reese'].notes)
     return s
 
 
@@ -294,7 +292,6 @@ def _instruments():
     _I.RACK['fa_lead_lo'] = lambda: modern.Supersaw(voices=5, detune=12, spread=0.8, cutoff=1800, env_amt=2500, env_decay=0.25, release=0.18, gain_db=-15)
     _I.RACK['fa_ep'] = lambda: synths.EPiano(gain_db=-3.0, release=0.35, bell=0.45, trem=(4.6, 0.25), chorus=True)
     _I.RACK['fa_pad'] = lambda: modern.Pad(gain_db=-15, cutoff=2400, attack=0.45, release=1.1, voices=5, detune=12, air=0.0, tri=0.6)
-    _I.RACK['fa_mid'] = lambda: synths.SynthBass(gain_db=-10, cutoff=300, env_amt=1500, decay=0.13, res=0.12, sub=0.0, release=0.05, drive=1.3)
     _I.RACK['fa_arp'] = lambda: modern.Pluck(gain_db=-15, cutoff=1600, env_amt=4500, env_decay=0.07, decay=0.2, release=0.05, detune=9, res=0.1, square=0.4)
     _I.RACK['fa_sub'] = lambda: modern.SubBass(gain_db=-8, harm=0.2, release=0.05)
     _I.RACK['fa_reese'] = lambda: modern.Reese(gain_db=-12, cutoff=650, lfo=0.3, detune=12, drive=2.2, sub=0.0, release=0.06, width=0.6)
@@ -316,7 +313,6 @@ MIX = {
         'str': {'pan': 0.2, 'gain': -9.0, 'eq': [('hp', 400), ('highshelf', 7000, 0.7, 1.5)], 'sends': {'hall': -10}},
         'sub': {'gain': 0.0, 'mono': True, 'eq': [('hp', 28), ('lp', 180)], 'duck': {'by': 'edrums.kick', 'depth_db': 5.0, 'rel_ms': 110}},
         'reese': {'gain': -6.0, 'eq': [('hp', 110), ('peak', 250, 1.0, -2.0), ('lp', 4000)], 'duck': {'by': 'edrums.kick', 'depth_db': 5.0, 'rel_ms': 110}},
-        'mid': {'gain': -60.0, 'eq': [('hp', 90), ('peak', 250, 1.0, -1.5), ('lp', 3500)], 'duck': {'by': 'edrums.kick', 'depth_db': 5.0, 'rel_ms': 110}},
         'drums.kick': {'bus': 'drums', 'gain': -1.0, 'eq': [('hp', 35), ('peak', 60, 1.0, 2.0), ('peak', 320, 1.2, -4.0), ('peak', 3500, 1.0, 3.0)],
                        'comp': {'thr': -16, 'ratio': 4, 'att_ms': 6, 'rel_ms': 80}},
         'drums.snare': {'bus': 'drums', 'gain': 0.0, 'eq': [('hp', 100), ('peak', 200, 1.0, 2.0), ('peak', 900, 1.5, -2.0), ('highshelf', 6000, 0.7, 3.0)],
@@ -348,7 +344,7 @@ MIX = {
 
 def shorts():
     """Course-intro pieces: 6.0 s (the hook's leap over the breakbeat, the pickup run, a held F minor 9 landing at
-    4.14 s with a crash and an impact) and 2.5 s (a sixteenth-note run into an F minor 9 hit at 0.69 s)."""
+    4.14 s with a crash and an impact) and 2.5 s (a tom fill and the hook's leap into an F minor 9 hit at 0.69 s)."""
     out = {}
     s = Song('Frostbite Pass (liquid drum and bass) - course intro', 'frostbite-pass', BPM, 'F minor', 5, 0, seed=18, tail_bars=0)
     s.about = "the hook's leap on the supersaw over the breakbeat, the pickup run over C7, a held F minor 9 with a crash and an impact"
@@ -378,17 +374,18 @@ def shorts():
     out['intro-6s'] = (s, 6.0, 12)
 
     s = Song('Frostbite Pass (liquid drum and bass) - course intro short', 'frostbite-pass', BPM, 'F minor', 2, 0, seed=19, tail_bars=0)
-    s.about = 'a sixteenth-note run up the F minor scale on the supersaw over a snare roll into an F minor 9 hit with a crash and an impact'
+    s.about = "a breakbeat tom fill and a riser, the hook's leap (F up to C) on the supersaw landing on an F minor 9 hit with a crash and an impact"
     P = {k: s.part(k, i, jitter_ms=1.5) for k, i in (('lead', 'fa_lead'), ('pad', 'fa_pad'), ('ep', 'fa_ep'), ('sub', 'fa_sub'),
                                                      ('reese', 'fa_reese'), ('edrums', 'fa_edrums'))}
     P['drums'] = s.part('drums', 'kit', jitter_ms=2)
     P['cym'] = s.part('cym', 'kit', jitter_ms=2)
-    P['lead'].add(lines(["F4:16 G4:16 Ab4:16 Bb4:16 C5:16 Eb5:16 F5:16 G5:16 C6:2~", "C6:1"], 0))
+    P['lead'].add(lines(["r:4 r:8 F5:8 C6:2~", "C6:1"], 0))
     P['pad'].add(lines(["r:2 [Ab4 C5 Eb5 G5]:2", "[Ab4 C5 Eb5 G5]:1"], 0))
     P['ep'].add(lines(["r:2 [Eb4 G4 Ab4 C5]:2", "[Eb4 G4 Ab4 C5]:1"], 0))
     P['sub'].add(lines(["r:2 F1:2", "F1:1"], 0))
     P['reese'].add(lines(["r:2 F2:2", "F2:1"], 0))
-    P['drums'].add([Note(0.25 * k, 0.25, 'snare', 0.45 + 0.06 * k) for k in range(8)] + [Note(2, 1, 'kick', 1.0)])
+    P['drums'].add([Note(0, 0.25, 'kick', 0.9), Note(0.5, 0.25, 'snare', 0.7), Note(0.75, 0.25, 'snare2', 0.35), Note(1.0, 0.25, 'snare', 0.8),
+                    Note(1.25, 0.25, 'tomh', 0.7), Note(1.5, 0.25, 'tomh', 0.75), Note(1.75, 0.25, 'toml', 0.85), Note(2, 1, 'kick', 1.0)])
     P['edrums'].add([Note(0, 2.0, 'rise', 0.6), Note(2, 2.0, 'impact', 0.9), Note(2, 1, 'kick', 1.0)])
     P['cym'].add([Note(2, 1, 'crash', 0.9)])
     out['intro-2s'] = (s, 2.5, 2)

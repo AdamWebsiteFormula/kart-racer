@@ -342,7 +342,7 @@ def shorts():
     P['bass'] = s.part('bass', 'ebass', lag_ms=1, jitter_ms=3, mono=True)
     P['drums'] = s.part('drums', 'kit', jitter_ms=3.0)
     P['edrums'] = s.part('edrums', 'surf_edrums', jitter_ms=1.0)
-    P['lead'].add(trem(lines([TUNE[0], TUNE[1], "D#5:4 F#5:4 A5:4 B5:4"], 0) + [Note(12, 5.5, 76, 0.68)]))
+    P['lead'].add(trem(lines([TUNE[0], TUNE[1], "D#5:4 F#5:4 A5:4 B5:4"], 0)) + sing([Note(12, 5.5, 76, 0.72)]))
     rh = []
     for b, r in ((0, 40), (1, 40)):
         for k in range(8):
@@ -371,8 +371,8 @@ def shorts():
     P['bass'] = s.part('bass', 'ebass', jitter_ms=2, mono=True)
     P['drums'] = s.part('drums', 'kit', jitter_ms=2.5)
     P['edrums'] = s.part('edrums', 'surf_edrums', jitter_ms=1.0)
-    P['lead'].add(trem(lines(["E4:16 G4:16 A4:16 B4:16 D5:4 E5:2~", "E5:1"], 0)))
-    P['lead2'].add(trem(lines(["r:2 G4:2~", "G4:1"], 0), soft=0.75))
+    P['lead'].add(trem(lines(["E4:16 G4:16 A4:16 B4:16 D5:4"], 0)) + sing([Note(2, 6.0, 76, 0.75, {"scoop"}, {"scoop": 1.0, "scoop_t": 0.1})]))
+    P['lead2'].add(sing([Note(2, 6.0, 71, 0.6)]))
     hit = lines(["r:2 E2:2>~", "E2:1"], 0)
     P['gtrL'].add(gtr(hit)); P['gtrR'].add(gtr(hit, 0.97, detune=0.05))
     P['bass'].add(lines(["B1:8 B1:8 B1:8 B1:8 E1:2>~", "E1:1"], 0))

@@ -147,6 +147,9 @@ def compose():
     P['gtr1'] = s.part('gtr1', 'guitar', jitter_ms=0, vel_jitter=0.05)
     P['gtr2'] = s.part('gtr2', 'guitar', jitter_ms=0, vel_jitter=0.05)
     P['gtrlead'] = s.part('gtrlead', 'guitar', jitter_ms=3, mono=True)
+    P['dgtr1'] = s.part('dgtr1', 'guitar', jitter_ms=0, vel_jitter=0.05)
+    P['dgtr2'] = s.part('dgtr2', 'guitar', jitter_ms=0, vel_jitter=0.05)
+    P['dpiano'] = s.part('dpiano', 'piano', jitter_ms=4, vel_jitter=0.06)
     P['edrums'] = s.part('edrums', 'ce_drums', jitter_ms=1.0, vel_jitter=0.04)
     P['drums'] = s.part('drums', 'kit', jitter_ms=2.5, vel_jitter=0.05)
     P['clapL'] = s.part('clapL', 'clap', jitter_ms=3)
@@ -164,9 +167,11 @@ def compose():
     def chord(tt):
         return chord_at(allp, tt + 0.01)
 
-    def guitars(bar0, nbars, pattern, vel=0.7):
-        P['gtr1'].add(strum(allp, bar0, nbars, pattern, vel=vel, detune=-0.04, seed=bar0 * 7 + 1))
-        P['gtr2'].add(strum(allp, bar0, nbars, pattern, vel=vel * 0.95, detune=0.06, seed=bar0 * 7 + 2, spread_ms=10.0))
+    def guitars(bar0, nbars, pattern, vel=0.7, drop=False):
+        """The two strummed guitars (the drops' strums on their own pair of tracks, so the mix can set them apart)."""
+        a, b = ('dgtr1', 'dgtr2') if drop else ('gtr1', 'gtr2')
+        P[a].add(strum(allp, bar0, nbars, pattern, vel=vel, detune=-0.04, seed=bar0 * 7 + 1))
+        P[b].add(strum(allp, bar0, nbars, pattern, vel=vel * 0.95, detune=0.06, seed=bar0 * 7 + 2, spread_ms=10.0))
 
     def sub(bar0, nbars, vel=0.8):
         for (st, d, ch) in allp:
@@ -281,9 +286,9 @@ def compose():
     P['lead'].add(hook + hook2)
     P['pluck'].add([n.copy(d=min(n.d, 0.5), v=0.55) for n in hook + hook2])
     P['gtrlead'].add(shift([n.copy(v=0.7) for n in hook2], 0, -12))
-    guitars(D0, 16, STRUM_DROP, vel=0.7)
+    guitars(D0, 16, STRUM_DROP, vel=0.7, drop=True)
     P['chords'].add(comp(prog['D'], 'x--x--x-x--x--x-', 60, 76, n=4, vel=0.6))
-    P['piano'].add(comp(prog['D'], 'x--x--x-x--x--x-', 60, 76, n=4, vel=0.5))
+    P['dpiano'].add(comp(prog['D'], 'x--x--x-x--x--x-', 60, 76, n=4, vel=0.5))
     P['pad'].add(pad(prog['D'], 55, 70, n=4, vel=0.5))
     sub(D0, 16, vel=0.85)
     bass(D0, 16, vel=0.8, octave_on=(6, 14))
@@ -329,10 +334,10 @@ def compose():
     P['pluck'].add([n.copy(d=min(n.d, 0.5), v=0.55) for n in last])
     P['lead2'].add(shift(last, 0, -12, vel=0.9))
     P['gtrlead'].add(shift([n.copy(v=0.7) for n in last], 0, -12))
-    guitars(E0, 7, STRUM_DROP, vel=0.72)
+    guitars(E0, 7, STRUM_DROP, vel=0.72, drop=True)
     pr = prog["D'"][:-2]
     P['chords'].add(comp(pr, 'x--x--x-x--x--x-', 60, 76, n=4, vel=0.62))
-    P['piano'].add(comp(pr, 'x--x--x-x--x--x-', 60, 76, n=4, vel=0.52))
+    P['dpiano'].add(comp(pr, 'x--x--x-x--x--x-', 60, 76, n=4, vel=0.52))
     P['pad'].add(pad(pr, 55, 70, n=4, vel=0.52))
     sub(E0, 7, vel=0.85)
     bass(E0, 7, vel=0.82, octave_on=(6, 14))
@@ -387,6 +392,11 @@ MIX = {
                   'duck': {'by': 'edrums.kick', 'depth_db': 2.0}},
         'gtr1': {'pan': -0.6, 'gain': -10.0, **GTR},
         'gtr2': {'pan': 0.6, 'gain': -10.0, **GTR},
+        'dgtr1': {'pan': -0.6, 'gain': -10.0, **GTR},
+        'dgtr2': {'pan': 0.6, 'gain': -10.0, **GTR},
+        'dpiano': {'pan': -0.15, 'gain': -8.0, 'eq': [('hp', 110), ('peak', 600, 1.0, -2.0), ('peak', 3000, 1.0, 1.5)],
+                   'comp': {'thr': -20, 'ratio': 2.5, 'att_ms': 10, 'rel_ms': 120}, 'sends': {'room': -12, 'hall': -14},
+                   'duck': {'by': 'edrums.kick', 'depth_db': 2.0}},
         'gtrlead': {'pan': 0.1, 'gain': -4.0, 'eq': [('hp', 150), ('peak', 2500, 1.0, 2.0)], 'comp': {'thr': -20, 'ratio': 3, 'att_ms': 8, 'rel_ms': 100},
                     'sends': {'delay': -10, 'hall': -13}},
         'edrums.kick': {'bus': 'drums', 'gain': -2.0, 'eq': [('hp', 38), ('peak', 60, 1.0, 1.0), ('peak', 300, 1.2, -3.0), ('peak', 4000, 1.0, 2.0)],

@@ -39,7 +39,9 @@ from there with ~/.cache/rascal-ear/venv/bin/python):
   tune.py <module> "{'tracks/bass/gain': -3}" ... (mix variants on cached stems scored for production quality;
   --fresh re-renders; keys use '/', e.g. 'tracks/drums.kick/gain'; TIMELINE=1 adds a per-5 s quality timeline);
   solo.py <module> [part ...] (quality of each part alone); screen.py <mp3>; aes.py <mp3>; status.py (all
-  candidates and their scores).
+  candidates and their scores, light: plain python3). notes.json 'wrap.gameStart' is where the game will start
+  the song (the first 10 ms at a quarter of the median level): keep the intro's first beat loud enough that it
+  stays near 0, or the game skips the quiet opening.
 - ONE HEAVY JOB AT A TIME, MACHINE-WIDE (Adam, 28 Sept 2026: parallel jobs slowed his Mac down). Every render,
   build, tune, solo, stems, screen, aes, check_scores or review run goes through the lock:
     bash /Users/Adam/code/kart-racer/scripts/heavy.sh 'cd <worktree> && ~/.cache/rascal-ear/venv/bin/python scripts/music/<script>.py <args>'

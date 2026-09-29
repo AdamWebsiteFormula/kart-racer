@@ -292,8 +292,10 @@ def shorts():
 
 
 def _lead():
-    from studio import synths
-    return synths.Lead(gain_db=-12.0, shape='saw', cutoff=1800.0, env_amt=2500.0, res=0.15, vib=(5.5, 0.1, 0.3), release=0.08)
+    # a supersaw (it scores well alone, where the thin two-oscillator lead did not)
+    from studio import modern
+    return modern.Supersaw(voices=7, detune=16, spread=0.6, cutoff=2600, env_amt=4500, env_decay=0.22, res=0.15, attack=0.003,
+                           decay=0.4, sustain=0.75, release=0.12, gain_db=-12, vib=(5.4, 0.1, 0.3))
 
 
 from studio import instruments as _I

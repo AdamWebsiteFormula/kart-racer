@@ -153,8 +153,8 @@ def compose():
 
     def chorus_beat(bar):
         P['drums'].add(grid('x...x...x...x...', 'kick', at(bar), vels={'x': 0.9}) + grid('....X.......X...', 'snare', at(bar), vels={'X': 1.0}) +
-                       grid('x.x.x.x.x.x.x.x.', 'hh34', at(bar), vels={'x': 0.6}))
-        P['tamb'].add(grid('....x.......x...', 'Tamb1_Shake', at(bar), vels={'x': 0.6}))
+                       grid('y.h.y.h.y.h.y.h.', 'ride', at(bar), vels={'y': 0.6, 'h': 0.48}))
+        P['tamb'].add(grid('x.x.x.x.x.x.x.x.', 'Tamb1_Shake', at(bar), vels={'x': 0.42}))
 
     # ---------------------------------------------------------------- intro
     power(P['gtr1'], 0, 3, 'mmmmmmmmmmmmmmmm'[:16].replace('m', 'm'), vel=0.62)

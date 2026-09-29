@@ -55,17 +55,6 @@ def _parts(s):
     return {k: s.part(k, inst, jitter_ms=(3 if k in ('drums', 'gtr', 'keys') else 1.0), vel_jitter=0.03, mono=mono) for k, inst, mono in PARTS}
 
 
-def chug(P, t0, beats, root, v0=0.5, v1=0.75, step=0.25):
-    """Palm-muted power chords on 16ths from beat t0, the bass on the root with them, a crescendo from v0 to v1."""
-    k = int(round(beats / step))
-    for i in range(k):
-        v = v0 + (v1 - v0) * i / max(1, k - 1)
-        t = t0 + i * step
-        P['gtr'].add([Note(t, step * 0.9, p, v * (0.9 if j else 1.0), {'stac'}) for j, p in enumerate(POWER[root])])
-        if i % 2 == 0:
-            P['bass'].add(Note(t, step * 1.6, BASS[root], v))
-
-
 def hit(P, t, d, sym, root, v=0.85, gtr=True, sub=True, kick=True, crash=False, snare=False, impact=0.0, pad_v=0.0, part='chords'):
     """One band hit: the synth chord, the guitar's power chord, the bass and sub on the root, the kick (and crash,
     snare, impact) at beat t, lasting d beats."""
@@ -86,20 +75,6 @@ def hit(P, t, d, sym, root, v=0.85, gtr=True, sub=True, kick=True, crash=False, 
         P['drums'].add(Note(t, 0.5, 'snare', v))
     if impact:
         P['edrums'].add(Note(t, 2.0, 'impact', impact))
-
-
-def groove_bar(P, t0, roots=('D', 'D', 'C', 'C'), snare=True, v=0.8):
-    """A driving bar: four on the floor, the snare on 2 and 4, 16th hats, the guitar chugging 8ths and the bass on
-    the roots (one per beat)."""
-    P['edrums'].add(grid('x...x...x...x...', 'kick', t0, vels={'x': 0.9}))
-    P['drums'].add(grid('x...x...x...x...', 'kick', t0, vels={'x': 0.6}) + grid('xgxgxgxgxgxgxgxg', 'hhc', t0, vels={'x': 0.5, 'g': 0.3}))
-    if snare:
-        P['drums'].add(grid('....X.......X...', 'snare', t0, vels={'X': 0.85}))
-    for b, r in enumerate(roots):
-        for k in range(2):
-            t = t0 + b + 0.5 * k
-            P['gtr'].add([Note(t, 0.42, p, v * (0.95 if k else 1.0) * (0.9 if j else 1.0), {'stac'}) for j, p in enumerate(POWER[r])])
-            P['bass'].add(Note(t, 0.4, BASS[r] + (12 if k else 0), v))
 
 
 def compose():

@@ -293,16 +293,18 @@ def shorts():
     P['drums'].add(grid('................|....x.......xxxx|x...............', 'snare', 0, vels={'x': 0.6}) + grid('................|................|x...............', 'crash', 0))
     out['intro-6s'] = (s, 6.0, 8)
     s = Song('Skyline Circuit (synthwave) - course intro short', 'skyline-circuit', BPM, 'E-flat major', 2, 0, seed=73, tail_bars=0)
-    s.about = "the anthem's triplet run on the lead into an E-flat hit with an impact"
+    s.about = 'the pulse bass and a tom fill under a riser, into a C minor hit with an impact'
     P = {k: s.part(k, i, jitter_ms=1.5, mono=(k == 'lead')) for k, i in (('lead', 'sw_lead'), ('pad', 'sw_pad'), ('chords', 'sw_chords'),
-                                                                         ('bass', 'sw_bass'), ('edrums', 'edrums'))}
+                                                                         ('bass', 'sw_bass'), ('arp', 'sw_arp'), ('edrums', 'edrums'))}
     P['drums'] = s.part('drums', 'kit', jitter_ms=2)
-    P['lead'].add(lines(["F4:8t G4:8t Ab4:8t Bb4:8t C5:8t D5:8t Eb5:2", "r:1"], 0))
-    P['chords'].add(lines(["r:2 [Eb4 G4 Bb4 Eb5]:2", "r:1"], 0))
-    P['pad'].add(lines(["r:2 [Eb4 G4 Bb4]:2", "r:1"], 0))
-    P['bass'].add(lines(["r:2 Eb2:2", "r:1"], 0))
+    P['bass'].add([Note(0.25 * k, 0.22, 36 + (12 if k % 4 == 3 else 0), 0.8 if k % 4 == 0 else 0.65) for k in range(8)] + [Note(2, 1.5, 36, 0.9)])
+    P['arp'].add([Note(0.25 * k, 0.2, [60, 63, 67, 72][k % 4], 0.35 + 0.05 * k) for k in range(8)])
+    P['lead'].add([Note(2, 1.5, 79, 0.85)])
+    P['chords'].add([Note(2, 1.5, p, 0.8) for p in (60, 63, 67, 72)])
+    P['pad'].add([Note(2, 2.0, p, 0.6) for p in (55, 60, 63)])
     P['edrums'].add([Note(0, 2.0, 'rise', 0.6), Note(2, 2, 'impact', 0.9), Note(2, 1, 'kick', 1.0)])
-    P['drums'].add(grid('....xxxxx.......', 'snare', 0, vels={'x': 0.6}) + grid('........x.......', 'crash', 0))
+    P['drums'].add(grid('....x.x.x.x.....', 'tomh', 0, vels={'x': 0.7}) + grid('.....x.x.x.x....', 'toml', 0, vels={'x': 0.75}) +
+                   grid('........x.......', 'crash', 0) + grid('x.x.x.x.........', 'hhc', 0, vels={'x': 0.5}))
     out['intro-2s'] = (s, 2.5, 2)
     return out
 
