@@ -43,6 +43,13 @@ A hidden test page played the game's music through the night and woke Adam's hou
 - Never play the game's audio, or any other sound, on Adam's machine.
 - Silent tools for checks (24 Sept 2026): `scripts/headless/` runs headless Chrome with `--mute-audio` on `?mute` (fps.mjs frame times on the real GPU, shots.mjs track screenshots, snap.mjs any screen); use it when the browser pane is hidden (a hidden tab pauses the game). `scripts/ear/` listens without playing anything: labels.py (AudioSet labels and CLAP text match), intent.py (does each sound match its catalog prompt), listen.py (a local model describes a sound in words); set up with `bash scripts/ear/setup.sh`; vocals.py splits a song with Demucs to check for voices. gemini.mjs and judge.mjs use the paid Gemini key in .env.local (`bash scripts/set-gemini-key.sh`): Gemini Pro is the trusted ear for sound (250 requests a day for gemini-3.1-pro and its aliases, reset at midnight Pacific = 03:00 EDT: refused at 20:10 EDT on 25 Sept, answered at 06:45 EDT on 26 Sept; so batch several clips per request); the Flash models fail known-answer sound checks, so use them only for video. `scripts/headless/review.mjs` records a silent gameplay clip and has Gemini Flash critique it (8 frames a second; `--final` starts just before the Final Lap Shift).
 
+## Heavy jobs: one at a time (Adam, 28 Sept 2026)
+Twelve builders ran tests, renders and ear jobs at once (67 vitest processes, a load of 64 on 14 cores), and Adam said: "It's slowing down my macbook considerably". So, for every agent:
+- Run every vitest run, `vite build`, the full gate, headless Chrome run, music or sound render and ear-venv job (`~/.cache/rascal-ear`) only through the lock: `bash /Users/Adam/code/kart-racer/scripts/heavy.sh '<command>'`. It waits until no other heavy job runs, then runs yours at low priority. tsc may run outside it. Never run a dev server through it.
+- vitest always with `--maxWorkers=4`; while working, run only your own system's tests; the full gate once, at the end.
+- Adam's words: "run music generation one job at a time, never in parallel. If a run takes a long time, wait for it or check on it. Don't start a new copy while one is still running." Start long jobs in the background and check on them; an ear server counts as a job and stops when its batch is done.
+- To stop stray ear jobs, match with a bracket (`pkill -f 'rascal-[e]ar'`): a plain `pkill -f rascal-ear` also matches, and kills, the shell that runs it.
+
 ## Behaviour
 - Think before coding. Simplicity first. Surgical changes: touch only `src/<system>` and its tests.
 - Read `docs/design.md` before gameplay, art or content work.
