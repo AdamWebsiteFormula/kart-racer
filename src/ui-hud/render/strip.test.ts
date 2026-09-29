@@ -65,3 +65,25 @@ describe('the controls strip', () => {
     ui.dispose();
   });
 });
+
+describe('a race put on from inside another (dev kart.race)', () => {
+  it('starts with a fresh HUD: the last race\'s FINAL LAP never comes back on the next race\'s shift', () => {
+    const ui = new UiRoot(document.body, host(), null);
+    ui.dispatch({ type: 'boot' });
+    ui.dispatch({ type: 'start' });
+    pickQuick(ui);
+    const words = () => document.querySelector('#ui .hud .banner .sr-only')?.textContent ?? '';
+    const shift = [{ type: 'trackChanged', event: { kind: 'tide', label: 'THE TIDE IS IN', length: 0 } }, { type: 'phase', phase: 'finalLap' }] as never;
+    // one race: the player's own last lap
+    ui.feed([{ type: 'lap', racerId: 'pip', lap: 3, isFinal: true }], [], 'pip');
+    frame(ui, 'racing', 20_000);
+    expect(words()).toMatch(/FINAL LAP/);
+    // the next, put on without the menus: the leader's shift shows its label alone while the player is behind
+    ui.freshRace();
+    ui.feed(shift, [], 'pip');
+    frame(ui, 'racing', 20_000);
+    expect(words()).toMatch(/THE TIDE IS IN/);
+    expect(words()).not.toMatch(/FINAL LAP/);
+    ui.dispose();
+  });
+});
