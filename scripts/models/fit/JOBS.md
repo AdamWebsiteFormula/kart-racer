@@ -122,7 +122,8 @@ Adam approved all eight concepts ("Go"). Credits fit five tonight, submitted ris
 | sprocket | c13e2d11-b2b3-4da3-904c-acb6441ac0a0 | f3152b02-d3cf-4bde-908d-c19dbb3a923b |
 | otto | 704c74b7-746c-415d-a0c7-a0c4a6ff5004 | 4af61e4c-5560-4f65-a021-442286296490 |
 | boulder | 6ce3b270-e4db-4785-bf22-7e4167abb6db | 8971aed8-75b5-4258-85bd-5702428802e8 |
-| momo | d32e1cf3-a4d2-4e12-92da-cd831c07be45 | not submitted (credits) |
-| juniper | 64c39a8d-06e7-40e2-981d-d5e04c07314c | not submitted (credits) |
-| gus | f0952277-437a-4aaa-91e5-add5e1634509 | not submitted (credits) |
+| momo | d32e1cf3-a4d2-4e12-92da-cd831c07be45 | 44ac626c-bd7a-46a2-a096-71d3b76b377a |
+| juniper | 64c39a8d-06e7-40e2-981d-d5e04c07314c | 9c9ebe88-3b9d-4b85-adff-20ca2daa7816 |
+| gus | f0952277-437a-4aaa-91e5-add5e1634509 | 5d86cc63-de3a-4413-9541-fe3a812ecbd1 |
 Rule from the handoff: all eight must match in style, so ship none of them into the game unless all eight are fitted.
+Adam OK'd Fan Zoo for the game (30 Sept, chat); no licence file in the pack.
