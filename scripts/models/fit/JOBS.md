@@ -81,3 +81,10 @@ her wheel-less image f443e9fa-ff4a-4b09-a5c6-77b1aea0786b is made.
 | boulder | a6054806-3470-4c86-b1ed-4ba77d2ff6ea | d675e3c2-5b4a-4793-b5bb-b743b89e645f |
 | gus | 4898be5a-4c07-47be-9c47-1f6d7b2fb4cf | 2e108f60-2996-4d9e-8345-7c84cb644187 |
 | momo | f443e9fa-ff4a-4b09-a5c6-77b1aea0786b | (waits for credits) |
+
+## 30 Sept 2026 (new session, bonus credits)
+| racer | job | what |
+|---|---|---|
+| momo | 0115ef26-d1d6-4ea4-b8b5-73dd79d8944f | Tripo body, completed |
+| otto | f586aad7-6a2d-4ead-9354-f8a4f209b799 | wheel-less image, checked: no wheels, whole kart in frame |
+| otto | 860d0e34-df20-423d-bb3b-06c15ee96ebd | Tripo H3.1 body, started (standard, PBR) |
