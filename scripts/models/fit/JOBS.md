@@ -67,3 +67,17 @@ the picked concept (open, empty arches), then Tripo H3.1 (about 9 each). The whe
 | sprocket | cbad7656-6263-4525-99c6-257aefb73463 |
 | boulder | 3cf7879d-be32-4cb5-8112-7e10a6c86380 |
 | gus | e825af32-607f-4e81-8cc4-80f6e270a754 |
+Adam, 30 Sept: "Those concepts look good." Wheel-less body images (gpt_image_2_5 medium, from each concept: "all four
+wheels and tires completely removed ... empty, open wheel arches") and Tripo H3.1 bodies (standard texture and geometry,
+PBR, 9 credits each). Momo waits for credits (65.3 left before these, Adam will add more): her concept is e207f1a0,
+her wheel-less image f443e9fa-ff4a-4b09-a5c6-77b1aea0786b is made.
+| racer | wheel-less image | Tripo body job |
+|---|---|---|
+| pip | 3f88d0e3-928f-410a-909e-c809d75050b5 | a892b49a-3a2d-4135-8d85-06d01a471731 |
+| nova | cf5af3ac-64aa-440d-b0d4-af11a0cec6b8 | 927f39ef-29b9-4f2d-964f-543df5420b4c |
+| juniper | 63ee9360-12ce-433c-8653-d822ffc14cdd | 548c18c7-2f5a-4f87-9fa2-2c4a8af09944 |
+| otto | 531b3cf3-5ba8-4d10-82aa-afac528d1295 | fc5bba5d-ae15-453b-a743-cfd36a35af0e |
+| sprocket | f1bd743e-fcdb-469d-8dd0-e460989dacd7 | 42afdd05-ad27-4e5f-8aec-02a95a46f52c |
+| boulder | a6054806-3470-4c86-b1ed-4ba77d2ff6ea | d675e3c2-5b4a-4793-b5bb-b743b89e645f |
+| gus | 4898be5a-4c07-47be-9c47-1f6d7b2fb4cf | 2e108f60-2996-4d9e-8345-7c84cb644187 |
+| momo | f443e9fa-ff4a-4b09-a5c6-77b1aea0786b | (waits for credits) |
