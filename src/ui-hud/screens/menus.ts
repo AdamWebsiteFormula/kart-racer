@@ -49,7 +49,7 @@ export function titleMenu(): MenuVM {
     { id: 'settings', label: 'Settings' },
     { id: 'credits', label: 'Credits' },
   ];
-  return { title: GAME_TITLE.join(' '), entries, focus: column(entries, false) };
+  return { title: GAME_TITLE.join(''), entries, focus: column(entries, false) };
 }
 
 export const MODES: readonly { mode: RaceMode; label: string; sub: string }[] = Object.freeze([

@@ -268,7 +268,7 @@ function paint(c: HTMLCanvasElement, b: BiomeSigns): void {
   g.fillStyle = '#ffffff'; g.fillRect(...LAYOUT.white);
   paintArrow(g, b, ...LAYOUT.arrow);
   LAYOUT.flags.forEach((r, k) => paintFlag(g, b, k, ...r));
-  paintBanner(g, b, `RASCAL RALLY  ${b.cup}`, ...LAYOUT.banners[0]);
+  paintBanner(g, b, `FLOWKART  ${b.cup}`, ...LAYOUT.banners[0]);
   paintBanner(g, b, b.track, ...LAYOUT.banners[1]);
   LAYOUT.boards.forEach((r, k) => paintBoard(g, b, SPONSORS[b.sponsors[k]], ...r));
 }
@@ -329,5 +329,5 @@ export function signKit(biome: string | undefined): RaceDressingKit | undefined 
 export function signWords(biome: string): string[] {
   const b = BIOMES[biome];
   if (!b) return [];
-  return [b.track, b.cup, 'RASCAL RALLY', ...b.sponsors.flatMap((k) => [SPONSORS[k].name, SPONSORS[k].line])];
+  return [b.track, b.cup, 'FLOWKART', ...b.sponsors.flatMap((k) => [SPONSORS[k].name, SPONSORS[k].line])];
 }

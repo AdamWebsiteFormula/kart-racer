@@ -184,7 +184,7 @@ describe('the setup as Mario Kart World sets its own (design §12, 26 Sept 2026)
     const bands = [...document.querySelectorAll<HTMLElement>('#ui .title.on .menu > .band')];
     expect(bands.map((b) => b.querySelector('.icon > svg.menu-svg')?.getAttribute('data-menu'))).toEqual(['start', 'howTo', 'unlocks', 'settings', 'credits']);
     for (const b of bands) expect(b.querySelector('.icon')!.getAttribute('aria-hidden'), b.dataset.id).toBe('true');
-    expect(q('.logo')!.textContent).toBe('RascalRally!');
+    expect(q('.logo')!.textContent).toBe('FlowKart');
     key('ArrowDown'); key('ArrowDown');
     expect((document.activeElement as HTMLElement).dataset.id).toBe('unlocks');
     ui.dispose();

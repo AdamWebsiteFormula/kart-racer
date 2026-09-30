@@ -1,6 +1,6 @@
 {
-  "name": "Rascal Rally!",
-  "short_name": "Rascal Rally",
+  "name": "FlowKart",
+  "short_name": "FlowKart",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

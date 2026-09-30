@@ -191,7 +191,7 @@ export class TitleView implements ScreenView {
   private logoBox: HTMLElement | null = null;
   constructor(parent: HTMLElement) {
     this.root = h('section', 'screen title', parent);
-    this.root.setAttribute('aria-label', GAME_TITLE.join(' '));
+    this.root.setAttribute('aria-label', GAME_TITLE.join(''));
   }
   /** `calm`: reduced motion (the menu comes in at once, the logo in its place: no glide) */
   render(vm: MenuVM, phase: TitlePhase = 'menu', calm = false): void {

@@ -62,8 +62,8 @@ describe('the start screen', () => {
     const { ui } = make();
     expect([ui.app.screen, ui.app.pressed]).toEqual(['title', undefined]);
     expect(title().classList.contains('start')).toBe(true);
-    expect(title().getAttribute('aria-label')).toBe('Rascal Rally!');
-    expect(document.querySelector('#ui .title .logo-box > .logo')!.textContent).toBe('RascalRally!');
+    expect(title().getAttribute('aria-label')).toBe('FlowKart');
+    expect(document.querySelector('#ui .title .logo-box > .logo')!.textContent).toBe('FlowKart');
     expect(document.querySelectorAll('#ui .title .band').length, 'no menu yet').toBe(0);
     const p = document.querySelector<HTMLButtonElement>('#ui .title .start-prompt')!;
     // a real button with the focus: a screen reader says it as the page opens; its name is the words on show

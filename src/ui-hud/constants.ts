@@ -1,6 +1,6 @@
 // UI constants (docs/sops/ui-hud.md Constants). Durations in ms unless the name says seconds.
 /** The game's name, in the two lines the logo stacks. One place to rename it. */
-export const GAME_TITLE = Object.freeze(['Rascal', 'Rally!'] as const);
+export const GAME_TITLE = Object.freeze(['Flow', 'Kart'] as const); // one word, FlowKart (Adam, 30 Sept 2026); the logo stacks its two halves
 
 export const UI = Object.freeze({
   bannerHoldSeconds: 2.2,

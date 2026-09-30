@@ -56,7 +56,7 @@ describe('the sign atlas', () => {
   });
 
   it('carries only our own world\'s words: the track, its cup, the cast\'s shops, the race\'s soda; nothing of Nintendo\'s', () => {
-    const banned = /mario|luigi|nintendo|koopa|bowser|peach|yoshi|toad|wario|waluigi|donkey|mushroom|shine sprite|moo moo|swoop|batadon|thwomp|hot foot|pipeline|star cup|flower cup|special cup|mkw|kart/i;
+    const banned = /mario|luigi|nintendo|koopa|bowser|peach|yoshi|toad|wario|waluigi|donkey|mushroom|shine sprite|moo moo|swoop|batadon|thwomp|hot foot|pipeline|star cup|flower cup|special cup|mkw|(?<!flow)kart/i; // (the game's own name, FlowKart, is the one kart allowed: Adam, 30 Sept 2026)
     for (const def of TRACKS) {
       const words = signWords(def.biome);
       expect(words.length, def.id).toBeGreaterThanOrEqual(11);
