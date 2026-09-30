@@ -100,3 +100,15 @@ her wheel-less image f443e9fa-ff4a-4b09-a5c6-77b1aea0786b is made.
 | sprocket | a6231afe | 75ed76f5-76b3-4c4f-8d10-f46aabe23193 |
 | boulder | 6ad140b7 | d457adc2-bb1e-46fa-91ac-93b068750438 (first try hit a 429, no credit taken) |
 | gus | 7ef99db2 | 45cca5db-58f3-4609-80bc-4a09855b8d3a |
+
+Round 2 concepts (Adam's notes: Sprocket no key on back, no head antenna, worn sci-fi utility droid in gunmetal/off-white with red and black; Otto leather jacket + cool hat + pants + earring; edgier faces, no cheesy smiles; Pip a cool sci-fi animated-series look; Gus mobster suit; Boulder huge muscles). Latest per racer:
+| racer | latest concept job |
+|---|---|
+| pip | 81c7e65b-8206-4245-a96b-82f28ae49807 |
+| momo | d32e1cf3-a4d2-4e12-92da-cd831c07be45 |
+| nova | 14bac0da-f1ec-4263-bc25-c2192b81f0a1 |
+| juniper | 64c39a8d-06e7-40e2-981d-d5e04c07314c |
+| otto | c2130ade-3912-4ec6-965a-0a5f7de0928e (jacket/hat base 30a6b301-825f-4944-8cd9-d617013d1ff6) |
+| sprocket | c13e2d11-b2b3-4da3-904c-acb6441ac0a0 (via 9b8a5fea, da19566d, be663d44) |
+| boulder | 9a39a0d3-2e56-4666-8595-3b53f52a0c4a (via 5a27aefa) |
+| gus | f0952277-437a-4aaa-91e5-add5e1634509 (via c854e6a4) |
