@@ -116,6 +116,16 @@ balance. Never print a key; check it exists with `test -n "$HF_API_KEY"`.
    branch claude/zen-wozniak-mmsgsi bf670d2, not merged), the Mac's music lab branch mac/worktree-agent-a41c157f86f47ce7c
    (superseded if the new packs go in).
 
+### Credits: 270 BONUS credits EXPIRE tonight (30 Sept) 23:59 UTC (~7:59 PM EDT) (found 30 Sept ~10:45 UTC)
+Adam's higgsfield.ai Subscription page: "Bonus credits 270, Expires Sep 30", monthly credits 11/270 (Starter plan, renews
+10 Oct). The connector's balance showed 281.3, so it spends them: USE THEM TODAY, then they are gone. No top-up needed.
+Started in the old session on the connector (results wait in Adam's Higgsfield account; find them with the connector's
+job tools, or show_generations type 3d/image):
+- Momo's kart body: Tripo job 0115ef26-d1d6-4ea4-b8b5-73dd79d8944f (from her wheel-less image f443e9fa).
+- Otto: new wheel-less image job f586aad7-6a2d-4ead-9354-f8a4f209b799 (gpt_image_2_5 high, from concept e479b375, wheel
+  arches "plain dark recess"); then its Tripo job (standard texture and geometry, PBR) once the image is checked.
+Spare credits are worth spending TODAY on: a retry of any body that fits badly (9 each), and the wheels if wanted.
+
 ### Working with Adam (his standing rules; CLAUDE.md has the rest)
 Write simply, US English. At most two options, say which you would pick; ask in plain chat (not the AskUserQuestion
 tool). Ship to main only with his OK, then confirm the Deploy run and the live site. Never play sound on his machine
