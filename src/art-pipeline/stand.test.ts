@@ -56,8 +56,8 @@ describe('the racer standing alone', () => {
       headMoved = Math.max(headMoved, at(f.root.getObjectByName('Head')).distanceTo(head0));
       feet().forEach((p, k) => { footMoved = Math.max(footMoved, p.distanceTo(start[k])); });
     }
-    expect(hipsMoved).toBeGreaterThan(0.005);
-    expect(headMoved).toBeGreaterThan(0.005);
+    expect(hipsMoved).toBeGreaterThan(0.002); // a calm weight shift (30 Sept 2026: no cartoony bounce)
+    expect(headMoved).toBeGreaterThan(0.003);
     expect(footMoved, 'the feet planted').toBeLessThan(0.01);
     // reduced motion: the same pose whenever it is looked at
     const g = new StandingRacer(juniper);
@@ -112,7 +112,7 @@ describe('the racer standing alone', () => {
     }
   });
 
-  it('every flourish starts and ends at rest (no pop in or out), and a twirl comes round to face you again', () => {
+  it('every flourish starts and ends at rest (no pop in or out), and a look-off comes back to face you', () => {
     for (const m of MOVES) {
       for (const u of [0, 0.999]) {
         const b = beat(m, u, 0.5);
@@ -123,10 +123,10 @@ describe('the racer standing alone', () => {
       }
       expect(STAND.seconds[m]).toBeGreaterThan(0.5);
     }
-    expect(beat('twirl', 0.999, 0.5).turn).toBeCloseTo(2 * Math.PI, 2);
-    // a wave's hand is up at its height; a hop is in the air
+    expect(beat('twirl', 0.999, 0.5).turn).toBeCloseTo(0, 2); // a look off and back, no spin (30 Sept 2026)
+    // a raised hand is up at its height; nobody leaves the ground any more (30 Sept 2026: no cartoony jumps)
     expect(beat('wave', 0.5, 0.5).armR!.up).toBeGreaterThan(0.5);
-    expect(beat('hop', 0.47, 0.5).lift).toBeGreaterThan(0.1);
+    for (const m of MOVES) for (let u = 0; u <= 1; u += 0.05) expect(beat(m, u, 0.5).lift, m).toBe(0);
   });
 
   it('every racer has a temper: a flourish of its own, a bounce and a sway', () => {

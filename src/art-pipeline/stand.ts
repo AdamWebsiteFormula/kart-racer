@@ -34,23 +34,23 @@ export interface StandTemper { move: Flourish; stance: Stance; bounceHz: number;
 /** Each racer's (ui-hud data/cast.ts personalities). */
 export const STAND_TEMPERS: Readonly<Record<string, StandTemper>> = Object.freeze({
   // fast-talking, never stops moving: up on its toes, wings up, as MKW's Mario waits
-  pip: { move: 'hop', stance: 'ready', bounceHz: 1.6, bounce: 0.018, sway: 0.012, armDrop: 0.62 },
+  pip: { move: 'hop', stance: 'ready', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.62 },
   // deadpan, competent
-  momo: { move: 'point', stance: 'relaxed', bounceHz: 0.55, bounce: 0.005, sway: 0.008, armDrop: 0.72 },
+  momo: { move: 'point', stance: 'relaxed', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.72 },
   // dreamy, drawn to the lights
-  nova: { move: 'twirl', stance: 'relaxed', bounceHz: 0.5, bounce: 0.01, sway: 0.016, armDrop: 0.55 },
+  nova: { move: 'twirl', stance: 'relaxed', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.55 },
   // cheerful rule-follower, secretly fierce: hands on her hips
-  juniper: { move: 'salute', stance: 'hips', bounceHz: 1.1, bounce: 0.012, sway: 0.01, armDrop: 0.68 },
+  juniper: { move: 'salute', stance: 'hips', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.68 },
   // laid-back, waves at everyone
-  otto: { move: 'wave', stance: 'relaxed', bounceHz: 0.75, bounce: 0.01, sway: 0.016, armDrop: 0.64 },
+  otto: { move: 'wave', stance: 'relaxed', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.64 },
   // literal: a tin toy's tick, fists up
-  sprocket: { move: 'cheer', stance: 'ready', bounceHz: 1.0, bounce: 0.01, sway: 0.006, armDrop: 0.6 },
+  sprocket: { move: 'cheer', stance: 'ready', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.6 },
   // gentle giant
-  boulder: { move: 'bow', stance: 'relaxed', bounceHz: 0.45, bounce: 0.008, sway: 0.012, armDrop: 0.45 },
+  boulder: { move: 'bow', stance: 'relaxed', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.45 },
   // booming laugh: hands on his hips
-  gus: { move: 'laugh', stance: 'hips', bounceHz: 0.7, bounce: 0.012, sway: 0.014, armDrop: 0.4 },
+  gus: { move: 'laugh', stance: 'hips', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.4 },
 });
-const DEFAULT_TEMPER: StandTemper = { move: 'wave', stance: 'relaxed', bounceHz: 0.9, bounce: 0.01, sway: 0.012, armDrop: 0.6 };
+const DEFAULT_TEMPER: StandTemper = { move: 'wave', stance: 'relaxed', bounceHz: 0.4, bounce: 0.002, sway: 0.005, armDrop: 0.6 };
 export const temperOf = (racerId: string): StandTemper => STAND_TEMPERS[racerId] ?? DEFAULT_TEMPER;
 
 /** Every other tuning number (angles in radians, lengths in meters, the figure's frame: +Y up, +Z its front, +X its own left). */
@@ -101,20 +101,17 @@ const env = (u: number, a: number, b: number, c: number, d: number) => sstep(a, 
 const hump = (u: number, a: number, b: number) => (u <= a || u >= b ? 0 : Math.sin((Math.PI * (u - a)) / (b - a)));
 const TAU = Math.PI * 2;
 
-/** The flourish `move` at phase `u` (0..1 of its STAND.seconds); `legs` the leg's length (m), for crouches. Pure. */
-export function beat(move: Flourish, u: number, legs: number): Beat {
+/** The flourish `move` at phase `u` (0..1 of its STAND.seconds); `_legs` the leg's length (m), for crouches (none since 30 Sept 2026). Pure. */
+export function beat(move: Flourish, u: number, _legs: number): Beat {
   const b = still();
   const reach = (ref: Reach['ref'], out: number, up: number, fwd: number, pole: Reach['pole'], w: number): Reach => ({ ref, out, up, fwd, pole, w });
   const s = STAND.seconds[move];
   switch (move) {
-    case 'hop': { // crouch, jump with a wing up high and the other out, land soft (MKW's own pick: Mario's jump)
-      b.crouch = legs * (0.1 * env(u, 0, 0.2, 0.2, 0.32) + 0.05 * env(u, 0.62, 0.7, 0.7, 0.86));
-      b.lift = 0.16 * hump(u, 0.28, 0.66);
-      b.pitch = 0.14 * env(u, 0, 0.2, 0.2, 0.3) - 0.08 * hump(u, 0.28, 0.66);
-      b.headPitch = -0.16 * hump(u, 0.25, 0.7);
-      const w = env(u, 0.12, 0.3, 0.62, 0.9);
-      b.armR = reach('shoulder', 0.25, 0.9, 0.3, [1, 0, -0.6], w);
-      b.armL = reach('shoulder', 0.8, 0.22, 0.15, [0.4, -1, -0.4], w);
+    case 'hop': { // (30 Sept 2026: no more jumping) a cool two-finger flick off the brow, chin up, feet planted
+      const w = env(u, 0.12, 0.32, 0.6, 0.86);
+      b.armR = reach('head', 0.5 + 0.12 * sstep(0.4, 0.58, u), 0.45, 0.32, [1, 0.1, 0.15], w);
+      b.headPitch = -0.1 * hump(u, 0.2, 0.8);
+      b.twist = -0.08 * w;
       break;
     }
     case 'point': { // deadpan: a finger at you, a small nod
@@ -126,13 +123,11 @@ export function beat(move: Flourish, u: number, legs: number): Beat {
       break;
     }
     case 'twirl': { // dreamy: arms out, a turn on the spot, floating up a little; round to face you again before a pick moves on (UI.racerLockInMs)
-      b.turn = TAU * sstep(0.12, 0.55, u);
-      b.lift = 0.04 * hump(u, 0.08, 0.8);
-      const w = env(u, 0, 0.12, 0.62, 0.9);
-      b.armL = reach('shoulder', 0.86, 0.22, 0.06, [0, -1, -0.3], w);
-      b.armR = reach('shoulder', 0.86, 0.22, 0.06, [0, -1, -0.3], w);
-      b.headRoll = 0.12 * w;
-      b.eyes = 1 - 0.6 * w;
+      // (30 Sept 2026: no spin, no float) a slow half-turn of the shoulders to look off and back, cool and calm
+      b.turn = 0.45 * hump(u, 0.08, 0.86);
+      const w = env(u, 0.05, 0.25, 0.65, 0.9);
+      b.headRoll = 0.08 * w;
+      b.eyes = 1 - 0.5 * w;
       break;
     }
     case 'salute': { // a crisp salute at the brow, chin up, a little heel click
@@ -140,22 +135,20 @@ export function beat(move: Flourish, u: number, legs: number): Beat {
       b.armR = reach('head', 0.42, 0.42, 0.4, [1, 0.1, 0.15], w);
       b.pitch = -0.05 * w;
       b.headPitch = -0.08 * w;
-      b.lift = 0.02 * hump(u, 0.28, 0.42);
       break;
     }
     case 'wave': { // a big friendly wave, the head tilted into it
       const w = env(u, 0.08, 0.25, 0.8, 0.96);
-      b.armR = reach('shoulder', 0.5 + 0.2 * Math.sin(TAU * 2.6 * u * s), 0.75, 0.16, [1, -0.5, -0.4], w);
+      b.armR = reach('shoulder', 0.5 + 0.04 * Math.sin(TAU * 1.1 * u * s), 0.55, 0.16, [1, -0.5, -0.4], w); // a raised hand, not a big wave (30 Sept 2026)
       b.headRoll = -0.12 * w;
       b.x = 0.012 * w;
       break;
     }
     case 'cheer': { // a tin toy's cheer: both arms up in a V, two little hops
       const w = env(u, 0.08, 0.24, 0.66, 0.9);
-      b.armL = reach('shoulder', 0.45, 0.88, 0.1, [1, 0, -0.5], w);
-      b.armR = reach('shoulder', 0.45, 0.88, 0.1, [1, 0, -0.5], w);
-      b.lift = 0.05 * hump(u, 0.26, 0.5) + 0.03 * hump(u, 0.52, 0.72);
-      b.headPitch = -0.1 * w;
+      // (30 Sept 2026: no V, no hops) one fist brought up to the chest, a short firm nod
+      b.armR = reach('shoulder', 0.1, 0.1, 0.62, [1, -1, -0.4], w);
+      b.headPitch = 0.12 * hump(u, 0.3, 0.6);
       break;
     }
     case 'bow': { // a gentle giant's bow: a hand on the chest, the other behind, head down
@@ -171,7 +164,7 @@ export function beat(move: Flourish, u: number, legs: number): Beat {
     }
     case 'laugh': { // a booming laugh: hands on the belly, head back, shaking with it
       const w = env(u, 0.06, 0.22, 0.78, 0.96);
-      const shake = Math.sin(TAU * 4.5 * u * s) * env(u, 0.2, 0.3, 0.72, 0.82);
+      const shake = 0.25 * Math.sin(TAU * 2 * u * s) * env(u, 0.2, 0.3, 0.72, 0.82); // a low chuckle, not a shake (30 Sept 2026)
       b.armL = reach('hips', 0.1, 0.36, 0.62, [1, -1, -0.4], w);
       b.armR = reach('hips', 0.1, 0.36, 0.62, [1, -1, -0.4], w);
       b.pitch = -0.1 * w + 0.05 * shake;

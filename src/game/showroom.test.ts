@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Box3, ConstantAlphaFactor, CustomBlending, OneMinusConstantAlphaFactor, Vector3, type Material, type Mesh, type Scene, type ShaderMaterial, type WebGLRenderer } from 'three';
 import { buildRacerMesh, isShared, RACER_MODELS } from '../art-pipeline/index.ts';
 import { riggedTemplate } from '../art-pipeline/__tests__/parts.ts';
-import { frameDistance, heroFit, MAX_DISTANCE, MIN_DISTANCE, POP_FROM, POP_S, popScale, Showroom, stageFade, STAND_YAW, STILL_YAW, TURN_RATE } from './showroom.ts';
+import { frameDistance, heroFit, MAX_DISTANCE, MIN_DISTANCE, Showroom, stageFade, STAND_YAW, STILL_YAW, TURN_RATE } from './showroom.ts';
 
 const kartOf = (s: Showroom) => s.scene.getObjectByName('racer-pip') ?? s.scene.getObjectByName('racer-boulder');
 const mats = (o: { traverse(f: (x: unknown) => void): void }) => { const out: Material[] = []; o.traverse((x) => { const m = (x as Mesh).material as Material | undefined; if ((x as Mesh).isMesh && m) out.push(m); }); return out; };
@@ -82,7 +82,7 @@ describe('the showroom, while a racer\'s model file is still coming (the second 
     s.show('pip', {});
     expect(kartOf(s)).toBeDefined();
     s.update(2, false, view, box);
-    expect(kartOf(s)!.parent!.scale.x).toBeLessThan(1); // popping in from POP_FROM
+    expect(kartOf(s)!.parent!.scale.x).toBe(1); // no pop-in (30 Sept 2026: nothing bounces on the stand)
     s.dispose();
     spy.mockRestore();
   });
@@ -158,18 +158,13 @@ describe('the showroom', () => {
     s.dispose();
   });
 
-  it('a new racer pops in with a small overshoot (none with reduced motion); the stage fades in and out with the screen change', () => {
-    expect(popScale(0)).toBeCloseTo(POP_FROM, 6);
-    expect(popScale(POP_S)).toBe(1);
-    const peak = Math.max(...Array.from({ length: 34 }, (_, i) => popScale((i / 34) * POP_S)));
-    expect(peak).toBeGreaterThan(1);
-    expect(peak).toBeLessThan(1.03);
+  it('a new racer or kart goes on the stand at full size, no pop or bounce (30 Sept 2026); the stage fades in and out with the screen change', () => {
     const s = new Showroom();
     s.show('pip', {});
     const stand = kartOf(s)!.parent!;
     s.update(1, false, { w: 1600, h: 900 });
-    expect(stand.scale.x).toBeCloseTo(POP_FROM, 6);
-    s.update(1 + POP_S, false, { w: 1600, h: 900 });
+    expect(stand.scale.x).toBe(1);
+    s.update(1.34, false, { w: 1600, h: 900 });
     expect(stand.scale.x).toBe(1);
     s.show('boulder', {});
     s.update(3, true, { w: 1600, h: 900 });

@@ -47,8 +47,6 @@ const CAMERA_ELEVATION = Math.atan2(2.5 - 0.7, 8.2);
 export const MIN_DISTANCE = 3, MAX_DISTANCE = 36;
 /** Before anything is built (or a racer with no model yet): the old fixed shot's own numbers. */
 const DEFAULT_FRAME = Object.freeze({ y: 0.7, radius: 1.9 });
-/** a new kart on the stand pops in from this scale over POP_S seconds, with a little overshoot (none with reduced motion) */
-export const POP_FROM = 0.86, POP_S = 0.34;
 /**
  * A racer standing (the Racer screen): turned this far toward the tiles on the screen's left (MKW's character
  * faces you three-quarters, a little toward its grid); framed by its height, not a sphere (every racer's height
@@ -101,13 +99,6 @@ export function stageFade(alpha: number, on: boolean, dt: number, fadeS: number,
   if (reduced || !(fadeS > 0)) return on ? 1 : 0;
   const step = Math.max(0, dt) / fadeS;
   return on ? Math.min(1, alpha + step) : Math.max(0, alpha - step);
-}
-
-/** A pop-in's scale `t` seconds after a new kart went on the stand: POP_FROM up to 1 with a small overshoot (an ease-out-back), then 1. Pure. */
-export function popScale(t: number): number {
-  if (!(t >= 0) || t >= POP_S) return 1;
-  const u = t / POP_S - 1, c = 1.9;
-  return POP_FROM + (1 - POP_FROM) * (1 + (c + 1) * u * u * u + c * u * u);
 }
 
 /**
@@ -311,7 +302,7 @@ export class Showroom {
   /**
    * Turn the stand and aim the camera: the whole canvas is `view` (CSS pixels) and the hero stands in `box`
    * (the whole view when absent). A rigged driver idles and looks at the camera while it can; a racer just
-   * put on the stand pops in and bounces hello (not with reduced motion).
+   * put on its feet makes its gesture (no kart pops in or bounces: 30 Sept 2026).
    */
   update(nowS: number, reduced: boolean, view: { w: number; h: number }, box: Box = { x: 0, y: 0, w: view.w, h: view.h }): void {
     const k = this.kart, dt = this.last < 0 ? 0 : Math.min(0.1, Math.max(0, nowS - this.last));
@@ -321,9 +312,11 @@ export class Showroom {
     this.last = nowS;
     if (k && k.at < 0) {
       k.at = nowS;
-      if (k.fresh && !reduced) { k.view?.anim.react('bounce'); standing?.flourish(); }
+      // a fresh racer on its feet makes its (calm) gesture; a kart just sits there (Adam, 30 Sept 2026: "the karts
+      // shouldn't bounce when selected": no hop hello, no pop-in scale)
+      if (k.fresh && !reduced) standing?.flourish();
     }
-    this.stand.scale.setScalar(k && !reduced ? popScale(nowS - k.at) : 1);
+    this.stand.scale.setScalar(1);
     this.shadow.scale.set(standing ? STAND_SHADOW.halfWidth : SHADOW.halfWidth, standing ? STAND_SHADOW.halfLength : SHADOW.halfLength, 1);
     if (standing) standing.update(dt, this.camera.position, reduced);
     if (k?.view && dt > 0) {
