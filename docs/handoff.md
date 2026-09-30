@@ -124,6 +124,12 @@ job tools, or show_generations type 3d/image):
 - Momo's kart body: Tripo job 0115ef26-d1d6-4ea4-b8b5-73dd79d8944f (from her wheel-less image f443e9fa).
 - Otto: new wheel-less image job f586aad7-6a2d-4ead-9354-f8a4f209b799 (gpt_image_2_5 high, from concept e479b375, wheel
   arches "plain dark recess"); then its Tripo job (standard texture and geometry, PBR) once the image is checked.
+Adam's ACCOUNT NOTE (30 Sept): the old account's Claude cloud usage is almost gone ($17 of $250, Claude Code 92% of the
+week): do the work in the NEW account and poll jobs sparingly (each wait costs usage). Credits are deducted when a job is
+SUBMITTED, and only UNSPENT credits expire (results stay in his Higgsfield account, believed but unchecked): submit
+whatever you will fit BEFORE 23:59 UTC. Priority: the 8 kart bodies, then wheels, then the landmarks the art-pipeline
+SOP lists as "left for later" (Frostbite's falls and ridges, Skyline's city, Boardwalk's tower; Mesa is at its draw
+budget). Generation is cheap; fitting each model into the game is the slow part, so generate only what can be fitted.
 Spare credits are worth spending TODAY on: a retry of any body that fits badly (9 each), and the wheels if wanted.
 
 ### Working with Adam (his standing rules; CLAUDE.md has the rest)
