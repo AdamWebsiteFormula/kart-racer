@@ -20,7 +20,7 @@ function preloadTitleFonts(): Plugin {
       order: 'post',
       handler(_html, ctx) {
         return Object.keys(ctx.bundle ?? {})
-          .filter((f) => /\/mona-sans-latin-standard-italic-[\w-]+\.woff2$/.test(f))
+          .filter((f) => /\/saira-latin-standard-italic-[\w-]+\.woff2$/.test(f))
           .sort()
           .map((f) => ({ tag: 'link', attrs: { rel: 'preload', href: base + f, as: 'font', type: 'font/woff2', crossorigin: '' }, injectTo: 'head' as const }));
       },

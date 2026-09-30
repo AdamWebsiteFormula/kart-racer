@@ -16,6 +16,7 @@ Every third-party asset and library shipped in the game, with its license, and t
 | Lilita One (via @fontsource) | Juan Montoreano | SIL Open Font License 1.1 |
 | Fredoka (via @fontsource) | Milena Brandão, Hafontia | SIL Open Font License 1.1 |
 | Mona Sans (via @fontsource) | The Mona Sans Project Authors (github.com/github/mona-sans) | SIL Open Font License 1.1 |
+| Saira (via @fontsource), the display type since 30 Sept 2026 | The Saira Project Authors (Omnibus-Type, github.com/Omnibus-Type/Saira) | SIL Open Font License 1.1 |
 
 ## Art
 | Work | Author | License |

@@ -50,18 +50,19 @@ function rules(text: string): { sel: string[]; body: string }[] {
   return out;
 }
 
-describe('the house type: Mona Sans (Adam picked it on 28 Sept 2026)', () => {
-  it('is self-hosted from @fontsource-variable, latin only, swapped in: an italic file (every weight and width) and an upright one', () => {
+describe('the house type: Saira for the display (30 Sept 2026: "cool and not cartoony"), Mona Sans for reading (28 Sept 2026)', () => {
+  it('is self-hosted from @fontsource-variable, latin only, swapped in: Saira italic and upright at normal width, Mona Sans italic and upright', () => {
     const css = read('src/ui-hud/ui.css');
     const faces = css.match(/@font-face \{[^}]*\}/g) ?? [];
-    expect(faces).toHaveLength(2);
+    expect(faces).toHaveLength(4);
     for (const f of faces) {
-      expect(f).toContain("font-family: 'Mona Sans';");
+      expect(f).toMatch(/font-family: '(Mona Sans|Saira)';/);
       expect(f).toContain('font-display: swap;');
-      expect(f).toMatch(/url\('@fontsource-variable\/mona-sans\/files\/mona-sans-latin-(standard-italic|wght-normal)\.woff2'\)/);
+      expect(f).toMatch(/url\('@fontsource-variable\/(mona-sans\/files\/mona-sans-latin-(standard-italic|wght-normal)|saira\/files\/saira-latin-standard-(italic|normal))\.woff2'\)/);
       expect(f).toMatch(/unicode-range: U\+0000-00FF,/);
     }
-    expect(faces.join('\n')).toContain('font-stretch: 75% 125%;');
+    // Saira held at its normal width: the old Expanded stretches clamp to it
+    for (const f of faces.filter((x) => x.includes("'Saira'"))) expect(f).toContain('font-stretch: 100%;');
     // no other font comes in: no @import of a font package, and none of the old or trial families
     for (const f of SHEETS) {
       const text = read(f);
@@ -70,9 +71,9 @@ describe('the house type: Mona Sans (Adam picked it on 28 Sept 2026)', () => {
     }
   });
 
-  it('the tokens: the display and the text are Mona Sans; a navy keyline and a lift', () => {
+  it('the tokens: the display is Saira, the text Mona Sans; a black keyline and a lift', () => {
     const css = read('src/ui-hud/ui.css');
-    expect(css).toMatch(/--display: 'Mona Sans',/);
+    expect(css).toMatch(/--display: 'Saira',/);
     expect(css).toMatch(/--body: 'Mona Sans',/);
     expect(css).toMatch(/--keyline: #050607;/); // black since FlowKart (30 Sept 2026: neon green on black)
     expect(css).toMatch(/--lift: /);
@@ -94,7 +95,7 @@ describe('the house type: Mona Sans (Adam picked it on 28 Sept 2026)', () => {
   });
 
   it('the page preloads the italic file the title draws with, and there is no switch left to pick another type', () => {
-    expect(read('vite.config.ts')).toContain('/\\/mona-sans-latin-standard-italic-[\\w-]+\\.woff2$/');
+    expect(read('vite.config.ts')).toContain('/\\/saira-latin-standard-italic-[\\w-]+\\.woff2$/');
     expect(fs.existsSync(`${ROOT}src/ui-hud/typeface.ts`)).toBe(false);
     expect(read('src/main.ts')).not.toMatch(/type=|typeDirection/);
   });

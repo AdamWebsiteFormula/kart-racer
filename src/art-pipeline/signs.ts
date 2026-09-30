@@ -65,8 +65,9 @@ const BIOMES: Readonly<Record<string, BiomeSigns>> = Object.freeze({
   skyline: { track: 'SKYLINE CIRCUIT', cup: 'SUMMIT CUP', board: '#f5b700', arrow: '#ffffff', frame: '#fff6e0', post: '#e2a92c', sponsors: ['stars', 'parcel', 'spares', 'fizz'], banner: '#f5b700', letters: '#ffffff', flags: ['#f5b700', '#ff8fa3', '#7fc8ff', '#fff6e0'] },
 });
 
-const DISPLAY = '"Lilita One", "Fredoka", "Arial Rounded MT Bold", "Arial Black", sans-serif';
-const BODY = '"Fredoka", "Lilita One", "Arial Rounded MT Bold", Arial, sans-serif';
+// Saira since 30 Sept 2026 (Adam: "cool and not cartoony"; the rounded Lilita One and Fredoka before), the HUD's display face
+const DISPLAY = '"Saira", "Arial Black", Arial, sans-serif';
+const BODY = '"Saira", Arial, sans-serif';
 
 type G = CanvasRenderingContext2D;
 
@@ -81,7 +82,7 @@ function roundRect(g: G, x: number, y: number, w: number, h: number, r: number):
 }
 
 /** Text centred at (x, y), shrunk until it fits `maxW`, with an outline in `edge` when given. */
-function text(g: G, s: string, x: number, y: number, maxW: number, size: number, fill: string, font = DISPLAY, edge?: string, glow?: string, weight = ''): void {
+function text(g: G, s: string, x: number, y: number, maxW: number, size: number, fill: string, font = DISPLAY, edge?: string, glow?: string, weight = '800'): void {
   let px = size;
   g.font = `${weight} ${px}px ${font}`;
   while (px > 8 && g.measureText(s).width > maxW) { px -= 2; g.font = `${weight} ${px}px ${font}`; }
@@ -288,7 +289,7 @@ export function signAtlas(biome: string): Texture {
     t = tex;
     // the words want the game's own display face: paint again once it is in (a race loads long after the title has it)
     const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
-    if (fonts && !fonts.check('48px "Lilita One"')) fonts.load('48px "Lilita One"').then(() => { paint(c, b); tex.needsUpdate = true; }, () => {});
+    if (fonts && !fonts.check('800 48px "Saira"')) fonts.load('800 48px "Saira"').then(() => { paint(c, b); tex.needsUpdate = true; }, () => {});
   }
   t.colorSpace = SRGBColorSpace;
   t.anisotropy = 8;
