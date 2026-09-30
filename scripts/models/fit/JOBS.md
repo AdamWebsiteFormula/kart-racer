@@ -112,3 +112,17 @@ Round 2 concepts (Adam's notes: Sprocket no key on back, no head antenna, worn s
 | sprocket | c13e2d11-b2b3-4da3-904c-acb6441ac0a0 (via 9b8a5fea, da19566d, be663d44) |
 | boulder | 6ce3b270-e4db-4785-bf22-7e4167abb6db (with pants; before: 439ac85a-3386-4195-897e-aa75043a7305) (muscles 9a39a0d3 + the sport-pad outfit from d457adc2, via 5a27aefa) |
 | gus | f0952277-437a-4aaa-91e5-add5e1634509 (via c854e6a4) |
+
+## Characters tweak, step 2 (30 Sept 2026): Meshy v7 drivers (meshy_v7_image_to_3d, textured, a-pose, rigged, 44 credits each)
+Adam approved all eight concepts ("Go"). Credits fit five tonight, submitted riskiest rigs first. Not fitted into the game yet.
+| racer | concept image | Meshy driver job |
+|---|---|---|
+| pip | 81c7e65b-8206-4245-a96b-82f28ae49807 | 6be97642-8c92-454f-95ba-2549a5d7ffbc |
+| nova | 14bac0da-f1ec-4263-bc25-c2192b81f0a1 | b018b1ca-6604-4ca3-8e56-e2cc3895c8a5 |
+| sprocket | c13e2d11-b2b3-4da3-904c-acb6441ac0a0 | f3152b02-d3cf-4bde-908d-c19dbb3a923b |
+| otto | 704c74b7-746c-415d-a0c7-a0c4a6ff5004 | 4af61e4c-5560-4f65-a021-442286296490 |
+| boulder | 6ce3b270-e4db-4785-bf22-7e4167abb6db | 8971aed8-75b5-4258-85bd-5702428802e8 |
+| momo | d32e1cf3-a4d2-4e12-92da-cd831c07be45 | not submitted (credits) |
+| juniper | 64c39a8d-06e7-40e2-981d-d5e04c07314c | not submitted (credits) |
+| gus | f0952277-437a-4aaa-91e5-add5e1634509 | not submitted (credits) |
+Rule from the handoff: all eight must match in style, so ship none of them into the game unless all eight are fitted.
