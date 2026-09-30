@@ -29,6 +29,7 @@ Gathered from the Mac chat (Adam's screenshots and text, 26-29 Sept) and the clo
 | 14 | 28 Sept | How to Play: "Are those controls using best practices? That's an awful lot of buttons to remember." | question: A (the 5 main controls as one simple picture, and a gamepad laid out like MKW's) or B (only tidy the screen); A was recommended |
 | 15 | 29 Sept | "It's slowing down my macbook considerably." Kill leftover rascal-ear processes; music made one job at a time, never in parallel | live 29 Sept (merged from the Mac's main) |
 | 16 | 29 Sept | Pip's wing feathers over his face on the Parcel Scooter (the cloud tour's open note) | fixed on branch claude/zen-wozniak-mmsgsi (bf670d2), not merged |
+| 17 | 30 Sept | "The karts all look too cartoony." | question: A (new sleek, sporty bodies for the 8 signature karts via concept art and image-to-3D, about 76 Higgsfield credits of the 73.3 left, and each driver refitted) or B (restyle the ones we have in code: glossy clear-coat paint, metal trim, real tire rubber, deeper colors; no credits); B first was recommended, then A for any still toy-like |
 
 Also waiting on Adam: the sound files he may zip to Google Drive (the 29 Sept cloud chat), and a
 Gemini key for the cloud sound-pack session.
