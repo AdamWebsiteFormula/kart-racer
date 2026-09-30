@@ -9,8 +9,9 @@
 // - their stands, bleachers, rope lines and floating cloud platforms are one static toon mesh: one draw;
 // - none casts a shadow (no dark blot on the road that could read as a hazard's warning);
 // - life is all in the vertex shader, a pure function of the clock and a few uniforms: idle bobbing,
-//   waving, pumping, swaying and hopping; heads and bodies turn to follow the pack as it passes (the
-//   player's kart as the camera sees it); a cheer burst (jumps, arms up) as it comes by their spot;
+//   calm since 30 Sept 2026 (Adam: "lame and cartoony"): a slight sway, a hand half raised, a nod; heads
+//   and bodies turn to follow the pack as it passes (the player's kart as the camera sees it); a cheer (one
+//   fist up, no jumping) as it comes by their spot;
 //   a cheer from every stand when the Final Lap Shift comes. Past CROWD.lodFar they shrink away; the
 //   governor's Low (no shadow map) drops the crowd's draws.
 // - no sound: the audio rules forbid crowd and cheer sounds.
@@ -489,20 +490,20 @@ vec3 objectNormal;
   float beat = T * tempo + ph * 3.7;
   float lift = 0.0, sway = 0.0, sq = 0.03 * sin(beat * 6.2831853);
   float aL = 0.3, aR = 0.3;
-  if (style < 0.5) { float b = max(0.0, sin(beat * 6.2831853)); lift = 0.11 * b * b; aL = 0.5 + 0.3 * b; aR = aL; }
-  else if (style < 1.5) { aR = 2.5 + 0.35 * sin(T * 8.5 + ph * 6.2831853); aL = 0.3 + 0.08 * sin(beat * 6.2831853); }
-  else if (style < 2.5) { float b = 0.5 + 0.5 * sin(beat * 8.8); aL = 1.2 + 1.3 * b; aR = 1.2 + 1.3 * (1.0 - b); lift = 0.035 * b; }
-  else if (style < 3.5) { float w = sin(T * 2.3 + ph * 6.2831853); sway = 0.13 * w; aL = 0.8 + 0.35 * w; aR = 0.8 - 0.35 * w; }
-  else { float fr = fract(T / 1.8 + ph); float hop = fr < 0.3 ? sin(fr / 0.3 * 3.14159265) : 0.0; lift = 0.3 * hop; aL = 0.4 + 2.2 * hop; aR = aL; }
-  if (held > 0) aR = max(aR, 2.3);
+  if (style < 0.5) { float b = max(0.0, sin(beat * 6.2831853)); lift = 0.015 * b * b; aL = 0.4 + 0.1 * b; aR = aL; }
+  else if (style < 1.5) { aR = 1.7 + 0.12 * sin(T * 2.6 + ph * 6.2831853); aL = 0.3 + 0.04 * sin(beat * 6.2831853); }
+  else if (style < 2.5) { float b = 0.5 + 0.5 * sin(beat * 2.4); aL = 0.5 + 0.25 * b; aR = 0.5 + 0.25 * (1.0 - b); lift = 0.0; }
+  else if (style < 3.5) { float w = sin(T * 2.3 + ph * 6.2831853); sway = 0.04 * w; aL = 0.5 + 0.1 * w; aR = 0.5 - 0.1 * w; }
+  else { float fr = fract(T / 1.8 + ph); float hop = fr < 0.3 ? sin(fr / 0.3 * 3.14159265) : 0.0; lift = 0.02 * hop; aL = 0.4; aR = 0.4 + 0.9 * hop; }
+  if (held > 0) aR = max(aR, 1.5);
   // ---- the cheer burst: the pack passed this group's spot (or the Final Lap Shift came)
   float t0 = grp < -0.5 ? -1.0 : uTrig[int(grp + 0.5)];
   float k = t0 < 0.0 ? -1.0 : T - t0 - ph * ${f(CROWD.stagger)};
   float cheer = k < 0.0 ? 0.0 : smoothstep(0.0, 0.2, k) * (1.0 - smoothstep(${f(CROWD.cheer - 0.7)}, ${f(CROWD.cheer)}, k));
-  float jb = abs(sin(k * 6.9));
-  lift = mix(lift, 0.36 * jb, cheer);
-  aL = mix(aL, 2.75 + 0.3 * sin(T * 12.0 + ph * 6.2831853), cheer);
-  aR = mix(aR, 2.75 + 0.3 * sin(T * 12.0 + ph * 6.2831853 + 1.6), cheer);
+  float jb = abs(sin(k * 2.2));
+  lift = mix(lift, 0.03 * jb, cheer);
+  aL = mix(aL, 0.5, cheer);
+  aR = mix(aR, 2.5 + 0.08 * sin(T * 3.0 + ph * 6.2831853), cheer);
   lift += B.w * (1.0 + 0.15 * sin(T * 1.4 + ph * 6.2831853));
   // ---- turning to follow the pack
   vec3 ip = instanceMatrix[3].xyz;
@@ -682,19 +683,19 @@ export function crowdPose(s: Spectator, clock: number, focus: V3, trig: ArrayLik
   const TAU = Math.PI * 2, fract = (x: number) => x - Math.floor(x), smooth = (a: number, b: number, x: number) => { const k = clamp01((x - a) / (b - a)); return k * k * (3 - 2 * k); };
   const tempo = 1.3 + 0.8 * fract(ph * 7.31), beat = T * tempo + ph * 3.7;
   let lift = 0, sway = 0, aL = 0.3, aR = 0.3;
-  if (style < 0.5) { const b = Math.max(0, Math.sin(beat * TAU)); lift = 0.11 * b * b; aL = aR = 0.5 + 0.3 * b; }
-  else if (style < 1.5) { aR = 2.5 + 0.35 * Math.sin(T * 8.5 + ph * TAU); aL = 0.3 + 0.08 * Math.sin(beat * TAU); }
-  else if (style < 2.5) { const b = 0.5 + 0.5 * Math.sin(beat * 8.8); aL = 1.2 + 1.3 * b; aR = 1.2 + 1.3 * (1 - b); lift = 0.035 * b; }
-  else if (style < 3.5) { const w = Math.sin(T * 2.3 + ph * TAU); sway = 0.13 * w; aL = 0.8 + 0.35 * w; aR = 0.8 - 0.35 * w; }
-  else { const fr = fract(T / 1.8 + ph), hop = fr < 0.3 ? Math.sin((fr / 0.3) * Math.PI) : 0; lift = 0.3 * hop; aL = aR = 0.4 + 2.2 * hop; }
-  if (held > 0) aR = Math.max(aR, 2.3);
+  if (style < 0.5) { const b = Math.max(0, Math.sin(beat * TAU)); lift = 0.015 * b * b; aL = aR = 0.4 + 0.1 * b; }
+  else if (style < 1.5) { aR = 1.7 + 0.12 * Math.sin(T * 2.6 + ph * TAU); aL = 0.3 + 0.04 * Math.sin(beat * TAU); }
+  else if (style < 2.5) { const b = 0.5 + 0.5 * Math.sin(beat * 2.4); aL = 0.5 + 0.25 * b; aR = 0.5 + 0.25 * (1 - b); lift = 0; }
+  else if (style < 3.5) { const w = Math.sin(T * 2.3 + ph * TAU); sway = 0.04 * w; aL = 0.5 + 0.1 * w; aR = 0.5 - 0.1 * w; }
+  else { const fr = fract(T / 1.8 + ph), hop = fr < 0.3 ? Math.sin((fr / 0.3) * Math.PI) : 0; lift = 0.02 * hop; aL = 0.4; aR = 0.4 + 0.9 * hop; }
+  if (held > 0) aR = Math.max(aR, 1.5);
   const t0 = grp < -0.5 ? -1 : trig[Math.round(grp)];
   const k = t0 < 0 ? -1 : T - t0 - ph * CROWD.stagger;
   const cheer = k < 0 ? 0 : smooth(0, 0.2, k) * (1 - smooth(CROWD.cheer - 0.7, CROWD.cheer, k));
-  const jb = Math.abs(Math.sin(k * 6.9));
-  lift += (0.36 * jb - lift) * cheer;
-  aL += (2.75 + 0.3 * Math.sin(T * 12 + ph * TAU) - aL) * cheer;
-  aR += (2.75 + 0.3 * Math.sin(T * 12 + ph * TAU + 1.6) - aR) * cheer;
+  const jb = Math.abs(Math.sin(k * 2.2));
+  lift += (0.03 * jb - lift) * cheer;
+  aL += (0.5 - aL) * cheer;
+  aR += (2.5 + 0.08 * Math.sin(T * 3 + ph * TAU) - aR) * cheer;
   lift += hover * (1 + 0.15 * Math.sin(T * 1.4 + ph * TAU));
   const dx = focus[0] - s.at[0], dz = focus[2] - s.at[2];
   const lx = dx * Math.cos(s.yaw) - dz * Math.sin(s.yaw), lz = dx * Math.sin(s.yaw) + dz * Math.cos(s.yaw);

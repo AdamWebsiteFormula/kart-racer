@@ -271,11 +271,13 @@ describe('the crowd comes alive', () => {
         expect(Math.abs(a.sway)).toBeLessThanOrEqual(0.14);
       }
     }
-    // idle life moves: a hopper leaves the ground now and then, a waver's arm swings
-    const hopper = someone(4), lifts = Array.from({ length: 60 }, (_, k) => crowdPose(hopper, k * 0.05, [0, 0, 0], trig).lift);
-    expect(Math.max(...lifts)).toBeGreaterThan(0.2);
+    // idle life moves, calmly (30 Sept 2026: no hopping): the old hopper lifts only a few cm and raises a hand, a waver's arm swings
+    const hopper = someone(4), poses = Array.from({ length: 60 }, (_, k) => crowdPose(hopper, k * 0.05, [0, 0, 0], trig));
+    expect(Math.max(...poses.map((p) => p.lift))).toBeGreaterThan(0.005);
+    expect(Math.max(...poses.map((p) => p.lift))).toBeLessThan(0.05);
+    expect(Math.max(...poses.map((p) => p.armR))).toBeGreaterThan(1);
     const waver = someone(1), arms = Array.from({ length: 30 }, (_, k) => crowdPose(waver, k * 0.05, [0, 0, 0], trig).armR);
-    expect(Math.max(...arms) - Math.min(...arms)).toBeGreaterThan(0.3);
+    expect(Math.max(...arms) - Math.min(...arms)).toBeGreaterThan(0.1);
   });
 
   it('turns heads and bodies toward the pack as it passes, and not at all when it is far', () => {
