@@ -45,8 +45,8 @@ export const POP = Object.freeze({
  * where the chase camera looks; teal and white-hot at its heart. `radius` and the speeds are metres and m/s.
  */
 export const GEAR_POP = Object.freeze({ radius: 0.35, turn: 4.4, out: 1.3, up: 1.1, size: 0.2, life: 0.42, drag: 2.6, glint: 0.55, glintLife: 0.2 });
-/** The player's gear sparks (teal, HDR so they bloom) and the glint; gears knocked loose throw a few of the same */
-const GEAR_TEAL: readonly number[] = [0.5, 2.1, 1.9];
+/** The player's pickup sparks (neon green since 30 Sept 2026, the power cell's own light; HDR so they bloom) and the glint; cells knocked loose throw a few of the same */
+const GEAR_TEAL: readonly number[] = [0.6, 2.6, 0.35];
 /** the energy core's own light (decor.ts `balloon`), HDR so it blooms */
 const CORE_CYAN: readonly number[] = [0.5, 2.2, 2.4];
 const CORE_MAGENTA: readonly number[] = [2.3, 0.6, 2.0];

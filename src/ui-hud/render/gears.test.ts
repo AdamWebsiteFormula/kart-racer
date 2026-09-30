@@ -32,7 +32,7 @@ describe('the gear pill', () => {
     const pill = v.root.querySelector('.gears')!;
     expect(pill.textContent).toBe('02');
     const icon = pill.querySelector('.gear')!;
-    expect([icon.getAttribute('role'), icon.getAttribute('aria-label')]).toEqual(['img', 'Gears']);
+    expect([icon.getAttribute('role'), icon.getAttribute('aria-label')]).toEqual(['img', 'Plasma orbs']);
     expect(icon.querySelector('svg.gear-svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(v.root.querySelector('.coins, .coin')).toBeNull();
     expect(v.root.outerHTML).not.toMatch(/coin/i);
@@ -54,13 +54,12 @@ describe('the gear pill', () => {
     expect([pill.textContent, pill.classList.contains('full')]).toEqual(['10', true]);
   });
 
-  it('draws a cog: eight teeth round a steel hub and an axle hole, in the house ink', () => {
+  it('draws the plasma orb (30 Sept 2026): a green glow round a green sphere, white-hot at its heart; the cog outline kept for the menu', () => {
     const svg = gearSvg();
-    expect(svg).toContain(gearPath());
-    expect(gearPath().split('L')).toHaveLength(8 * 5);
-    expect((svg.match(/<circle/g) ?? []).length).toBe(2); // the hub, the hole
-    expect(svg).toContain('#1b1b2f');
+    expect((svg.match(/<circle/g) ?? []).length).toBe(2);
+    expect(svg).toContain('#39ff14');
     expect(svg).not.toMatch(/#f2b705|#ffd23f|gold/i); // never a gold coin
+    expect(gearPath().split('L')).toHaveLength(8 * 5);
   });
 });
 
@@ -96,7 +95,7 @@ describe('nothing a player reads says coin', () => {
     }
     // How to Play does tell of the gears, in its own words
     ui.dispatch({ type: 'openHowTo' });
-    expect(read()).toContain('Grab gears to tune up your kart');
+    expect(read()).toContain('Grab plasma orbs to charge up your kart');
     ui.dispatch({ type: 'back' });
     for (const a of [{ type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }, { type: 'pickTrack', trackId: 'harbour-loop' }] as const) {
       ui.dispatch(a);

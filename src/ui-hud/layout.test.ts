@@ -207,7 +207,7 @@ describe('the race HUD beside real MKW footage (25 Sept 2026)', () => {
     expect(value('.minimap', 'border')).toBe('');
     expect(value('.gears', 'border-radius')).toBe('999px');
     expect(value('.gears', 'background')).not.toBe('');
-    expect(value('.gears.full', 'box-shadow')).toMatch(/var\(--teal\)/);
+    expect(value('.gears.full', 'box-shadow')).toMatch(/var\(--sun\)/); // neon green since 30 Sept 2026
     // smaller in a narrow window with keys (the controls strip reached its glow at 880 px); a phone has no strip
     expect(value('.gears', 'font-size', '(max-width: 900px) and (pointer: fine)')).toBe('28px');
     expect(value('.gears', 'font-size', '(max-width: 900px)')).toBe('');

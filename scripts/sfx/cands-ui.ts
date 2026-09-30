@@ -50,9 +50,12 @@ export const RECIPES: readonly Recipe[] = [
     L({ pack: '99Sounds_Sci-Fi_Sound_Effects/99Sounds Sci-Fi Sound Effects/Rescopic Sound - Sci-Fi Energy Weapons (99Sounds Version)/Audio Files/Source Sounds/Whoosh/WHSH_Whoosh Energy Fast 11_RSCPC_SFEW.wav' }, -9, 0.4),
     L(PING('21'), -12, 0.6, [], 0.04),
   ]),
-  r('coin', 'The kart picks up a gear: a quick, futuristic collect burst with a metallic clink, short and satisfying, never like a coin.', [
-    L(ESM('Fantasy Game 2 - Sound Kit for Enchanted Realms', 'UIAlert_Collect Scifi Futuristic Electronic Bass Burst Sweep Heavy 04_ESM_FG2'), 0, 0.3),
-    L(ESM('HD Game Materials', 'METLImpt_Metal Old File Impact Tap Against Tire Iron Metallic Hit 01_ESM_HDGM'), -8, 0.3, [{ op: 'trim', from: 0.12 }]),
+  // a power cell since 30 Sept 2026 (Adam: "a cool sound when a kart drives over it"): a digital crystal chime over
+  // a short charge-up pulse and a touch of the old bass burst; smaller than the energy core's 1 s burst
+  r('coin', 'The kart drives through a power cell: a quick bright crystal chime with a short electric charge under it, small and satisfying, never like a coin.', [
+    L(NN('Short - Digital Crystal'), 0, 0.45),
+    L({ pack: '99Sounds_Sci-Fi_Sound_Effects/99Sounds Sci-Fi Sound Effects/Rescopic Sound - Sci-Fi Energy Weapons (99Sounds Version)/Audio Files/Source Sounds/Charge Up/DSGNRise_Charge Up Processed Pulse 19_RSCPC_SFEW.wav' }, -12, 0.25),
+    L(ESM('Fantasy Game 2 - Sound Kit for Enchanted Realms', 'UIAlert_Collect Scifi Futuristic Electronic Bass Burst Sweep Heavy 04_ESM_FG2'), -10, 0.2),
   ]),
   r('respawn', 'The kart is placed back on the track: a magical rising shimmer, about a second.', [
     L(NN('Retro - Magic Respawn'), 0, 1.2, [{ op: 'trim', from: 0.08 }]),

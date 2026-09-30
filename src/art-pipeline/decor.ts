@@ -5,7 +5,6 @@ import { Euler, Vector3, type BufferGeometry } from 'three';
 import { ModelBuilder, type V3 } from './model.ts';
 import { DRESSING_MODELS } from './dressing.ts';
 import { EDGE_MODELS } from './edges.ts';
-import { buildGear } from './gear.ts';
 import { markSpinFrom, type Spin } from './spin.ts';
 
 type Build = (m: ModelBuilder) => void;
@@ -152,8 +151,16 @@ const MODELS: Record<string, { build: Build; spin?: CodeSpin }> = {
       }
     },
   },
-  // the speed pickup (the track's `coins`) is a teal gear with a steel hub, not a coin (gear.ts; Adam, 26 Sept 2026)
-  coin: { build: (m) => buildGear(m) },
+  // the speed pickup (the track's `coins`): a glowing orb since 30 Sept 2026 (Adam: "something cool that is more
+  // futuristic", "smaller and less significant" than the energy core, "not shaped like a coin"; a teal gear before,
+  // gear.ts). Only the look changed.
+  coin: {
+    build: (m) => {
+      // a glowing orb (Adam, 30 Sept 2026: "maybe a glowing orb would be better?"): a neon-green plasma sphere,
+      // lit past white so it blooms by day as well as at night, no rings (the energy core has them), 0.44 m across
+      m.ball([0.22, 0.22, 0.22], [0.55, 2.4, 0.3], [0, 0, 0], undefined, 12, false);
+    },
+  },
   // ================================================================ Windmill Run
   windmill: {
     build: (m) => {
