@@ -13,7 +13,7 @@ export const KART_SCREEN_TITLE = 'Pick your kart';
 export const LOCKED_IN = 'Locked in!';
 
 /**
- * A kart tile: `by` whose kart it is ("Gus's kart") or what a twin is ("Same stats as the Wind-Up Racer");
+ * A kart tile: `by` whose kart it is ("Gus's kart") or what a twin is ("Same stats as the Vector Racer");
  * `colors` its two colors (the owner's; a twin the racer's own or their paint's), `art` its picture's name
  * (data/karts.ts kartArt: the kart rendered from its 3D model in those colors); `locked` a twin not yet
  * earned, which takes the focus to preview but cannot be chosen, `hint` how to earn it; `chosen` the kart

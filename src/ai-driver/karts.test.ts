@@ -26,6 +26,6 @@ describe('AiDriver: any racer in any kart', () => {
     const planned = (ai as unknown as { consts: KartConstants[] }).consts;
     expect(planned).toEqual(rm.consts);
     expect(planned.map((c) => c.kartId)).toEqual(['snacktruck', 'stomper', 'skimmer', '']);
-    expect(planned[0].topSpeed).toBeGreaterThan(planned[2].topSpeed); // Nova in the Snack Truck: +2 steps of speed on her class
+    expect(planned[0].topSpeed).toBeGreaterThan(planned[2].topSpeed); // Nova in the Boss Roadster: +2 steps of speed on her class
   });
 });

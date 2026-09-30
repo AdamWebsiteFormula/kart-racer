@@ -49,7 +49,7 @@ describe('any racer in any kart: the race manager', () => {
     const first = race(inScrap);
     const again = race(inScrap, first.log);
     expect(again.json).toBe(first.json);
-    // the same inputs with Gus in his own Snack Truck: another race
+    // the same inputs with Gus in his own Boss Roadster: another race
     const own = race(config({ racerId: 'gus', archetype: 'heavy', isPlayer: true }), first.log);
     expect(own.json).not.toBe(first.json);
     expect(own.rm.state.karts[0].position).not.toEqual(first.rm.state.karts[0].position);

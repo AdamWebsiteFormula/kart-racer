@@ -43,7 +43,7 @@ function configWith(kartId: string | undefined): RaceConfig {
 }
 
 describe('a race with a chosen kart (design §5, K6)', () => {
-  it("Juniper races in Pip's Parcel Scooter: one draw and one shadow draw, a rigged skinned mesh", () => {
+  it("Juniper races in Pip's Dart Scooter: one draw and one shadow draw, a rigged skinned mesh", () => {
     const s = new RaceSession(new Scene(), def, configWith('scooter'));
     const root = s.views[0].chassis;
     expect(root.getObjectByName('rigged')).toBeDefined();
@@ -56,7 +56,7 @@ describe('a race with a chosen kart (design §5, K6)', () => {
     s.dispose();
   });
 
-  it('no kart chosen: still Juniper, in her own Timber Wagon (unchanged: the ship switch defaults everyone to their own)', () => {
+  it('no kart chosen: still Juniper, in her own Ridge Runner (unchanged: the ship switch defaults everyone to their own)', () => {
     const s = new RaceSession(new Scene(), def, configWith(undefined));
     const root = s.views[0].chassis;
     expect(root.getObjectByName('rigged')).toBeDefined();

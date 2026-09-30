@@ -27,7 +27,7 @@ describe('the ten karts on the cards (design §5)', () => {
   it('each card says whose kart it is, or what a twin is, and how it drives', () => {
     expect(KARTS.map(byLine)).toEqual([
       "Pip's kart", "Momo's kart", "Nova's kart", "Juniper's kart", "Otto's kart", "Sprocket's kart", "Boulder's kart", "Big Gus's kart",
-      'Same stats as the Wind-Up Racer', 'Same stats as the Scrap Buggy',
+      'Same stats as the Vector Racer', 'Same stats as the Rogue Buggy',
     ]);
     expect(kartCard('snacktruck')!.line).toBe('Top speed, turns like a truck');
     // a twin drives as its twin does, and is opened by its unlock (design §10)
@@ -72,7 +72,7 @@ describe('the stats panel (design §12)', () => {
     const pip = comboStats('pip', 'scooter'), pipTruck = comboStats('pip', 'snacktruck');
     const p = statPanel(pip, pipTruck);
     const row = (k: string) => p.rows.find((r) => r.key === k)!;
-    // the Snack Truck's speed is three steps over the Parcel Scooter's; its accel two under
+    // the Boss Roadster's speed is three steps over the Dart Scooter's; its accel two under
     expect(row('speed')).toMatchObject({ steps: 3, chevrons: 3 });
     expect(row('speed').ghost).toBeGreaterThan(row('speed').value);
     expect(row('accel')).toMatchObject({ steps: -2, chevrons: 2 });

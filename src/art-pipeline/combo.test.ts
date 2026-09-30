@@ -1,7 +1,7 @@
 // Any racer in any kart (design §5, K6, 25 Sept 2026): a chosen racer's own driver seated by IK in
 // another racer's own kart body and wheels, merged into one skinned mesh (rigged.ts
 // buildComboTemplate), never the kart owner's own driver. On two racers' real parts (Pip's own
-// Parcel Scooter, Juniper's own driver): the combo's kart-side points (seat, steering, wheel radius)
+// Dart Scooter, Juniper's own driver): the combo's kart-side points (seat, steering, wheel radius)
 // are the kart's own, the driver-side points (pose, rest) are the driver's own, and the merged
 // geometry is exactly the kart's own body-and-wheels plus the driver's own driver, byte for byte.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -11,8 +11,8 @@ import { RACER_MODELS } from './glb.ts';
 import { buildComboTemplate, KART_BONES, makeRigged, type RiggedTemplate } from './rigged.ts';
 import { partsManifest, riggedTemplate } from './__tests__/parts.ts';
 
-let pip: RiggedTemplate; // the kart: Pip's own Parcel Scooter
-let juniper: RiggedTemplate; // the driver: Juniper, seated in it instead of her own Timber Wagon
+let pip: RiggedTemplate; // the kart: Pip's own Dart Scooter
+let juniper: RiggedTemplate; // the driver: Juniper, seated in it instead of her own Ridge Runner
 
 beforeAll(async () => {
   [pip, juniper] = await Promise.all([riggedTemplate('pip'), riggedTemplate('juniper')]);

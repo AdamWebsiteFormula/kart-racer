@@ -60,10 +60,10 @@ export const CELEBRATE = Object.freeze({
 /**
  * The karts whose shape stands in front of a seated driver's face (measured from the models, 27 Sept 2026):
  * `front`, how high the kart's front rises in front of its driver all across (m over the kart's origin, its
- * middle band: the Wind-Up Racer's round nose 1.06 against Sprocket's head at 0.84 to 0.89), seen over from
+ * middle band: the Vector Racer's round nose 1.06 against Sprocket's head at 0.84 to 0.89), seen over from
  * higher; `angle`, from further round (rad off the nose): past a narrow thing right in front of the face (the
- * Parcel Scooter's lamp, 1.18 m, 0.2 m in front of Pip's face: at 0.55 his wing over his face showed only as a
- * tip beside it, "a wave"; at 1 rad it is plain), over a cockpit open at its sides (the Wind-Up Racer's tub:
+ * Dart Scooter's lamp, 1.18 m, 0.2 m in front of Pip's face: at 0.55 his wing over his face showed only as a
+ * tip beside it, "a wave"; at 1 rad it is plain), over a cockpit open at its sides (the Vector Racer's tub:
  * from the front its wheel hides Sprocket's face), or past a dome (the Comet Pod: its nose rises to 1.04 m in
  * front of Nova's head at 0.80 to 0.86, and from over it, as it was framed on 27 Sept, only the top of her
  * helmet showed, a blind read "neutral" 1.2 s in; its cockpit's sides stand lower than her shoulders, so from

@@ -336,13 +336,13 @@ describe('leaderboard panel model (audit 24 Sept 2026)', () => {
     expect(boardModel('timeTrial', 'Lighthouse Loop', null, [], { state: 'idle' }, '8:00 PM').note).toBe('');
   });
 
-  it('a board row names the kart next to the racer (design §5, K6): "Pip in the Snack Truck"', () => {
+  it('a board row names the kart next to the racer (design §5, K6): "Pip in the Boss Roadster"', () => {
     const rows = boardModel('timeTrial', 'Lighthouse Loop', null, [
       { id: 'a', name: 'Ada', racerId: 'pip', kartId: 'snacktruck', timeMs: 90000 },
       { id: 'b', name: 'Bo', racerId: 'gus', kartId: 'snacktruck', timeMs: 91000 }, // his own: still named
       { id: 'c', name: 'Cy', racerId: 'nova', kartId: 'not-a-kart', timeMs: 92000 }, // an old score, no kart known
     ], { state: 'idle' }).rows;
-    expect(rows.map((r) => r.racer)).toEqual(['Pip in the Snack Truck', 'Big Gus in the Snack Truck', 'Nova']);
+    expect(rows.map((r) => r.racer)).toEqual(['Pip in the Boss Roadster', 'Big Gus in the Boss Roadster', 'Nova']);
     // and its picture: a signature kart wears its owner's two colors whoever drives it; an old score has none
     const gus = CAST.find((c) => c.id === 'gus')!;
     expect(rows[0].kart).toEqual({ id: 'snacktruck', colors: [gus.accent, gus.secondary] });

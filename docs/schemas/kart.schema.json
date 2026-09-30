@@ -160,7 +160,7 @@
       }
     },
     "bodies": {
-      "description": "The old shared kart bodies' ids (classic, buggy), kept because the save's unlocked.bodies holds them. Since 25 Sept 2026 they are the karts Classic and Buggy (karts: twins of the Wind-Up Racer and the Scrap Buggy), picked on the kart screen, so an unlock changes the look, never the speed.",
+      "description": "The old shared kart bodies' ids (classic, buggy), kept because the save's unlocked.bodies holds them. Since 25 Sept 2026 they are the karts Classic and Buggy (karts: twins of the Vector Racer and the Rogue Buggy), picked on the kart screen, so an unlock changes the look, never the speed.",
       "type": "array",
       "items": { "$ref": "#/$defs/unlockable" }
     },
@@ -190,14 +190,14 @@
       "type": "array", "minItems": 10, "maxItems": 10,
       "items": { "$ref": "#/$defs/kart" },
       "default": [
-        { "id": "scooter", "name": "Parcel Scooter", "owner": "pip", "speed": -0.005, "accel": 0.06, "handling": 0, "weight": -0.05 },
-        { "id": "scrap", "name": "Scrap Buggy", "owner": "momo", "speed": -0.010, "accel": 0.06, "handling": 0.06, "weight": -0.05 },
+        { "id": "scooter", "name": "Dart Scooter", "owner": "pip", "speed": -0.005, "accel": 0.06, "handling": 0, "weight": -0.05 },
+        { "id": "scrap", "name": "Rogue Buggy", "owner": "momo", "speed": -0.010, "accel": 0.06, "handling": 0.06, "weight": -0.05 },
         { "id": "pod", "name": "Comet Pod", "owner": "nova", "speed": -0.005, "accel": 0, "handling": 0.06, "weight": -0.05 },
-        { "id": "wagon", "name": "Timber Wagon", "owner": "juniper", "speed": 0, "accel": 0, "handling": 0, "weight": 0.05 },
-        { "id": "skimmer", "name": "Wave Skimmer", "owner": "otto", "speed": 0, "accel": 0.06, "handling": -0.06, "weight": 0 },
-        { "id": "windup", "name": "Wind-Up Racer", "owner": "sprocket", "speed": 0.005, "accel": 0, "handling": -0.06, "weight": 0 },
-        { "id": "stomper", "name": "Stone Stomper", "owner": "boulder", "speed": 0.005, "accel": -0.06, "handling": 0, "weight": 0.05 },
-        { "id": "snacktruck", "name": "Snack Truck", "owner": "gus", "speed": 0.010, "accel": -0.06, "handling": -0.06, "weight": 0.05 },
+        { "id": "wagon", "name": "Ridge Runner", "owner": "juniper", "speed": 0, "accel": 0, "handling": 0, "weight": 0.05 },
+        { "id": "skimmer", "name": "Night Chopper", "owner": "otto", "speed": 0, "accel": 0.06, "handling": -0.06, "weight": 0 },
+        { "id": "windup", "name": "Vector Racer", "owner": "sprocket", "speed": 0.005, "accel": 0, "handling": -0.06, "weight": 0 },
+        { "id": "stomper", "name": "Stone Crusher", "owner": "boulder", "speed": 0.005, "accel": -0.06, "handling": 0, "weight": 0.05 },
+        { "id": "snacktruck", "name": "Boss Roadster", "owner": "gus", "speed": 0.010, "accel": -0.06, "handling": -0.06, "weight": 0.05 },
         { "id": "classic", "name": "Classic", "twinOf": "windup" },
         { "id": "buggy", "name": "Buggy", "twinOf": "scrap" }
       ]

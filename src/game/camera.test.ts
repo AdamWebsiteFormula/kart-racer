@@ -162,7 +162,7 @@ describe('chase framing: your kart as big as Mario Kart World\'s, at every speed
 
   it('at a standstill: the kart big in the lower third, its wheels at MKW\'s 83% down, the horizon a third down', () => {
     const rest = frame(0, fovFor(0));
-    // the KART_FIT box (1.7 m wide) is wider than any kart model: the Timber Wagon itself reads about 15%, as Luigi's does (chase-look.mjs)
+    // the KART_FIT box (1.7 m wide) is wider than any kart model: the Ridge Runner itself reads about 15%, as Luigi's does (chase-look.mjs)
     expect(rest.width).toBeGreaterThan(0.2);
     expect(rest.cy).toBeGreaterThan(0.58);
     expect(rest.bottom).toBeGreaterThan(0.8);

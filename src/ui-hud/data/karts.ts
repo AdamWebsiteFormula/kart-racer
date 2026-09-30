@@ -54,7 +54,7 @@ export const kartLocked = (k: KartCard, unlockedBodies: readonly string[]): bool
 /** The name a card says the owner by: their full cast name, as everywhere else ("Big Gus's kart"; Adam's cast table). */
 const ownerName = (racerId: string): string => castCard(racerId)?.name ?? racerId;
 
-/** The card's second line: whose kart it is ("Big Gus's kart"), or what a twin is ("Same stats as the Wind-Up Racer"). */
+/** The card's second line: whose kart it is ("Big Gus's kart"), or what a twin is ("Same stats as the Vector Racer"). */
 export function byLine(k: KartCard): string {
   if (k.twinOf) return `Same stats as the ${kartName(k.twinOf)}`;
   return k.owner ? `${ownerName(k.owner)}'s kart` : '';

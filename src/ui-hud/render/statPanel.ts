@@ -49,7 +49,7 @@ export class StatPanel {
     });
   }
 
-  /** `who`: whose combo it is, for assistive tech ("Pip in the Snack Truck"). Writes only what changed. */
+  /** `who`: whose combo it is, for assistive tech ("Pip in the Boss Roadster"). Writes only what changed. */
   render(vm: StatPanelVM, who = ''): void {
     this.who.set(who);
     vm.rows.forEach((r, i) => {

@@ -63,7 +63,7 @@ export class KartView implements ScreenView {
     h('h2', 'heading display enter', head, vm.title);
     // who is picking, by the heading, where the hero has no room (select.css: a narrower screen)
     const who = h('div', 'kart-who enter', head);
-    who.setAttribute('aria-hidden', 'true'); // the stats name them: "Pip in the Snack Truck"
+    who.setAttribute('aria-hidden', 'true'); // the stats name them: "Pip in the Boss Roadster"
     face(who, vm.racerId);
     h('span', '', who, vm.racerName);
     const body = h('div', 'select-body', st);

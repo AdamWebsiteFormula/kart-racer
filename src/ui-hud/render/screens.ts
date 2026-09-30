@@ -965,7 +965,7 @@ export class ResultsView implements ScreenView {
       rankCell(e, r.rank);
       face(e, r.racerId);
       h('span', 'nm', e, r.name);
-      // the kart's picture before "Pip in the Snack Truck" (kartSvg hides it from assistive tech: the words name it)
+      // the kart's picture before "Pip in the Boss Roadster" (kartSvg hides it from assistive tech: the words name it)
       const rc = h('span', 'rc', e);
       if (r.kart) h('span', 'kt', rc).innerHTML = kartSvg(r.kart.id, r.kart.colors[0], r.kart.colors[1]);
       h('span', 'rt', rc, r.racer);

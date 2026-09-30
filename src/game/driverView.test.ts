@@ -1,5 +1,5 @@
 // Every racer reads in every kart from the chase camera (the MKW gap review of 27 Sept 2026, item 5: "your
-// racer barely shows ... in the Timber Wagon, Juniper sits behind a tall black seatback"; design §5, any
+// racer barely shows ... in the Ridge Runner, Juniper sits behind a tall black seatback"; design §5, any
 // racer in any kart). On the real part files: each of the eight racers in each of the eight signature
 // karts (64 pairs, art-pipeline rigged.ts buildComboTemplate) and in the two shared bodies (bodies.ts),
 // seated as the game seats them (the kart's trims and its booster), seen from the chase camera's own
@@ -80,7 +80,7 @@ function seen(root: Object3D, extra?: BufferGeometry): { head: number; shoulders
 }
 
 /**
- * The one pair short of it, and by how much: Gus's tall chef's hat crosses the top of the Scrap Buggy's
+ * The one pair short of it, and by how much: Gus's tall chef's hat crosses the top of the Rogue Buggy's
  * roll cage, lifted to clear every other racer's head (manifest.json momo's trim); his face shows under it.
  */
 const HAT_UNDER_CAGE = { pair: 'gus in momo', head: 0.5 };
@@ -117,7 +117,7 @@ describe('every racer\'s head and shoulders show from the chase camera, in every
     expect(seen(nova.root).shoulders).toBeGreaterThan(0.75);
     seatDriver(nova.root, nova.seat, nova.pose, nova.rest); // back as built
     // Pip in the Buggy (code-built, the highest back of all): without the booster its roll bar hides his
-    // shoulders; with it they show (the Snack Truck's pair until 30 Sept 2026: the sleek bodies are all low enough)
+    // shoulders; with it they show (the Boss Roadster's pair until 30 Sept 2026: the sleek bodies are all low enough)
     const body = bodyInto(new ModelBuilder(), 'buggy', '#e63946', '#ffffff').build();
     expect(seen(makeRiggedDriver(T.pip, SEATS.buggy, undefined), body).shoulders).toBeGreaterThanOrEqual(0.75);
     expect(seen(makeRiggedDriver(T.pip, { ...SEATS.buggy, shoulders: undefined }, undefined), body).shoulders).toBeLessThan(0.75);

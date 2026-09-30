@@ -317,7 +317,7 @@ describe('the deployed bundle (supabase/functions/submit-score/core.js)', () => 
     const inTruck = clientRun('harbour-loop', 'timeTrial', 'momo', 0, 0, 'snacktruck');
     expect(inTruck.result.dnf).toBe(false);
     const v = core.verifyRun(core.TRACKS['harbour-loop'], 'timeTrial', 'momo', 0, encodeLog(inTruck.log), inTruck.result.timeMs, 'snacktruck');
-    expect(v, 'Momo in the Snack Truck: the bundle is stale, run npm run build:function').toMatchObject({ ok: true, timeMs: inTruck.result.timeMs });
+    expect(v, 'Momo in the Boss Roadster: the bundle is stale, run npm run build:function').toMatchObject({ ok: true, timeMs: inTruck.result.timeMs });
     // hops and tricks (26 Sept 2026: a hop takes the road's climb, a trick off any real air): the runs above
     // never press the drift button, so a hop or trick rule changed without a rebuild slipped past them
     for (const id of ['canyon-rush', 'skyline-circuit'] as const) {

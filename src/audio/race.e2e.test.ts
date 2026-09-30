@@ -13,10 +13,9 @@ import type { RaceConfig } from '../race-manager/types.ts';
 import { buildTrack } from '../track-builder/track.ts';
 import type { TrackDefinition } from '../track-builder/types.ts';
 import { CAST } from '../ui-hud/data/cast.ts';
-import VOICE from '../../public/audio/voice.json';
 import { Barker, type TakeCount } from './barks.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
-import type { Bark, BarkCue } from './types.ts';
+import type { BarkCue } from './types.ts';
 
 const FILES = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, TrackDefinition>;
 /** main.ts: the results screen opens this long after the race is over */
@@ -93,8 +92,9 @@ describe('the race\'s sounds, end to end', () => {
   // own, on Frostbite Pass (where the most is said) and Boardwalk Nights, and Pip on Harbour Loop
   for (const [file, player] of [['frostbite-pass', 'sprocket'], ['boardwalk-nights', 'boulder'], ['harbour-loop', 'pip']] as const) {
     it(`${file}, ${player}: a whole race says a few lines, at Mario Kart World's moments (barks.ts)`, () => {
-      const voices = VOICE as Record<string, Partial<Record<Bark, string[]>>>;
-      const takes: TakeCount = (r, b) => voices[r]?.[b]?.length ?? 0;
+      // (the recorded lines were taken out of the game on 30 Sept 2026, Adam: "remove all of that" goofy talk; the
+      // barker is kept for new lines: here every moment has the two takes the old set had)
+      const takes: TakeCount = () => 2;
       const r = race(FILES[`../track-builder/tracks/${file}.json`], 11, player);
       const b = new Barker(11);
       b.reset(r.st.trackers[r.pi].shownRank);

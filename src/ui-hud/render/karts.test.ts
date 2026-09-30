@@ -51,12 +51,12 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     key('ArrowRight'); // Momo
     key('Enter');
     expect(ui.app.screen).toBe('kartSelect');
-    // it opens on the kart Momo is in now: her own, the Scrap Buggy, on show in the hero
+    // it opens on the kart Momo is in now: her own, the Rogue Buggy, on show in the hero
     expect(focused()).toBe('scrap');
     expect(heroKart()).toBe('scrap');
     // the kart's name big under the hero; the racer's with it where the stats name the pair
-    expect(q('.np-name')!.textContent).toBe('Scrap Buggy');
-    expect(q('.sp-title')!.textContent).toBe('Momo in the Scrap Buggy');
+    expect(q('.np-name')!.textContent).toBe('Rogue Buggy');
+    expect(q('.sp-title')!.textContent).toBe('Momo in the Rogue Buggy');
     for (let i = 0; i < 6; i++) key('ArrowRight');
     expect(focused()).toBe('snacktruck');
     expect(heroKart()).toBe('snacktruck');
@@ -72,10 +72,10 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
   it('Escape: the track screen back to the Kart screen (on the kart chosen), the Kart screen back to the racer, kept', () => {
     const ui = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'timeTrial' }, { type: 'pickRacer', racerId: 'otto' }] as const) ui.dispatch(a);
-    key('ArrowDown'); // Otto's Wave Skimmer (the middle of the second row) → the Snack Truck under it
+    key('ArrowDown'); // Otto's Night Chopper (the middle of the second row) → the Boss Roadster under it
     expect(focused()).toBe('snacktruck');
     key('ArrowRight'); // Classic, locked: Enter would refuse it
-    key('ArrowLeft'); // back to the Snack Truck
+    key('ArrowLeft'); // back to the Boss Roadster
     key('Enter');
     expect(ui.app.screen).toBe('trackSelect');
     key('Escape');
@@ -97,7 +97,7 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     expect(focused()).toBe('scooter');
     key('ArrowLeft');
     expect(focused()).toBe('buggy');
-    key('ArrowUp'); // three across: the Buggy alone in the last row, under the Stone Stomper
+    key('ArrowUp'); // three across: the Buggy alone in the last row, under the Stone Crusher
     expect(focused()).toBe('stomper');
     // the keys never land on Back (Escape is theirs)
     for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) { key(k); expect(focused()).not.toBe('back'); }
@@ -108,7 +108,7 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
     let t = 0;
     const press = (b: number) => { pad.buttons[b].pressed = true; ui.poll((t += 16)); pad.buttons[b].pressed = false; ui.poll((t += 16)); };
-    for (const k of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight']) key(k); // from the Timber Wagon along to the Snack Truck
+    for (const k of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight']) key(k); // from the Ridge Runner along to the Boss Roadster
     const at = focused()!;
     expect(at).toBe('snacktruck');
     press(15); // right
@@ -195,8 +195,8 @@ describe('choosing a kart', () => {
     const h = host();
     const ui = root(h, true);
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'grandPrix' }, { type: 'pickRacer', racerId: 'gus' }] as const) ui.dispatch(a);
-    key('ArrowRight'); // Classic, after the Snack Truck
-    key('ArrowLeft'); // back to the Snack Truck
+    key('ArrowRight'); // Classic, after the Boss Roadster
+    key('ArrowLeft'); // back to the Boss Roadster
     key('Enter');
     expect(ui.app.screen).toBe('kartSelect');
     expect(q('[data-id="snacktruck"]')!.classList.contains('locked-in')).toBe(true);
@@ -266,7 +266,7 @@ describe('choosing a kart', () => {
   it('the stage hook: the Kart screen hands the game the hero\'s box with the racer and the kart under the focus (the plan\'s K6; game/showroom.ts)', () => {
     const ui = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'boulder' }] as const) ui.dispatch(a);
-    key('ArrowLeft'); // from his own Stone Stomper to the Wind-Up Racer
+    key('ArrowLeft'); // from his own Stone Crusher to the Vector Racer
     const t = ui.turntable()!;
     expect(t.box).toBe(q('.hero-box'));
     expect(t.box.getAttribute('aria-hidden')).toBe('true');
@@ -298,9 +298,9 @@ describe('the stats behind a button (Adam, 26 Sept 2026: "it shouldn\'t even app
     key('Enter'); // Pip → the Kart screen: still shown, now Pip in the kart under the focus
     expect(ui.app.screen).toBe('kartSelect');
     expect(shown()).toBe(true);
-    expect(q('.sp-title')!.textContent).toBe('Pip in the Parcel Scooter');
+    expect(q('.sp-title')!.textContent).toBe('Pip in the Dart Scooter');
     key('ArrowRight');
-    expect(q('.sp-title')!.textContent).toBe('Pip in the Scrap Buggy');
+    expect(q('.sp-title')!.textContent).toBe('Pip in the Rogue Buggy');
     key('KeyY');
     expect(shown()).toBe(false);
     expect(statsBtn().getAttribute('aria-pressed')).toBe('false');
@@ -388,7 +388,7 @@ describe('the Racer screen with karts picked (design §12)', () => {
     const speed = q('.select-side > .stat-panel .sp-row[data-stat="speed"]')!;
     expect(speed.getAttribute('data-ghost')).toBe('gain');
     expect(speed.querySelector('.sp-chev')!.getAttribute('data-n')).toBe('3');
-    expect(q('.sp-title')!.textContent).toBe('Big Gus in the Snack Truck');
+    expect(q('.sp-title')!.textContent).toBe('Big Gus in the Boss Roadster');
     expect(q('.np-text')!.textContent).toBe('');
     on.dispose();
     document.body.innerHTML = '';
@@ -434,11 +434,11 @@ describe('the Kart screen renderer (K5)', () => {
     expect(screen.querySelectorAll('.focused').length).toBe(1);
     expect(screen.querySelectorAll('[tabindex="0"]').length).toBe(1);
     const truck = cards.find((c) => c.dataset.id === 'snacktruck')!;
-    expect(truck.getAttribute('aria-label')).toBe(`Snack Truck, Big Gus's kart. Top speed, turns like a truck. Your kart now. ${truck.getAttribute('aria-label')!.split('Your kart now. ')[1]}`);
+    expect(truck.getAttribute('aria-label')).toBe(`Boss Roadster, Big Gus's kart. Top speed, turns like a truck. Your kart now. ${truck.getAttribute('aria-label')!.split('Your kart now. ')[1]}`);
     // Big Gus's own line (design §4, 28 Sept 2026: the heavy class, a step more speed and a step less handling)
     expect(truck.getAttribute('aria-label')).toMatch(/Speed 10 of 10\. Accel 2 of 10\. Handling 1 of 10\. Weight 10 of 10\.$/);
     const classic = cards.find((c) => c.dataset.id === 'classic')!;
-    expect(classic.getAttribute('aria-label')).toMatch(/^Classic, Same stats as the Wind-Up Racer\. Quick on straights, stiff in bends\. Locked: Finish a Grand Prix\. Speed/);
+    expect(classic.getAttribute('aria-label')).toMatch(/^Classic, Same stats as the Vector Racer\. Quick on straights, stiff in bends\. Locked: Finish a Grand Prix\. Speed/);
     expect(classic.getAttribute('aria-disabled')).toBe('true');
     expect(classic.querySelector('.kc-hint')!.textContent).toBe('Finish a Grand Prix');
     expect(classic.querySelector('.kc-art .kc-lock svg.lock-svg')).not.toBeNull();
@@ -457,7 +457,7 @@ describe('the Kart screen renderer (K5)', () => {
     // the panel's words for a screen reader
     const words = [...screen.querySelectorAll('.stat-panel .sp-row > .sr-only')].map((e) => e.textContent);
     expect(words).toEqual(['Speed 10 of 10', 'Accel 2 of 10', 'Handling 1 of 10', 'Weight 10 of 10']);
-    key('ArrowLeft'); // the Stone Stomper: a speed step down, a handling step up
+    key('ArrowLeft'); // the Stone Crusher: a speed step down, a handling step up
     // (Big Gus's speed sits at the band's top, so its one step down reads as two of the ten levels)
     expect([...screen.querySelectorAll('.stat-panel .sp-row > .sr-only')].map((e) => e.textContent)).toEqual(['Speed 8 of 10, down 2', 'Accel 2 of 10', 'Handling 3 of 10, up 2', 'Weight 10 of 10']);
     const speed = screen.querySelector('.stat-panel .sp-row[data-stat="speed"]')!;

@@ -166,7 +166,7 @@ describe('the kart table (design §5)', () => {
       expect(c.stats.hook).toBe(ARCHETYPES[racerClassOf(r) as Archetype].hook);
       expect(Object.isFrozen(c)).toBe(true);
     }
-    // another kart really changes the kart: Gus in the Scrap Buggy is quicker off the line and in the bends, slower flat out
+    // another kart really changes the kart: Gus in the Rogue Buggy is quicker off the line and in the bends, slower flat out
     const gus = makeConstants('heavy', 150, 'gus'), inScrap = makeConstants('heavy', 150, 'gus', 'scrap');
     expect(inScrap.topSpeed).toBeLessThan(gus.topSpeed);
     expect(inScrap.accel).toBeGreaterThan(gus.accel);
@@ -201,7 +201,7 @@ describe('the kart table (design §5)', () => {
     expect(racerClassOf('k0')).toBeUndefined();
     expect(comboStats('k0', 'snacktruck', 'heavy')).toEqual(ARCHETYPES.heavy);
     expect(comboStats('k0')).toEqual(ARCHETYPES.medium);
-    sameHandling(makeConstants('heavy', 100, 'k0', 'snacktruck'), legacy('heavy', 100), 'k0 in the Snack Truck');
+    sameHandling(makeConstants('heavy', 100, 'k0', 'snacktruck'), legacy('heavy', 100), 'k0 in the Boss Roadster');
     expect(makeConstants('heavy', 100, 'k0', 'snacktruck').kartId).toBe('');
     expect(makeConstants('light', 150).kartId).toBe('');
   });

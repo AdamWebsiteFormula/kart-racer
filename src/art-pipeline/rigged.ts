@@ -46,7 +46,7 @@ export interface SeatSpec { seat: V3; grips: readonly [V3, V3]; feet: readonly [
 export const BOOSTER = 0.2;
 /**
  * A part of a kart's bodywork that hid its driver from the chase camera, lowered (the MKW gap review of
- * 27 Sept 2026, item 5: "in the Timber Wagon [Juniper] sits behind a seatback"): the body's vertices inside
+ * 27 Sept 2026, item 5: "in the Ridge Runner [Juniper] sits behind a seatback"): the body's vertices inside
  * `box` ([min, max], the body's fitted frame, m) are squashed from its bottom up so its top comes down to
  * `to` (or stretched up, `to` over its top: a roll cage lifted clear of the heads); past the box's sides in
  * x and z it eases out over `soft` m (default 0.06), so nothing tears. Nothing above or below the box

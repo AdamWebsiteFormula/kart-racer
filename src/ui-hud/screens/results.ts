@@ -158,7 +158,7 @@ export function knockoutCutModel(res: RaceResults, after: KnockoutState, playerI
 export interface BoardRowIn { id: string; name: string; racerId: string; kartId: string; timeMs: number }
 export type BoardLoad = 'loading' | 'offline' | readonly BoardRowIn[];
 
-/** "Pip in the Snack Truck" (design §5, K6), beside the kart's own picture: the racer's own name and their kart's, next to the face. An unknown kart id: the racer's name alone. */
+/** "Pip in the Boss Roadster" (design §5, K6), beside the kart's own picture: the racer's own name and their kart's, next to the face. An unknown kart id: the racer's name alone. */
 function raceLine(racerId: string, kartId: string): string {
   const racer = nameOf(racerId);
   return isKart(kartId) ? `${racer} in the ${kartName(kartId)}` : racer;
