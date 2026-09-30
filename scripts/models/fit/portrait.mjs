@@ -13,7 +13,9 @@ export default async ({ ev, R, args }) => {
   for (const id of ids.length ? ids : Object.keys(fit)) {
     await ev(`window.assembleFit(${JSON.stringify(fit[id])}, {})`);
     await ev('window.groundShadow(true); window.marks({}, false); window.grid.visible = false');
-    const url = await ev(`window.persp([-0.85, 0.42, 1], { size: [512, 512], fill: 0.86, fov: 26 })`);
+    // framed on the driver and the cockpit round them (the kart's nose and tail run off the frame, as the old art)
+    const url = await ev(`(() => { const d = window.freshBox(window.driver); const b = [[d.min.x - 0.35, d.min.y - 0.35, d.min.z - 0.45], [d.max.x + 0.35, d.max.y + 0.04, d.max.z + 0.55]];
+      return window.persp([-0.85, 0.42, 1], { size: [1024, 1024], fill: 0.95, fov: 26, box: b }); })()`);
     // persp leaves the camera where it shot from, with its own lens put back: shoot's lens again for the head
     const head = await ev(`(() => { const c = window.cam; c.aspect = 1; c.fov = 26; c.updateProjectionMatrix(); c.updateMatrixWorld(true);
       const p = new window.THREE_V3(); const h = window.bones.Head ?? window.bones.head_end; h.getWorldPosition(p);

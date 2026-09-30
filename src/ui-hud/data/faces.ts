@@ -1,15 +1,15 @@
 // The racers' faces for the small round icons that name them in the results, the Grand Prix standings,
 // the Knockout cut, the podium places and the leaderboard (Mario Kart World names every racer by their
 // face). Each is the racer's portrait (public/art/racers/<id>.webp, the roster cards' art) cropped to the
-// head: where the head sits in the picture, as fractions across and down, measured on the art (25 Sept
-// 2026). The roster's framing shows the racer and kart, too small to know at 36 px.
+// head: where the head sits in the picture, as fractions across and down (30 Sept 2026: the portraits are rendered from
+// the 3D models, scripts/models/fit/portrait.mjs, each cropped round its head). The roster shows the racer and kart.
 
 /** how far the icons zoom into the portrait: the crop is a little over a third of it, the head and a bit of shoulder */
 export const FACE_ZOOM = 2.8;
 
 const HEADS: Readonly<Record<string, readonly [number, number]>> = Object.freeze({
-  pip: [0.45, 0.22], momo: [0.48, 0.3], nova: [0.54, 0.29], juniper: [0.44, 0.19],
-  otto: [0.5, 0.22], sprocket: [0.49, 0.27], boulder: [0.49, 0.28], gus: [0.47, 0.27],
+  pip: [0.5, 0.23], momo: [0.5, 0.23], nova: [0.5, 0.23], juniper: [0.5, 0.23],
+  otto: [0.5, 0.23], sprocket: [0.5, 0.23], boulder: [0.5, 0.23], gus: [0.5, 0.23],
 });
 
 /**
