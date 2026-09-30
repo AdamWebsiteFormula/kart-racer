@@ -112,7 +112,12 @@ balance. Never print a key; check it exists with `test -n "$HF_API_KEY"`.
    show the driver). The wheels should become code-built sporty wheels (low-profile slicks on alloy rims in the
    racer's accent) since the current wheels are fat toy tires; not started. This is several hours of careful work:
    if it cannot be finished well today, ship nothing of it (the current karts stay) rather than half-fitted karts.
-4. Smaller open items: requests.md #14 (How to Play: option A recommended, waiting on Adam), #16 (Pip's wing, fixed on
+4. **Characters redesign (Adam, 30 Sept, for AFTER the karts and music):** "make them a little less cartoony and more cool,
+   matching the vibe of the game". Big: eight rigged drivers (Meshy v7 auto-rig, about 44 credits each = about 350, more
+   than the 270 bonus credits that expire tonight) plus refits (poses.json, faces, seating). Cheap first step, if usage
+   allows today: concept images only (gpt_image_2_5, about 0.5 each), shown to Adam for a pick; do NOT start 3D drivers
+   without his OK and a credit plan. Design rules: docs/design.md section 4 (the cast), G-rated, original.
+5. Smaller open items: requests.md #14 (How to Play: option A recommended, waiting on Adam), #16 (Pip's wing, fixed on
    branch claude/zen-wozniak-mmsgsi bf670d2, not merged), the Mac's music lab branch mac/worktree-agent-a41c157f86f47ce7c
    (superseded if the new packs go in).
 
