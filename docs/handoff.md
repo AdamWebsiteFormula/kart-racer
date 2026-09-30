@@ -2,16 +2,19 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
-## 29-30 Sept 2026: the sound overhaul, 78 candidates waiting on Adam's ears (read this first)
+## 29-30 Sept 2026: the sound overhaul, 98 candidates waiting on Adam's ears (read this first)
 
 Adam: "The existing sounds on the game are super cheap. I need a complete sound effects overhaul." Free packs only
 (the $19 SilverPlatter Go Karts pack only if the drift or engines sound cheap to him). His packs are in the PRIVATE repo
 AdamWebsiteFormula/rascal-sfx-source (7.6 GB, uploaded by scripts/upload-sfx-packs.sh from his Mac; never copy a raw
 file into this public repo). Candidates, all on branch claude/tender-cray-km9jt6: scripts/sfx/cands-items.ts (01-21),
 cands-engine.ts (22b), cands-drive.ts (23-28), cands-boost.ts (29-40), cands-ui.ts (41-55), cands-ambience.ts (56-61:
-a quiet loop per course, request #11), cands-world.ts (62-78: surfaces and hazards). Adam got an old-then-new mp3 of
-each (numbered as above; made in the session's .review/, not in git). Not done: fanfares (GO's chord, final lap, finish,
-knockout: the music lab's), whaleSong, tailSlap, horns and yelps (voices: left alone).
+a quiet loop per course, request #11), cands-world.ts (62-78: surfaces and hazards), cands-rest.ts (79-98: stings, the
+eight horns, spin-out, goose, crab, sky whale, yeti). Adam got an old-then-new mp3 of each (numbered as above; made in
+the session's .review/, not in git). Every sound in the game now has a candidate. The eight hit yelps have candidates
+too (cands-rest.ts) but were not sent: audio.ts skips a racer's yelp whenever they have recorded hit lines (all eight
+do), though the line is said only one hit in three, so a yelp never plays. Question for Adam: let the yelp play on
+the hits with no line?
 
 **To install what Adam passes** (his "yes" per number): `python3 scripts/sfx/approve.py --verdict "Adam, <date>, by
 ear: <his words>" <ids>` (records the verdict in approved.ts, where recipes.ts takes each candidate in its id's place;
