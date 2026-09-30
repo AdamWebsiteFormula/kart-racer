@@ -21,6 +21,19 @@ job ledger. Ship = fast-forward main to the branch after `npm run verify`, with 
 - Supabase connector only if score code changes (it did not in this work: no CLIENT_VERSION bump, no fn redeploy).
 - The ElevenLabs, Gemini and Freesound keys are only in the Mac's .env.local (not needed for the tasks below).
 
+### Higgsfield by API key (Adam chose this, 30 Sept: "Let's just use the key method. It gives a lot of free credits.")
+Adam makes the key at https://console.higgsfield.ai (a public key id and a private secret; docs: docs.higgsfield.ai,
+base URL api.higgsfield.ai; pay-as-you-go in US dollars, separate from the connector's credits). He puts them in the
+cloud environment as secrets, NEVER in chat: environment menu (session title bar) > Edit > API credentials, or as
+environment variables named `HF_API_KEY` and `HF_API_SECRET` (a new session picks them up). The environment's
+network access must also allow `api.higgsfield.ai` (and `console.higgsfield.ai`, `docs.higgsfield.ai` to read the docs),
+beside the two cloudfront hosts above. The old session could NOT verify two things (higgsfield.ai is blocked there):
+(1) that the API gives free credits (a 30 Sept search said pay-as-you-go with no subscription: check the console's
+balance page before spending); (2) whether the API has the 3D models the karts need (Tripo H3.1 image-to-3D; the
+pages found list image and video only). If it has no 3D, use the Higgsfield connector for the 3D jobs (Adam adds it
+at claude.ai/customize/connectors > Add > Add custom connector, name Higgsfield, URL https://mcp.higgsfield.ai/mcp,
+sign in) and the API only for images. Never print a key; check the secrets exist with `test -n "$HF_API_KEY"`.
+
 ### Open tasks, in the order to do them today
 1. **Ship the pre-race fix** (Adam, 30 Sept: "The pre-race part after clicking to race doesn't feel smooth").
    6c65282: main.ts beginRace puts the course card on ink over the menu first and builds the race only after the ink
