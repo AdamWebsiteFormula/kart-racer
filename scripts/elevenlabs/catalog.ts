@@ -33,165 +33,50 @@ const CARTOON = 'Bright cartoon video game style, clean and punchy, no music, no
 
 export const SFX: readonly SfxSpec[] = [
   // race flow
-  // remade 26 Sept 2026 (audition pack sfx-1, judge 3/3 -> 10/9; local ear: a clean sine tone, not the old harsh square wave)
-  { id: 'count', seconds: 0.6, influence: 0.7, prompt: 'A single countdown beep for the start of a race in a modern arcade racing game: one clean, rounded electronic tone with a soft sine body and a crisp attack, mid-high pitch, about a quarter second long with a very short tail. Confident and premium, like a stadium start-light tone. One beep only, no echo, no music, no voice.' },
   // remade 25 Sept 2026: the old take was a dry trumpet note to the judge and a car horn to the local ears (2/3 on
   // the brief and the moment); of three new takes the judge picked a bright synth chord blast (6/7), CLAP's pick too
-  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/3 -> 10/9; local ear CLAP match 0.997 against the brief)
-  { id: 'go', seconds: 1.4, influence: 0.6, prompt: 'The GO signal at the start of a race in a modern arcade racing game: one bright, high start tone, an octave above a countdown beep, layered with a punchy, tight brass-and-synth chord hit and a crash cymbal, ringing out into a short sparkling shimmer. Big, clean, exciting and polished. No voice.' },
-  { id: 'lap', seconds: 0.8, prompt: 'A short cheerful arcade chime for completing a lap: three quick rising bell and marimba notes. Bright and clean. No voice.' },
-  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/3 -> 10/9)
-  { id: 'finalLap', seconds: 2.5, influence: 0.6, prompt: 'The final lap sting in a polished modern kart racing game: a short, exciting live brass fanfare, trumpets and trombones playing a quick rising three-note call that lands on a bold, held major chord, with a snare pickup and a crash cymbal. Heroic and modern, big and clean like a studio brass section. No voice.' },
-  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/4 -> 10/9)
-  { id: 'finish', seconds: 4, influence: 0.55, prompt: 'The victory fanfare for winning a race in a polished modern kart racing game: a short orchestral-pop fanfare, a live brass section of trumpets, French horns and trombones playing a bright, heroic rising phrase over a snare roll, strings and timpani, landing on a big sustained major chord with a crash cymbal that rings out. Joyful, triumphant and cinematic. No voice.' },
   // the Final Lap Shift (design §2): the whole track changes at once
   // remade 24 Sept 2026 at 4.5 s: the 2.2 s take was a whoosh under a second long, which the judge
   // (Gemini Pro) heard as a menu transition; the Final Lap Shift is the game's signature moment.
   // Fourteen takes over four prompts; the judge's pick scored 10/10 on the brief, 9/10 on the moment
-  { id: 'shift', seconds: 4.5, influence: 0.55, prompt: 'Cinematic cartoon transformation sound, four and a half seconds long: a deep low rumble that grows louder and rises steadily through the first two seconds into a huge sweeping whoosh, then a magical sparkling chime shimmer that twinkles and rings out until the very end. Grand, exciting and family-friendly. No music, no voice.' },
   // the Knockout cut: through to the next round, or out
-  { id: 'koOut', seconds: 2.2, prompt: 'A short gentle arcade sting for being knocked out of a cartoon race: a slow descending four-note muted trombone phrase, a little sad but friendly and funny, soft ending. No voice.' },
-  { id: 'finishLow', seconds: 2.2, prompt: 'A short friendly nice-try jingle for finishing a cartoon race in a lower place: soft marimba and muted trumpet, cheerful but modest, gentle ending. No voice.' },
   // pickups and items
   // remade 25 Sept 2026: the old pop was dry with no twinkle (the judge 5/6; the local ears a firecracker, even a
   // gunshot); the judge picked this take of three at 10/10. CLAP ranks its prompt only 32nd of 102 (hitConfirm and
   // boostTrick also ask for a pop or a swoosh with a chime) but picks it as the balloon over a firecracker, a gunshot,
   // a door slam and a splat
-  { id: 'balloon', seconds: 0.7, influence: 0.6, prompt: `A cartoon item balloon popping as a kart drives through it: a bright, bouncy rubber pop, followed at once by a quick sparkly twinkle of magic chimes. Fun and rewarding, never harsh. ${CARTOON}` },
   // remade 24 Sept 2026: the first was a 5 ms click, so spiky that at a level you could hear it
   // over the music it pushed the output past −1 dB true peak; a tick with a note has body
-  { id: 'rouletteTick', seconds: 0.5, influence: 0.6, prompt: 'One single short bright wooden tock with a clear pitched note, like a prize wheel peg knocking once: a tiny marimba-like tick. Dry, no echo, no music, no voice.' },
-  // remade 25 Sept 2026: the old take was one bell ping, not an arpeggio (the judge 4/5); the judge picked this take of three at 9/9
-  { id: 'itemReady', seconds: 1, influence: 0.6, prompt: 'A mystery prize revealed in a cartoon game: a quick rising arpeggio of four or five bright glockenspiel notes going up, with a glittering sparkle on top. Magical and rewarding. No voice.' },
-  { id: 'throw', seconds: 0.6, prompt: `A quick throwing whoosh: an object flung forward through the air, airy swish. ${CARTOON}` },
-  // remade 24 Sept 2026 (the whistle took over: both ears heard a slide whistle): the flutter is the point
-  { id: 'kite', seconds: 1.3, influence: 0.7, prompt: `A paper kite caught by the wind: a fast, soft papery fluttering that rises as it lifts off and drifts up and away on a light breeze. ${CARTOON}` },
-  // retaken 24 Sept 2026 (same prompt): the old take tagged as a coin dropping; the kept one as a knock
-  { id: 'drop', seconds: 0.6, prompt: `A small object dropped onto a road: soft plop and a little rubbery bounce. ${CARTOON}` },
-  { id: 'shieldUp', seconds: 1, prompt: `A magical bubble shield forming: shimmering rising whoosh with a soft glassy ring. ${CARTOON}` },
-  // remade 25 Sept 2026: the old take was a wet splat and a splash (the judge 4/3); the judge picked this take of three at 9/9
-  { id: 'shieldPop', seconds: 0.8, influence: 0.6, prompt: `A magic bubble shield bursting: a bright glassy pop and a shower of glittering crystal sparkles tinkling down. Dry, sparkly and magical. ${CARTOON}` },
-  // remade 24 Sept 2026 (the ears heard a boing and a pop)
-  { id: 'shieldEnd', seconds: 0.8, influence: 0.6, prompt: `A magic shield fading away: a soft, gentle glassy shimmer of tiny twinkling chimes drifting downward and dissolving into silence. ${CARTOON}` },
   // a thrown beach ball off a wall; a ball or a dropped toy popping
   // remade 24 Sept 2026: the first came out 25 dB under the others and still sat under the mix at full gain.
   // Four takes were measured and scored by the local ear (no playback): two came out near-silent,
   // and of the two full ones the one kept tagged least as a metal clang
-  { id: 'bounce', seconds: 0.5, influence: 0.6, prompt: `A big inflatable beach ball smacking hard into a wall right next to the listener: one loud, full, punchy hollow rubber thwock with a short springy boing. ${CARTOON}` },
-  { id: 'pop', seconds: 0.5, influence: 0.5, prompt: `A small toy popping and vanishing: one soft rubbery pop with a tiny puff of air. ${CARTOON}` },
-  { id: 'airHorn', seconds: 1.2, prompt: 'A loud comedic stadium air horn: one long cartoon honk blast. No voice.' },
-  { id: 'fog', seconds: 1.5, prompt: `A thick cloud of smoke puffing out: soft rushing whoosh and a hissing puff. ${CARTOON}` },
   // the new items (design §8, 23 Sept 2026)
-  { id: 'fizz', seconds: 1.2, prompt: `A shaken soda bottle cap popping off, then a strong fizzy foam blast spraying out: a pop, then a rushing carbonated fizz whoosh. ${CARTOON}` },
-  { id: 'strikeRoll', seconds: 2, prompt: `A giant heavy bowling ball starting to roll fast down a wooden lane: a deep rumbling thunder that builds and speeds up. ${CARTOON}` },
-  { id: 'strike', seconds: 1.8, prompt: `A bowling strike: a heavy ball crashing into wooden pins, a loud clattering scatter of pins, then a short sparkly celebration chime. ${CARTOON}` },
-  { id: 'boing', seconds: 1, prompt: `A big cartoon spring launching something high into the air: one long exaggerated wobbly boing. ${CARTOON}` },
-  // remade 24 Sept 2026 (the ears heard a door slam and an explosion): the chain leads
-  { id: 'anchor', seconds: 1.1, influence: 0.6, prompt: `A metal chain rattling fast as it is thrown out, links clinking and jangling, then one heavy metal clank as the anchor hooks on. ${CARTOON}` },
-  { id: 'slingshot', seconds: 0.8, prompt: `A stretchy rubber slingshot release: a twangy snap and a fast whoosh past. ${CARTOON}` },
-  // remade 26 Sept 2026 (runbook step 5, retake prompt dropping "wind-up"/"clockwork"; judge 7/6 -> 10/9; local ears pass)
-  { id: 'mouse', seconds: 1.2, influence: 0.6, prompt: `A tiny tin toy mouse racing away: one quick, high mouse squeak, then a very fast, light pitter-patter of tiny metal feet scurrying off across a hard floor, fading away. Small, quick and cute. ${CARTOON}` },
-  { id: 'blocked', seconds: 0.6, prompt: `A thrown toy bouncing off a shield: a quick hollow plastic clonk with a small ricochet ping. ${CARTOON}` },
-  { id: 'denied', seconds: 0.5, influence: 0.6, prompt: 'A short soft negative arcade sound: one low muted two-note bloop going down, friendly, not harsh. No voice.' },
   // remade 24 Sept 2026 (the ears heard a zap and a dropped coin): the take kept ranks 1st on the
   // intent check and reads as a pen click, though CLAP still hears every quick click as a zap
-  { id: 'trail', seconds: 0.5, influence: 0.6, prompt: 'One quick light plastic click-clack, like a toy snapping into a holder behind a go-kart, with a tiny soft rattle. No music, no voice.' },
   // the course creatures (design §6)
-  { id: 'roar', seconds: 2.2, prompt: `A huge friendly cartoon dinosaur made of rock roaring: a deep booming rocky roar with a playful rumbling growl at the end. ${CARTOON}` },
-  { id: 'stomp', seconds: 1.8, prompt: `A giant dinosaur foot stomping the ground: one massive deep boom, rocks rattling and a rolling rumble fading away. ${CARTOON}` },
-  { id: 'snowThud', seconds: 1, prompt: `A giant snowball landing on a road: a heavy soft thump and crunchy snow spraying. ${CARTOON}` },
-  { id: 'krakenRise', seconds: 1.8, prompt: `A giant friendly sea creature rising out of the water: deep bubbling, sloshing water and a low rumble. ${CARTOON}` },
-  { id: 'krakenSlam', seconds: 1.5, prompt: `A giant tentacle slamming down on wooden boardwalk planks: a huge wet slap, wood creaking and a big splash. ${CARTOON}` },
-  { id: 'crabClack', seconds: 1, prompt: `A giant cartoon crab snapping its big claws: three quick hard clacks and clicky scuttling legs. ${CARTOON}` },
-  { id: 'honk', seconds: 1.2, prompt: `A giant grumpy cartoon goose honking: two loud angry honks and flapping wings. ${CARTOON}` },
-  { id: 'whaleSong', seconds: 2.5, prompt: 'A gentle giant whale calling through the sky: a long soft deep magical whale song with a sparkly shimmer. No music, no voice.' },
-  { id: 'tailSlap', seconds: 1.5, prompt: `A giant whale tail swooshing through clouds: a big airy whoosh and a soft thunderous slap of wind. ${CARTOON}` },
   // the rescue claw (race-manager respawn.ts)
-  { id: 'claw', seconds: 2.2, prompt: `A fairground claw machine: an electric motor whirring as the claw drops on its cable, a clunky metal grab, then a whirring lift. ${CARTOON}` },
   // launch vents (track-builder hazards.ts, type vent): the warning, then the blast
-  { id: 'ventWarn', seconds: 1.2, prompt: `A hot spring about to erupt: deep bubbling and gurgling rising fast, a low rumble underneath. ${CARTOON}` },
-  { id: 'geyser', seconds: 1.8, prompt: `A geyser erupting: a sudden powerful whoosh of water blasting straight up, then a hissing spray raining down. ${CARTOON}` },
-  { id: 'steamVent', seconds: 1.8, prompt: `A steam vent in the snow blasting open: a sharp loud hiss and roar of steam shooting skyward, then fading. ${CARTOON}` },
   // the loop-the-loop (kart-controller loop.ts): the ride round the neon ring
   // (remade 24 Sept 2026: the first asked for a crowd shouting at the top)
-  { id: 'loop', seconds: 2.4, prompt: `A small go-kart racing round a roller-coaster loop: a rising whoosh up and over, a rattling coaster track and a bright rising whistle at the top. ${CARTOON}` },
-  { id: 'clawDrop', seconds: 0.8, prompt: `A toy claw opening and dropping a small go-kart onto a road: a springy metal clack and a soft rubbery bump. ${CARTOON}` },
-  { id: 'hit', seconds: 0.8, prompt: `A go-kart getting bonked by a thrown toy: bouncy boing with a small plastic crash. ${CARTOON}` },
   // your own item landed on a rival, however far ahead (the attacker's payoff)
-  { id: 'hitConfirm', seconds: 0.7, prompt: 'A satisfying cartoon score sound when your thrown toy hits a rival far away: a punchy rubbery thwack and a bright two-note chime going up. Short. No music, no voice.' },
   // boosts: the drift tiers grow
   // the trick itself, the moment the button is pressed in the air
-  { id: 'trick', seconds: 0.7, prompt: `A go-kart doing a quick mid-air flip trick: a fast spinning air whoosh swish with a tiny sparkle. ${CARTOON}` },
-  { id: 'boostTrick', seconds: 0.8, prompt: `A stylish mid-air trick: quick sparkling swoosh with a twinkle chime. ${CARTOON}` },
-  // remade 24 Sept 2026 at 1.6 s: the 1.2 s take was cut off at full level
-  // remade 26 Sept 2026 (runbook step 5; the old take was a realistic engine rev, judge 0/0 -> 9/9; local CLAP disagrees (reads as a laser gun) but the override rule for boostStart/honk/horn:nova applies: judge >=7 both and >=A+3 both, no voice/weapon in its own hearing)
-  { id: 'boostStart', seconds: 1.6, influence: 0.6, prompt: `A bright launch: a quick rising zing that bursts into a big rushing whoosh of air shooting forward with a sparkly fizz, then trails off and fades smoothly to silence. Fast, exciting and cartoonish. ${CARTOON}` },
-  // remade 24 Sept 2026: the first take sounded like a gun being reloaded (never in a G-rated game)
-  { id: 'slipstream', seconds: 1, influence: 0.6, prompt: "Wind rushing past a speeding go-kart: a smooth airy whoosh that swells and rushes by as the kart zooms out of another kart's slipstream. Soft, fast and airy. No music, no voice." },
   // the drift spark tiers (blue, orange, purple): each a bigger, higher zap than the last
-  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 10/10; local ears pass)
-  { id: 'tierUp', seconds: 0.5, influence: 0.6, prompt: 'A small electric spark: one quick, crackling zap of static electricity with a bright, buzzing sizzle, like a tiny spark jumping. Crisp, bright and short. No music, no voice.' },
-  // remade 26 Sept 2026 (runbook step 5; judge 6/5 -> 9/9; local ears pass)
-  { id: 'tierUp2', seconds: 0.6, influence: 0.6, prompt: 'A stronger electric spark charging up: a sharp, crackling zap of electricity that buzzes and fizzes quickly upward in pitch, bright and sizzling, bigger than a tiny spark. Short and energetic. No music, no voice.' },
-  { id: 'tierUp3', seconds: 0.8, influence: 0.5, prompt: 'A powerful electric spark surging to full charge: a sharp crackling zap, a fast rising sizzle and a sparkly shimmer on top. Short. No music, no voice.' },
   // driving
-  // remade 26 Sept 2026 (runbook step 2; judge 4/3 -> 7/9; local ears pass)
-  { id: 'hop', seconds: 0.5, influence: 0.6, prompt: `One quick, light, bouncy spring boing, short and soft, with a tiny springy creak. Very short. ${CARTOON}` },
   // 26 Sept 2026: no single take sells both halves (they read as a wooden knock, a drum, a boing), so land.mp3 is
   // two takes layered: a thump ("A heavy, low, dull thud of a small car's suspension bottoming out on a road: deep
   // and weighty, rubbery, very short. No metal clang, no wood, no music, no voice.") and, 30 ms later at 0.2 of its
   // peak, low-passed at 2.5 kHz, a chirp ("A very short tire chirp: rubber tires squeak once on dry asphalt as a
   // small car touches down. Quick and bright, no engine, no music, no voice."), 0.6 s. Judge 2/3 -> 8/8 (compare),
   // 10/10, 9/9, 10/10 alone. This prompt stays as the judge's brief
-  { id: 'land', seconds: 0.6, prompt: 'A go-kart landing on asphalt after a small jump: a solid rubbery thump with a tyre chirp. No music, no voice.' },
-  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
-  { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
-  { id: 'bump', seconds: 0.5, prompt: `Two go-karts bumping into each other: one rubbery bonk. ${CARTOON}` },
-  { id: 'wrongWay', seconds: 1.2, prompt: 'A warning alert: two-tone buzzer beeps repeating twice. Arcade game alarm, friendly not scary. No voice.' },
-  { id: 'gainPlace', seconds: 0.5, influence: 0.5, prompt: 'A quick positive upward blip: two rising bright notes, arcade game, very short. No voice.' },
-  { id: 'losePlace', seconds: 0.5, influence: 0.5, prompt: 'A quick soft downward blip: two falling notes, arcade game, very short. No voice.' },
-  { id: 'respawn', seconds: 1.2, prompt: 'A magical reappear sound: a rising sparkle chime with a soft whoosh, something gently placed back. No voice.' },
   // menus
-  { id: 'uiConfirm', seconds: 0.5, influence: 0.5, prompt: 'A bright menu confirm sound: a cheerful two-note chime going up, arcade game menu, short. No voice.' },
-  // remade 24 Sept 2026: the first came out 27 dB under full scale
-  { id: 'uiBack', seconds: 0.5, influence: 0.5, prompt: 'A clear menu back sound: one short bubbly pop going down, arcade game menu, clean, present and not too quiet. No voice.' },
   // horns, one per racer (design §5)
-  { id: 'horn:pip', seconds: 0.7, prompt: 'A cartoon car horn that sounds like a hummingbird: two quick high chirpy honks with a bicycle bell ring. No voice.' },
-  { id: 'horn:momo', seconds: 1, prompt: 'A cartoon car horn that is a cat purr blended with a small engine rev: one rolling purr-rev honk. No words.' },
-  { id: 'horn:nova', seconds: 1, prompt: 'A dreamy space chime car horn: three soft shimmering bell tones going up. No voice.' },
-  { id: 'horn:juniper', seconds: 0.8, prompt: 'A park ranger pea whistle: one bright trilling whistle blast. No voice.' },
-  { id: 'horn:otto', seconds: 0.8, prompt: 'A squeaky rubber pool-float toy honk: two squeaky squeezes. Cartoon car horn. No voice.' },
-  // remade 24 Sept 2026 (the ears heard only a bell, or a dropped coin): the ticking leads
-  { id: 'horn:sprocket', seconds: 1, influence: 0.6, prompt: 'A wind-up clockwork toy: a fast run of small ticking clicks like a tiny clock being wound, then one bright little bell ding. No voice.' },
-  { id: 'horn:boulder', seconds: 1.2, prompt: 'A deep friendly rock horn: a low grinding, rumbling stone honk. Cartoon car horn. No words.' },
-  { id: 'horn:gus', seconds: 1.3, prompt: 'A deep ship foghorn: one long low booming blast. Cartoon car horn. No voice.' },
   // hit yelps, one per racer (design §11): creature noises, never words
-  { id: 'yelp:pip', seconds: 0.5, prompt: 'A tiny cartoon hummingbird startled squeak: one quick high chirp of surprise. No words.' },
-  { id: 'yelp:momo', seconds: 0.7, prompt: 'A cartoon cat grumpy startled meow: one short annoyed mrrow. No words.' },
-  // remade 26 Sept 2026 (runbook step 2; the old take was a voice saying "Mhm", judge 0/0 -> 4/4; local ears pass)
-  { id: 'yelp:nova', seconds: 0.6, influence: 0.6, prompt: `A quick, soft, papery flutter of wings with one tiny, high, glassy chime, like a small startled wind chime. Dreamy and very short. ${CARTOON}` },
-  { id: 'yelp:juniper', seconds: 0.5, prompt: 'A cartoon fox short surprised yip. One yip only. No words.' },
-  { id: 'yelp:otto', seconds: 0.5, prompt: 'A cartoon otter squeaky surprised chirp. One chirp only. No words.' },
-  { id: 'yelp:sprocket', seconds: 0.6, prompt: 'A little wind-up robot toy glitching: a quick springy boing and a surprised electronic bleep. No words.' },
-  { id: 'yelp:boulder', seconds: 0.7, prompt: 'A big friendly rock creature low surprised oof grunt with a pebble clatter. No words.' },
-  // remade 26 Sept 2026 (runbook step 5; judge 4/4 -> 10/10; local ears pass, though Qwen still describes a person on this take -- worth Adam's own listen)
-  { id: 'yelp:gus', seconds: 0.7, influence: 0.6, prompt: 'A big walrus calling out in surprise: one short, deep, hoarse honk-bellow, gurgly and blubbery with a wet, rumbling flutter, like a giant sea lion. One call only, friendly and comic. No music, no human voice, no words.' },
   // loops: the engine at three speeds (plan §7.4) and the drift screech
-  { id: 'engine-idle', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine idling steadily at low RPM. Continuous and even, no revving, no other sounds.' },
-  { id: 'engine-mid', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine running steadily at medium RPM. Continuous and even, no gear changes, no revving, no other sounds.' },
-  // remade 26 Sept 2026 (audition pack sfx-2, judge 4/4 -> 9/8; pitch spread 29 cents -> under 2, local ear CLAP 0.97 against the brief)
-  { id: 'engine-high', seconds: 4, loop: true, influence: 0.6, prompt: 'Seamless loop: a small, sporty racing kart engine held at high RPM at full throttle, recorded on board: a smooth, steady, bright buzzing exhaust note with a warm growl underneath, one constant pitch and level the whole time. No gear changes, no pass-by, no other sounds.' },
-  // remade 26 Sept 2026 (audition pack sfx-2, judge 2/3 -> 9/8; local ear CLAP 0.96 against the brief; the old take tagged Honk/Goose)
-  { id: 'drift', seconds: 3, loop: true, influence: 0.7, prompt: 'Seamless loop: the steady, continuous tire squeal of a small kart drifting sideways through a long corner on smooth asphalt: a smooth, sustained rubber screech at one constant pitch with a soft gritty scrub underneath. Even level all the way through. No engine, no pass-by, no other sounds.' },
   // under the wheels off the road (dirt and mud surfaces)
-  { id: 'offroad', seconds: 3, loop: true, prompt: 'The continuous rumble of small go-kart tires rolling fast over grass and loose dirt: a rough crunchy gravel rumble with light pebble rattles. Steady and even, no engine, no other sounds.' },
   // what the wheels roll on, per course (24 Sept 2026, src/audio/engine.ts wheelSound): the land beside the road
   // on the sand and snow courses, the boardwalk's planks, the frozen lake's ice and the skyline's rails
-  { id: 'offroad-sand', seconds: 3, loop: true, prompt: 'The continuous sound of small go-kart tires rolling fast through soft beach sand: a soft hissing, crunchy sand rush with fine grit spraying. Steady and even, no engine, no other sounds.' },
-  { id: 'offroad-snow', seconds: 3, loop: true, influence: 0.5, prompt: 'The continuous, perfectly steady sound of small go-kart tires rolling fast through fresh snow: an unbroken soft crunching snow hiss with light powder spray, constant level, no pauses or footsteps. No engine, no other sounds.' },
-  { id: 'road-ice', seconds: 3, loop: true, prompt: 'The continuous sound of small go-kart tires gliding fast over smooth ice: a thin glassy hiss with faint icy crackles. Steady and even, no engine, no other sounds.' },
-  { id: 'road-wood', seconds: 3, loop: true, prompt: 'The continuous sound of a small go-kart rolling fast over wooden boardwalk planks: a steady hollow wooden rumble with quick even plank clatters. No engine, no other sounds.' },
-  { id: 'rail-grind', seconds: 3, loop: true, prompt: 'The continuous sound of a small cartoon kart grinding fast along a metal rail: a bright steady metallic scraping grind with crackling sparks. Even, no engine, no music, no voice.' },
   // the drift sparks under the wheels, pitched and louder with each spark tier (blue, orange, purple)
 ];
 
@@ -219,6 +104,123 @@ export const REPLACED: readonly SfxSpec[] = [
   { id: 'coin', seconds: 0.5, influence: 0.6, prompt: 'A classic arcade coin pickup: a quick, bright run of three rising bell tones, like a tiny glockenspiel. Clean and short. No voice.' },
   { id: 'slam', seconds: 1.1, prompt: `A heavy cartoon ground pound: a quick falling whoosh, then a deep booming thud with a short rumble. ${CARTOON}` },
   { id: 'yetiThrow', seconds: 1.2, prompt: `A big furry cartoon yeti heaving a giant snowball: a playful effort grunt and a heavy whoosh. ${CARTOON}` },
+  // replaced by the overhaul recipes (scripts/sfx/cands-*.ts): Adam, 30 Sept 2026, after the old-then-new files 01-98: "Let's just go with yes for all"
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 3/3 -> 10/9; local ear: a clean sine tone, not the old harsh square wave)
+  { id: 'count', seconds: 0.6, influence: 0.7, prompt: 'A single countdown beep for the start of a race in a modern arcade racing game: one clean, rounded electronic tone with a soft sine body and a crisp attack, mid-high pitch, about a quarter second long with a very short tail. Confident and premium, like a stadium start-light tone. One beep only, no echo, no music, no voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/3 -> 10/9; local ear CLAP match 0.997 against the brief)
+  { id: 'go', seconds: 1.4, influence: 0.6, prompt: 'The GO signal at the start of a race in a modern arcade racing game: one bright, high start tone, an octave above a countdown beep, layered with a punchy, tight brass-and-synth chord hit and a crash cymbal, ringing out into a short sparkling shimmer. Big, clean, exciting and polished. No voice.' },
+  { id: 'lap', seconds: 0.8, prompt: 'A short cheerful arcade chime for completing a lap: three quick rising bell and marimba notes. Bright and clean. No voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/3 -> 10/9)
+  { id: 'finalLap', seconds: 2.5, influence: 0.6, prompt: 'The final lap sting in a polished modern kart racing game: a short, exciting live brass fanfare, trumpets and trombones playing a quick rising three-note call that lands on a bold, held major chord, with a snare pickup and a crash cymbal. Heroic and modern, big and clean like a studio brass section. No voice.' },
+  // remade 26 Sept 2026 (audition pack sfx-1, judge 4/4 -> 10/9)
+  { id: 'finish', seconds: 4, influence: 0.55, prompt: 'The victory fanfare for winning a race in a polished modern kart racing game: a short orchestral-pop fanfare, a live brass section of trumpets, French horns and trombones playing a bright, heroic rising phrase over a snare roll, strings and timpani, landing on a big sustained major chord with a crash cymbal that rings out. Joyful, triumphant and cinematic. No voice.' },
+  { id: 'shift', seconds: 4.5, influence: 0.55, prompt: 'Cinematic cartoon transformation sound, four and a half seconds long: a deep low rumble that grows louder and rises steadily through the first two seconds into a huge sweeping whoosh, then a magical sparkling chime shimmer that twinkles and rings out until the very end. Grand, exciting and family-friendly. No music, no voice.' },
+  { id: 'koOut', seconds: 2.2, prompt: 'A short gentle arcade sting for being knocked out of a cartoon race: a slow descending four-note muted trombone phrase, a little sad but friendly and funny, soft ending. No voice.' },
+  { id: 'finishLow', seconds: 2.2, prompt: 'A short friendly nice-try jingle for finishing a cartoon race in a lower place: soft marimba and muted trumpet, cheerful but modest, gentle ending. No voice.' },
+  { id: 'balloon', seconds: 0.7, influence: 0.6, prompt: `A cartoon item balloon popping as a kart drives through it: a bright, bouncy rubber pop, followed at once by a quick sparkly twinkle of magic chimes. Fun and rewarding, never harsh. ${CARTOON}` },
+  { id: 'rouletteTick', seconds: 0.5, influence: 0.6, prompt: 'One single short bright wooden tock with a clear pitched note, like a prize wheel peg knocking once: a tiny marimba-like tick. Dry, no echo, no music, no voice.' },
+  // remade 25 Sept 2026: the old take was one bell ping, not an arpeggio (the judge 4/5); the judge picked this take of three at 9/9
+  { id: 'itemReady', seconds: 1, influence: 0.6, prompt: 'A mystery prize revealed in a cartoon game: a quick rising arpeggio of four or five bright glockenspiel notes going up, with a glittering sparkle on top. Magical and rewarding. No voice.' },
+  { id: 'throw', seconds: 0.6, prompt: `A quick throwing whoosh: an object flung forward through the air, airy swish. ${CARTOON}` },
+  // remade 24 Sept 2026 (the whistle took over: both ears heard a slide whistle): the flutter is the point
+  { id: 'kite', seconds: 1.3, influence: 0.7, prompt: `A paper kite caught by the wind: a fast, soft papery fluttering that rises as it lifts off and drifts up and away on a light breeze. ${CARTOON}` },
+  // retaken 24 Sept 2026 (same prompt): the old take tagged as a coin dropping; the kept one as a knock
+  { id: 'drop', seconds: 0.6, prompt: `A small object dropped onto a road: soft plop and a little rubbery bounce. ${CARTOON}` },
+  { id: 'shieldUp', seconds: 1, prompt: `A magical bubble shield forming: shimmering rising whoosh with a soft glassy ring. ${CARTOON}` },
+  // remade 25 Sept 2026: the old take was a wet splat and a splash (the judge 4/3); the judge picked this take of three at 9/9
+  { id: 'shieldPop', seconds: 0.8, influence: 0.6, prompt: `A magic bubble shield bursting: a bright glassy pop and a shower of glittering crystal sparkles tinkling down. Dry, sparkly and magical. ${CARTOON}` },
+  // remade 24 Sept 2026 (the ears heard a boing and a pop)
+  { id: 'shieldEnd', seconds: 0.8, influence: 0.6, prompt: `A magic shield fading away: a soft, gentle glassy shimmer of tiny twinkling chimes drifting downward and dissolving into silence. ${CARTOON}` },
+  { id: 'bounce', seconds: 0.5, influence: 0.6, prompt: `A big inflatable beach ball smacking hard into a wall right next to the listener: one loud, full, punchy hollow rubber thwock with a short springy boing. ${CARTOON}` },
+  { id: 'pop', seconds: 0.5, influence: 0.5, prompt: `A small toy popping and vanishing: one soft rubbery pop with a tiny puff of air. ${CARTOON}` },
+  { id: 'airHorn', seconds: 1.2, prompt: 'A loud comedic stadium air horn: one long cartoon honk blast. No voice.' },
+  { id: 'fog', seconds: 1.5, prompt: `A thick cloud of smoke puffing out: soft rushing whoosh and a hissing puff. ${CARTOON}` },
+  { id: 'fizz', seconds: 1.2, prompt: `A shaken soda bottle cap popping off, then a strong fizzy foam blast spraying out: a pop, then a rushing carbonated fizz whoosh. ${CARTOON}` },
+  { id: 'strikeRoll', seconds: 2, prompt: `A giant heavy bowling ball starting to roll fast down a wooden lane: a deep rumbling thunder that builds and speeds up. ${CARTOON}` },
+  { id: 'strike', seconds: 1.8, prompt: `A bowling strike: a heavy ball crashing into wooden pins, a loud clattering scatter of pins, then a short sparkly celebration chime. ${CARTOON}` },
+  { id: 'boing', seconds: 1, prompt: `A big cartoon spring launching something high into the air: one long exaggerated wobbly boing. ${CARTOON}` },
+  // remade 24 Sept 2026 (the ears heard a door slam and an explosion): the chain leads
+  { id: 'anchor', seconds: 1.1, influence: 0.6, prompt: `A metal chain rattling fast as it is thrown out, links clinking and jangling, then one heavy metal clank as the anchor hooks on. ${CARTOON}` },
+  { id: 'slingshot', seconds: 0.8, prompt: `A stretchy rubber slingshot release: a twangy snap and a fast whoosh past. ${CARTOON}` },
+  // remade 26 Sept 2026 (runbook step 5, retake prompt dropping "wind-up"/"clockwork"; judge 7/6 -> 10/9; local ears pass)
+  { id: 'mouse', seconds: 1.2, influence: 0.6, prompt: `A tiny tin toy mouse racing away: one quick, high mouse squeak, then a very fast, light pitter-patter of tiny metal feet scurrying off across a hard floor, fading away. Small, quick and cute. ${CARTOON}` },
+  { id: 'blocked', seconds: 0.6, prompt: `A thrown toy bouncing off a shield: a quick hollow plastic clonk with a small ricochet ping. ${CARTOON}` },
+  { id: 'denied', seconds: 0.5, influence: 0.6, prompt: 'A short soft negative arcade sound: one low muted two-note bloop going down, friendly, not harsh. No voice.' },
+  { id: 'trail', seconds: 0.5, influence: 0.6, prompt: 'One quick light plastic click-clack, like a toy snapping into a holder behind a go-kart, with a tiny soft rattle. No music, no voice.' },
+  { id: 'roar', seconds: 2.2, prompt: `A huge friendly cartoon dinosaur made of rock roaring: a deep booming rocky roar with a playful rumbling growl at the end. ${CARTOON}` },
+  { id: 'stomp', seconds: 1.8, prompt: `A giant dinosaur foot stomping the ground: one massive deep boom, rocks rattling and a rolling rumble fading away. ${CARTOON}` },
+  { id: 'snowThud', seconds: 1, prompt: `A giant snowball landing on a road: a heavy soft thump and crunchy snow spraying. ${CARTOON}` },
+  { id: 'krakenRise', seconds: 1.8, prompt: `A giant friendly sea creature rising out of the water: deep bubbling, sloshing water and a low rumble. ${CARTOON}` },
+  { id: 'krakenSlam', seconds: 1.5, prompt: `A giant tentacle slamming down on wooden boardwalk planks: a huge wet slap, wood creaking and a big splash. ${CARTOON}` },
+  { id: 'crabClack', seconds: 1, prompt: `A giant cartoon crab snapping its big claws: three quick hard clacks and clicky scuttling legs. ${CARTOON}` },
+  { id: 'honk', seconds: 1.2, prompt: `A giant grumpy cartoon goose honking: two loud angry honks and flapping wings. ${CARTOON}` },
+  { id: 'whaleSong', seconds: 2.5, prompt: 'A gentle giant whale calling through the sky: a long soft deep magical whale song with a sparkly shimmer. No music, no voice.' },
+  { id: 'tailSlap', seconds: 1.5, prompt: `A giant whale tail swooshing through clouds: a big airy whoosh and a soft thunderous slap of wind. ${CARTOON}` },
+  { id: 'claw', seconds: 2.2, prompt: `A fairground claw machine: an electric motor whirring as the claw drops on its cable, a clunky metal grab, then a whirring lift. ${CARTOON}` },
+  { id: 'ventWarn', seconds: 1.2, prompt: `A hot spring about to erupt: deep bubbling and gurgling rising fast, a low rumble underneath. ${CARTOON}` },
+  { id: 'geyser', seconds: 1.8, prompt: `A geyser erupting: a sudden powerful whoosh of water blasting straight up, then a hissing spray raining down. ${CARTOON}` },
+  { id: 'steamVent', seconds: 1.8, prompt: `A steam vent in the snow blasting open: a sharp loud hiss and roar of steam shooting skyward, then fading. ${CARTOON}` },
+  { id: 'loop', seconds: 2.4, prompt: `A small go-kart racing round a roller-coaster loop: a rising whoosh up and over, a rattling coaster track and a bright rising whistle at the top. ${CARTOON}` },
+  { id: 'clawDrop', seconds: 0.8, prompt: `A toy claw opening and dropping a small go-kart onto a road: a springy metal clack and a soft rubbery bump. ${CARTOON}` },
+  { id: 'hit', seconds: 0.8, prompt: `A go-kart getting bonked by a thrown toy: bouncy boing with a small plastic crash. ${CARTOON}` },
+  { id: 'hitConfirm', seconds: 0.7, prompt: 'A satisfying cartoon score sound when your thrown toy hits a rival far away: a punchy rubbery thwack and a bright two-note chime going up. Short. No music, no voice.' },
+  { id: 'trick', seconds: 0.7, prompt: `A go-kart doing a quick mid-air flip trick: a fast spinning air whoosh swish with a tiny sparkle. ${CARTOON}` },
+  { id: 'boostTrick', seconds: 0.8, prompt: `A stylish mid-air trick: quick sparkling swoosh with a twinkle chime. ${CARTOON}` },
+  // remade 24 Sept 2026 at 1.6 s: the 1.2 s take was cut off at full level
+  // remade 26 Sept 2026 (runbook step 5; the old take was a realistic engine rev, judge 0/0 -> 9/9; local CLAP disagrees (reads as a laser gun) but the override rule for boostStart/honk/horn:nova applies: judge >=7 both and >=A+3 both, no voice/weapon in its own hearing)
+  { id: 'boostStart', seconds: 1.6, influence: 0.6, prompt: `A bright launch: a quick rising zing that bursts into a big rushing whoosh of air shooting forward with a sparkly fizz, then trails off and fades smoothly to silence. Fast, exciting and cartoonish. ${CARTOON}` },
+  // remade 24 Sept 2026: the first take sounded like a gun being reloaded (never in a G-rated game)
+  { id: 'slipstream', seconds: 1, influence: 0.6, prompt: "Wind rushing past a speeding go-kart: a smooth airy whoosh that swells and rushes by as the kart zooms out of another kart's slipstream. Soft, fast and airy. No music, no voice." },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 10/10; local ears pass)
+  { id: 'tierUp', seconds: 0.5, influence: 0.6, prompt: 'A small electric spark: one quick, crackling zap of static electricity with a bright, buzzing sizzle, like a tiny spark jumping. Crisp, bright and short. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 6/5 -> 9/9; local ears pass)
+  { id: 'tierUp2', seconds: 0.6, influence: 0.6, prompt: 'A stronger electric spark charging up: a sharp, crackling zap of electricity that buzzes and fizzes quickly upward in pitch, bright and sizzling, bigger than a tiny spark. Short and energetic. No music, no voice.' },
+  { id: 'tierUp3', seconds: 0.8, influence: 0.5, prompt: 'A powerful electric spark surging to full charge: a sharp crackling zap, a fast rising sizzle and a sparkly shimmer on top. Short. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 2; judge 4/3 -> 7/9; local ears pass)
+  { id: 'hop', seconds: 0.5, influence: 0.6, prompt: `One quick, light, bouncy spring boing, short and soft, with a tiny springy creak. Very short. ${CARTOON}` },
+  { id: 'land', seconds: 0.6, prompt: 'A go-kart landing on asphalt after a small jump: a solid rubbery thump with a tyre chirp. No music, no voice.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/3 -> 6/7; local ears pass)
+  { id: 'wall', seconds: 0.6, influence: 0.6, prompt: `A bump into a big, soft padded cushion wall: one deep, dull, muffled thud, a soft whump, then a short rubbery scrape as it slides off. Soft, bouncy and short. ${CARTOON}` },
+  { id: 'bump', seconds: 0.5, prompt: `Two go-karts bumping into each other: one rubbery bonk. ${CARTOON}` },
+  { id: 'wrongWay', seconds: 1.2, prompt: 'A warning alert: two-tone buzzer beeps repeating twice. Arcade game alarm, friendly not scary. No voice.' },
+  { id: 'gainPlace', seconds: 0.5, influence: 0.5, prompt: 'A quick positive upward blip: two rising bright notes, arcade game, very short. No voice.' },
+  { id: 'losePlace', seconds: 0.5, influence: 0.5, prompt: 'A quick soft downward blip: two falling notes, arcade game, very short. No voice.' },
+  { id: 'respawn', seconds: 1.2, prompt: 'A magical reappear sound: a rising sparkle chime with a soft whoosh, something gently placed back. No voice.' },
+  { id: 'uiConfirm', seconds: 0.5, influence: 0.5, prompt: 'A bright menu confirm sound: a cheerful two-note chime going up, arcade game menu, short. No voice.' },
+  // remade 24 Sept 2026: the first came out 27 dB under full scale
+  { id: 'uiBack', seconds: 0.5, influence: 0.5, prompt: 'A clear menu back sound: one short bubbly pop going down, arcade game menu, clean, present and not too quiet. No voice.' },
+  { id: 'horn:pip', seconds: 0.7, prompt: 'A cartoon car horn that sounds like a hummingbird: two quick high chirpy honks with a bicycle bell ring. No voice.' },
+  { id: 'horn:momo', seconds: 1, prompt: 'A cartoon car horn that is a cat purr blended with a small engine rev: one rolling purr-rev honk. No words.' },
+  { id: 'horn:nova', seconds: 1, prompt: 'A dreamy space chime car horn: three soft shimmering bell tones going up. No voice.' },
+  { id: 'horn:juniper', seconds: 0.8, prompt: 'A park ranger pea whistle: one bright trilling whistle blast. No voice.' },
+  { id: 'horn:otto', seconds: 0.8, prompt: 'A squeaky rubber pool-float toy honk: two squeaky squeezes. Cartoon car horn. No voice.' },
+  // remade 24 Sept 2026 (the ears heard only a bell, or a dropped coin): the ticking leads
+  { id: 'horn:sprocket', seconds: 1, influence: 0.6, prompt: 'A wind-up clockwork toy: a fast run of small ticking clicks like a tiny clock being wound, then one bright little bell ding. No voice.' },
+  { id: 'horn:boulder', seconds: 1.2, prompt: 'A deep friendly rock horn: a low grinding, rumbling stone honk. Cartoon car horn. No words.' },
+  { id: 'horn:gus', seconds: 1.3, prompt: 'A deep ship foghorn: one long low booming blast. Cartoon car horn. No voice.' },
+  { id: 'engine-idle', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine idling steadily at low RPM. Continuous and even, no revving, no other sounds.' },
+  { id: 'engine-mid', seconds: 4, loop: true, prompt: 'A small go-kart petrol engine running steadily at medium RPM. Continuous and even, no gear changes, no revving, no other sounds.' },
+  // remade 26 Sept 2026 (audition pack sfx-2, judge 4/4 -> 9/8; pitch spread 29 cents -> under 2, local ear CLAP 0.97 against the brief)
+  { id: 'engine-high', seconds: 4, loop: true, influence: 0.6, prompt: 'Seamless loop: a small, sporty racing kart engine held at high RPM at full throttle, recorded on board: a smooth, steady, bright buzzing exhaust note with a warm growl underneath, one constant pitch and level the whole time. No gear changes, no pass-by, no other sounds.' },
+  // remade 26 Sept 2026 (audition pack sfx-2, judge 2/3 -> 9/8; local ear CLAP 0.96 against the brief; the old take tagged Honk/Goose)
+  { id: 'drift', seconds: 3, loop: true, influence: 0.7, prompt: 'Seamless loop: the steady, continuous tire squeal of a small kart drifting sideways through a long corner on smooth asphalt: a smooth, sustained rubber screech at one constant pitch with a soft gritty scrub underneath. Even level all the way through. No engine, no pass-by, no other sounds.' },
+  { id: 'offroad', seconds: 3, loop: true, prompt: 'The continuous rumble of small go-kart tires rolling fast over grass and loose dirt: a rough crunchy gravel rumble with light pebble rattles. Steady and even, no engine, no other sounds.' },
+  { id: 'offroad-sand', seconds: 3, loop: true, prompt: 'The continuous sound of small go-kart tires rolling fast through soft beach sand: a soft hissing, crunchy sand rush with fine grit spraying. Steady and even, no engine, no other sounds.' },
+  { id: 'offroad-snow', seconds: 3, loop: true, influence: 0.5, prompt: 'The continuous, perfectly steady sound of small go-kart tires rolling fast through fresh snow: an unbroken soft crunching snow hiss with light powder spray, constant level, no pauses or footsteps. No engine, no other sounds.' },
+  { id: 'road-ice', seconds: 3, loop: true, prompt: 'The continuous sound of small go-kart tires gliding fast over smooth ice: a thin glassy hiss with faint icy crackles. Steady and even, no engine, no other sounds.' },
+  { id: 'road-wood', seconds: 3, loop: true, prompt: 'The continuous sound of a small go-kart rolling fast over wooden boardwalk planks: a steady hollow wooden rumble with quick even plank clatters. No engine, no other sounds.' },
+  { id: 'rail-grind', seconds: 3, loop: true, prompt: 'The continuous sound of a small cartoon kart grinding fast along a metal rail: a bright steady metallic scraping grind with crackling sparks. Even, no engine, no music, no voice.' },
+  // replaced by the overhaul recipes (scripts/sfx/cands-*.ts): Adam, 30 Sept 2026: "Let's just go with yes for all" (the yelps with the rest, not heard alone: until now a racer with hit lines never yelped)
+  { id: 'yelp:pip', seconds: 0.5, prompt: 'A tiny cartoon hummingbird startled squeak: one quick high chirp of surprise. No words.' },
+  { id: 'yelp:momo', seconds: 0.7, prompt: 'A cartoon cat grumpy startled meow: one short annoyed mrrow. No words.' },
+  // remade 26 Sept 2026 (runbook step 2; the old take was a voice saying "Mhm", judge 0/0 -> 4/4; local ears pass)
+  { id: 'yelp:nova', seconds: 0.6, influence: 0.6, prompt: `A quick, soft, papery flutter of wings with one tiny, high, glassy chime, like a small startled wind chime. Dreamy and very short. ${CARTOON}` },
+  { id: 'yelp:juniper', seconds: 0.5, prompt: 'A cartoon fox short surprised yip. One yip only. No words.' },
+  { id: 'yelp:otto', seconds: 0.5, prompt: 'A cartoon otter squeaky surprised chirp. One chirp only. No words.' },
+  { id: 'yelp:sprocket', seconds: 0.6, prompt: 'A little wind-up robot toy glitching: a quick springy boing and a surprised electronic bleep. No words.' },
+  { id: 'yelp:boulder', seconds: 0.7, prompt: 'A big friendly rock creature low surprised oof grunt with a pebble clatter. No words.' },
+  // remade 26 Sept 2026 (runbook step 5; judge 4/4 -> 10/10; local ears pass, though Qwen still describes a person on this take -- worth Adam's own listen)
+  { id: 'yelp:gus', seconds: 0.7, influence: 0.6, prompt: 'A big walrus calling out in surprise: one short, deep, hoarse honk-bellow, gurgly and blubbery with a wet, rumbling flutter, like a giant sea lion. One call only, friendly and comic. No music, no human voice, no words.' },
 ];
 
 const SONG_TAIL = 'Constant driving energy from the first second, no intro, no fade-out, so it loops. Instrumental, no vocals.';
@@ -370,6 +372,12 @@ export const MOMENT: Readonly<Record<string, string>> = Object.freeze({
   'yelp:boulder': 'The yelp of Boulder, a gentle rock golem (heavy kart) when their kart is hit: a creature noise, never a word; heard with every hit.',
   'horn:gus': 'The horn of Big Gus, a booming walrus chef (heavy kart), when the player presses the horn button: it should fit the character.',
   'yelp:gus': 'The yelp of Big Gus, a booming walrus chef (heavy kart) when their kart is hit: a creature noise, never a word; heard with every hit.',
+  "amb-harbour-loop": "Lighthouse Loop: the sea rolling onto a beach a little way off, soft and steady under the race.",
+  "amb-meadow-run": "Windmill Run: a sunny meadow, small birds calling, insects humming and wind in the grass.",
+  "amb-canyon-rush": "Mesa Rush: a dry desert wind blowing steadily through the rocks.",
+  "amb-frostbite-pass": "Frostbite Pass: a cold mountain wind that gusts and howls softly.",
+  "amb-boardwalk-nights": "Boardwalk Nights: gentle surf at night with crickets in the dunes.",
+  "amb-skyline-circuit": "Skyline Circuit: thin, airy high-altitude wind rushing past the cloud islands.",
 });
 
 /** Where each song plays. */

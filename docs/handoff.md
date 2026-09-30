@@ -2,7 +2,17 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
-## 29-30 Sept 2026: the sound overhaul, 98 candidates waiting on Adam's ears (read this first)
+## 30 Sept 2026: the sound overhaul INSTALLED on branch claude/tender-cray-km9jt6, not yet live (read this first)
+
+Adam, 30 Sept: "Let's just go with yes for all" (all 98 files, and the yelp question). approve.py put all 108 recipes in
+(approved.ts; every sound in the game is now a recipe from the free packs, none an ElevenLabs take), build.py built them
+(public/audio/sfx, built.json), the six course beds are in the manifest, and a hit the barker leaves unvoiced now yelps
+(audio.ts tick; before, a racer with recorded hit lines never yelped, and two hits in three were silent). CREDITS.md:
+five new pack rows, the sound count on the recipes row, the ElevenLabs sound row reworded as the earlier sounds (licence
+columns untouched); Kenney and VSCO rows kept though no shipped sound draws on them now. docs/contest-entry.md updated.
+To ship: Adam's OK, then main takes the branch and Deploy (sounds only: no score-core change, no CLIENT_VERSION bump).
+
+### Before: 98 candidates waiting on Adam's ears
 
 Adam: "The existing sounds on the game are super cheap. I need a complete sound effects overhaul." Free packs only
 (the $19 SilverPlatter Go Karts pack only if the drift or engines sound cheap to him). His packs are in the PRIVATE repo

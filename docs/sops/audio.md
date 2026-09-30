@@ -166,6 +166,8 @@ _(append dated one-liners as they are made)_
 
 - 2026-09-30: The sound overhaul (Adam: "super cheap"): candidates from the free packs in the private repo AdamWebsiteFormula/rascal-sfx-source live in scripts/sfx/cands-*.ts; Adam passes each by ear (no Gemini key in the cloud), scripts/sfx/approve.py puts it in its id's place (approved.ts -> recipes.ts), then build.py. A course's quiet bed of its world is the manifest's `amb-<trackId>`, fetched only when its race is built (SampleBank.bed), never with the sound effects at the start: 24 s of stereo decoded is about 9 MB.
 
+- 2026-09-30: Installed (Adam: "Let's just go with yes for all"): every one of the 108 sounds is a recipe from the free packs; the ElevenLabs sound prompts are all in REPLACED. A hit the barker leaves unvoiced plays the racer's yelp (before, recorded hit lines silenced the yelp on every hit, and two hits in three had no sound).
+
 ## Lessons (repair loop writes here)
 _(error → cause → fix → rule; newest first)_
 - 2026-09-28: **The offline render had no voice lines.** Cause: its stand-in fetch served only manifest.json as JSON; voice.json went to the WAV decoder, which threw, and loadVoices failed soft (nobody speaks), so no render since the lines shipped had them. Fix: serve voice.json, await the lines, log each one said, check the voice stem against the log. Rule: a sound a render should hold must show up in it (a stem or a log) before the render is trusted.

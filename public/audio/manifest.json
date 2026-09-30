@@ -316,6 +316,30 @@
   },
   "yetiThrow": {
    "url": "audio/sfx/yetiThrow.mp3"
+  },
+  "amb-harbour-loop": {
+   "url": "audio/sfx/amb-harbour-loop.mp3",
+   "loop": true
+  },
+  "amb-meadow-run": {
+   "url": "audio/sfx/amb-meadow-run.mp3",
+   "loop": true
+  },
+  "amb-canyon-rush": {
+   "url": "audio/sfx/amb-canyon-rush.mp3",
+   "loop": true
+  },
+  "amb-frostbite-pass": {
+   "url": "audio/sfx/amb-frostbite-pass.mp3",
+   "loop": true
+  },
+  "amb-boardwalk-nights": {
+   "url": "audio/sfx/amb-boardwalk-nights.mp3",
+   "loop": true
+  },
+  "amb-skyline-circuit": {
+   "url": "audio/sfx/amb-skyline-circuit.mp3",
+   "loop": true
   }
  },
  "music": {

@@ -15,7 +15,6 @@ const NN = (f: string) => ({ pack: `99_Sound_Effects/99 Sound Effects/WAV/${f}.w
 const SCI = '99Sounds_Sci-Fi_Sound_Effects/99Sounds Sci-Fi Sound Effects';
 const SF = (p: string) => ({ pack: `${SCI}/Rescopic Sound - Sci-Fi Energy Weapons (99Sounds Version)/Audio Files/${p}.wav` });
 const PX = (p: string) => ({ pack: `${SCI}/Rescopic Sound - Parallax (99Sounds Version)/Audio Files/${p}.wav` });
-const RAW = (f: string) => ({ pack: `99S011_Sound_Design_Tools/#99S011 Sound Design Tools/Raw Foley/${f}.wav` });
 const FOOT = (kind: string, f: string) => ({ pack: `Essentials_Series_NOX_SOUND/Essentials_Series_NOX_SOUND/Footsteps_Essentials_NOX_SOUND/Footsteps_${kind}/${f}.wav` });
 const EARTH = (n: number) => ({ pack: `Druid_Spell_Impacts_Pack/Earth Spell Impacts/Earth Spell Impact ${n}.wav` });
 

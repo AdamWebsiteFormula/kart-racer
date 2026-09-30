@@ -368,13 +368,12 @@ export class GameAudio {
   tick(race: readonly RaceEvent[], items: readonly ItemEvent[], l: Listener): void {
     if (!this.bus.running) return;
     const { cues, music } = direct(race, items, l, this.cues, this.music);
-    // one of each sound a tick, the loudest (a strike's three spins, a pile-up's bumps); a racer
-    // whose lines are recorded says their own hit line (barks) in place of the creature yelp
-    for (const c of mergeCues(cues)) {
-      if (c.sfx.startsWith('yelp:') && this.bank.voiceCount(c.sfx.slice(5), 'hit') > 0) continue;
-      this.sfx(c.sfx, c.gain, c.pan, c.rate);
-    }
+    // one of each sound a tick, the loudest (a strike's three spins, a pile-up's bumps); a racer saying their
+    // own hit line (barks: about one hit in three) says it in place of the creature yelp, and yelps on every other
+    // hit (Adam, 30 Sept 2026: a hit with no sound at all felt flat)
     const bark = this.barker.pick(race, items, l, this.bus.time, this.takes);
+    const saying = bark?.bark === 'hit' ? `yelp:${bark.racerId}` : null;
+    for (const c of mergeCues(cues)) if (c.sfx !== saying) this.sfx(c.sfx, c.gain, c.pan, c.rate);
     if (bark) this.say(bark, bark.racerId === l.playerId);
     for (const m of music) {
       if (m.type === 'finalLap') {

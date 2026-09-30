@@ -623,7 +623,7 @@ describe("the racers' voice lines (barks.ts)", () => {
   const me: Listener = { playerId: 'pip', position: [0, 0, 0], heading: 0, positionOf: () => [0, 0, 0] };
   const hit: RaceEvent = { type: 'kart', racerId: 'pip', event: { type: 'hit', kind: 'spin', spun: true, coinsLost: 1 } as never };
 
-  it('a racer with lines says their hit line on the voice bus in place of the creature yelp; one without keeps the yelp', () => {
+  it('a racer saying their hit line says it on the voice bus in place of the creature yelp; any other hit yelps', () => {
     const v = voiced(['pip']);
     // a hit is voiced about one time in three (29 Sept 2026): this one rolls a line
     (v.audio as unknown as { barker: { random: () => number } }).barker.random = () => 0;
@@ -639,6 +639,13 @@ describe("the racers' voice lines (barks.ts)", () => {
     none.audio.tick([hit], [], me);
     expect(none.played).toContain('yelp:pip');
     expect(none.lines()).toHaveLength(0);
+    // a hit the roll leaves unvoiced still yelps (Adam, 30 Sept 2026): never a hit with no sound at all
+    const quiet = voiced(['pip']);
+    (quiet.audio as unknown as { barker: { random: () => number } }).barker.random = () => 0.99;
+    quiet.audio.newRace('raceSunrise', 'harbour-loop', 4);
+    quiet.audio.tick([hit], [], me);
+    expect(quiet.lines()).toHaveLength(0);
+    expect(quiet.played).toContain('yelp:pip');
   });
 
   it('the racer picked on the Racer screen says their line, and the music dips a little under it', () => {

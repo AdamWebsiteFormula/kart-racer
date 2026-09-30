@@ -18,7 +18,7 @@ A bright cartoon kart racer for the browser. Eight original racers drift, boost 
 | Tracks | 6 in 2 cups, each with a Final Lap Shift |
 | Items | 13 originals, two held at a time |
 | Modes | Quick Race, Grand Prix, Knockout, Time Trial, Daily Challenge, plus Mirror |
-| Sound | 102 sound effects and 7 instrumental songs |
+| Sound | 108 sound effects and 7 instrumental songs |
 | Sim | Fixed 120 Hz, deterministic, bit-identical across chips and JavaScript engines |
 | Leaderboard | Global; the server replays every run and stores its own time and the kart raced |
 | Speed | 60 fps measured; title on screen in under 1 s on fast 4G; 514 KB of gzipped code |
@@ -138,7 +138,7 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 
 ### Sound
 
-- **102 sound effects and 7 instrumental songs**, made for this game with ElevenLabs, with a coded Web Audio synth behind them as a fallback. Engines sound by class, a boost revs the engine, drift sparks crackle louder each tier, and the wheels sound like the ground: sand, snow, ice, planks or the rail. The music lifts on your final lap.
+- **108 sound effects and 7 instrumental songs.** The songs were made for this game with ElevenLabs. The sound effects were rebuilt on 30 Sept 2026 from real recordings in licensed sound libraries (the Sonniss GDC bundle, 99Sounds, Nox Sound, Lentikula, Muted.io), layered, tuned and shaped in code, with a quiet bed of each course's world (sea, wind, birds) under the race. A coded Web Audio synth stands behind them as a fallback. Engines sound by class, a boost revs the engine, drift sparks crackle louder each tier, and the wheels sound like the ground: sand, snow, ice, planks or the rail. The music lifts on your final lap.
 - **Mixed by measurement.** A headless renderer drives the real audio engine through whole races and measures the result offline. Each of the player's cues now plays over the music and engines at its median level, and none is buried more than 12 dB under them (294 were before); the mix plays at about -16 LUFS with true peaks at -1.8 dBTP or lower.
 - **Checked by ear models.** A local CLAP model ranked every sound against its own prompt; the ten suspects that both CLAP and Qwen2.5-Omni heard as something else were remade until they sounded like what they are (the slipstream, the three boosts, the kite and the anchor among them). Local models (Qwen2.5-Omni, AST, CLAP) hear no voice or singing in any 10-second window of any song. A Gemini Pro "judge" scores sounds against their moment in the game; it picked the Final Lap Shift's sound from 14 takes.
 
@@ -193,7 +193,8 @@ Two slots: a second balloon spins the second slot while you can still use the fi
 | Item pictures | Rendered from the game's own 3D item models, modeled in code |
 | 8 racer models, rebuilt as rigged drivers from parts; 31 landmark, scenery and creature models | Image-to-3D via Higgsfield (Meshy v7 auto-rig for the drivers, Tripo H3.1 for kart bodies, wheels, landmarks and scenery) |
 | Tracks, the Classic and Buggy bodies, spectators, vistas, sky life and effects | Modeled in code |
-| 7 songs and 102 sound effects | ElevenLabs (Eleven Music, Sound Effects) |
+| 7 songs | ElevenLabs (Eleven Music) |
+| 108 sound effects | Built in code from licensed sound libraries (Sonniss, 99Sounds, Nox Sound, Lentikula, Muted.io) |
 | Listening checks | CLAP, AST and Qwen2.5-Omni (local), Gemini Pro |
 | Gameplay video review | Gemini |
 | Engine | Three.js, postprocessing, three-mesh-bvh, TypeScript, Vite |
@@ -240,7 +241,7 @@ What's in it:
 How AI built it:
 - **Claude Code** (Opus) designed and wrote the whole game: physics, AI rivals, items, tracks, UI, the leaderboard server and 1,785 tests. It also ran teams of AI agents that hunted bugs, red-teamed the security and checked every screen in silent headless Chrome
 - **Higgsfield:** the racer and scenery 3D models (AI images turned into 3D) and the painted skies
-- **ElevenLabs:** 7 songs and 102 sound effects, checked by AI listening models
+- **ElevenLabs:** 7 songs, checked by AI listening models
 - **Supabase:** the leaderboard
 
 My favorite moment: hopping the dinosaur's shock ring on the last lap while a racer in Jet Mode knocks the pack aside with a sonic boom. Tell me your best time on the Daily Challenge!

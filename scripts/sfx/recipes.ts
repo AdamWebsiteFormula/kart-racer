@@ -16,11 +16,12 @@ import { RECIPES as BOOST } from './cands-boost.ts';
 import { RECIPES as DRIVE } from './cands-drive.ts';
 import { RECIPES as ENGINE } from './cands-engine.ts';
 import { RECIPES as ITEMS } from './cands-items.ts';
+import { RECIPES as REST } from './cands-rest.ts';
 import { RECIPES as UI } from './cands-ui.ts';
 import { RECIPES as WORLD } from './cands-world.ts';
 import type { Recipe } from './types.ts';
 
-const CANDIDATES: readonly Recipe[] = [...ITEMS, ...ENGINE, ...DRIVE, ...BOOST, ...UI, ...WORLD, ...AMBIENCE];
+const CANDIDATES: readonly Recipe[] = [...ITEMS, ...ENGINE, ...DRIVE, ...BOOST, ...UI, ...WORLD, ...AMBIENCE, ...REST];
 
 const BASE: readonly Recipe[] = [
   {

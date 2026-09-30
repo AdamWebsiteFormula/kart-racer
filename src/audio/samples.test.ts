@@ -9,7 +9,7 @@ import { LoadQueue } from '../performance/loadQueue.ts';
 import MANIFEST from '../../public/audio/manifest.json';
 import { engineCutoff, OFFROAD_BY_TRACK, racerPitch, ROAD_BY_TRACK } from './engine.ts';
 import { PATCHES } from './sfx.ts';
-import { LYRIA_SONGS, MOMENT, SFX, sfxBody, SONG_MOMENT, songBody, SONGS } from '../../scripts/elevenlabs/catalog.ts';
+import { LYRIA_SONGS, MOMENT, REPLACED, SFX, sfxBody, SONG_MOMENT, songBody, SONGS } from '../../scripts/elevenlabs/catalog.ts';
 import { RECIPES } from '../../scripts/sfx/recipes.ts';
 import BUILT from '../../scripts/sfx/built.json';
 
@@ -294,7 +294,9 @@ describe('no singing and no human voices (Adam, 24 Sept 2026)', () => {
     expect(src).toMatch(/post\(key, '\/v1\/music[^']*', songBody\(s, /);
     expect(src).toMatch(/post\(key, '\/v1\/sound-generation[^']*', sfxBody\(s\)\)/);
     expect(src).not.toMatch(/force_instrumental/); // only songBody sets it
-    expect(sfxBody(SFX[0]).text).toBe(SFX[0].prompt);
+    // every sound effect is a recipe since the overhaul (30 Sept 2026): a replaced prompt shows the body's shape
+    const spec = SFX[0] ?? REPLACED[0];
+    expect(sfxBody(spec).text).toBe(spec.prompt);
   });
 
   it('no sound effect asks for a human voice: no crowd, cheer, chant, shout or singing', () => {
