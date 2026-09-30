@@ -9,7 +9,7 @@ export const APPROVED: Readonly<Record<string, string>> = {
   "amb-meadow-run": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "amb-skyline-circuit": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "anchor": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
-  "balloon": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
+  "balloon": "Adam, 30 Sept 2026: the energy core replaces the balloon, \"a cool sound when a character drives over it\" (picked by name and measured, not by ear)",
   "blocked": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "boing": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "boost1": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",

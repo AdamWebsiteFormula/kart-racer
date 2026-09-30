@@ -44,9 +44,11 @@ export const RECIPES: readonly Recipe[] = [
   r('rouletteTick', 'One tick of the item roulette: a tiny, dry, bright wooden tock, heard in quick runs.', [
     L(ESM('Board Game - Sound Set Kit for Tabletop and Digital Games', 'GAMEBoard_Game Play Piece Action Organic Connect Dots Fall Bounce 04_ESM_BG'), 0, 0.2),
   ]),
-  r('balloon', 'The kart drives through an item balloon: a bright, clean rubber pop, then a quick sparkle, under a second.', [
-    L(NN('Punch - Pop'), 0, 0.5, [{ op: 'trim', from: 0.11 }]),
-    L(PING('21'), -12, 0.6, [], 0.05),
+  // (30 Sept 2026: the pickup is an energy core, not a balloon: Adam, "a cool sound when a character drives over it")
+  r('balloon', 'The kart drives through a floating energy core: a bright futuristic energy burst, a crystal shimmer and a rising power-up sparkle, under a second. Never a rubber pop.', [
+    L(ESM('Anime Game', 'DSGNStngr_Power Up Bright Positive Successful Light Saturation Crash Shimmer 05_ESM_AG'), 0, 0.9),
+    L({ pack: '99Sounds_Sci-Fi_Sound_Effects/99Sounds Sci-Fi Sound Effects/Rescopic Sound - Sci-Fi Energy Weapons (99Sounds Version)/Audio Files/Source Sounds/Whoosh/WHSH_Whoosh Energy Fast 11_RSCPC_SFEW.wav' }, -9, 0.4),
+    L(PING('21'), -12, 0.6, [], 0.04),
   ]),
   r('coin', 'The kart picks up a gear: a quick, futuristic collect burst with a metallic clink, short and satisfying, never like a coin.', [
     L(ESM('Fantasy Game 2 - Sound Kit for Enchanted Realms', 'UIAlert_Collect Scifi Futuristic Electronic Bass Burst Sweep Heavy 04_ESM_FG2'), 0, 0.3),

@@ -83,12 +83,12 @@ describe('the balloons in the track scene', () => {
     expect(back).toBeInstanceOf(InstancedBufferAttribute);
     expect(back.count).toBeGreaterThanOrEqual(balloons.count);
     expect(Array.from(back.array as Float32Array)).toEqual(Array(back.count).fill(SETTLED));
-    // the knot and neck the shader swells it from are the model's own (decor.ts): the knot's foot under the body, the ribbon under that
+    // the energy core (decor.ts, 30 Sept 2026) forms out of its heart: the neck is its middle, nothing hangs under the knot
     const pos = assets.geometries.balloon.getAttribute('position');
-    let low = Infinity, below = 0;
-    for (let i = 0; i < pos.count; i++) { low = Math.min(low, pos.getY(i)); if (pos.getY(i) < B.knot) below++; }
-    expect(low).toBeLessThan(B.knot - 0.5); // the ribbon hangs well below the knot
-    expect(below).toBeGreaterThan(0);
+    let low = Infinity, high = -Infinity;
+    for (let i = 0; i < pos.count; i++) { low = Math.min(low, pos.getY(i)); high = Math.max(high, pos.getY(i)); }
+    expect(low).toBeGreaterThan(B.knot);
+    expect(Math.abs((low + high) / 2 - B.neck)).toBeLessThan(0.1);
     scene.dispose();
   });
 

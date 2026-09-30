@@ -53,7 +53,7 @@ Twelve builders ran tests, renders and ear jobs at once (67 vitest processes, a 
 ## Behaviour
 - Think before coding. Simplicity first. Surgical changes: touch only `src/<system>` and its tests.
 - Read `docs/design.md` before gameplay, art or content work.
-- Never edit CREDITS.md licences. Never add Nintendo names, assets or look-alikes. Pickups are balloons, not boxes.
+- Never edit CREDITS.md licences. Never add Nintendo names, assets or look-alikes. Pickups are energy cores (Adam, 30 Sept 2026; balloons before), never boxes.
 - Commit at every green test: `<system>: <what works now>`.
 
 ## Definition of done

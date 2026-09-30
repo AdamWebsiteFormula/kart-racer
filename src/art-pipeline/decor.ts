@@ -1,7 +1,7 @@
 // Track dressing modelled in code: decor, landmark, barriers, balloons, the speed gears (keyed `coin`) and
 // hazards (pads, ramps and bumps: track-builder/mesh/ramps.ts). Every model keeps the size and origin of the placeholder it replaces (scene.ts), so
 // placement code never changes. Keyed exactly as TrackAssets expects.
-import type { BufferGeometry } from 'three';
+import { Euler, Vector3, type BufferGeometry } from 'three';
 import { ModelBuilder, type V3 } from './model.ts';
 import { DRESSING_MODELS } from './dressing.ts';
 import { EDGE_MODELS } from './edges.ts';
@@ -134,19 +134,21 @@ const MODELS: Record<string, { build: Build; spin?: CodeSpin }> = {
   // ---- features, centred as the placeholders are
   balloon: {
     build: (m) => {
-      // party balloon (radius 0.9): one glossy color, a teardrop body, a shine on each face, a
-      // tied knot and a wavy ribbon. Never striped: stripes read as a beach ball (Adam, 24 Sept 2026)
-      const SKIN = '#ff2e63';
-      m.ball([0.78, 0.92, 0.78], SKIN, [0, 0.12, 0], undefined, 18);         // body
-      m.ball([0.5, 0.56, 0.5], SKIN, [0, -0.42, 0], undefined, 12, false);    // the taper to the neck
-      m.cone(0.13, 0.16, SKIN, [0, -0.93, 0], undefined, 8, false);            // knot, flared below the neck
-      for (const z of [0.67, -0.67]) {                                         // shine, seen from either way along the road
-        m.ball([0.13, 0.24, 0.06], '#ffffff', [-0.3, 0.4, z], [0, 0, 0.4], 10, false);
-        m.ball([0.05, 0.05, 0.03], '#ffffff', [-0.44, 0.08, z * 0.93], undefined, 6, false);
-      }
-      for (let k = 0; k < 4; k++) {                                            // ribbon, gently wavy
-        const x = k % 2 ? 0.05 : -0.05;
-        m.cyl(0.022, 0.022, 0.32, WHITE, [0, -1.18 - k * 0.3, 0], [0, 0, x * 2.5], 4, false);
+      // the item pickup (the sim's `balloon`; Adam, 30 Sept 2026: "something super cool and futuristic"): an
+      // energy core, a faceted crystal (cyan above, magenta below, a white-hot heart) floating inside two
+      // tilted chrome rings studded with light nodes; about the size the balloon was (1.9 m tall, rings 0.85 m
+      // out), its middle where the balloon's was. Self-lit at night (the pickups' glow) and bloomed by day.
+      m.cone(0.46, 0.95, '#3fe9ff', [0, 0.475, 0], undefined, 6);                      // the crystal's top
+      m.cone(0.46, 0.95, '#ff4fd8', [0, -0.475, 0], [Math.PI, 0, 0], 6, false);       // and bottom
+      m.ball([0.2, 0.34, 0.2], '#ffffff', [0, 0, 0], undefined, 8, false);            // its heart
+      const rings: [number, number][] = [[0.42, 0], [-0.42, 1.1]];
+      for (const [tilt, turn] of rings) {
+        m.torus(0.85, 0.055, '#d4dbe4', [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], false);
+        const e = new Euler(Math.PI / 2 + tilt, turn, 0);
+        for (let k = 0; k < 4; k++) {                                                  // light nodes round each ring
+          const a = (k / 4) * Math.PI * 2 + 0.4, v = new Vector3(Math.cos(a) * 0.85, Math.sin(a) * 0.85, 0).applyEuler(e);
+          m.ball([0.085, 0.085, 0.085], k % 2 ? '#3fe9ff' : '#ff4fd8', [v.x, v.y, v.z], undefined, 6, false);
+        }
       }
     },
   },

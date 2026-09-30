@@ -19,7 +19,9 @@ export const BALLOON_BACK = Object.freeze({
   /** seconds from back to settled: after this the shader leaves the balloon as modelled */
   seconds: 0.6,
   /** the model's knot (art-pipeline decor.ts `balloon`): its foot, and the neck the body swells out of */
-  knot: -1.01, neck: -0.85,
+  // (since 30 Sept 2026 the pickup is an energy core, decor.ts `balloon`: it forms out of its heart, spinning up, in a
+  // flash of light; nothing hangs below the knot, so the ribbon's unroll moves nothing)
+  knot: -1.01, neck: 0,
   /** the body's size: a spring from nothing to whole, easing in over `tau` seconds and ringing every `period` (whole at 0.13 s, 11 % over at 0.2 s, settled by 0.4 s) */
   tau: 0.1, period: 0.5,
   /** its squash and stretch on top: this much taller (and half as much narrower) as it swells, squat as it overshoots, tall again, turning over every `wobblePeriod`, dying over `wobbleTau` */
@@ -27,7 +29,9 @@ export const BALLOON_BACK = Object.freeze({
   /** the ribbon unrolls from the knot over `unroll` seconds, starting `unrollDelay` in */
   unrollDelay: 0.03, unroll: 0.3,
   /** it comes pale, its colour this far toward white (still shaded: MKW's pale box), back by `shineSeconds`; and glowing `shineGlow` of white at the start */
-  shine: 0.75, shineSeconds: 0.2, shineGlow: 0.3,
+  shine: 0.75, shineSeconds: 0.2, shineGlow: 0.9,
+  /** it spins into place: this many radians off at first, unwinding over `spinTau` seconds */
+  spinIn: 2.6, spinTau: 0.12,
   /** reduced motion: no motion, it fades in over this long (a dither: the balloons are solid) */
   fade: 0.2,
 });
@@ -92,6 +96,9 @@ const VERT_BODY = `
           vec2 bbK = mix(vec2(1.0), bbS, smoothstep(${f(B.knot)}, ${f(B.neck)}, bbY));
           transformed.xz *= bbK.x;
           transformed.y = ${f(B.neck)} + (bbY - ${f(B.neck)}) * bbK.y;
+          // spinning into place about its own axis
+          float bbA = ${f(B.spinIn)} * exp(-bbAge / ${f(B.spinTau)}) * bbEnv;
+          transformed.xz = mat2(cos(bbA), sin(bbA), -sin(bbA), cos(bbA)) * transformed.xz;
         } else {
           // the ribbon, unrolling down from the knot's foot
           float bbU = clamp((bbAge - ${f(B.unrollDelay)}) / ${f(B.unroll)}, 0.0, 1.0);

@@ -47,6 +47,9 @@ export const POP = Object.freeze({
 export const GEAR_POP = Object.freeze({ radius: 0.35, turn: 4.4, out: 1.3, up: 1.1, size: 0.2, life: 0.42, drag: 2.6, glint: 0.55, glintLife: 0.2 });
 /** The player's gear sparks (teal, HDR so they bloom) and the glint; gears knocked loose throw a few of the same */
 const GEAR_TEAL: readonly number[] = [0.5, 2.1, 1.9];
+/** the energy core's own light (decor.ts `balloon`), HDR so it blooms */
+const CORE_CYAN: readonly number[] = [0.5, 2.2, 2.4];
+const CORE_MAGENTA: readonly number[] = [2.3, 0.6, 2.0];
 export const CONFETTI_BURST = Object.freeze({ count: 180, ahead: 4, lead: 0.4, spread: 4, depth: 3, rise: 4.5, riseSpread: 3, size: 0.22 });
 /**
  * The podium ceremony's fireworks (game/podium.ts): a round burst of sparks in one confetti hue made
@@ -64,7 +67,7 @@ export const CONFETTI_RAIN = Object.freeze({ up: 7, spread: 2.5, size: 0.24, lif
  */
 export const BALLOON_SPARKLE = Object.freeze({
   glints: 6, radius: 0.7, spread: 0.55, out: 1.4, rise: 0.4, size: 0.13, life: 0.36, lifeSpread: 0.12, drag: 2.4, grow: -0.7,
-  gold: Object.freeze([1.9, 1.55, 0.7]), gleam: 0.42, gleamLife: 0.16,
+  gold: Object.freeze([0.5, 1.8, 2.1]), gleam: 0.42, gleamLife: 0.16, // (named for the balloon's gold; the core's cyan since 30 Sept 2026)
   /** metres from the lens past which none is drawn (a glint there is under a pixel) */
   reach: 60,
 });
@@ -185,9 +188,15 @@ export class Vfx {
       }
       switch (b.kind) {
         case 'balloon': {
-          const p = b.mine ? POP.mine : POP.rival, glow = b.mine ? [1.6, 1.4, 0.9] : POP.rivalGlow;
-          for (let i = 0; i < p.confetti; i++) this.spawn(this.soft, x, y + 1.6, z, sym() * 6, 2 + rnd() * 5, sym() * 6, CONFETTI[i % 4], 0.22, 0.7, 12, 1);
-          for (let i = 0; i < p.glow; i++) this.spawn(this.glow, x, y + 1.6, z, sym() * 3, rnd() * 3, sym() * 3, glow, p.glowSize, 0.3, 0, 3);
+          // the energy core taken (30 Sept 2026): it shatters into shards of light in its own cyan and magenta,
+          // flung out flat round its heart like its rings breaking, with a white-hot flash (yours bloom; a rival's dim)
+          const p = b.mine ? POP.mine : POP.rival, n = p.confetti, turn = rnd() * Math.PI * 2;
+          for (let i = 0; i < n; i++) {
+            const a = turn + (i / n) * Math.PI * 2, sp = 5 + rnd() * 3, col = b.mine ? (i % 2 ? CORE_CYAN : CORE_MAGENTA) : POP.rivalGlow;
+            this.spawn(this.glow, x, y + 1.6, z, Math.cos(a) * sp, sym() * 1.2 + 0.6, Math.sin(a) * sp, col, p.glowSize * 0.8, 0.34 + rnd() * 0.1, 0, 3.4, -0.6);
+          }
+          for (let i = 0; i < p.glow; i++) this.spawn(this.glow, x, y + 1.6, z, sym() * 2, rnd() * 2.5, sym() * 2, b.mine ? WHITE_HOT : POP.rivalGlow, p.glowSize, 0.24, 0, 3);
+          if (b.mine) this.spawn(this.glow, x, y + 1.6, z, 0, 0, 0, WHITE_HOT, 0.9, 0.16, 0, 0, -0.9);
           break;
         }
         case 'gear': {

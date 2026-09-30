@@ -10,7 +10,7 @@ import { NearGhost } from './ghost.ts';
 import { insideCourse, insideRoadEnvelope } from './decor.ts';
 import { paletteFor } from './palette.ts';
 import { buildRibbon } from './road.ts';
-import { BALLOON_MOTION, balloonFloat, buildTrackScene, GEAR_MOTION, isDrawn, PICKUP_GHOST } from './scene.ts';
+import { BALLOON_MOTION, balloonFloat, buildTrackScene, CORE_GLOW, GEAR_MOTION, isDrawn, PICKUP_GHOST } from './scene.ts';
 import { trackAssetsFor } from '../../art-pipeline/decor.ts';
 import boardwalkJson from '../tracks/boardwalk-nights.json';
 import canyonJson from '../tracks/canyon-rush.json';
@@ -609,19 +609,21 @@ describe('pickups after dark (detail review 2026-09-24: near-black balloons on B
       const shader = compile(m);
       expect(shader.fragmentShader, name).toContain('pickupGlow');
       const glow = shader.uniforms.pickupGlow;
+      // the energy cores glow a little even by day and much more at night (CORE_GLOW, 30 Sept 2026); the gears only at night
+      const [day, night] = name === 'balloons' ? [CORE_GLOW.day, CORE_GLOW.day + CORE_GLOW.night * 0.5] : [0, 0.5];
       scene.setPickupGlow(0, true);
-      expect(glow.value, name).toBe(0); // by day nothing
+      expect(glow.value, name).toBeCloseTo(day, 9);
       scene.setPickupGlow(0.5, true);
-      expect(glow.value).toBe(0.5);
+      expect(glow.value).toBeCloseTo(night, 9);
       // a pulse of no more than a fifth either way
-      for (let t = 0; t < 2; t += 0.1) { scene.update(t); expect(glow.value).toBeGreaterThanOrEqual(0.4 - 1e-9); expect(glow.value).toBeLessThanOrEqual(0.6 + 1e-9); }
+      for (let t = 0; t < 2; t += 0.1) { scene.update(t); expect(glow.value).toBeGreaterThanOrEqual(night * 0.8 - 1e-9); expect(glow.value).toBeLessThanOrEqual(night * 1.2 + 1e-9); }
       scene.setPickupGlow(0, true);
     }
     // a Final Lap Shift's new sky eases in, not a pop
     scene.update(10);
     scene.setPickupGlow(0.5);
     scene.update(10.1);
-    const glow = compile(scene.instancers.get('balloons')!.material as MeshBasicMaterial).uniforms.pickupGlow;
+    const glow = compile(scene.instancers.get('coins')!.material as MeshBasicMaterial).uniforms.pickupGlow;
     expect(glow.value).toBeGreaterThan(0);
     expect(glow.value).toBeLessThan(0.2);
     scene.dispose();

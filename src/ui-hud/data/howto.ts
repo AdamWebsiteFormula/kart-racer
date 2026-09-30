@@ -30,7 +30,7 @@ export const ITEM_LINES: Readonly<Record<string, string>> = Object.freeze({
   beachBall: 'Fire a laser bolt ahead. It bounces off the sides three times.',
   homingKite: 'Locks on to the racer in front of you and chases them down.',
   oilCan: 'Leave a slick behind you. Whoever drives in slows to half speed.',
-  decoyBalloon: 'Looks just like a real balloon, but spins out whoever grabs it. Watch for a red light.',
+  decoyBalloon: 'Looks just like a real energy core, but spins out whoever grabs it. Watch for a red light.',
   airHorn: 'An energy pulse all around you: clears items and spins racers nearby.',
   bubble: 'A force field that stops one hit, for up to 8 seconds.',
   fizzPop: 'One big burst of speed, even off the road.',
@@ -59,7 +59,7 @@ export const TIPS: readonly string[] = Object.freeze([
   'Hold drift through a turn: the sparks go blue, orange, then purple. Let go for a boost.',
   'Press the gas the moment the 2 appears for a start boost. On a phone, put a thumb on the screen then.',
   // as many as the HUD has slots (UI.itemSlots; Adam, 28 Sept 2026: "Yes, 3 item slots.")
-  `Pop a balloon for an item. You can hold ${COUNT_WORDS[UI.itemSlots] ?? UI.itemSlots}. A gold pair of balloons gives you two at once.`,
+  `Drive through an energy core for an item. You can hold ${COUNT_WORDS[UI.itemSlots] ?? UI.itemSlots}. A gold pair of cores gives you two at once.`,
   // the speed pickups are gears (Adam, 26 Sept 2026: "not coins"); the sim still counts them as coins
   'Grab gears to tune up your kart: a little more top speed, up to 10. A hit spins you out and knocks 2 gears loose.',
   'Stay right behind a racer for 2 seconds: their slipstream gives you a boost.',

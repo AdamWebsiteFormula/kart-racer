@@ -237,6 +237,8 @@ export interface TrackScene {
  * filled a quarter of the frame as a giant stippled blob), so there they fade from 6 m and are gone by 2.4.
  */
 export const PICKUP_GHOST = Object.freeze({ race: [2, 4.4] as const, closeUp: [2.4, 6] as const });
+/** The energy cores' self-light (scene `coreGlow`): `day` always, plus `night` times the sky's glow, breathing by `pulse` every `pulseS` s. */
+export const CORE_GLOW = Object.freeze({ day: 0.45, night: 2.4, pulse: 0.18, pulseS: 1.4 });
 const PICKUP_GHOSTED = ['balloons', 'coins'] as const;
 const LENS_EYE = new Vector3();
 
@@ -264,7 +266,8 @@ export const GEAR_MOTION = Object.freeze({ spin: 2.4, bob: 0.07, bobS: 1.6, phas
  * the golden angle), so a row never moves in step. Pictures only, on the scene's clock, written every frame
  * from the placed matrices (nothing drifts); a popped one stays hidden until its timer runs out.
  */
-export const BALLOON_MOTION = Object.freeze({ sway: 0.075, swayS: 2.7, nod: 0.05, nodS: 3.4, bob: 0.06, bobS: 2.2, turn: 0.3, turnS: 6.5 });
+// (30 Sept 2026, the energy core: it hovers, barely tilting, bobbing slow and turning round and round, `spinS` s a turn)
+export const BALLOON_MOTION = Object.freeze({ sway: 0.012, swayS: 2.7, nod: 0.01, nodS: 3.4, bob: 0.08, bobS: 2.6, turn: 0, turnS: 6.5, spinS: 3.2 });
 
 /**
  * A balloon's float at `time` on phase `phase` (BALLOON_MOTION), as a local matrix to put after its placed one:
@@ -275,7 +278,7 @@ export function balloonFloat(time: number, phase: number, tie: number, out: Matr
   const B = BALLOON_MOTION, TAU = Math.PI * 2;
   const sway = B.sway * Math.sin((TAU * time) / B.swayS + phase);
   const nod = B.nod * Math.sin((TAU * time) / B.nodS + 1.7 * phase);
-  const turn = B.turn * Math.sin((TAU * time) / B.turnS + 2.3 * phase);
+  const turn = B.turn * Math.sin((TAU * time) / B.turnS + 2.3 * phase) + (TAU * time) / B.spinS + phase;
   const bob = B.bob * Math.sin((TAU * time) / B.bobS + 0.6 * phase);
   // the tilt about the origin, moved to turn about the tie (0, -tie, 0): t = p - R p, R's up column times tie
   out.makeRotationFromEuler(FLOAT_TILT.set(nod, 0, sway));
@@ -1052,6 +1055,11 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
   const featureSlots = new Map<string, { slots: number[]; mats: Float32Array }>();
   // one uniform for every balloon and coin material, so a rebuilt instancer keeps the night glow
   const pickupGlow = { value: 0 };
+  /**
+   * The energy cores' own light (Adam, 30 Sept 2026: "it needs to glow in the dark"): a steady glow by day, so the
+   * bloom catches it, and much more once the sky's night glow comes up (the gears keep `pickupGlow`)
+   */
+  const coreGlow: { value: number } = { value: CORE_GLOW.day };
   // a popped balloon blows up again as it comes back (balloonBack.ts): the clock and shadow every balloon instancer shares
   const balloonBack = new BalloonBack();
   let glowTo = 0, glowNow = 0, glowTime = 0;
@@ -1083,7 +1091,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
         if (!m.userData.sharedMaterial) {
           // (first: the lens ghost's copies take the patches made before it)
           if (balloon) { patchBalloonBack(m.material as Material, balloonBack.uniforms); m.customDepthMaterial = balloonBack.depth; }
-          selfLit(m.material as MeshToonMaterial, pickupGlow);
+          selfLit(m.material as MeshToonMaterial, balloon ? coreGlow : pickupGlow);
           // near the lens a balloon or a coin fades out as a clean ghost, not a stipple (ghost.ts, TrackScene.lens)
           new NearGhost(m, PICKUP_GHOST.race[0], PICKUP_GHOST.race[1]);
         }
@@ -1254,6 +1262,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     glowTime = time;
     glowNow += (glowTo - glowNow) * (1 - Math.exp(-dt * PICKUP_EASE));
     pickupGlow.value = glowNow * (1 + PICKUP_PULSE * Math.sin((time / PICKUP_PULSE_S) * Math.PI * 2));
+    coreGlow.value = (CORE_GLOW.day + CORE_GLOW.night * glowNow) * (1 + CORE_GLOW.pulse * Math.sin((time / CORE_GLOW.pulseS) * Math.PI * 2));
     const open = openMask();
     if (open !== lastOpen) { lastOpen = open; syncOpen(); addBarriers(); addFeatures(); assets.look?.(group); }
     // the balloons float on their ribbons (floatBalloons: the matrices, hidden while one is away), and one
@@ -1735,7 +1744,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
     balloonsBack: balloonBack.came,
     setPickupGlow: (amount, snap = false) => {
       glowTo = amount;
-      if (snap) { glowNow = amount; pickupGlow.value = amount; }
+      if (snap) { glowNow = amount; pickupGlow.value = amount; coreGlow.value = CORE_GLOW.day + CORE_GLOW.night * amount; }
     },
     pickupGlow: () => pickupGlow.value,
     drawables: () => {

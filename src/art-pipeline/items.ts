@@ -9,7 +9,7 @@
 // the beam, glows) is a set of additive energy models (energyMaterial). The rescue claw and the slick keep
 // the old toon models. Built once and shared.
 import {
-  AdditiveBlending, CapsuleGeometry, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, MeshBasicMaterial, MeshStandardMaterial,
+  AdditiveBlending, CapsuleGeometry, Euler, Vector3, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, MeshBasicMaterial, MeshStandardMaterial,
   ShaderMaterial, SphereGeometry, TorusGeometry, type BufferGeometry,
 } from 'three';
 import { EnergyBuilder, FINISH, ItemBuilder, plateXZ } from './itemKit.ts';
@@ -87,25 +87,28 @@ const SOLID: Readonly<Record<string, Build>> = {
     b.ball([0.028, 0.028, 0.028], C.amber, FINISH.light(5), [0, 0.3, 0.19], undefined, 8);
     return b.build();
   },
-  // ---- Decoy Mine: the pickup balloon exactly (decor.ts balloon: its shape, color and matte skin, self-lit
-  // at night like the real ones), plus a small dark clamp round its neck that only shows up close. Its red
-  // light is `mineLight`, drawn when it blinks
+  // ---- Decoy Mine: the item pickup exactly (decor.ts balloon, the energy core since 30 Sept 2026: its crystal,
+  // rings and nodes, self-lit at night like the real ones), plus a thin dark clamp round the crystal's waist that
+  // only shows up close. Its red light is `mineLight`, drawn when it blinks
   mine: () => {
     const b = new ItemBuilder();
-    b.ball([0.78, 0.92, 0.78], C.skin, FINISH.balloon, [0, 0.12, 0], undefined, 18);
-    b.ball([0.5, 0.56, 0.5], C.skin, FINISH.balloon, [0, -0.42, 0], undefined, 12);
-    b.cone(0.13, 0.16, C.skin, FINISH.balloon, [0, -0.93, 0], undefined, 8);
-    for (const z of [0.67, -0.67]) {
-      b.ball([0.13, 0.24, 0.06], '#ffffff', FINISH.balloon, [-0.3, 0.4, z], [0, 0, 0.4], 10);
-      b.ball([0.05, 0.05, 0.03], '#ffffff', FINISH.balloon, [-0.44, 0.08, z * 0.93], undefined, 6);
+    b.cone(0.46, 0.95, '#3fe9ff', FINISH.balloon, [0, 0.475, 0], undefined, 6);
+    b.cone(0.46, 0.95, '#ff4fd8', FINISH.balloon, [0, -0.475, 0], [Math.PI, 0, 0], 6);
+    b.ball([0.2, 0.34, 0.2], '#ffffff', FINISH.balloon, [0, 0, 0], undefined, 10);
+    for (const [tilt, turn] of [[0.42, 0], [-0.42, 1.1]] as const) {
+      b.torus(0.85, 0.055, '#d4dbe4', FINISH.steel, [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], Math.PI * 2, 18);
+      const e = new Euler(Math.PI / 2 + tilt, turn, 0);
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * Math.PI * 2 + 0.4, v = new Vector3(Math.cos(a) * 0.85, Math.sin(a) * 0.85, 0).applyEuler(e);
+        b.ball([0.085, 0.085, 0.085], k % 2 ? '#3fe9ff' : '#ff4fd8', FINISH.balloon, [v.x, v.y, v.z], undefined, 8);
+      }
     }
-    for (let k = 0; k < 4; k++) b.cyl(0.022, 0.022, 0.32, C.ribbon, FINISH.balloon, [0, -1.18 - k * 0.3, 0], [0, 0, (k % 2 ? 0.05 : -0.05) * 2.5], 4);
-    b.torus(0.125, 0.03, '#2a2d35', FINISH.steel, [0, -0.8, 0], [Math.PI / 2, 0, 0], Math.PI * 2, 18);
+    b.torus(0.4, 0.035, '#2a2d35', FINISH.steel, [0, 0.02, 0], [Math.PI / 2, 0, 0], Math.PI * 2, 18);
     return b.build();
   },
   mineLight: () => new ItemBuilder()
-    .torus(0.13, 0.034, '#ff2a2a', FINISH.light(6), [0, -0.8, 0], [Math.PI / 2, 0, 0], Math.PI * 2, 18)
-    .ball([0.05, 0.05, 0.05], '#ff2a2a', FINISH.light(6), [0, -1.02, 0], undefined, 8)
+    .torus(0.41, 0.04, '#ff2a2a', FINISH.light(6), [0, 0.02, 0], [Math.PI / 2, 0, 0], Math.PI * 2, 18)
+    .ball([0.06, 0.06, 0.06], '#ff2a2a', FINISH.light(6), [0, -1.0, 0], undefined, 8)
     .build(),
   // ---- Seeker Drone: a hover drone flying along +Z, a glowing amber visor band (a sensor, not a face)
   drone: () => {

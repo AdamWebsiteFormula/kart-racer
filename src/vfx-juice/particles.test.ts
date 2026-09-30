@@ -187,11 +187,11 @@ describe('balloon pops and gear pickups', () => {
     return vfx;
   };
 
-  it('a rival popping a balloon makes a small, dim sparkle; your own pop stays full', () => {
+  it('a rival taking an energy core makes a small, dim burst; your own stays full (its shards, sparks and flash, 30 Sept 2026)', () => {
     const mine = pop('balloon', true), rival = pop('balloon', false);
-    expect(mine.glow.count).toBe(POP.mine.glow);
-    expect(rival.glow.count).toBe(POP.rival.glow);
-    expect(rival.soft.count).toBeLessThan(mine.soft.count);
+    expect(mine.glow.count).toBe(POP.mine.confetti + POP.mine.glow + 1);
+    expect(rival.glow.count).toBe(POP.rival.confetti + POP.rival.glow);
+    expect(rival.glow.count).toBeLessThan(mine.glow.count);
     // under the bloom threshold, so a row of rival pops never blooms into discs over the road
     expect(Math.max(...POP.rivalGlow)).toBeLessThanOrEqual(1);
   });
