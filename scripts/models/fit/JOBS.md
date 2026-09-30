@@ -147,3 +147,7 @@ Fitted (30 Sept): all eight bodies in public/models/racers/<id>/body.glb (about 
 copy of the manifest entries). New tools: measure.mjs (gridded side/front/top views), probe.mjs (height profiles),
 wheelgen.mjs. Trims and shoulder lines retuned so every driver shows (src/game/driverView.test.ts, 64 pairs).
 The drivers are still the old ones: the eight new Meshy drivers are the next step.
+
+Otto's driver redo (Adam, 30 Sept: "The otter should be wearing leather clothes like a biker would wear"): biker-leathers
+concept 75334fdf-b316-4f80-9b60-6d04f4ddee4a (from 704c74b7) -> Meshy v7 driver f8d3daf9-faf7-4cb1-ac66-209d2f25d965
+(textured, a-pose, rigged); replaces 4af61e4c. The other seven Meshy drivers stand as listed above.
