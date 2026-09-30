@@ -108,7 +108,7 @@ Round 2 concepts (Adam's notes: Sprocket no key on back, no head antenna, worn s
 | momo | d32e1cf3-a4d2-4e12-92da-cd831c07be45 |
 | nova | 14bac0da-f1ec-4263-bc25-c2192b81f0a1 |
 | juniper | 64c39a8d-06e7-40e2-981d-d5e04c07314c |
-| otto | c2130ade-3912-4ec6-965a-0a5f7de0928e (jacket/hat base 30a6b301-825f-4944-8cd9-d617013d1ff6) |
+| otto | 704c74b7-746c-415d-a0c7-a0c4a6ff5004 (cap backwards; before: c2130ade-3912-4ec6-965a-0a5f7de0928e) (jacket/hat base 30a6b301-825f-4944-8cd9-d617013d1ff6) |
 | sprocket | c13e2d11-b2b3-4da3-904c-acb6441ac0a0 (via 9b8a5fea, da19566d, be663d44) |
-| boulder | 439ac85a-3386-4195-897e-aa75043a7305 (muscles 9a39a0d3 + the sport-pad outfit from d457adc2, via 5a27aefa) |
+| boulder | 6ce3b270-e4db-4785-bf22-7e4167abb6db (with pants; before: 439ac85a-3386-4195-897e-aa75043a7305) (muscles 9a39a0d3 + the sport-pad outfit from d457adc2, via 5a27aefa) |
 | gus | f0952277-437a-4aaa-91e5-add5e1634509 (via c854e6a4) |
