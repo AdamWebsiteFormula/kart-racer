@@ -35,7 +35,13 @@ beside the two cloudfront hosts above. The old session could NOT verify two thin
 balance page before spending); (2) whether the API has the 3D models the karts need (Tripo H3.1 image-to-3D; the
 pages found list image and video only). If it has no 3D, use the Higgsfield connector for the 3D jobs (Adam adds it
 at claude.ai/customize/connectors > Add > Add custom connector, name Higgsfield, URL https://mcp.higgsfield.ai/mcp,
-sign in) and the API only for images. Never print a key; check the secrets exist with `test -n "$HF_API_KEY"`.
+sign in) and the API only for images. What a 30 Sept web search found (search summaries only; docs.higgsfield.ai was blocked in that session): the API
+catalog lists video (Seedance, Kling, Wan), image (Soul, Marketing Studio, Recraft, Grok) and Meshy 5 for 3D, with NO
+Tripo mentioned; new API accounts get 0 free credits, and the only API freebie found was a 7-day launch promotion of $15
+for accounts that connect a card with a business email (maybe expired). The "100 free credits" trial is the connector's,
+not the API's. So: use the API for images if its console balance is real; use the CONNECTOR for the kart 3D jobs (Tripo
+H3.1 made all six bodies; 11.3 credits = one job) unless the API console shows a Tripo or Meshy image-to-3D option AND a
+balance. Never print a key; check the secrets exist with `test -n "$HF_API_KEY"`.
 
 ### Open tasks, in the order to do them today
 1. **Ship the pre-race fix** (Adam, 30 Sept: "The pre-race part after clicking to race doesn't feel smooth").
