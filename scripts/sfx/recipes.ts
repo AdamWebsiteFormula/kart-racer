@@ -7,9 +7,22 @@
 // scripts/sfx/built.json to it (src/audio/provenance.test.ts). parts.ts has the building blocks for new ones.
 // Each recipe won a blind one-clip-per-request hearing against the sound it replaced (Gemini Pro, docs/sops/audio.md).
 // Rules as for the catalog: original sounds only, no franchise sound or look-alike, no voices or words.
+// The overhaul of 29 Sept 2026 (Adam: "The existing sounds on the game are super cheap"): candidates built from the
+// free packs in the private repo AdamWebsiteFormula/rascal-sfx-source live in cands-*.ts; one Adam passes by ear goes
+// in approved.ts with his verdict (scripts/sfx/approve.py) and takes its id's place here.
+import { APPROVED } from './approved.ts';
+import { RECIPES as AMBIENCE } from './cands-ambience.ts';
+import { RECIPES as BOOST } from './cands-boost.ts';
+import { RECIPES as DRIVE } from './cands-drive.ts';
+import { RECIPES as ENGINE } from './cands-engine.ts';
+import { RECIPES as ITEMS } from './cands-items.ts';
+import { RECIPES as UI } from './cands-ui.ts';
+import { RECIPES as WORLD } from './cands-world.ts';
 import type { Recipe } from './types.ts';
 
-export const RECIPES: readonly Recipe[] = [
+const CANDIDATES: readonly Recipe[] = [...ITEMS, ...ENGINE, ...DRIVE, ...BOOST, ...UI, ...WORLD, ...AMBIENCE];
+
+const BASE: readonly Recipe[] = [
   {
     id: "boost1",
     brief: "A drift mini-turbo boost, tier 1 of 3, in a polished cartoon kart racing game: the instant the player releases a short drift, the kart darts forward with a quick, punchy burst of exhaust flame and rushing air. Bright, snappy and satisfying, the smallest of the three boosts, about half a second. No voice, nothing that sounds like a weapon.",
@@ -156,4 +169,9 @@ export const RECIPES: readonly Recipe[] = [
     ],
     master: [{ op: "hp", hz: 60 }, { op: "trim", to: 1.3 }, { op: "fade", out: 0.52 }, { op: "limit", ceiling: -1 }],
   },
+];
+
+export const RECIPES: readonly Recipe[] = [
+  ...BASE.filter((r) => !(r.id in APPROVED)),
+  ...CANDIDATES.filter((r) => r.id in APPROVED).map((r) => ({ ...r, why: APPROVED[r.id] })),
 ];

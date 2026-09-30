@@ -16,8 +16,13 @@ const manifest = MANIFEST as { sfx: Record<string, { url: string; loop?: boolean
 const recipeIds = new Set(RECIPES.map((r) => r.id));
 const sfxIds = new Set(SFX.map((s) => s.id));
 
-/** The approved sources (house rules, 26 Sept 2026): Kenney's packs and the VSCO-2 CE mallets (CC0), the Cascadia Racing Sound Pack (paid license). */
-const PACK = /^(kenney\/kenney_[a-z-]+\/Audio\/[\w -]+\.(ogg|wav)|vsco\/(Glock|Xylo|Marimba)\/[\w-]+\.wav|cascadia\/[\w ./-]+\.(wav|ogg|mp3|aif|aiff))$/;
+/** The approved sources (house rules, 26 Sept 2026): Kenney's packs and the VSCO-2 CE mallets (CC0), the Cascadia Racing Sound Pack (paid license).
+ *  29 Sept 2026, the free packs Adam downloaded for the sound overhaul (their raw files only in the private repo
+ *  AdamWebsiteFormula/rascal-sfx-source): the Sonniss GDC 2026 bundle (royalty-free, no attribution), 99Sounds' packs
+ *  (royalty-free, no redistributing the raw files), Nox Sound's Essentials, Lentikula's spell impacts and Muted.io's
+ *  Performance Cars (CC0). */
+const NEW_PACKS = '99Sounds_Sci-Fi_Sound_Effects|99Sounds_Electromagnetic_Fields|99_Sound_Effects|99S011_Sound_Design_Tools|Basic_Spell_Impacts|Druid_Spell_Impacts_Pack|Healing_Spell_Impacts_Pack_by_Lentikula|Essentials_Series_NOX_SOUND|Sonniss\\.com-GDC2026-GameAudioBundle[1-5]of5(__1_)?|performance-cars-free-sample-pack-mutedio';
+const PACK = new RegExp(`^(kenney\\/kenney_[a-z-]+\\/Audio\\/[\\w -]+\\.(ogg|wav)|vsco\\/(Glock|Xylo|Marimba)\\/[\\w-]+\\.wav|cascadia\\/[\\w ./-]+\\.(wav|ogg|mp3|aif|aiff)|(${NEW_PACKS})\\/[^\\\\:*?"<>|]+\\.(wav|WAV))$`);
 const GIT = /^[0-9a-f]{7,40}$/;
 const SYNTHS = new Set(['noise', 'whoosh', 'tone', 'fm', 'crackle', 'silence', 'flame', 'engine', 'kart']);
 
@@ -101,5 +106,12 @@ describe('sound provenance: one maker per sound', () => {
     if (packs.has('kenney')) expect(credits).toMatch(/Kenney.*CC0/);
     if (packs.has('vsco')) expect(credits).toMatch(/VSCO.*CC0/);
     if (packs.has('cascadia')) expect(credits).toMatch(/Cascadia/);
+    // the overhaul's free packs (29 Sept 2026): none asks for credit, but the credits say where every sound came from
+    const uses = (re: RegExp) => [...packs].some((p) => re.test(p as string));
+    if (uses(/^Sonniss/)) expect(credits).toMatch(/Sonniss/);
+    if (uses(/^99/)) expect(credits).toMatch(/99Sounds/);
+    if (uses(/NOX_SOUND/)) expect(credits).toMatch(/Nox Sound/);
+    if (uses(/Spell_Impacts/)) expect(credits).toMatch(/Lentikula/);
+    if (uses(/mutedio/)) expect(credits).toMatch(/Muted\.io/);
   });
 });
