@@ -99,8 +99,8 @@ export class ModelBuilder {
   cone(r: number, h: number, colour: Paint, pos: V3, rot?: V3, seg = 10, outline = true): this {
     return this.push(new ConeGeometry(r, h, seg), colour, pos, rot, [1, 1, 1], outline);
   }
-  torus(r: number, tube: number, colour: Paint, pos: V3, rot?: V3, outline = true): this {
-    return this.push(new TorusGeometry(r, tube, 8, 18), colour, pos, rot, [1, 1, 1], outline);
+  torus(r: number, tube: number, colour: Paint, pos: V3, rot?: V3, outline = true, sides = 8, seg = 18): this {
+    return this.push(new TorusGeometry(r, tube, sides, seg), colour, pos, rot, [1, 1, 1], outline);
   }
   rock(r: number, colour: Paint, pos: V3, rot?: V3, scale: V3 = [1, 1, 1]): this {
     return this.push(new IcosahedronGeometry(r, 0), colour, pos, rot, scale, true);

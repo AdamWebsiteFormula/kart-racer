@@ -143,11 +143,11 @@ const MODELS: Record<string, { build: Build; spin?: CodeSpin }> = {
       m.ball([0.2, 0.34, 0.2], '#ffffff', [0, 0, 0], undefined, 8, false);            // its heart
       const rings: [number, number][] = [[0.42, 0], [-0.42, 1.1]];
       for (const [tilt, turn] of rings) {
-        m.torus(0.85, 0.055, '#d4dbe4', [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], false);
+        m.torus(0.85, 0.055, '#d4dbe4', [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], false, 6, 16);  // thin: 6 sides are plenty
         const e = new Euler(Math.PI / 2 + tilt, turn, 0);
         for (let k = 0; k < 4; k++) {                                                  // light nodes round each ring
           const a = (k / 4) * Math.PI * 2 + 0.4, v = new Vector3(Math.cos(a) * 0.85, Math.sin(a) * 0.85, 0).applyEuler(e);
-          m.ball([0.085, 0.085, 0.085], k % 2 ? '#3fe9ff' : '#ff4fd8', [v.x, v.y, v.z], undefined, 6, false);
+          m.ball([0.085, 0.085, 0.085], k % 2 ? '#3fe9ff' : '#ff4fd8', [v.x, v.y, v.z], undefined, 4, false);
         }
       }
     },

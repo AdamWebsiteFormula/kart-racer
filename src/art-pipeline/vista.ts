@@ -815,6 +815,27 @@ function volcanoIsland(): BufferGeometry {
   });
 }
 
+/**
+ * A volcano model's lava, in its own frame: a glowing pool just under the crater's rim and four streams
+ * of overlapping blobs that hug the slope (heightAt) from the rim down about half its height,
+ * narrowing as they go. Lit past white (LAVA), so the bloom makes it glow.
+ */
+export function lavaFlows(g: BufferGeometry): BufferGeometry {
+  const c = craterOf(g), b = g.boundingBox!, h = b.max.y - b.min.y, [cx, top, cz] = c.top;
+  return model((m) => {
+    m.ball([c.r * 0.75, h * 0.01, c.r * 0.75], MAGMA, [cx, top - c.depth * 1.6, cz], undefined, 12, false);
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + 0.7 + (k % 2) * 0.35, dx = Math.cos(a), dz = Math.sin(a);
+      for (let d = c.r * 0.85, i = 0; i < 90; i++) {
+        const w = c.r * (0.15 - i * 0.0012), y = heightAt(g, cx + dx * d, cz + dz * d);
+        if (y === -Infinity || y < top - h * 0.5 || w <= 0) break;
+        m.ball([w, w * 1.6, w], MAGMA, [cx + dx * d, y, cz + dz * d], undefined, 5, false);
+        d += w * 0.45;
+      }
+    }
+  });
+}
+
 /** Lighthouse Loop's sea stacks off the cliffs: three banded rock columns with green tops (code-built). */
 function seaStacks(): BufferGeometry {
   return model((m) => {
@@ -825,12 +846,16 @@ function seaStacks(): BufferGeometry {
 }
 
 function harbour(v: Vista): void {
-  // the landmark ahead of the start: a dormant volcano island with a beach, a skirt of palms and a wisp of smoke
+  // the landmark ahead of the start: a volcano island with a beach, a skirt of palms and a wisp of smoke
   const vol = v.piece('vista-volcano', -12, v.out(230), 0, 1.15), vp = vol.p;
   // a model's crater is wherever its own top is (the code-built one's stands on its axis)
   const crater = vol.file ? vol.toWorld(topOf(vol.file.geometry)) : [vp[0], vp[1] + 97, vp[2]] as V3;
   v.landmark = [crater[0], crater[1] + (vol.file ? 2 : 0), crater[2]];
+  // awake (Adam, 30 Sept 2026: "red glowing lava coming out of it"): a lava pool in the crater, four
+  // streams spilling over the rim and down its slopes, embers rising with the smoke
+  if (vol.file) v.add('vista-volcano-lava', placed(lavaFlows(vol.file.geometry), vp, vol.yaw, 1.15));
   for (let k = 0; k < 8; k++) v.glows.push(mover(spark(8, [0.85, 0.82, 0.86]), [crater[0], crater[1] + 2, crater[2]], 0, [MOVE.rise, k / 8, 0.05, 70]));
+  for (let k = 0; k < 6; k++) v.glows.push(mover(spark(2.4, MAGMA), [crater[0], crater[1] + 1, crater[2]], 0, [MOVE.rise, k / 6 + 0.08, 0.08, 45]));
 
   // a rocky headland with a lighthouse and its keeper's cottage
   const headland = model((m) => {
@@ -921,19 +946,19 @@ function harbour(v: Vista): void {
   // three more on posts at the sea's edge along the start straight: each flies off out to sea as the
   // camera comes by, and is back on its post, unseen, by the next lap
   const post = perchPost();
-  let placed = 0;
-  for (let k = 0; k < 40 && placed < 3; k++) {
+  let perched = 0;
+  for (let k = 0; k < 40 && perched < 3; k++) {
     const r = v.road(0.1 + k * 0.004);
     if (!r) break;
     const past = r.limit + 1.6, x = r.p[0] + r.out[0] * past, z = r.p[2] + r.out[1] * past;
     if (!(v.ctx.clear?.(x, z, 1.4) ?? true) || (v.ctx.pastCourse?.(x, z) ?? Infinity) < 1.2) continue;
     const y = v.ctx.groundAt?.(x, z) ?? r.p[1];
     v.movers.push(mover(post, [x, y, z], 0, [MOVE.still, 0, 0, 0]));
-    const at: V3 = [x, y + 1.43, z], face = Math.atan2(r.along[0], r.along[1]) + (placed % 2 ? Math.PI : 0);
-    const spread = (placed - 1) * 0.3, ox = r.out[0] * Math.cos(spread) - r.out[1] * Math.sin(spread), oz = r.out[1] * Math.cos(spread) + r.out[0] * Math.sin(spread);
+    const at: V3 = [x, y + 1.43, z], face = Math.atan2(r.along[0], r.along[1]) + (perched % 2 ? Math.PI : 0);
+    const spread = (perched - 1) * 0.3, ox = r.out[0] * Math.cos(spread) - r.out[1] * Math.sin(spread), oz = r.out[1] * Math.cos(spread) + r.out[0] * Math.sin(spread);
     const grp = v.trigger('perch', at, 30, 160);
-    v.flier('gull', 'perch', g, at, face, [MOVE.perch, placed * 1.3, 1, 16], [ox, 0, oz, 9], [2.8, 0.6, ROOT.gull], grp, at);
-    placed++;
+    v.flier('gull', 'perch', g, at, face, [MOVE.perch, perched * 1.3, 1, 16], [ox, 0, oz, 9], [2.8, 0.6, ROOT.gull], grp, at);
+    perched++;
     k += 3; // a few metres between posts
   }
 }
@@ -1097,6 +1122,9 @@ function butteColumn(): BufferGeometry {
 
 /** The glow of a cinder cone's crater (colours past white: the bloom lights it). */
 const LAVA: Paint = [2.4, 0.7, 0.18];
+
+/** Red-hot running lava (Lighthouse Loop's volcano): past white in red only, so it blooms red, not yellow. */
+const MAGMA: Paint = [3.6, 0.1, 0.02];
 
 /** Mesa Rush's landmark: a far cinder cone, its crater glowing, a lava seam down its face (code-built). */
 function cinderCone(): BufferGeometry {
