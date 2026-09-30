@@ -821,6 +821,13 @@ function volcanoIsland(): BufferGeometry {
  * narrowing as they go. Lit past white (LAVA), so the bloom makes it glow.
  */
 export function lavaFlows(g: BufferGeometry): BufferGeometry {
+  // built once per volcano model (its height lookups scan every triangle: a few million tests)
+  let lava = LAVA_CACHE.get(g);
+  if (!lava) LAVA_CACHE.set(g, (lava = buildLava(g)));
+  return lava;
+}
+const LAVA_CACHE = new WeakMap<BufferGeometry, BufferGeometry>();
+function buildLava(g: BufferGeometry): BufferGeometry {
   const c = craterOf(g), b = g.boundingBox!, h = b.max.y - b.min.y, [cx, top, cz] = c.top;
   return model((m) => {
     m.ball([c.r * 0.75, h * 0.01, c.r * 0.75], MAGMA, [cx, top - c.depth * 1.6, cz], undefined, 12, false);

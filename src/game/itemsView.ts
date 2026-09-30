@@ -19,6 +19,7 @@ import { itemById } from '../items/data.ts';
 import type { Items } from '../items/items.ts';
 import type { Track } from '../track-builder/track.ts';
 import { fadeNearCameraAlpha } from '../track-builder/mesh/glow.ts';
+import { BALLOON_MOTION } from '../track-builder/mesh/scene.ts';
 import { CAM } from './camera.ts';
 import { ROSTER } from './racers.ts';
 
@@ -375,8 +376,9 @@ export class ItemsView {
         this.put('canister', x + this.v.x, y + this.v.y, z + this.v.z, q);
       } else if (g.itemId === 'decoyBalloon') {
         // hovering and bobbing exactly like a real balloon; its red light blinks once a kart is near, faster the nearer
-        const by = y + MINE.lift + Math.sin(time * 2 + g.id) * 0.12;
-        const q = this.yaw(time * 0.6 + g.id);
+        // bobbing and turning as the real cores do (BALLOON_MOTION), so the decoy gives nothing away
+        const by = y + MINE.lift + Math.sin((Math.PI * 2 * time) / BALLOON_MOTION.bobS + g.id) * BALLOON_MOTION.bob;
+        const q = this.yaw((Math.PI * 2 * time) / BALLOON_MOTION.spinS + g.id);
         this.put('mine', x, by, z, q);
         let near = Infinity;
         for (let i = 0; i < karts.length; i++) near = Math.min(near, Math.hypot(karts[i].position[0] - x, karts[i].position[2] - z));

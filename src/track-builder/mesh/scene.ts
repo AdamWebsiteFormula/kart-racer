@@ -1746,7 +1746,7 @@ export function buildTrackScene(track: Track, assets: TrackAssets = {}): TrackSc
       glowTo = amount;
       if (snap) { glowNow = amount; pickupGlow.value = amount; coreGlow.value = CORE_GLOW.day + CORE_GLOW.night * amount; }
     },
-    pickupGlow: () => pickupGlow.value,
+    pickupGlow: () => coreGlow.value, // the energy cores' own light (30 Sept 2026), so a Decoy Mine glows as bright as they do
     drawables: () => {
       let n = 0;
       group.traverse((o) => { if (isDrawn(o as Mesh)) n++; });

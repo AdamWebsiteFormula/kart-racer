@@ -92,8 +92,8 @@ const VERT_BODY = `
         vec2 bbS = mix(vec2(1.0), bbGrow * vec2(1.0 - 0.5 * bbQ, 1.0 + bbQ), bbEnv);
         float bbY = transformed.y;
         if (bbY >= ${f(B.knot)}) {
-          // the body (and the knot, less and less toward its foot) about the neck
-          vec2 bbK = mix(vec2(1.0), bbS, smoothstep(${f(B.knot)}, ${f(B.neck)}, bbY));
+          // the whole core, top and bottom alike, about its heart (the balloon's knot tapered in; the core has none)
+          vec2 bbK = bbS;
           transformed.xz *= bbK.x;
           transformed.y = ${f(B.neck)} + (bbY - ${f(B.neck)}) * bbK.y;
           // spinning into place about its own axis

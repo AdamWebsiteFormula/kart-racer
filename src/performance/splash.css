@@ -2,8 +2,8 @@
    before the game's script (about 420 KB) has arrived, so a first visit on a slow line sees the
    game's name and a moving bar at once instead of a blank page. main.ts fades it out as the title
    screen comes up (performance/splash.ts). Self-contained: its colors are the ui-hud tokens'
-   values, since ui.css may not be in yet. It draws with the one font file the page preloads (Mona Sans
-   italic, the house type since 28 Sept 2026: ui.css, vite.config.ts), so it asks for no other file while
+   values, since ui.css may not be in yet. It draws with the one font file the page preloads (Saira
+   italic, the display type since 30 Sept 2026: ui.css, vite.config.ts), so it asks for no other file while
    the script loads. */
 #splash {
   --s-ink: #1b1b2f;
@@ -21,7 +21,7 @@
   padding: 24px 16px;
   background: radial-gradient(ellipse at 50% 40%, #2c2c50 0%, var(--s-ink) 70%);
   color: var(--s-paper);
-  font: italic 600 16px/1.3 'Mona Sans', 'Segoe UI', system-ui, sans-serif;
+  font: italic 600 16px/1.3 'Saira', 'Segoe UI', system-ui, sans-serif;
   text-align: center;
   transition: opacity 320ms ease, visibility 0s linear 320ms;
   -webkit-font-smoothing: antialiased;
@@ -36,7 +36,7 @@
    printed over a deeper tone of its color and a navy block inside a navy keyline */
 #splash .splash-logo {
   margin-bottom: 18px;
-  font-family: 'Mona Sans', 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Saira', 'Arial Black', 'Segoe UI', system-ui, sans-serif;
   font-style: italic;
   font-weight: 900;
   font-stretch: 125%;
@@ -73,14 +73,14 @@
 }
 @keyframes splash-fill { from { transform: scaleX(0.04); } to { transform: scaleX(0.82); } }
 
-#splash .splash-label { margin: 0; font: italic 700 18px/1.2 'Mona Sans', 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0.9; }
+#splash .splash-label { margin: 0; font: italic 700 18px/1.2 'Saira', 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.02em; opacity: 0.9; }
 #splash .splash-tip {
   margin: 6px 0 0;
   max-width: min(560px, 92vw);
   padding: 10px 18px;
   border-radius: 16px;
   background: rgba(255, 250, 240, 0.08);
-  font: italic 600 16px/1.4 'Mona Sans', 'Segoe UI', system-ui, sans-serif;
+  font: italic 600 16px/1.4 'Saira', 'Segoe UI', system-ui, sans-serif;
   color: rgba(255, 250, 240, 0.92);
 }
 #splash .splash-tip b { color: var(--s-sun); font-weight: 800; margin-right: 6px; }

@@ -109,7 +109,7 @@ export class GameAudio {
     if (this.timer) return;
     this.timer = setInterval(() => this.pump(), AUDIO.schedulerTickMs);
     void this.bank.load(this.bus.ctx!);
-    void this.bank.loadVoices(this.bus.ctx!);
+    // (the racers' voice lines were taken out on 30 Sept 2026: no voice.json to load; bank.loadVoices stays for new ones)
     if (!this.awaitGo && (this.wantSong || this.wantKey)) this.play(this.wantSong, this.wantKey);
   }
 
