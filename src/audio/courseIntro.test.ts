@@ -79,7 +79,7 @@ class FakeCtx {
 // ---- the recordings: the courses' race songs as cutSong leaves them (first beat, bar), an intro piece, the pick sting ----
 const song = (bpm: number, start = 0.2): Sample => ({ buffer: { duration: 90 } as AudioBuffer, start, end: 80, loopStart: start, loopEnd: 80, gain: 0.8, beat0: start, bar: 240 / bpm });
 const SONGS: Record<string, Sample> = {
-  'race-harbour': song(150, 0.47), 'race-meadow': song(146, 0.01), 'race-frost': song(146, 0.2), 'race-finale': song(160, 0.57), 'race-boardwalk': song(140, 0.01),
+  'race-harbour': song(150, 0.47), 'race-meadow': song(146, 0.01), 'race-frost': song(146, 0.2), 'race-finale': song(160, 0.57), 'race-mesa': song(135, 0.01), 'race-boardwalk': song(140, 0.01),
 };
 /** a piece composed for the flight: 5.2 s from its first sound to the end of its ring */
 const PIECE: Sample = { buffer: { duration: 6 } as AudioBuffer, start: 0.03, end: 5.23, gain: 0.7, beat0: 0.03, bar: 1.6 };
@@ -123,8 +123,8 @@ const FULL = Object.values(INTRO.full).reduce((a, b) => a + b, 0), SHORT = Objec
  * and three at 140 to 150; the short one's 2.48 s holds one. (29 Sept 2026, the front shot: race-finale's went 3 → 4.)
  */
 const BARS: Record<'full' | 'short', Record<string, number>> = {
-  full: { 'race-harbour': 3, 'race-meadow': 3, 'race-finale': 4, 'race-frost': 3, 'race-boardwalk': 3 },
-  short: { 'race-harbour': 1, 'race-meadow': 1, 'race-finale': 1, 'race-frost': 1, 'race-boardwalk': 1 },
+  full: { 'race-harbour': 3, 'race-meadow': 3, 'race-finale': 4, 'race-mesa': 3, 'race-frost': 3, 'race-boardwalk': 3 },
+  short: { 'race-harbour': 1, 'race-meadow': 1, 'race-finale': 1, 'race-mesa': 1, 'race-frost': 1, 'race-boardwalk': 1 },
 };
 
 function game(o: BankOpts = {}) {
@@ -182,7 +182,7 @@ beforeAll(() => { g0.addEventListener ??= () => undefined; });
 afterAll(() => { g0.addEventListener = had; });
 
 describe('from the pick to the GO: the course intro\'s music', () => {
-  for (const [track, key] of [['harbour-loop', 'race-harbour'], ['meadow-run', 'race-meadow'], ['canyon-rush', 'race-finale'], ['frostbite-pass', 'race-frost'], ['boardwalk-nights', 'race-boardwalk'], ['skyline-circuit', 'race-finale']] as const) for (const kind of ['full', 'short'] as const) {
+  for (const [track, key] of [['harbour-loop', 'race-harbour'], ['meadow-run', 'race-meadow'], ['canyon-rush', 'race-mesa'], ['frostbite-pass', 'race-frost'], ['boardwalk-nights', 'race-boardwalk'], ['skyline-circuit', 'race-finale']] as const) for (const kind of ['full', 'short'] as const) {
     it(`${track} (${kind} flight): its race song's first bars under the flight, out on a bar line before the first beep; the song from its top on the go`, async () => {
       const flight = kind === 'full' ? FULL : SHORT;
       const g = game();

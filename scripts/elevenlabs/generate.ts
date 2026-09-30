@@ -11,7 +11,7 @@
 // Sounds built from recipes (scripts/sfx/recipes.ts, build.py) are never made here; the manifest lists them too.
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { fileFor, LYRIA_SONGS, SFX, sfxBody, songBody, SONGS, type SfxSpec, type SongSpec } from './catalog.ts';
+import { fileFor, LYRIA_SONGS, PACK_SONGS, SFX, sfxBody, songBody, SONGS, type SfxSpec, type SongSpec } from './catalog.ts';
 import { RECIPES } from '../sfx/recipes.ts';
 
 const ROOT = new URL('../../', import.meta.url);
@@ -119,9 +119,11 @@ async function writeManifest(): Promise<void> {
   for (const s of SONGS) if (existsSync(songPath(s))) music[s.id] = { url: `audio/music/${fileFor(s.id)}`, bpm: s.bpm };
   // the Lyria songs (made outside this script) keep their place and their loop
   for (const s of LYRIA_SONGS) if (existsSync(new URL(`music/${fileFor(s.id)}`, OUT))) music[s.id] = { url: `audio/music/${fileFor(s.id)}`, bpm: s.bpm, loop: s.loop };
+  // the pack songs (built from the two music packs, docs/sops/audio.md): a seamless-loop file wraps at its own ends
+  for (const s of PACK_SONGS) if (existsSync(new URL(`music/${fileFor(s.id)}`, OUT))) music[s.id] = s.loop ? { url: `audio/music/${fileFor(s.id)}`, bpm: s.bpm, loop: [0, s.seconds] } : { url: `audio/music/${fileFor(s.id)}`, bpm: s.bpm };
   await mkdir(OUT, { recursive: true });
   await writeFile(new URL('manifest.json', OUT), `${JSON.stringify({ sfx, music }, null, 1)}\n`);
-  console.log(`manifest: ${Object.keys(sfx).length}/${SFX.length + RECIPES.length} sounds, ${Object.keys(music).length}/${SONGS.length + LYRIA_SONGS.length} songs`);
+  console.log(`manifest: ${Object.keys(sfx).length}/${SFX.length + RECIPES.length} sounds, ${Object.keys(music).length}/${SONGS.length + LYRIA_SONGS.length + PACK_SONGS.length} songs`);
 }
 
 async function main(): Promise<void> {

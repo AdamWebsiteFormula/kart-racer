@@ -9,7 +9,7 @@ import { LoadQueue } from '../performance/loadQueue.ts';
 import MANIFEST from '../../public/audio/manifest.json';
 import { engineCutoff, OFFROAD_BY_TRACK, racerPitch, ROAD_BY_TRACK } from './engine.ts';
 import { PATCHES } from './sfx.ts';
-import { LYRIA_SONGS, MOMENT, REPLACED, SFX, sfxBody, SONG_MOMENT, songBody, SONGS } from '../../scripts/elevenlabs/catalog.ts';
+import { LYRIA_SONGS, MOMENT, PACK_SONGS, REPLACED, SFX, sfxBody, SONG_MOMENT, songBody, SONGS } from '../../scripts/elevenlabs/catalog.ts';
 import { RECIPES } from '../../scripts/sfx/recipes.ts';
 import BUILT from '../../scripts/sfx/built.json';
 
@@ -250,13 +250,13 @@ describe('sample analysis', () => {
 });
 
 describe('music map', () => {
-  it('every track has a race theme, and the cup finales share one (design §11)', () => {
+  it('every track has a race theme, and only Skyline Circuit has the finale (design §11, music packs 30 Sept 2026)', () => {
     const files = import.meta.glob('../track-builder/tracks/*.json', { eager: true, import: 'default' }) as Record<string, { id: string }>;
     const ids = Object.values(files).map((t) => t.id);
     expect(ids.length).toBeGreaterThanOrEqual(6);
     for (const id of ids) expect(RACE_THEME[id], id).toBeDefined();
-    expect(themeForTrack('canyon-rush')).toBe(themeForTrack('skyline-circuit'));
-    expect(new Set(Object.values(RACE_THEME)).size).toBe(5);
+    expect(themeForTrack('canyon-rush')).not.toBe(themeForTrack('skyline-circuit'));
+    expect(new Set(Object.values(RACE_THEME)).size).toBe(6);
     expect(themeForTrack('no-such-track')).toBe('race-harbour');
   });
 
@@ -274,7 +274,10 @@ describe('music map', () => {
 
 describe('no singing and no human voices (Adam, 24 Sept 2026)', () => {
   it('every song asks for no vocals, and every song request forces an instrumental', () => {
-    expect(SONGS.length + LYRIA_SONGS.length).toBeGreaterThanOrEqual(7);
+    expect(SONGS.length + LYRIA_SONGS.length + PACK_SONGS.length).toBeGreaterThanOrEqual(7);
+    // the pack songs are recorded, instrumental tracks from the two packs; every song id has a moment
+    for (const s of PACK_SONGS) { expect(SONG_MOMENT[s.id]?.length, s.id).toBeGreaterThan(20); expect(s.file, s.id).toMatch(/\.wav$/); }
+    expect(new Set(PACK_SONGS.map((x) => x.pack))).toEqual(new Set(['Juanjo Sound', 'Fan Zoo']));
     for (const s of LYRIA_SONGS) {
       expect(s.prompt, s.id).toMatch(/\binstrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops\b/i);
       expect(s.loop[1] - s.loop[0], s.id).toBeGreaterThan(30);

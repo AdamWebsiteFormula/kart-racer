@@ -23,9 +23,9 @@ export interface Cut {
 }
 export interface Sample extends Cut { buffer: AudioBuffer }
 
-/** Music per track (design §11: five race themes; the two cup finales share the orchestral one). */
+/** Music per track (design §11; Canyon Rush has its own song since 30 Sept 2026, Skyline Circuit keeps the finale). */
 export const RACE_THEME: Readonly<Record<string, string>> = Object.freeze({
-  'harbour-loop': 'race-harbour', 'meadow-run': 'race-meadow', 'canyon-rush': 'race-finale',
+  'harbour-loop': 'race-harbour', 'meadow-run': 'race-meadow', 'canyon-rush': 'race-mesa',
   'frostbite-pass': 'race-frost', 'boardwalk-nights': 'race-boardwalk', 'skyline-circuit': 'race-finale',
 });
 export const themeForTrack = (trackId: string): string => RACE_THEME[trackId] ?? 'race-harbour';

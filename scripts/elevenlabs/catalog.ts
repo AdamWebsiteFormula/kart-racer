@@ -223,18 +223,18 @@ export const REPLACED: readonly SfxSpec[] = [
   { id: 'yelp:gus', seconds: 0.7, influence: 0.6, prompt: 'A big walrus calling out in surprise: one short, deep, hoarse honk-bellow, gurgly and blubbery with a wet, rumbling flutter, like a giant sea lion. One call only, friendly and comic. No music, no human voice, no words.' },
 ];
 
-const SONG_TAIL = 'Constant driving energy from the first second, no intro, no fade-out, so it loops. Instrumental, no vocals.';
 
 // design §11: Sunrise Cup = brass/ska, Summit Cup = synth-brass/funk, finale = orchestral pop
 export const SONGS: readonly SongSpec[] = [
-  { id: 'title', seconds: 64, bpm: 128, prompt: 'Title-screen theme for a bright cartoon kart racing video game. Sunny, catchy pop-rock: punchy brass lead melody, funky slap bass, bright electric guitar chops, glockenspiel sparkles, handclaps and driving drums. 128 BPM, G major. Upbeat, heroic and fun. Steady energy the whole way and it ends as it began, so it loops. Instrumental, no vocals.' },
-  // 26 Sept 2026: no Lyria take beat this one twice (both hearings favoured the shipped song); kept unchanged (docs/sops/audio.md)
-  { id: 'race-meadow', seconds: 96, bpm: 146, prompt: `Joyful brass-and-banjo racing music for a countryside cartoon kart race past windmills and meadows. Rolling banjo, a bright brass section lead, fiddle answers, offbeat ska guitar, bouncing bass, stomping drums. 146 BPM, D major. ${SONG_TAIL}` },
-  // 26 Sept 2026: no Lyria take beat this one twice (every take that won its first hearing lost the recheck); kept unchanged (docs/sops/audio.md)
-  { id: 'race-boardwalk', seconds: 96, bpm: 140, prompt: `Neon night-carnival racing music for a cartoon kart race on a seaside boardwalk. Synth-brass stabs, funky synth bass, bright arpeggiated synths, a playful carnival organ hook, disco-funk drums with claps. 140 BPM, A major. Glittering, fun and fast. ${SONG_TAIL}` },
-  // 26 Sept 2026: the shipped song is already strong (CLAP 0.898, judge 8-9 polish on every hearing); no Lyria take clearly beat it; kept unchanged (docs/sops/audio.md)
-  { id: 'race-finale', seconds: 96, bpm: 160, prompt: `Soaring orchestral-pop racing music for the final track of a cartoon kart racing cup. A heroic brass fanfare melody, fast sweeping strings, harp runs, timpani hits, driving rock drums and electric bass. 160 BPM, E-flat major. Epic, triumphant and fun. ${SONG_TAIL}` },
 ];
+// The ElevenLabs songs, all replaced by the two music packs on 30 Sept 2026 (see PACK_SONGS; generate.ts must not remake them):
+// { id: 'title', seconds: 64, bpm: 128, prompt: 'Title-screen theme for a bright cartoon kart racing video game. Sunny, catchy pop-rock: punchy brass lead melody, funky slap bass, bright electric guitar chops, glockenspiel sparkles, handclaps and driving drums. 128 BPM, G major. Upbeat, heroic and fun. Steady energy the whole way and it ends as it began, so it loops. Instrumental, no vocals.' },
+  // 26 Sept 2026: no Lyria take beat this one twice (both hearings favoured the shipped song); kept unchanged (docs/sops/audio.md)
+// { id: 'race-meadow', seconds: 96, bpm: 146, prompt: `Joyful brass-and-banjo racing music for a countryside cartoon kart race past windmills and meadows. Rolling banjo, a bright brass section lead, fiddle answers, offbeat ska guitar, bouncing bass, stomping drums. 146 BPM, D major. ${SONG_TAIL}` },
+  // 26 Sept 2026: no Lyria take beat this one twice (every take that won its first hearing lost the recheck); kept unchanged (docs/sops/audio.md)
+// { id: 'race-boardwalk', seconds: 96, bpm: 140, prompt: `Neon night-carnival racing music for a cartoon kart race on a seaside boardwalk. Synth-brass stabs, funky synth bass, bright arpeggiated synths, a playful carnival organ hook, disco-funk drums with claps. 140 BPM, A major. Glittering, fun and fast. ${SONG_TAIL}` },
+  // 26 Sept 2026: the shipped song is already strong (CLAP 0.898, judge 8-9 polish on every hearing); no Lyria take clearly beat it; kept unchanged (docs/sops/audio.md)
+// { id: 'race-finale', seconds: 96, bpm: 160, prompt: `Soaring orchestral-pop racing music for the final track of a cartoon kart racing cup. A heroic brass fanfare melody, fast sweeping strings, harp runs, timpani hits, driving rock drums and electric bass. 160 BPM, E-flat major. Epic, triumphant and fun. ${SONG_TAIL}` },
 
 /**
  * Songs made with Lyria 3.5, each a blind one-on-one against the ElevenLabs song it replaces (twice,
@@ -250,10 +250,11 @@ export const SONGS: readonly SongSpec[] = [
  * 75 s (32 bars) stretch instead. Asked at 100 BPM, its bars run at 103.
  */
 export const LYRIA_SONGS: readonly LyriaSong[] = [
-  { id: 'race-harbour', model: 'lyria-3.5', seconds: 92, bpm: 150, loop: [12.54, 70.15], prompt: "Race music for the opening track of a bright, premium kart racing video game: a sunny seaside harbor town with piers and a lighthouse. Fast, high-energy ska-funk big band, recorded live in a studio: off-beat upstroke guitar skank, a driving, syncopated electric bass, crisp live drums with fast snare fills and a busy ride cymbal, and a tight horn section (trumpets, trombone, tenor sax) playing a catchy, singable lead melody with punchy stabs and answers. Bright, joyful and confident. 152 BPM, F major, 4/4. The full band plays from the very first beat, no intro. Structure: [0:00-0:30] the main theme on the brass; [0:30-0:45] B section: a sax and trombone counter-melody over walking bass; [0:45-1:00] stop-time horn hits and a drum break that keeps the drive; [1:00-1:30] the main theme returns with high trumpet harmony, and the last bar runs straight back into the first so the track loops. No fade-out, no ending. Modern, polished, punchy mix: wide stereo, tight low end, bright but smooth highs, loud and clean master. Instrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops. No toy or novelty instruments and no sound effects." },
-  { id: 'race-frost', model: 'lyria-3.5', seconds: 96, bpm: 146, loop: [0.2, 85.68], prompt: "Race music for a snowy mountain track in a bright, premium kart racing video game: a frosty alpine village beside a frozen lake. Cool, high-energy funk band, recorded live in a studio: a driving slap electric bass, wah-wah guitar chops, clavinet stabs, tight live drums with crisp hi-hats, sleigh bells and glockenspiel sparkle on top, and a punchy synth-brass section playing a catchy, singable lead melody with sharp stabs and answers. Cool, bouncy and confident. 140 BPM, E major, 4/4. The full band plays from the very first beat, no intro. Structure: [0:00-0:30] the main theme on the synth-brass; [0:30-0:45] B section: a clavinet and wah-guitar counter-melody over the slap bass; [0:45-1:00] stop-time brass hits and a drum break that keeps the drive; [1:00-1:30] the main theme returns with high synth-brass harmony and glockenspiel doubling it, and the last bar runs straight back into the first so the track loops. No fade-out, no ending. Modern, polished, punchy mix: wide stereo, tight low end, bright but smooth highs, loud and clean master. Instrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops. No toy or novelty instruments and no sound effects." },
-  { id: 'results', model: 'lyria-3.5', seconds: 32, bpm: 103, loop: [35.13, 110.25], prompt: "Music for the results screen of a bright, premium kart racing video game: relaxed and cheerful while the standings show. Warm, laid-back funk band, recorded live in a studio: a mellow electric piano comping, a smooth walking electric bass, muted brass accents, light live drums with brushed snare, and finger snaps on the backbeat. Warm, cheerful and confident, never sleepy. 100 BPM, C major, 4/4. The full band plays from the very first beat, no intro. Structure: [0:00-0:16] the main groove on the electric piano and muted brass; [0:16-0:24] a brief bass and brass answer phrase; [0:24-0:32] the groove returns, and the last bar runs straight back into the first so the track loops. No fade-out, no ending. Modern, polished, warm mix: wide stereo, tight low end, smooth highs, clean master. Instrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops. No toy or novelty instruments and no sound effects." },
 ];
+// The Lyria 3.5 songs, replaced by the two music packs on 30 Sept 2026 (see PACK_SONGS):
+// { id: 'race-harbour', model: 'lyria-3.5', seconds: 92, bpm: 150, loop: [12.54, 70.15], prompt: "Race music for the opening track of a bright, premium kart racing video game: a sunny seaside harbor town with piers and a lighthouse. Fast, high-energy ska-funk big band, recorded live in a studio: off-beat upstroke guitar skank, a driving, syncopated electric bass, crisp live drums with fast snare fills and a busy ride cymbal, and a tight horn section (trumpets, trombone, tenor sax) playing a catchy, singable lead melody with punchy stabs and answers. Bright, joyful and confident. 152 BPM, F major, 4/4. The full band plays from the very first beat, no intro. Structure: [0:00-0:30] the main theme on the brass; [0:30-0:45] B section: a sax and trombone counter-melody over walking bass; [0:45-1:00] stop-time horn hits and a drum break that keeps the drive; [1:00-1:30] the main theme returns with high trumpet harmony, and the last bar runs straight back into the first so the track loops. No fade-out, no ending. Modern, polished, punchy mix: wide stereo, tight low end, bright but smooth highs, loud and clean master. Instrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops. No toy or novelty instruments and no sound effects." },
+// { id: 'race-frost', model: 'lyria-3.5', seconds: 96, bpm: 146, loop: [0.2, 85.68], prompt: "Race music for a snowy mountain track in a bright, premium kart racing video game: a frosty alpine village beside a frozen lake. Cool, high-energy funk band, recorded live in a studio: a driving slap electric bass, wah-wah guitar chops, clavinet stabs, tight live drums with crisp hi-hats, sleigh bells and glockenspiel sparkle on top, and a punchy synth-brass section playing a catchy, singable lead melody with sharp stabs and answers. Cool, bouncy and confident. 140 BPM, E major, 4/4. The full band plays from the very first beat, no intro. Structure: [0:00-0:30] the main theme on the synth-brass; [0:30-0:45] B section: a clavinet and wah-guitar counter-melody over the slap bass; [0:45-1:00] stop-time brass hits and a drum break that keeps the drive; [1:00-1:30] the main theme returns with high synth-brass harmony and glockenspiel doubling it, and the last bar runs straight back into the first so the track loops. No fade-out, no ending. Modern, polished, punchy mix: wide stereo, tight low end, bright but smooth highs, loud and clean master. Instrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops. No toy or novelty instruments and no sound effects." },
+// { id: 'results', model: 'lyria-3.5', seconds: 32, bpm: 103, loop: [35.13, 110.25], prompt: "Music for the results screen of a bright, premium kart racing video game: relaxed and cheerful while the standings show. Warm, laid-back funk band, recorded live in a studio: a mellow electric piano comping, a smooth walking electric bass, muted brass accents, light live drums with brushed snare, and finger snaps on the backbeat. Warm, cheerful and confident, never sleepy. 100 BPM, C major, 4/4. The full band plays from the very first beat, no intro. Structure: [0:00-0:16] the main groove on the electric piano and muted brass; [0:16-0:24] a brief bass and brass answer phrase; [0:24-0:32] the groove returns, and the last bar runs straight back into the first so the track loops. No fade-out, no ending. Modern, polished, warm mix: wide stereo, tight low end, smooth highs, clean master. Instrumental only: no vocals of any kind, no singing, humming, shouts or vocal chops. No toy or novelty instruments and no sound effects." },
 // The ElevenLabs songs these replaced:
 // race-harbour (23 Sept 2026, edited 25 Sept):
 // // edited 25 Sept 2026 (not remade): the Demucs vocal stem taken out at 38.35-39.75 s, a cartoon woo-hoo the
@@ -263,6 +264,26 @@ export const LYRIA_SONGS: readonly LyriaSong[] = [
 // { id: 'race-frost', seconds: 96, bpm: 140, prompt: `Funky racing music for a snowy mountain cartoon kart race. A synth-brass lead melody, slap funk bass, clavinet and wah guitar, sleigh bells and glockenspiel, tight punchy drums. 140 BPM, E major. Cool, bouncy and fast. ${SONG_TAIL}` },
 // results (23 Sept 2026):
 // { id: 'results', seconds: 32, bpm: 100, prompt: 'A short happy results-screen loop for a cartoon kart racing game. A relaxed funky groove: electric piano, muted brass accents, bass, finger snaps and light drums. 100 BPM, C major. Warm and cheerful, and it ends as it began, so it loops. Instrumental, no vocals.' },
+
+/**
+ * The game's music since 30 Sept 2026 (Adam's brief and OK in chat): the best tracks of two bought packs, encoded
+ * to 128 kbps MP3 by the build recipe in docs/sops/audio.md. The raw packs live in the private rascal-sfx-source
+ * repo and never go in this public one. Juanjo Sound's terms allow use in video games (no re-upload, remix or
+ * standalone redistribution); Fan Zoo's pack has no licence file and Adam OK'd its use (30 Sept 2026, chat).
+ * `loop` is a file made as a seamless loop, so the wrap is the file's own ends; the others are whole songs whose
+ * loop the engine finds from their bars.
+ */
+export interface PackSong { id: string; pack: 'Juanjo Sound' | 'Fan Zoo'; file: string; seconds: number; bpm: number; loop: boolean }
+export const PACK_SONGS: readonly PackSong[] = [
+  { id: 'race-harbour', pack: 'Juanjo Sound', file: '2 LOOP Festival Day (by juanjo_sound).wav', seconds: 36.46, bpm: 158, loop: true },
+  { id: 'race-meadow', pack: 'Fan Zoo', file: 'Hot Rod Hot.wav', seconds: 93.99, bpm: 143, loop: false },
+  { id: 'race-mesa', pack: 'Juanjo Sound', file: '6 LOOP Canyon Dash (by juanjo_sound).wav', seconds: 42.67, bpm: 135, loop: true },
+  { id: 'race-frost', pack: 'Fan Zoo', file: 'Infinity.wav', seconds: 62.16, bpm: 139, loop: false },
+  { id: 'race-boardwalk', pack: 'Juanjo Sound', file: '7 LOOP Festival Night (by juanjo_sound).wav', seconds: 66.46, bpm: 130, loop: true },
+  { id: 'race-finale', pack: 'Juanjo Sound', file: "1 LOOP Champion's Race (by juanjo_sound).wav", seconds: 41.05, bpm: 144, loop: true },
+  { id: 'title', pack: 'Fan Zoo', file: 'Menu .wav', seconds: 16.0, bpm: 120, loop: true },
+  { id: 'results', pack: 'Juanjo Sound', file: '4 LOOP Standings (by juanjo_sound).wav', seconds: 44.31, bpm: 130, loop: true },
+];
 
 /**
  * Where each sound plays in the game: the brief the ears judge a recording against (scripts/ear
@@ -382,12 +403,13 @@ export const MOMENT: Readonly<Record<string, string>> = Object.freeze({
 
 /** Where each song plays. */
 export const SONG_MOMENT: Readonly<Record<string, string>> = Object.freeze({
-  title: 'The title screen and menus: the first thing a player hears; sunny, catchy and heroic.',
+  title: 'The title screen and menus: the first thing a player hears; bright, punchy and welcoming.',
   'race-harbour': 'Race theme for Harbour Loop (Sunrise Cup opener): a sunny seaside town with piers and a lighthouse.',
-  'race-meadow': 'Race theme for Meadow Run: rolling farmland, windmills and hay bales.',
+  'race-meadow': 'Race theme for Meadow Run: green farmland, windmills and a storm coming; fast and playful with some attitude, rockier than Harbour.',
+  'race-mesa': 'Race theme for Canyon Rush (Mesa Rush): a red-rock desert, rope bridges and a mine; driving bass and drums.',
   'race-frost': 'Race theme for Frostbite Pass: a snowy mountain village and an ice lake.',
   'race-boardwalk': 'Race theme for Boardwalk Nights: a night-time seaside carnival, neon and a Ferris wheel.',
-  'race-finale': 'Race theme for the cup finales, Canyon Rush (red-rock desert, rope bridges, mine) and Skyline Circuit (cloud islands, airships, sky bridges).',
+  'race-finale': 'Race theme for the final course, Skyline Circuit (cloud islands, airships, sky bridges): the highest energy of the set.',
   results: 'The results screen after a race: relaxed and cheerful while the standings show.',
 });
 
