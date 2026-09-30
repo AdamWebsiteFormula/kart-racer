@@ -20,6 +20,7 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.6));
 const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(3, 6, 4); scene.add(sun);
 const grid = new THREE.GridHelper(4, 16, 0x8899aa, 0xaab4c0); scene.add(grid);
 const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 100);
+window.cam = cam; window.grid = grid; // for portrait.mjs (the head's place in the picture)
 window.THREE = THREE; window.info = null; window.root = null; window.bones = {}; window.THREE_V3 = THREE.Vector3; window.SK = THREE.SkeletonHelper;
 window.load = async (url) => {
   const g = await new GLTFLoader().loadAsync(url);
