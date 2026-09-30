@@ -112,7 +112,15 @@ balance. Never print a key; check it exists with `test -n "$HF_API_KEY"`.
    show the driver). The wheels should become code-built sporty wheels (low-profile slicks on alloy rims in the
    racer's accent) since the current wheels are fat toy tires; not started. This is several hours of careful work:
    if it cannot be finished well today, ship nothing of it (the current karts stay) rather than half-fitted karts.
-4. **Characters redesign (Adam, 30 Sept, for AFTER the karts and music):** "make them a little less cartoony and more cool,
+4. **Characters TWEAK (Adam, 30 Sept, wants it TODAY, after the karts and music):** "cool means sleeker outfits, sharper
+   faces, sporty gear, less round and chunky. I want the characters to just be tweaked, not redesigned from the ground up."
+   Plan: (1) concept images by EDITING each racer's existing A-pose image (JOBS.md "char img" column: same species, colors,
+   face identity, silhouette family; sleeker outfit, sharper features, sporty gear, slimmer, less round), gpt_image_2_5,
+   about 0.5 credit each; show Adam all eight for a pick. (2) Meshy v7 textured+a-pose+rigged 3D for the picked ones (about
+   44 credits each per the 25 Sept ledger; about 5 fit in tonight's credits after the karts; the rest cost about $3 each
+   later at plan rates). Submit BEFORE 23:59 UTC. (3) Fit each (scripts/models/fit, poses.json, faces, seating). All eight
+   must match in style: do NOT ship a half-old, half-new cast; if fewer than eight are fitted today, ship none of them.
+   Earlier note on this task: "make them a little less cartoony and more cool,
    matching the vibe of the game". Big: eight rigged drivers (Meshy v7 auto-rig, about 44 credits each = about 350, more
    than the 270 bonus credits that expire tonight) plus refits (poses.json, faces, seating). Cheap first step, if usage
    allows today: concept images only (gpt_image_2_5, about 0.5 each), shown to Adam for a pick; do NOT start 3D drivers
