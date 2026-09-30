@@ -67,7 +67,7 @@
 .tile.focused, .tile:focus-visible {
   z-index: 2;
   transform: translateY(-6px) scale(1.06);
-  box-shadow: inset 0 0 0 3px #fff, 0 0 0 5px var(--sun), 0 0 0 9px var(--ink), 0 0 38px 12px rgb(255 196 48 / 0.62), 0 18px 26px rgb(10 12 36 / 0.42);
+  box-shadow: inset 0 0 0 3px #fff, 0 0 0 5px var(--sun), 0 0 0 9px var(--ink), 0 0 38px 12px rgb(57 255 20 / 0.62), 0 18px 26px rgb(10 12 36 / 0.42);
 }
 .tile.focused::before {
   content: '';
@@ -229,7 +229,7 @@
 .select-side .btn.pick.focused, .select-side .btn.pick:focus-visible {
   background: linear-gradient(180deg, rgb(40 46 96 / 0.92), rgb(22 26 60 / 0.92));
   transform: translateY(-3px) scale(1.05);
-  box-shadow: inset 0 0 0 3px #fff, 0 0 0 4px var(--sun), 0 0 0 7px var(--ink), 0 0 28px 8px rgb(255 210 63 / 0.5);
+  box-shadow: inset 0 0 0 3px #fff, 0 0 0 4px var(--sun), 0 0 0 7px var(--ink), 0 0 28px 8px rgb(57 255 20 / 0.5);
 }
 .select-side .pick-wrap { align-items: center; }
 .select-side .pick-hint { text-align: center; padding: 4px 12px 5px; border-radius: 999px; background: rgb(14 16 38 / 0.62); }
@@ -352,7 +352,7 @@
   .roster.select-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); max-width: none; }
   .kart-grid.select-grid { max-width: none; }
   .tile { border-radius: 12px; }
-  .tile.focused, .tile:focus-visible { transform: scale(1.05); box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 14px 4px rgb(255 210 63 / 0.55); }
+  .tile.focused, .tile:focus-visible { transform: scale(1.05); box-shadow: inset 0 0 0 2px #fff, 0 0 0 3px var(--sun), 0 0 0 5px var(--ink), 0 0 14px 4px rgb(57 255 20 / 0.55); }
   .kc-hint { font-size: 9.5px; bottom: 3px; left: 3px; right: 3px; }
   .kc-chosen { width: 18px; height: 18px; top: 4px; right: 4px; border-width: 2px; font-size: 10px; box-shadow: 0 2px 0 var(--ink); }
   .kc-stamp { top: 18%; padding: 3px 7px 4px; font-size: 13px; }

@@ -74,7 +74,7 @@ describe('the house type: Mona Sans (Adam picked it on 28 Sept 2026)', () => {
     const css = read('src/ui-hud/ui.css');
     expect(css).toMatch(/--display: 'Mona Sans',/);
     expect(css).toMatch(/--body: 'Mona Sans',/);
-    expect(css).toMatch(/--keyline: #141a45;/);
+    expect(css).toMatch(/--keyline: #050607;/); // black since FlowKart (30 Sept 2026: neon green on black)
     expect(css).toMatch(/--lift: /);
     // the shared type class is the display voice: italic, heavy, a little wide, lifted
     const display = rules(css).find((r) => r.sel.includes('.display'))!;
