@@ -139,3 +139,11 @@ Adam, 30 Sept: "The Walrus's ride should look like a mobster vehicle".
 | otto | f87a2f70-7175-40ec-8e3e-a22ad33b6049 (black recolor) | - | not used (Gus's kart is black) |
 | otto | 5d5cbacc-312d-4b87-a0dc-df5b71f1c14f (midnight blue, red pinstripes) | 4b4b8bba-97ef-4887-a7af-1320f5271908 | the one to fit |
 | gus | d4df875f-d08d-4b6d-a068-ef5c6c6a484f (1930s mobster roadster, black and red) | a4e41ac9-8ef0-485c-8a50-56627549d9fc | replaces the food-truck body 2e108f60 |
+| otto | 8f7c362d-4702-4644-a5b6-b47671c0f94f (cobalt, NO pinstripes: Adam, 30 Sept) | 2a56fcfb-ae1d-453e-9ef0-633769004e38 | the one to fit (replaces 4b4b8bba) |
+| otto | 9ff0c9bf-bdae-4710-b3f5-d50aa4a30b77 (near-navy darkening) | - | not used: Adam, "the cobalt is fine if it matches the character's clothes" |
+
+Fitted (30 Sept): all eight bodies in public/models/racers/<id>/body.glb (about 7.5k triangles each, one material, webp
+1024) with code-built wheels (wheelgen.mjs, about 1.8k triangles), fits in scripts/models/fit/fit-sleek.json (the working
+copy of the manifest entries). New tools: measure.mjs (gridded side/front/top views), probe.mjs (height profiles),
+wheelgen.mjs. Trims and shoulder lines retuned so every driver shows (src/game/driverView.test.ts, 64 pairs).
+The drivers are still the old ones: the eight new Meshy drivers are the next step.
