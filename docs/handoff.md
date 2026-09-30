@@ -58,6 +58,20 @@ job ledger. Ship = fast-forward main to the branch after `npm run verify`, with 
    provenance extended for licensed tracks (as scripts/sfx did for the packs: see provenance.test.ts NEW_PACKS),
    and CREDITS.md rows for Juanjo Sound and Fan Zoo (new rows only; never edit a licence). Measure bpm and loop
    seams; listen is Adam's job (no sound ever plays on his machine: ?mute, headless --mute-audio).
+   **The packs are UP (30 Sept, 09:5x UTC)** in rascal-sfx-source (commit abdb7cd), with these exact files:
+   `packs/Kart_Racer__by_juanjo_sound_/` (terms in "Term of Use (Read Me).txt": games OK; no re-upload, remix
+   or redistribution as your own, no streaming services, no content ID; "I did not use AI"): full takes and LOOP
+   versions, lengths in seconds: "1 Champion's Race (by juanjo_sound).wav" 85.9 / "1 LOOP Champion's Race ..." 41.1;
+   "2 Festival Day ..." 73.1 / "2 LOOP Festival Day ..." 36.5; "3 Loading 1 ..." 66.0 / "3 LOOP Loading 1 ..." 28.4;
+   "4 Standings ..." 88.8 / "4 LOOP Standings ..." 44.3; "5 Loading 2 ..." 63.0 / "5 LOOP Loading 2 ..." 55.4;
+   "6 Canyon Dash ..." 85.6 / "6 LOOP Canyon Dash ..." 42.7; "7 Festival Night ..." 74.9 / "7 LOOP Festival Night ..."
+   66.5; "8 Event Finished ..." 93.5 / "8 LOOP Event Finished ..." 46.7 (every name ends " (by juanjo_sound).wav").
+   `packs/RacingMusicPack/` (Fan Zoo; NO licence file in the zip: check the pack's own page before shipping):
+   "Fast is fast.wav" 81.7, "Hot Rod Hot.wav" 94.0, "Infinity.wav" 62.2, "Night Rockus.wav" 54.9,
+   "No shortcut .wav" 101.9 (note the space before .wav), "Panama.wav" 84.7, "Trigger.wav" 78.9 (the seven racing
+   tracks by elimination; confirm by listening-free measurement that each loops), "Menu .wav" 16.0 (space before
+   .wav), "Podium.wav" 10.0, "Credits.wav" 38.9, and "Racing Sample TRACK.wav" 102.5 (not one of Adam's ten: likely
+   the pack's demo; do not use without asking). Nothing measured yet (bpm, loop seams, loudness).
 3. **Sleek new kart bodies** (Adam: "The karts all look too cartoony", chose option A, "Those concepts look good").
    Ledger: scripts/models/fit/JOBS.md round 4. Tripo H3.1 bodies DONE (GLB at
    https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260930_<time>_<job>.glb):
