@@ -94,8 +94,8 @@ sign in) and the API only for images. Never print a key; check the secrets exist
    pip 092920_a892b49a-3a2d-4135-8d85-06d01a471731, nova 092923_927f39ef-29b9-4f2d-964f-543df5420b4c,
    juniper 092925_548c18c7-2f5a-4f87-9fa2-2c4a8af09944, sprocket 092937_42afdd05-ad27-4e5f-8aec-02a95a46f52c,
    boulder 092940_d675e3c2-5b4a-4793-b5bb-b743b89e645f, gus 092942_2e108f60-2996-4d9e-8345-7c84cb644187;
-   otto: first job failed (refunded), retry 61ef1936-3d00-47ab-a754-ff7e243b11ea running (find its URL with the
-   Higgsfield jobs tools); momo: waits for 9 credits (Tripo from wheel-less image f443e9fa-ff4a-4b09-a5c6-77b1aea0786b,
+   otto: TWO Tripo jobs FAILED on the same wheel-less image 531b3cf3 (fc5bba5d, retry 61ef1936; both refunded):
+   make a new wheel-less image from Otto's concept e479b375 (or try the concept itself) before spending 9 again; momo: waits for 9 credits (Tripo from wheel-less image f443e9fa-ff4a-4b09-a5c6-77b1aea0786b,
    standard texture and geometry, PBR). Then per kart: scripts/models/fit/README.md (intake.mjs, check.mjs, the
    viewer's fits): face it (yaw), find its seat, grips, feet, steering wheel, exhaust ports and the four wheel hubs,
    write its public/models/racers/manifest.json `body` entry (keep driver and wheel), `bash
