@@ -21,7 +21,10 @@ job ledger. Ship = fast-forward main to the branch after `npm run verify`, with 
 - Supabase connector only if score code changes (it did not in this work: no CLIENT_VERSION bump, no fn redeploy).
 - The ElevenLabs, Gemini and Freesound keys are only in the Mac's .env.local (not needed for the tasks below).
 
-### Higgsfield by API key (Adam chose this, 30 Sept: "Let's just use the key method. It gives a lot of free credits.")
+### Higgsfield: USE THE CONNECTOR; the API key is OPTIONAL (Adam, 30 Sept, later: he does not have a key or secret and does not know how to make one)
+Route for the kart 3D jobs: the Higgsfield connector on the account (custom connector, name Higgsfield, URL
+https://mcp.higgsfield.ai/mcp; Adam signs in). Do not wait for API keys. If Adam does make one later, the notes below apply.
+### Higgsfield by API key (Adam first chose this, 30 Sept: "Let's just use the key method. It gives a lot of free credits.")
 Adam makes the key at https://console.higgsfield.ai (a public key id and a private secret; docs: docs.higgsfield.ai,
 base URL api.higgsfield.ai; pay-as-you-go in US dollars, separate from the connector's credits). He puts them in the
 cloud environment as secrets, NEVER in chat: at claude.ai/code click the cloud icon (the environment's name) above the
