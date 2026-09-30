@@ -16,7 +16,7 @@ export default async function ({ ev, save, R, args }) {
   for (const id of ids) {
     const b64 = await ev(`(async () => {
       const THREE = window.THREE;
-      const { mergeGeometries } = await import('three/addons/utils/BufferGeometryUtils.js');
+      const { mergeGeometries, mergeVertices } = await import('three/addons/utils/BufferGeometryUtils.js');
       const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
       // the swatches, 4 x 4 cells of 16 px: 0 rubber, 1 alloy, 2 dark barrel, 3 accent, 4 rubber shoulder
       const cols = ['#161618', '#c9ced6', '#34373c', '${ACCENT[id]}', '#26262a'];
@@ -51,7 +51,7 @@ export default async function ({ ev, save, R, args }) {
       parts.push(paint(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 24).translate(0, W - 0.02, 0), 3));
       // the inner face (toward the car): a dark disc so the wheel never reads hollow
       parts.push(paint(new THREE.CircleGeometry(RIM, 40).rotateX(Math.PI / 2).translate(0, -W + 0.02, 0), 2));
-      const geo = mergeGeometries(parts); geo.rotateZ(-Math.PI / 2);
+      const geo = mergeVertices(mergeGeometries(parts)); geo.rotateZ(-Math.PI / 2); // indexed, as the game's triangle budget counts it
       const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
       const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0.2 }));
       mesh.name = 'wheel';
