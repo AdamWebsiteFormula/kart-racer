@@ -252,8 +252,8 @@ describe('racer faces (25 Sept 2026)', () => {
       expect(size).toBe(Math.round(FACE_ZOOM * 100));
       for (const p of [x, y]) { expect(p, c.id).toBeGreaterThanOrEqual(0); expect(p, c.id).toBeLessThanOrEqual(100); }
     }
-    // Pip's head at 0.45 across, 0.22 down: position p = (0.45 × 2.8 − 0.5) / 1.8 across
-    expect(faceCrop('pip')).toBe('42.2% 6.4% / 280%');
+    // Pip's head at 0.5 across, 0.23 down (the rendered portraits, 30 Sept 2026): position p = (0.5 × 2.8 − 0.5) / 1.8 across
+    expect(faceCrop('pip')).toBe('50.0% 8.0% / 280%');
     // an id with no head measured gets the middle top, not a broken rule
     expect(faceCrop('nobody')).toMatch(/^50\.0% /);
   });
