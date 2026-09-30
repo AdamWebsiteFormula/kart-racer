@@ -93,7 +93,7 @@ function bank(ctx: () => FakeCtx, o: BankOpts = {}) {
   const pending = new Map<string, (s: Sample) => void>();
   const b = {
     onLoaded: null, onManifest: null, load: async () => undefined, loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined,
-    readyIn: () => Infinity, get: (id: string) => (id === 'pick' && o.pick ? PICK : undefined),
+    readyIn: () => Infinity, bed: async () => undefined, get: (id: string) => (id === 'pick' && o.pick ? PICK : undefined),
     hasSong: (k: string) => k in all, isReady: (k: string) => k in all && !(o.landAfter && k in o.landAfter),
     song: (_c: unknown, k: string) => {
       asked.push(k);

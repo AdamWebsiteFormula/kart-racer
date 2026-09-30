@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AUDIO } from './constants.ts';
 import { direct, resetDirector, type Listener } from './director.ts';
 import {
-  bakeLoop, bandRate, bandWeights, barLength, cutIntro, cutSfx, cutSong, ENGINE_BANDS, envelope, FANFARE_SECONDS, kWeight, leadIn, LEVELS, levelGain, loopPhase, loopPoints, meanRms,
+  ambienceId, bakeLoop, bandRate, bandWeights, barLength, cutIntro, cutSfx, cutSong, ENGINE_BANDS, envelope, FANFARE_SECONDS, kWeight, leadIn, LEVELS, levelGain, loopPhase, loopPoints, meanRms,
   evenLoop, cutDb, mixDb, mixLevel, onset, onsets, peakRms, peakSafe, RACE_THEME, removeDc, samplePeak, SampleBank, SFX_TIERS, sfxTier, shapeEdges, SONG_AHEAD_TIER, SONG_TIER, songLevel, SongPlayer, STING_SECONDS, themeForTrack, TIGHT, type Sample,
 } from './samples.ts';
 import { LoadQueue } from '../performance/loadQueue.ts';
@@ -420,6 +420,32 @@ describe('sample bank', () => {
     expect(await bank.song(ctx, 'nope')).toBeNull();
     // a loop's wrap is baked seamless and its loop points set
     expect(bank.get('engine-mid')!.loopEnd).toBeCloseTo(0.1, 6);
+  });
+
+  it('a course\'s bed (amb-<trackId>) never comes down with the sound effects: only its own course\'s, when its race is built, and one is kept', async () => {
+    const sfx = { go: { url: 'audio/sfx/go.mp3' }, 'amb-harbour-loop': { url: 'audio/sfx/amb-harbour-loop.mp3', loop: true }, 'amb-meadow-run': { url: 'audio/sfx/amb-meadow-run.mp3', loop: true } };
+    const fetched: string[] = [];
+    const f = (async (u: string) => {
+      fetched.push(String(u));
+      return { ok: true, json: async () => ({ sfx, music: {} }), arrayBuffer: async () => new ArrayBuffer(8) };
+    }) as unknown as typeof fetch;
+    const d = Float32Array.from({ length: 8000 }, (_, i) => 0.2 * Math.sin(i / 3));
+    const ctx = { decodeAudioData: async () => ({ duration: 1, sampleRate: 8000, numberOfChannels: 1, getChannelData: () => d.slice() }) as unknown as AudioBuffer } as unknown as BaseAudioContext;
+    const bank = new SampleBank('/', f);
+    await bank.load(ctx);
+    expect(fetched.filter((u) => u.includes('amb-')), 'no bed at the start').toEqual([]);
+    expect(bank.get('go')).toBeDefined();
+    await bank.bed(ctx, 'harbour-loop');
+    expect(bank.get(ambienceId('harbour-loop'))?.loopEnd, 'a loop').toBeDefined();
+    expect(fetched.filter((u) => u.includes('amb-'))).toEqual(['/audio/sfx/amb-harbour-loop.mp3']);
+    await bank.bed(ctx, 'harbour-loop');
+    expect(fetched.filter((u) => u.includes('amb-')).length, 'kept, not fetched again').toBe(1);
+    await bank.bed(ctx, 'meadow-run');
+    expect([bank.get('amb-harbour-loop'), !!bank.get('amb-meadow-run')]).toEqual([undefined, true]);
+    // a course the manifest has no bed for: nothing asked, nothing kept
+    await bank.bed(ctx, 'skyline-circuit');
+    expect(fetched.some((u) => u.includes('skyline'))).toBe(false);
+    expect(bank.get('amb-meadow-run')).toBeUndefined();
   });
 
   it('a course\'s intro piece (intro:<trackId>) decodes as a one-shot and is kept apart from the race songs', async () => {

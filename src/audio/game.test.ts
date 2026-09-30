@@ -52,7 +52,7 @@ class FakeCtx {
  * A fake bank's voice side: no lines recorded (a test that wants some gives its own); and no recording due soon
  * (readyIn: a test of the wait for one gives its own), so a recording not decoded has the synth stand in.
  */
-const NO_VOICES = { loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined, readyIn: () => Infinity };
+const NO_VOICES = { loadVoices: async () => undefined, voiceCount: () => 0, voiceLine: () => undefined, readyIn: () => Infinity, bed: async () => undefined };
 
 const SONG: Sample = { buffer: { duration: 40 } as AudioBuffer, start: 0.5, end: 32.5, gain: 1 };
 /** The recorded race and results songs, or none (the synth plays). */
@@ -454,15 +454,17 @@ describe('the sounds on the bus', () => {
 
 describe('the wheels and sparks under the recorded engine', () => {
   const S = (d: number): Sample => ({ buffer: { duration: d } as AudioBuffer, start: 0.03, end: d, loopStart: 0.03, loopEnd: d, gain: 1 });
-  const ENGINE = S(4), WOOD = S(3), SAND = S(3.1), SPARKS = S(2.9);
+  const ENGINE = S(4), WOOD = S(3), SAND = S(3.1), SPARKS = S(2.9), SEA = S(24);
   function rig(track: string) {
     const lib: Record<string, Sample> = { 'engine-idle': ENGINE, 'engine-mid': ENGINE, 'engine-high': ENGINE, 'road-wood': WOOD, 'offroad-sand': SAND, offroad: SAND, sparks: SPARKS };
-    const b = { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: (id: string) => lib[id], hasSong: () => false, song: async () => null } as unknown as SampleBank;
+    const beds: string[] = [];
+    // the course's bed comes down when its race is built (bank.bed); only the harbour has one here
+    const b = { ...NO_VOICES, onLoaded: null, load: async () => undefined, get: (id: string) => lib[id] ?? (id === 'amb-harbour-loop' && beds.includes('harbour-loop') ? SEA : undefined), bed: async (_c: unknown, t: string) => { beds.push(t); }, hasSong: () => false, song: async () => null } as unknown as SampleBank;
     const bus = new AudioBus(FakeCtx as unknown as new () => AudioContext);
     const audio = new GameAudio(bus, b);
     bus.unlock();
     audio.newRace('raceSunrise', track);
-    return { audio, ctx: FakeCtx.last };
+    return { audio, ctx: FakeCtx.last, beds };
   }
   const kart = () => { const k = createKartState({ racerId: 'pip' }); k.speed = 20; k.grounded = true; return k; };
   const of = (ctx: FakeCtx, s: Sample) => ctx.sources.filter((x) => x.buffer === s.buffer);
@@ -483,6 +485,19 @@ describe('the wheels and sparks under the recorded engine', () => {
     h.surface = 'dirt';
     harbour.audio.engines(h, 1, 25, [h], L, true);
     expect(of(harbour.ctx, SAND)).toHaveLength(1);
+  });
+
+  it('the course\'s own bed plays quietly under the race when it has one, asked for when the race is built; none elsewhere', () => {
+    const harbour = rig('harbour-loop');
+    expect(harbour.beds).toEqual(['harbour-loop']);
+    const k = kart();
+    harbour.audio.engines(k, 1, 25, [k], L, true);
+    harbour.audio.engines(k, 1, 25, [k], L, true);
+    expect(of(harbour.ctx, SEA)).toHaveLength(1); // started once, then kept
+    const sky = rig('skyline-circuit');
+    const s = kart();
+    sky.audio.engines(s, 1, 25, [s], L, true);
+    expect(of(sky.ctx, SEA)).toHaveLength(0);
   });
 
   it('the sparks start at the first tier and climb in pitch with each', () => {

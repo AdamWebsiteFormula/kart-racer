@@ -16,15 +16,51 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 APPROVED = os.path.join(HERE, 'approved.ts')
 CATALOG = os.path.join(ROOT, 'scripts', 'elevenlabs', 'catalog.ts')
+MANIFEST = os.path.join(ROOT, 'public', 'audio', 'manifest.json')
+CREDITS = os.path.join(ROOT, 'CREDITS.md')
+# a new row for each free pack the first time a sound Adam passes draws on it (licences read 29 Sept 2026 from each
+# pack's own licence file, or its page for the two with none: muted.io/performance-cars, lentikula.itch.io)
+PACK_ROWS = [
+    (r'^Sonniss', 'Sonniss', "| Sound effect layers: the Sonniss #GameAudioGDC 2026 bundle (SoundBits, Epic Stock Media, Cinematic Sound Design, 344 Audio, Just Sound Effects, InMotionAudio, CB Sounddesign, David Dumais Audio) | Sonniss and the bundle's sound designers | Sonniss #GameAudioGDC bundle license: royalty-free, no attribution required |"),
+    (r'^99', '99Sounds', "| Sound effect layers: 99 Sound Effects, Sci-Fi Sound Effects (Rescopic Sound), Electromagnetic Fields and Sound Design Tools (Gavin Thibodeau, aka Embra), from 99Sounds | 99Sounds and its sound designers | 99Sounds license: royalty-free, no attribution required |"),
+    (r'NOX_SOUND', 'Nox Sound', "| Sound effect layers: the Essentials series (footsteps, the Iceland sea) | Nox Sound | CC0 1.0 (public domain) |"),
+    (r'Spell_Impacts', 'Lentikula', "| Sound effect layers: Basic Spell Impacts, Druid Spell Impacts | Lentikula | CC0 1.0 (public domain) |"),
+    (r'mutedio', 'Muted.io', "| Sound effect layers: the Performance Cars sample pack | Muted.io | CC0 1.0 (public domain) |"),
+]
 
 
 def candidates():
-    ids = set()
+    """Every candidate recipe by id."""
+    found = {}
     for f in sorted(os.listdir(HERE)):
         if f.startswith('cands-') and f.endswith('.ts'):
             out = subprocess.run(['node', os.path.join(HERE, 'recipes-json.ts'), os.path.join(HERE, f)], capture_output=True, text=True, check=True).stdout
-            ids |= {json.loads(line)['id'] for line in out.splitlines() if line.strip()}
-    return ids
+            for line in out.splitlines():
+                if line.strip():
+                    r = json.loads(line)
+                    found[r['id']] = json.loads(r['json'])
+    return found
+
+
+def list_new(recipes):
+    """A sound the game never had (a course's bed): into the manifest, and its moment (where it plays) into the
+    catalog's MOMENT, which the provenance test asks of every recipe. Returns the ids added."""
+    manifest = json.load(open(MANIFEST))
+    new = [r for r in recipes if r['id'] not in manifest['sfx']]
+    if not new:
+        return []
+    for r in new:
+        manifest['sfx'][r['id']] = {'url': f"audio/sfx/{r['id']}.mp3", **({'loop': True} if r.get('loop') else {})}
+    open(MANIFEST, 'w').write(json.dumps(manifest, indent=1) + '\n')
+    # the credits' count of the game's sounds (the Credits screen shows it; ui-hud screens.test holds it to the manifest)
+    text = open(CREDITS).read()
+    open(CREDITS, 'w').write(re.sub(r'Sound effects: \d+ original sounds', f"Sound effects: {len(manifest['sfx'])} original sounds", text, count=1))
+    src = open(CATALOG).read()
+    start = src.index('export const MOMENT')
+    close = src.index('\n});', start)
+    lines = ''.join(f"\n  {json.dumps(r['id'])}: {json.dumps(r['brief'])}," for r in new if f"'{r['id']}'" not in src[start:close] and f'"{r["id"]}"' not in src[start:close])
+    open(CATALOG, 'w').write(src[:close] + lines + src[close:])
+    return [r['id'] for r in new]
 
 
 def read_approved():
@@ -65,6 +101,18 @@ def retire(ids, verdict):
     return [i for i, _ in moved]
 
 
+def credit(recipes):
+    """A new CREDITS.md row, under the sound rows, for each pack these recipes draw on that it does not name yet."""
+    packs = {l['src']['pack'] for r in recipes for l in r['layers'] if 'pack' in l['src']}
+    text = open(CREDITS).read()
+    rows = [row for pat, name, row in PACK_ROWS if name not in text and any(re.search(pat, p) for p in packs)]
+    if rows:
+        anchor = text.index('| Sound effect layers: glockenspiel')
+        end = text.index('\n', anchor) + 1
+        open(CREDITS, 'w').write(text[:end] + ''.join(r + '\n' for r in rows) + text[end:])
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--verdict', required=True, help="Adam's words, dated: why each replaced what shipped")
@@ -73,7 +121,7 @@ def main():
     if len(a.verdict) <= 20:
         sys.exit('the verdict must say who, when and what (over 20 characters: the provenance test asks it of every recipe)')
     have = candidates()
-    missing = [i for i in a.ids if i not in have]
+    missing = [i for i in a.ids if i not in have]  # (have: id -> recipe)
     if missing:
         sys.exit(f'no candidate for: {", ".join(missing)}')
     entries = read_approved()
@@ -81,8 +129,12 @@ def main():
         entries[i] = a.verdict
     write_approved(entries)
     moved = retire(set(a.ids), a.verdict)
+    added = list_new([have[i] for i in a.ids])
+    rows = credit([have[i] for i in a.ids])
     print(f'approved {len(a.ids)}: {" ".join(a.ids)}')
+    print(f'new to the game (manifest and MOMENT): {" ".join(added) or "none"}')
     print(f'ElevenLabs prompts moved to REPLACED: {" ".join(moved) or "none"}')
+    print(f'CREDITS.md rows added: {len(rows)}')
     print(f'next: RASCAL_SFX_PACKS=<rascal-sfx-source>/packs python3 scripts/sfx/build.py {" ".join(a.ids)}')
 
 

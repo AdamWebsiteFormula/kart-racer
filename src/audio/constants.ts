@@ -74,6 +74,8 @@ export const AUDIO = Object.freeze({
   wheels: Object.freeze({ offroad: 0.35, 'offroad-sand': 0.35, 'offroad-snow': 0.4, 'road-ice': 0.25, 'road-wood': 0.12, 'rail-grind': 0.3 } as Record<string, number>),
   /** the drift sparks' crackle (engine.ts sparkLayer): its level, and its share of that per spark tier */
   sparks: Object.freeze({ level: 0.35, tiers: Object.freeze([0.5, 0.75, 1]) }),
+  /** the course's own quiet bed of its world (waves, wind, birds: Adam, 28 Sept 2026), under the engines: the manifest's `amb-<trackId>` (samples.ts ambienceId), when it has one */
+  ambience: 0.2,
   /** the pause menu: the music drops to this share of its level behind this low-pass (Hz), over `seconds` */
   pause: Object.freeze({ music: 0.3, hz: 1200, seconds: 0.15 }),
   /** the race song fades this fast when the player crosses the line, so the finish sting plays alone */

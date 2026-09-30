@@ -2,6 +2,29 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
+## 29-30 Sept 2026: the sound overhaul, 78 candidates waiting on Adam's ears (read this first)
+
+Adam: "The existing sounds on the game are super cheap. I need a complete sound effects overhaul." Free packs only
+(the $19 SilverPlatter Go Karts pack only if the drift or engines sound cheap to him). His packs are in the PRIVATE repo
+AdamWebsiteFormula/rascal-sfx-source (7.6 GB, uploaded by scripts/upload-sfx-packs.sh from his Mac; never copy a raw
+file into this public repo). Candidates, all on branch claude/tender-cray-km9jt6: scripts/sfx/cands-items.ts (01-21),
+cands-engine.ts (22b), cands-drive.ts (23-28), cands-boost.ts (29-40), cands-ui.ts (41-55), cands-ambience.ts (56-61:
+a quiet loop per course, request #11), cands-world.ts (62-78: surfaces and hazards). Adam got an old-then-new mp3 of
+each (numbered as above; made in the session's .review/, not in git). Not done: fanfares (GO's chord, final lap, finish,
+knockout: the music lab's), whaleSong, tailSlap, horns and yelps (voices: left alone).
+
+**To install what Adam passes** (his "yes" per number): `python3 scripts/sfx/approve.py --verdict "Adam, <date>, by
+ear: <his words>" <ids>` (records the verdict in approved.ts, where recipes.ts takes each candidate in its id's place;
+moves an ElevenLabs prompt to REPLACED; lists a new sound (a course loop) in the manifest and MOMENT; adds the CREDITS
+row of each pack first used and the sound count), then `RASCAL_SFX_PACKS=<clone of rascal-sfx-source>/packs python3
+scripts/sfx/build.py <ids>`, then the full gate. Dry-run on a throwaway worktree 30 Sept: 595 audio and UI tests green.
+Then fix by hand the CREDITS "Sound effects: N original sounds ... made with ElevenLabs" row's words (the count is kept)
+and docs/contest-entry.md if it says every sound is ElevenLabs'. Ship only with Adam's OK.
+
+**Course loops:** the game now plays the manifest's `amb-<trackId>` quietly under a race when it lists one
+(samples.ts SampleBank.bed: only the raced course's is fetched and kept, never at the start; audio.ts, AUDIO.ambience
+0.2). None is listed yet, so nothing plays until Adam passes 56-61.
+
 ## 29 Sept 2026, 14:00 EDT: the Mac's work is LIVE (main 174e970, Deploy run 154 green, submit-score v23 probed) (read this first)
 
 Shipped with Adam's OK ("Yes, ship it"): the live bundle (index-BNXb1bzu.js) carries the new item names, the voice cut and CLIENT_VERSION 10; submit-score v23 imports core-ea7dc08e377167ec pinned at 9ffc6c0 (jsDelivr's copy checked byte for byte); the probe: a v9 post 400 "please reload the game: new version", a never-finishing v10 log 422 "the replay never reached the finish line". The item pictures were re-rendered in the cloud (the Mac never had). What follows is how it was merged.

@@ -477,6 +477,11 @@ const TIER_OF: ReadonlyMap<string, number> = new Map(SFX_TIERS.flatMap((ids, tie
  * A sound effect's turn (SFX_TIERS): the hit yelps go with the hits, the pick's sting (AUDIO.sting.id, the music lab's
  * when the manifest names it) with the menus' clicks, everything unlisted last.
  */
+/** A course's bed of its own world in the manifest's sfx (28 Sept 2026, Adam: quiet sounds for each course, "waves,
+ *  wind, birds", no voices). Long loops, so only the course being raced is fetched and kept (SampleBank.bed), never at
+ *  the start with every other sound. */
+export const ambienceId = (trackId: string): string => `amb-${trackId}`;
+export const isAmbience = (id: string): boolean => id.startsWith('amb-');
 export const sfxTier = (id: string): number => TIER_OF.get(id) ?? (id.startsWith('yelp:') ? 2 : id === AUDIO.sting.id ? 0 : SFX_TIERS.length);
 /** The turn a song is fetched at: one is only asked for when it is wanted now (the title on the first key press, a race's as it loads). */
 export const SONG_TIER = 0;
@@ -525,6 +530,8 @@ export class SampleBank {
   /** the manifest's fetch, once (no audio context needed) */
   private listing: Promise<Manifest | null> | null = null;
   private readonly sfx = new Map<string, Sample>();
+  /** the course whose bed was asked for last (bed) */
+  private bedWant = '';
   private readonly songs = new Map<string, Promise<Sample | null>>();
   /** each song's file by key, fetched once; a decode takes the bytes (it detaches them), so a song decoded is dropped here */
   private readonly files = new Map<string, Promise<ArrayBuffer | null>>();
@@ -575,7 +582,7 @@ export class SampleBank {
       const manifest = await this.list();
       if (!manifest) return;
       // asked for in turn order (a stable sort: the manifest's order within a turn)
-      const ids = Object.keys(manifest.sfx).sort((a, b) => sfxTier(a) - sfxTier(b));
+      const ids = Object.keys(manifest.sfx).filter((id) => !isAmbience(id)).sort((a, b) => sfxTier(a) - sfxTier(b));
       await Promise.all(ids.map(async (id) => {
         const m = manifest.sfx[id];
         const b = await this.decode(ctx, m.url, sfxTier(id));
@@ -670,6 +677,24 @@ export class SampleBank {
   fetched(key: string): boolean { return this.inHand.has(key) || this.ready.has(key); }
 
   get(id: string): Sample | undefined { return this.sfx.get(id); }
+
+  /**
+   * The course `trackId`'s bed (ambienceId), fetched and decoded when its race is built, at once (SONG_NOW_TIER); then
+   * `get` has it. One is kept: the last course's goes (a bed is long). Nothing when the manifest lists none; fails soft.
+   */
+  bed(ctx: BaseAudioContext, trackId: string): Promise<void> {
+    const id = ambienceId(trackId);
+    for (const k of this.sfx.keys()) if (isAmbience(k) && k !== id) this.sfx.delete(k);
+    if (this.sfx.has(id)) return Promise.resolve();
+    this.bedWant = id;
+    return this.list().then(async (manifest) => {
+      const m = manifest?.sfx[id];
+      if (!m) return;
+      const b = await this.decode(ctx, m.url, SONG_NOW_TIER);
+      // a newer race's course asked meanwhile: this one is not kept
+      if (b && this.bedWant === id) this.sfx.set(id, cutSfx(b, !!m.loop, id));
+    }).catch(() => undefined);
+  }
 
   /**
    * Fetch the voice list, then every racer's lines at VOICE_TIER, each levelled like a sound effect

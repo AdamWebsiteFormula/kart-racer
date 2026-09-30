@@ -12,7 +12,7 @@ import { IntroCue, introPlan, introSources } from './introCue.ts';
 import { playNote } from './music/instruments.ts';
 import { SONGS } from './music/patterns.ts';
 import { Sequencer, type Scheduled } from './music/sequencer.ts';
-import { LoopEngine, mixLevel, playSample, SampleBank, SONG_AHEAD_TIER, SONG_NOW_TIER, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
+import { ambienceId, LoopEngine, mixLevel, playSample, SampleBank, SONG_AHEAD_TIER, SONG_NOW_TIER, SongPlayer, STING_SECONDS, themeForTrack, type Sample, type Voice } from './samples.ts';
 import { ENGINE_POP, noiseBuffer, PATCHES, patchSeconds, playPatch } from './sfx.ts';
 import type { BarkCue, Cue, MusicCue, SfxId, SongId } from './types.ts';
 import { mergeCues, rouletteGap, Voices } from './voices.ts';
@@ -225,6 +225,7 @@ export class GameAudio {
     const ctx = this.bus.ctx;
     if (!ctx) return;
     for (const key of trackId ? introSources(trackId, this.wantKey) : [this.wantKey]) if (this.bank.hasSong(key)) void this.bank.song(ctx, key);
+    if (trackId) void this.bank.bed(ctx, trackId);
   }
 
   /**
@@ -665,6 +666,9 @@ export class GameAudio {
     if (w.id && ws) extras.set(w.id, { s: ws, gain: w.amount * (AUDIO.wheels[w.id] ?? AUDIO.offroad.loop), rate: 1 });
     const sp = sparkLayer(player), sparks = this.bank.get('sparks');
     if (sparks) extras.set('sparks', { s: sparks, gain: sp.gain * AUDIO.sparks.level, rate: sp.rate });
+    // the course's own quiet world under it all (waves, wind, birds), when the manifest has one
+    const bed = this.bank.get(ambienceId(this.trackId));
+    if (bed) extras.set('ambience', { s: bed, gain: AUDIO.ambience, rate: 1 });
     this.loopPlayer.setExtras(t, extras);
     // no recorded wheel loop at all: the synth rumble stands in off the road
     this.rumble?.gain.setTargetAtTime(ws ? 0 : offroadAmount(player, topSpeed) * AUDIO.offroad.synth, t, 0.05);
