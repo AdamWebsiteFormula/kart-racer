@@ -17,8 +17,8 @@ describe('each racer\'s own flourish (MKW: "a quick animation unique to them")',
     expect(new Set(ids.map((id) => FLOURISH[id])).size).toBe(ids.length);
   });
 
-  it('a fist up or a wave keeps the other hand on the wheel; wings, a star, a flex and a robot\'s arms take both', () => {
-    for (const [kind, both] of [['fist', false], ['wave', false], ['pump', false], ['wings', true], ['star', true], ['flex', true], ['robot', true], ['raise', true]] as const) {
+  it('every trick pose takes one hand off the wheel and keeps the other on it (30 Sept 2026: held poses, no flapping)', () => {
+    for (const [kind, both] of [['fist', false], ['wave', false], ['pump', false], ['wings', false], ['star', false], ['flex', false], ['robot', false], ['raise', false]] as const) {
       const R = arm(), L = arm();
       flourishArms(kind, 0.2, R, L);
       expect(R.wheel, kind).toBe(0);

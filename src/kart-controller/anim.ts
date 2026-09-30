@@ -23,11 +23,11 @@ export const KART_ANIM = Object.freeze({
   // --- springs
   rollSpring: [2.4, 0.5] as SpringTune,
   pitchSpring: [2.6, 0.45] as SpringTune,
-  squashSpring: [4.2, 0.36] as SpringTune,
+  squashSpring: [4.2, 0.6] as SpringTune, // 0.36 until 30 Sept 2026: damped, no cartoon rebound
   yawSpring: [3.0, 0.55] as SpringTune,
   leanSpring: [2.2, 0.5] as SpringTune,
   lookSpring: [2.0, 0.75] as SpringTune,
-  nodSpring: [3.0, 0.38] as SpringTune,
+  nodSpring: [3.0, 0.6] as SpringTune, // 0.38 until 30 Sept 2026
   steerSpring: [7.0, 0.85] as SpringTune,
 
   // --- chassis roll: the body leans out of a turn (the inside lifts) with its lateral acceleration
@@ -60,30 +60,30 @@ export const KART_ANIM = Object.freeze({
   /** rad/s nose-up kick as a boost starts, for a +30 % boost (more for a stronger one) */
   boostKick: 2,
   /** 1/s of squash as a boost starts, for a +30 % boost: the rear squats onto its springs */
-  boostSquat: 2.4,
+  boostSquat: 1.2,
   /** rad/s nose-dip per m/s of landing speed */
   landPitch: 0.1,
 
   // --- squash (−) and stretch (+) of the whole kart about its wheels' contact, a fraction of its height.
   // Kicks are the spring's speed (1/s); a kick k peaks near 0.024 k on the squash spring.
   /** 1/s per m/s of landing speed: a hop's landing (3.25 m/s) squashes about 8 %, a jump's (6 m/s and up) 15 % */
-  landSquash: 1,
+  landSquash: 0.5,
   /** 1/s: the most any one kick gives (about a 15 % squash or stretch), so a big landing peaks, never clips */
   kickMax: 6,
   /** m/s: landings harder than this dip the nose and nod the head no further */
   landCap: 14,
   /** 1/s per m/s the road under the kart changes its climb rate in one tick (bumps, dips, crests) */
-  bumpSquash: 0.4,
+  bumpSquash: 0.2,
   /** m/s: the most one tick of road counts */
   bumpCap: 2.5,
   /** 1/s: the drift hop pops up (an 8 % stretch), then lands (squash) */
-  hopStretch: 3.4,
+  hopStretch: 1.2,
   /** 1/s per m/s of climb as the kart leaves a ramp */
-  launchStretch: 0.5,
+  launchStretch: 0.2,
   /** 1/s: a hit pops the kart (stretch, then it squashes back) */
-  hitPop: 4.5,
+  hitPop: 2,
   /** the most the kart squashes or stretches */
-  squashMax: 0.17,
+  squashMax: 0.07,
   /** the share of the squash the whole kart's scale shows; the rest is the body sinking on its springs */
   squashShare: 0.6,
   /** m the body sinks on its springs (the rig's 'heave'; the tyres stay on the road) per unit of squash */
@@ -112,32 +112,32 @@ export const KART_ANIM = Object.freeze({
   shakeRoll: 0.6,
   shakePitch: 0.4,
   /** rad the driver's head bobs per m of the shiver */
-  shakeNod: 1.5,
+  shakeNod: 0.7,
   /** rad the nose lifts (the rear squats) at full rev off the road */
   revSquat: 0.05,
   /** a blip, times its size: rad/s the nose kicks up, 1/s the rear squats, rad/s the driver's head rocks back */
   blipKick: 0.8,
-  blipSquash: 1.1,
+  blipSquash: 0.5,
   blipNod: 1,
   /** a pop, times its size: rad/s the nose dips, 1/s the body jolts */
   popKick: 0.35,
-  popSquash: 0.7,
+  popSquash: 0.3,
 
   // --- hit: one full turn in the first `spinShare` of the spin-out, easing to a stop (plan §7.2 item 7)
   spinTurns: 1,
   spinShare: 0.8,
   /** rad: with reduced motion, a wobble instead of the turn */
-  spinWobble: 0.3,
+  spinWobble: 0.12,
   /**
    * A hit tosses the kart (Mario Kart World throws a hit kart up nose-first, ngiIINHSiJc 2:47; ours a smaller
    * hop, render only: 27 Sept 2026, "an item hit is a flat spin"): `hitHop` m up over `hitHopSeconds`, the nose
    * lifting `hitTumble` rad and the body rolling `hitRoll` rad into the spin, a squash as it lands (1/s)
    */
-  hitHop: 0.5,
+  hitHop: 0.25,
   hitHopSeconds: 0.44,
-  hitTumble: 0.32,
+  hitTumble: 0.16,
   hitRoll: 0.14,
-  hitLand: 3.2,
+  hitLand: 1.6,
   /** rad/s: the driver's head snaps back as the hit lands, and turns aside */
   hitNod: 3.2,
   hitLook: 2.4,
@@ -148,20 +148,20 @@ export const KART_ANIM = Object.freeze({
    */
   dizzySeconds: 0.85,
   dizzyHz: 2.3,
-  dizzySway: 0.08,
-  dizzyLook: 0.32,
-  dizzyNod: 0.1,
+  dizzySway: 0.03,
+  dizzyLook: 0.15,
+  dizzyNod: 0.04,
   /**
    * A shove (a kart's bump, a wall) sets the body wobbling on a loose spring about its middle: rad/s of yaw per
    * m/s of shove (a bump's 3.5 m/s about 5°), a share of it as roll; and the driver's head snaps away from the
    * push (rad/s of look per m/s)
    */
-  joltSpring: [4.6, 0.2] as SpringTune,
+  joltSpring: [4.6, 0.45] as SpringTune, // 0.2 until 30 Sept 2026
   joltPerShove: 0.55,
   joltRoll: 0.35,
   headSnap: 0.9,
   /** rad and Hz: a fishtail while an oil slick (or a tug) slows the kart */
-  slowWobble: 0.12,
+  slowWobble: 0.05,
   slowHz: 3,
   /* a trick's stunt (a whole spin, roll or flip in the air, sized to the flight: stunt.ts) keeps its tuning in STUNT */
   /** m/s in one tick: a sideways shove past this (a kart's bump, a wall) jolts the kart; steering never does */
@@ -191,8 +191,8 @@ export const KART_ANIM = Object.freeze({
   nodPerAccel: 0.009,
   nodMax: 0.14,
   /** rad/s the head nods forward per m/s of landing speed, and per m/s of bump */
-  nodLand: 0.36,
-  nodBump: 0.3,
+  nodLand: 0.18,
+  nodBump: 0.15,
 
   // --- front wheels (morph target 'steer')
   /** rad at full stick */
@@ -321,47 +321,40 @@ export function reactionPose(kind: Reaction, t: number, out: AnimPose): AnimPose
   out.roll = 0; out.pitch = 0; out.yaw = 0; out.spin = 0; out.squash = 0; out.lean = 0; out.look = 0; out.nod = 0; out.hop = 0;
   const tail = sstep(REACTION_SECONDS[kind] - 0.3, REACTION_SECONDS[kind] + 0.3, t);
   switch (kind) {
+    // (Adam, 30 Sept 2026: "remove cartoony-ness in actions": no leaps, spins or hops; the karts sit on their wheels
+    // and the racers carry it with a calm, confident look and nod)
     case 'champion': {
-      // crouch, leap with one whole turn in the air, land, then fist pumps and two little hops
-      const crouch = hold(t, 0, 0.2, 0.26, 0.36), u = (t - 0.36) / 0.6;
-      out.squash = -0.13 * crouch + 0.1 * hump(t, 0.3, 0.55) - 0.15 * hump(t, 0.98, 1.24) - 0.07 * (hump(t, 2.2, 2.35) + hump(t, 2.9, 3.05));
-      out.hop = 0.95 * hump(t, 0.32, 1.0) + 0.24 * (hump(t, 1.9, 2.25) + hump(t, 2.6, 2.95));
-      out.spin = u > 0 && u < 1 ? TAU * u * u * u * (u * (u * 6 - 15) + 10) : 0;
-      out.pitch = -0.07 * hump(t, 0.3, 0.7) + 0.05 * hump(t, 0.98, 1.2);
-      out.nod = 0.2 * crouch - 0.3 * hold(t, 0.4, 0.55, 0.85, 1.0) + 0.1 * wave(t, 1.25, 3.2, 2.2);
-      out.lean = 0.33 * wave(t, 1.25, 3.2, 2.2);
-      out.roll = 0.05 * wave(t, 1.25, 3.2, 2.2);
-      out.look = 0.25 * wave(t, 1.3, 3.2, 0.7);
+      // a rev back on the springs, a slow look round to the camera, one firm nod
+      const back = hold(t, 0.1, 0.5, 2.5, 3.1);
+      out.pitch = -0.035 * back;
+      out.squash = -0.025 * back;
+      out.look = 0.28 * hold(t, 0.6, 1.1, 2.4, 3.0);
+      out.nod = -0.08 * back + 0.12 * hump(t, 1.3, 1.8);
+      out.lean = 0.05 * hold(t, 0.6, 1.1, 2.4, 3.0);
       break;
     }
     case 'cheer': {
-      // a hop with a twist in the air (no full turn), then a big side-to-side wave
-      const crouch = hold(t, 0, 0.18, 0.22, 0.32);
-      out.squash = -0.09 * crouch + 0.08 * hump(t, 0.28, 0.48) - 0.12 * hump(t, 0.78, 0.98);
-      out.hop = 0.5 * hump(t, 0.28, 0.82);
-      out.yaw = t > 0.3 && t < 0.82 ? 0.38 * Math.sin((TAU * (t - 0.3)) / 0.52) : 0;
-      out.nod = 0.15 * crouch - 0.12 * hold(t, 0.9, 1.1, 2.8, 3.0);
-      out.lean = 0.3 * wave(t, 1.0, 3.0, 1.5);
-      out.look = -0.18 * wave(t, 1.0, 3.0, 1.5);
-      out.roll = 0.05 * wave(t, 1.0, 3.0, 1.5);
+      // a nod to the camera and a small lean out, as a pro takes a podium
+      const up = hold(t, 0.1, 0.4, 2.4, 2.9);
+      out.squash = -0.015 * up;
+      out.nod = 0.1 * hump(t, 0.8, 1.3) - 0.04 * up;
+      out.look = 0.2 * hold(t, 0.4, 0.9, 2.3, 2.9);
+      out.lean = 0.06 * up;
       break;
     }
     case 'bounce': {
-      // two quick happy hops, a nodded yes-yes, a wiggle
-      out.hop = 0.32 * (hump(t, 0.12, 0.46) + hump(t, 0.6, 0.94));
-      out.squash = 0.06 * (hump(t, 0.06, 0.18) + hump(t, 0.54, 0.66)) - 0.1 * (hump(t, 0.44, 0.6) + hump(t, 0.92, 1.1));
-      out.nod = 0.22 * wave(t, 1.1, 2.3, 3);
-      out.roll = 0.07 * wave(t, 1.2, 2.6, 2.5);
-      out.lean = 0.12 * wave(t, 1.2, 2.6, 2.5, Math.PI / 2);
+      // two short nods, yes-yes, and a glance
+      out.nod = 0.1 * (hump(t, 0.3, 0.7) + hump(t, 0.8, 1.2));
+      out.look = 0.16 * hold(t, 0.4, 0.8, 2.0, 2.5);
+      out.lean = 0.04 * hold(t, 0.4, 0.8, 2.0, 2.5);
       break;
     }
     case 'relief': {
-      // phew (a sag, head down), perk up, one fist pump with a little hop, a look back at the ones behind
+      // phew (a sag, head down), then up again and a look back at the ones behind
       const sag = hold(t, 0, 0.3, 0.55, 0.8);
-      out.squash = -0.08 * sag + 0.06 * hump(t, 0.7, 1.1) - 0.06 * hump(t, 1.45, 1.62);
-      out.nod = 0.28 * sag - 0.2 * hump(t, 0.75, 1.25);
-      out.hop = 0.22 * hump(t, 1.15, 1.5);
-      out.lean = 0.35 * hump(t, 1.2, 1.75);
+      out.squash = -0.05 * sag;
+      out.nod = 0.22 * sag - 0.1 * hump(t, 0.75, 1.25);
+      out.lean = 0.12 * hump(t, 1.2, 1.75);
       out.look = 0.5 * hold(t, 1.85, 2.1, 2.55, 2.85);
       break;
     }
@@ -381,9 +374,8 @@ export function reactionPose(kind: Reaction, t: number, out: AnimPose): AnimPose
     case 'dejected':
       return sadReactionPose(kind, t, out);
   }
-  // the joyful ones carry on bobbing and swaying
-  out.squash += 0.022 * Math.sin(TAU * 1.7 * t) * tail;
-  out.lean += 0.08 * Math.sin(TAU * 0.85 * t) * tail;
+  // the happy ones settle into an easy sway (no bobbing: 30 Sept 2026)
+  out.lean += 0.02 * Math.sin(TAU * 0.4 * t) * tail;
   return out;
 }
 

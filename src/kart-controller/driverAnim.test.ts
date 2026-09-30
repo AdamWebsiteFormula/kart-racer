@@ -222,14 +222,16 @@ describe('DriverAnim: body and arms', () => {
     expect(a.upper[2]).toBeLessThan(0);
   });
 
-  it('the finish: arms up and pumping for the champion, a wave for 2nd, palms up for a shrug, one hand on the wheel when deflated', () => {
+  it('the finish: one fist raised and held for the champion, a salute for 2nd, palms up for a shrug, one hand on the wheel when deflated (no pumping or waving: 30 Sept 2026)', () => {
     const arms = (k: Reaction, t: number) => { const R = newDriverPose().armR, L = newDriverPose().armL; reactionArms(k, t, R, L, 3); return { R, L }; };
     expect(arms('champion', 0.6).R.wheel).toBe(0);
     expect(arms('champion', 0.6).R.upper[1]).toBeGreaterThan(0.8);
-    const pumps = [1.4, 1.5, 1.6, 1.7].map((t) => arms('champion', t).R.upper[1]);
-    expect(Math.max(...pumps) - Math.min(...pumps)).toBeGreaterThan(0.3);
-    const waves = [1.2, 1.4, 1.6, 1.8].map((t) => arms('cheer', t).R.fore[0]);
-    expect(Math.max(...waves) - Math.min(...waves)).toBeGreaterThan(0.3);
+    const held = [1.4, 1.5, 1.6, 1.7].map((t) => arms('champion', t).R.upper[1]);
+    expect(Math.max(...held) - Math.min(...held)).toBeLessThan(1e-9); // held, not pumped
+    expect(arms('champion', 0.6).L.wheel).toBe(1); // one hand only
+    const salute = [1.0, 1.2, 1.4, 1.6].map((t) => arms('cheer', t).R.fore[0]);
+    expect(Math.max(...salute) - Math.min(...salute)).toBeLessThan(1e-9); // no wave
+    expect(arms('cheer', 1.4).R.wheel).toBe(0);
     expect(arms('cheer', 1.4).L.wheel).toBe(1);
     expect(arms('shrug', 0.5).R.wheel).toBe(0);
     expect(arms('deflated', 1).L.wheel).toBe(1);

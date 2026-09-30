@@ -112,7 +112,7 @@ describe('KartAnim: suspension and squash', () => {
     return out;
   }
 
-  it('a landing squashes, rebounds past rest, then settles', () => {
+  it('a landing squashes and settles without a cartoon rebound (30 Sept 2026)', () => {
     const tr = squashTrace((s, a) => {
       // a second in the air, falling at 10 m/s
       s.grounded = false;
@@ -121,10 +121,10 @@ describe('KartAnim: suspension and squash', () => {
       s.verticalVelocity = 0;
     });
     const low = Math.min(...tr), at = tr.indexOf(low);
-    expect(low).toBeLessThan(-0.08);
+    expect(low).toBeLessThan(-0.03);
     expect(low).toBeGreaterThanOrEqual(-T.squashMax);
     expect(at).toBeLessThan(20); // within about 0.15 s
-    expect(Math.max(...tr.slice(at))).toBeGreaterThan(0.01); // the rebound
+    expect(Math.max(...tr.slice(at))).toBeLessThan(0.01); // no big rebound past rest
     expect(Math.abs(tr[tr.length - 1])).toBeLessThan(0.003);
   });
 
@@ -138,13 +138,13 @@ describe('KartAnim: suspension and squash', () => {
         s.position[1] += vy * dt;
         vy -= c.gravity * dt;
         drive(a, s, NEUTRAL_INPUT, 1);
-        if (i === 5) expect(a.curr.squash).toBeGreaterThan(0.02);
+        if (i === 5) expect(a.curr.squash).toBeGreaterThan(0.004);
       }
       s.grounded = true;
       s.verticalVelocity = 0;
       s.drift.phase = 'idle';
     }, 60);
-    expect(Math.min(...tr)).toBeLessThan(-0.02);
+    expect(Math.min(...tr)).toBeLessThan(-0.005);
   });
 
   it('a bump in the road squashes the kart at its foot and stretches it over the crest; flat road leaves it still', () => {
@@ -156,9 +156,9 @@ describe('KartAnim: suspension and squash', () => {
     const tr: number[] = [];
     for (let i = 0; i <= 72; i++) { s.position[1] = 0.4 * Math.sin((Math.PI * i) / 72) ** 2; drive(a, s, NEUTRAL_INPUT, 1); tr.push(a.curr.squash); }
     // squash as the road starts to rise, stretch over the crest, squash again where it flattens out
-    expect(Math.min(...tr.slice(0, 30))).toBeLessThan(-0.002);
-    expect(Math.max(...tr.slice(24, 54))).toBeGreaterThan(0.005);
-    expect(Math.min(...tr.slice(54))).toBeLessThan(-0.005);
+    expect(Math.min(...tr.slice(0, 30))).toBeLessThan(-0.001);
+    expect(Math.max(...tr.slice(24, 54))).toBeGreaterThan(0.002);
+    expect(Math.min(...tr.slice(54))).toBeLessThan(-0.002);
   });
 });
 
@@ -192,16 +192,16 @@ describe('KartAnim: shoves', () => {
     expect(Math.abs(b.curr.squash)).toBeLessThan(1e-9);
   });
 
-  it('a shove sets the body wobbling on a loose spring and snaps the head away from the push; it dies within a second or two', () => {
+  it('a shove swings the body out on a firm spring (30 Sept 2026: no loose wobble) and snaps the head away from the push; it dies within a second or two', () => {
     const a = new KartAnim(c), s = cruising();
     drive(a, s, NEUTRAL_INPUT, 60);
     s.lateralVelocity = c.bumpForce;
     const yaw: number[] = [];
     let look = 0;
     for (let i = 0; i < 90; i++) { s.lateralVelocity *= 0.9; const p = drive(a, s, NEUTRAL_INPUT, 1); yaw.push(p.yaw); look = Math.min(look, a.curr.look); }
-    // it swings both ways (a wobble, not one lean)
-    expect(Math.max(...yaw)).toBeGreaterThan(0.03);
-    expect(Math.min(...yaw)).toBeLessThan(-0.01);
+    // it swings out and comes back, a small overswing at most
+    expect(Math.max(...yaw)).toBeGreaterThan(0.01);
+    expect(Math.min(...yaw)).toBeGreaterThan(-Math.max(...yaw));
     expect(look).toBeLessThan(-0.05);
     expect(Math.abs(drive(a, s, NEUTRAL_INPUT, 240).yaw)).toBeLessThan(0.002);
     // reduced motion keeps only a share of the wobble
@@ -343,8 +343,8 @@ describe('KartAnim: hits', () => {
     expect(hop).toBeLessThanOrEqual(T.hitHop + 1e-9);
     expect(landedAt * dt).toBeCloseTo(T.hitHopSeconds, 1);
     expect(nose).toBeLessThan(-T.hitTumble * 0.8);
-    expect(head).toBeLessThan(-0.05);
-    expect(squash).toBeLessThan(-0.03);
+    expect(head).toBeLessThan(-0.02);
+    expect(squash).toBeLessThan(-0.01);
   });
 
   it('the dizzy recover: once the spin ends the body sways and the head wobbles round, dying away; then it is still', () => {

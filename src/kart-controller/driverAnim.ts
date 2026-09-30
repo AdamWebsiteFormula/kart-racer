@@ -86,10 +86,10 @@ export const DRIVER_ANIM = Object.freeze({
   // --- arms: 1 hands on the wheel (IK), 0 a gesture; the blend eases at this rate (1/s)
   armRate: 12,
   /** a hit: both arms up, flailing at this rate (Hz) and this much; the head wobbles */
-  flailHz: 4.5,
-  flail: 0.45,
-  wobbleHz: 3.2,
-  wobble: 0.3,
+  flailHz: 2, // 4.5, 0.45, 3.2 and 0.3 until 30 Sept 2026: a start, not a cartoon flail
+  flail: 0.12,
+  wobbleHz: 2,
+  wobble: 0.1,
   /** seconds after the spin ends before the hands are back on the wheel */
   recover: 0.35,
   /**
@@ -306,21 +306,18 @@ const FLOURISH_AIM = Object.freeze({
  * The arms for a racer's flourish `t` s into its trick, the right arm's aims for both (the caller mirrors the
  * left): `wheel` 0 on an arm that leaves the wheel for it, 1 on one that keeps it. Pure.
  */
-export function flourishArms(kind: Flourish, t: number, R: ArmPose, L: ArmPose): void {
+export function flourishArms(kind: Flourish, _t: number, R: ArmPose, L: ArmPose): void {
   onWheel(R); onWheel(L);
   switch (kind) {
-    case 'wings': {
-      const f = DRIVER_ANIM.flutter * Math.sin(TAU * DRIVER_ANIM.flutterHz * t);
-      for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.wide); X.fore[0] = -0.9; X.fore[1] = 0.42 + f; X.fore[2] = 0.1; normalize(X.fore); X.wheel = 0; }
-      break;
-    }
+    // (Adam, 30 Sept 2026: cool, not cartoony: one hand leaves the wheel for a held pose, nothing flaps or waves)
+    case 'wings': set(R.upper, FLOURISH_AIM.wide); set(R.fore, FLOURISH_AIM.outFore); R.wheel = 0; break; // one wing laid out flat
     case 'fist': upArm(R); break;
-    case 'star': for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.vee); set(X.fore, FLOURISH_AIM.veeFore); X.wheel = 0; } break;
-    case 'pump': pumpArm(R, t, -Math.PI / 2, 3.2); break;
-    case 'wave': waveArm(R, t, 2.6); break;
-    case 'robot': for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.stiff); set(X.fore, FLOURISH_AIM.stiffFore); X.wheel = 0; } break;
-    case 'flex': for (const X of [R, L]) { set(X.upper, FLOURISH_AIM.flex); set(X.fore, FLOURISH_AIM.flexFore); X.wheel = 0; } break;
-    case 'raise': upArm(R); set(L.upper, FLOURISH_AIM.out); set(L.fore, FLOURISH_AIM.outFore); L.wheel = 0; break;
+    case 'star': set(R.upper, FLOURISH_AIM.out); set(R.fore, FLOURISH_AIM.outFore); R.wheel = 0; break; // a hand out into the air
+    case 'pump': set(R.upper, AIM.pumpHigh); set(R.fore, AIM.pumpHighFore); R.wheel = 0; break; // a fist held high, no pumping
+    case 'wave': set(R.upper, AIM.brow); set(R.fore, AIM.browFore); R.wheel = 0; break; // a two-finger salute off the brow
+    case 'robot': set(R.upper, FLOURISH_AIM.stiff); set(R.fore, FLOURISH_AIM.stiffFore); R.wheel = 0; break;
+    case 'flex': set(R.upper, FLOURISH_AIM.flex); set(R.fore, FLOURISH_AIM.flexFore); R.wheel = 0; break; // one arm's flex
+    case 'raise': upArm(R); break;
   }
 }
 
@@ -332,21 +329,8 @@ export function flourishWeight(u: number, T: DriverAnimTuning = DRIVER_ANIM): nu
 
 /** Hands on the wheel (the aims are only a fallback: the IK decides). */
 function onWheel(a: ArmPose): void { a.wheel = 1; set(a.upper, AIM.pumpLow); set(a.fore, AIM.pumpLowFore); }
-/** A fist pump at `hz`: the arm swings between low and high, the fist up. */
-function pumpArm(a: ArmPose, t: number, phase: number, hz: number): void {
-  const k = 0.5 + 0.5 * Math.sin(TAU * hz * t + phase);
-  mix(a.upper, AIM.pumpLow, AIM.pumpHigh, k); mix(a.fore, AIM.pumpLowFore, AIM.pumpHighFore, k);
-  a.wheel = 0;
-}
 /** Up high (a cheer, a hit, a trick). */
 function upArm(a: ArmPose): void { set(a.upper, AIM.up); set(a.fore, AIM.upFore); a.wheel = 0; }
-/** A wave at `hz`: the upper arm out and up, the forearm swinging side to side. */
-function waveArm(a: ArmPose, t: number, hz: number): void {
-  set(a.upper, AIM.wave);
-  a.fore[0] = -0.3 + 0.55 * Math.sin(TAU * hz * t); a.fore[1] = 1; a.fore[2] = 0.25;
-  normalize(a.fore);
-  a.wheel = 0;
-}
 
 /**
  * The arms for a finish reaction `t` s in (anim.ts reactions: game/celebrate.ts picks them; the podium
@@ -356,28 +340,24 @@ function waveArm(a: ArmPose, t: number, hz: number): void {
  * After the main move (`main` s) the joyful ones keep waving. Pure.
  */
 export function reactionArms(kind: Reaction, t: number, R: ArmPose, L: ArmPose, main: number, near: 1 | -1 = 1, hands: SadHands = 'brow', early = false): void {
-  const tail = t > main;
+  void main; // the main move's length: the joyful ones no longer wave on after it (30 Sept 2026)
   onWheel(R); onWheel(L);
   switch (kind) {
+    // (Adam, 30 Sept 2026: no arms flung in the air, no pumping or waving): one calm, held gesture each
     case 'champion':
-      if (t < 0.34) break;
-      if (t < 1.1) { upArm(R); upArm(L); break; }
-      if (!tail) { pumpArm(R, t, 0, 2.2); pumpArm(L, t, Math.PI, 2.2); break; }
-      waveArm(R, t, 1.2);
+      // one fist raised and held, then the hand back on the wheel
+      if (t > 0.5 && t < 2.4) upArm(R);
       break;
     case 'cheer':
-      if (t < 0.26) break;
-      if (t < 0.9) { upArm(R); upArm(L); break; }
-      waveArm(R, t, 1.5);
+      // a two-finger salute off the brow to the camera
+      if (t > 0.6 && t < 1.9) { set(R.upper, AIM.brow); set(R.fore, AIM.browFore); R.wheel = 0; }
       break;
     case 'bounce':
-      if (t < 1.05) { upArm(R); upArm(L); break; }
-      if (!tail) { pumpArm(R, t, 0, 1.6); break; }
-      waveArm(R, t, 1);
+      // a fist brought up to the shoulder, held a beat
+      if (t > 0.5 && t < 1.6) { set(R.upper, AIM.pumpHigh); set(R.fore, AIM.pumpHighFore); R.wheel = 0; }
       break;
     case 'relief':
-      if (t < 0.95) { set(R.upper, AIM.brow); set(R.fore, AIM.browFore); R.wheel = 0; break; }
-      if (t < 1.7) pumpArm(R, t, -Math.PI / 2, 1.3);
+      if (t < 0.95) { set(R.upper, AIM.brow); set(R.fore, AIM.browFore); R.wheel = 0; }
       break;
     case 'shrug':
       if (t < 1.0) {

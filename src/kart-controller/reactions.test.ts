@@ -22,45 +22,37 @@ function sample(kind: Reaction, seconds = REACTION_SECONDS[kind]): Record<keyof 
 }
 const max = (xs: number[]) => Math.max(...xs);
 const min = (xs: number[]) => Math.min(...xs);
-/** how many separate leaps (hop rising past `over` metres) */
-const leaps = (hop: number[], over = 0.05) => hop.reduce((n, h, i) => n + (h > over && (hop[i - 1] ?? 0) <= over ? 1 : 0), 0);
 
 describe('finish reactions: one of its own per placing', () => {
-  it('champion (1st): crouches, leaps highest with one whole turn in the air, then fist pumps and two little hops', () => {
+  // (Adam, 30 Sept 2026: no cartoony leaps, spins or hops: the kart stays on its wheels, the racer carries it)
+  it('champion (1st): a rev back on the springs, a look round to the camera and a firm nod; no leap, no spin', () => {
     const r = sample('champion');
-    expect(min(r.squash.slice(0, 30))).toBeLessThan(-0.1); // the crouch
-    expect(max(r.hop)).toBeGreaterThan(0.85);
-    expect(leaps(r.hop)).toBe(3);
-    expect(max(r.spin)).toBeGreaterThan(2 * Math.PI - 0.05); // the whole turn
-    expect(max(r.lean)).toBeGreaterThan(0.25); // the fist pumps
-    expect(min(r.lean)).toBeLessThan(-0.25);
+    expect(max(r.hop)).toBe(0);
+    expect(max(r.spin.map(Math.abs))).toBe(0);
+    expect(min(r.pitch)).toBeLessThan(-0.02); // the rev back
+    expect(max(r.look)).toBeGreaterThan(0.2);
+    expect(max(r.nod)).toBeGreaterThan(0.03);
   });
 
-  it('cheer (2nd): one lower hop with a twist and no turn, then a big wave', () => {
+  it('cheer (2nd): a nod and a small lean out; no hop, no twist', () => {
     const r = sample('cheer');
-    expect(max(r.hop)).toBeGreaterThan(0.4);
-    expect(max(r.hop)).toBeLessThan(0.6);
-    expect(leaps(r.hop)).toBe(1);
-    expect(max(r.spin)).toBe(0);
-    expect(max(r.yaw.map(Math.abs))).toBeGreaterThan(0.3);
-    expect(max(r.lean)).toBeGreaterThan(0.2);
-    expect(min(r.lean)).toBeLessThan(-0.2);
+    expect(max(r.hop)).toBe(0);
+    expect(max(r.yaw.map(Math.abs))).toBe(0);
+    expect(max(r.nod)).toBeGreaterThan(0.03);
+    expect(max(r.look)).toBeGreaterThan(0.15);
   });
 
-  it('bounce (3rd): two quick happy hops, a nodded yes-yes and a wiggle', () => {
+  it('bounce (3rd): two short nods and a glance; no hops', () => {
     const r = sample('bounce');
-    expect(leaps(r.hop)).toBe(2);
-    expect(max(r.hop)).toBeLessThan(0.4);
-    expect(max(r.nod)).toBeGreaterThan(0.15);
-    expect(min(r.nod)).toBeLessThan(-0.15);
-    expect(max(r.roll.map(Math.abs))).toBeGreaterThan(0.05);
+    expect(max(r.hop)).toBe(0);
+    expect(max(r.nod)).toBeGreaterThan(0.08);
+    expect(max(r.look)).toBeGreaterThan(0.1);
   });
 
-  it('relief (a safe Knockout place): a phew with the head down, a perk-up, one fist pump and a look back', () => {
+  it('relief (a safe Knockout place): a phew with the head down, up again and a look back; no hop', () => {
     const r = sample('relief');
-    expect(max(r.nod.slice(0, 70))).toBeGreaterThan(0.2); // head down
-    expect(leaps(r.hop)).toBe(1);
-    expect(max(r.lean)).toBeGreaterThan(0.3);
+    expect(max(r.nod.slice(0, 70))).toBeGreaterThan(0.15); // head down
+    expect(max(r.hop)).toBe(0);
     expect(max(r.look)).toBeGreaterThan(0.4); // over the shoulder
   });
 
@@ -133,18 +125,19 @@ describe('finish reactions: one of its own per placing', () => {
     }
   });
 
-  it('after its main move a joyful reaction carries on bobbing gently; the friendly ones settle', () => {
+  it('after its main move a happy reaction settles into an easy sway, never a bob', () => {
     for (const k of ['champion', 'cheer', 'bounce', 'relief'] as const) {
       const r = sample(k, REACTION_SECONDS[k] + 3);
       const tail = r.lean.slice(Math.round((REACTION_SECONDS[k] + 0.5) / dt));
-      expect(max(tail.map(Math.abs)), k).toBeGreaterThan(0.03);
-      expect(max(tail.map(Math.abs)), k).toBeLessThan(0.15);
+      expect(max(tail.map(Math.abs)), k).toBeGreaterThan(0.005);
+      expect(max(tail.map(Math.abs)), k).toBeLessThan(0.05);
+      expect(max(r.squash.slice(Math.round((REACTION_SECONDS[k] + 0.5) / dt)).map(Math.abs)), k).toBeLessThan(0.01);
     }
   });
 });
 
 describe('KartAnim.react', () => {
-  it('plays on top of the driving, turns whole in the air with no frame jump, and drops the turn from both ends when done', () => {
+  it('plays on top of the driving and lets go cleanly when done (no leap or turn since 30 Sept 2026)', () => {
     const a = new KartAnim(c), s = createKartState({ racerId: 'x' });
     for (let i = 0; i < 30; i++) a.tick(s, NEUTRAL_INPUT, dt);
     a.react('champion');
@@ -161,8 +154,8 @@ describe('KartAnim.react', () => {
         last = p.spin;
       }
     }
-    expect(hop).toBeGreaterThan(0.85);
-    expect(most).toBeGreaterThan(2 * Math.PI - 0.1);
+    expect(hop).toBe(0);
+    expect(most).toBe(0);
     expect(step).toBeLessThan(0.1);
     expect(a.pose(1, false, p).spin).toBe(0);
     a.react(null);
