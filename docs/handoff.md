@@ -28,14 +28,14 @@ https://mcp.higgsfield.ai/mcp; Adam signs in). Do not wait for API keys. If Adam
 Adam makes the key at https://console.higgsfield.ai (a public key id and a private secret; docs: docs.higgsfield.ai,
 base URL api.higgsfield.ai; pay-as-you-go in US dollars, separate from the connector's credits). He puts them in the
 cloud environment as secrets, NEVER in chat: at claude.ai/code click the cloud icon (the environment's name) above the
-message box, hover the environment, click its gear, and put `HF_API_KEY=...` and `HF_API_SECRET=...` (one per line,
-.env format) in the Environment variables box (the simplest; the separate "API credentials" section is Pro/Max only and
+message box, hover the environment, click its gear, and put `HF_API_KEY=...` (ONE value: the console's "Save your API key" box
+shows a single key, no separate secret; .env format) in the Environment variables box (the simplest; the separate "API credentials" section is Pro/Max only and
 needs the API's header format). A NEW session picks them up; running sessions keep the old values. Network access:
 Full (any domain), or Custom with the domains below one per line and "Also include default list" ticked. The environment's
 network access must also allow `api.higgsfield.ai` (and `console.higgsfield.ai`, `docs.higgsfield.ai` to read the docs),
 beside the two cloudfront hosts above. The old session could NOT verify two things (higgsfield.ai is blocked there):
 (1) that the API gives free credits (a 30 Sept search said pay-as-you-go with no subscription: check the console's
-balance page before spending); (2) whether the API has the 3D models the karts need (Tripo H3.1 image-to-3D; the
+balance page before spending); (2) the console balance was $0.00 on 30 Sept with cashback offers ("100% cashback", "verify for up to $200K") whose terms are unread: do not add funds without reading them; (3) whether the API has the 3D models the karts need (Tripo H3.1 image-to-3D; the
 pages found list image and video only). If it has no 3D, use the Higgsfield connector for the 3D jobs (Adam adds it
 at claude.ai/customize/connectors > Add > Add custom connector, name Higgsfield, URL https://mcp.higgsfield.ai/mcp,
 sign in) and the API only for images. What a 30 Sept web search found (search summaries only; docs.higgsfield.ai was blocked in that session): the API
@@ -44,7 +44,7 @@ Tripo mentioned; new API accounts get 0 free credits, and the only API freebie f
 for accounts that connect a card with a business email (maybe expired). The "100 free credits" trial is the connector's,
 not the API's. So: use the API for images if its console balance is real; use the CONNECTOR for the kart 3D jobs (Tripo
 H3.1 made all six bodies; 11.3 credits = one job) unless the API console shows a Tripo or Meshy image-to-3D option AND a
-balance. Never print a key; check the secrets exist with `test -n "$HF_API_KEY"`.
+balance. Never print a key; check it exists with `test -n "$HF_API_KEY"`.
 
 ### Open tasks, in the order to do them today
 1. **Ship the pre-race fix** (Adam, 30 Sept: "The pre-race part after clicking to race doesn't feel smooth").
