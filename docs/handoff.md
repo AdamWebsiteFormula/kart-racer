@@ -2,6 +2,87 @@
 
 Read this first in a new chat, then CLAUDE.md. It carries the state, not the history.
 
+## 30 Sept 2026, ~09:50 UTC: HANDOFF to a new session (contest deadline: TODAY, 30 Sept 2026) (read this first)
+
+Adam is moving to another Claude account. Everything below is on GitHub; nothing lives only in the old session.
+
+**Live now:** main 0689669, Deploy run 156 green, https://adamwebsiteformula.github.io/kart-racer/ serves the sound
+overhaul (108 sounds from the free packs, course ambience beds, unvoiced hits yelp; manifest checked live).
+**On branch claude/tender-cray-km9jt6, not live** (main + these): 6c65282 the pre-race fix (below), docs, the kart
+job ledger. Ship = fast-forward main to the branch after `npm run verify`, with Adam's OK, then check the Deploy run
+(GitHub Actions "Deploy to GitHub Pages") is green and the live bundle changed.
+
+### Access the new session needs (Adam sets these up)
+- GitHub: AdamWebsiteFormula/kart-racer (push) and the PRIVATE AdamWebsiteFormula/rascal-sfx-source (the raw sound and
+  music packs, 7.6 GB; clone with `--depth 1`; never copy a raw pack file into kart-racer, which is public).
+- Higgsfield connector on Adam's account (the kart 3D jobs below live there; 2.3 credits left after Otto's retry).
+- Cloud environment network: allow `d8j0ntlcm91z4.cloudfront.net` and `d2ol7oe51mr4n9.cloudfront.net` (Higgsfield's
+  result files). Without them the 3D bodies cannot be downloaded and fitted in the cloud (the old session could not).
+- Supabase connector only if score code changes (it did not in this work: no CLIENT_VERSION bump, no fn redeploy).
+- The ElevenLabs, Gemini and Freesound keys are only in the Mac's .env.local (not needed for the tasks below).
+
+### Open tasks, in the order to do them today
+1. **Ship the pre-race fix** (Adam, 30 Sept: "The pre-race part after clicking to race doesn't feel smooth").
+   6c65282: main.ts beginRace puts the course card on ink over the menu first and builds the race only after the ink
+   has faded in (afterCurtain, CURTAIN_IN 230 ms; intro.css curtain-in 200 ms), because the build held the page
+   with the menu frozen and then the card cut in; the intro's clock steps at most 1/30 s a frame (INTRO_STEP) so a
+   slow frame slows the flight instead of jumping it. Checked: 693 intro/UI/audio tests, and a muted headless click
+   to a race (card on ink 65 ms after the click, then the flight). Not yet run: the full `npm run verify`.
+2. **New background music** (Adam, 30 Sept): replace the game's music with the best tracks of TWO packs he put in
+   ~/Downloads/rascal-sfx: `Kart Racer (by juanjo_sound).zip` (Juanjo Sound: Champion's Race, Festival Day, Loading 1,
+   Standings, Loading 2, Canyon Dash, Festival Night, Event Finished, each also as a seamless loop; licence: games OK,
+   no redistributing or remixing as your own, https://juanjosound.itch.io/kart-racer-free-music-pack) and
+   `RacingMusicPack.zip` (Fan Zoo Racing Music Pack: 7 seamless-loop racing tracks, a Menu, a Podium and a Credits
+   track; check its licence file). First Adam runs the upload script again on the Mac (it skips packs already up):
+   `curl -fsSL https://raw.githubusercontent.com/AdamWebsiteFormula/kart-racer/7dd1c63d1aeb138ebda3d26428c776ac1f20ba5a/scripts/upload-sfx-packs.sh | bash`
+   then `git -C <rascal-sfx-source clone> pull`. Adam's brief (his words; his message was cut off after course 2, so
+   ASK him for courses 3-6 and the menu, podium and credits picks before choosing them):
+   "Do not invent Fan Zoo filenames or track names. First inspect the downloaded Fan Zoo folder and identify the exact
+   filenames for all 7 racing tracks, Menu, Podium, Credits. Also inspect the Juanjo folder and confirm the exact
+   filenames and which files are the seamless-loop versions." Goal: "a bright, premium arcade kart racer: Mario
+   Kart-style energy and readability, modern and punchy, colorful and fun, a little cool/edgy, strong bass and drums".
+   Avoid: childish/cutesy, cheesy comedy, generic corporate, dark dystopian cyberpunk, grim combat music, vocals.
+   "Use BOTH packs. Do not arbitrarily force every track from either pack into the game." Course 1, HARBOUR LOOP
+   (game id race-harbour): "JUANJO — FESTIVAL DAY — seamless-loop version ... sunny, immediate, colorful, welcoming,
+   energetic ... Do not replace this with a harder Fan Zoo song." Course 2, MEADOW RUN (race-meadow): one of Fan Zoo's
+   7 racing tracks for "green farmland, windmills, a storm approaching, fast racing, playful but with some attitude";
+   prefer energetic guitar, driving drums, catchy melody, bright 90s-style synth, a little rockier than Harbour Loop;
+   avoid the darkest Fan Zoo track, anything futuristic/cyberpunk or too heavy; "document the exact Fan Zoo [filename]".
+   How music is wired today: public/audio/manifest.json `music` keys title, race-meadow, race-boardwalk, race-finale,
+   race-harbour, race-frost, results (plus `intro:<trackId>` course intro pieces if any), each {url, bpm, ...};
+   samples.ts themeForTrack maps a track to its song; the songs' prompts and provenance are in
+   scripts/elevenlabs/catalog.ts (SONGS, LYRIA_SONGS, SONG_MOMENT) and src/audio/samples.test.ts holds them to the
+   manifest ("no singing" checks, loop and bar measurements) and ui-hud screens.test.ts holds CREDITS.md's
+   "Music: N original songs" row to the manifest. So adding the packs' tracks needs: encoded game copies in
+   public/audio/music (mp3, the loop versions for race songs), manifest entries with the real bpm, the catalog/test
+   provenance extended for licensed tracks (as scripts/sfx did for the packs: see provenance.test.ts NEW_PACKS),
+   and CREDITS.md rows for Juanjo Sound and Fan Zoo (new rows only; never edit a licence). Measure bpm and loop
+   seams; listen is Adam's job (no sound ever plays on his machine: ?mute, headless --mute-audio).
+3. **Sleek new kart bodies** (Adam: "The karts all look too cartoony", chose option A, "Those concepts look good").
+   Ledger: scripts/models/fit/JOBS.md round 4. Tripo H3.1 bodies DONE (GLB at
+   https://d8j0ntlcm91z4.cloudfront.net/user_3HBoHrhFNmtiGAFLQsDMzFxp1zE/hf_20260930_<time>_<job>.glb):
+   pip 092920_a892b49a-3a2d-4135-8d85-06d01a471731, nova 092923_927f39ef-29b9-4f2d-964f-543df5420b4c,
+   juniper 092925_548c18c7-2f5a-4f87-9fa2-2c4a8af09944, sprocket 092937_42afdd05-ad27-4e5f-8aec-02a95a46f52c,
+   boulder 092940_d675e3c2-5b4a-4793-b5bb-b743b89e645f, gus 092942_2e108f60-2996-4d9e-8345-7c84cb644187;
+   otto: first job failed (refunded), retry 61ef1936-3d00-47ab-a754-ff7e243b11ea running (find its URL with the
+   Higgsfield jobs tools); momo: waits for 9 credits (Tripo from wheel-less image f443e9fa-ff4a-4b09-a5c6-77b1aea0786b,
+   standard texture and geometry, PBR). Then per kart: scripts/models/fit/README.md (intake.mjs, check.mjs, the
+   viewer's fits): face it (yaw), find its seat, grips, feet, steering wheel, exhaust ports and the four wheel hubs,
+   write its public/models/racers/manifest.json `body` entry (keep driver and wheel), `bash
+   scripts/models/racer-parts.sh <id>` (body ≤ 8 k triangles), photograph silently in a race (the chase camera must
+   show the driver). The wheels should become code-built sporty wheels (low-profile slicks on alloy rims in the
+   racer's accent) since the current wheels are fat toy tires; not started. This is several hours of careful work:
+   if it cannot be finished well today, ship nothing of it (the current karts stay) rather than half-fitted karts.
+4. Smaller open items: requests.md #14 (How to Play: option A recommended, waiting on Adam), #16 (Pip's wing, fixed on
+   branch claude/zen-wozniak-mmsgsi bf670d2, not merged), the Mac's music lab branch mac/worktree-agent-a41c157f86f47ce7c
+   (superseded if the new packs go in).
+
+### Working with Adam (his standing rules; CLAUDE.md has the rest)
+Write simply, US English. At most two options, say which you would pick; ask in plain chat (not the AskUserQuestion
+tool). Ship to main only with his OK, then confirm the Deploy run and the live site. Never play sound on his machine
+(?mute always, close tabs, stop servers). On his Mac: heavy jobs one at a time (scripts/heavy.sh). Rated G, no
+Nintendo names or look-alikes, no singing. Log every request in docs/requests.md as he makes it.
+
 ## 30 Sept 2026: the sound overhaul INSTALLED on branch claude/tender-cray-km9jt6, not yet live (read this first)
 
 Adam, 30 Sept: "Let's just go with yes for all" (all 98 files, and the yelp question). approve.py put all 108 recipes in
