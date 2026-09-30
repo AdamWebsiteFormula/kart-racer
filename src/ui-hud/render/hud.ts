@@ -361,7 +361,7 @@ export class HudView {
     this.gearIcon = h('span', 'gear', gears);
     this.gearIcon.innerHTML = gearSvg();
     this.gearIcon.setAttribute('role', 'img');
-    this.gearIcon.setAttribute('aria-label', 'Gears');
+    this.gearIcon.setAttribute('aria-label', 'Plasma orbs');
     this.gears = new TextField(h('span', '', gears));
     this.gearsFull = new Flag(gears, 'full');
     this.ko = h('div', 'ko-strip', bl);

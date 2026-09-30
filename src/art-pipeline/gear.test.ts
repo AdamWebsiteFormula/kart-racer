@@ -1,10 +1,10 @@
-// The speed gear (gear.ts; Adam, 26 Sept 2026: gears, not coins): a sound model, and its 32 px black silhouette
-// reads as a cog (eight teeth round an axle hole), never as the disc a coin makes.
+// The speed pickup: a plasma orb on the road since 30 Sept 2026 (decor.ts `coin`), a sound model that stays round
+// from every side, never a coin's flat disc; gear.ts's cog outline (the menu's) is checked too.
 import { CylinderGeometry, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { decorGeometry } from './decor.ts';
 import { GEAR, gearOutline } from './gear.ts';
-import { iou, silhouette, SIZE, svg } from './__tests__/silhouette.ts';
+import { iou, silhouette } from './__tests__/silhouette.ts';
 
 const gear = decorGeometry('coin')!.body;
 gear.computeBoundingBox();
@@ -12,21 +12,17 @@ const box = gear.boundingBox!;
 const frame = { min: [box.min.x, box.min.y, box.min.z], max: [box.max.x, box.max.y, box.max.z] };
 /** face on, as the driver meets it: it faces along the road */
 const front = silhouette(gear, 0, 1, frame);
-/** the coin it replaces, a plain disc as wide as the gear, rasterised the same way */
-const disc = silhouette(new CylinderGeometry(GEAR.tip + GEAR.crown, GEAR.tip + GEAR.crown, GEAR.thick, 48).rotateX(Math.PI / 2), 0, 1, frame);
-/** metres to pixels in the silhouettes */
-const px = SIZE / (box.max.x - box.min.x);
+/** a coin: a plain disc as tall as the pickup, rasterised the same way */
+const disc = silhouette(new CylinderGeometry((box.max.y - box.min.y) / 2, (box.max.y - box.min.y) / 2, 0.1, 48).rotateX(Math.PI / 2), 0, 1, frame);
 
-const at = (bmp: Uint8Array, x: number, y: number) => bmp[Math.min(SIZE - 1, Math.max(0, Math.floor(y))) * SIZE + Math.min(SIZE - 1, Math.max(0, Math.floor(x)))];
 
 describe('the speed gear', () => {
-  it('is the pickup model: centred, facing ±Z, about the size of the coin it replaces, one merged vertex-colored geometry', () => {
-    const c = box.getCenter(new Vector3()), s = box.getSize(new Vector3());
+  it('is the pickup model (a plasma orb since 30 Sept 2026): centred, round, small beside the energy core, one merged vertex-colored geometry', () => {
+    const c = box.getCenter(new Vector3()), sz = box.getSize(new Vector3());
     expect(Math.abs(c.x) + Math.abs(c.y) + Math.abs(c.z)).toBeLessThan(0.01);
-    expect(s.x).toBeCloseTo(s.y, 1);
-    expect(s.x / 2).toBeGreaterThan(0.5); // at least the coin's 0.5 m radius, so it reads at speed
-    expect(s.x / 2).toBeLessThan(0.65);
-    expect(s.z).toBeLessThan(0.35); // a flat, chunky cog, not a ball
+    expect(sz.y).toBeGreaterThan(0.35); // reads at speed
+    expect(sz.y).toBeLessThan(0.6); // "smaller and less significant" than the 1.9 m energy core
+    expect(sz.z).toBeCloseTo(sz.x, 2); // a ball, as deep as it is wide: never a flat coin
     expect(gear.hasAttribute('color')).toBe(true);
     // lean: nine of them on a track add under 3 k triangles to a frame (performance frameBudget.test.ts)
     expect(gear.index!.count / 3).toBeLessThanOrEqual(400);
@@ -65,32 +61,9 @@ describe('the speed gear', () => {
     expect(2 * GEAR.tipHalf * pitch * GEAR.tip).toBeLessThan(2 * GEAR.rootHalf * pitch * GEAR.root);
   });
 
-  it('SOP gate (design §3): its 32 px black silhouette reads as a gear, not a disc', async () => {
-    // an axle hole through the middle
-    expect(at(front, SIZE / 2 - 0.5, SIZE / 2 - 0.5) + at(front, SIZE / 2 + 0.5, SIZE / 2 + 0.5)).toBe(0);
-    expect(at(disc, SIZE / 2, SIZE / 2)).toBe(1);
-    // eight teeth round the rim: a circle through the middle of the teeth crosses 8 teeth and 8 gaps
-    const runs = (bmp: Uint8Array) => {
-      const rMid = ((GEAR.tip + GEAR.root) / 2) * px, steps = 720;
-      let changes = 0, last = -1;
-      for (let s = 0; s <= steps; s++) {
-        const a = (s / steps) * Math.PI * 2, v = at(bmp, SIZE / 2 + Math.cos(a) * rMid, SIZE / 2 + Math.sin(a) * rMid);
-        if (last >= 0 && v !== last) changes++;
-        last = v;
-      }
-      return changes / 2;
-    };
-    expect(runs(front)).toBe(GEAR.teeth);
-    expect(runs(disc)).toBe(0);
-    // and far from a disc overall: the gaps and the hole take out over a fifth of it
-    expect(iou(front, disc)).toBeLessThan(0.8);
-    // WRITE_SILHOUETTES=1 vitest run src/art-pipeline refreshes docs/silhouettes/
-    const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
-    if (env.WRITE_SILHOUETTES) {
-      const fs = (await import('node:fs' as string)) as { mkdirSync(p: string, o: object): void; writeFileSync(p: string, d: string): void };
-      fs.mkdirSync('docs/silhouettes', { recursive: true });
-      fs.writeFileSync('docs/silhouettes/gear-front.svg', svg(front));
-      fs.writeFileSync('docs/silhouettes/disc-front.svg', svg(disc));
-    }
+  it('SOP gate (design §3): seen edge-on it stays round, where a coin shows a thin sliver', () => {
+    const side = silhouette(gear, 2, 1, frame), coinSide = silhouette(new CylinderGeometry((box.max.y - box.min.y) / 2, (box.max.y - box.min.y) / 2, 0.1, 48).rotateX(Math.PI / 2), 2, 1, frame);
+    expect(iou(side, front)).toBeGreaterThan(0.9);
+    expect(iou(coinSide, disc)).toBeLessThan(0.4);
   });
 });

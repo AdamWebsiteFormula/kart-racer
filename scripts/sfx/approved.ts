@@ -22,7 +22,7 @@ export const APPROVED: Readonly<Record<string, string>> = {
   "bump": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "claw": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "clawDrop": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
-  "coin": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
+  "coin": "Adam, 30 Sept 2026: the power cell's own pickup sound (\"a cool sound when a kart drives over it\"): a crystal chime over a charge pulse",
   "count": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "crabClack": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "denied": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",

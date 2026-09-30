@@ -73,8 +73,8 @@ describe('How to Play says what the game does', () => {
     expect(tip(/start boost/)).toContain(`the ${BASE.startBoostCentreSeconds} appears`);
     // the speed pickups are gears (Adam, 26 Sept 2026); the kart schema still counts them as coins
     expect(BASE.coinShield.enabled).toBe(false);
-    expect(tip(/gears/)).toContain(`up to ${BASE.coinCap}`);
-    expect(tip(/gears/)).toContain(`spins you out and knocks ${BASE.hitCoinsLost} gears loose`);
+    expect(tip(/plasma orbs/)).toContain(`up to ${BASE.coinCap}`); // plasma orbs since 30 Sept 2026 (gears before)
+    expect(tip(/plasma orbs/)).toContain(`spins you out and knocks ${BASE.hitCoinsLost} orbs loose`);
     expect(tip(/slipstream/)).toContain(`${BASE.slipstreamSeconds} seconds`);
   });
 

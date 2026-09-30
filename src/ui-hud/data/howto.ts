@@ -61,7 +61,7 @@ export const TIPS: readonly string[] = Object.freeze([
   // as many as the HUD has slots (UI.itemSlots; Adam, 28 Sept 2026: "Yes, 3 item slots.")
   `Drive through an energy core for an item. You can hold ${COUNT_WORDS[UI.itemSlots] ?? UI.itemSlots}. A gold pair of cores gives you two at once.`,
   // the speed pickups are gears (Adam, 26 Sept 2026: "not coins"); the sim still counts them as coins
-  'Grab gears to tune up your kart: a little more top speed, up to 10. A hit spins you out and knocks 2 gears loose.',
+  'Grab plasma orbs to charge up your kart: a little more top speed, up to 10. A hit spins you out and knocks 2 orbs loose.',
   'Stay right behind a racer for 2 seconds: their slipstream gives you a boost.',
   'Off a ramp or a bump, press drift in the air for a trick boost when you land.',
   'When the leader starts the last lap, the track changes. Watch for the banner.',
