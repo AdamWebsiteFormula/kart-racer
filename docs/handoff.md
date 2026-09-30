@@ -24,8 +24,11 @@ job ledger. Ship = fast-forward main to the branch after `npm run verify`, with 
 ### Higgsfield by API key (Adam chose this, 30 Sept: "Let's just use the key method. It gives a lot of free credits.")
 Adam makes the key at https://console.higgsfield.ai (a public key id and a private secret; docs: docs.higgsfield.ai,
 base URL api.higgsfield.ai; pay-as-you-go in US dollars, separate from the connector's credits). He puts them in the
-cloud environment as secrets, NEVER in chat: environment menu (session title bar) > Edit > API credentials, or as
-environment variables named `HF_API_KEY` and `HF_API_SECRET` (a new session picks them up). The environment's
+cloud environment as secrets, NEVER in chat: at claude.ai/code click the cloud icon (the environment's name) above the
+message box, hover the environment, click its gear, and put `HF_API_KEY=...` and `HF_API_SECRET=...` (one per line,
+.env format) in the Environment variables box (the simplest; the separate "API credentials" section is Pro/Max only and
+needs the API's header format). A NEW session picks them up; running sessions keep the old values. Network access:
+Full (any domain), or Custom with the domains below one per line and "Also include default list" ticked. The environment's
 network access must also allow `api.higgsfield.ai` (and `console.higgsfield.ai`, `docs.higgsfield.ai` to read the docs),
 beside the two cloudfront hosts above. The old session could NOT verify two things (higgsfield.ai is blocked there):
 (1) that the API gives free credits (a 30 Sept search said pay-as-you-go with no subscription: check the console's
