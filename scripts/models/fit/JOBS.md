@@ -88,3 +88,15 @@ her wheel-less image f443e9fa-ff4a-4b09-a5c6-77b1aea0786b is made.
 | momo | 0115ef26-d1d6-4ea4-b8b5-73dd79d8944f | Tripo body, completed |
 | otto | f586aad7-6a2d-4ead-9354-f8a4f209b799 | wheel-less image, checked: no wheels, whole kart in frame |
 | otto | 860d0e34-df20-423d-bb3b-06c15ee96ebd | Tripo H3.1 body, started (standard, PBR) |
+
+## Characters tweak, step 1 (30 Sept 2026): sleeker concept images (gpt_image_2_5 medium, 2:3, edited from each char img)
+| racer | edited from | concept job |
+|---|---|---|
+| pip | be9ff255 | 5fdfd373-9c17-455b-a08d-41ac42ae420a |
+| momo | 8203b948 | e3a8b51f-eafd-4004-a0f8-dac08a3ff925 |
+| nova | 0cea2744 | 4b6de0e5-94d5-4ddc-b9fb-17ec19ee3108 |
+| juniper | 2bef6acc | 79204d6f-d5e2-40fd-9901-a4eac0a8110f |
+| otto | 23f12988 | 5ac47326-c116-4262-93f5-e38f2f05c3ee |
+| sprocket | a6231afe | 75ed76f5-76b3-4c4f-8d10-f46aabe23193 |
+| boulder | 6ad140b7 | d457adc2-bb1e-46fa-91ac-93b068750438 (first try hit a 429, no credit taken) |
+| gus | 7ef99db2 | 45cca5db-58f3-4609-80bc-4a09855b8d3a |
