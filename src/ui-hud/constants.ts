@@ -22,7 +22,7 @@ export const UI = Object.freeze({
   wipeOutMs: 150,
   /** a racer card the pointer rests on this long is the one on show (the garage dresses it); one it only passes over on the way to the rows below is not */
   hoverDressMs: 150,
-  popEasing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  popEasing: 'cubic-bezier(0.22, 1, 0.36, 1)', // no springy overshoot (30 Sept 2026)
   minimapHz: 30,
   minimapMaxDpr: 2,
   playerDotPx: 6.5,

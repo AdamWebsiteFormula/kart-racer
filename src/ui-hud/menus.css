@@ -84,7 +84,7 @@
   box-shadow: inset 0 0 0 3px #fff, 0 0 0 5px var(--sun), 0 0 0 9px var(--ink), 0 0 36px 10px rgb(255 196 48 / 0.5), 0 16px 24px rgb(10 12 36 / 0.4);
 }
 .band.focused > .label, .band:focus-visible > .label { color: var(--sun); }
-.band.focused > .icon { transform: scale(1.1) rotate(-6deg); }
+.band.focused > .icon { transform: scale(1.06); }
 .band.focused > .glass::after {
   content: '';
   position: absolute;
@@ -165,7 +165,7 @@
 }
 /* the one stop on the screen, always focused: a soft sun glow says so */
 .start-prompt.focused, .start-prompt:focus-visible { text-shadow: var(--lift), 0 0 26px rgb(255 210 63 / 0.55); }
-@keyframes start-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.035); } }
+@keyframes start-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.68; transform: scale(1.015); } }
 /* the prompt in the words of the input in hand: a keyboard's, a pad's once one is used, a tap's on a touch screen */
 .start-prompt > span { display: none; }
 .start-prompt > .only-keys { display: inline; }
@@ -288,7 +288,7 @@
 .cup-tile .cup-head { position: relative; z-index: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 12px; row-gap: 4px; }
 .cup-tile .emblem { grid-row: 1 / span 2; display: block; width: 64px; height: 64px; }
 .cup-tile .emblem svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.3)); transition: transform var(--t-fast) var(--pop); }
-.cup-tile.focused .emblem svg { transform: scale(1.12) rotate(-6deg); }
+.cup-tile.focused .emblem svg { transform: scale(1.06); }
 .cup-tile .label { align-self: end; justify-self: start; max-width: 100%; font: italic 800 clamp(22px, 1.7vw, 28px)/1.1 var(--display); font-stretch: 110%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: var(--lift); }
 .cup-tile .cup-head:not(:has(.badge)) .label { grid-row: 1 / span 2; align-self: center; }
 .cup-tile .badge { align-self: start; justify-self: start; font: italic 800 14px/1 var(--body); color: var(--ink); background: var(--paper); border-radius: 999px; padding: 4px 10px; }

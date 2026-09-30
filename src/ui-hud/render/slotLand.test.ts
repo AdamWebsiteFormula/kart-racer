@@ -186,8 +186,8 @@ describe('the landing in the stylesheet', () => {
       const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1]).filter((p) => p !== 'animation-timing-function');
       for (const p of props) expect(['transform', 'opacity', 'filter'], `${name}: ${p}`).toContain(p);
     }
-    // it falls in from over the slot, lands squashed (wider than tall) and springs back stretched
-    expect(keyframes('slot-drop')).toMatch(/scale\(1\.2, 0\.8\)[\s\S]*scale\(0\.92, 1\.1\)/);
+    // it falls in and settles, no squash and stretch (30 Sept 2026: nothing cartoony)
+    expect(keyframes('slot-drop')).not.toMatch(/scale\([\d.]+, [\d.]+\)/);
   });
 
   it('reduced motion: a quick fade of UI.slotFadeMs, no bounce, ring, shine or badge pop', () => {

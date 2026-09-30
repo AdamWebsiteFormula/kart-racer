@@ -124,7 +124,7 @@
   transition: transform var(--t-med) var(--out);
   -webkit-user-drag: none;
 }
-.kart-tile.focused .kc-art img.art { transform: scale(1.1) translateY(-3%); }
+.kart-tile.focused .kc-art img.art { transform: scale(1.04); }
 /* a twin still locked: the kart's dark shape, our padlock on it, and how to earn it along the foot */
 .kart-tile.locked .kc-art img.art, .kart-tile.locked .kc-art .kart-svg { filter: brightness(0) opacity(0.42); }
 .kart-tile.locked { --accent: #9a97a8; }
@@ -155,10 +155,10 @@
 }
 .kart-screen.on .kart-tile.locked-in, .roster-screen.on .racer-tile.locked-in { animation: lock-pulse var(--t-lock-in) var(--pop); }
 .kart-tile.locked-in .kc-stamp { opacity: 1; transform: translateX(-50%) rotate(-8deg) scale(1); transition: transform 180ms var(--pop), opacity 80ms linear; }
-@keyframes lock-pulse { 40% { transform: translateY(-6px) scale(1.12); } }
+@keyframes lock-pulse { 40% { transform: scale(1.04); } } /* no jump (30 Sept 2026) */
 /* a locked twin refused: it shakes no */
 .kart-screen.on .kart-tile.refused { animation: refuse-shake 320ms ease-in-out; }
-@keyframes refuse-shake { 20% { transform: translateX(-7px) rotate(-1deg); } 45% { transform: translateX(6px) rotate(1deg); } 70% { transform: translateX(-4px); } 90% { transform: translateX(2px); } }
+@keyframes refuse-shake { 25% { transform: translateX(-4px); } 55% { transform: translateX(3px); } 80% { transform: translateX(-1px); } }
 
 /* ---------- the name under the hero: big, on a plate in its color (the course intro's), a line under it ----------
    The house type (Adam, 28 Sept 2026): caps in Mona Sans Expanded Black Italic, a hard offset in a deep tone of the
@@ -186,7 +186,7 @@
 .nameplate.locked .np-lock { display: block; }
 /* a new racer or kart on show: the name pops in (over the screen's entrance) */
 .select-screen.on .nameplate.swap { animation: np-swap 280ms var(--pop); }
-@keyframes np-swap { from { opacity: 0.3; transform: translateY(10px) scale(0.9); } }
+@keyframes np-swap { from { opacity: 0.3; transform: translateY(6px); } }
 /* chosen: the ribbon flashes the sun (the tile has its stamp): a sun ribbon over it, its opacity alone moving */
 .np-name::after {
   content: '';

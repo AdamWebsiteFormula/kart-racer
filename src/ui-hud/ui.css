@@ -53,7 +53,7 @@
   --shadow-drop: 0 7px 0 var(--ink);
   --shadow-soft: 0 14px 40px rgba(27, 27, 47, 0.35);
 
-  --pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --pop: cubic-bezier(0.22, 1, 0.36, 1); /* a fast, clean settle: no springy overshoot (Adam, 30 Sept 2026: nothing cartoony) */
   --out: cubic-bezier(0.22, 1, 0.36, 1);
   --t-fast: 140ms;
   --t-med: 280ms;
@@ -283,13 +283,13 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
    fill `both` pinned every popped-in card and button flat for good: no focus lift, no press, the
    player's results row unscaled, and dnf and knocked-out rows never dimmed (sweep, 24 Sept 2026) */
 @keyframes pop-in { from { opacity: 0; transform: translateY(26px) scale(0.92); } }
-@keyframes drop-in { 0% { opacity: 0; transform: translateY(-120px) rotate(-6deg) scale(0.8); } 60% { opacity: 1; transform: translateY(12px) rotate(2deg) scale(1.04); } 100% { transform: none; } }
-@keyframes wobble { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes drop-in { 0% { opacity: 0; transform: translateY(-40px); } 100% { transform: none; } }
+@keyframes wobble { 0%, 100% { transform: none; } 50% { transform: translateY(-1px); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
 @keyframes bar-fill { from { transform: scaleX(0); } }
 @keyframes slide-in { from { opacity: 0; transform: translateX(72px) skewX(-6deg); } }
 /* (the place numeral's: it flashes bright as its new color comes in) */
-@keyframes flourish { 0% { transform: scale(1); filter: brightness(1.7); } 40% { transform: scale(1.28) rotate(-4deg); filter: brightness(1.15); } 100% { transform: scale(1); filter: none; } }
+@keyframes flourish { 0% { transform: scale(1); filter: brightness(1.7); } 40% { transform: scale(1.1); filter: brightness(1.15); } 100% { transform: scale(1); filter: none; } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
 .screen.on .enter { animation: pop-in var(--t-slow) var(--pop) backwards; animation-delay: var(--delay, 0ms); }
 
@@ -453,14 +453,12 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .slot.land .slot-glass::after { animation: slot-flare var(--t-land) var(--out); }
 /* falls in bright (0 to 17 %), lands squashed, springs up stretched, settles to the slot's own look (no 100 %: it ends on the state's transform) */
 @keyframes slot-drop {
-  0% { transform: translateY(-18%) scale(1.45); filter: brightness(2.3) saturate(0.35); animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.6); }
-  17% { transform: translateY(6%) scale(1.2, 0.8); filter: brightness(1.8) saturate(0.6); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
-  40% { transform: translateY(-5%) scale(0.92, 1.1); filter: brightness(1.25) saturate(0.9); }
-  62% { transform: translateY(1%) scale(1.05, 0.96); filter: brightness(1.05) saturate(1); }
-  82% { transform: scale(0.99, 1.01); filter: brightness(1) saturate(1); }
+  0% { transform: translateY(-10%) scale(1.15); filter: brightness(2.3) saturate(0.35); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+  30% { transform: none; filter: brightness(1.5) saturate(0.7); }
+  82% { transform: none; filter: brightness(1) saturate(1); }
 }
 /* the plate gives as the item lands on it and springs back */
-@keyframes slot-catch { 0%, 15% { transform: none; } 28% { transform: translateY(3px) scale(1.06, 0.94); } 50% { transform: translateY(-2px) scale(0.97, 1.03); } 72% { transform: scale(1.01, 0.99); } }
+@keyframes slot-catch { 0%, 15% { transform: none; } 28% { transform: translateY(2px); } }
 @keyframes slot-ring { 0%, 12% { opacity: 0; transform: skewX(var(--slant)) scale(0.94); } 20% { opacity: 1; transform: skewX(var(--slant)) scale(1.02); } 100% { opacity: 0; transform: skewX(var(--slant)) scale(1.45); } }
 @keyframes slot-shine { 0% { opacity: 1; transform: translateX(-70%); } 100% { opacity: 1; transform: translateX(70%); } }
 @keyframes slot-badge { from { opacity: 0; transform: skewX(var(--slant)) scale(0.3); } }
@@ -659,8 +657,8 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   100% { transform: none; }
 }
 @keyframes ch-punch {
-  0% { opacity: 0; transform: scale(1.9) skewX(-14deg); animation-timing-function: cubic-bezier(0.3, 0, 0.8, 0.4); }
-  45% { opacity: 1; transform: scale(0.94); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  0% { opacity: 0; transform: scale(1.5) skewX(-6deg); animation-timing-function: cubic-bezier(0.3, 0, 0.8, 0.4); }
+  45% { opacity: 1; transform: scale(0.99); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
   100% { transform: none; }
 }
 /* going: the words dash off to the left (the ghost holds the words the banner just let go) */
@@ -758,19 +756,17 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
   box-shadow: 0 0 0 calc(var(--lamp) * 0.075) #e2ffe0, 0 0 0 calc(var(--lamp) * 0.075 + 3px) var(--ink), 0 0 calc(var(--lamp) * 0.6) calc(var(--lamp) * 0.22) rgb(60 255 120 / 0.75);
 }
 .lamps[data-lit='1'] .lamp:nth-child(1), .lamps[data-lit='2'] .lamp:nth-child(2), .lamps[data-lit='3'] .lamp:nth-child(3), .lamps[data-lit='go'] .lamp { animation: lamp-on 360ms var(--pop); }
-@keyframes lamp-on { 0% { transform: scale(0.84); filter: brightness(2.3); } 45% { transform: scale(1.14); filter: brightness(1.35); } }
+@keyframes lamp-on { 0% { transform: scale(0.94); filter: brightness(2.3); } 45% { transform: scale(1.04); filter: brightness(1.35); } }
 /* lowered in on its cables with a swing as the count starts, swaying a little while it counts; a jolt on GO; hauled up after */
-.lamps.on { visibility: visible; animation: lamps-drop 640ms backwards, lamps-sway 1.8s ease-in-out 640ms infinite alternate; }
+.lamps.on { visibility: visible; animation: lamps-drop 640ms backwards; } /* no swaying on its cables since 30 Sept 2026 */
 .lamps.on[data-lit='go'] { animation: lamps-go 420ms var(--pop); }
 .lamps.leaving { visibility: visible; animation: lamps-up 440ms cubic-bezier(0.5, 0, 0.9, 0.4) both; }
 @keyframes lamps-drop {
-  0% { transform: translate(-50%, -260%) rotate(-7deg); animation-timing-function: cubic-bezier(0.4, 0, 0.9, 0.5); }
-  52% { transform: translate(-50%, 7%) rotate(4deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
-  76% { transform: translate(-50%, -2%) rotate(-2deg); animation-timing-function: ease-in-out; }
-  100% { transform: translateX(-50%) rotate(-1deg); }
+  0% { transform: translate(-50%, -260%); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+  100% { transform: translateX(-50%); }
 }
 @keyframes lamps-sway { from { transform: translateX(-50%) rotate(-1deg); } to { transform: translateX(-50%) rotate(1deg); } }
-@keyframes lamps-go { 0% { transform: translateX(-50%) scale(1); } 35% { transform: translate(-50%, -4%) scale(1.1); } 100% { transform: translateX(-50%) scale(1); } }
+@keyframes lamps-go { 0% { transform: translateX(-50%) scale(1); } 35% { transform: translate(-50%, -2%) scale(1.04); } 100% { transform: translateX(-50%) scale(1); } }
 @keyframes lamps-up {
   0% { visibility: visible; transform: translateX(-50%); }
   25% { visibility: visible; transform: translate(-50%, 6%) scale(1.02); }
@@ -1173,7 +1169,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .standings.play .row.flip > .was { animation: was-on calc(var(--t-flip) / 2) step-end var(--flip-at) backwards; }
 .standings.play .row .mv:not(:empty) { animation: pop-in var(--t-med) var(--pop) calc(var(--flip-at) + var(--t-flip) / 2) backwards; }
 @keyframes count-up { from { --pts: var(--from); } }
-@keyframes gain-pop { 45% { transform: scale(1.35); } }
+@keyframes gain-pop { 45% { transform: scale(1.12); } }
 /* (listed before slide-in, which wins while the row comes in; nothing held after it, so the player's row
    keeps its own lift) */
 @keyframes row-flip {
@@ -1196,7 +1192,7 @@ canvas.game { display: block; position: fixed; inset: 0; width: 100%; height: 10
 .medal-svg .tail-r { fill: var(--teal); }
 .medal-svg .glint { fill: #fff; transform-box: fill-box; transform-origin: center; }
 /* it arrives with a bounce, and its glint twinkles twice (ends lit: reduced motion shows it still) */
-@keyframes medal-in { 0% { opacity: 0; transform: scale(0.2) rotate(-40deg); } 60% { opacity: 1; transform: scale(1.12) rotate(6deg); } }
+@keyframes medal-in { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; transform: scale(1.02); } }
 @keyframes medal-glint { 0%, 100% { transform: scale(1) rotate(0); } 40% { transform: scale(0.2) rotate(90deg); } 70% { transform: scale(1.35) rotate(45deg); } }
 .results .res-medal .glint, .banner .medal-won .glint { animation: medal-glint 900ms ease-in-out 2; animation-delay: 700ms; }
 

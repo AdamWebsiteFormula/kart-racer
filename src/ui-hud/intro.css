@@ -124,7 +124,7 @@
 .intro[data-phase='out'] .driver { animation: intro-leave-right 380ms ease-in both; }
 
 @keyframes intro-ribbon { from { transform: skewX(-16deg) scaleX(0); } to { transform: skewX(-16deg) scaleX(1); } }
-@keyframes intro-pop { 0% { opacity: 0; transform: translateX(-70px) skewX(-8deg); } 60% { opacity: 1; transform: translateX(6px) skewX(2deg); } 100% { opacity: 1; transform: none; } }
+@keyframes intro-pop { 0% { opacity: 0; transform: translateX(-70px); } 100% { opacity: 1; transform: none; } }
 @keyframes intro-in-right { 0% { opacity: 0; transform: translateX(60px); } 100% { opacity: 1; transform: none; } }
 @keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes intro-leave { to { opacity: 0; transform: translateX(-60px); } }
