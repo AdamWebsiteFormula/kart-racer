@@ -492,10 +492,18 @@ function beginRace(config: RaceConfig, kind: IntroKind | null): void {
   const def = defOf(config);
   const racers = racersOf(config), props = trackProps(def);
   const missing = racers.filter((id) => !RACER_MODELS.settled(id)), unbuilt = props.filter((n) => !PROP_MODELS.settled(n));
-  if (!missing.length && !unbuilt.length) { waiting = null; load(config, false, kind); return; }
   const w = { config, kind, racers, props };
-  waiting = w;
   const me = config.racers.find((r) => r.isPlayer);
+  if (!missing.length && !unbuilt.length) {
+    // a restart (no card) is built at once; a race with a course to fly puts its card on ink over the menu first and
+    // is built once that has drawn: the build holds the page for a moment, and it must hold the card, not the menu
+    if (!kind || !me) { waiting = null; load(config, false, kind); return; }
+    waiting = w;
+    ui.introCard(cardFor(config, def, me.racerId));
+    afterCurtain(() => { if (waiting !== w) return; waiting = null; load(config, false, kind); });
+    return;
+  }
+  waiting = w;
   if (me) ui.introCard(cardFor(config, def, me.racerId));
   raceLine(true);
   for (const n of unbuilt) files.rerank(`prop:${n}`, RANK.race);
@@ -509,6 +517,14 @@ function beginRace(config: RaceConfig, kind: IntroKind | null): void {
     waiting = null;
     load(config, false, kind);
   });
+}
+
+/** Milliseconds the intro card's ink takes to fade in over the menu (ui-hud intro.css curtain-in), with a frame to spare. */
+const CURTAIN_IN = 230;
+
+/** `then` once the ink is up: two frames (the card drawn), then the fade's length. */
+function afterCurtain(then: () => void): void {
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(then, CURTAIN_IN)));
 }
 
 /** How much of what `racers` and `props` need is in (0 to 1): the filling line's share. */
@@ -851,6 +867,12 @@ function endIntro(): void {
 /** Seconds a race's countdown may wait past its course intro for racer models still coming down. */
 const MODEL_WAIT = 2;
 /**
+ * The most a course intro's clock moves in one frame (s): a slow frame in the flight (a texture's first upload, a racer's
+ * model swapped in) slows the camera for that frame instead of jumping it on (Adam, 30 Sept 2026: the pre-race "doesn't
+ * feel smooth"). At 60 fps and above it never binds.
+ */
+const INTRO_STEP = 1 / 30;
+/**
  * A race built before some of its racers' model files were in (24 Sept 2026: on Fast 4G a race picked
  * in the first 5.5 s kept the code-built karts to the flag). Its racers are asked for first (load);
  * each model that lands during the course intro is built beside the race, its textures uploaded and
@@ -1040,7 +1062,7 @@ function step(now: number): void {
         // its music from the flight's first frame (audio/introCue.ts: the course's own intro piece, else the first bars of
         // its race song), silent a breath before the countdown; none for a flight skipped before it began
         if (!intro.flightOver) audio.courseIntro(intro.plan.duration);
-      } else intro.advance(frameDt);
+      } else intro.advance(Math.min(frameDt, INTRO_STEP));
       if (import.meta.env.DEV && devIntroAt !== null) intro.time = Math.min(devIntroAt, intro.plan.duration - 1e-3);
       if (intro.cardLeaving) ui.introPhase('out');
     }

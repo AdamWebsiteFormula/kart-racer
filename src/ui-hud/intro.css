@@ -9,8 +9,12 @@
 #ui .intro { position: absolute; inset: 0; pointer-events: none; display: none; overflow: hidden; }
 #ui .intro:not([data-phase='off']) { display: block; }
 
-/* while the race's shaders compile nothing new is drawn: the card sits on ink, which lifts as the flight starts */
+/* while the race's shaders compile nothing new is drawn: the card sits on ink, which lifts as the flight starts. The
+   ink fades in over the menu (main.ts CURTAIN_IN waits for it before the race is built: Adam, 30 Sept 2026, "The
+   pre-race part after clicking to race doesn't feel smooth": the menu froze under the build, then the card cut in) */
 .intro .curtain { position: absolute; inset: 0; background: var(--ink); opacity: 1; transition: opacity 520ms ease; }
+.intro[data-phase='hold'] .curtain { animation: curtain-in 200ms ease-out both; }
+@keyframes curtain-in { from { opacity: 0; } to { opacity: 1; } }
 .intro:not([data-phase='hold']) .curtain { opacity: 0; }
 
 .intro .plate {
