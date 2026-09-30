@@ -49,3 +49,21 @@ In the game's chase view (5.5 m back, 2.4 m up) Gus hid behind his truck box, Pi
 | sprocket | ba2fe9f5 (small low key) | f723306a-fb42-4892-8b5a-f0d99bae426b |
 | nova | 021cd772 (small low nozzle) | 765d7fee-0d88-4b3d-8b1d-ab1db30ca93e |
 Otto keeps his body. The drivers and wheels stay.
+
+## Round 4 (30 Sept 2026): sleek, sporty bodies (Adam: "The karts all look too cartoony", then option A)
+Concept images (gpt_image_2_5 medium, 0.5 each, from each kart's menu art as the layout reference: "a sleek, sporty
+racing kart for a premium modern 3D kart racing game ... not toy-like, not clay, not chubby", empty, nothing behind the
+seat above its backrest, three-quarter front view): waiting on Adam's pick. Next per kart: a wheel-less body image from
+the picked concept (open, empty arches), then Tripo H3.1 (about 9 each). The wheels become code-built sporty wheels
+(low-profile slicks on alloy rims), not Tripo jobs. This cloud session cannot download from d8j0ntlcm91z4.cloudfront.net
+(network policy), so fitting needs that host allowed or a Mac session.
+| racer | concept image job |
+|---|---|
+| pip | 659cb301-bb61-49f5-b97d-14b56a9b0dca |
+| momo | e207f1a0-0fb4-4a1d-93bd-18b1009251ca |
+| nova | e5290215-f644-4ada-806f-da45c0caa335 |
+| juniper | 2dabc8d4-2210-480d-8654-1ddb4331bcc2 |
+| otto | e479b375-610e-4633-b860-8d60c92e7de4 |
+| sprocket | cbad7656-6263-4525-99c6-257aefb73463 |
+| boulder | 3cf7879d-be32-4cb5-8112-7e10a6c86380 |
+| gus | e825af32-607f-4e81-8cc4-80f6e270a754 |
