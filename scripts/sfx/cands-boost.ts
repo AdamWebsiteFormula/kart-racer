@@ -3,7 +3,7 @@
 // boost, the slipstream, the drift's spark tier-ups and the sparks loop. One family: a real exhaust pop (a performance
 // car's crackle on the upshift, Muted.io Performance Cars, CC0) under a sci-fi whoosh (Rescopic Sound's Sci-Fi Energy
 // Weapons and Parallax, 99Sounds licence), and electric crackle for the sparks (Lentikula's Lightning Spell Impacts,
-// CC0). More pops and a longer whoosh as the tier grows. The raw files live in the private repo
+// CC0; 99Sounds' Electromagnetic Fields). More pops and a longer whoosh as the tier grows. The raw files live in the private repo
 // AdamWebsiteFormula/rascal-sfx-source; only the finished mixes ship. Each keeps the length of the sound it replaces.
 //   RASCAL_SFX_PACKS=/home/user/rascal-sfx-source/packs python3 scripts/sfx/build.py --recipes=scripts/sfx/cands-boost.ts --out=<dir>
 import { cap, lvl, OUT } from './parts.ts';
@@ -16,6 +16,8 @@ const SF = (p: string) => ({ pack: `${SCI}/Rescopic Sound - Sci-Fi Energy Weapon
 const PX = (p: string) => ({ pack: `${SCI}/Rescopic Sound - Parallax (99Sounds Version)/Audio Files/${p}` });
 /** Lentikula, Basic Spell Impacts: lightning (CC0) */
 const ZAP = (n: number) => ({ pack: `Basic_Spell_Impacts/Lightning Spell Impacts/Lightning Spell Impact ${n}.wav` });
+/** 99Sounds, Electromagnetic Fields */
+const EM = (f: string) => ({ pack: `99Sounds_Electromagnetic_Fields/99Sounds Electromagnetic Fields/Sounds/${f}` });
 const CAR = (n: string) => ({ pack: `performance-cars-free-sample-pack-mutedio/performance-cars-free-sample-pack-mutedio/${n}-performance-cars-mutedio.wav` });
 
 const L = (src: { pack: string }, db: number, fx: Fx[] = [], at = 0): Layer => ({ at, src, fx: [...fx, ...lvl(db)] });
@@ -85,4 +87,11 @@ export const RECIPES: readonly Recipe[] = [
     L(ZAP(4), 0, [{ op: 'trim', from: 0.45 }, ...cap(0.8)]),
     rush(PX('Pings/SCIMisc_Ping 05_RSCPC_PX.wav'), 0.85, 0.55, -10, 0.4),
   ]),
+  {
+    id: 'sparks', why: 'candidate, 29 Sept 2026', loop: 3, xfade: 0.1,
+    brief: 'While drifting, bright electric sparks spray from the wheels: a steady, crisp electric crackle, a seamless loop under the engine. Electric, not like food frying.',
+    // a recorded electromagnetic field's crackle: spiky (crest 10) and bright, one level from 1.2 s (spread 0.07 dB)
+    layers: [L(EM('FTUS - Electromagnetic Fields 08.wav'), 0, [{ op: 'trim', from: 1.2, to: 4.4 }, { op: 'hp', hz: 1500 }, { op: 'mono' }])],
+    master: [{ op: 'comp', threshold: -18, ratio: 2, attack: 0.005, release: 0.15 }, OUT],
+  },
 ];
