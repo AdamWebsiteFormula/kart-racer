@@ -1,11 +1,14 @@
 // A silent headless Chrome for checks (CLAUDE.md "Browser checks: silent, always"): --mute-audio,
 // its own throwaway profile, and every game URL gets ?mute, so the game never makes an AudioContext.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+// the Mac's Chrome, else a cloud container's Playwright Chromium (CHROME overrides both)
+const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME ?? (existsSync(MAC_CHROME) ? MAC_CHROME : '/opt/pw-browsers/chromium-1194/chrome-linux/chrome');
+const MAC = CHROME === MAC_CHROME;
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** `url` with ?mute added (kept if already there). */
@@ -21,7 +24,7 @@ export async function openChrome({ width = 1600, height = 900, dpr = 1, uncapped
   // here at random could already be another session's Chrome, whose page this check then drove (27 Sept 2026:
   // two agents' checks at once, one's clicks landed in the other's race)
   const profile = mkdtempSync(join(tmpdir(), 'rascal-chrome-'));
-  const args = ['--headless=new', '--mute-audio', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${width},${height}`, '--no-first-run', '--no-default-browser-check'];
+  const args = ['--headless=new', '--mute-audio', '--remote-debugging-port=0', `--user-data-dir=${profile}`, ...(MAC ? ['--use-angle=metal'] : ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']), '--ignore-gpu-blocklist', `--window-size=${width},${height}`, '--no-first-run', '--no-default-browser-check'];
   if (uncapped) args.push('--disable-gpu-vsync', '--disable-frame-rate-limit');
   const proc = spawn(CHROME, [...args, 'about:blank'], { stdio: 'ignore' });
   // a check stopped midway (Ctrl-C, kill) must not leave the game running in an orphaned Chrome

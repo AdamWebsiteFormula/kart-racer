@@ -4,7 +4,7 @@
 import { createReadStream, existsSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, resolve } from 'node:path';
-import { openChrome, sleep } from '/Users/Adam/code/kart-racer/scripts/headless/cdp.mjs';
+import { openChrome, sleep } from '../../headless/cdp.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, dflt) => args.find((a) => a.startsWith(`--${name}=`))?.split('=').slice(1).join('=') ?? dflt;

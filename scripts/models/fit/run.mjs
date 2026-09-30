@@ -5,11 +5,11 @@
 import { existsSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, resolve } from 'node:path';
-import { openChrome, sleep } from '/Users/Adam/code/kart-racer/scripts/headless/cdp.mjs';
+import { openChrome, sleep } from '../../headless/cdp.mjs';
 
 const R = (process.env.RACERS_DIR ?? '/private/tmp/claude-501/-Users-Adam-code-kart-racer/e9b579a3-40b9-4a4d-8b7b-391075b21ef5/scratchpad/racers'); // the work folder (fit.json, out/)
 const TOOLS = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
-const REPO = '/Users/Adam/code/kart-racer';
+const REPO = new URL('../../..', import.meta.url).pathname.replace(/\/$/, '');
 const [script, ...args] = process.argv.slice(2);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.glb': 'model/gltf-binary' };
 const server = createServer((req, res) => {
@@ -22,7 +22,7 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const c = await openChrome({ width: 1600, height: 900 });
 try {
-  await c.send('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/` });
+  await c.send('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/?racers=${encodeURIComponent(R)}` });
   for (let i = 0; i < 60 && !(await c.eval('window.ready === true').catch(() => false)); i++) await sleep(250);
   const ev = (expr) => c.eval(expr);
   const save = (file, dataUrl) => { writeFileSync(file, Buffer.from(dataUrl.split(',')[1], 'base64')); console.log('wrote', file); };
