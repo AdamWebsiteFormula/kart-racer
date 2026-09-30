@@ -127,3 +127,15 @@ Adam approved all eight concepts ("Go"). Credits fit five tonight, submitted ris
 | gus | f0952277-437a-4aaa-91e5-add5e1634509 | 5d86cc63-de3a-4413-9541-fe3a812ecbd1 |
 Rule from the handoff: all eight must match in style, so ship none of them into the game unless all eight are fitted.
 Adam OK'd Fan Zoo for the game (30 Sept, chat); no licence file in the pack.
+
+## Kart fitting (30 Sept 2026, afternoon): the sleek bodies go in
+All nine earlier jobs finished: Otto's Tripo body 860d0e34 and the eight Meshy drivers (not fitted yet).
+Wheels are code-built now (scripts/models/fit/wheelgen.mjs), not Tripo. Bodies simplified to about 7.5k triangles.
+Adam, 30 Sept: one kart is a chopper-style (four wheels), for Otto; not black (Gus's is black), a dark color that fits his outfit.
+Adam, 30 Sept: "The Walrus's ride should look like a mobster vehicle".
+| racer | image | Tripo body job | note |
+|---|---|---|---|
+| otto | a71c8bcb-fed8-4845-8d63-2fe9f3015dfb (chopper, sky blue) | 251955c8-e5fa-4d8c-ab7b-03219f6ded75 | superseded by the dark recolor |
+| otto | f87a2f70-7175-40ec-8e3e-a22ad33b6049 (black recolor) | - | not used (Gus's kart is black) |
+| otto | 5d5cbacc-312d-4b87-a0dc-df5b71f1c14f (midnight blue, red pinstripes) | 4b4b8bba-97ef-4887-a7af-1320f5271908 | the one to fit |
+| gus | d4df875f-d08d-4b6d-a068-ef5c6c6a484f (1930s mobster roadster, black and red) | a4e41ac9-8ef0-485c-8a50-56627549d9fc | replaces the food-truck body 2e108f60 |
