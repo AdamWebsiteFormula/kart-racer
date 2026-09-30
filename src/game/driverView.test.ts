@@ -116,11 +116,12 @@ describe('every racer\'s head and shoulders show from the chase camera, in every
     seatDriver(nova.root, { ...nova.seat, shoulders: undefined }, nova.pose, nova.rest);
     expect(seen(nova.root).shoulders).toBeGreaterThan(0.75);
     seatDriver(nova.root, nova.seat, nova.pose, nova.rest); // back as built
-    // Pip in the Snack Truck: without the booster the truck's back hides his shoulders; with it they show
-    const combo = buildComboTemplate(T.gus, T.pip);
-    expect(seen(combo.root).shoulders).toBeGreaterThanOrEqual(0.75);
-    seatDriver(combo.root, { ...combo.seat, shoulders: undefined }, combo.pose, combo.rest);
-    expect(seen(combo.root).shoulders).toBeLessThan(0.75);
+    // Pip in the Buggy (code-built, the highest back of all): without the booster its roll bar hides his
+    // shoulders; with it they show (the Snack Truck's pair until 30 Sept 2026: the sleek bodies are all low enough)
+    const body = bodyInto(new ModelBuilder(), 'buggy', '#e63946', '#ffffff').build();
+    expect(seen(makeRiggedDriver(T.pip, SEATS.buggy, undefined), body).shoulders).toBeGreaterThanOrEqual(0.75);
+    expect(seen(makeRiggedDriver(T.pip, { ...SEATS.buggy, shoulders: undefined }, undefined), body).shoulders).toBeLessThan(0.75);
+    body.dispose();
   });
 
   it('the booster lifts only a driver whose shoulders sit under the kart\'s line, to it, never more than BOOSTER', () => {

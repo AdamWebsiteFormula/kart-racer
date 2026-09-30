@@ -151,3 +151,10 @@ The drivers are still the old ones: the eight new Meshy drivers are the next ste
 Otto's driver redo (Adam, 30 Sept: "The otter should be wearing leather clothes like a biker would wear"): biker-leathers
 concept 75334fdf-b316-4f80-9b60-6d04f4ddee4a (from 704c74b7) -> Meshy v7 driver f8d3daf9-faf7-4cb1-ac66-209d2f25d965
 (textured, a-pose, rigged); replaces 4af61e4c. The other seven Meshy drivers stand as listed above.
+
+## The sleeker drivers go in (30 Sept 2026, evening)
+All eight Meshy drivers in public/models/racers/<id>/driver.glb (optimized, webp 1024, simplified to 15-20k triangles).
+Momo's first job (44ac626c) came back with no skeleton: rigged afterwards with meshy_rigging a7439865-a403-42cd-ab5b-d1110bf2c004
+(5 credits). Otto: the biker-leathers driver f8d3daf9, his cap recolored black leather in its own texture
+(scripts/models/fit/recolor.py; Adam: "The otter's hat is colored like a beach ball"). Heights and seat points as before.
+driverView.test.ts: the Buggy's shoulder line 0.87 -> 0.92 (Boulder), the booster check moved to Pip in the Buggy.

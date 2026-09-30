@@ -25,7 +25,7 @@ export const SEAT = Object.freeze({ y: 0.6, z: -0.14 });
  */
 export const SEATS: Readonly<Record<Exclude<BodyId, 'standard'>, { seat: [number, number, number]; grips: [[number, number, number], [number, number, number]]; feet: [[number, number, number], [number, number, number]]; shoulders: number }>> = Object.freeze({
   classic: { seat: [0, 0.5, SEAT.z - 0.04], grips: [[0.104, 0.877, SEAT.z + 0.397], [-0.104, 0.877, SEAT.z + 0.397]], feet: [[0.13, 0.32, 0.46], [-0.13, 0.32, 0.46]], shoulders: 0.78 },
-  buggy: { seat: [0, 0.56, SEAT.z - 0.04], grips: [[0.104, 0.927, SEAT.z + 0.397], [-0.104, 0.927, SEAT.z + 0.397]], feet: [[0.13, 0.44, 0.44], [-0.13, 0.44, 0.44]], shoulders: 0.87 },
+  buggy: { seat: [0, 0.56, SEAT.z - 0.04], grips: [[0.104, 0.927, SEAT.z + 0.397], [-0.104, 0.927, SEAT.z + 0.397]], feet: [[0.13, 0.44, 0.44], [-0.13, 0.44, 0.44]], shoulders: 0.92 }, // 0.87 until the sleeker drivers (30 Sept 2026): Boulder's shoulders came 2% short
 });
 
 /** Each racer's two colours (design §4), which the shared bodies wear. */
