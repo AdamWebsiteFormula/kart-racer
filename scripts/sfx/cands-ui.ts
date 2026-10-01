@@ -22,12 +22,15 @@ const MASTER: Fx[] = [{ op: 'hp', hz: 60 }, OUT];
 const r = (id: string, brief: string, layers: Layer[]): Recipe => ({ id, brief, why: 'candidate, 29 Sept 2026', layers, master: MASTER });
 
 export const RECIPES: readonly Recipe[] = [
-  r('count', 'One countdown beep at the start of a race: a clean, rounded, premium electronic ping with a short tail.', [
-    L(PING('10'), 0, 0.6),
+  // the start, cooler since 30 Sept 2026 (Adam: the race start sound "is goofy"): a low, tight countdown tone and a GO
+  // that hits like a launch (a deep thud and an energy whoosh under the tone), no ringing octave-up ping
+  r('count', 'One countdown beep at the start of a race: a low, tight, clean electronic tone, short and serious.', [
+    L(PING('10'), 0, 0.35, [{ op: 'pitch', st: -7 }, { op: 'lp', hz: 3500 }]),
   ]),
-  r('go', 'The GO signal: the countdown ping an octave up, bright and ringing, with a sparkling shimmer on top.', [
-    L(PING('10'), 0, 1.3, [{ op: 'pitch', st: 12 }]),
-    L(PING('21'), -8, 1.2),
+  r('go', 'The GO signal: a punchy launch, a deep thud and a rushing energy whoosh under a short bright tone, under a second.', [
+    L(NN('Impact - Low Blow'), -2, 0.5, [{ op: 'lp', hz: 1800 }]),
+    L({ pack: '99Sounds_Sci-Fi_Sound_Effects/99Sounds Sci-Fi Sound Effects/Rescopic Sound - Sci-Fi Energy Weapons (99Sounds Version)/Audio Files/Source Sounds/Whoosh/WHSH_Whoosh Energy Fast 11_RSCPC_SFEW.wav' }, -4, 0.8),
+    L(PING('10'), -6, 0.5, [{ op: 'pitch', st: 5 }]),
   ]),
   r('lap', 'A lap is done: a quick, happy run of bright plucked notes, under a second.', [
     L(CSD('User Interface', 'Interface Plucks Happy'), 0, 0.8),
