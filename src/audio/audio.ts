@@ -34,7 +34,7 @@ export const DUCKERS: ReadonlySet<SfxId> = new Set<SfxId>(['airHorn', 'strike', 
 const PRIORITY: ReadonlySet<SfxId> = new Set<SfxId>(['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'shift', 'koOut', 'koSafe', 'wrongWay']);
 
 const SILENT: ReadonlySet<SfxId> = new Set<SfxId>(['finish']);
-const SOUND_AS: Readonly<Partial<Record<string, SfxId>>> = Object.freeze({ hit: 'bump', wall: 'bump', uiMove: 'rouletteTick', uiConfirm: 'rouletteTick' });
+const SOUND_AS: Readonly<Partial<Record<string, SfxId>>> = Object.freeze({ hit: 'bump', wall: 'bump', hitConfirm: 'bump', boing: 'bump', bounce: 'bump', uiMove: 'rouletteTick', uiConfirm: 'rouletteTick' }); // (hitConfirm, boing and bounce since 30 Sept 2026, Adam: a "high pitched boingy sound" when the jet or an item hits)
 
 export class GameAudio {
   readonly bus: AudioBus;
