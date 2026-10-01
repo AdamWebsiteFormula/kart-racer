@@ -129,7 +129,7 @@ describe('what a contact draws (into the pools there already are)', () => {
     const me = kartAt('pip', 0, 0), you = kartAt('gus', 1.6, 0);
     c.draw(0, [me, you], undefined, shake(), false); // their velocities before the touch
     c.bump(me, you, 'pip', 5, false);
-    expect(shapes(p.soft)).toContain(SHAPE.burst);
+    expect(shapes(p.soft)).toContain(SHAPE.none);
     expect(shapes(p.soft).filter((s) => s === SHAPE.star).length).toBe(0); // no stars since 30 Sept 2026
     expect(p.glow.count).toBeGreaterThanOrEqual(1);
     expect(p.sparks.count).toBeGreaterThan(4);
@@ -151,7 +151,7 @@ describe('what a contact draws (into the pools there already are)', () => {
       c.draw(0, [a, b], undefined, shake(), false);
       c.bump(a, b, 'a', 1, false);
       const sz = p.soft.mesh.geometry.getAttribute('aSize').array as Float32Array;
-      return sz[shapes(p.soft).indexOf(SHAPE.burst)];
+      return sz[shapes(p.soft).indexOf(SHAPE.none)];
     };
     expect(size(8)).toBeGreaterThan(size(0) * 1.3);
   });
@@ -184,7 +184,7 @@ describe('what a contact draws (into the pools there already are)', () => {
   it('a hit: a bigger burst, a ring of little stars and stars flung out; a rival\'s is smaller and never moves the camera', () => {
     const p = pools(), c = new Contact(p.glow, p.soft, p.sparks);
     c.hit(kartAt('pip', 0, 0), true, 2, false);
-    const bursts = shapes(p.soft).filter((s) => s === SHAPE.burst).length;
+    const bursts = shapes(p.soft).filter((s) => s === SHAPE.none).length;
     expect(bursts).toBe(1);
     expect(shapes(p.glow).filter((s) => s === SHAPE.star).length).toBe(CONTACT.hit.ring);
     expect(shapes(p.soft).filter((s) => s === SHAPE.star).length).toBe(0); // no stars since 30 Sept 2026

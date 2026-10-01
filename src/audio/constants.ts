@@ -48,7 +48,7 @@ export const AUDIO = Object.freeze({
   /** AI engines heard at once */
   aiEngines: 3,
   /** the recorded engine (samples.ts): loop levels by throttle and boost, the drift screech, a near rival */
-  engineLoop: Object.freeze({ base: 0.115, throttle: 0.17, boost: 0.062, screech: 0.4, other: 0.14 }),
+  engineLoop: Object.freeze({ base: 0.27, throttle: 0.46, boost: 0.15, screech: 0.4, other: 0.3 }), // (0.115, 0.17, 0.062, 0.14 until 30 Sept 2026, Adam: the karts "don't rev or make any noise really")
   /** the off-road rumble under the player's wheels (dirt, mud) at top speed: the recorded loop, the synth noise and its low-pass (Hz) */
   offroad: Object.freeze({ loop: 0.35, synth: 0.09, synthHz: 320 }),
   /** engine voice per class (engine.ts classVoice): loop rate and low-pass brightness */

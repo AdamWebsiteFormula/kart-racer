@@ -236,7 +236,7 @@ export class Contact {
     reduced: boolean): void {
     const q = this.toward(x0, y0, z0, lift), x = q[0], y = q[1], z = q[2];
     const size = (0.55 + 0.45 * k) * s;
-    this.put(this.soft, x, y, z, 0, 0, 0, mine ? BURST : BURST_RIVAL, B.burst * size, B.burstLife, 0, 0, 0.35, SHAPE.burst, reduced ? 0 : (rnd() < 0.5 ? -3 : 3), cx, cz);
+    this.put(this.soft, x, y, z, 0, 0, 0, mine ? BURST : BURST_RIVAL, B.burst * size, B.burstLife, 0, 0, 0.35, SHAPE.none, 0, cx, cz); // a soft round flash since 30 Sept 2026 (the spiky burst read as a cartoon star)
     this.put(this.glow, x, y, z, 0, 0, 0, mine ? FLASH : FLASH_RIVAL, B.flash * size, B.flashLife, 0, 0, 0.5, 0, 0, cx, cz);
     const stars = B.stars ? Math.max(1, Math.round(B.stars * (0.5 + 0.5 * k) * s)) : 0;
     const turn = rnd() * Math.PI * 2;
@@ -297,7 +297,7 @@ export class Contact {
     const px = k.position[0] + f.nx * W.reach + fx * W.ahead, pz = k.position[2] + f.nz * W.reach + fz * W.ahead, py = k.position[1] + W.height;
     const cx = this.w1[0], cz = this.w1[1];
     const q = this.toward(px, py, pz, CONTACT.lift.wall);
-    this.put(this.soft, q[0], q[1], q[2], 0, 0, 0, mine ? BURST : BURST_RIVAL, W.burst * (0.5 + 0.5 * kk) * s, W.burstLife, 0, 0, 0.4, SHAPE.burst, 0, cx, cz);
+    this.put(this.soft, q[0], q[1], q[2], 0, 0, 0, mine ? BURST : BURST_RIVAL, W.burst * (0.5 + 0.5 * kk) * s, W.burstLife, 0, 0, 0.4, SHAPE.none, 0, cx, cz);
     this.put(this.glow, q[0], q[1], q[2], 0, 0, 0, mine ? FLASH : FLASH_RIVAL, W.burst * 0.5 * (0.5 + 0.5 * kk) * s, W.burstLife * 0.6, 0, 0, 0.4, 0, 0, cx, cz);
     this.sparkWall(px, py, pz, f.nx, f.nz, cx, cz, Math.round(W.sparks * (0.35 + 0.65 * kk) * s), mine);
     for (let i = 0; i < 8; i++) {

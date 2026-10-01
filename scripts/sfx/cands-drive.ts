@@ -33,9 +33,10 @@ export const RECIPES: readonly Recipe[] = [
     layers: [L(HONDA, 0, [{ op: 'trim', from: 4.0, to: 7.2 }, { op: 'hp', hz: 500 }, { op: 'lp', hz: 11000 }, { op: 'mono' }])],
     master: [{ op: 'comp', threshold: -18, ratio: 2, attack: 0.01, release: 0.2 }, OUT],
   },
-  r('bump', 'Two karts bump into each other: one short, solid, crunchy smack with a clank of the metal frame, under half a second.', [
-    L(AG('FGHTImpt_Combat Punch Impact Light Hit Delay Crunchy Vintage Quick Smack 05_ESM_AG.wav'), 0, cap(0.48)),
-    L(NOX('Footsteps_MetalV1_Jump_Land_02'), -7, cap(0.4)),
+  // a soft, dry thud since 30 Sept 2026 (Adam: the bump "too loud, clanky and echoey"; it was a crunchy smack with a
+  // delay tail and a metal clank); a hit and a wall play it too (audio.ts SOUND_AS)
+  r('bump', 'Two karts bump into each other: one short, dull, dry thud, faint, no clank or echo, under a third of a second.', [
+    L(NN('Impact - Low Blow'), 0, [{ op: 'lp', hz: 1400 }, ...cap(0.28)]),
   ]),
   r('wall', 'A kart hits the wall: a heavy, dull thud of the frame with a short metal clang, about half a second.', [
     L(NN('Impact - Low Blow'), 0, cap(0.6)),

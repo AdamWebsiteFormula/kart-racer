@@ -38,21 +38,29 @@ const WHOOSH = {
   plasma4: SF('Source Sounds/Whoosh/WHSH_Whoosh Plasma 04_RSCPC_SFEW.wav'), // peak 1.30 s
 };
 
+const MINI_JET = { pack: '99_Sound_Effects/99 Sound Effects/WAV/Whoosh - Mini Jet.wav' };
+const BLAST = { pack: 'Sonniss.com-GDC2026-GameAudioBundle1of5__1_/344 Audio - Air Designed/AEROJet_Blast Off Clean_344 Audio_Air Designed.wav' };
+/** a jet's roar under a boost (Adam, 30 Sept 2026: the boost "not boosty enough ... like something that's boosting off") */
+const jet = (db: number, len: number, at = 0): Layer => L(MINI_JET, db, [{ op: 'trim', from: 0.2 }, ...cap(len)], at);
 export const RECIPES: readonly Recipe[] = [
   r('boost1', 'A drift mini-turbo, tier 1 of 3: the kart darts forward with one sharp exhaust pop and a quick rush of air, about half a second.', [
     pop('a', 0),
     rush(WHOOSH.small, 1.0, 0.5, -3, 0.02),
+    jet(-6, 0.6),
   ]),
   r('boost2', 'A drift mini-turbo, tier 2 of 3: two quick exhaust pops and a bigger energy whoosh as the kart surges forward, under a second.', [
     pop('b', 0),
     pop('a', -2, 0.07, 1),
     rush(WHOOSH.plasma, 1.22, 0.8, -2, 0.02),
+    jet(-3, 0.8),
   ]),
   r('boost3', 'A drift mini-turbo, tier 3 of 3 (the biggest): a crackle of three exhaust pops and a powerful rushing energy blast with a sparkling tail, about a second.', [
     pop('c', 0),
     pop('a', -1, 0.06, 1),
     pop('b', -3, 0.13, 2),
     rush(WHOOSH.energy, 1.08, 1.1, -1, 0.02),
+    jet(-1, 1.1),
+    L(BLAST, -6, [{ op: 'trim', from: 5.4 }, ...cap(1.0)]),
     rush(PX('Pings/SCIMisc_Ping 05_RSCPC_PX.wav'), 0.85, 0.7, -14, 0.3),
   ]),
   r('boostStart', 'The rocket start: a fast rising energy charge that bursts into exhaust pops and a big rushing whoosh as the kart launches, trailing off smoothly.', [
@@ -65,6 +73,8 @@ export const RECIPES: readonly Recipe[] = [
     L(ZAP(5), -6, [{ op: 'trim', from: 0.88 }, { op: 'hp', hz: 1200 }, ...cap(0.25)]),
     pop('d', -3, 0.01),
     rush(WHOOSH.plasma4, 1.18, 0.75, 0, 0.02),
+    jet(-2, 0.9),
+    L(BLAST, -5, [{ op: 'trim', from: 5.4 }, ...cap(0.9)]),
   ]),
   r('trick', 'A quick mid-air trick: a fast, crisp spinning swish of air, under a second.', [
     rush(PX('Swishes/SWSH_Swish Crisp Large 01_RSCPC_PX.wav'), 1.05, 0.68, 0),
