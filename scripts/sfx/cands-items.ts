@@ -75,10 +75,12 @@ export const RECIPES: readonly Recipe[] = [
     L(EM('Electromagnetic Fields, Humming, Buzzing, 03.wav'), -12, cap(1.4)),
     L(SF('Source Sounds/Robotic Glitch/SCIMisc_Robotic Glitch Short 09_RSCPC_SFEW.wav'), -9, cap(0.8), 0.2),
   ]),
-  r('strikeRoll', 'Jet Mode starts: the kart transforms, wings unfolding with a mechanical morph, and a jet engine spools up and ignites, about 2 seconds.', [
+  r('strikeRoll', 'Jet Mode: the kart transforms, wings unfolding with a mechanical morph, and a jet engine spools up, ignites and roars through the flight, about 5 seconds.', [
     L(SF('Source Sounds/Robotic Morph/SCIMisc_Robotic Morph Medium Large 45_RSCPC_SFEW.wav'), -3, cap(2.0)),
     L(SF('Source Sounds/Charge Up/DSGNRise_Charge Up Processed Plasma 18_RSCPC_SFEW.wav'), -6, [{ op: 'trim', from: 0.6 }, ...cap(2.0)]),
     L(SF('Designed Sounds/Flyby/SCIWeap_Flyby Plasma N 01_RSCPC_SFEW.wav'), -2, [{ op: 'trim', from: 1.6 }, { op: 'fade', in: 0.15 }, ...cap(1.2)], 0.8),
+    // a jet's roar through the whole 5 s flight (Adam, 30 Sept 2026: "an airplane sound flying through the sky")
+    L({ pack: 'Sonniss.com-GDC2026-GameAudioBundle1of5__1_/344 Audio - Air Designed/AEROJet_Blast Off Clean_344 Audio_Air Designed.wav' }, -3, [{ op: 'trim', from: 3.4 }, { op: 'fade', in: 0.4 }, ...cap(4.6)], 0.5),
   ]),
   r('strike', 'Jet Mode ends in a sonic boom that knocks the karts around it: a huge deep blast and air crack, about 1.8 seconds.', [
     L(PX('Blasts/DSGNBram_Blast 12_RSCPC_PX.wav'), 0, [{ op: 'trim', from: 0.2 }, { op: 'fade', in: 0.004 }, ...cap(1.76)]),

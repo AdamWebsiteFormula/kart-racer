@@ -46,7 +46,7 @@ export const MINE = Object.freeze({ lift: 1.9, warn: 14, slow: 2.2, fast: 7, hel
  * and how far up they start, the bank into a turn (per rad/s of the kart's turn, and the most), the scale it
  * pops in from.
  */
-export const JET_LOOK = Object.freeze({ scale: 0.88, hover: 0.95, unfold: 0.38, folded: 1.35, bank: 0.32, maxBank: 0.6, from: 0.45 });
+export const JET_LOOK = Object.freeze({ scale: 1.3, /* 0.88 until 30 Sept 2026 (Adam: "should be larger") */ hover: 0.95, unfold: 0.38, folded: 1.35, bank: 0.32, maxBank: 0.6, from: 0.45 });
 /** The Jump Jets: the pods' place by the kart (x either side, y, z) and the flames' length rising, hanging and diving. */
 export const JUMP_JETS = Object.freeze({ at: Object.freeze([0.92, 0.28, -0.1] as const), rise: 1.1, hang: 0.4, dive: 1.3 });
 /** a thruster pod's height, its nozzle's exit to its top (art-pipeline items.ts thruster) */
