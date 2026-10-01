@@ -465,9 +465,9 @@
   "seconds": 0.42
  },
  "uiConfirm": {
-  "recipe": "{\"id\":\"uiConfirm\",\"brief\":\"A menu choice is confirmed: a bright, glassy snap, short and premium.\",\"why\":\"Adam, 30 Sept 2026, after the old-then-new files 01-98: \\\"Let's just go with yes for all\\\"\",\"layers\":[{\"at\":0,\"src\":{\"pack\":\"Sonniss.com-GDC2026-GameAudioBundle2of5/Cinematic Sound Design - Interface & Infographics/Interface Accept Glassy Snap.wav\"},\"fx\":[{\"op\":\"trim\",\"to\":0.44},{\"op\":\"fade\",\"out\":0.17600000000000002},{\"op\":\"normalize\",\"db\":0},{\"op\":\"gain\",\"db\":0}]}],\"master\":[{\"op\":\"hp\",\"hz\":60},{\"op\":\"limit\",\"ceiling\":-1}]}",
-  "sha256": "666a471345a51d4adbacff044adf33ebc6749f84cb3f86da47cdbf50e6f7c278",
-  "seconds": 0.333
+  "recipe": "{\"id\":\"uiConfirm\",\"brief\":\"A menu choice is confirmed: a cool, simple sci-fi \\\"obtained\\\" ping over a soft snap, short and faint.\",\"why\":\"Adam, 30 Sept 2026: a sci-fi \\\"obtained\\\" ping\",\"layers\":[{\"at\":0,\"src\":{\"pack\":\"99Sounds_Sci-Fi_Sound_Effects/99Sounds Sci-Fi Sound Effects/Rescopic Sound - Parallax (99Sounds Version)/Audio Files/Pings/SCIMisc_Ping 10_RSCPC_PX.wav\"},\"fx\":[{\"op\":\"trim\",\"to\":0.55},{\"op\":\"fade\",\"out\":0.22000000000000003},{\"op\":\"normalize\",\"db\":0},{\"op\":\"gain\",\"db\":0}]},{\"at\":0,\"src\":{\"pack\":\"Sonniss.com-GDC2026-GameAudioBundle2of5/Cinematic Sound Design - Interface & Infographics/Interface Accept Glassy Snap.wav\"},\"fx\":[{\"op\":\"trim\",\"to\":0.3},{\"op\":\"fade\",\"out\":0.12},{\"op\":\"normalize\",\"db\":0},{\"op\":\"gain\",\"db\":-9}]}],\"master\":[{\"op\":\"hp\",\"hz\":60},{\"op\":\"limit\",\"ceiling\":-1}]}",
+  "sha256": "adaf2fa7fce4c9d2dbca0349edff8707b23da6bfb10cce7fb7a6ecdd684224e5",
+  "seconds": 0.547
  },
  "uiMove": {
   "recipe": "{\"id\":\"uiMove\",\"brief\":\"The menu cursor moves: a very short, soft, crisp pop, heard constantly and never harsh.\",\"why\":\"Adam, 30 Sept 2026, after the old-then-new files 01-98: \\\"Let's just go with yes for all\\\"\",\"layers\":[{\"at\":0,\"src\":{\"pack\":\"Sonniss.com-GDC2026-GameAudioBundle2of5/Cinematic Sound Design - Interface & Infographics/Interface Pop High Short.wav\"},\"fx\":[{\"op\":\"trim\",\"to\":0.22},{\"op\":\"fade\",\"out\":0.08800000000000001},{\"op\":\"normalize\",\"db\":0},{\"op\":\"gain\",\"db\":0}]}],\"master\":[{\"op\":\"hp\",\"hz\":60},{\"op\":\"limit\",\"ceiling\":-1}]}",

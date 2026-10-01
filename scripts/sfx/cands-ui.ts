@@ -67,8 +67,10 @@ export const RECIPES: readonly Recipe[] = [
   r('uiMove', 'The menu cursor moves: a very short, soft, crisp pop, heard constantly and never harsh.', [
     L(CSD('Interface & Infographics', 'Interface Pop High Short'), 0, 0.22),
   ]),
-  r('uiConfirm', 'A menu choice is confirmed: a bright, glassy snap, short and premium.', [
-    L(CSD('Interface & Infographics', 'Interface Accept Glassy Snap'), 0, 0.44),
+  // a sci-fi "obtained" since 30 Sept 2026 (Adam: "a cool, simple (maybe scifi) 'obtained' type sound")
+  r('uiConfirm', 'A menu choice is confirmed: a cool, simple sci-fi "obtained" ping over a soft snap, short and faint.', [
+    L(PING('10'), 0, 0.55),
+    L(CSD('Interface & Infographics', 'Interface Accept Glassy Snap'), -9, 0.3),
   ]),
   r('uiBack', 'Back out of a menu: the confirm snap a fourth lower, short, clean and clearly heard.', [
     L(CSD('Interface & Infographics', 'Interface Accept Glassy Snap'), 0, 0.48, [{ op: 'pitch', st: -5 }]),

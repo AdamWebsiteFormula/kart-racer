@@ -94,7 +94,7 @@ export const APPROVED: Readonly<Record<string, string>> = {
   "trail": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "trick": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "uiBack": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
-  "uiConfirm": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
+  "uiConfirm": "Adam, 30 Sept 2026: a sci-fi \"obtained\" ping",
   "uiMove": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "ventWarn": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",
   "wall": "Adam, 30 Sept 2026, after the old-then-new files 01-98: \"Let's just go with yes for all\"",

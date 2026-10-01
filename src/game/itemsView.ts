@@ -524,8 +524,10 @@ export class ItemsView {
     // two afterburners (blue-white, flickering), their nozzles glowing, a glow on the road under it
     for (const sx of [-1, 1]) {
       this.v.set(sx * JET.nozzle[0] * scale, JET.nozzle[1] * scale, JET.nozzle[2] * scale).applyQuaternion(q);
-      const len = (1.25 + 0.3 * Math.sin(time * 37 + i * 3 + sx)) * scale;
-      this.glow('flameBlue', px + this.v.x, py + this.v.y, pz + this.v.z, q, 0.17 * scale, 0.17 * scale, len, 1, 1, 1, 1);
+      // longer, fuller fire since 30 Sept 2026 (Adam: "more fire coming out the back"): a long blue jet round a hot core
+      const len = (2.5 + 0.5 * Math.sin(time * 37 + i * 3 + sx)) * scale;
+      this.glow('flameBlue', px + this.v.x, py + this.v.y, pz + this.v.z, q, 0.26 * scale, 0.26 * scale, len, 1, 1, 1, 1);
+      this.glow('flameHot', px + this.v.x, py + this.v.y, pz + this.v.z, q, 0.16 * scale, 0.16 * scale, len * 0.6, 1, 1, 1, 1);
       this.glow('glowOrb', px + this.v.x, py + this.v.y, pz + this.v.z, q, 0.32 * scale, 0.32 * scale, 0.32 * scale, 0.7, 1.5, 3, 0.7);
     }
     this.v.set(0, -J.hover + 0.08, 0).applyQuaternion(q);
