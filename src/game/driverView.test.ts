@@ -120,7 +120,7 @@ describe('every racer\'s head and shoulders show from the chase camera, in every
     // shoulders; with it they show (the Boss Roadster's pair until 30 Sept 2026: the sleek bodies are all low enough)
     const body = bodyInto(new ModelBuilder(), 'buggy', '#e63946', '#ffffff').build();
     expect(seen(makeRiggedDriver(T.pip, SEATS.buggy, undefined), body).shoulders).toBeGreaterThanOrEqual(0.75);
-    expect(seen(makeRiggedDriver(T.pip, { ...SEATS.buggy, shoulders: undefined }, undefined), body).shoulders).toBeLessThan(0.75);
+    // (without the booster his shoulders now show too: the riders grew 1.35x on 30 Sept 2026)
     body.dispose();
   });
 
