@@ -101,7 +101,7 @@ describe('the house type: Saira for the display (30 Sept 2026: "cool and not car
   });
 
   it('the words drawn outside the stylesheets are in it too: the Daily\'s calendar and the podium\'s place plates', () => {
-    expect(read('src/ui-hud/icons.ts')).toMatch(/font-family="Mona Sans, /);
+    expect(read('src/ui-hud/icons.ts')).toMatch(/font-family="Saira, /); // the Daily's calendar, in the display type since 30 Sept 2026
     expect(read('src/game/podium.ts')).toMatch(/'Mona Sans'/);
   });
 });

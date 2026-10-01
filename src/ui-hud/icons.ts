@@ -100,125 +100,58 @@ export function iconSvg(itemId: string, size = 48): string {
 /** The house palette (ui.css :root). */
 const INK = '#1b1b2f', PAPER = '#fffaf0', SUN = '#ffd23f', CORAL = '#ff6f61', TEAL = '#2ec4b6', GOLD = '#f2b705';
 /** the pickup balloon's red (the podium cup wears one on its lid: game/podium.ts) */
-const BALLOON = '#ff3d52';
 /** a star not yet earned (the results' empty star, ui.css .stars) */
 const STAR_EMPTY = '#e9e2d0';
 /** a coordinate to one decimal, for path data */
 const n1 = (v: number) => String(Math.round(v * 10) / 10);
 
-/**
- * Quick Race's checkered flag, waving on a coral pole: the checks are laid out on the cloth's own
- * ripple (`at`, u across and v down), so they bend with it.
- */
-const FLAG = (() => {
-  const at = (u: number, v: number) => `${n1(13 + 31 * u)} ${n1(7.5 + 18 * v + 3.4 * Math.sin(Math.PI * 1.7 * u) + 2.5 * u)}`;
-  const COLS = 4, ROWS = 3, SEG = 3;
-  const edge = (u0: number, u1: number, v: number) => Array.from({ length: SEG + 1 }, (_, i) => at(u0 + ((u1 - u0) * i) / SEG, v));
-  let checks = '';
-  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
-    if ((c + r) % 2) continue;
-    const [u0, u1, v0, v1] = [c / COLS, (c + 1) / COLS, r / ROWS, (r + 1) / ROWS];
-    checks += `M${[...edge(u0, u1, v0), ...edge(u1, u0, v1)].join('L')}Z`;
-  }
-  const outline = `M${[...Array.from({ length: COLS * SEG + 1 }, (_, i) => at(i / (COLS * SEG), 0)), ...Array.from({ length: COLS * SEG + 1 }, (_, i) => at(1 - i / (COLS * SEG), 1))].join('L')}Z`;
-  return `<path d="${outline}" fill="${PAPER}"/><path d="${checks}" fill="${INK}"/>`
-    + `<path d="${outline}" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>`
-    + `<rect x="9.2" y="5" width="4.3" height="40.5" rx="2.1" fill="${CORAL}" stroke="${INK}" stroke-width="2.6"/>`
-    + `<circle cx="11.35" cy="4.6" r="3.3" fill="${SUN}" stroke="${INK}" stroke-width="2.4"/>`;
-})();
-
-/** Grand Prix: our own cup (the podium's, game/podium.ts): a flared gold bowl with ring handles on a stem and stepped foot, a domed lid, and a red balloon tied on top. */
-const CUP = `<g stroke="${INK}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">`
-  + `<circle cx="10.4" cy="24.5" r="5.1" fill="none" stroke-width="7.6"/><circle cx="37.6" cy="24.5" r="5.1" fill="none" stroke-width="7.6"/>`
-  + `<circle cx="10.4" cy="24.5" r="5.1" fill="none" stroke="${GOLD}" stroke-width="3"/><circle cx="37.6" cy="24.5" r="5.1" fill="none" stroke="${GOLD}" stroke-width="3"/>`
-  + `<rect x="21.3" y="32.5" width="5.4" height="5.5" fill="${GOLD}"/><ellipse cx="24" cy="36.3" rx="4.3" ry="2.2" fill="${GOLD}"/>`
-  + `<rect x="15.5" y="38.6" width="17" height="3.4" rx="1.4" fill="${GOLD}"/><rect x="12.3" y="41.6" width="23.4" height="4" rx="1.8" fill="${GOLD}"/>`
-  + `<path d="M10.6 18H37.4C37.1 27 32 33.2 24 33.4 16 33.2 10.9 27 10.6 18Z" fill="${GOLD}"/>`
-  + `<path d="M13 17.6C13.6 11.2 34.4 11.2 35 17.6Z" fill="${GOLD}"/>`
-  + `<rect x="8.8" y="15.8" width="30.4" height="4.7" rx="2.3" fill="${GOLD}"/>`
-  + `<path d="M22.5 14.4h3L24 12.2Z" fill="${BALLOON}" stroke-width="1.8"/><ellipse cx="24" cy="6.7" rx="5.3" ry="6.1" fill="${BALLOON}" stroke-width="2.4"/>`
-  + '</g>'
-  + '<path d="M14.6 22.4c.6 3.6 2.4 6.4 5.4 7.8M21.6 4.2a3.2 3.2 0 0 0-1.9 3" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round"/>';
-
-/** A burst of `points` spikes round (24, 24): radii `outer` (alternating a little short) and `inner`, turned by `turn` degrees. */
-function burst(points: number, outer: number, inner: number, turn: number): string {
-  const pts: string[] = [];
-  for (let i = 0; i < points * 2; i++) {
-    const a = ((turn + (i * 180) / points) * Math.PI) / 180;
-    const r = i % 2 ? inner : i % 4 ? outer * 0.9 : outer;
-    pts.push(`${n1(24 + r * Math.sin(a))} ${n1(24 - r * Math.cos(a))}`);
-  }
-  return `M${pts.join('L')}Z`;
-}
-/** Knockout: a bold X on a burst: out of the race */
-const KNOCKOUT = `<path d="${burst(11, 22.3, 15.5, -6)}" fill="${CORAL}" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>`
-  + `<path d="${burst(11, 15.5, 10.5, 10)}" fill="${SUN}"/>`
-  + `<path d="M17 17l14 14M31 17 17 31" stroke="${INK}" stroke-width="10" stroke-linecap="round"/>`
-  + `<path d="M17 17l14 14M31 17 17 31" stroke="${PAPER}" stroke-width="4.6" stroke-linecap="round"/>`;
-
-/** Time Trial: a stopwatch (medalSvg's, off its ribbon), a coral wedge of time run on its face. */
-const STOPWATCH = `<g stroke="${INK}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round">`
-  + `<rect x="22" y="6" width="4" height="5" fill="${CORAL}"/><rect x="19.8" y="1.8" width="8.4" height="5.4" rx="2" fill="${CORAL}"/>`
-  + `<rect x="34.4" y="8" width="5.6" height="4.4" rx="1.5" fill="${CORAL}" transform="rotate(42 37.2 10.2)"/>`
-  + `<circle cx="24" cy="27.6" r="17.2" fill="${TEAL}" stroke-width="3"/><circle cx="24" cy="27.6" r="12.4" fill="${PAPER}" stroke-width="2.2"/>`
-  + '</g>'
-  + `<path d="M24 27.6V15.8A11.8 11.8 0 0 1 33 20Z" fill="${CORAL}"/>`
-  + `<path d="M24 17.2v2.6M34.4 27.6h-2.6M24 38v-2.6M13.6 27.6h2.6" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`
-  + `<path d="M24 27.6l7.3-6.2" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="27.6" r="2.3" fill="${INK}"/>`
-  + '<path d="M10.4 22.6a14.4 14.4 0 0 1 7.2-8.3" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="2.4" stroke-linecap="round"/>';
-
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-/** Daily Challenge: a calendar page on the Daily's own date (`seed`, backend-leaderboard dailySeed: yyyymmdd, UTC), the day number big. */
-function calendar(seed: number): string {
-  const day = seed % 100, month = MONTHS[(Math.floor(seed / 100) % 100) - 1] ?? '';
-  return `<g stroke="${INK}" stroke-linejoin="round">`
-    + `<rect x="6" y="8.5" width="36" height="36.5" rx="5.5" fill="${PAPER}" stroke-width="3"/>`
-    + `<path d="M6 20V14a5.5 5.5 0 0 1 5.5-5.5h25A5.5 5.5 0 0 1 42 14v6Z" fill="${CORAL}" stroke-width="3"/>`
-    + `<rect x="11.4" y="3.4" width="4.6" height="9.6" rx="2.3" fill="${PAPER}" stroke-width="2.2"/><rect x="32" y="3.4" width="4.6" height="9.6" rx="2.3" fill="${PAPER}" stroke-width="2.2"/>`
-    + '</g>'
-    + `<text x="24" y="18.1" text-anchor="middle" font-family="Mona Sans, sans-serif" font-style="italic" font-weight="800" font-size="6.6" letter-spacing="0.4" fill="${PAPER}">${month}</text>`
-    + `<text x="24" y="39.6" text-anchor="middle" font-family="Mona Sans, Arial Black, sans-serif" font-style="italic" font-weight="900" font-size="${day > 9 ? 19 : 21}" letter-spacing="-0.5" fill="${INK}">${day}</text>`;
-}
-
 /**
  * A mode card's icon, or '' for none. `dailySeed`: the Daily's date (yyyymmdd, UTC: the day its track
  * and its board are), which its calendar shows. Sized by its box (ui.css .modes .icon).
  */
 export function modeSvg(mode: string, dailySeed: number): string {
-  const body = mode === 'quick' ? FLAG : mode === 'grandPrix' ? CUP : mode === 'knockout' ? KNOCKOUT : mode === 'timeTrial' ? STOPWATCH : mode === 'daily' ? calendar(dailySeed) : '';
+  // neon line art since 30 Sept 2026 (the colored badges before: FLAG, CUP, KNOCKOUT, STOPWATCH, calendar)
+  const body = mode === 'quick' ? LINE_FLAG : mode === 'grandPrix' ? LINE_CUP : mode === 'knockout' ? LINE_KNOCKOUT : mode === 'timeTrial' ? LINE_STOPWATCH : mode === 'daily' ? lineCalendar(dailySeed) : '';
   return body ? `<svg class="mode-svg" data-mode="${mode}" viewBox="0 0 48 48" width="48" height="48" aria-hidden="true" focusable="false">${body}</svg>` : '';
 }
 
 // ---- the title menu's emblems (26 Sept 2026): each band wears one at its head, as MKW's main menu's bands do ----
-/** the gear's sky (the house --sky) */
-const SKY_GEAR = '#56b4e9';
-/** How to Play: a game pad, its D-pad and two buttons (what the page explains). */
-const PAD = `<path d="M14 14.5h20c6.4 0 9.9 4.5 10.7 11.2l1.3 9.9c.6 4.3-2.3 7.2-5.5 7.2-2.5 0-4.3-1.5-5.6-3.9l-2.4-4.1H15.5l-2.4 4.1c-1.3 2.4-3.1 3.9-5.6 3.9-3.2 0-6.1-2.9-5.5-7.2l1.3-9.9c.8-6.7 4.3-11.2 10.7-11.2Z" fill="${TEAL}" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round"/>`
-  + `<path d="M13.6 19.4h4.4v3.4h3.4v4.4H18v3.4h-4.4v-3.4h-3.4v-4.4h3.4Z" fill="${PAPER}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`
-  + `<circle cx="31.6" cy="27.4" r="3" fill="${CORAL}" stroke="${INK}" stroke-width="2"/><circle cx="37.2" cy="22.4" r="3" fill="${SUN}" stroke="${INK}" stroke-width="2"/>`
-  + '<path d="M8.6 21.4a8 8 0 0 1 4.8-4.2" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="2.2" stroke-linecap="round"/>';
-/** Unlocks: a gift, a coral box under a sun ribbon and bow (the rewards the page lists). */
-const GIFT = `<g stroke="${INK}" stroke-linejoin="round" stroke-linecap="round">`
-  + `<path d="M24 16c-2.8-6.6-11.6-9.4-12.6-4.4-.7 3.6 5.6 4.6 12.6 4.4Z" fill="${SUN}" stroke-width="2.4"/><path d="M24 16c2.8-6.6 11.6-9.4 12.6-4.4.7 3.6-5.6 4.6-12.6 4.4Z" fill="${SUN}" stroke-width="2.4"/>`
-  + `<rect x="8" y="23" width="32" height="20.5" rx="3" fill="${CORAL}" stroke-width="2.8"/>`
-  + `<rect x="5.5" y="15.6" width="37" height="8.6" rx="3" fill="${CORAL}" stroke-width="2.8"/>`
-  + `<path d="M21 15.8v27.6M27 15.8v27.6" stroke-width="2.2"/>`
-  + '</g>'
-  + `<rect x="21.9" y="17" width="4.2" height="25.3" fill="${SUN}"/>`
-  + '<path d="M10.6 19.2h7.4" stroke="#fff" stroke-opacity="0.75" stroke-width="2" stroke-linecap="round"/>';
-/** Settings: a sky gear on a paper hub. */
+/** The title menu's emblems since 30 Sept 2026 (Adam: nothing cartoony; neon green on black): thin neon line
+ * drawings on a black disc (menus.css .band > .icon), no fills and no ink outline. */
+const NEON = '#39ff14';
+const LINE = `fill="none" stroke="${NEON}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"`;
+/** Grand Prix: a cup on its stem and foot, ring handles. */
+const LINE_CUP = `<g ${LINE}><path d="M13 10h22c0 11-4.6 18-11 18S13 21 13 10Z"/><path d="M13 14H8.5c0 6 2.8 9 6.6 9.6M35 14h4.5c0 6-2.8 9-6.6 9.6"/><path d="M24 28v7M16 41h16M18.5 41l1.5-6h8l1.5 6"/></g>`;
+/** Knockout: an X in a ring: out of the race. */
+const LINE_KNOCKOUT = `<g ${LINE}><circle cx="24" cy="24" r="17"/><path d="M17 17l14 14M31 17 17 31"/></g>`;
+/** Time Trial: a stopwatch, its crown and its hand. */
+const LINE_STOPWATCH = `<g ${LINE}><circle cx="24" cy="27" r="15.5"/><path d="M20 5h8M24 5v6.5M36 12.5l2.6-2.6M24 27l6.5-6.5"/></g>`;
+/** Daily Challenge: a calendar page on the Daily's own date (yyyymmdd, UTC), the day number big. */
+function lineCalendar(seed: number): string {
+  const day = seed % 100, month = MONTHS[(Math.floor(seed / 100) % 100) - 1] ?? '';
+  return `<g ${LINE}><rect x="7" y="9" width="34" height="35" rx="4"/><path d="M7 19.5h34M15 5v8M33 5v8"/></g>`
+    + `<text x="24" y="17.4" text-anchor="middle" font-family="Saira, sans-serif" font-style="italic" font-weight="800" font-size="6.6" letter-spacing="0.4" fill="${NEON}">${month}</text>`
+    + `<text x="24" y="39.4" text-anchor="middle" font-family="Saira, Arial Black, sans-serif" font-style="italic" font-weight="800" font-size="${day > 9 ? 18 : 20}" fill="#ffffff">${day}</text>`;
+}
+/** Race!: a chequered flag on its pole. */
+const LINE_FLAG = `<g ${LINE}><path d="M13 41V7"/><path d="M13 9h22l-4.5 7.5L35 24H13"/><path d="M20 9v15M27 9v15M13 16.5h20"/></g>`;
+/** How to Play: a game pad, its D-pad and two buttons. */
+const PAD = `<g ${LINE}><path d="M14 14.5h20c6.4 0 9.9 4.5 10.7 11.2l1.3 9.9c.6 4.3-2.3 7.2-5.5 7.2-2.5 0-4.3-1.5-5.6-3.9l-2.4-4.1H15.5l-2.4 4.1c-1.3 2.4-3.1 3.9-5.6 3.9-3.2 0-6.1-2.9-5.5-7.2l1.3-9.9c.8-6.7 4.3-11.2 10.7-11.2Z"/>`
+  + '<path d="M15.8 20.4v8.6M11.5 24.7h8.6"/><circle cx="31.6" cy="27.4" r="2.2"/><circle cx="37" cy="22.6" r="2.2"/></g>';
+/** Unlocks: a gift box under its ribbon and bow. */
+const GIFT = `<g ${LINE}><path d="M24 16c-2.8-6.6-11.6-9.4-12.6-4.4-.7 3.6 5.6 4.6 12.6 4.4Z"/><path d="M24 16c2.8-6.6 11.6-9.4 12.6-4.4.7 3.6-5.6 4.6-12.6 4.4Z"/>`
+  + '<rect x="8" y="24" width="32" height="19" rx="2.5"/><rect x="5.5" y="16" width="37" height="8" rx="2.5"/><path d="M24 16v27"/></g>';
+/** Settings: a gear round its hub. */
 const GEAR = (() => {
   const pts: string[] = [];
   const at = (deg: number, r: number) => { const a = (deg * Math.PI) / 180; return `${n1(24 + r * Math.sin(a))} ${n1(24 - r * Math.cos(a))}`; };
   for (let k = 0; k < 8; k++) { const a = k * 45; pts.push(at(a - 9, 20.6), at(a + 9, 20.6), at(a + 14, 15.4), at(a + 31, 15.4)); }
-  return `<path d="M${pts.join('L')}Z" fill="${SKY_GEAR}" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round"/>`
-    + `<circle cx="24" cy="24" r="7.2" fill="${PAPER}" stroke="${INK}" stroke-width="2.6"/>`
-    + '<path d="M13.2 18.4a12 12 0 0 1 5-5.2" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="2.2" stroke-linecap="round"/>';
+  return `<g ${LINE}><path d="M${pts.join('L')}Z"/><circle cx="24" cy="24" r="6.4"/></g>`;
 })();
-/** Credits: a coral heart (the people who made it). */
-const HEART = `<path d="M24 41.6C12.2 33.2 5.6 26.6 5.6 18.8 5.6 12.6 10.2 8.2 15.8 8.2c3.6 0 6.4 1.8 8.2 4.6 1.8-2.8 4.6-4.6 8.2-4.6 5.6 0 10.2 4.4 10.2 10.6 0 7.8-6.6 14.4-18.4 22.8Z" fill="${CORAL}" stroke="${INK}" stroke-width="2.8" stroke-linejoin="round"/>`
-  + '<path d="M10.8 17.2a6 6 0 0 1 4.4-4.4" fill="none" stroke="#fff" stroke-opacity="0.85" stroke-width="2.4" stroke-linecap="round"/>';
-const MENU_EMBLEMS: Readonly<Record<string, string>> = Object.freeze({ start: FLAG, howTo: PAD, unlocks: GIFT, settings: GEAR, credits: HEART });
+/** Credits: a star (the people who made it). */
+const HEART = `<g ${LINE}><path d="M24 6.5l5.2 11 12 1.4-8.9 8.2 2.4 11.9L24 33.1 13.3 39l2.4-11.9-8.9-8.2 12-1.4Z"/></g>`;
+const MENU_EMBLEMS: Readonly<Record<string, string>> = Object.freeze({ start: LINE_FLAG, howTo: PAD, unlocks: GIFT, settings: GEAR, credits: HEART });
 
 /** A title menu entry's emblem (screens/menus.ts titleMenu ids), or '' for none. Sized by its box (menus.css .band .icon). */
 export function menuSvg(id: string): string {

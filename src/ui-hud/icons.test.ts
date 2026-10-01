@@ -52,20 +52,20 @@ describe('menu icons (sweep 25 Sept 2026: the OS emoji differed on every system,
     MODES.forEach((m, i) => {
       expect(svgs[i]).toMatch(new RegExp(`^<svg class="mode-svg" data-mode="${m}" viewBox="0 0 48 48" [^>]*aria-hidden="true" focusable="false">`));
       expect(svgs[i]).not.toMatch(/\sid=/);
-      expect(svgs[i]).toContain('#1b1b2f'); // the ink outline
+      expect(svgs[i]).toContain('#39ff14'); // neon line art since 30 Sept 2026 (the ink outline before)
       expect(EMOJI.test(svgs[i]), m).toBe(false);
     });
     expect(new Set(svgs.map((s) => s.replace(/data-mode="\w+"/, ''))).size).toBe(MODES.length);
     expect(modeSvg('mirror', 20260925)).toBe('');
   });
 
-  it('the title menu\'s emblems (26 Sept 2026): one drawing per band, in the house outline, hidden from assistive tech (the band names it), with no ids', () => {
+  it('the title menu\'s emblems (26 Sept 2026): one drawing per band, neon line art (30 Sept 2026), hidden from assistive tech (the band names it), with no ids', () => {
     const ids = ['start', 'howTo', 'unlocks', 'settings', 'credits'];
     const svgs = ids.map((id) => menuSvg(id));
     ids.forEach((id, i) => {
       expect(svgs[i]).toMatch(new RegExp(`^<svg class="menu-svg" data-menu="${id}" viewBox="0 0 48 48" [^>]*aria-hidden="true" focusable="false">`));
       expect(svgs[i]).not.toMatch(/\sid=/);
-      expect(svgs[i]).toContain('#1b1b2f');
+      expect(svgs[i]).toContain('#39ff14');
       expect(svgs[i]).not.toMatch(/NaN|undefined/);
       expect(EMOJI.test(svgs[i]), id).toBe(false);
     });
