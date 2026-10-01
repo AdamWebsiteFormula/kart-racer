@@ -25,7 +25,7 @@ export const AUDIO = Object.freeze({
   /** no recording is levelled so loud that its sample peak passes this */
   peakCeiling: 0.9,
   /** the music bus's presence dip (a peaking filter): centre Hz, width Q, depth dB */
-  musicPocket: Object.freeze({ hz: 2500, q: 0.8, db: -3 }),
+  musicPocket: Object.freeze({ hz: 1800, q: 0.7, db: -6 }), // (2500, 0.8, -3 until 30 Sept 2026: a deeper pocket so the engines are heard)
   /** the music dips by this factor under a big sound: down in `down` s, back over `up` s */
   musicDuck: Object.freeze({ gain: 0.5, down: 0.05, up: 0.4 }),
   /** the Final Lap Shift holds the music down (about 9 dB) for this share of its own length, then lets it back under the shimmer */
@@ -33,7 +33,7 @@ export const AUDIO = Object.freeze({
   /** the roulette's ticks: `fast` apart while it spins, slowing to `slow` as its `seconds` run out */
   roulette: Object.freeze({ seconds: 1.5, fast: 0.06, slow: 0.22 }),
   /** the recorded engine's low-pass: `base` Hz at idle, opening `perRpm` Hz for every rpm above it */
-  engineCutoff: Object.freeze({ base: 2500, perRpm: 0.9 }),
+  engineCutoff: Object.freeze({ base: 4200, perRpm: 1.3 }), // (2500, 0.9 until 30 Sept 2026: the engine was too dull to hear under the music)
   /** equal-power crossfades baked into each loop's wrap (s): engine and rumble loops, songs */
   loopFade: 0.03,
   songFade: 0.012,
@@ -48,7 +48,7 @@ export const AUDIO = Object.freeze({
   /** AI engines heard at once */
   aiEngines: 3,
   /** the recorded engine (samples.ts): loop levels by throttle and boost, the drift screech, a near rival */
-  engineLoop: Object.freeze({ base: 0.27, throttle: 0.46, boost: 0.15, screech: 0.4, other: 0.3 }), // (0.115, 0.17, 0.062, 0.14 until 30 Sept 2026, Adam: the karts "don't rev or make any noise really")
+  engineLoop: Object.freeze({ base: 0.4, throttle: 0.72, boost: 0.2, screech: 0.4, other: 0.42 }), // (0.115, 0.17, 0.062, 0.14 until 30 Sept 2026, Adam: the karts "don't rev or make any noise really")
   /** the off-road rumble under the player's wheels (dirt, mud) at top speed: the recorded loop, the synth noise and its low-pass (Hz) */
   offroad: Object.freeze({ loop: 0.35, synth: 0.09, synthHz: 320 }),
   /** engine voice per class (engine.ts classVoice): loop rate and low-pass brightness */
