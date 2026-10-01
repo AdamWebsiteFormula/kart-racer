@@ -6,8 +6,8 @@ P=(sys.argv[1] if len(sys.argv)>1 else '/home/user/rascal-sfx-source/packs').rst
 J=P+'Kart_Racer__by_juanjo_sound_/'; F=P+'RacingMusicPack/'
 jobs={'race-harbour':J+'2 LOOP Festival Day (by juanjo_sound).wav','race-meadow':F+'Hot Rod Hot.wav','race-mesa':J+'6 LOOP Canyon Dash (by juanjo_sound).wav',
 'race-frost':F+'Infinity.wav','race-boardwalk':J+'7 LOOP Festival Night (by juanjo_sound).wav','race-finale':J+"1 LOOP Champion's Race (by juanjo_sound).wav",
-'title':F+'Menu .wav','results':J+'4 LOOP Standings (by juanjo_sound).wav'}
-guess={'race-harbour':161,'race-meadow':144,'race-mesa':136,'race-frost':136,'race-boardwalk':129,'race-finale':152,'title':117,'results':129}
+'title':F+'Menu .wav','results':J+'8 LOOP Event Finished (by juanjo_sound).wav'}
+guess={'race-harbour':161,'race-meadow':144,'race-mesa':136,'race-frost':136,'race-boardwalk':129,'race-finale':152,'title':117,'results':103}
 out='public/audio/music/'; os.makedirs(out,exist_ok=True); res={}
 for k,f in jobs.items():
     w=wave.open(f); n=w.getnframes(); r=w.getframerate(); sw=w.getsampwidth(); ch=w.getnchannels()

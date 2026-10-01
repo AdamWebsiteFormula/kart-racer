@@ -33,6 +33,7 @@ export const DUCKERS: ReadonlySet<SfxId> = new Set<SfxId>(['airHorn', 'strike', 
 /** Stings that play whatever else is ringing (they still count toward their own voice cap). */
 const PRIORITY: ReadonlySet<SfxId> = new Set<SfxId>(['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'shift', 'koOut', 'koSafe', 'wrongWay']);
 
+const SILENT: ReadonlySet<SfxId> = new Set<SfxId>(['finish']);
 const SOUND_AS: Readonly<Partial<Record<string, SfxId>>> = Object.freeze({ hit: 'bump', wall: 'bump', uiMove: 'rouletteTick', uiConfirm: 'rouletteTick' });
 
 export class GameAudio {
@@ -323,6 +324,9 @@ export class GameAudio {
   sfx(id: SfxId, gain = 1, pan = 0, pitch = 1): Voice | null {
     const ctx = this.bus.ctx;
     if (!ctx || !this.bus.running) return null;
+    // a win plays no fanfare since 30 Sept 2026 (Adam: "remove the sound effects that happen when you win"): its
+    // moment stays (the results song, Event Finished, comes in after it) but makes no sound
+    if (SILENT.has(id)) return null;
     let rate = pitch;
     if (!STEADY.has(id)) {
       this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;

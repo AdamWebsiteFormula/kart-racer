@@ -347,7 +347,9 @@ describe('the podium ceremony', () => {
       ctx.currentTime = 40; // the standings, then Continue: the ceremony
       const before = ctx.sources.length;
       audio.ceremony(onPodium);
-      expect(ctx.sources.length, 'the sting plays').toBeGreaterThan(before);
+      // the podium's win sting is silent since 30 Sept 2026 (audio.ts SILENT); the friendly one still plays
+      if (onPodium) expect(ctx.sources.length, 'no win sting').toBe(before);
+      else expect(ctx.sources.length, 'the sting plays').toBeGreaterThan(before);
       expect(results.stoppedAt, 'the results song fades for it').toBeLessThanOrEqual(40 + AUDIO.finishFade + 0.05);
       await flush();
       expect(songs().at(-1)).not.toBe(results);

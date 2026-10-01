@@ -393,10 +393,10 @@
     },
     "results": {
       "url": "audio/music/results.mp3",
-      "bpm": 130,
+      "bpm": 103,
       "loop": [
         0,
-        44.31
+        46.67
       ]
     }
   }

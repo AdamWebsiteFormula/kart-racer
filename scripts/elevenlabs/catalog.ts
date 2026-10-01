@@ -282,7 +282,8 @@ export const PACK_SONGS: readonly PackSong[] = [
   { id: 'race-boardwalk', pack: 'Juanjo Sound', file: '7 LOOP Festival Night (by juanjo_sound).wav', seconds: 66.46, bpm: 130, loop: true },
   { id: 'race-finale', pack: 'Juanjo Sound', file: "1 LOOP Champion's Race (by juanjo_sound).wav", seconds: 41.05, bpm: 144, loop: true },
   { id: 'title', pack: 'Fan Zoo', file: 'Menu .wav', seconds: 16.0, bpm: 120, loop: true },
-  { id: 'results', pack: 'Juanjo Sound', file: '4 LOOP Standings (by juanjo_sound).wav', seconds: 44.31, bpm: 130, loop: true },
+  // Event Finished since 30 Sept 2026 (Adam: the win music "should sound exciting and triumphant"; Standings before)
+  { id: 'results', pack: 'Juanjo Sound', file: '8 LOOP Event Finished (by juanjo_sound).wav', seconds: 46.67, bpm: 103, loop: true },
 ];
 
 /**
