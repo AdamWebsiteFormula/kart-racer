@@ -91,7 +91,7 @@ describe('the racer standing alone', () => {
     const len = STAND.seconds.salute;
     for (let t = 0; t < len * 0.5; t += 1 / 30) f.update(1 / 30, eye, false);
     expect(hand().y, 'the hand up above the shoulder').toBeGreaterThan(shoulder().y);
-    expect(hand().distanceTo(head()), 'at the brow (the wrist a hand short of it)').toBeLessThan(0.25);
+    expect(hand().distanceTo(head()), 'at the brow (the wrist a hand short of it)').toBeLessThan(0.32); // (0.25 before the riders grew 1.6x: a bigger hand, a bigger reach)
     for (let t = 0; t < len * 0.6; t += 1 / 30) f.update(1 / 30, eye, false);
     expect(f.flourishing).toBe(false);
     expect(hand().y).toBeLessThan(shoulder().y - 0.1);

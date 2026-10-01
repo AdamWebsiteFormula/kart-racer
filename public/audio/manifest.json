@@ -1,403 +1,403 @@
 {
- "sfx": {
-  "count": {
-   "url": "audio/sfx/count.mp3"
-  },
-  "go": {
-   "url": "audio/sfx/go.mp3"
-  },
-  "lap": {
-   "url": "audio/sfx/lap.mp3"
-  },
-  "finalLap": {
-   "url": "audio/sfx/finalLap.mp3"
-  },
-  "finish": {
-   "url": "audio/sfx/finish.mp3"
-  },
-  "shift": {
-   "url": "audio/sfx/shift.mp3"
-  },
-  "koOut": {
-   "url": "audio/sfx/koOut.mp3"
-  },
-  "finishLow": {
-   "url": "audio/sfx/finishLow.mp3"
-  },
-  "balloon": {
-   "url": "audio/sfx/balloon.mp3"
-  },
-  "rouletteTick": {
-   "url": "audio/sfx/rouletteTick.mp3"
-  },
-  "itemReady": {
-   "url": "audio/sfx/itemReady.mp3"
-  },
-  "throw": {
-   "url": "audio/sfx/throw.mp3"
-  },
-  "kite": {
-   "url": "audio/sfx/kite.mp3"
-  },
-  "drop": {
-   "url": "audio/sfx/drop.mp3"
-  },
-  "shieldUp": {
-   "url": "audio/sfx/shieldUp.mp3"
-  },
-  "shieldPop": {
-   "url": "audio/sfx/shieldPop.mp3"
-  },
-  "shieldEnd": {
-   "url": "audio/sfx/shieldEnd.mp3"
-  },
-  "bounce": {
-   "url": "audio/sfx/bounce.mp3"
-  },
-  "pop": {
-   "url": "audio/sfx/pop.mp3"
-  },
-  "airHorn": {
-   "url": "audio/sfx/airHorn.mp3"
-  },
-  "fog": {
-   "url": "audio/sfx/fog.mp3"
-  },
-  "fizz": {
-   "url": "audio/sfx/fizz.mp3"
-  },
-  "strikeRoll": {
-   "url": "audio/sfx/strikeRoll.mp3"
-  },
-  "strike": {
-   "url": "audio/sfx/strike.mp3"
-  },
-  "boing": {
-   "url": "audio/sfx/boing.mp3"
-  },
-  "anchor": {
-   "url": "audio/sfx/anchor.mp3"
-  },
-  "slingshot": {
-   "url": "audio/sfx/slingshot.mp3"
-  },
-  "mouse": {
-   "url": "audio/sfx/mouse.mp3"
-  },
-  "blocked": {
-   "url": "audio/sfx/blocked.mp3"
-  },
-  "denied": {
-   "url": "audio/sfx/denied.mp3"
-  },
-  "trail": {
-   "url": "audio/sfx/trail.mp3"
-  },
-  "roar": {
-   "url": "audio/sfx/roar.mp3"
-  },
-  "stomp": {
-   "url": "audio/sfx/stomp.mp3"
-  },
-  "snowThud": {
-   "url": "audio/sfx/snowThud.mp3"
-  },
-  "krakenRise": {
-   "url": "audio/sfx/krakenRise.mp3"
-  },
-  "krakenSlam": {
-   "url": "audio/sfx/krakenSlam.mp3"
-  },
-  "crabClack": {
-   "url": "audio/sfx/crabClack.mp3"
-  },
-  "honk": {
-   "url": "audio/sfx/honk.mp3"
-  },
-  "whaleSong": {
-   "url": "audio/sfx/whaleSong.mp3"
-  },
-  "tailSlap": {
-   "url": "audio/sfx/tailSlap.mp3"
-  },
-  "claw": {
-   "url": "audio/sfx/claw.mp3"
-  },
-  "ventWarn": {
-   "url": "audio/sfx/ventWarn.mp3"
-  },
-  "geyser": {
-   "url": "audio/sfx/geyser.mp3"
-  },
-  "steamVent": {
-   "url": "audio/sfx/steamVent.mp3"
-  },
-  "loop": {
-   "url": "audio/sfx/loop.mp3"
-  },
-  "clawDrop": {
-   "url": "audio/sfx/clawDrop.mp3"
-  },
-  "hit": {
-   "url": "audio/sfx/hit.mp3"
-  },
-  "hitConfirm": {
-   "url": "audio/sfx/hitConfirm.mp3"
-  },
-  "trick": {
-   "url": "audio/sfx/trick.mp3"
-  },
-  "boostTrick": {
-   "url": "audio/sfx/boostTrick.mp3"
-  },
-  "boostStart": {
-   "url": "audio/sfx/boostStart.mp3"
-  },
-  "slipstream": {
-   "url": "audio/sfx/slipstream.mp3"
-  },
-  "tierUp": {
-   "url": "audio/sfx/tierUp.mp3"
-  },
-  "tierUp2": {
-   "url": "audio/sfx/tierUp2.mp3"
-  },
-  "tierUp3": {
-   "url": "audio/sfx/tierUp3.mp3"
-  },
-  "hop": {
-   "url": "audio/sfx/hop.mp3"
-  },
-  "land": {
-   "url": "audio/sfx/land.mp3"
-  },
-  "wall": {
-   "url": "audio/sfx/wall.mp3"
-  },
-  "bump": {
-   "url": "audio/sfx/bump.mp3"
-  },
-  "wrongWay": {
-   "url": "audio/sfx/wrongWay.mp3"
-  },
-  "gainPlace": {
-   "url": "audio/sfx/gainPlace.mp3"
-  },
-  "losePlace": {
-   "url": "audio/sfx/losePlace.mp3"
-  },
-  "respawn": {
-   "url": "audio/sfx/respawn.mp3"
-  },
-  "uiConfirm": {
-   "url": "audio/sfx/uiConfirm.mp3"
-  },
-  "uiBack": {
-   "url": "audio/sfx/uiBack.mp3"
-  },
-  "horn:pip": {
-   "url": "audio/sfx/horn-pip.mp3"
-  },
-  "horn:momo": {
-   "url": "audio/sfx/horn-momo.mp3"
-  },
-  "horn:nova": {
-   "url": "audio/sfx/horn-nova.mp3"
-  },
-  "horn:juniper": {
-   "url": "audio/sfx/horn-juniper.mp3"
-  },
-  "horn:otto": {
-   "url": "audio/sfx/horn-otto.mp3"
-  },
-  "horn:sprocket": {
-   "url": "audio/sfx/horn-sprocket.mp3"
-  },
-  "horn:boulder": {
-   "url": "audio/sfx/horn-boulder.mp3"
-  },
-  "horn:gus": {
-   "url": "audio/sfx/horn-gus.mp3"
-  },
-  "yelp:pip": {
-   "url": "audio/sfx/yelp-pip.mp3"
-  },
-  "yelp:momo": {
-   "url": "audio/sfx/yelp-momo.mp3"
-  },
-  "yelp:nova": {
-   "url": "audio/sfx/yelp-nova.mp3"
-  },
-  "yelp:juniper": {
-   "url": "audio/sfx/yelp-juniper.mp3"
-  },
-  "yelp:otto": {
-   "url": "audio/sfx/yelp-otto.mp3"
-  },
-  "yelp:sprocket": {
-   "url": "audio/sfx/yelp-sprocket.mp3"
-  },
-  "yelp:boulder": {
-   "url": "audio/sfx/yelp-boulder.mp3"
-  },
-  "yelp:gus": {
-   "url": "audio/sfx/yelp-gus.mp3"
-  },
-  "engine-idle": {
-   "url": "audio/sfx/engine-idle.mp3",
-   "loop": true
-  },
-  "engine-mid": {
-   "url": "audio/sfx/engine-mid.mp3",
-   "loop": true
-  },
-  "engine-high": {
-   "url": "audio/sfx/engine-high.mp3",
-   "loop": true
-  },
-  "drift": {
-   "url": "audio/sfx/drift.mp3",
-   "loop": true
-  },
-  "offroad": {
-   "url": "audio/sfx/offroad.mp3",
-   "loop": true
-  },
-  "offroad-sand": {
-   "url": "audio/sfx/offroad-sand.mp3",
-   "loop": true
-  },
-  "offroad-snow": {
-   "url": "audio/sfx/offroad-snow.mp3",
-   "loop": true
-  },
-  "road-ice": {
-   "url": "audio/sfx/road-ice.mp3",
-   "loop": true
-  },
-  "road-wood": {
-   "url": "audio/sfx/road-wood.mp3",
-   "loop": true
-  },
-  "rail-grind": {
-   "url": "audio/sfx/rail-grind.mp3",
-   "loop": true
-  },
-  "boost1": {
-   "url": "audio/sfx/boost1.mp3"
-  },
-  "boost2": {
-   "url": "audio/sfx/boost2.mp3"
-  },
-  "boost3": {
-   "url": "audio/sfx/boost3.mp3"
-  },
-  "uiMove": {
-   "url": "audio/sfx/uiMove.mp3"
-  },
-  "boostPad": {
-   "url": "audio/sfx/boostPad.mp3"
-  },
-  "spin": {
-   "url": "audio/sfx/spin.mp3"
-  },
-  "koSafe": {
-   "url": "audio/sfx/koSafe.mp3"
-  },
-  "sparks": {
-   "url": "audio/sfx/sparks.mp3",
-   "loop": true
-  },
-  "coin": {
-   "url": "audio/sfx/coin.mp3"
-  },
-  "slam": {
-   "url": "audio/sfx/slam.mp3"
-  },
-  "yetiThrow": {
-   "url": "audio/sfx/yetiThrow.mp3"
-  },
-  "amb-harbour-loop": {
-   "url": "audio/sfx/amb-harbour-loop.mp3",
-   "loop": true
-  },
-  "amb-meadow-run": {
-   "url": "audio/sfx/amb-meadow-run.mp3",
-   "loop": true
-  },
-  "amb-canyon-rush": {
-   "url": "audio/sfx/amb-canyon-rush.mp3",
-   "loop": true
-  },
-  "amb-frostbite-pass": {
-   "url": "audio/sfx/amb-frostbite-pass.mp3",
-   "loop": true
-  },
-  "amb-boardwalk-nights": {
-   "url": "audio/sfx/amb-boardwalk-nights.mp3",
-   "loop": true
-  },
-  "amb-skyline-circuit": {
-   "url": "audio/sfx/amb-skyline-circuit.mp3",
-   "loop": true
+  "sfx": {
+    "count": {
+      "url": "audio/sfx/count.mp3"
+    },
+    "go": {
+      "url": "audio/sfx/go.mp3"
+    },
+    "lap": {
+      "url": "audio/sfx/lap.mp3"
+    },
+    "finalLap": {
+      "url": "audio/sfx/finalLap.mp3"
+    },
+    "finish": {
+      "url": "audio/sfx/finish.mp3"
+    },
+    "shift": {
+      "url": "audio/sfx/shift.mp3"
+    },
+    "koOut": {
+      "url": "audio/sfx/koOut.mp3"
+    },
+    "finishLow": {
+      "url": "audio/sfx/finishLow.mp3"
+    },
+    "balloon": {
+      "url": "audio/sfx/balloon.mp3"
+    },
+    "rouletteTick": {
+      "url": "audio/sfx/rouletteTick.mp3"
+    },
+    "itemReady": {
+      "url": "audio/sfx/itemReady.mp3"
+    },
+    "throw": {
+      "url": "audio/sfx/throw.mp3"
+    },
+    "kite": {
+      "url": "audio/sfx/kite.mp3"
+    },
+    "drop": {
+      "url": "audio/sfx/drop.mp3"
+    },
+    "shieldUp": {
+      "url": "audio/sfx/shieldUp.mp3"
+    },
+    "shieldPop": {
+      "url": "audio/sfx/shieldPop.mp3"
+    },
+    "shieldEnd": {
+      "url": "audio/sfx/shieldEnd.mp3"
+    },
+    "bounce": {
+      "url": "audio/sfx/bounce.mp3"
+    },
+    "pop": {
+      "url": "audio/sfx/pop.mp3"
+    },
+    "airHorn": {
+      "url": "audio/sfx/airHorn.mp3"
+    },
+    "fog": {
+      "url": "audio/sfx/fog.mp3"
+    },
+    "fizz": {
+      "url": "audio/sfx/fizz.mp3"
+    },
+    "strikeRoll": {
+      "url": "audio/sfx/strikeRoll.mp3"
+    },
+    "strike": {
+      "url": "audio/sfx/strike.mp3"
+    },
+    "boing": {
+      "url": "audio/sfx/boing.mp3"
+    },
+    "anchor": {
+      "url": "audio/sfx/anchor.mp3"
+    },
+    "slingshot": {
+      "url": "audio/sfx/slingshot.mp3"
+    },
+    "mouse": {
+      "url": "audio/sfx/mouse.mp3"
+    },
+    "blocked": {
+      "url": "audio/sfx/blocked.mp3"
+    },
+    "denied": {
+      "url": "audio/sfx/denied.mp3"
+    },
+    "trail": {
+      "url": "audio/sfx/trail.mp3"
+    },
+    "roar": {
+      "url": "audio/sfx/roar.mp3"
+    },
+    "stomp": {
+      "url": "audio/sfx/stomp.mp3"
+    },
+    "snowThud": {
+      "url": "audio/sfx/snowThud.mp3"
+    },
+    "krakenRise": {
+      "url": "audio/sfx/krakenRise.mp3"
+    },
+    "krakenSlam": {
+      "url": "audio/sfx/krakenSlam.mp3"
+    },
+    "crabClack": {
+      "url": "audio/sfx/crabClack.mp3"
+    },
+    "honk": {
+      "url": "audio/sfx/honk.mp3"
+    },
+    "whaleSong": {
+      "url": "audio/sfx/whaleSong.mp3"
+    },
+    "tailSlap": {
+      "url": "audio/sfx/tailSlap.mp3"
+    },
+    "claw": {
+      "url": "audio/sfx/claw.mp3"
+    },
+    "ventWarn": {
+      "url": "audio/sfx/ventWarn.mp3"
+    },
+    "geyser": {
+      "url": "audio/sfx/geyser.mp3"
+    },
+    "steamVent": {
+      "url": "audio/sfx/steamVent.mp3"
+    },
+    "loop": {
+      "url": "audio/sfx/loop.mp3"
+    },
+    "clawDrop": {
+      "url": "audio/sfx/clawDrop.mp3"
+    },
+    "hit": {
+      "url": "audio/sfx/hit.mp3"
+    },
+    "hitConfirm": {
+      "url": "audio/sfx/hitConfirm.mp3"
+    },
+    "trick": {
+      "url": "audio/sfx/trick.mp3"
+    },
+    "boostTrick": {
+      "url": "audio/sfx/boostTrick.mp3"
+    },
+    "boostStart": {
+      "url": "audio/sfx/boostStart.mp3"
+    },
+    "slipstream": {
+      "url": "audio/sfx/slipstream.mp3"
+    },
+    "tierUp": {
+      "url": "audio/sfx/tierUp.mp3"
+    },
+    "tierUp2": {
+      "url": "audio/sfx/tierUp2.mp3"
+    },
+    "tierUp3": {
+      "url": "audio/sfx/tierUp3.mp3"
+    },
+    "hop": {
+      "url": "audio/sfx/hop.mp3"
+    },
+    "land": {
+      "url": "audio/sfx/land.mp3"
+    },
+    "wall": {
+      "url": "audio/sfx/wall.mp3"
+    },
+    "bump": {
+      "url": "audio/sfx/bump.mp3"
+    },
+    "wrongWay": {
+      "url": "audio/sfx/wrongWay.mp3"
+    },
+    "gainPlace": {
+      "url": "audio/sfx/gainPlace.mp3"
+    },
+    "losePlace": {
+      "url": "audio/sfx/losePlace.mp3"
+    },
+    "respawn": {
+      "url": "audio/sfx/respawn.mp3"
+    },
+    "uiConfirm": {
+      "url": "audio/sfx/uiConfirm.mp3"
+    },
+    "uiBack": {
+      "url": "audio/sfx/uiBack.mp3"
+    },
+    "horn:pip": {
+      "url": "audio/sfx/horn-pip.mp3"
+    },
+    "horn:momo": {
+      "url": "audio/sfx/horn-momo.mp3"
+    },
+    "horn:nova": {
+      "url": "audio/sfx/horn-nova.mp3"
+    },
+    "horn:juniper": {
+      "url": "audio/sfx/horn-juniper.mp3"
+    },
+    "horn:otto": {
+      "url": "audio/sfx/horn-otto.mp3"
+    },
+    "horn:sprocket": {
+      "url": "audio/sfx/horn-sprocket.mp3"
+    },
+    "horn:boulder": {
+      "url": "audio/sfx/horn-boulder.mp3"
+    },
+    "horn:gus": {
+      "url": "audio/sfx/horn-gus.mp3"
+    },
+    "yelp:pip": {
+      "url": "audio/sfx/yelp-pip.mp3"
+    },
+    "yelp:momo": {
+      "url": "audio/sfx/yelp-momo.mp3"
+    },
+    "yelp:nova": {
+      "url": "audio/sfx/yelp-nova.mp3"
+    },
+    "yelp:juniper": {
+      "url": "audio/sfx/yelp-juniper.mp3"
+    },
+    "yelp:otto": {
+      "url": "audio/sfx/yelp-otto.mp3"
+    },
+    "yelp:sprocket": {
+      "url": "audio/sfx/yelp-sprocket.mp3"
+    },
+    "yelp:boulder": {
+      "url": "audio/sfx/yelp-boulder.mp3"
+    },
+    "yelp:gus": {
+      "url": "audio/sfx/yelp-gus.mp3"
+    },
+    "engine-idle": {
+      "url": "audio/sfx/engine-idle.mp3",
+      "loop": true
+    },
+    "engine-mid": {
+      "url": "audio/sfx/engine-mid.mp3",
+      "loop": true
+    },
+    "engine-high": {
+      "url": "audio/sfx/engine-high.mp3",
+      "loop": true
+    },
+    "drift": {
+      "url": "audio/sfx/drift.mp3",
+      "loop": true
+    },
+    "offroad": {
+      "url": "audio/sfx/offroad.mp3",
+      "loop": true
+    },
+    "offroad-sand": {
+      "url": "audio/sfx/offroad-sand.mp3",
+      "loop": true
+    },
+    "offroad-snow": {
+      "url": "audio/sfx/offroad-snow.mp3",
+      "loop": true
+    },
+    "road-ice": {
+      "url": "audio/sfx/road-ice.mp3",
+      "loop": true
+    },
+    "road-wood": {
+      "url": "audio/sfx/road-wood.mp3",
+      "loop": true
+    },
+    "rail-grind": {
+      "url": "audio/sfx/rail-grind.mp3",
+      "loop": true
+    },
+    "boost1": {
+      "url": "audio/sfx/boost1.mp3"
+    },
+    "boost2": {
+      "url": "audio/sfx/boost2.mp3"
+    },
+    "boost3": {
+      "url": "audio/sfx/boost3.mp3"
+    },
+    "uiMove": {
+      "url": "audio/sfx/uiMove.mp3"
+    },
+    "boostPad": {
+      "url": "audio/sfx/boostPad.mp3"
+    },
+    "spin": {
+      "url": "audio/sfx/spin.mp3"
+    },
+    "koSafe": {
+      "url": "audio/sfx/koSafe.mp3"
+    },
+    "sparks": {
+      "url": "audio/sfx/sparks.mp3",
+      "loop": true
+    },
+    "coin": {
+      "url": "audio/sfx/coin.mp3"
+    },
+    "slam": {
+      "url": "audio/sfx/slam.mp3"
+    },
+    "yetiThrow": {
+      "url": "audio/sfx/yetiThrow.mp3"
+    },
+    "amb-harbour-loop": {
+      "url": "audio/sfx/amb-harbour-loop.mp3",
+      "loop": true
+    },
+    "amb-meadow-run": {
+      "url": "audio/sfx/amb-meadow-run.mp3",
+      "loop": true
+    },
+    "amb-canyon-rush": {
+      "url": "audio/sfx/amb-canyon-rush.mp3",
+      "loop": true
+    },
+    "amb-frostbite-pass": {
+      "url": "audio/sfx/amb-frostbite-pass.mp3",
+      "loop": true
+    },
+    "amb-boardwalk-nights": {
+      "url": "audio/sfx/amb-boardwalk-nights.mp3",
+      "loop": true
+    },
+    "amb-skyline-circuit": {
+      "url": "audio/sfx/amb-skyline-circuit.mp3",
+      "loop": true
+    }
+  },
+  "music": {
+    "title": {
+      "url": "audio/music/race-finale.mp3",
+      "bpm": 144,
+      "loop": [
+        0,
+        41.05
+      ]
+    },
+    "race-meadow": {
+      "url": "audio/music/race-meadow.mp3",
+      "bpm": 143
+    },
+    "race-mesa": {
+      "url": "audio/music/race-mesa.mp3",
+      "bpm": 135,
+      "loop": [
+        0,
+        42.67
+      ]
+    },
+    "race-boardwalk": {
+      "url": "audio/music/race-boardwalk.mp3",
+      "bpm": 130,
+      "loop": [
+        0,
+        66.46
+      ]
+    },
+    "race-finale": {
+      "url": "audio/music/race-finale.mp3",
+      "bpm": 144,
+      "loop": [
+        0,
+        41.05
+      ]
+    },
+    "race-harbour": {
+      "url": "audio/music/race-harbour.mp3",
+      "bpm": 158,
+      "loop": [
+        0,
+        36.46
+      ]
+    },
+    "race-frost": {
+      "url": "audio/music/race-frost.mp3",
+      "bpm": 139
+    },
+    "results": {
+      "url": "audio/music/results.mp3",
+      "bpm": 130,
+      "loop": [
+        0,
+        44.31
+      ]
+    }
   }
- },
- "music": {
-  "title": {
-   "url": "audio/music/title.mp3",
-   "bpm": 120,
-   "loop": [
-    0,
-    16.0
-   ]
-  },
-  "race-meadow": {
-   "url": "audio/music/race-meadow.mp3",
-   "bpm": 143
-  },
-  "race-mesa": {
-   "url": "audio/music/race-mesa.mp3",
-   "bpm": 135,
-   "loop": [
-    0,
-    42.67
-   ]
-  },
-  "race-boardwalk": {
-   "url": "audio/music/race-boardwalk.mp3",
-   "bpm": 130,
-   "loop": [
-    0,
-    66.46
-   ]
-  },
-  "race-finale": {
-   "url": "audio/music/race-finale.mp3",
-   "bpm": 144,
-   "loop": [
-    0,
-    41.05
-   ]
-  },
-  "race-harbour": {
-   "url": "audio/music/race-harbour.mp3",
-   "bpm": 158,
-   "loop": [
-    0,
-    36.46
-   ]
-  },
-  "race-frost": {
-   "url": "audio/music/race-frost.mp3",
-   "bpm": 139
-  },
-  "results": {
-   "url": "audio/music/results.mp3",
-   "bpm": 130,
-   "loop": [
-    0,
-    44.31
-   ]
-  }
- }
 }
