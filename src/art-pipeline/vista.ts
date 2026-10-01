@@ -1409,14 +1409,14 @@ function boardwalk(v: Vista): void {
   // the moon, ahead and to the left of the start, riding with the far ring round the camera: a pale
   // face and two rings of halo
   const moon = model((m) => {
-    const layers: [number, Paint, number][] = [[48, [0.05, 0.04, 0.11], 0], [34, [0.12, 0.1, 0.22], 0.4], [21, [0.5, 0.47, 0.39], 0.8]];
+    const layers: [number, Paint, number][] = [[48, [0.05, 0.04, 0.11], 0], [34, [0.12, 0.1, 0.22], 0.4], [21, [0.2, 0.19, 0.17], 0.8]];
     for (const [r, c, z] of layers) m.cyl(r, r, 0.4, c, [0, 0, z], [Math.PI / 2, 0, 0], 28, false);
     // a lit sphere, not a flat disc (Adam, 30 Sept 2026: "doesn't look like an orb"): smaller and smaller discs
     // stacked toward the light (up and to the right), each adding a little light (the glow mesh adds), so the
     // face brightens toward its lit side and darkens to its rim
-    for (let k = 1; k <= 6; k++) {
-      const r = 21 * (1 - k * 0.13), off = (21 - r) * 0.42;
-      m.cyl(r, r, 0.4, [0.13, 0.125, 0.1], [off * 0.7, off * 0.7, 0.8 + k * 0.1], [Math.PI / 2, 0, 0], 28, false);
+    for (let k = 1; k <= 14; k++) {
+      const r = 21 * (1 - k * 0.0575), off = (21 - r) * 0.8;
+      m.cyl(r, r, 0.4, [0.075, 0.072, 0.06], [off * 0.7, off * 0.7, 0.8 + k * 0.05], [Math.PI / 2, 0, 0], 32, false);
     }
   });
   const [fx, fz] = v.ctx.forward, a = ((v.ctx.mirrored ? 1 : -1) * 32 * Math.PI) / 180;
