@@ -80,9 +80,10 @@ export const BALLOON_SPARKLE = Object.freeze({
  * along too so the ring stays where the chase camera looks, and a gleam at its heart. Yours bright past 1 (they
  * bloom); a rival's `rival` of the size and count, under the bloom. Metres, m/s, seconds.
  */
+// (no trick stars since 30 Sept 2026, Adam: "should be removed": press and land counts 0, 7 and 12 before)
 export const TRICK_SPARKLE = Object.freeze({
-  press: Object.freeze({ count: 7, radius: 1.05, up: 0.95, out: 0.9, size: 0.3, life: 0.36, spin: 6, drag: 2 }),
-  land: Object.freeze({ count: 12, radius: 0.55, up: 0.35, out: 3.4, rise: 1.6, size: 0.26, life: 0.42, drag: 3, gravity: 4, gleam: 0.7, gleamLife: 0.16, carry: 0.85 }),
+  press: Object.freeze({ count: 0, radius: 1.05, up: 0.95, out: 0.9, size: 0.3, life: 0.36, spin: 6, drag: 2 }),
+  land: Object.freeze({ count: 0, radius: 0.55, up: 0.35, out: 3.4, rise: 1.6, size: 0.26, life: 0.42, drag: 3, gravity: 4, gleam: 0.7, gleamLife: 0.16, carry: 0.85 }),
   rival: 0.55,
   /** the stars' colour gain (the confetti hues past 1 bloom; a rival's stays under) */
   bright: 2.1, dim: 0.9,
@@ -279,7 +280,7 @@ export class Vfx {
     const s = Math.sin(k.heading), co = Math.cos(k.heading), v = Math.max(0, k.speed), turn = rnd() * Math.PI * 2;
     if (!landing) {
       // stars round the kart, across the road and up (side = rightOf(heading)), drifting out, turning; carried along with it
-      const P = T.press, n = Math.max(3, Math.round(P.count * sc)), gain = mine ? T.bright : T.dim;
+      const P = T.press, n = P.count ? Math.max(3, Math.round(P.count * sc)) : 0, gain = mine ? T.bright : T.dim;
       o.cx = s * v; o.cy = 0; o.cz = co * v; o.shape = SHAPE.star;
       for (let i = 0; i < n; i++) {
         const a = turn + (i / n) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
@@ -291,7 +292,7 @@ export class Vfx {
     } else {
       // little stars flung out low round the kart, gold and white-hot by turns (round glints read as bubbles), rising a
       // little, turning; a gleam at its heart
-      const L = T.land, n = Math.max(4, Math.round(L.count * sc)), glow = mine ? T.gold : POP.rivalGlow;
+      const L = T.land, n = L.count ? Math.max(4, Math.round(L.count * sc)) : 0, glow = mine ? T.gold : POP.rivalGlow;
       o.cx = s * v * L.carry; o.cy = 0; o.cz = co * v * L.carry; o.shape = SHAPE.star;
       for (let i = 0; i < n; i++) {
         const a = turn + (i / n) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);

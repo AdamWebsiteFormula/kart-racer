@@ -236,17 +236,17 @@ const MIX_DB: Readonly<Record<string, number>> = Object.freeze({
   count: -1, go: 1, lap: -1, finalLap: 1, finish: 1, finishLow: 0, shift: 1, koOut: 0, koSafe: 0,
   // menus, pickups and place
   // coin (the gear pickup, 27 Sept 2026): its ratchet clicks are spiky, so 3 dB down keeps the mix's true peak where it was
-  uiMove: -8, uiConfirm: -5, uiBack: -6, rouletteTick: -3, itemReady: -2, coin: -3, balloon: -1,
+  uiMove: -12, uiConfirm: -9, uiBack: -6, rouletteTick: -3, itemReady: -2, coin: -3, balloon: -1, /* uiMove a quiet tick since 30 Sept 2026 (Adam: "boing"y); hit and wall play the bump (audio.ts SOUND_AS) */
   gainPlace: -2, losePlace: -3, wrongWay: -2, respawn: -3, denied: -6,
   // items
   throw: -3, kite: -3, drop: -1, shieldUp: -3, shieldPop: -2, shieldEnd: -3, airHorn: 0, fog: -3, bounce: -5, pop: -5,
   fizz: -2, strikeRoll: -2, strike: 0, boing: -2, slam: 0, anchor: -2, slingshot: -2, mouse: -3, blocked: -3, trail: -1, hitConfirm: -1,
-  hit: 0, spin: 0,
+  hit: -11, spin: -4, /* hit -11 since 30 Sept 2026 (Adam: blunt and faint, as a wall) */
   // boosts and sparks: each tier over the last
   boost1: -3, boost2: -2, boost3: -1, boostPad: -3, boostTrick: -2, boostStart: -1, slipstream: -2.5, trick: -3,
   tierUp: -1.5, tierUp2: -0.5, tierUp3: 0.5,
   // driving
-  hop: -5, land: -3, wall: -1, bump: -3, loop: -2, claw: -2, clawDrop: -3,
+  hop: -5, land: -11, wall: -11, bump: -11, /* (bump -3, wall -1 until 30 Sept 2026, Adam: "too loud") */ loop: -2, claw: -2, clawDrop: -3,
   // the course
   roar: 0, stomp: 0, yetiThrow: 0, snowThud: 0, krakenRise: 0, krakenSlam: 0, crabClack: -2, honk: 0, whaleSong: 0, tailSlap: 0,
   ventWarn: -1, geyser: 0, steamVent: 0,

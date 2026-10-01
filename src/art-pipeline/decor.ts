@@ -134,19 +134,19 @@ const MODELS: Record<string, { build: Build; spin?: CodeSpin }> = {
   balloon: {
     build: (m) => {
       // the item pickup (the sim's `balloon`; Adam, 30 Sept 2026: "something super cool and futuristic"): an
-      // energy core, a faceted crystal (cyan above, magenta below, a white-hot heart) floating inside two
-      // tilted chrome rings studded with light nodes; about the size the balloon was (1.9 m tall, rings 0.85 m
+      // energy core, a faceted crystal (deep blue above, violet below since 30 Sept 2026, Adam: the light colors
+      // "look lame"; a white-hot heart) floating inside two tilted gunmetal rings studded with light nodes; about the size the balloon was (1.9 m tall, rings 0.85 m
       // out), its middle where the balloon's was. Self-lit at night (the pickups' glow) and bloomed by day.
-      m.cone(0.46, 0.95, '#3fe9ff', [0, 0.475, 0], undefined, 6);                      // the crystal's top
-      m.cone(0.46, 0.95, '#ff4fd8', [0, -0.475, 0], [Math.PI, 0, 0], 6, false);       // and bottom
+      m.cone(0.46, 0.95, '#0a8cff', [0, 0.475, 0], undefined, 6);                      // the crystal's top
+      m.cone(0.46, 0.95, '#b000ff', [0, -0.475, 0], [Math.PI, 0, 0], 6, false);       // and bottom
       m.ball([0.2, 0.34, 0.2], '#ffffff', [0, 0, 0], undefined, 8, false);            // its heart
       const rings: [number, number][] = [[0.42, 0], [-0.42, 1.1]];
       for (const [tilt, turn] of rings) {
-        m.torus(0.85, 0.055, '#d4dbe4', [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], false, 6, 16);  // thin: 6 sides are plenty
+        m.torus(0.85, 0.055, '#2a2f36', [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], false, 6, 16);  // thin: 6 sides are plenty
         const e = new Euler(Math.PI / 2 + tilt, turn, 0);
         for (let k = 0; k < 4; k++) {                                                  // light nodes round each ring
           const a = (k / 4) * Math.PI * 2 + 0.4, v = new Vector3(Math.cos(a) * 0.85, Math.sin(a) * 0.85, 0).applyEuler(e);
-          m.ball([0.085, 0.085, 0.085], k % 2 ? '#3fe9ff' : '#ff4fd8', [v.x, v.y, v.z], undefined, 4, false);
+          m.ball([0.085, 0.085, 0.085], k % 2 ? '#00e5ff' : '#e040ff', [v.x, v.y, v.z], undefined, 4, false);
         }
       }
     },

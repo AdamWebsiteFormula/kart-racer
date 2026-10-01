@@ -32,9 +32,9 @@ describe('the sparkle itself', () => {
 
   it('the press: a ring of little stars round the kart; yours bright, a rival\'s fewer and under the bloom', () => {
     const mine = run('trick', true), rival = run('trick', false);
-    expect(mine.glow.count).toBe(TRICK_SPARKLE.press.count);
-    expect(rival.glow.count).toBeLessThan(mine.glow.count);
-    expect(rival.glow.count).toBeGreaterThanOrEqual(3);
+    // no stars since 30 Sept 2026 (Adam: "should be removed")
+    expect(mine.glow.count).toBe(0);
+    expect(rival.glow.count).toBe(0);
     // small, quick: gone within half a second
     mine.glow.update(0.5);
     expect(mine.glow.count).toBe(0);
@@ -42,8 +42,8 @@ describe('the sparkle itself', () => {
 
   it('the landing: a small burst of stars and a gleam for yours, fewer for a rival\'s; gone within half a second', () => {
     const mine = run('trickLand', true), rival = run('trickLand', false);
-    expect(mine.glow.count).toBe(TRICK_SPARKLE.land.count + 1);
-    expect(rival.glow.count).toBeLessThan(mine.glow.count);
+    expect(mine.glow.count).toBe(TRICK_SPARKLE.land.count + 1); // the gleam alone since 30 Sept 2026
+    expect(rival.glow.count).toBeLessThanOrEqual(mine.glow.count);
     expect(TRICK_SPARKLE.land.size).toBeLessThanOrEqual(0.3);
     mine.glow.update(0.5);
     expect(mine.glow.count).toBe(0);

@@ -130,7 +130,7 @@ describe('what a contact draws (into the pools there already are)', () => {
     c.draw(0, [me, you], undefined, shake(), false); // their velocities before the touch
     c.bump(me, you, 'pip', 5, false);
     expect(shapes(p.soft)).toContain(SHAPE.burst);
-    expect(shapes(p.soft).filter((s) => s === SHAPE.star).length).toBeGreaterThanOrEqual(2);
+    expect(shapes(p.soft).filter((s) => s === SHAPE.star).length).toBe(0); // no stars since 30 Sept 2026
     expect(p.glow.count).toBeGreaterThanOrEqual(1);
     expect(p.sparks.count).toBeGreaterThan(4);
     const o = shake();
@@ -187,10 +187,10 @@ describe('what a contact draws (into the pools there already are)', () => {
     const bursts = shapes(p.soft).filter((s) => s === SHAPE.burst).length;
     expect(bursts).toBe(1);
     expect(shapes(p.glow).filter((s) => s === SHAPE.star).length).toBe(CONTACT.hit.ring);
-    expect(shapes(p.soft).filter((s) => s === SHAPE.star).length).toBeGreaterThanOrEqual(5);
+    expect(shapes(p.soft).filter((s) => s === SHAPE.star).length).toBe(0); // no stars since 30 Sept 2026
     const q = pools(), d = new Contact(q.glow, q.soft, q.sparks);
     d.hit(kartAt('gus', 0, 0), false, 2, false);
-    expect(q.glow.count).toBeLessThan(p.glow.count);
+    expect(q.glow.count).toBeLessThanOrEqual(p.glow.count); // (with no star ring both draw the one burst)
     const o = shake();
     d.kick.add(2 + CONTACT.kick.rise, o, false);
     expect(o).toEqual(shake());

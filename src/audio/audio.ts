@@ -33,6 +33,8 @@ export const DUCKERS: ReadonlySet<SfxId> = new Set<SfxId>(['airHorn', 'strike', 
 /** Stings that play whatever else is ringing (they still count toward their own voice cap). */
 const PRIORITY: ReadonlySet<SfxId> = new Set<SfxId>(['count', 'go', 'lap', 'finalLap', 'finish', 'finishLow', 'shift', 'koOut', 'koSafe', 'wrongWay']);
 
+const SOUND_AS: Readonly<Partial<Record<string, SfxId>>> = Object.freeze({ hit: 'bump', wall: 'bump', uiMove: 'rouletteTick', uiConfirm: 'rouletteTick' });
+
 export class GameAudio {
   readonly bus: AudioBus;
   /** the recorded sounds and songs; whatever is missing plays on the synth */
@@ -326,7 +328,9 @@ export class GameAudio {
       this.jitter = (this.jitter * 1664525 + 1013904223) >>> 0;
       rate *= 1 + ((this.jitter / 0xffffffff) * 2 - 1) * AUDIO.pitchJitter;
     }
-    const s = this.bank.get(id);
+    // a hit and a wall play the bump's blunt thud, and a menu move the roulette's plain tick (Adam, 30 Sept 2026:
+    // the hit "high pitched cartoony", the move "boing"y; each keeps its own level in the mix)
+    const s = this.bank.get(SOUND_AS[id] ?? id) ?? this.bank.get(id);
     const seconds = (s ? s.end - s.start : patchSeconds(PATCHES[id])) / rate;
     if (!this.voices.admit(id, ctx.currentTime, seconds, PRIORITY.has(id))) return null;
     // the Final Lap Shift is the game's big moment: the music stays down under most of it

@@ -31,7 +31,7 @@ export const CONTACT = Object.freeze({
     /** the white flash inside it */
     flash: 0.5, flashLife: 0.05,
     /** little cartoon stars thrown off it: how many (at full size), m, s, m/s out and up */
-    stars: 4, starSize: 0.26, starLife: 0.5, starOut: [2.2, 4] as const, starUp: [1.8, 3.6] as const,
+    stars: 0, starSize: 0.26, starLife: 0.5, starOut: [2.2, 4] as const, starUp: [1.8, 3.6] as const,
     /** sparks (the streak pool): how many at full size, m/s */
     sparks: 12, sparkSpeed: [3, 7.5] as const,
     /** a bump between two rivals: this much of the size, count and brightness; none drawn past `far` m from the camera */
@@ -60,14 +60,15 @@ export const CONTACT = Object.freeze({
     height: 0.9,
     burst: 2.1, burstLife: 0.2, flash: 0.7, flashLife: 0.07,
     /** a ring of little white stars spreading round the kart: how many, m/s, s */
-    ring: 12, ringSpeed: 6.5, ringLife: 0.26,
+    ring: 0, ringSpeed: 6.5, ringLife: 0.26,
     /** cartoon stars flung out round it */
-    stars: 7, starSize: 0.3, starLife: 0.65, starOut: [2.5, 4.5] as const, starUp: [2.5, 5] as const,
+    stars: 0, starSize: 0.3, starLife: 0.65, starOut: [2.5, 4.5] as const, starUp: [2.5, 5] as const,
     sparks: 12,
     rival: 0.65,
   }),
+  /** (no stars since 30 Sept 2026, Adam: "Remove the stars ... So corny": the bursts' and the dizzy stars' counts are 0) */
   /** stars circling the racer's head while it spins, and `after` s after (the dizzy recover), fading out over `fadeOut` s */
-  dizzy: Object.freeze({ stars: 3, radius: 0.6, height: 1.6, turns: 1.5, bob: 0.07, size: 0.42, after: 0.75, fadeIn: 0.12, fadeOut: 0.35, spin: 4 }),
+  dizzy: Object.freeze({ stars: 0, radius: 0.6, height: 1.6, turns: 1.5, bob: 0.07, size: 0.42, after: 0.75, fadeIn: 0.12, fadeOut: 0.35, spin: 4 }),
   /**
    * m a burst is drawn toward the camera from where the contact is: the karts' own sides would hide half of it
    * (Mario Kart World draws its impact star over both karts); never nearer the lens than `nearest` m
@@ -237,7 +238,7 @@ export class Contact {
     const size = (0.55 + 0.45 * k) * s;
     this.put(this.soft, x, y, z, 0, 0, 0, mine ? BURST : BURST_RIVAL, B.burst * size, B.burstLife, 0, 0, 0.35, SHAPE.burst, reduced ? 0 : (rnd() < 0.5 ? -3 : 3), cx, cz);
     this.put(this.glow, x, y, z, 0, 0, 0, mine ? FLASH : FLASH_RIVAL, B.flash * size, B.flashLife, 0, 0, 0.5, 0, 0, cx, cz);
-    const stars = Math.max(1, Math.round(B.stars * (0.5 + 0.5 * k) * s));
+    const stars = B.stars ? Math.max(1, Math.round(B.stars * (0.5 + 0.5 * k) * s)) : 0;
     const turn = rnd() * Math.PI * 2;
     for (let i = 0; i < stars; i++) {
       const a = turn + (i / stars) * Math.PI * 2 + (rnd() - 0.5) * 0.6, out = between(B.starOut) * (0.7 + 0.3 * k);

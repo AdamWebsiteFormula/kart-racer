@@ -52,7 +52,7 @@ describe('sample analysis', () => {
     expect(mixLevel('uiMove')).toBeLessThan(mixLevel('finish'));
     expect(mixLevel('boost1')).toBeLessThan(mixLevel('boost3'));
     // nothing set so far back it vanishes, nothing pushed so far up it pumps the limiter
-    for (const id of Object.keys(PATCHES)) { expect(mixDb(id), id).toBeGreaterThanOrEqual(-8); expect(mixDb(id), id).toBeLessThanOrEqual(1); }
+    for (const id of Object.keys(PATCHES)) { expect(mixDb(id), id).toBeGreaterThanOrEqual(-12); expect(mixDb(id), id).toBeLessThanOrEqual(1); }
     expect(mixLevel('go')).toBeCloseTo(Math.pow(10, 1 / 20), 6);
   });
 

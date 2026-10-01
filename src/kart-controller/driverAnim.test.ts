@@ -189,14 +189,13 @@ describe('DriverAnim: body and arms', () => {
     expect(b.tick(240, { ...NEUTRAL_INPUT, throttle: 1 }).spinePitch).toBeLessThan(0);
   });
 
-  it('a hit throws both arms off the wheel while the kart spins, and puts them back once it is done', () => {
+  it('a hit keeps both hands on the wheel (30 Sept 2026: no hands in the air), and they stay there once it is done', () => {
     const r = rig();
     r.s.status.spinRemaining = 1;
     let off = 1;
     const spin = () => { r.s.status.spinRemaining = Math.max(0, r.s.status.spinRemaining - dt); };
     r.tick(100, NEUTRAL_INPUT, undefined, () => { spin(); off = Math.min(off, r.driver.curr.armR.wheel); });
-    expect(off).toBeLessThan(0.1);
-    expect(r.driver.curr.armL.upper[1]).toBeGreaterThan(0.5); // up
+    expect(off).toBe(1);
     r.tick(160, NEUTRAL_INPUT, undefined, spin);
     expect(r.driver.curr.armR.wheel).toBeGreaterThan(0.95);
     expect(r.driver.curr.armL.wheel).toBeGreaterThan(0.95);

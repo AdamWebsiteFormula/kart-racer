@@ -682,13 +682,8 @@ export class DriverAnim {
       if (reaction === 'shrug') curr.shrug = hump(rt, 0.02, 0.95);
       if (down) curr.shrug = down.shoulders;
     } else if (spinning || sinceSpin < t.recover) {
-      // a hit: both arms up, flailing, the head wobbling; eased back onto the wheel once the spin is done
+      // a hit: hands stay on the wheel (Adam, 30 Sept 2026: no hands in the air), only the head rocks
       const k = spinning ? 1 : 1 - sinceSpin / t.recover;
-      const f = t.flail * Math.sin(TAU * t.flailHz * now);
-      set(R.upper, AIM.up); R.fore[0] = -0.2 + f; R.fore[1] = 1; R.fore[2] = 0.1;
-      set(L.upper, AIM.up); L.fore[0] = -0.2 - f; L.fore[1] = 1; L.fore[2] = 0.1;
-      normalize(R.fore); normalize(L.fore); mirror(L);
-      R.wheel = L.wheel = 1 - k;
       curr.headRoll += t.wobble * k * Math.sin(TAU * t.wobbleHz * now);
     } else if (flourish && fk > 0) {
       // the racer's own flourish, off the wheel as the stunt starts and back on it before the landing
