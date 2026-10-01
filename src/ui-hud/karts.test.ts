@@ -138,45 +138,56 @@ describe('the garage and the look with karts picked (design §12: the Body row g
 });
 
 describe('the Kart screen (view model)', () => {
-  it('ten tiles three across (MKW\'s vehicle grid; five across on a small screen), the racer\'s kart marked, the twins locked with how to earn them until they are', () => {
+  it('eight tiles four across in two even rows (the twins Classic and Buggy off the screen: Adam, 30 Sept 2026), the racer\'s kart marked', () => {
     const save = defaultSave();
+    const shown = ids.filter((id) => !KARTS.find((k) => k.id === id)!.twinOf);
+    expect(shown).toEqual(['scooter', 'scrap', 'pod', 'wagon', 'skimmer', 'windup', 'stomper', 'snacktruck']);
     const vm = kartMenu(save, 'gus', 'snacktruck', (k) => comboStats('gus', k));
-    expect(vm.cards.map((c) => c.id)).toEqual(ids);
-    expect(KART_COLUMNS).toBe(3);
-    expect(vm.focus.rows).toEqual([ids.slice(0, 3), ids.slice(3, 6), ids.slice(6, 9), ids.slice(9)]);
-    expect(kartMenu(save, 'gus', 'snacktruck', (k) => comboStats('gus', k), KART_COLUMNS_COMPACT).focus.rows).toEqual([ids.slice(0, 5), ids.slice(5)]);
-    expect(vm.focus.disabled).toBeUndefined(); // a locked card still takes the focus: it previews
+    expect(vm.cards.map((c) => c.id)).toEqual(shown);
+    expect([KART_COLUMNS, KART_COLUMNS_COMPACT]).toEqual([4, 4]);
+    expect(vm.focus.rows).toEqual([shown.slice(0, 4), shown.slice(4)]);
+    expect(kartMenu(save, 'gus', 'snacktruck', (k) => comboStats('gus', k), KART_COLUMNS_COMPACT).focus.rows).toEqual([shown.slice(0, 4), shown.slice(4)]);
+    expect(vm.focus.disabled).toBeUndefined();
     expect(vm.cards.filter((c) => c.chosen).map((c) => c.id)).toEqual(['snacktruck']);
-    expect(vm.cards.filter((c) => c.locked).map((c) => [c.id, c.hint])).toEqual([['classic', 'Finish a Grand Prix'], ['buggy', 'Race a Knockout to the end']]);
+    expect(vm.cards.filter((c) => c.locked)).toEqual([]); // only the twins lock, and they are not on the screen
     expect(vm.racerName).toBe('Big Gus');
     // each card's words: its bars against the chosen kart's (its own are unchanged)
     expect(vm.cards.find((c) => c.id === 'snacktruck')!.words).not.toMatch(/up|down/);
     expect(vm.cards.find((c) => c.id === 'scooter')!.words).toMatch(/^Speed \d+ of 10, down \d+\. Accel \d+ of 10, up \d+/);
+    // the twins stay off the screen unlocked too, and with one as the racer's kart now (no tile marked chosen)
     save.unlocked.bodies = ['classic', 'buggy'];
-    expect(kartMenu(save, 'gus', 'classic', (k) => comboStats('gus', k)).cards.filter((c) => c.locked)).toEqual([]);
+    const twin = kartMenu(save, 'gus', 'classic', (k) => comboStats('gus', k));
+    expect(twin.cards.map((c) => c.id)).toEqual(shown);
+    expect(twin.focus.rows.flat()).not.toContain('classic');
+    expect(twin.cards.filter((c) => c.chosen)).toEqual([]);
   });
 
-  it('the arrows run through all ten and wrap: left and right in reading order across the rows, up and down between them', () => {
-    // three across: scooter scrap pod / wagon skimmer windup / stomper snacktruck classic / buggy
+  it('the arrows run through all eight and wrap: left and right in reading order across the rows, up and down between them', () => {
+    // four across: scooter scrap pod wagon / skimmer windup stomper snacktruck
     const f = kartMenu(defaultSave(), 'pip', 'scooter', (k) => comboStats('pip', k)).focus;
     const walk = (from: string, ...dirs: ('left' | 'right' | 'up' | 'down')[]) => dirs.reduce((at, d) => kartMove(f, at, d), from);
-    expect(walk('pod', 'right')).toBe('wagon'); // the end of the first row runs on to the second
-    expect(walk('buggy', 'right')).toBe('scooter'); // the tenth wraps to the first
-    expect(walk('scooter', 'left')).toBe('buggy');
-    expect(walk('wagon', 'left')).toBe('pod');
-    expect(walk('scrap', 'down')).toBe('skimmer');
-    expect(walk('classic', 'down')).toBe('buggy'); // the last row has one: the nearest column
-    expect(walk('buggy', 'down')).toBe('scooter'); // down past the last row wraps to the top
-    expect(walk('pod', 'up')).toBe('buggy');
-    // five across (a small screen): the rows of five
+    expect(walk('wagon', 'right')).toBe('skimmer'); // the end of the first row runs on to the second
+    expect(walk('snacktruck', 'right')).toBe('scooter'); // the eighth wraps to the first
+    expect(walk('scooter', 'left')).toBe('snacktruck');
+    expect(walk('skimmer', 'left')).toBe('wagon');
+    expect(walk('scrap', 'down')).toBe('windup');
+    expect(walk('pod', 'down')).toBe('stomper');
+    expect(walk('stomper', 'down')).toBe('pod'); // down past the last row wraps to the top
+    expect(walk('wagon', 'up')).toBe('snacktruck'); // up past the top wraps to the bottom
+    expect(walk('scooter', 'up', 'up')).toBe('scooter'); // two rows: up twice comes back
+    // the compact grid is the same four across
     const c = kartMenu(defaultSave(), 'pip', 'scooter', (k) => comboStats('pip', k), KART_COLUMNS_COMPACT).focus;
-    expect(kartMove(c, 'pod', 'down')).toBe('snacktruck');
-    expect(kartMove(c, 'skimmer', 'right')).toBe('windup');
-    // right ten times comes back round
-    expect(walk('wagon', ...Array.from({ length: 10 }, () => 'right' as const))).toBe('wagon');
+    expect(kartMove(c, 'pod', 'down')).toBe('stomper');
+    expect(kartMove(c, 'wagon', 'right')).toBe('skimmer');
+    // a twin is never reached
+    expect(kartMove(f, 'buggy', 'right')).toBe('scooter'); // an id off the screen falls to the first tile
+    // right eight times comes back round, through every tile once
+    expect(walk('wagon', ...Array.from({ length: 8 }, () => 'right' as const))).toBe('wagon');
     const seen = new Set<string>();
     let at = 'scooter';
-    for (let i = 0; i < 10; i++) { seen.add(at); at = kartMove(f, at, 'right'); }
-    expect(seen.size).toBe(10);
+    for (let i = 0; i < 8; i++) { seen.add(at); at = kartMove(f, at, 'right'); }
+    expect(seen.size).toBe(8);
+    expect([...seen]).not.toContain('classic');
+    expect([...seen]).not.toContain('buggy');
   });
 });

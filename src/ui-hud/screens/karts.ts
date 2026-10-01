@@ -1,4 +1,4 @@
-// The Kart screen (design §5, §12; docs/plans/kart-combos.md §5). Pure view models: the ten kart tiles and
+// The Kart screen (design §5, §12; docs/plans/kart-combos.md §5). Pure view models: the eight kart tiles and
 // their focus grid, and how the focus runs through them. The stats panel beside them is screens/stats.ts.
 import { castCard, nameOf } from '../data/cast.ts';
 import { byLine, kartArt, kartColors, kartLocked, KARTS } from '../data/karts.ts';
@@ -28,8 +28,10 @@ export interface KartMenuVM { title: string; racerId: string; racerName: string;
  * vehicle select, youtube.com/watch?v=PI0dNuQNq5k); five across where the screen is short or narrow (a phone
  * on its side, a small window: UI.selectCompactQuery), two rows of five.
  */
-export const KART_COLUMNS = 3;
-export const KART_COLUMNS_COMPACT = 5;
+// four across since 30 Sept 2026: the eight model karts in two even rows (the twins Classic and Buggy are off the
+// screen: Adam, "I don't think the karts are actually ready"; their data and unlocks stay for old saves)
+export const KART_COLUMNS = 4;
+export const KART_COLUMNS_COMPACT = 4;
 
 /**
  * The Kart screen for this racer (their paint dresses a twin), the kart they are in now marked chosen.
@@ -39,7 +41,7 @@ export const KART_COLUMNS_COMPACT = 5;
 export function kartMenu(save: Save, racerId: string, currentKart: string, stats: (kartId: string) => StatLine, columns = KART_COLUMNS): KartMenuVM {
   const paint = save.settings.skinByRacer[racerId];
   const now = stats(currentKart);
-  const cards = KARTS.map((k): KartCardVM => {
+  const cards = KARTS.filter((k) => !k.twinOf).map((k): KartCardVM => {
     const locked = kartLocked(k, save.unlocked.bodies);
     const hint = locked ? UNLOCKS.find((u) => u.id === k.unlock)?.how : undefined;
     return {
@@ -54,8 +56,8 @@ export function kartMenu(save: Save, racerId: string, currentKart: string, stats
 }
 
 /**
- * How the focus runs on the Kart screen: left and right through all ten in reading order, wrapping from
- * the last tile of a row to the first of the next (and from the tenth to the first); up and down to the
+ * How the focus runs on the Kart screen: left and right through all eight in reading order, wrapping from
+ * the last tile of a row to the first of the next (and from the eighth to the first); up and down to the
  * row above or below, same column (the nearest one in a shorter row), wrapping. Every tile takes the
  * focus, locked or not (a locked one previews).
  */

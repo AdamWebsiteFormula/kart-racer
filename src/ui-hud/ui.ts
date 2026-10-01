@@ -35,7 +35,7 @@ import { loadSave, reducedMotion, writeSave, type Backend, type Save, type Setti
 import type { AppAction, AppState, FocusModel, NavAction } from './types.ts';
 import { grantAll, grantUnlocks, unlockRows, unlockWords } from './unlocks.ts';
 import { garageModel, lookFor, mirrorAllowed, setChoice, stepChoice, type ChoiceId } from './garage.ts';
-import { isKart, kartCard, kartFor, kartLocked, kartName } from './data/karts.ts';
+import { isKart, kartCard, kartFor, kartLocked, kartName, ownKart } from './data/karts.ts';
 import { comboStats } from './data/kartStats.ts';
 import { skinCard } from './data/cosmetics.ts';
 import { KART_COLUMNS, KART_COLUMNS_COMPACT, kartMenu, kartMove, type KartMenuVM } from './screens/karts.ts';
@@ -862,7 +862,7 @@ export class UiRoot {
     const cur = key ? this.focusBy.get(key) : undefined;
     if (a === 'back') { this.host.uiSound?.('back'); this.back(); return; }
     if (a === 'confirm') { if (cur) { this.host.uiSound?.(this.refuses(cur) ? 'back' : 'confirm'); this.confirm(cur); } return; }
-    // the Kart screen: the arrows, the D-pad and the stick run through all ten cards and wrap (screens/karts.ts kartMove)
+    // the Kart screen: the arrows, the D-pad and the stick run through all eight cards and wrap (screens/karts.ts kartMove)
     if (key === 'kartSelect' && model && cur) {
       const next = kartMove(model, cur, a);
       if (next !== cur) { this.host.uiSound?.('move'); this.setFocus(next); }
@@ -1216,8 +1216,9 @@ export class UiRoot {
     const ok = remembered && model.rows.flat().includes(remembered) && !model.disabled?.includes(remembered);
     // the saved racer, when it is still a card (a stale id falls back to the first card)
     const racer = entering && key === 'rosterSelect' && model.rows.flat().includes(s.racerId) ? s.racerId : undefined;
-    // the Kart screen opens on the kart the racer is in now (the one chosen, else their own)
-    const kart = entering && key === 'kartSelect' ? kartFor(s.racerId, s.kartId) : undefined;
+    // the Kart screen opens on the kart the racer is in now (the one chosen, else their own; a twin off the screen, their own)
+    const now = entering && key === 'kartSelect' ? kartFor(s.racerId, s.kartId) : undefined;
+    const kart = now && !model.rows.flat().includes(now) ? ownKart(s.racerId) : now;
     const id = kart && model.rows.flat().includes(kart) ? kart : ok ? remembered : racer ?? firstFocus(model);
     // How to Play and Credits open at the top: their one button, Back, is at the end
     if (id) this.setFocus(id, key !== 'howTo' && key !== 'credits' && key !== 'unlocks');
@@ -1305,7 +1306,7 @@ export class UiRoot {
         break;
       }
       case 'kartSelect': {
-        // the racer's kart now marked; every tile's bars against it (its label says them); three across, or five where the screen is small
+        // the racer's kart now marked; every tile's bars against it (its label says them); four across
         const racer = s.racerId;
         const vm = kartMenu(this.save, racer, kartFor(racer, s.kartId), (k) => comboStats(racer, k), this.compact?.matches ? KART_COLUMNS_COMPACT : KART_COLUMNS);
         this.kartVm = vm;

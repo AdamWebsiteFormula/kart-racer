@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Any racer in any kart in the DOM (design §12; docs/plans/kart-combos.md K4, K5): keys alone walk Racer → Kart →
-// Track and back, a locked kart previews but is refused, a chosen one locks in before the next screen, touch
+// Track and back, the twins are off the screen, a chosen one locks in before the next screen, touch
 // previews on a first tap and chooses on a second, the pointer previews once it rests, the race is handed the
 // kart, the Racer screen shows the stats panel and no Body row, and a Kart screen drawn again writes nothing.
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -72,9 +72,11 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
   it('Escape: the track screen back to the Kart screen (on the kart chosen), the Kart screen back to the racer, kept', () => {
     const ui = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'timeTrial' }, { type: 'pickRacer', racerId: 'otto' }] as const) ui.dispatch(a);
-    key('ArrowDown'); // Otto's Night Chopper (the middle of the second row) → the Boss Roadster under it
+    expect(focused()).toBe('skimmer'); // Otto's Night Chopper, the first of the second row
+    for (let i = 0; i < 3; i++) key('ArrowRight'); // along the row to the Boss Roadster at its end
     expect(focused()).toBe('snacktruck');
-    key('ArrowRight'); // Classic, locked: Enter would refuse it
+    key('ArrowRight'); // the eighth wraps to the first
+    expect(focused()).toBe('scooter');
     key('ArrowLeft'); // back to the Boss Roadster
     key('Enter');
     expect(ui.app.screen).toBe('trackSelect');
@@ -88,17 +90,19 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     ui.dispose();
   });
 
-  it('the arrows run through all ten and wrap; a pad walks it the same', () => {
+  it('the arrows run through all eight and wrap; a pad walks it the same', () => {
     const ui = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
     const seen: string[] = [];
-    for (let i = 0; i < 10; i++) { seen.push(focused()!); key('ArrowRight'); }
-    expect(seen).toEqual(['scooter', 'scrap', 'pod', 'wagon', 'skimmer', 'windup', 'stomper', 'snacktruck', 'classic', 'buggy']);
+    for (let i = 0; i < 8; i++) { seen.push(focused()!); key('ArrowRight'); }
+    expect(seen).toEqual(['scooter', 'scrap', 'pod', 'wagon', 'skimmer', 'windup', 'stomper', 'snacktruck']);
     expect(focused()).toBe('scooter');
     key('ArrowLeft');
-    expect(focused()).toBe('buggy');
-    key('ArrowUp'); // three across: the Buggy alone in the last row, under the Stone Crusher
-    expect(focused()).toBe('stomper');
+    expect(focused()).toBe('snacktruck');
+    key('ArrowUp'); // four across: the Boss Roadster ends the second row, under the Ridge Runner
+    expect(focused()).toBe('wagon');
+    key('ArrowDown');
+    expect(focused()).toBe('snacktruck');
     // the keys never land on Back (Escape is theirs)
     for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) { key(k); expect(focused()).not.toBe('back'); }
     // a pad's D-pad and A, past the screen's opening move (a pad press during it is dropped)
@@ -108,7 +112,7 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [pad] });
     let t = 0;
     const press = (b: number) => { pad.buttons[b].pressed = true; ui.poll((t += 16)); pad.buttons[b].pressed = false; ui.poll((t += 16)); };
-    for (const k of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight']) key(k); // from the Ridge Runner along to the Boss Roadster
+    for (const k of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight']) key(k); // from the Ridge Runner along the second row to the Boss Roadster
     const at = focused()!;
     expect(at).toBe('snacktruck');
     press(15); // right
@@ -121,32 +125,30 @@ describe('the Kart screen by keys alone (K4 gate)', () => {
     ui.dispose();
   });
 
-  it('a locked twin previews but Enter refuses it: it shakes, the refusal sounds, and nothing is picked', () => {
+  it('a locked twin is not on the screen (Adam, 30 Sept 2026: the twins are not ready): no tile, no padlock, the keys never reach it, unlocked or not', () => {
     const h = host();
     const ui = root(h);
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'pip' }] as const) ui.dispatch(a);
-    key('ArrowLeft'); // Buggy
-    key('ArrowLeft'); // Classic
-    expect(focused()).toBe('classic');
-    expect(heroKart()).toBe('classic');
-    // the name under the hero says how to earn it, behind our padlock
-    expect(q('.nameplate')!.classList.contains('locked')).toBe(true);
-    expect(q('.np-text')!.textContent).toBe('Finish a Grand Prix');
-    expect(q('.nameplate .np-lock svg.lock-svg')).not.toBeNull();
-    h.sounds.length = 0;
-    key('Enter');
     expect(ui.app.screen).toBe('kartSelect');
-    expect(q('[data-id="classic"]')!.classList.contains('refused')).toBe(true);
-    expect(h.sounds).toEqual(['back']);
-    expect(ui.save.settings.selectedKartId).toBeUndefined();
-    // unlocked, it can be chosen
-    ui.save.unlocked.bodies.push('classic');
+    expect(q('[data-id="classic"]')).toBeNull();
+    expect(q('[data-id="buggy"]')).toBeNull();
+    expect(q('.kart-tile[aria-disabled="true"]')).toBeNull();
+    expect(q('.kart-tile .kc-lock')).toBeNull();
+    // left from the first tile wraps to the last signature kart, not a twin
+    key('ArrowLeft');
+    expect(focused()).toBe('snacktruck');
+    // the walk round the grid meets no twin
+    const seen = new Set<string>();
+    for (let i = 0; i < 16; i++) { key('ArrowRight'); seen.add(focused()!); }
+    expect(seen.has('classic') || seen.has('buggy')).toBe(false);
+    expect(seen.size).toBe(8);
+    // unlocked, still off the screen
+    ui.save.unlocked.bodies.push('classic', 'buggy');
     ui.dispatch({ type: 'back' });
     ui.dispatch({ type: 'pickRacer', racerId: 'pip' });
-    key('ArrowLeft'); key('ArrowLeft');
-    expect(q('[data-id="classic"]')!.getAttribute('aria-disabled')).toBeNull();
-    key('Enter');
-    expect([ui.app.screen, ui.app.kartId]).toEqual(['trackSelect', 'classic']);
+    expect(q('[data-id="classic"]')).toBeNull();
+    expect(q('[data-id="buggy"]')).toBeNull();
+    expect(document.querySelectorAll('#ui .screen.on .kart-tile').length).toBe(8);
     ui.dispose();
   });
 });
@@ -256,10 +258,11 @@ describe('choosing a kart', () => {
     expect(heroKart()).toBe('scooter');
     vi.advanceTimersByTime(UI.hoverDressMs);
     expect(heroKart()).toBe('skimmer');
-    // a locked one previews under the pointer too
-    over('buggy');
+    // a tile on the second row too (the twins, once there, are off the screen)
+    over('snacktruck');
     vi.advanceTimersByTime(UI.hoverDressMs);
-    expect([focused(), heroKart()]).toEqual(['buggy', 'buggy']);
+    expect([focused(), heroKart()]).toEqual(['snacktruck', 'snacktruck']);
+    expect(q('[data-id="buggy"]')).toBeNull();
     ui.dispose();
   });
 
@@ -401,15 +404,21 @@ describe('the Racer screen with karts picked (design §12)', () => {
     off.dispose();
   });
 
-  it('an old save\'s Buggy body becomes the kart (seeded once) and the race gets it; the Unlocks list names the twins as karts', () => {
+  it('an old save\'s Buggy body becomes the kart (seeded once) and the race gets it; the Kart screen does not show it; the Unlocks list names the twins as karts', () => {
     const store = new Map([[SAVE_KEY, JSON.stringify({ settings: { selectedRacerId: 'juniper', selectedBodyId: 'buggy' }, unlocked: { bodies: ['buggy'] } })]]);
     const h = host();
     const ui = root(h, false, { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => { store.set(k, v); } });
     expect(ui.app.kartId).toBe('buggy');
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }] as const) ui.dispatch(a);
     key('Enter'); // Juniper
-    expect(focused()).toBe('buggy');
-    key('Enter');
+    expect(ui.app.screen).toBe('kartSelect');
+    // the Buggy is off the screen: the focus falls back to Juniper's own kart, no tile marked hers now
+    expect(q('[data-id="buggy"]')).toBeNull();
+    expect(focused()).toBe('wagon');
+    expect(q('.kart-tile.chosen')).toBeNull();
+    expect(ui.app.kartId).toBe('buggy'); // kept until another is chosen
+    // the kart she is in stays hers for the race (picked as the game picks it, not by a tile)
+    ui.dispatch({ type: 'pickKart', kartId: 'buggy' });
     key('Enter');
     expect(h.plans.at(-1)).toMatchObject({ racerId: 'juniper', kartId: 'buggy', look: { body: 'buggy' } });
     ui.dispatch({ type: 'pause' }); ui.dispatch({ type: 'quit' }); ui.dispatch({ type: 'back' });
@@ -423,13 +432,13 @@ describe('the Racer screen with karts picked (design §12)', () => {
 });
 
 describe('the Kart screen renderer (K5)', () => {
-  it('a landmark, ten real buttons each named with its bars, one focused; a locked one says so', () => {
+  it('a landmark, eight real buttons each named with its bars, one focused; no twin among them', () => {
     const ui = root(host());
     for (const a of [{ type: 'boot' }, { type: 'start' }, { type: 'pickMode', mode: 'quick' }, { type: 'pickRacer', racerId: 'gus' }] as const) ui.dispatch(a);
     const screen = document.querySelector<HTMLElement>('#ui .kart-screen.on')!;
     expect(screen.getAttribute('aria-label')).toBe('Pick your kart');
     const cards = [...screen.querySelectorAll<HTMLButtonElement>('.kart-tile')];
-    expect(cards.length).toBe(10);
+    expect(cards.length).toBe(8);
     expect(cards.every((c) => c.tagName === 'BUTTON' && c.type === 'button')).toBe(true);
     expect(screen.querySelectorAll('.focused').length).toBe(1);
     expect(screen.querySelectorAll('[tabindex="0"]').length).toBe(1);
@@ -437,18 +446,16 @@ describe('the Kart screen renderer (K5)', () => {
     expect(truck.getAttribute('aria-label')).toBe(`Boss Roadster, Big Gus's kart. Top speed, turns like a truck. Your kart now. ${truck.getAttribute('aria-label')!.split('Your kart now. ')[1]}`);
     // Big Gus's own line (design §4, 28 Sept 2026: the heavy class, a step more speed and a step less handling)
     expect(truck.getAttribute('aria-label')).toMatch(/Speed 10 of 10\. Accel 2 of 10\. Handling 1 of 10\. Weight 10 of 10\.$/);
-    const classic = cards.find((c) => c.dataset.id === 'classic')!;
-    expect(classic.getAttribute('aria-label')).toMatch(/^Classic, Same stats as the Vector Racer\. Quick on straights, stiff in bends\. Locked: Finish a Grand Prix\. Speed/);
-    expect(classic.getAttribute('aria-disabled')).toBe('true');
-    expect(classic.querySelector('.kc-hint')!.textContent).toBe('Finish a Grand Prix');
-    expect(classic.querySelector('.kc-art .kc-lock svg.lock-svg')).not.toBeNull();
+    // the twins are off the screen (Adam, 30 Sept 2026), so no tile is locked
+    expect(cards.map((c) => c.dataset.id)).toEqual(['scooter', 'scrap', 'pod', 'wagon', 'skimmer', 'windup', 'stomper', 'snacktruck']);
+    expect(cards.some((c) => c.getAttribute('aria-disabled') === 'true' || c.querySelector('.kc-lock'))).toBe(false);
     // each tile's picture: its own kart rendered from its 3D model in its colors (a twin in the racer's), our drawing
     // under it until it loads; both hidden from assistive tech (the label says it); no words on a tile but a lock's
-    expect(cards.map((c) => c.querySelector('img.art')!.getAttribute('src'))).toEqual(cards.map((c) => `/art/karts/${c.dataset.id === 'classic' || c.dataset.id === 'buggy' ? `${c.dataset.id}-gus` : c.dataset.id}.webp`));
+    expect(cards.map((c) => c.querySelector('img.art')!.getAttribute('src'))).toEqual(cards.map((c) => `/art/karts/${c.dataset.id}.webp`));
     expect(cards.every((c) => c.querySelector('img.art')!.getAttribute('alt') === '')).toBe(true);
     expect(cards.map((c) => c.querySelector('svg.kart-svg')!.getAttribute('data-kart'))).toEqual(cards.map((c) => c.dataset.id));
     expect(cards.every((c) => c.querySelector('svg.kart-svg')!.getAttribute('aria-hidden') === 'true')).toBe(true);
-    expect(cards.filter((c) => (c.textContent ?? '').replace(/Locked in!|✓/g, '').trim()).map((c) => c.dataset.id)).toEqual(['classic', 'buggy']);
+    expect(cards.filter((c) => (c.textContent ?? '').replace(/Locked in!|✓/g, '').trim()).map((c) => c.dataset.id)).toEqual([]);
     // Back and Stats in the prompts along the bottom; no emoji anywhere (the check on the chosen kart is text, as the class row's)
     expect(screen.querySelector('.prompts [data-id="back"]')).not.toBeNull();
     expect(screen.querySelector('.prompts [data-id="stats"]')!.getAttribute('aria-pressed')).toBe('false');
