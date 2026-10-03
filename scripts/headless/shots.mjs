@@ -23,6 +23,8 @@ try {
     // a breath between steps: the race waits at its countdown until the warm-up (shaders, sky) is done, and that needs the page's own turns
     const info = await c.eval(`(async () => { kart.race('${track}', '${racer}', ${raceOpts}); kart.autopilot(true); const S = () => kart.session;
       const breathe = () => new Promise((r) => setTimeout(r, 0));
+      // the title's attract race can still be loading: kart.race takes over only once it has (playerIndex -1 till then)
+      for (let w = 0; w < 300 && S().playerIndex < 0; w++) { await new Promise((r) => setTimeout(r, 50)); if (w % 20 === 19) kart.race('${track}', '${racer}', ${raceOpts}); }
       for (let n = 0; n < 4000; n++) { if (kart.ui.paused) kart.ui.dispatch({ type: 'resume' }); kart.step(30); await breathe();
         const k = S().state.karts[S().playerIndex]; if (S().state.phase !== 'countdown' && k.lap === 1 && k.t >= ${t}) break; }
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));

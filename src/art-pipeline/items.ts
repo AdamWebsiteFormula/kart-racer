@@ -12,6 +12,7 @@ import {
   AdditiveBlending, CapsuleGeometry, Euler, Vector3, CircleGeometry, ConeGeometry, CylinderGeometry, DoubleSide, MeshBasicMaterial, MeshStandardMaterial,
   ShaderMaterial, SphereGeometry, TorusGeometry, type BufferGeometry,
 } from 'three';
+import { CORE_BOTTOM, CORE_NODE, CORE_RING, CORE_TOP } from './decor.ts';
 import { EnergyBuilder, FINISH, ItemBuilder, plateXZ } from './itemKit.ts';
 import { isPbr, litWorld } from './look.ts';
 import { ModelBuilder } from './model.ts';
@@ -92,15 +93,15 @@ const SOLID: Readonly<Record<string, Build>> = {
   // only shows up close. Its red light is `mineLight`, drawn when it blinks
   mine: () => {
     const b = new ItemBuilder();
-    b.cone(0.46, 0.95, '#3fe9ff', FINISH.balloon, [0, 0.475, 0], undefined, 6);
-    b.cone(0.46, 0.95, '#ff4fd8', FINISH.balloon, [0, -0.475, 0], [Math.PI, 0, 0], 6);
+    b.cone(0.46, 0.95, CORE_TOP, FINISH.balloon, [0, 0.475, 0], undefined, 6);
+    b.cone(0.46, 0.95, CORE_BOTTOM, FINISH.balloon, [0, -0.475, 0], [Math.PI, 0, 0], 6);
     b.ball([0.2, 0.34, 0.2], '#ffffff', FINISH.balloon, [0, 0, 0], undefined, 10);
     for (const [tilt, turn] of [[0.42, 0], [-0.42, 1.1]] as const) {
-      b.torus(0.85, 0.055, '#d4dbe4', FINISH.steel, [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], Math.PI * 2, 18);
+      b.torus(0.85, 0.055, CORE_RING, FINISH.steel, [0, 0, 0], [Math.PI / 2 + tilt, turn, 0], Math.PI * 2, 18);
       const e = new Euler(Math.PI / 2 + tilt, turn, 0);
       for (let k = 0; k < 4; k++) {
         const a = (k / 4) * Math.PI * 2 + 0.4, v = new Vector3(Math.cos(a) * 0.85, Math.sin(a) * 0.85, 0).applyEuler(e);
-        b.ball([0.085, 0.085, 0.085], k % 2 ? '#3fe9ff' : '#ff4fd8', FINISH.balloon, [v.x, v.y, v.z], undefined, 8);
+        b.ball([0.085, 0.085, 0.085], CORE_NODE, FINISH.balloon, [v.x, v.y, v.z], undefined, 8);
       }
     }
     b.torus(0.4, 0.035, '#2a2d35', FINISH.steel, [0, 0.02, 0], [Math.PI / 2, 0, 0], Math.PI * 2, 18);

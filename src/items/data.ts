@@ -96,10 +96,10 @@ const TABLE_ROWS: Record<string, number>[] = [
   { beachBall: 20, oilCan: 20, decoyBalloon: 15, bubble: 10, fizzPop: 15, windUpMouse: 10, pogoSpring: 10 },
   { beachBall: 20, homingKite: 15, oilCan: 10, bubble: 10, fizzPop: 15, windUpMouse: 15, pogoSpring: 15 },
   { beachBall: 10, homingKite: 20, bubble: 5, airHorn: 5, fizzPop: 10, tripleFizz: 15, windUpMouse: 15, pogoSpring: 10, grappleAnchor: 10 },
-  { homingKite: 20, airHorn: 10, fizzPop: 5, tripleFizz: 25, windUpMouse: 10, pogoSpring: 5, grappleAnchor: 15, strikeBall: 5, fogBank: 5 },
-  { homingKite: 15, airHorn: 10, tripleFizz: 25, pogoSpring: 5, grappleAnchor: 20, strikeBall: 15, fogBank: 10 },
-  { homingKite: 10, tripleFizz: 25, grappleAnchor: 15, strikeBall: 35, fogBank: 15 },
-  { tripleFizz: 20, grappleAnchor: 10, strikeBall: 50, fogBank: 20 },
+  { homingKite: 20, airHorn: 10, fizzPop: 5, tripleFizz: 30, windUpMouse: 10, pogoSpring: 5, grappleAnchor: 15, fogBank: 5 },
+  { homingKite: 15, airHorn: 10, tripleFizz: 30, pogoSpring: 5, grappleAnchor: 20, strikeBall: 10, fogBank: 10 },
+  { homingKite: 10, tripleFizz: 35, grappleAnchor: 25, strikeBall: 15, fogBank: 15 },
+  { tripleFizz: 35, grappleAnchor: 20, strikeBall: 25, fogBank: 20 },
 ];
 export const ITEM_TABLE: readonly Record<string, number>[] = Object.freeze(TABLE_ROWS);
 
